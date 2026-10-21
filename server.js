@@ -59,7 +59,7 @@ const playerUrl = (tm, p) => `/players/${tm.id}/${p.id}`;
 const findPlayerByName = (tm, name) => tm?.roster.find((p) => p.name.toLowerCase() === String(name || '').toLowerCase());
 function avatar(tm, p, size = 42, cls = '') {
   const st = `width:${size}px;height:${size}px`;
-  if (p?.photo) return `<img class="av ph ${cls}" src="/media/${esc(p.photo)}" alt="${esc(p.name)}" style="${st}" loading="lazy">`;
+  if (p?.photo) return `<img class="av photo ${cls}" src="/media/${esc(p.photo)}" alt="${esc(p.name)}" style="${st}" loading="lazy">`;
   return `<span class="av ${cls}" style="${st};font-size:${Math.round(size * 0.34)}px;background:${esc(tm.color)};color:${readableOn(tm.color)}">${initials(p?.name || '?')}</span>`;
 }
 // Player name as a link to their page when they're on the roster.
@@ -196,7 +196,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=6">
+<link rel="stylesheet" href="/static/style.css?v=7">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -749,7 +749,7 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
         c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
         const url = c.toDataURL('image/jpeg', 0.85);
         document.getElementById('photoData').value = url;
-        document.getElementById('pv').innerHTML = '<img class="av ph xl" src="' + url + '" style="width:140px;height:140px">';
+        document.getElementById('pv').innerHTML = '<img class="av photo xl" src="' + url + '" style="width:140px;height:140px">';
       };
       img.src = URL.createObjectURL(f);
     });

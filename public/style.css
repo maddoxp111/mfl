@@ -309,7 +309,7 @@ img.logo{box-shadow:none;border-radius:0}
 }
 
 /* players */
-.av.ph{object-fit:cover;background:var(--card2)}
+.av.photo{object-fit:cover;background:var(--card2)}
 .av.xl{border-radius:28px;margin:0}
 .pl,.mate{transition:.15s}
 .pl:hover,.mate:hover{background:#262630}
