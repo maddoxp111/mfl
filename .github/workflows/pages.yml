@@ -1,0 +1,36 @@
+name: Publish GitHub Pages copy
+
+# GitHub Pages can only serve static files, so this takes a read-only snapshot
+# of the live Vercel site (scores, schedule, teams, players) and publishes it.
+# Admin links in the copy point back to Vercel.
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/mirror.js https://mfl-mps-projects-0c7e5307.vercel.app /mfl dist
+      - name: Push to gh-pages branch
+        run: |
+          cd dist
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Snapshot of live site"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
