@@ -88,20 +88,46 @@ function seed() {
 }
 
 let db;
-function load() {
-  if (db) return db;
-  try {
-    db = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-  } catch {
-    db = seed();
-    save();
+const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+const BLOB_KEY = 'mfl/db.json';
+
+// Load into memory (call before each request so serverless instances stay in sync).
+async function refresh() {
+  if (useBlob) {
+    const { list } = require('@vercel/blob');
+    const { blobs } = await list({ prefix: BLOB_KEY });
+    const b = blobs.find((x) => x.pathname === BLOB_KEY);
+    if (b) {
+      const r = await fetch(b.url + '?t=' + Date.now(), { cache: 'no-store' });
+      db = await r.json();
+    } else {
+      db = seed();
+      await save();
+    }
+    return db;
+  }
+  if (!db) {
+    try {
+      db = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    } catch {
+      db = seed();
+      await save();
+    }
   }
   return db;
 }
-function save() {
+function load() {
+  return db;
+}
+async function save() {
+  if (useBlob) {
+    const { put } = require('@vercel/blob');
+    await put(BLOB_KEY, JSON.stringify(db), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
+    return;
+  }
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(FILE + '.tmp', JSON.stringify(db));
   fs.renameSync(FILE + '.tmp', FILE);
 }
 
-module.exports = { load, save };
+module.exports = { load, save, refresh };

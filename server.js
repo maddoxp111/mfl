@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
-const { load, save } = require('./db');
+const { load, save, refresh } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +10,7 @@ const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update(
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(async (req, res, next) => { if (req.path.startsWith('/static')) return next(); try { await refresh(); next(); } catch (e) { next(e); } });
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 
 // ---------- helpers ----------
@@ -450,10 +451,10 @@ app.get('/admin/game/new', requireAdmin, (req, res) => {
   const db = load();
   res.send(layout(req, 'New Game', pageHead('New Game') + `<div class="wrap">${adminNav}${gameForm(db, { home: 'pedon', away: 'xavier', type: 'regular', status: 'scheduled', time: '12:35', events: [] }, true)}</div>`, { strip: false }));
 });
-app.post('/admin/game/new', requireAdmin, (req, res) => {
+app.post('/admin/game/new', requireAdmin, async (req, res) => {
   const db = load();
   const g = readGame(req.body, { id: String(db.nextId++) });
-  db.games.push(g); save();
+  db.games.push(g); await save();
   res.redirect('/admin?saved=1');
 });
 app.get('/admin/game/:id', requireAdmin, (req, res) => {
@@ -462,16 +463,16 @@ app.get('/admin/game/:id', requireAdmin, (req, res) => {
   if (!g) return res.redirect('/admin');
   res.send(layout(req, 'Edit Game', pageHead(`Edit Game · ${shortDate(g.date)}`, `<a href="/games/${g.id}" style="color:#fff">View public page →</a>`) + `<div class="wrap">${adminNav}${req.query.saved ? '<p class="ok">Saved.</p>' : ''}${gameForm(db, g, false)}</div>`, { strip: false }));
 });
-app.post('/admin/game/:id', requireAdmin, (req, res) => {
+app.post('/admin/game/:id', requireAdmin, async (req, res) => {
   const db = load();
   const g = db.games.find((x) => x.id === req.params.id);
   if (!g) return res.redirect('/admin');
-  readGame(req.body, g); save();
+  readGame(req.body, g); await save();
   res.redirect(`/admin/game/${g.id}?saved=1`);
 });
-app.post('/admin/game/:id/delete', requireAdmin, (req, res) => {
+app.post('/admin/game/:id/delete', requireAdmin, async (req, res) => {
   const db = load();
-  db.games = db.games.filter((x) => x.id !== req.params.id); save();
+  db.games = db.games.filter((x) => x.id !== req.params.id); await save();
   res.redirect('/admin?saved=1');
 });
 
@@ -493,7 +494,7 @@ app.get('/admin/teams', requireAdmin, (req, res) => {
         <label class="wide">Roster (one per line, "Name | Tag", e.g. "Liam Bair | Rd 2")<textarea name="roster" rows="10">${esc(t.roster.map((p) => p.tag ? `${p.name} | ${p.tag}` : p.name).join('\n'))}</textarea></label>
       </div><div class="actions"><button class="btn">Save ${esc(t.name)}</button></div></form>`).join('')}</div>`, { strip: false }));
 });
-app.post('/admin/teams/:id', requireAdmin, (req, res) => {
+app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
   const db = load();
   const t = db.teams[req.params.id];
   if (!t) return res.redirect('/admin/teams');
@@ -505,7 +506,7 @@ app.post('/admin/teams/:id', requireAdmin, (req, res) => {
   if (b.clearLogo) t.logo = null;
   else if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/.test(b.logo || '')) t.logo = b.logo;
   t.roster = String(b.roster || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [name, tag] = l.split('|').map((x) => x.trim()); return { name, tag: tag || '' }; });
-  save();
+  await save();
   res.redirect('/admin/teams?saved=1');
 });
 
@@ -516,13 +517,14 @@ app.get('/admin/bowls', requireAdmin, (req, res) => {
     ${db.bowls.map((b, i) => `<label>Bowl ${i + 1}<input name="name_${b.slug}" value="${esc(b.name)}"></label>`).join('')}
     <div class="actions"><button class="btn">Save</button></div></form></div>`, { strip: false }));
 });
-app.post('/admin/bowls', requireAdmin, (req, res) => {
+app.post('/admin/bowls', requireAdmin, async (req, res) => {
   const db = load();
   for (const b of db.bowls) if (req.body['name_' + b.slug]) b.name = String(req.body['name_' + b.slug]).slice(0, 60);
-  save();
+  await save();
   res.redirect('/admin/bowls?saved=1');
 });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('Page not found', '<a href="/" style="color:#fff">Back to MFL.com</a>'))));
 
-app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+if (require.main === module) app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+module.exports = app;
