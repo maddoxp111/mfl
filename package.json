@@ -1,0 +1,27 @@
+{
+  "name": "mfl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maddoxp111/mfl.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/maddoxp111/mfl/issues"
+  },
+  "homepage": "https://github.com/maddoxp111/mfl#readme",
+  "dependencies": {
+    "express": "^4.22.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
