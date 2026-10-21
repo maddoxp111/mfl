@@ -16,8 +16,9 @@ function localPath(u) {
   if (month && /^\d{4}-\d{2}$/.test(month)) p += '/' + month;
   return p || '';
 }
-const isAsset = (p) => /^\/(static|media)\//.test(p);
-const skip = (p) => /^\/admin(\/|$)/.test(p);
+const isAsset = (p) => /^\/(static|media)\//.test(p) || p.endsWith('.ics');
+// Admin and Pick'em need the real server, so those links go to Vercel.
+const skip = (p) => /^\/(admin|pickem)(\/|$)/.test(p);
 
 function rewrite(html) {
   return html.replace(/(href|src)="(\/[^"]*)"/g, (m, attr, link) => {

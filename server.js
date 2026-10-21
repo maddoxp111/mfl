@@ -1,7 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
-const { load, save, refresh, putMedia, getMedia, slug } = require('./db');
+const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc } = require('./db');
+const pk = require('./pickem');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,7 @@ const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 const VENUE = 'Thomas Metcalf School';
 
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
+app.use(express.json({ limit: '100kb' }));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 // Player photos, served from storage (keys are unique per upload, so cache hard).
 app.get('/media/:key', async (req, res, next) => {
@@ -155,6 +157,11 @@ function icon(name) {
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/>',
     arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     chev: '<path d="M6 9l6 6 6-6"/>',
+    swap: '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+    coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/>',
+    fire: '<path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/>',
   }[name];
   return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 }
@@ -196,20 +203,21 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
   <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
   <nav class="nav">
     <div class="dd ${on(['/schedule', '/scores', '/games'])}"><button>Games ${icon('chev')}</button><div class="dd-m">
-      <a href="/schedule">${icon('cal')} Schedule</a><a href="/scores">${icon('clock')} Scores</a></div></div>
+      <a href="/schedule">${icon('cal')} Schedule</a><a href="/scores">${icon('clock')} Scores</a><a href="/history">${icon('swap')} Head-to-Head</a></div></div>
     <div class="dd ${on(['/playoffs'])}"><button>Playoffs ${icon('chev')}</button><div class="dd-m">
       ${db.bowls.map((b) => `<a href="/playoffs/${b.slug}">${icon('trophy')} ${esc(b.name)}</a>`).join('')}</div></div>
     <div class="dd ${on(['/teams'])}"><button>Teams ${icon('chev')}</button><div class="dd-m">
-      ${teams.map((t) => `<a href="/teams/${t.id}">${logo(t, 22)} ${esc(teamFull(t))}</a>`).join('')}</div></div>
+      ${teams.map((t) => `<a href="/teams/${t.id}">${logo(t, 22)} ${esc(teamFull(t))}</a>`).join('')}<a href="/transactions">${icon('swap')} Transactions</a></div></div>
     <div class="dd ${on(['/stats'])}"><button>Stats ${icon('chev')}</button><div class="dd-m">
-      <a href="/stats/team">Team Stats</a></div></div>
+      <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a></div></div>
+    <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
     ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}
   </nav>
 </div></header>
@@ -217,7 +225,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/stats/team">Stats</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
 <script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
@@ -254,12 +262,22 @@ function heroResult(db, g) {
       <div class="hb-team ${w && w !== b.id ? 'dim' : ''}">${logo(b, 72)}<b>${esc(b.abbr)}</b></div>
     </div></a>`;
 }
+// Kickoff as a real timestamp (league time zone), for live countdowns.
+function kickoffTs(g) {
+  if (!g.date) return null;
+  const local = pk.nowLocal(TZ).replace(' ', 'T') + ':00Z';
+  const offset = Date.parse(local) - Math.floor(Date.now() / 60000) * 60000;
+  return Date.parse(`${g.date}T${g.time || '12:35'}:00Z`) - offset;
+}
+const countdown = (g) => (g.status === 'scheduled' && kickoffTs(g) > Date.now() ? `<div class="cd" data-ts="${kickoffTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div>` : '');
+const countdownScript = `<script>(()=>{const els=document.querySelectorAll('.cd');if(!els.length)return;const tick=()=>els.forEach(el=>{let s=Math.max(0,Math.floor((+el.dataset.ts-Date.now())/1000));const v=[Math.floor(s/86400),Math.floor(s%86400/3600),Math.floor(s%3600/60),s%60];el.querySelectorAll('b').forEach((b,i)=>b.textContent=String(v[i]).padStart(2,'0'));if(!s)el.classList.add('done')});tick();setInterval(tick,1000)})()</script>`;
+
 function heroNext(db, g, kicker) {
   const a = db.teams[g.home], b = db.teams[g.away];
   return `<a class="hero" href="/games/${g.id}" style="--a:${esc(a.color)};--b:${esc(b.color)}">
     <div class="hero-txt"><div class="kicker">${esc(kicker)}${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</div>
       <h1>${esc(a.name)} vs ${esc(b.name)}</h1>
-      <p>${icon('cal')} ${esc(longDate(g.date))} &nbsp; ${icon('clock')} ${time12(g.time)} &nbsp; ${icon('pin')} ${VENUE}</p></div>
+      <p>${icon('cal')} ${esc(longDate(g.date))} &nbsp; ${icon('clock')} ${time12(g.time)} &nbsp; ${icon('pin')} ${VENUE}</p>${countdown(g)}</div>
     <div class="hero-board">
       <div class="hb-team">${logo(a, 72)}<b>${esc(a.abbr)}</b><small>${record(teamStats(db, a.id))}</small></div>
       <div class="hb-score vs"><i>VS</i></div>
@@ -308,9 +326,9 @@ app.get('/', (req, res) => {
           <div class="card"><div class="card-h"><h2>Up Next</h2><a href="/schedule">Full schedule ${icon('arrow')}</a></div><div class="list">${upcoming.slice(0, 4).map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
           <div class="card"><div class="card-h"><h2>Latest Results</h2><a href="/scores">All scores ${icon('arrow')}</a></div><div class="list">${recent.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games played yet.</p>'}</div></div>
         </div>
-        <div class="col">${standings}${road}${rules}</div>
+        <div class="col"><a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Bet coins on every game, with parlays and player props.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
       </div>
-    </div>`));
+    </div>${countdownScript}`));
 });
 
 app.get('/schedule', (req, res) => {
@@ -375,8 +393,38 @@ app.get('/games/:id', (req, res) => {
       </div>
       ${g.reason ? `<div class="gh-note">${g.status === 'postponed' ? '<b>Postponed</b> · ' : g.type === 'exhibition' ? '<b>Exhibition</b> · ' : ''}${esc(g.reason)}</div>` : ''}
     </div></section>
-    <div class="wrap game-grid">${plays}<div class="col">${box(a)}${box(b)}</div></div>`));
+    <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}</div>
+    <div class="wrap game-grid">${plays}<div class="col">${box(a)}${box(b)}</div></div>${countdownScript}`));
 });
+
+// Auto-generated preview for games that haven't been played yet.
+function preview(db, g) {
+  const a = db.teams[g.home], b = db.teams[g.away];
+  const sA = teamStats(db, a.id), sB = teamStats(db, b.id);
+  const prev = db.games.filter((x) => isFinal(x) && x.date < (g.date || '9999')).sort((x, y) => y.date.localeCompare(x.date));
+  const last = prev[0];
+  const lead = (t) => playerLeaders(db).filter((p) => p.team === t.id).sort((x, y) => y.td - x.td)[0];
+  const open = pk.isOpen(g, TZ);
+  const m = open ? pk.markets(db, g) : null;
+  const wp = (t) => (m ? Math.round((m.byKey[`ml:${t.id}`]?.p || 0) * 100) : null);
+  const per = (n, gp) => (gp ? (n / gp).toFixed(1) : '0.0');
+  const line = (label, x, y) => `<div class="pv-row"><b>${x}</b><span>${label}</span><b>${y}</b></div>`;
+  const ldr = (t) => { const p = lead(t); return p && p.td ? `${esc(p.name)} (${p.td})` : '–'; };
+  return `<div class="card preview" style="--a:${esc(a.color)};--b:${esc(b.color)}">
+    <div class="card-h"><h2>Game Preview</h2>${countdown(g)}</div>
+    <div class="pv-head"><span>${logo(a, 28)} ${esc(a.abbr)}</span><span>${esc(b.abbr)} ${logo(b, 28)}</span></div>
+    ${line('Record', record(sA), record(sB))}
+    ${line('Points / game', per(sA.pf, sA.gp), per(sB.pf, sB.gp))}
+    ${line('Allowed / game', per(sA.pa, sA.gp), per(sB.pa, sB.gp))}
+    ${line('Touchdowns', sA.td, sB.td)}
+    ${line('Interceptions', sA.int, sB.int)}
+    ${line('Streak', sA.streak || '–', sB.streak || '–')}
+    ${line('TD leader', ldr(a), ldr(b))}
+    <p class="pv-note">${last ? `Last meeting: <a href="/games/${last.id}">${esc(db.teams[winner(last) || last.home].name)} ${winner(last) ? 'won' : 'tied'} ${Math.max(last.homeScore, last.awayScore)}–${Math.min(last.homeScore, last.awayScore)}</a> on ${esc(shortDate(last.date))}.` : 'First meeting of the season.'}
+      ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%.` : ''}</p>
+    ${open ? `<a class="btn" href="/pickem/game/${g.id}">${icon('coin')} Make your picks: ${m.list.length} bets</a>` : ''}
+  </div>`;
+}
 
 app.get('/playoffs/:slug', (req, res) => {
   const db = load();
@@ -424,6 +472,7 @@ app.get('/teams/:id', (req, res) => {
         <div class="card"><div class="card-h"><h2>Team Leaders</h2></div>
           ${[['td', 'Touchdowns'], ['ptd', 'Passing TDs'], ['int', 'Interceptions']].map(([k, n]) => { const p = lead(k); return `<div class="leader"><span class="av" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${p && p[k] ? initials(p.name) : '–'}</span><div><small>${n}</small><b>${p && p[k] ? playerLink(tm, p.name) : 'No leader yet'}</b></div><span class="leader-n">${p && p[k] ? p[k] : ''}</span></div>`; }).join('')}</div>
         <div class="card"><div class="card-h"><h2>Upcoming</h2><a href="/schedule">Schedule ${icon('arrow')}</a></div><div class="list">${upcoming.map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
+        ${(db.transactions || []).some((t) => t.team === tm.id || t.team2 === tm.id) ? `<div class="card"><div class="card-h"><h2>Transactions</h2><a href="/transactions">All ${icon('arrow')}</a></div>${[...db.transactions].filter((t) => t.team === tm.id || t.team2 === tm.id).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 5).map((t) => txLine(db, t)).join('')}</div>` : ''}
       </div>
     </div>`));
 });
@@ -460,11 +509,13 @@ app.get('/stats/team', (req, res) => {
 function playerStats(db, tm, p) {
   const s = { td: 0, ptd: 0, int: 0, log: [] };
   const name = p.name.toLowerCase();
-  const games = db.games.filter((g) => g.status === 'final' && (g.home === tm.id || g.away === tm.id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const games = db.games.filter((g) => g.status === 'final').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   for (const g of games) {
-    const row = { g, td: 0, ptd: 0, int: 0 };
+    const row = { g, td: 0, ptd: 0, int: 0, team: null };
     for (const e of g.events || []) {
-      if (e.team !== tm.id) continue;
+      const hit = (e.player || '').toLowerCase() === name || (e.type === 'TD' && (e.passer || '').toLowerCase() === name);
+      if (!hit || (row.team && row.team !== e.team)) continue;
+      row.team = e.team;
       if ((e.player || '').toLowerCase() === name) row[e.type === 'TD' ? 'td' : 'int']++;
       if (e.type === 'TD' && (e.passer || '').toLowerCase() === name) row.ptd++;
     }
@@ -480,9 +531,13 @@ app.get('/players/:team/:pid', (req, res) => {
   const db = load();
   const tm = db.teams[req.params.team];
   const p = tm?.roster.find((x) => x.id === req.params.pid);
-  if (!p) return res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Player not found')));
+  if (!p) {
+    const moved = Object.values(db.teams).find((t) => t.roster.some((x) => x.id === req.params.pid));
+    if (moved) return res.redirect(`/players/${moved.id}/${req.params.pid}`);
+    return res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Player not found')));
+  }
   const s = playerStats(db, tm, p);
-  const opp = (g) => db.teams[g.home === tm.id ? g.away : g.home];
+  const opp = (g, t) => db.teams[g.home === t ? g.away : g.home];
   const mates = tm.roster.filter((x) => x.id !== p.id);
   const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)]].filter(([, v]) => v);
   res.send(layout(req, p.name, `
@@ -499,7 +554,7 @@ app.get('/players/:team/:pid', (req, res) => {
       <div class="col">
         <div class="card"><div class="card-h"><h2>Bio</h2></div>${p.bio ? `<div class="bio">${esc(p.bio).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>').replace(/^/, '<p>')}</p></div>` : '<p class="muted">No bio yet.</p>'}</div>
         <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>
-          ${s.log.map(({ g, td, ptd, int }) => { const o = opp(g); const mine = g.home === tm.id ? g.homeScore : g.awayScore; const theirs = g.home === tm.id ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
+          ${s.log.map(({ g, td, ptd, int, team }) => { const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
             return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td></tr>`; }).join('')}
           </tbody></table></div><p class="muted sm">Season totals don't count exhibitions.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
       </div>
@@ -511,8 +566,431 @@ app.get('/players/:team/:pid', (req, res) => {
     </div>`));
 });
 
+// ---------- pick'em ----------
+const USER_COOKIE = 'mfl_user';
+function readCookies(req) {
+  return Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((x) => { const i = x.indexOf('='); return [x.slice(0, i), decodeURIComponent(x.slice(i + 1))]; }));
+}
+function currentUser(req) {
+  const v = readCookies(req)[USER_COOKIE];
+  if (!v) return null;
+  const [name, exp, sig] = v.split('.');
+  if (!name || !exp || !sig || Number(exp) < Date.now()) return null;
+  const good = sign('u:' + name + ':' + exp);
+  return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good)) ? name : null;
+}
+function setUserCookie(req, res, name) {
+  const exp = String(Date.now() + 180 * 24 * 3600 * 1000);
+  res.setHeader('Set-Cookie', `${USER_COOKIE}=${name}.${exp}.${sign('u:' + name + ':' + exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${180 * 24 * 3600}${req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`);
+}
+const userKey = (name) => 'users/' + name;
+const coins = (n) => `<span class="coins">${icon('coin')}${Number(n).toLocaleString('en-US')}</span>`;
+const oddsTxt = (d) => pk.american(d);
+function matchName(db, g) { return `${db.teams[g.home].abbr} vs ${db.teams[g.away].abbr}`; }
+
+function oddsBtn(db, g, m, cls = '') {
+  return `<button type="button" class="ob ${cls}" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-odds="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${esc(m.label)}</span><b>${oddsTxt(m.odds)}</b></button>`;
+}
+function openGames(db) {
+  return db.games.filter((g) => pk.isOpen(g, TZ)).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Bet slip: lives in the browser until submitted; the server re-prices every pick.
+function slip(user) {
+  return `<aside class="slip" id="slip" hidden>
+    <button class="slip-head" type="button" onclick="document.getElementById('slip').classList.toggle('min')"><b>Bet slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span></button>
+    <div class="slip-body">
+      <div id="slipLegs"></div>
+      <label class="slip-stake">Bet<input type="number" id="slipStake" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
+      <div class="slip-sum"><span>Odds <b id="slipOdds">–</b></span><span>To win <b id="slipWin">–</b></span></div>
+      ${user ? '<button class="btn slip-go" id="slipGo" type="button">Place bet</button>' : '<a class="btn slip-go" href="/pickem/login?next=/pickem">Log in to bet</a>'}
+      <p class="slip-msg" id="slipMsg"></p>
+      <button type="button" class="slip-clear" onclick="mflSlip.clear()">Clear slip</button>
+    </div>
+  </aside>
+  <script>
+  const mflSlip = (() => {
+    const KEY = 'mfl_slip';
+    let legs = []; try { legs = JSON.parse(localStorage.getItem(KEY)) || []; } catch {}
+    const el = (id) => document.getElementById(id);
+    const amer = (d) => d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
+    const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
+    function render() {
+      document.querySelectorAll('.ob').forEach((b) => b.classList.toggle('on', legs.some((l) => l.game === b.dataset.game && l.key === b.dataset.key)));
+      el('slip').hidden = !legs.length;
+      el('slipCount').textContent = legs.length;
+      el('slipKind').textContent = legs.length > 1 ? legs.length + '-leg parlay' : 'Single';
+      el('slipLegs').innerHTML = legs.map((l, i) => '<div class="sl"><div><small>' + l.match + '</small><b>' + l.label + '</b></div><span>' + amer(l.odds) + '</span><button type="button" onclick="mflSlip.remove(' + i + ')" aria-label="Remove">✕</button></div>').join('');
+      const odds = legs.reduce((x, l) => x * l.odds, 1), stake = Math.floor(+el('slipStake').value || 0);
+      el('slipOdds').textContent = legs.length ? amer(odds) : '–';
+      el('slipWin').textContent = legs.length && stake ? Math.floor(stake * odds).toLocaleString() : '–';
+    }
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('.ob'); if (!b) return;
+      const i = legs.findIndex((l) => l.game === b.dataset.game && l.key === b.dataset.key);
+      if (i >= 0) legs.splice(i, 1);
+      else if (legs.length >= ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'Max ${pk.MAX_LEGS} picks per parlay.'; }
+      else legs.push({ game: b.dataset.game, key: b.dataset.key, label: b.dataset.label, odds: +b.dataset.odds, match: b.dataset.match });
+      el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
+    });
+    el('slipStake').addEventListener('input', render);
+    const go = el('slipGo');
+    if (go) go.addEventListener('click', async () => {
+      go.disabled = true; el('slipMsg').textContent = 'Placing bet…'; el('slipMsg').className = 'slip-msg';
+      try {
+        const r = await fetch('/pickem/bet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: legs.map((l) => ({ game: l.game, key: l.key })), stake: +el('slipStake').value }) });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error);
+        legs = []; store(); render();
+        el('slip').hidden = false; el('slipMsg').className = 'slip-msg good';
+        el('slipMsg').innerHTML = 'Bet placed! To win ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My bets →</a>';
+        document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
+      } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
+      go.disabled = false;
+    });
+    render();
+    return { remove(i) { legs.splice(i, 1); store(); render(); }, clear() { legs = []; store(); render(); } };
+  })();
+  </script>`;
+}
+
+async function loadAccount(db, name) {
+  const user = name ? await getDoc(userKey(name)) : null;
+  return user ? { user, acct: pk.account(db, user) } : { user: null, acct: null };
+}
+function pickNav(cur, name) {
+  const items = [['/pickem', 'Games'], ['/pickem/me', 'My bets'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
+}
+function pickHead(user, acct) {
+  return `<section class="ph pick-ph"><div class="wrap pick-top">
+    <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Bet fake coins on every MFL game. Singles, player props and parlays.</p></div>
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open</span></div>`
+      : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
+  </div></section>`;
+}
+function betCard(db, b, opts = {}) {
+  const st = { won: 'Won', lost: 'Lost', void: 'Refunded', pending: 'Open' }[b.status];
+  return `<div class="bet ${b.status}">
+    <div class="bet-h">${opts.who ? `<b>@${esc(opts.who)}</b>` : `<b>${b.legs.length > 1 ? b.legs.length + '-leg parlay' : 'Single'}</b>`}<span class="bet-st">${st}</span></div>
+    ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
+      return `<div class="bet-leg ${r}"><i></i><div><b>${esc(l.label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+    <div class="bet-f"><span>Bet ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+  </div>`;
+}
+async function leaderboard(db) {
+  const users = await listDocs('users/');
+  return users.map((u) => ({ name: u.name, ...pk.account(db, u) })).sort((a, b) => b.balance - a.balance || b.won - a.won);
+}
+
+app.get('/pickem', async (req, res, next) => {
+  try {
+    const db = load();
+    const name = currentUser(req);
+    const { user, acct } = await loadAccount(db, name);
+    const games = openGames(db).slice(0, 8);
+    const board = (await leaderboard(db)).slice(0, 8);
+    const cards = games.map((g) => {
+      const m = pk.markets(db, g), a = db.teams[g.home], b = db.teams[g.away], k = m.byKey;
+      const feat = [k[`ml:${a.id}`], k[`ml:${b.id}`], k['tot:28'], k['tot:35'], k[`first:${a.id}`], k[`first:${b.id}`]].filter(Boolean);
+      return `<div class="pg card" style="--a:${esc(a.color)};--b:${esc(b.color)}">
+        <div class="pg-h"><div class="pg-teams">${logo(a, 34)}<b>${esc(a.name)}</b><span>vs</span><b>${esc(b.name)}</b>${logo(b, 34)}</div>
+          <div class="pg-when">${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}${esc(shortDate(g.date))} · ${time12(g.time)}</div></div>
+        <div class="obs">${feat.map((x) => oddsBtn(db, g, x)).join('')}</div>
+        <a class="pg-more" href="/pickem/game/${g.id}">All ${m.list.length} bets: player props, margins, specials ${icon('arrow')}</a>
+      </div>`;
+    }).join('');
+    res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
+      <div class="home-grid">
+        <div class="col">${cards || '<div class="card"><p class="muted">No games are open for picks right now. Bets open for every scheduled game and close at kickoff.</p></div>'}</div>
+        <div class="col">
+          ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open bets</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b)).join('')}</div>` : ''}
+          <div class="card"><div class="card-h"><h2>Leaderboard</h2><a href="/pickem/leaderboard">Full ${icon('arrow')}</a></div>${board.length ? `<ol class="lb">${board.map((u, i) => `<li class="${u.name === name ? 'me' : ''}"><span class="rank">${i + 1}</span><b>@${esc(u.name)}</b><small>${u.won}W-${u.lost}L</small>${coins(u.balance)}</li>`).join('')}</ol>` : '<p class="muted">Nobody yet. Be first!</p>'}</div>
+          <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>parlay</b>.</li><li>Bets close at kickoff and pay out when the final score is posted.</li><li>No unders or "player does badly" bets, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>
+        </div>
+      </div></div>${slip(user)}`));
+  } catch (e) { next(e); }
+});
+
+app.get('/pickem/game/:id', async (req, res, next) => {
+  try {
+    const db = load();
+    const g = db.games.find((x) => x.id === req.params.id);
+    if (!g) return res.redirect('/pickem');
+    const name = currentUser(req);
+    const { user, acct } = await loadAccount(db, name);
+    const a = db.teams[g.home], b = db.teams[g.away];
+    const open = pk.isOpen(g, TZ);
+    const m = pk.markets(db, g);
+    const groups = {};
+    for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
+    const order = ['Winner', 'Total points', 'Team points', 'Winning margin', 'Specials', 'Touchdown scorers', 'TD passes', 'Interceptions'];
+    const section = (gname) => {
+      const xs = groups[gname] || [];
+      if (!xs.length) return '';
+      const player = ['Touchdown scorers', 'TD passes', 'Interceptions'].includes(gname);
+      const body = player
+        ? [a, b].map((t) => { const ys = xs.filter((x) => x.team === t.id); return ys.length ? `<div class="mk-team"><h4>${logo(t, 22)} ${esc(t.name)}</h4><div class="obs">${ys.map((x) => oddsBtn(db, g, x)).join('')}</div></div>` : ''; }).join('')
+        : `<div class="obs">${xs.map((x) => oddsBtn(db, g, x)).join('')}</div>`;
+      return `<details class="card mk" ${player ? '' : 'open'}><summary><h2>${gname}</h2><span class="muted sm">${xs.length} bets</span>${icon('chev')}</summary>${body}</details>`;
+    };
+    const winP = (t) => Math.round((m.byKey[`ml:${t.id}`]?.p || 0) * 100);
+    res.send(layout(req, `Pick'em · ${a.name} vs ${b.name}`, pickHead(user, acct) + `<div class="wrap">${pickNav('', name)}
+      <div class="card pg-hero" style="--a:${esc(a.color)};--b:${esc(b.color)}">
+        <div class="pg-teams big">${logo(a, 56)}<b>${esc(a.name)}</b><span>vs</span><b>${esc(b.name)}</b>${logo(b, 56)}</div>
+        <div class="pg-when">${esc(longDate(g.date))} · ${time12(g.time)} · ${VENUE} · <a href="/games/${g.id}">Game page</a></div>
+        <div class="winbar"><div style="width:${winP(a)}%;background:${esc(a.color)}"><span>${esc(a.abbr)} ${winP(a)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${100 - winP(a) - winP(b)}%</span></div><div style="width:${winP(b)}%;background:${esc(b.color)}"><span>${esc(b.abbr)} ${winP(b)}%</span></div></div>
+        ${open ? '' : '<p class="err center">Picks are closed for this game.</p>'}
+      </div>
+      ${open ? order.map(section).join('') : ''}
+    </div>${open ? slip(user) : ''}`));
+  } catch (e) { next(e); }
+});
+
+app.post('/pickem/bet', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  if (!name) return res.json({ ok: false, error: 'Log in first.' });
+  try {
+    const user = await getDoc(userKey(name));
+    if (!user) return res.json({ ok: false, error: 'Account not found. Log in again.' });
+    const built = pk.buildBet(db, req.body.picks, req.body.stake, TZ);
+    if (built.error) return res.json({ ok: false, error: built.error });
+    const bal = pk.account(db, user).balance;
+    if (built.bet.stake > bal) return res.json({ ok: false, error: `You only have ${bal.toLocaleString('en-US')} coins.` });
+    user.bets = user.bets || [];
+    user.bets.push(built.bet);
+    await putDoc(userKey(name), user);
+    res.json({ ok: true, balance: bal - built.bet.stake, toWin: Math.floor(built.bet.stake * built.bet.odds) });
+  } catch (e) {
+    console.error(e);
+    res.json({ ok: false, error: 'Could not place that bet. Try again.' });
+  }
+});
+
+app.get('/pickem/me', async (req, res, next) => {
+  try {
+    const db = load();
+    const name = currentUser(req);
+    if (!name) return res.redirect('/pickem/login?next=/pickem/me');
+    const { user, acct } = await loadAccount(db, name);
+    if (!user) return res.redirect('/pickem/logout');
+    const bets = [...acct.bets].reverse();
+    const canBail = acct.balance < pk.BAILOUT_BELOW && !acct.pending;
+    res.send(layout(req, 'My bets', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/me', name)}
+      ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
+      <div class="stats-row"><div class="card"><small>Profit</small><b class="${acct.profit >= 0 ? 'up' : 'down'}">${acct.profit >= 0 ? '+' : ''}${acct.profit.toLocaleString('en-US')}</b></div><div class="card"><small>Won</small><b>${acct.won}</b></div><div class="card"><small>Lost</small><b>${acct.lost}</b></div><div class="card"><small>Open</small><b>${acct.pending}</b></div></div>
+      <div class="bets">${bets.map((b) => betCard(db, b)).join('') || '<div class="card"><p class="muted">No bets yet. <a href="/pickem">Make your first pick →</a></p></div>'}</div>
+    </div>`));
+  } catch (e) { next(e); }
+});
+
+app.post('/pickem/bailout', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  if (!name) return res.redirect('/pickem/login');
+  const user = await getDoc(userKey(name));
+  const acct = user && pk.account(db, user);
+  if (acct && acct.balance < pk.BAILOUT_BELOW && !acct.pending) {
+    user.bonuses = user.bonuses || [];
+    user.bonuses.push({ amount: pk.BAILOUT_COINS, reason: 'Bailout', at: new Date().toISOString() });
+    await putDoc(userKey(name), user);
+  }
+  res.redirect('/pickem/me');
+});
+
+app.get('/pickem/leaderboard', async (req, res, next) => {
+  try {
+    const db = load();
+    const name = currentUser(req);
+    const { user, acct } = await loadAccount(db, name);
+    const board = await leaderboard(db);
+    const recent = board.flatMap((u) => u.bets.filter((b) => b.status === 'won').map((b) => ({ ...b, who: u.name }))).sort((x, y) => y.payout - x.payout).slice(0, 5);
+    res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
+      <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>Standings</h2><span class="muted sm">${board.length} players</span></div>
+        <div class="scroll"><table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
+        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l"><b>@${esc(u.name)}</b></td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nobody yet.</td></tr>'}
+        </tbody></table></div></div></div>
+        <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Biggest wins</h2></div>${recent.map((b) => betCard(db, b, { who: b.who })).join('') || '<p class="muted">No winning bets yet.</p>'}</div></div>
+      </div></div>`));
+  } catch (e) { next(e); }
+});
+
+app.get('/pickem/rules', async (req, res, next) => {
+  try {
+    const db = load();
+    const name = currentUser(req);
+    const { user, acct } = await loadAccount(db, name);
+    res.send(layout(req, "Pick'em Rules", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/rules', name)}<div class="card prose">
+      <h2>How Pick'em works</h2>
+      <p><b>It's free and just for fun.</b> MFL Coins are fake. They can't be bought, sold or traded for anything.</p>
+      <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open bets, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My bets</a>.</p>
+      <h3>Placing bets</h3><p>Tap any odds button to add it to your bet slip, choose how much to bet and hit <b>Place bet</b>. One pick is a single. Two or more picks become a <b>parlay</b>: every pick has to hit, but the odds multiply. Parlays can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
+      <h3>Reading odds</h3><p><b>+150</b> means a 100 coin bet wins 150 more. <b>−200</b> means you bet 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
+      <h3>When bets close and pay</h3><p>Bets close at kickoff. They pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
+      <h3>Why there are no unders</h3><p>Every bet is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no bets on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
+      <h3>Player props</h3><p>Player bets count what's in the box score. If a play isn't recorded, it doesn't count.</p>
+    </div></div>`));
+  } catch (e) { next(e); }
+});
+
+function authPage(req, mode, err = '') {
+  const next = /^\/[a-z0-9/_-]*$/i.test(req.query.next || req.body?.next || '') ? (req.query.next || req.body.next) : '/pickem';
+  const signup = mode === 'signup';
+  return layout(req, signup ? 'Sign up' : 'Log in', `<div class="wrap login"><form method="post" class="card form">
+    <img src="/static/mfl-logo.webp" alt="" class="login-logo"><h2>${signup ? "Join Pick'em" : 'Log in'}</h2>
+    ${signup ? `<p class="muted sm">Free. You get ${pk.START_COINS.toLocaleString()} coins to start.</p>` : ''}
+    ${err ? `<p class="err">${esc(err)}</p>` : ''}
+    <input type="hidden" name="next" value="${esc(next)}">
+    <label>Username<input name="name" autocomplete="username" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_]+" placeholder="letters, numbers, _" value="${esc(req.body?.name || '')}"></label>
+    <label>4-digit PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="${signup ? 'new-password' : 'current-password'}"></label>
+    <button class="btn">${signup ? 'Create account' : 'Log in'}</button>
+    <p class="muted sm">${signup ? 'Already have an account? <a href="/pickem/login">Log in</a>' : 'New here? <a href="/pickem/signup">Sign up</a>'}</p>
+  </form></div>`, { ticker: false });
+}
+app.get('/pickem/login', (req, res) => res.send(authPage(req, 'login')));
+app.get('/pickem/signup', (req, res) => res.send(authPage(req, 'signup')));
+app.post('/pickem/signup', async (req, res) => {
+  const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
+  if (!pk.validName(name)) return res.send(authPage(req, 'signup', 'Usernames are 3-16 letters, numbers or _.'));
+  if (!/^\d{4}$/.test(pin)) return res.send(authPage(req, 'signup', 'Your PIN has to be exactly 4 digits.'));
+  if (await getDoc(userKey(name))) return res.send(authPage(req, 'signup', 'That username is taken.'));
+  await putDoc(userKey(name), { name, ...pk.hashPin(pin), created: new Date().toISOString(), bonuses: [], bets: [] });
+  setUserCookie(req, res, name);
+  res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
+});
+// Slow down PIN guessing: a few tries per name, then a cooldown.
+const tries = new Map();
+app.post('/pickem/login', async (req, res) => {
+  const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
+  const t = tries.get(name) || { n: 0, until: 0 };
+  if (t.until > Date.now()) return res.send(authPage(req, 'login', 'Too many tries. Wait a minute and try again.'));
+  const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
+  if (!user || !/^\d{4}$/.test(pin) || !pk.checkPin(user, pin)) {
+    t.n++; if (t.n >= 5) { t.n = 0; t.until = Date.now() + 60000; } tries.set(name, t);
+    return res.send(authPage(req, 'login', 'Wrong username or PIN.'));
+  }
+  tries.delete(name);
+  setUserCookie(req, res, name);
+  res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
+});
+app.get('/pickem/logout', (req, res) => { res.setHeader('Set-Cookie', `${USER_COOKIE}=; Path=/; Max-Age=0`); res.redirect('/pickem'); });
+
+// ---------- player leaders ----------
+app.get('/stats/players', (req, res) => {
+  const db = load();
+  const rows = [];
+  for (const tm of Object.values(db.teams)) for (const p of tm.roster) {
+    const s = playerStats(db, tm, p);
+    rows.push({ tm, p, ...s, total: s.td + s.ptd + s.int, gp: s.log.filter((r) => r.g.type !== 'exhibition').length });
+  }
+  const board = (k, title) => {
+    const xs = rows.filter((r) => r[k] > 0).sort((a, b) => b[k] - a[k] || a.p.name.localeCompare(b.p.name)).slice(0, 10);
+    const top = xs[0];
+    return `<div class="card lead-card"><div class="card-h"><h2>${title}</h2></div>
+      ${top ? `<a class="lead-top" href="${playerUrl(top.tm, top.p)}" style="--a:${esc(top.tm.color)}">${avatar(top.tm, top.p, 72)}<div><small>${logo(top.tm, 16)} ${esc(top.tm.name)}</small><b>${esc(top.p.name)}</b></div><span>${top[k]}</span></a>` : '<p class="muted">No stats yet.</p>'}
+      ${xs.slice(1).map((r, i) => `<a class="lead-row" href="${playerUrl(r.tm, r.p)}"><span class="rank">${i + 2}</span>${avatar(r.tm, r.p, 30)}<b>${esc(r.p.name)}</b>${logo(r.tm, 18)}<span class="n">${r[k]}</span></a>`).join('')}</div>`;
+  };
+  const all = rows.sort((a, b) => b.total - a.total || a.p.name.localeCompare(b.p.name));
+  res.send(layout(req, 'Player Leaders', pageHead('2026–27 Season', 'Player Leaders', 'Regular season + bowls. Exhibitions not counted.') + `<div class="wrap">
+    <div class="lead-grid">${board('td', 'Touchdowns')}${board('ptd', 'Passing TDs')}${board('int', 'Interceptions')}</div>
+    <div class="card"><div class="card-h"><h2>All Players</h2></div><div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th><th class="l">Team</th><th>GP*</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Total</th></tr></thead><tbody>
+    ${all.map((r) => `<tr><td class="l"><a class="plink" href="${playerUrl(r.tm, r.p)}">${avatar(r.tm, r.p, 28)}${esc(r.p.name)}</a></td><td class="l"><span class="th">${logo(r.tm, 20)} ${esc(r.tm.abbr)}</span></td><td>${r.gp}</td><td>${r.td || '–'}</td><td>${r.ptd || '–'}</td><td>${r.int || '–'}</td><td><b>${r.total || '–'}</b></td></tr>`).join('')}
+    </tbody></table></div><p class="muted sm">*Games with a recorded stat.</p></div>
+  </div>`));
+});
+
+// ---------- head-to-head ----------
+app.get('/history', (req, res) => {
+  const db = load();
+  const [A, B] = Object.values(db.teams);
+  const games = db.games.filter(isFinal).sort((a, b) => a.date.localeCompare(b.date));
+  const real = games.filter((g) => g.type !== 'exhibition');
+  const pts = (g, t) => (g.home === t.id ? g.homeScore : g.awayScore);
+  const rec = (gs, t) => gs.filter((g) => winner(g) === t.id).length;
+  const ties = real.filter((g) => !winner(g)).length;
+  let streak = { team: null, n: 0 }, best = { [A.id]: 0, [B.id]: 0 }, run = { team: null, n: 0 };
+  for (const g of real) {
+    const w = winner(g);
+    run = w && w === run.team ? { team: w, n: run.n + 1 } : { team: w, n: w ? 1 : 0 };
+    if (w) best[w] = Math.max(best[w], run.n);
+  }
+  streak = run;
+  const margin = (g) => Math.abs(g.homeScore - g.awayScore);
+  const by = (fn) => [...real].sort(fn)[0];
+  const biggest = real.length ? by((x, y) => margin(y) - margin(x)) : null;
+  const highest = real.length ? by((x, y) => (y.homeScore + y.awayScore) - (x.homeScore + x.awayScore)) : null;
+  const lowest = real.length ? by((x, y) => (x.homeScore + x.awayScore) - (y.homeScore + y.awayScore)) : null;
+  const shutouts = real.filter((g) => winner(g) && Math.min(g.homeScore, g.awayScore) === 0);
+  const avg = real.length ? (real.reduce((s, g) => s + g.homeScore + g.awayScore, 0) / real.length).toFixed(1) : '–';
+  const gline = (g) => g ? `<a href="/games/${g.id}">${esc(db.teams[winner(g) || g.home].abbr)} ${Math.max(g.homeScore, g.awayScore)}–${Math.min(g.homeScore, g.awayScore)} · ${esc(shortDate(g.date))}</a>` : '–';
+  const wA = rec(real, A), wB = rec(real, B);
+  res.send(layout(req, 'Head-to-Head', pageHead('All-time series', 'Head-to-Head') + `<div class="wrap">
+    <div class="card h2h" style="--a:${esc(A.color)};--b:${esc(B.color)}">
+      <a href="/teams/${A.id}" class="h2h-t">${logo(A, 72)}<b>${esc(A.name)}</b></a>
+      <div class="h2h-mid"><div class="h2h-score"><span>${wA}</span><i>–</i><span>${wB}</span></div><small>${ties ? `${ties} tie${ties > 1 ? 's' : ''} · ` : ''}${real.length} game${real.length === 1 ? '' : 's'}</small>
+        <div class="race"><div style="width:${wA + wB ? (wA / (wA + wB)) * 100 : 50}%;background:${esc(A.color)}"></div><div style="flex:1;background:${esc(B.color)}"></div></div>
+        <small>${streak.team ? `${esc(db.teams[streak.team].name)} have won ${streak.n} straight` : 'No streak yet'}</small></div>
+      <a href="/teams/${B.id}" class="h2h-t">${logo(B, 72)}<b>${esc(B.name)}</b></a>
+    </div>
+    <div class="rec-grid">
+      <div class="card"><small>Biggest win</small><b>${gline(biggest)}</b></div>
+      <div class="card"><small>Highest scoring</small><b>${gline(highest)}</b></div>
+      <div class="card"><small>Lowest scoring</small><b>${gline(lowest)}</b></div>
+      <div class="card"><small>Avg. total points</small><b>${avg}</b></div>
+      <div class="card"><small>Longest win streak</small><b>${esc(A.abbr)} ${best[A.id]} · ${esc(B.abbr)} ${best[B.id]}</b></div>
+      <div class="card"><small>Shutouts</small><b>${esc(A.abbr)} ${shutouts.filter((g) => winner(g) === A.id).length} · ${esc(B.abbr)} ${shutouts.filter((g) => winner(g) === B.id).length}</b></div>
+      <div class="card"><small>Bowl wins</small><b>${esc(A.abbr)} ${rec(real.filter((g) => g.type === 'playoff'), A)} · ${esc(B.abbr)} ${rec(real.filter((g) => g.type === 'playoff'), B)}</b></div>
+      <div class="card"><small>Exhibitions</small><b>${esc(A.abbr)} ${rec(games.filter((g) => g.type === 'exhibition'), A)} · ${esc(B.abbr)} ${rec(games.filter((g) => g.type === 'exhibition'), B)}</b></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Every result</h2></div><div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Game</th><th>${esc(A.abbr)}</th><th>${esc(B.abbr)}</th><th class="l">Winner</th></tr></thead><tbody>
+    ${[...games].reverse().map((g) => { const w = winner(g); return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a></td><td class="l">${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : 'Regular season'}</td><td><b>${pts(g, A)}</b></td><td><b>${pts(g, B)}</b></td><td class="l">${w ? `<span class="th">${logo(db.teams[w], 20)} ${esc(db.teams[w].name)}</span>` : 'Tie'}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">No games yet.</td></tr>'}
+    </tbody></table></div></div>
+  </div>`));
+});
+
+// ---------- transactions ----------
+const TX_TYPES = { trade: 'Trade', signing: 'Signing', release: 'Release', note: 'Note' };
+function txLine(db, t) {
+  const tm = db.teams[t.team], t2 = db.teams[t.team2];
+  const names = (xs) => xs.map((n) => `<b>${esc(n)}</b>`).join(', ');
+  let text = '';
+  if (t.type === 'trade') text = `${esc(tm?.name)} trade ${names(t.out || [])} to ${esc(t2?.name)}${(t.in || []).length ? ` for ${names(t.in)}` : ''}`;
+  else if (t.type === 'signing') text = `${esc(tm?.name)} sign ${names(t.in || [])}`;
+  else if (t.type === 'release') text = `${esc(tm?.name)} release ${names(t.out || [])}`;
+  else text = esc(t.note);
+  return `<div class="tx"><span class="tag tx-${t.type}">${TX_TYPES[t.type]}</span><div><p>${text}</p>${t.note && t.type !== 'note' ? `<small class="muted">${esc(t.note)}</small>` : ''}</div><span class="tx-d">${esc(shortDate(t.date))}</span>
+    <div class="tx-logos">${tm ? logo(tm, 26) : ''}${t2 ? logo(t2, 26) : ''}</div></div>`;
+}
+app.get('/transactions', (req, res) => {
+  const db = load();
+  const txs = [...(db.transactions || [])].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  res.send(layout(req, 'Transactions', pageHead('2026–27 Season', 'Transactions', 'Trades, signings and releases. Team reps can trade non-team-representatives.') + `<div class="wrap">
+    <div class="card">${txs.map((t) => txLine(db, t)).join('') || '<p class="muted">No transactions yet.</p>'}</div></div>`));
+});
+
+// ---------- calendar ----------
+app.get('/calendar.ics', (req, res) => {
+  const db = load();
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//MFL//Schedule//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:MFL Games', `X-WR-TIMEZONE:${TZ}`];
+  for (const g of db.games) {
+    if (!g.date) continue;
+    const [h, mi] = (g.time || '12:35').split(':').map(Number);
+    const start = `${g.date.replace(/-/g, '')}T${String(h).padStart(2, '0')}${String(mi).padStart(2, '0')}00`;
+    const endM = h * 60 + mi + 30;
+    const end = `${g.date.replace(/-/g, '')}T${String(Math.floor(endM / 60)).padStart(2, '0')}${String(endM % 60).padStart(2, '0')}00`;
+    const a = db.teams[g.home], b = db.teams[g.away];
+    const score = isFinal(g) ? ` (${a.abbr} ${g.homeScore}–${g.awayScore} ${b.abbr})` : g.status === 'postponed' ? ' (POSTPONED)' : '';
+    lines.push('BEGIN:VEVENT', `UID:mfl-game-${g.id}@mfl`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART;TZID=${TZ}:${start}`, `DTEND;TZID=${TZ}:${end}`,
+      `SUMMARY:${gameLabel(db, g) ? gameLabel(db, g) + ': ' : ''}${a.name} vs ${b.name}${score}`, `LOCATION:${VENUE}`, 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="mfl.ics"' }).send(lines.join('\r\n'));
+});
+
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -863,6 +1341,119 @@ app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   }
   await save();
   res.redirect(back + '?saved=1');
+});
+
+// ---------- admin: transactions ----------
+app.get('/admin/transactions', requireAdmin, (req, res) => {
+  const db = load();
+  const teams = Object.values(db.teams);
+  const [A, B] = teams;
+  const pick = (t, name) => `<div class="pickp"><h4>${logo(t, 22)} ${esc(t.name)}</h4>${t.roster.map((p) => `<label class="chk"><input type="checkbox" name="${name}" value="${esc(p.id)}"> ${esc(p.name)} <small class="muted">${esc(tagName(p.tag))}</small></label>`).join('')}</div>`;
+  const txs = [...(db.transactions || [])].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  res.send(layout(req, 'Transactions', pageHead('Admin', 'Transactions', 'Trades move players between rosters (photos, bios and stats go with them).') + `<div class="wrap">${adminNav('/admin/transactions')}${savedMsg(req)}
+    ${req.query.err ? `<p class="err">${esc(req.query.err)}</p>` : ''}
+    <form method="post" class="card form">
+      <div class="card-h"><h2>Log a trade</h2></div><input type="hidden" name="type" value="trade">
+      <div class="trade-grid">${pick(A, 'outA')}<div class="trade-x">${icon('swap')}</div>${pick(B, 'outB')}</div>
+      <div class="fgrid"><label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Note (optional)<input name="note" placeholder="e.g. Team reps agreed at lunch"></label></div>
+      <div class="actions"><button class="btn">Make trade</button></div>
+    </form>
+    <div class="fgrid2">
+      <form method="post" class="card form"><div class="card-h"><h2>Sign a player</h2></div><input type="hidden" name="type" value="signing">
+        <label>Team<select name="team">${teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+        <label>Player name<input name="name" required></label><label>Tag<input name="tag" value="FA" placeholder="FA, Rd 1…"></label>
+        <label>Date<input type="date" name="date" value="${today()}"></label><label>Note<input name="note"></label>
+        <div class="actions"><button class="btn">Sign</button></div></form>
+      <form method="post" class="card form"><div class="card-h"><h2>Release a player</h2></div><input type="hidden" name="type" value="release">
+        <label>Player<select name="player">${teams.map((t) => `<optgroup label="${esc(t.name)}">${t.roster.map((p) => `<option value="${t.id}|${esc(p.id)}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+        <label>Date<input type="date" name="date" value="${today()}"></label><label>Note<input name="note"></label>
+        <div class="actions"><button class="btn ghost danger" onclick="return confirm('Remove this player from the roster?')">Release</button></div></form>
+      <form method="post" class="card form"><div class="card-h"><h2>Other news</h2></div><input type="hidden" name="type" value="note">
+        <label>Team (optional)<select name="team"><option value="">—</option>${teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+        <label>What happened<input name="note" required></label><label>Date<input type="date" name="date" value="${today()}"></label>
+        <div class="actions"><button class="btn">Post</button></div></form>
+    </div>
+    <div class="card"><div class="card-h"><h2>History</h2></div>${txs.map((t) => `<div class="tx-admin">${txLine(db, t)}<form method="post" action="/admin/transactions/${t.id}/delete"><button class="btn sm ghost" onclick="return confirm('Delete this entry? (It does not undo roster changes.)')">Delete</button></form></div>`).join('') || '<p class="muted">Nothing yet.</p>'}</div>
+  </div>`, { ticker: false }));
+});
+app.post('/admin/transactions', requireAdmin, async (req, res) => {
+  const db = load();
+  const b = req.body;
+  const arr = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : today();
+  const note = String(b.note || '').slice(0, 300);
+  db.transactions = db.transactions || [];
+  db.nextTx = db.nextTx || 1;
+  const tx = { id: db.nextTx++, date, type: b.type, note };
+  const fail = (m) => res.redirect('/admin/transactions?err=' + encodeURIComponent(m));
+  const move = (from, to, ids) => ids.map((id) => {
+    const i = from.roster.findIndex((p) => p.id === id);
+    if (i < 0) return null;
+    const [p] = from.roster.splice(i, 1);
+    let nid = p.id, n = 2;
+    while (to.roster.some((x) => x.id === nid)) nid = `${p.id}-${n++}`;
+    p.id = nid;
+    to.roster.push(p);
+    return p.name;
+  }).filter(Boolean);
+  if (b.type === 'trade') {
+    const [A, B] = Object.values(db.teams);
+    const outA = arr(b.outA), outB = arr(b.outB);
+    if (!outA.length && !outB.length) return fail('Pick at least one player to trade.');
+    tx.team = A.id; tx.team2 = B.id;
+    tx.out = move(A, B, outA); tx.in = move(B, A, outB);
+    if (!tx.out.length) { tx.team = B.id; tx.team2 = A.id; tx.out = tx.in; tx.in = []; }
+  } else if (b.type === 'signing') {
+    const t = db.teams[b.team]; const name = String(b.name || '').trim().slice(0, 60);
+    if (!t || !name) return fail('Pick a team and enter a name.');
+    let id = slug(name), n = 2;
+    while (t.roster.some((p) => p.id === id)) id = `${slug(name)}-${n++}`;
+    t.roster.push({ id, name, tag: String(b.tag || '').slice(0, 10) });
+    tx.team = t.id; tx.in = [name];
+  } else if (b.type === 'release') {
+    const [tid, pid] = String(b.player || '').split('|');
+    const t = db.teams[tid]; const i = t ? t.roster.findIndex((p) => p.id === pid) : -1;
+    if (i < 0) return fail('Player not found.');
+    tx.team = t.id; tx.out = [t.roster[i].name];
+    t.roster.splice(i, 1);
+  } else if (b.type === 'note') {
+    if (!note) return fail('Write what happened.');
+    tx.team = db.teams[b.team] ? b.team : null;
+  } else return fail('Unknown type.');
+  db.transactions.push(tx);
+  await save();
+  res.redirect('/admin/transactions?saved=1');
+});
+app.post('/admin/transactions/:id/delete', requireAdmin, async (req, res) => {
+  const db = load();
+  db.transactions = (db.transactions || []).filter((t) => String(t.id) !== req.params.id);
+  await save();
+  res.redirect('/admin/transactions?saved=1');
+});
+
+// ---------- admin: pick'em ----------
+app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
+  try {
+    const db = load();
+    const board = await leaderboard(db);
+    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten PIN, give coins, or remove an account.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
+      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset PIN</th><th class="l">Give coins</th><th></th></tr></thead><tbody>
+      ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b></td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
+        <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" pattern="[0-9]{4}" maxlength="4" placeholder="New PIN" required><button class="btn sm ghost">Set</button></form></td>
+        <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/coins" class="inline"><input name="amount" type="number" placeholder="+500" required><button class="btn sm ghost">Give</button></form></td>
+        <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their bets?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
+      </tbody></table></div></div></div>`, { ticker: false }));
+  } catch (e) { next(e); }
+});
+app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
+  const name = String(req.params.name).toLowerCase();
+  const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
+  if (!user) return res.redirect('/admin/pickem');
+  if (req.params.action === 'pin' && /^\d{4}$/.test(req.body.pin || '')) Object.assign(user, pk.hashPin(req.body.pin));
+  else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount)) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
+  else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
+  await putDoc(userKey(name), user);
+  res.redirect('/admin/pickem?saved=1');
 });
 
 app.get('/admin/bowls', requireAdmin, (req, res) => {

@@ -211,4 +211,78 @@ async function getMedia(key) {
   }
 }
 
-module.exports = { load, save, refresh, putMedia, getMedia, slug };
+// Small JSON documents kept apart from db.json (one per pick'em account), so
+// people placing bets at the same time don't overwrite each other's data.
+async function putDoc(key, obj) {
+  const json = JSON.stringify(obj);
+  if (useBlob) {
+    const { put } = require('@vercel/blob');
+    let lastErr;
+    for (const a of accessOrder()) {
+      try {
+        await put('mfl/docs/' + key + '.json', json, { access: a, addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
+        access = a;
+        return;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
+  }
+  const f = path.join(DATA_DIR, 'docs', key + '.json');
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f + '.tmp', json);
+  fs.renameSync(f + '.tmp', f);
+}
+async function getDoc(key) {
+  if (useBlob) {
+    const { get } = require('@vercel/blob');
+    for (const a of accessOrder()) {
+      try {
+        const r = await get('mfl/docs/' + key + '.json', { access: a, useCache: false });
+        if (!r) return null;
+        access = a;
+        return JSON.parse(await new Response(r.stream).text());
+      } catch (e) {
+        if (/not.?found/i.test(e.name + e.message)) return null;
+      }
+    }
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'docs', key + '.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+async function listDocs(prefix) {
+  if (useBlob) {
+    const { list } = require('@vercel/blob');
+    const keys = [];
+    let cursor;
+    do {
+      const r = await list({ prefix: 'mfl/docs/' + prefix, cursor, limit: 1000 });
+      for (const b of r.blobs) keys.push(b.pathname.slice('mfl/docs/'.length, -'.json'.length));
+      cursor = r.hasMore ? r.cursor : null;
+    } while (cursor);
+    return Promise.all(keys.map(getDoc)).then((docs) => docs.filter(Boolean));
+  }
+  const dir = path.join(DATA_DIR, 'docs', path.dirname(prefix + 'x'));
+  try {
+    const base = path.basename(prefix + 'x').slice(0, -1);
+    return fs.readdirSync(dir).filter((f) => f.startsWith(base) && f.endsWith('.json'))
+      .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+  } catch {
+    return [];
+  }
+}
+async function deleteDoc(key) {
+  if (useBlob) {
+    const { del } = require('@vercel/blob');
+    try { await del('mfl/docs/' + key + '.json'); } catch {}
+    return;
+  }
+  try { fs.unlinkSync(path.join(DATA_DIR, 'docs', key + '.json')); } catch {}
+}
+
+module.exports = { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc };
