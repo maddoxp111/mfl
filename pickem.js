@@ -63,14 +63,21 @@ function history(db, teamId) {
 const PRIOR_GAMES = 3, PRIOR_POINTS = 14;
 const tdRate = (h) => ((h.pts + PRIOR_POINTS * PRIOR_GAMES) / (h.gp + PRIOR_GAMES)) / 7;
 
+// Admin "tendencies": 0 = very unlikely, 50 = go by stats alone, 100 = very likely.
+const tv = (o, k) => (o && Number.isFinite(+o[k]) ? Math.max(0, Math.min(100, +o[k])) : 50);
+const playerW = (v) => Math.pow(2, (v - 50) / 15); // 0 -> ~0.1x, 100 -> ~10x
+const teamW = (v) => Math.pow(2, (v - 50) / 50); //   0 -> 0.5x, 100 -> 2x
+
 const cache = new Map();
 function markets(db, g) {
   const sig = g.id + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${(x.events || []).length}`).join(',') +
-    '|' + Object.values(db.teams).map((t) => t.roster.map((p) => p.id + p.name).join()).join();
+    '|' + Object.values(db.teams).map((t) => JSON.stringify(t.tend || {}) + t.roster.map((p) => p.id + p.name + JSON.stringify(p.tend || {})).join()).join();
   if (cache.has(sig)) return cache.get(sig);
   const A = db.teams[g.home], B = db.teams[g.away];
   const hA = history(db, A.id), hB = history(db, B.id);
-  const lA = tdRate(hA), lB = tdRate(hB);
+  // A team's offense tendency raises its scoring; the other team's defense tendency lowers it.
+  const lA = tdRate(hA) * teamW(tv(A.tend, 'off')) / teamW(tv(B.tend, 'def'));
+  const lB = tdRate(hB) * teamW(tv(B.tend, 'off')) / teamW(tv(A.tend, 'def'));
 
   // Simulate the game a few thousand times from each team's touchdown rate.
   const N = 6000;
@@ -106,17 +113,25 @@ function markets(db, g) {
 
   // Player props, from each player's share of their team's plays (with a prior so new players get a price).
   for (const t of [A, B]) {
-    const h = t.id === A.id ? hA : hB, lam = t.id === A.id ? lA : lB, n = t.roster.length || 1;
+    const h = t.id === A.id ? hA : hB, lam = t.id === A.id ? lA : lB;
     const passFrac = (h.pass + 0.7 * PRIOR_GAMES) / (h.td + PRIOR_GAMES);
-    const intRate = (h.int + 0.8 * PRIOR_GAMES) / (h.gp + PRIOR_GAMES);
+    const intRate = (h.int + 0.8 * PRIOR_GAMES) / (h.gp + PRIOR_GAMES) * teamW(tv(t.tend, 'int'));
+    // Each player's share of the team's TDs / passes / picks: stats-based, then
+    // scaled by their tendency and re-normalized so the team total stays the same.
+    const ph = (pl) => h.players[pl.name.toLowerCase()] || { td: 0, pass: 0, int: 0 };
+    const shares = (k, prior) => {
+      const w = t.roster.map((pl) => (ph(pl)[k] + prior) * playerW(tv(pl.tend, k)));
+      const sum = w.reduce((a, b) => a + b, 0) || 1;
+      return Object.fromEntries(t.roster.map((pl, i) => [pl.id, w[i] / sum]));
+    };
+    const sTd = shares('td', 0.5), sPass = shares('pass', 0.3), sInt = shares('int', 0.3);
     for (const pl of t.roster) {
-      const ph = h.players[pl.name.toLowerCase()] || { td: 0, pass: 0, int: 0 };
-      const x = lam * (ph.td + 0.5) / (h.td + 0.5 * n);
+      const x = lam * sTd[pl.id];
       add('Touchdown scorers', `ptd:${t.id}:${pl.id}`, `${pl.name} scores a TD`, 1 - Math.exp(-x), { team: t.id, player: pl.id });
       add('Touchdown scorers', `p2td:${t.id}:${pl.id}`, `${pl.name} scores 2+ TDs`, 1 - Math.exp(-x) * (1 + x), { team: t.id, player: pl.id });
-      const y = lam * passFrac * (ph.pass + 0.3) / (h.pass + 0.3 * n);
+      const y = lam * passFrac * sPass[pl.id];
       add('TD passes', `ppass:${t.id}:${pl.id}`, `${pl.name} throws a TD pass`, 1 - Math.exp(-y), { team: t.id, player: pl.id });
-      const z = intRate * (ph.int + 0.3) / (h.int + 0.3 * n);
+      const z = intRate * sInt[pl.id];
       add('Interceptions', `pint:${t.id}:${pl.id}`, `${pl.name} gets an INT`, 1 - Math.exp(-z), { team: t.id, player: pl.id });
     }
   }

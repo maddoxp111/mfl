@@ -205,7 +205,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="/static/style.css?v=11">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1002,7 +1002,7 @@ app.get('/calendar.ics', (req, res) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -1466,6 +1466,48 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
   await putDoc(userKey(name), user);
   res.redirect('/admin/pickem?saved=1');
+});
+
+// ---------- admin: pick'em tendencies ----------
+// 0-100 sliders that nudge Pick'em odds (50 = go by stats only). They never change real stats.
+const TEND_TEAM = [['off', 'Offense', 'Scores a lot'], ['def', 'Defense', 'Holds the other team down'], ['int', 'Picks', 'Gets interceptions']];
+const TEND_PLAYER = [['td', 'Scores TDs'], ['pass', 'Throws TDs'], ['int', 'Gets INTs']];
+const tval = (o, k) => (o && Number.isFinite(+o[k]) ? +o[k] : 50);
+function slider(name, v, label) {
+  return `<div class="tslider" data-v="${v}" data-label="${esc(label)}"><input type="range" name="${name}" min="0" max="100" step="5" value="${v}" oninput="this.nextElementSibling.textContent=this.value;this.parentElement.dataset.v=this.value"><output>${v}</output></div>`;
+}
+app.get('/admin/tendencies', requireAdmin, (req, res) => {
+  const db = load();
+  const teams = Object.values(db.teams);
+  res.send(layout(req, 'Tendencies', pageHead('Admin', "Pick'em Tendencies", "0 = very unlikely · 50 = go by stats only · 100 = very likely. These only change Pick'em odds, never real stats.") + `<div class="wrap">${adminNav('/admin/tendencies')}${savedMsg(req)}
+    <form method="post" class="form tend">
+      <div class="card"><div class="card-h"><h2>Teams</h2></div>
+        <div class="tgrid tgrid-team"><span></span>${TEND_TEAM.map(([, n, d]) => `<span class="th-l"><b>${n}</b><small>${d}</small></span>`).join('')}
+        ${teams.map((t) => `<span class="th">${logo(t, 28)} ${esc(t.name)}</span>${TEND_TEAM.map(([k, n]) => slider(`team.${t.id}.${k}`, tval(t.tend, k), n)).join('')}`).join('')}</div>
+      </div>
+      ${teams.map((t) => `<div class="card"><div class="card-h"><h2 class="th">${logo(t, 28)} ${esc(t.name)} players</h2></div>
+        <div class="tgrid"><span></span>${TEND_PLAYER.map(([, n]) => `<span class="th-l"><b>${n}</b></span>`).join('')}
+        ${t.roster.map((p) => `<span class="plink">${avatar(t, p, 30)}${esc(p.name)}</span>${TEND_PLAYER.map(([k, n]) => slider(`player.${t.id}.${p.id}.${k}`, tval(p.tend, k), n)).join('')}`).join('')}</div>
+      </div>`).join('')}
+      <div class="savebar"><button type="button" class="btn ghost" onclick="this.form.querySelectorAll('input[type=range]').forEach(r=>{r.value=50;r.oninput()})">Reset all to 50</button><button class="btn">Save tendencies</button></div>
+    </form></div>`, { ticker: false }));
+});
+app.post('/admin/tendencies', requireAdmin, async (req, res) => {
+  const db = load();
+  const num = (v) => Math.max(0, Math.min(100, Math.round(+v)));
+  for (const [key, v] of Object.entries(req.body)) {
+    if (!Number.isFinite(+v)) continue;
+    const parts = key.split('.');
+    if (parts[0] === 'team' && parts.length === 3) {
+      const t = db.teams[parts[1]];
+      if (t && TEND_TEAM.some(([k]) => k === parts[2])) (t.tend = t.tend || {})[parts[2]] = num(v);
+    } else if (parts[0] === 'player' && parts.length === 4) {
+      const p = db.teams[parts[1]]?.roster.find((x) => x.id === parts[2]);
+      if (p && TEND_PLAYER.some(([k]) => k === parts[3])) (p.tend = p.tend || {})[parts[3]] = num(v);
+    }
+  }
+  await save();
+  res.redirect('/admin/tendencies?saved=1');
 });
 
 app.get('/admin/bowls', requireAdmin, (req, res) => {
