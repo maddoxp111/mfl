@@ -55,13 +55,9 @@ function seed() {
 
   const games = [];
   let n = 1;
-  let flip = false;
   const add = (g) => {
-    const home = flip ? 'xavier' : 'pedon';
-    const away = flip ? 'pedon' : 'xavier';
-    flip = !flip;
     games.push({
-      id: String(n++), time: '12:35', home, away, status: 'scheduled', type: 'regular',
+      id: String(n++), time: '12:35', home: 'pedon', away: 'xavier', status: 'scheduled', type: 'regular',
       bowl: null, reason: '', homeScore: null, awayScore: null, events: [], ...g,
     });
   };
@@ -88,19 +84,48 @@ function seed() {
 }
 
 let db;
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+const useBlob = !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const BLOB_KEY = 'mfl/db.json';
+// The store may be public or private; remember whichever works.
+let access = process.env.BLOB_ACCESS || null;
+const accessOrder = () => (access ? [access] : ['private', 'public']);
+
+async function blobRead() {
+  const { get } = require('@vercel/blob');
+  let lastErr;
+  for (const a of accessOrder()) {
+    try {
+      const r = await get(BLOB_KEY, { access: a, useCache: false });
+      if (!r) return null;
+      access = a;
+      return JSON.parse(await new Response(r.stream).text());
+    } catch (e) {
+      if (/not.?found/i.test(e.name + e.message)) return null;
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+async function blobWrite(json) {
+  const { put } = require('@vercel/blob');
+  let lastErr;
+  for (const a of accessOrder()) {
+    try {
+      await put(BLOB_KEY, json, { access: a, addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
+      access = a;
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
 
 // Load into memory (call before each request so serverless instances stay in sync).
 async function refresh() {
   if (useBlob) {
-    const { list } = require('@vercel/blob');
-    const { blobs } = await list({ prefix: BLOB_KEY });
-    const b = blobs.find((x) => x.pathname === BLOB_KEY);
-    if (b) {
-      const r = await fetch(b.url + '?t=' + Date.now(), { cache: 'no-store' });
-      db = await r.json();
-    } else {
+    db = (await blobRead()) || null;
+    if (!db) {
       db = seed();
       await save();
     }
@@ -120,11 +145,7 @@ function load() {
   return db;
 }
 async function save() {
-  if (useBlob) {
-    const { put } = require('@vercel/blob');
-    await put(BLOB_KEY, JSON.stringify(db), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
-    return;
-  }
+  if (useBlob) return blobWrite(JSON.stringify(db));
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(FILE + '.tmp', JSON.stringify(db));
   fs.renameSync(FILE + '.tmp', FILE);
