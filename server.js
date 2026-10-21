@@ -196,7 +196,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="stylesheet" href="/static/style.css?v=6">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -286,7 +286,7 @@ app.get('/', (req, res) => {
   const sA = teamStats(db, A.id), sB = teamStats(db, B.id);
   const totalW = sA.w + sB.w;
   const standings = `<div class="card"><div class="card-h"><h2>Standings</h2><a href="/stats/team">Team stats ${icon('arrow')}</a></div>
-    ${[[A, sA], [B, sB]].sort((x, y) => y[1].w - x[1].w || x[1].l - y[1].l).map(([tm, s], i) => `<a class="stand" href="/teams/${tm.id}"><span class="rank">${i + 1}</span>${logo(tm, 36)}<div class="stand-n"><b>${esc(tm.name)}</b><small>${esc(tm.city)}</small></div><div class="form">${s.form.map((f) => `<i class="${f.r}">${f.r}</i>`).join('')}</div><b class="rec">${record(s)}</b></a>`).join('')}
+    ${[[A, sA], [B, sB]].sort((x, y) => y[1].w - x[1].w || x[1].l - y[1].l).map(([tm, s], i) => `<a class="stand" href="/teams/${tm.id}"><span class="rank">${i + 1}</span>${logo(tm, 36)}<div class="stand-n"><b>${esc(tm.name)}</b><small>${esc(tm.city)}</small></div><div class="formguide">${s.form.map((f) => `<i class="${f.r}">${f.r}</i>`).join('')}</div><b class="rec">${record(s)}</b></a>`).join('')}
     <div class="race"><div style="width:${totalW ? (sA.w / totalW) * 100 : 50}%;background:${esc(A.color)}"></div><div style="flex:1;background:${esc(B.color)}"></div></div>
     <div class="race-l"><span>${esc(A.abbr)} ${sA.w}W</span><span>Season series</span><span>${sB.w}W ${esc(B.abbr)}</span></div></div>`;
 
@@ -546,40 +546,67 @@ app.get('/admin', requireAdmin, (req, res) => {
 function gameForm(db, g, isNew) {
   const teams = Object.values(db.teams);
   const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
-  const players = teams.flatMap((t) => t.roster.map((p) => p.name));
-  const evRow = (e = {}) => `<div class="evrow">
-    <select name="ev_type">${opt('TD', e.type, 'Touchdown')}${opt('INT', e.type, 'Interception')}</select>
-    <select name="ev_team">${teams.map((t) => opt(t.id, e.team, t.name)).join('')}</select>
-    <input name="ev_player" list="players" placeholder="Scorer / interceptor" value="${esc(e.player)}">
-    <input name="ev_passer" list="players" placeholder="Passer (TD only)" value="${esc(e.passer)}">
-    <input name="ev_note" placeholder="Note (optional)" value="${esc(e.note)}">
-    <button type="button" class="btn sm ghost" onclick="this.parentElement.remove()" aria-label="Remove">✕</button></div>`;
   const t1 = db.teams[g.home] || teams[0], t2 = db.teams[g.away] || teams[1];
-  return `<form method="post" class="card form">
-    <datalist id="players">${players.map((p) => `<option value="${esc(p)}">`).join('')}</datalist>
-    <h3>Game</h3>
-    <div class="fgrid">
-      <label>Date<input type="date" name="date" value="${esc(g.date || '')}"></label>
-      <label>Time<input type="time" name="time" value="${esc(g.time || '12:35')}"></label>
-      <label>Type<select name="type">${opt('regular', g.type, 'Regular season')}${opt('exhibition', g.type, 'Exhibition')}${opt('playoff', g.type, 'Playoff bowl')}</select></label>
-      <label>Bowl (if playoff)<select name="bowl"><option value="">—</option>${db.bowls.map((b) => opt(b.slug, g.bowl, b.name)).join('')}</select></label>
-      <label>Status<select name="status">${opt('scheduled', g.status, 'Scheduled')}${opt('live', g.status, 'Live')}${opt('final', g.status, 'Final')}${opt('postponed', g.status, 'Postponed')}</select></label>
-      <label class="wide">Reason (postponed / exhibition)<input name="reason" value="${esc(g.reason)}" placeholder="e.g. Rain, assembly, scrimmage"></label>
-    </div>
+  // Every play row posts all five fields so the arrays stay aligned in readGame.
+  const evRow = (e) => {
+    const tm = db.teams[e.team] || t1;
+    const td = e.type !== 'INT';
+    return `<div class="ev" style="--c:${esc(tm.color)}">
+      <input type="hidden" name="ev_type" value="${td ? 'TD' : 'INT'}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
+      <div class="ev-who">${logo(tm, 30)}<span class="tag ${td ? 'td' : 'int'}">${td ? 'TD' : 'INT'}</span></div>
+      <input name="ev_player" list="pl-${esc(tm.id)}" placeholder="${td ? 'Who scored?' : 'Who intercepted?'}" value="${esc(e.player)}">
+      ${td ? `<input name="ev_passer" list="pl-${esc(tm.id)}" placeholder="Thrown by (optional)" value="${esc(e.passer)}">` : '<input type="hidden" name="ev_passer" value=""><span class="ev-gap"></span>'}
+      <input name="ev_note" class="ev-note" placeholder="Note" value="${esc(e.note)}">
+      <button type="button" class="ev-x" onclick="this.parentElement.remove();mflEmpty()" aria-label="Remove play">✕</button>
+    </div>`;
+  };
+  const tpl = teams.flatMap((t) => ['TD', 'INT'].map((type) => `<template id="tpl-${t.id}-${type}">${evRow({ team: t.id, type })}</template>`)).join('');
+  const addBtns = teams.map((t) => `<div class="add-team">${logo(t, 22)}<b>${esc(t.name)}</b><button type="button" class="chip td" onclick="mflAdd('${t.id}','TD')">+ Touchdown</button><button type="button" class="chip int" onclick="mflAdd('${t.id}','INT')">+ Interception</button></div>`).join('');
+  const statusPills = [['scheduled', 'Scheduled'], ['live', 'Live'], ['final', 'Final'], ['postponed', 'Postponed']]
+    .map(([v, n]) => `<label class="pill-r"><input type="radio" name="status" value="${v}" ${g.status === v ? 'checked' : ''}><span>${n}</span></label>`).join('');
+  return `<form method="post" class="form ge">
+    ${teams.map((t) => `<datalist id="pl-${t.id}">${t.roster.map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`).join('')}
     <input type="hidden" name="home" value="${esc(t1.id)}"><input type="hidden" name="away" value="${esc(t2.id)}">
-    <h3>Final score</h3>
-    <div class="score-in">
-      <label>${logo(t1, 40)} ${esc(t1.name)}<input type="number" min="0" name="homeScore" value="${esc(g.homeScore ?? '')}"></label>
-      <span>–</span>
-      <label>${logo(t2, 40)} ${esc(t2.name)}<input type="number" min="0" name="awayScore" value="${esc(g.awayScore ?? '')}"></label>
+
+    <section class="card">
+      <div class="card-h"><h2>Result</h2></div>
+      <div class="pills">${statusPills}</div>
+      <div class="sb">
+        <label class="sb-team">${logo(t1, 64)}<b>${esc(t1.name)}</b><input type="number" min="0" inputmode="numeric" name="homeScore" value="${esc(g.homeScore ?? '')}" placeholder="–"></label>
+        <span class="sb-vs">VS</span>
+        <label class="sb-team">${logo(t2, 64)}<b>${esc(t2.name)}</b><input type="number" min="0" inputmode="numeric" name="awayScore" value="${esc(g.awayScore ?? '')}" placeholder="–"></label>
+      </div>
+      <p class="muted sm center">Set the status to <b>Final</b> and enter both scores to post the result.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>Box Score</h2><span class="muted sm">Touchdowns &amp; interceptions · leave out anything you don't know</span></div>
+      <div id="evs">${(g.events || []).map(evRow).join('')}</div>
+      <p id="evEmpty" class="empty" ${(g.events || []).length ? 'hidden' : ''}>No plays added yet. Use the buttons below to add touchdowns and interceptions.</p>
+      <div class="adds">${addBtns}</div>
+      ${tpl}
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>Game Details</h2></div>
+      <div class="fgrid">
+        <label>Date<input type="date" name="date" value="${esc(g.date || '')}"></label>
+        <label>Time<input type="time" name="time" value="${esc(g.time || '12:35')}"></label>
+        <label>Game type<select name="type" onchange="document.getElementById('bowlF').hidden=this.value!=='playoff'">${opt('regular', g.type, 'Regular season')}${opt('exhibition', g.type, 'Exhibition')}${opt('playoff', g.type, 'Playoff bowl')}</select></label>
+        <label id="bowlF" ${g.type === 'playoff' ? '' : 'hidden'}>Bowl<select name="bowl"><option value="">—</option>${db.bowls.map((b) => opt(b.slug, g.bowl, b.name)).join('')}</select></label>
+        <label class="wide">Reason <small class="muted">(shown for postponed or exhibition games)</small><input name="reason" value="${esc(g.reason)}" placeholder="e.g. Rain, assembly, scrimmage"></label>
+      </div>
+    </section>
+
+    <div class="savebar">
+      ${isNew ? '<a class="btn ghost" href="/admin">Cancel</a>' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game for good?')">Delete game</button>`}
+      <button class="btn">${isNew ? 'Create game' : 'Save changes'}</button>
     </div>
-    <h3>Touchdowns &amp; interceptions <small class="muted">(optional, can be incomplete)</small></h3>
-    <div id="evs">${(g.events || []).map(evRow).join('')}</div>
-    <template id="evtpl">${evRow()}</template>
-    <button type="button" class="btn sm ghost" onclick="document.getElementById('evs').insertAdjacentHTML('beforeend',document.getElementById('evtpl').innerHTML)">+ Add play</button>
-    <div class="actions"><button class="btn">${isNew ? 'Create game' : 'Save game'}</button>
-    ${isNew ? '' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game?')">Delete</button>`}</div>
-  </form>`;
+  </form>
+  <script>
+  function mflEmpty(){document.getElementById('evEmpty').hidden=!!document.querySelector('#evs .ev');}
+  function mflAdd(t,type){const tp=document.getElementById('tpl-'+t+'-'+type);document.getElementById('evs').insertAdjacentHTML('beforeend',tp.innerHTML);mflEmpty();const rows=document.querySelectorAll('#evs .ev');rows[rows.length-1].querySelector('input[name=ev_player]').focus();}
+  </script>`;
 }
 
 function readGame(body, g) {
