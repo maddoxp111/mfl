@@ -157,6 +157,7 @@ function icon(name) {
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/>',
     arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     chev: '<path d="M6 9l6 6 6-6"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
     swap: '<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
     chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
@@ -195,6 +196,7 @@ function layout(req, title, body, opts = {}) {
   const db = load();
   const teams = Object.values(db.teams);
   const admin = isAdmin(req);
+  const user = currentUser(req);
   const cur = req.path;
   const on = (prefixes) => (prefixes.some((p) => cur.startsWith(p)) ? 'on' : '');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -203,7 +205,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -218,7 +220,10 @@ function layout(req, title, body, opts = {}) {
     <div class="dd ${on(['/stats'])}"><button>Stats ${icon('chev')}</button><div class="dd-m">
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a></div></div>
     <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
-    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}
+    <div class="acct-box">${user
+      ? `<a class="acct" href="/pickem/me" title="My bets">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
+      : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
+    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}</div>
   </nav>
 </div></header>
 ${opts.ticker === false ? '' : ticker(db)}
@@ -231,6 +236,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
 document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
 const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+if(document.querySelector('.acct [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'))}).catch(()=>{});
 </script>
 </body></html>`;
 }
@@ -783,6 +789,12 @@ app.get('/pickem/me', async (req, res, next) => {
       <div class="bets">${bets.map((b) => betCard(db, b)).join('') || '<div class="card"><p class="muted">No bets yet. <a href="/pickem">Make your first pick →</a></p></div>'}</div>
     </div>`));
   } catch (e) { next(e); }
+});
+
+app.get('/pickem/me.json', async (req, res) => {
+  const name = currentUser(req);
+  const user = name ? await getDoc(userKey(name)) : null;
+  res.set('Cache-Control', 'no-store').json(user ? { name, balance: pk.account(load(), user).balance } : {});
 });
 
 app.post('/pickem/bailout', async (req, res) => {
