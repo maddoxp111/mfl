@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
-const { load, save, refresh } = require('./db');
+const { load, save, refresh, putMedia, getMedia, slug } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +12,15 @@ const VENUE = 'Thomas Metcalf School';
 
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// Player photos, served from storage (keys are unique per upload, so cache hard).
+app.get('/media/:key', async (req, res, next) => {
+  try {
+    if (!/^[a-z0-9-]+\.jpg$/.test(req.params.key)) return res.status(404).end();
+    const buf = await getMedia(req.params.key);
+    if (!buf) return res.status(404).end();
+    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=31536000, immutable' }).send(buf);
+  } catch (e) { next(e); }
+});
 app.use(async (req, res, next) => {
   try { await refresh(); next(); } catch (e) { next(e); }
 });
@@ -43,6 +52,21 @@ function readableOn(hex) {
 function logo(t, size = 40, cls = '') {
   if (t.logo) return `<img class="logo ${cls}" src="${esc(t.logo)}" alt="${esc(t.name)}" style="width:${size}px;height:${size}px">`;
   return `<span class="logo mono ${cls}" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.32)}px;background:${esc(t.color)};color:${readableOn(t.color)}">${esc(t.abbr)}</span>`;
+}
+const TAG_NAMES = { C: 'Captain', TR: 'Team Rep', FA: 'Free Agent' };
+const tagName = (tag) => TAG_NAMES[tag] || (tag?.startsWith('Rd') ? 'Draft · ' + tag.replace('Rd', 'Round') : tag || '');
+const playerUrl = (tm, p) => `/players/${tm.id}/${p.id}`;
+const findPlayerByName = (tm, name) => tm?.roster.find((p) => p.name.toLowerCase() === String(name || '').toLowerCase());
+function avatar(tm, p, size = 42, cls = '') {
+  const st = `width:${size}px;height:${size}px`;
+  if (p?.photo) return `<img class="av ph ${cls}" src="/media/${esc(p.photo)}" alt="${esc(p.name)}" style="${st}" loading="lazy">`;
+  return `<span class="av ${cls}" style="${st};font-size:${Math.round(size * 0.34)}px;background:${esc(tm.color)};color:${readableOn(tm.color)}">${initials(p?.name || '?')}</span>`;
+}
+// Player name as a link to their page when they're on the roster.
+function playerLink(tm, name, withAvatar = false) {
+  const p = findPlayerByName(tm, name);
+  const inner = `${withAvatar ? avatar(tm, p || { name }, 30) : ''}${esc(name)}`;
+  return p ? `<a class="plink" href="${playerUrl(tm, p)}">${inner}</a>` : `<span class="plink">${inner}</span>`;
 }
 function gameLabel(db, g) {
   if (g.type === 'playoff') return bowlName(db, g.bowl);
@@ -172,7 +196,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -322,7 +346,7 @@ app.get('/games/:id', (req, res) => {
   const plays = `<div class="card"><div class="card-h"><h2>Scoring &amp; Turnovers</h2></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
     const tm = db.teams[e.team] || a;
     return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${e.type === 'TD' ? 'td' : 'int'}">${e.type === 'TD' ? 'Touchdown' : 'Interception'}</span>
-      <p><b>${esc(e.player || 'Unknown')}</b>${e.type === 'TD' ? (e.passer ? ` catches a TD pass from <b>${esc(e.passer)}</b>` : ' scores a touchdown') : ' picks it off'}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}</p></div></li>`;
+      <p><b>${e.player ? playerLink(tm, e.player) : 'Unknown'}</b>${e.type === 'TD' ? (e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown') : ' picks it off'}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}</p></div></li>`;
   }).join('')}</ol>` : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}</div>`;
 
   const box = (tm) => {
@@ -334,7 +358,7 @@ app.get('/games/:id', (req, res) => {
       if (e.type === 'TD' && e.passer) r(e.passer).ptd++;
     }
     const list = Object.entries(rows);
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<table class="tbl"><thead><tr><th class="l">Player</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>${list.map(([n, s]) => `<tr><td class="l"><span class="av" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${initials(n)}</span>${esc(n)}</td><td>${s.td || '–'}</td><td>${s.ptd || '–'}</td><td>${s.int || '–'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No player stats recorded.</p>'}</div>`;
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<table class="tbl"><thead><tr><th class="l">Player</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>${list.map(([n, s]) => `<tr><td class="l">${playerLink(tm, n, true)}</td><td>${s.td || '–'}</td><td>${s.ptd || '–'}</td><td>${s.int || '–'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No player stats recorded.</p>'}</div>`;
   };
 
   const center = isFinal(g)
@@ -385,7 +409,6 @@ app.get('/teams/:id', (req, res) => {
   const upcoming = games.filter((g) => g.date && g.date >= today() && g.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
   const leaders = playerLeaders(db).filter((p) => p.team === tm.id);
   const lead = (k) => [...leaders].sort((x, y) => y[k] - x[k])[0];
-  const tagName = (tag) => ({ C: 'Captain', TR: 'Team Rep', FA: 'Free Agent' }[tag] || (tag.startsWith('Rd') ? 'Draft · ' + tag.replace('Rd', 'Round') : tag));
   res.send(layout(req, teamFull(tm), `
     <section class="th-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">${logo(tm, 132, 'big')}
       <div><div class="kicker">${esc(tm.city)}</div><h1>${esc(tm.name)}</h1>
@@ -393,13 +416,13 @@ app.get('/teams/:id', (req, res) => {
     <div class="wrap home-grid">
       <div class="col">
         <div class="card"><div class="card-h"><h2>Roster</h2><span class="muted sm">Captain: ${esc(tm.captain)}</span></div><div class="roster">
-          ${tm.roster.map((p) => `<div class="pl"><span class="av lg" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${initials(p.name)}</span><div><b>${esc(p.name)}</b><small>${esc(tagName(p.tag))}</small></div></div>`).join('')}
+          ${tm.roster.map((p) => `<a class="pl" href="${playerUrl(tm, p)}">${avatar(tm, p, 46)}<div><b>${p.number ? `<span class="num">#${esc(p.number)}</span> ` : ''}${esc(p.name)}</b><small>${esc([p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
         <div class="card"><div class="card-h"><h2>Recent Results</h2></div><div class="list">${done.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games yet.</p>'}</div></div>
       </div>
       <div class="col">
         <div class="card"><div class="card-h"><h2>Team Leaders</h2></div>
-          ${[['td', 'Touchdowns'], ['ptd', 'Passing TDs'], ['int', 'Interceptions']].map(([k, n]) => { const p = lead(k); return `<div class="leader"><span class="av" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${p && p[k] ? initials(p.name) : '–'}</span><div><small>${n}</small><b>${p && p[k] ? esc(p.name) : 'No leader yet'}</b></div><span class="leader-n">${p && p[k] ? p[k] : ''}</span></div>`; }).join('')}</div>
+          ${[['td', 'Touchdowns'], ['ptd', 'Passing TDs'], ['int', 'Interceptions']].map(([k, n]) => { const p = lead(k); return `<div class="leader"><span class="av" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${p && p[k] ? initials(p.name) : '–'}</span><div><small>${n}</small><b>${p && p[k] ? playerLink(tm, p.name) : 'No leader yet'}</b></div><span class="leader-n">${p && p[k] ? p[k] : ''}</span></div>`; }).join('')}</div>
         <div class="card"><div class="card-h"><h2>Upcoming</h2><a href="/schedule">Schedule ${icon('arrow')}</a></div><div class="list">${upcoming.map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
       </div>
     </div>`));
@@ -433,8 +456,63 @@ app.get('/stats/team', (req, res) => {
   </div>`));
 });
 
+// ---------- players ----------
+function playerStats(db, tm, p) {
+  const s = { td: 0, ptd: 0, int: 0, log: [] };
+  const name = p.name.toLowerCase();
+  const games = db.games.filter((g) => g.status === 'final' && (g.home === tm.id || g.away === tm.id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  for (const g of games) {
+    const row = { g, td: 0, ptd: 0, int: 0 };
+    for (const e of g.events || []) {
+      if (e.team !== tm.id) continue;
+      if ((e.player || '').toLowerCase() === name) row[e.type === 'TD' ? 'td' : 'int']++;
+      if (e.type === 'TD' && (e.passer || '').toLowerCase() === name) row.ptd++;
+    }
+    if (row.td || row.ptd || row.int) {
+      s.log.push(row);
+      if (g.type !== 'exhibition') { s.td += row.td; s.ptd += row.ptd; s.int += row.int; }
+    }
+  }
+  return s;
+}
+
+app.get('/players/:team/:pid', (req, res) => {
+  const db = load();
+  const tm = db.teams[req.params.team];
+  const p = tm?.roster.find((x) => x.id === req.params.pid);
+  if (!p) return res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Player not found')));
+  const s = playerStats(db, tm, p);
+  const opp = (g) => db.teams[g.home === tm.id ? g.away : g.home];
+  const mates = tm.roster.filter((x) => x.id !== p.id);
+  const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)]].filter(([, v]) => v);
+  res.send(layout(req, p.name, `
+    <section class="pp-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">
+      <div class="pp-photo">${avatar(tm, p, 220, 'xl')}${p.number ? `<span class="pp-num">${esc(p.number)}</span>` : ''}</div>
+      <div class="pp-info">
+        <a class="pp-team" href="/teams/${tm.id}">${logo(tm, 26)} ${esc(teamFull(tm))}</a>
+        <h1>${esc(p.name)}</h1>
+        <div class="pp-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
+        <div class="th-stats"><div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${s.log.filter((r) => r.g.type !== 'exhibition').length}</b><small>Games w/ stats</small></div></div>
+      </div>
+    </div></section>
+    <div class="wrap home-grid">
+      <div class="col">
+        <div class="card"><div class="card-h"><h2>Bio</h2></div>${p.bio ? `<div class="bio">${esc(p.bio).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>').replace(/^/, '<p>')}</p></div>` : '<p class="muted">No bio yet.</p>'}</div>
+        <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>
+          ${s.log.map(({ g, td, ptd, int }) => { const o = opp(g); const mine = g.home === tm.id ? g.homeScore : g.awayScore; const theirs = g.home === tm.id ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
+            return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td></tr>`; }).join('')}
+          </tbody></table></div><p class="muted sm">Season totals don't count exhibitions.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
+      </div>
+      <div class="col">
+        <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/teams/${tm.id}">Team ${icon('arrow')}</a></div><div class="mates">
+          ${mates.map((m) => `<a class="mate" href="${playerUrl(tm, m)}">${avatar(tm, m, 36)}<div><b>${esc(m.name)}</b><small>${esc([m.position, tagName(m.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
+        </div></div>
+      </div>
+    </div>`));
+});
+
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/teams', 'Teams'], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -571,7 +649,7 @@ app.get('/admin/teams', requireAdmin, (req, res) => {
         <label class="wide">Logo (PNG/JPG/SVG, under ~3MB)<input type="file" accept="image/*" onchange="const f=this.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{this.form.logo.value=r.result;};r.readAsDataURL(f)"></label>
         <input type="hidden" name="logo" value="">
         <label class="chk"><input type="checkbox" name="clearLogo"> Remove current logo</label>
-        <label class="wide">Roster: one per line as "Name | Tag" (tags: C, TR, Rd 1, FA…)<textarea name="roster" rows="10">${esc(t.roster.map((p) => (p.tag ? `${p.name} | ${p.tag}` : p.name)).join('\n'))}</textarea></label>
+        <label class="wide">Roster: one per line as "Name | Tag" (tags: C, TR, Rd 1, FA…). Edit bios &amp; photos under Players.<textarea name="roster" rows="10">${esc(t.roster.map((p) => (p.tag ? `${p.name} | ${p.tag}` : p.name)).join('\n'))}</textarea></label>
       </div><div class="actions"><button class="btn">Save ${esc(t.name)}</button></div></form>`).join('')}</div>`, { ticker: false }));
 });
 app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
@@ -585,9 +663,107 @@ app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
   t.color = hex(b.color, t.color); t.color2 = hex(b.color2, t.color2);
   if (b.clearLogo) t.logo = null;
   else if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/.test(b.logo || '')) t.logo = b.logo;
-  t.roster = String(b.roster || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [name, tag] = l.split('|').map((x) => x.trim()); return { name, tag: tag || '' }; });
+  const old = t.roster;
+  const used = new Set();
+  t.roster = String(b.roster || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [name, tag] = l.split('|').map((x) => x.trim());
+    const prev = old.find((p) => p.name.toLowerCase() === name.toLowerCase() && !used.has(p.id));
+    let id = prev?.id || slug(name), i = 2;
+    while (!prev && (used.has(id) || old.some((p) => p.id === id))) id = `${slug(name)}-${i++}`;
+    used.add(id);
+    return { ...(prev || {}), id, name, tag: tag || '' };
+  });
   await save();
   res.redirect('/admin/teams?saved=1');
+});
+
+app.get('/admin/players', requireAdmin, (req, res) => {
+  const db = load();
+  res.send(layout(req, 'Players', pageHead('Admin', 'Players', 'Click a player to edit their bio, photo, number and position. Add or remove players under Teams.') + `<div class="wrap">${adminNav('/admin/players')}${savedMsg(req)}
+    ${Object.values(db.teams).map((tm) => `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 28)} ${esc(teamFull(tm))}</h2></div><div class="roster">
+      ${tm.roster.map((p) => `<a class="pl" href="/admin/players/${tm.id}/${p.id}">${avatar(tm, p, 46)}<div><b>${esc(p.name)}</b><small>${p.photo ? '' : 'No photo · '}${p.bio ? 'Has bio' : 'No bio'}</small></div></a>`).join('')}
+    </div></div>`).join('')}</div>`, { ticker: false }));
+});
+
+app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
+  const db = load();
+  const tm = db.teams[req.params.team];
+  const p = tm?.roster.find((x) => x.id === req.params.pid);
+  if (!p) return res.redirect('/admin/players');
+  res.send(layout(req, 'Edit Player', pageHead('Admin', p.name, `<a href="${playerUrl(tm, p)}">View player page →</a>`) + `<div class="wrap">${adminNav('')}${savedMsg(req)}
+    ${req.query.err ? `<p class="err">${esc(req.query.err)}</p>` : ''}
+    <form method="post" class="card form">
+      <h3>Photo</h3>
+      <div class="photo-edit">
+        <div id="pv">${avatar(tm, p, 140, 'xl')}</div>
+        <div><label>Upload a new photo<input type="file" accept="image/*" id="photoIn"></label>
+        <input type="hidden" name="photo" id="photoData">
+        ${p.photo ? '<label class="chk"><input type="checkbox" name="clearPhoto"> Remove photo</label>' : ''}
+        <p class="muted sm">Photos are cropped to a square and shrunk automatically.</p></div>
+      </div>
+      <h3>Details</h3>
+      <div class="fgrid">
+        <label>Name<input name="name" value="${esc(p.name)}" required></label>
+        <label>Number<input name="number" value="${esc(p.number || '')}" maxlength="3" placeholder="e.g. 12"></label>
+        <label>Position<input name="position" value="${esc(p.position || '')}" placeholder="e.g. QB, WR, Rusher"></label>
+        <label>Grade<input name="grade" value="${esc(p.grade || '')}" placeholder="e.g. 8th"></label>
+        <label>Status tag<input name="tag" value="${esc(p.tag || '')}" placeholder="C, TR, Rd 1, FA"></label>
+        <label class="wide">Bio<textarea name="bio" rows="8" placeholder="Write something about this player…">${esc(p.bio || '')}</textarea></label>
+      </div>
+      <div class="actions"><button class="btn">Save player</button><a class="btn ghost" href="/admin/players">Back</a></div>
+    </form></div>
+    <script>
+    document.getElementById('photoIn').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(img.width, img.height), size = Math.min(640, s);
+        const c = document.createElement('canvas'); c.width = c.height = size;
+        c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+        const url = c.toDataURL('image/jpeg', 0.85);
+        document.getElementById('photoData').value = url;
+        document.getElementById('pv').innerHTML = '<img class="av ph xl" src="' + url + '" style="width:140px;height:140px">';
+      };
+      img.src = URL.createObjectURL(f);
+    });
+    </script>`, { ticker: false }));
+});
+
+app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
+  const db = load();
+  const tm = db.teams[req.params.team];
+  const p = tm?.roster.find((x) => x.id === req.params.pid);
+  if (!p) return res.redirect('/admin/players');
+  const b = req.body;
+  const back = `/admin/players/${tm.id}/${p.id}`;
+  const name = String(b.name || '').trim().slice(0, 60) || p.name;
+  if (name !== p.name) {
+    // Keep box-score stats attached to the renamed player.
+    const oldName = p.name.toLowerCase();
+    for (const g of db.games) for (const e of g.events || []) {
+      if (e.team !== tm.id) continue;
+      if ((e.player || '').toLowerCase() === oldName) e.player = name;
+      if ((e.passer || '').toLowerCase() === oldName) e.passer = name;
+    }
+    if (tm.captain.toLowerCase() === oldName) tm.captain = name;
+    p.name = name;
+  }
+  p.number = String(b.number || '').replace(/[^0-9]/g, '').slice(0, 3);
+  p.position = String(b.position || '').slice(0, 30);
+  p.grade = String(b.grade || '').slice(0, 20);
+  p.tag = String(b.tag || '').slice(0, 10);
+  p.bio = String(b.bio || '').slice(0, 4000);
+  if (b.clearPhoto) p.photo = null;
+  const m = /^data:image\/jpeg;base64,(.+)$/.exec(b.photo || '');
+  if (m) {
+    const buf = Buffer.from(m[1], 'base64');
+    if (buf.length > 3 * 1024 * 1024) return res.redirect(back + '?err=' + encodeURIComponent('That photo is too big.'));
+    const key = `${tm.id}-${p.id}-${Date.now().toString(36)}.jpg`;
+    await putMedia(key, buf, 'image/jpeg');
+    p.photo = key;
+  }
+  await save();
+  res.redirect(back + '?saved=1');
 });
 
 app.get('/admin/bowls', requireAdmin, (req, res) => {

@@ -121,6 +121,24 @@ async function blobWrite(json) {
   throw lastErr;
 }
 
+const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'player';
+
+// Give every player a stable id (older data stored rosters as name + tag only).
+function normalize(d) {
+  for (const t of Object.values(d.teams)) {
+    const used = new Set();
+    for (const p of t.roster) {
+      if (!p.id) {
+        let id = slug(p.name), i = 2;
+        while (used.has(id)) id = `${slug(p.name)}-${i++}`;
+        p.id = id;
+      }
+      used.add(p.id);
+    }
+  }
+  return d;
+}
+
 // Load into memory (call before each request so serverless instances stay in sync).
 async function refresh() {
   if (useBlob) {
@@ -129,7 +147,7 @@ async function refresh() {
       db = seed();
       await save();
     }
-    return db;
+    return normalize(db);
   }
   if (!db) {
     try {
@@ -139,7 +157,7 @@ async function refresh() {
       await save();
     }
   }
-  return db;
+  return normalize(db);
 }
 function load() {
   return db;
@@ -151,4 +169,46 @@ async function save() {
   fs.renameSync(FILE + '.tmp', FILE);
 }
 
-module.exports = { load, save, refresh };
+// Uploaded images (player photos) live outside db.json so page loads stay small.
+async function putMedia(key, buf, contentType) {
+  if (useBlob) {
+    const { put } = require('@vercel/blob');
+    let lastErr;
+    for (const a of accessOrder()) {
+      try {
+        await put('mfl/media/' + key, buf, { access: a, addRandomSuffix: false, allowOverwrite: true, contentType });
+        access = a;
+        return;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
+  }
+  const f = path.join(DATA_DIR, 'media', key);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, buf);
+}
+async function getMedia(key) {
+  if (useBlob) {
+    const { get } = require('@vercel/blob');
+    for (const a of accessOrder()) {
+      try {
+        const r = await get('mfl/media/' + key, { access: a });
+        if (!r) return null;
+        access = a;
+        return Buffer.from(await new Response(r.stream).arrayBuffer());
+      } catch (e) {
+        if (/not.?found/i.test(e.name + e.message)) return null;
+      }
+    }
+    return null;
+  }
+  try {
+    return fs.readFileSync(path.join(DATA_DIR, 'media', key));
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { load, save, refresh, putMedia, getMedia, slug };
