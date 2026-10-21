@@ -10,7 +10,7 @@ const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update(
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 const VENUE = 'Thomas Metcalf School';
 
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 // Player photos, served from storage (keys are unique per upload, so cache hard).
 app.get('/media/:key', async (req, res, next) => {
@@ -196,7 +196,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -722,11 +722,21 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
     <form method="post" class="card form">
       <h3>Photo</h3>
       <div class="photo-edit">
-        <div id="pv">${avatar(tm, p, 140, 'xl')}</div>
-        <div><label>Upload a new photo<input type="file" accept="image/*" id="photoIn"></label>
-        <input type="hidden" name="photo" id="photoData">
-        ${p.photo ? '<label class="chk"><input type="checkbox" name="clearPhoto"> Remove photo</label>' : ''}
-        <p class="muted sm">Photos are cropped to a square and shrunk automatically.</p></div>
+        <div class="crop" id="crop" ${p.photo ? `data-src="/media/${esc(p.photoOrig || p.photo)}"` : ''}>
+          <img id="cropImg" alt="" draggable="false" hidden>
+          <div class="crop-empty" id="cropEmpty" ${p.photo ? 'hidden' : ''}>${avatar(tm, p, 120, 'xl')}<span>No photo yet</span></div>
+        </div>
+        <div class="crop-side">
+          <label class="btn ghost file-btn">${p.photo ? 'Upload a different photo' : 'Upload a photo'}<input type="file" accept="image/*" id="photoIn" hidden></label>
+          <div id="cropTools" hidden>
+            <p class="sm"><b>Drag the photo</b> to choose what shows in the square. Use the slider to zoom.</p>
+            <label class="zoom">Zoom<input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+            <button type="button" class="btn sm ghost" id="cropReset">Reset</button>
+          </div>
+          <input type="hidden" name="photo" id="photoData"><input type="hidden" name="photoOrig" id="photoOrig">
+          ${p.photo ? '<label class="chk"><input type="checkbox" name="clearPhoto"> Remove photo</label>' : ''}
+          ${p.photo && !p.photoOrig ? '<p class="muted sm">This photo was uploaded before cropping existed, so you can only zoom in on it. Upload the original again to choose a different area.</p>' : ''}
+        </div>
       </div>
       <h3>Details</h3>
       <div class="fgrid">
@@ -740,19 +750,74 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
       <div class="actions"><button class="btn">Save player</button><a class="btn ghost" href="/admin/players">Back</a></div>
     </form></div>
     <script>
-    document.getElementById('photoIn').addEventListener('change', e => {
-      const f = e.target.files[0]; if (!f) return;
-      const img = new Image();
-      img.onload = () => {
-        const s = Math.min(img.width, img.height), size = Math.min(640, s);
-        const c = document.createElement('canvas'); c.width = c.height = size;
-        c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
-        const url = c.toDataURL('image/jpeg', 0.85);
-        document.getElementById('photoData').value = url;
-        document.getElementById('pv').innerHTML = '<img class="av photo xl" src="' + url + '" style="width:140px;height:140px">';
+    (() => {
+      const box = document.getElementById('crop'), img = document.getElementById('cropImg'), zoom = document.getElementById('zoom');
+      const out = document.getElementById('photoData'), orig = document.getElementById('photoOrig');
+      let iw = 0, ih = 0, base = 1, z = 1, x = 0, y = 0, dirty = false;
+      const V = () => box.clientWidth;
+      const clamp = () => {
+        const s = base * z, v = V();
+        x = Math.min(0, Math.max(v - iw * s, x));
+        y = Math.min(0, Math.max(v - ih * s, y));
       };
-      img.src = URL.createObjectURL(f);
-    });
+      const draw = () => {
+        clamp();
+        const s = base * z;
+        img.style.width = iw * s + 'px'; img.style.height = ih * s + 'px';
+        img.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      };
+      const load = (src, isNew) => {
+        const im = new Image();
+        im.onload = () => {
+          iw = im.naturalWidth; ih = im.naturalHeight;
+          img.src = src; img.hidden = false;
+          document.getElementById('cropEmpty').hidden = true;
+          document.getElementById('cropTools').hidden = false;
+          base = V() / Math.min(iw, ih); z = 1; zoom.value = 1;
+          x = (V() - iw * base) / 2; y = (V() - ih * base) / 2;
+          dirty = isNew; draw();
+        };
+        im.src = src;
+      };
+      if (box.dataset.src) load(box.dataset.src, false);
+
+      document.getElementById('photoIn').addEventListener('change', (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const im = new Image();
+        im.onload = () => {
+          // Keep a resized original so the crop can be changed later.
+          const m = Math.min(1, 1600 / Math.max(im.width, im.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(im.width * m); c.height = Math.round(im.height * m);
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          const url = c.toDataURL('image/jpeg', 0.85);
+          orig.value = url;
+          load(url, true);
+        };
+        im.src = URL.createObjectURL(f);
+      });
+
+      let drag = null;
+      box.addEventListener('pointerdown', (e) => { if (!iw) return; drag = { px: e.clientX, py: e.clientY, x, y }; box.setPointerCapture(e.pointerId); box.classList.add('dragging'); });
+      box.addEventListener('pointermove', (e) => { if (!drag) return; x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; dirty = true; draw(); });
+      const end = () => { drag = null; box.classList.remove('dragging'); };
+      box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+      const setZoom = (nz) => {
+        const v = V(), cx = (v / 2 - x) / (base * z), cy = (v / 2 - y) / (base * z);
+        z = Math.min(4, Math.max(1, nz)); zoom.value = z;
+        x = v / 2 - cx * base * z; y = v / 2 - cy * base * z; dirty = true; draw();
+      };
+      zoom.addEventListener('input', () => setZoom(+zoom.value));
+      box.addEventListener('wheel', (e) => { if (!iw) return; e.preventDefault(); setZoom(z * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+      document.getElementById('cropReset').addEventListener('click', () => { z = 1; zoom.value = 1; x = (V() - iw * base) / 2; y = (V() - ih * base) / 2; dirty = true; draw(); });
+
+      box.closest('form').addEventListener('submit', () => {
+        if (!iw || !dirty) return;
+        const s = base * z, c = document.createElement('canvas'); c.width = c.height = 640;
+        c.getContext('2d').drawImage(img, -x / s, -y / s, V() / s, V() / s, 0, 0, 640, 640);
+        out.value = c.toDataURL('image/jpeg', 0.88);
+      });
+    })();
     </script>`, { ticker: false }));
 });
 
@@ -780,14 +845,21 @@ app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   p.grade = String(b.grade || '').slice(0, 20);
   p.tag = String(b.tag || '').slice(0, 10);
   p.bio = String(b.bio || '').slice(0, 4000);
-  if (b.clearPhoto) p.photo = null;
-  const m = /^data:image\/jpeg;base64,(.+)$/.exec(b.photo || '');
-  if (m) {
-    const buf = Buffer.from(m[1], 'base64');
-    if (buf.length > 3 * 1024 * 1024) return res.redirect(back + '?err=' + encodeURIComponent('That photo is too big.'));
-    const key = `${tm.id}-${p.id}-${Date.now().toString(36)}.jpg`;
-    await putMedia(key, buf, 'image/jpeg');
-    p.photo = key;
+  const jpeg = (v) => {
+    const m = /^data:image\/jpeg;base64,(.+)$/.exec(v || '');
+    return m ? Buffer.from(m[1], 'base64') : null;
+  };
+  const crop = jpeg(b.photo), original = jpeg(b.photoOrig);
+  if ((crop?.length || 0) > 3 * 1024 * 1024 || (original?.length || 0) > 3 * 1024 * 1024) return res.redirect(back + '?err=' + encodeURIComponent('That photo is too big.'));
+  const stamp = Date.now().toString(36);
+  if (b.clearPhoto) { p.photo = null; p.photoOrig = null; }
+  else if (crop) {
+    await putMedia(`${tm.id}-${p.id}-${stamp}.jpg`, crop, 'image/jpeg');
+    p.photo = `${tm.id}-${p.id}-${stamp}.jpg`;
+    if (original) {
+      await putMedia(`${tm.id}-${p.id}-${stamp}-orig.jpg`, original, 'image/jpeg');
+      p.photoOrig = `${tm.id}-${p.id}-${stamp}-orig.jpg`;
+    }
   }
   await save();
   res.redirect(back + '?saved=1');

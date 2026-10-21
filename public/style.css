@@ -384,3 +384,18 @@ a.plink:hover{color:var(--red2)}
   .sb{padding:14px;gap:8px}.form .sb-team input{width:84px;font-size:38px}
 }
 @media(max-width:760px){.ev-gap{display:none}}
+
+/* photo cropper */
+.photo-edit{align-items:flex-start}
+.crop{position:relative;width:300px;height:300px;max-width:100%;border-radius:24px;overflow:hidden;background:var(--bg2);border:1px solid var(--line2);touch-action:none;cursor:grab;user-select:none;flex:none}
+.crop.dragging{cursor:grabbing}
+.crop img{position:absolute;left:0;top:0;max-width:none;pointer-events:none;transform-origin:0 0}
+.crop::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:24px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18);
+  background:linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)) 33.33% 0/1px 100% no-repeat,linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)) 66.66% 0/1px 100% no-repeat,linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)) 0 33.33%/100% 1px no-repeat,linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)) 0 66.66%/100% 1px no-repeat}
+.crop-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:13px}
+.crop-side{flex:1;min-width:220px;display:flex;flex-direction:column;gap:12px}
+.form .file-btn{flex-direction:row;margin:0;width:max-content;color:var(--ink);cursor:pointer}
+.form .zoom{flex-direction:row;align-items:center;gap:12px;margin:0}
+.zoom input{flex:1;accent-color:var(--red);padding:0!important;border:0!important;background:none!important}
+@media(max-width:760px){.crop{width:100%;height:auto;aspect-ratio:1}}
+.crop-side .zoom{max-width:320px}.crop-side #cropReset{width:max-content}
