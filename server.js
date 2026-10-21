@@ -205,7 +205,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=11">
+<link rel="stylesheet" href="/static/style.css?v=12">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -410,7 +410,7 @@ function preview(db, g) {
   const prev = db.games.filter((x) => isFinal(x) && x.date < (g.date || '9999')).sort((x, y) => y.date.localeCompare(x.date));
   const last = prev[0];
   const lead = (t) => playerLeaders(db).filter((p) => p.team === t.id).sort((x, y) => y.td - x.td)[0];
-  const open = pk.isOpen(g, TZ);
+  const open = pk.isOpen(db, g, TZ);
   const m = open ? pk.markets(db, g) : null;
   const wp = (t) => (m ? Math.round((m.byKey[`ml:${t.id}`]?.p || 0) * 100) : null);
   const per = (n, gp) => (gp ? (n / gp).toFixed(1) : '0.0');
@@ -428,7 +428,7 @@ function preview(db, g) {
     ${line('TD leader', ldr(a), ldr(b))}
     <p class="pv-note">${last ? `Last meeting: <a href="/games/${last.id}">${esc(db.teams[winner(last) || last.home].name)} ${winner(last) ? 'won' : 'tied'} ${Math.max(last.homeScore, last.awayScore)}–${Math.min(last.homeScore, last.awayScore)}</a> on ${esc(shortDate(last.date))}.` : 'First meeting of the season.'}
       ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%.` : ''}</p>
-    ${open ? `<a class="btn" href="/pickem/game/${g.id}">${icon('coin')} Make your picks: ${m.list.length} bets</a>` : ''}
+    ${open ? `<a class="btn" href="/pickem">${icon('coin')} Make your picks: ${m.list.length} bets</a>` : ''}
   </div>`;
 }
 
@@ -598,7 +598,8 @@ function oddsBtn(db, g, m, cls = '') {
   return `<button type="button" class="ob ${cls}" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-odds="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${esc(m.label)}</span><b>${oddsTxt(m.odds)}</b></button>`;
 }
 function openGames(db) {
-  return db.games.filter((g) => pk.isOpen(g, TZ)).sort((a, b) => a.date.localeCompare(b.date));
+  const g = pk.nextGame(db, TZ);
+  return g ? [g] : [];
 }
 
 // Bet slip: lives in the browser until submitted; the server re-prices every pick.
@@ -689,69 +690,72 @@ async function leaderboard(db) {
   return users.map((u) => ({ name: u.name, ...pk.account(db, u) })).sort((a, b) => b.balance - a.balance || b.won - a.won);
 }
 
+// Compact odds button for player cards: short text on the button, full label in the slip.
+function propBtn(db, g, m, short) {
+  if (!m) return `<span class="pb off"><span>${short}</span><b>–</b></span>`;
+  return `<button type="button" class="ob pb" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-odds="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${short}</span><b>${oddsTxt(m.odds)}</b></button>`;
+}
+const lockTs = (g) => kickoffTs({ ...g, time: pk.lockTime(g) });
+
 app.get('/pickem', async (req, res, next) => {
   try {
     const db = load();
     const name = currentUser(req);
     const { user, acct } = await loadAccount(db, name);
-    const games = openGames(db).slice(0, 8);
     const board = (await leaderboard(db)).slice(0, 8);
-    const cards = games.map((g) => {
-      const m = pk.markets(db, g), a = db.teams[g.home], b = db.teams[g.away], k = m.byKey;
-      const feat = [k[`ml:${a.id}`], k[`ml:${b.id}`], k['tot:28'], k['tot:35'], k[`first:${a.id}`], k[`first:${b.id}`]].filter(Boolean);
-      return `<div class="pg card" style="--a:${esc(a.color)};--b:${esc(b.color)}">
-        <div class="pg-h"><div class="pg-teams">${logo(a, 34)}<b>${esc(a.name)}</b><span>vs</span><b>${esc(b.name)}</b>${logo(b, 34)}</div>
-          <div class="pg-when">${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}${esc(shortDate(g.date))} · ${time12(g.time)}</div></div>
-        <div class="obs">${feat.map((x) => oddsBtn(db, g, x)).join('')}</div>
-        <a class="pg-more" href="/pickem/game/${g.id}">All ${m.list.length} bets: player props, margins, specials ${icon('arrow')}</a>
-      </div>`;
-    }).join('');
+    const g = pk.nextGame(db, TZ);
+    const side = `
+      ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open bets</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b)).join('')}</div>` : ''}
+      <div class="card"><div class="card-h"><h2>Leaderboard</h2><a href="/pickem/leaderboard">Full ${icon('arrow')}</a></div>${board.length ? `<ol class="lb">${board.map((u, i) => `<li class="${u.name === name ? 'me' : ''}"><span class="rank">${i + 1}</span><b>@${esc(u.name)}</b><small>${u.won}W-${u.lost}L</small>${coins(u.balance)}</li>`).join('')}</ol>` : '<p class="muted">Nobody yet. Be first!</p>'}</div>
+      <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Only the <b>next game</b> is open. Picks lock at <b>12:31</b>, and the next game opens right then.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>parlay</b>.</li><li>No unders or "player does badly" bets, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>`;
+
+    if (!g) {
+      return res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
+        <div class="home-grid"><div class="col"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Picks open for the next scheduled game. Check back soon.</p></div></div><div class="col">${side}</div></div></div>`));
+    }
+
+    const m = pk.markets(db, g), k = m.byKey;
+    const A = db.teams[g.home], B = db.teams[g.away];
+    const wp = (t) => Math.round((k[`ml:${t.id}`]?.p || 0) * 100);
+    // Players with the best shot at a TD first.
+    const tdP = (t, p) => k[`ptd:${t.id}:${p.id}`]?.p || 0;
+    const playerCard = (t, p) => `<div class="pc" style="--c:${esc(t.color)}">
+      <a class="pc-who" href="${playerUrl(t, p)}" target="_blank" rel="noopener">${avatar(t, p, 52)}<div><b>${esc(p.name)}</b><small>${esc([p.number && '#' + p.number, p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>
+      <div class="pc-bets">${propBtn(db, g, k[`ptd:${t.id}:${p.id}`], 'TD')}${propBtn(db, g, k[`p2td:${t.id}:${p.id}`], '2+ TD')}${propBtn(db, g, k[`ppass:${t.id}:${p.id}`], 'TD pass')}${propBtn(db, g, k[`pint:${t.id}:${p.id}`], 'INT')}</div>
+    </div>`;
+    const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
+    const groups = {};
+    for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
+    const gameBets = ['Total points', 'Team points', 'Winning margin', 'Specials'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
+
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
-      <div class="home-grid">
-        <div class="col">${cards || '<div class="card"><p class="muted">No games are open for picks right now. Bets open for every scheduled game and close at kickoff.</p></div>'}</div>
-        <div class="col">
-          ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open bets</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b)).join('')}</div>` : ''}
-          <div class="card"><div class="card-h"><h2>Leaderboard</h2><a href="/pickem/leaderboard">Full ${icon('arrow')}</a></div>${board.length ? `<ol class="lb">${board.map((u, i) => `<li class="${u.name === name ? 'me' : ''}"><span class="rank">${i + 1}</span><b>@${esc(u.name)}</b><small>${u.won}W-${u.lost}L</small>${coins(u.balance)}</li>`).join('')}</ol>` : '<p class="muted">Nobody yet. Be first!</p>'}</div>
-          <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>parlay</b>.</li><li>Bets close at kickoff and pay out when the final score is posted.</li><li>No unders or "player does badly" bets, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>
+      <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
+        <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><span class="ng-when">${esc(longDate(g.date))} · ${time12(g.time)} · <a href="/games/${g.id}">Preview</a></span></div>
+        <div class="ng-match">
+          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small>${propBtn(db, g, k[`ml:${A.id}`], 'To win')}</div>
+          <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div><small>at ${time12(pk.lockTime(g))}</small></div>
+          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small>${propBtn(db, g, k[`ml:${B.id}`], 'To win')}</div>
         </div>
-      </div></div>${slip(user)}`));
+        <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
+      </section>
+      <div class="home-grid">
+        <div class="col">
+          <section class="card props">
+            <div class="card-h"><h2>${icon('star')} Player props</h2><div class="seg mini" id="ptabs"><a class="on" data-t="all">Both teams</a><a data-t="${A.id}">${esc(A.abbr)}</a><a data-t="${B.id}">${esc(B.abbr)}</a></div></div>
+            <p class="muted sm">Sorted by who's most likely to score. Tap a price to add it to your slip.</p>
+            <div class="pteams">${teamProps(A)}${teamProps(B)}</div>
+          </section>
+          ${gameBets}
+        </div>
+        <div class="col">${side}</div>
+      </div></div>${slip(user)}${countdownScript}
+      <script>document.getElementById('ptabs').addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;document.querySelectorAll('#ptabs a').forEach(x=>x.classList.toggle('on',x===a));document.querySelectorAll('.pteam').forEach(p=>p.hidden=a.dataset.t!=='all'&&p.dataset.team!==a.dataset.t);document.querySelector('.pteams').classList.toggle('one',a.dataset.t!=='all')});
+      document.querySelectorAll('.cd').forEach(el=>{const t=+el.dataset.ts;if(t>Date.now())setTimeout(()=>location.reload(),t-Date.now()+1500)});</script>`));
   } catch (e) { next(e); }
 });
 
-app.get('/pickem/game/:id', async (req, res, next) => {
-  try {
-    const db = load();
-    const g = db.games.find((x) => x.id === req.params.id);
-    if (!g) return res.redirect('/pickem');
-    const name = currentUser(req);
-    const { user, acct } = await loadAccount(db, name);
-    const a = db.teams[g.home], b = db.teams[g.away];
-    const open = pk.isOpen(g, TZ);
-    const m = pk.markets(db, g);
-    const groups = {};
-    for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
-    const order = ['Winner', 'Total points', 'Team points', 'Winning margin', 'Specials', 'Touchdown scorers', 'TD passes', 'Interceptions'];
-    const section = (gname) => {
-      const xs = groups[gname] || [];
-      if (!xs.length) return '';
-      const player = ['Touchdown scorers', 'TD passes', 'Interceptions'].includes(gname);
-      const body = player
-        ? [a, b].map((t) => { const ys = xs.filter((x) => x.team === t.id); return ys.length ? `<div class="mk-team"><h4>${logo(t, 22)} ${esc(t.name)}</h4><div class="obs">${ys.map((x) => oddsBtn(db, g, x)).join('')}</div></div>` : ''; }).join('')
-        : `<div class="obs">${xs.map((x) => oddsBtn(db, g, x)).join('')}</div>`;
-      return `<details class="card mk" ${player ? '' : 'open'}><summary><h2>${gname}</h2><span class="muted sm">${xs.length} bets</span>${icon('chev')}</summary>${body}</details>`;
-    };
-    const winP = (t) => Math.round((m.byKey[`ml:${t.id}`]?.p || 0) * 100);
-    res.send(layout(req, `Pick'em · ${a.name} vs ${b.name}`, pickHead(user, acct) + `<div class="wrap">${pickNav('', name)}
-      <div class="card pg-hero" style="--a:${esc(a.color)};--b:${esc(b.color)}">
-        <div class="pg-teams big">${logo(a, 56)}<b>${esc(a.name)}</b><span>vs</span><b>${esc(b.name)}</b>${logo(b, 56)}</div>
-        <div class="pg-when">${esc(longDate(g.date))} · ${time12(g.time)} · ${VENUE} · <a href="/games/${g.id}">Game page</a></div>
-        <div class="winbar"><div style="width:${winP(a)}%;background:${esc(a.color)}"><span>${esc(a.abbr)} ${winP(a)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${100 - winP(a) - winP(b)}%</span></div><div style="width:${winP(b)}%;background:${esc(b.color)}"><span>${esc(b.abbr)} ${winP(b)}%</span></div></div>
-        ${open ? '' : '<p class="err center">Picks are closed for this game.</p>'}
-      </div>
-      ${open ? order.map(section).join('') : ''}
-    </div>${open ? slip(user) : ''}`));
-  } catch (e) { next(e); }
-});
+// Old per-game links all go to the single next-game page now.
+app.get('/pickem/game/:id', (req, res) => res.redirect('/pickem'));
 
 app.post('/pickem/bet', async (req, res) => {
   const db = load();
@@ -839,7 +843,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open bets, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My bets</a>.</p>
       <h3>Placing bets</h3><p>Tap any odds button to add it to your bet slip, choose how much to bet and hit <b>Place bet</b>. One pick is a single. Two or more picks become a <b>parlay</b>: every pick has to hit, but the odds multiply. Parlays can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
       <h3>Reading odds</h3><p><b>+150</b> means a 100 coin bet wins 150 more. <b>−200</b> means you bet 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
-      <h3>When bets close and pay</h3><p>Bets close at kickoff. They pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
+      <h3>When bets close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Bets pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
       <h3>Why there are no unders</h3><p>Every bet is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no bets on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
       <h3>Player props</h3><p>Player bets count what's in the box score. If a play isn't recorded, it doesn't count.</p>
     </div></div>`));

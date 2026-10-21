@@ -629,3 +629,53 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
   .tgrid>span:not(.plink):not(.th),.tgrid .th-l{display:none}
   .tgrid .tslider::before{content:attr(data-label);font:600 12px Inter;color:var(--muted);min-width:80px}
 }
+
+/* pick'em: next game */
+.ng{position:relative;border:1px solid var(--line2);border-radius:26px;padding:26px;margin-bottom:22px;overflow:hidden;
+  background:linear-gradient(110deg,color-mix(in srgb,var(--a) 30%,var(--card)) 0%,var(--card) 42%,var(--card) 58%,color-mix(in srgb,var(--b) 30%,var(--card)) 100%);box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.ng-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.ng-top .kicker{color:#fcd34d}
+.ng-when{color:var(--ink2);font-size:13px}.ng-when a{color:var(--ink);text-decoration:underline}
+.ng-match{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:18px}
+.ng-team{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.ng-team>b{font:900 clamp(22px,3vw,32px)/1 var(--disp);text-transform:uppercase}
+.ng-team>small{color:var(--ink2);font-size:13px}
+.ng-team .pb{min-width:150px}
+.ng-mid{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.ng-mid>small{color:var(--ink2);font:700 11px Inter;text-transform:uppercase;letter-spacing:.1em}
+.ng-mid .cd{margin:0}
+.pb{flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px}
+.pb span{font:700 12px Inter;text-transform:uppercase;letter-spacing:.04em}
+.pb b{font-size:16px}
+.pb.off{display:flex;background:transparent;border:1px dashed var(--line2);border-radius:12px;color:var(--muted);cursor:default}
+.pb.off b{color:var(--muted);font:800 16px var(--disp)}
+.props{border-color:rgba(245,179,1,.3)}
+.props .card-h h2{display:flex;align-items:center;gap:8px}
+.props .card-h h2 .ic{color:#fcd34d;width:18px;height:18px}
+.seg.mini{margin:0;padding:3px}.seg.mini a{padding:6px 12px;font-size:13px;cursor:pointer}
+.pteams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:10px}
+.pteams.one{grid-template-columns:1fr}
+.pteams.one .pc{grid-template-columns:minmax(200px,1fr) 2fr}
+.pteam h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:800 15px var(--disp);text-transform:uppercase}
+.pc{display:grid;gap:10px;padding:12px;margin-bottom:10px;border-radius:16px;background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--c);transition:.15s}
+.pc:hover{border-color:var(--line2);border-left-color:var(--c)}
+.pc-who{display:flex;align-items:center;gap:12px;min-width:0}
+.pc-who .av{margin:0}
+.pc-who b{display:block;font:800 15px var(--disp);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-who small{color:var(--muted);font-size:12px}
+.pc-who:hover b{color:#fcd34d}
+.pc-bets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pc-bets .pb{flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px}
+.pc-bets .pb span{font-size:10.5px;color:var(--muted)}
+.pc-bets .pb.on span{color:#3d2f00}
+.empty-pick{text-align:center;padding:48px 20px}
+.empty-pick .ic{width:40px;height:40px;color:var(--muted)}
+.empty-pick h2{font:900 24px var(--disp);text-transform:uppercase;margin:12px 0 6px}
+@media(max-width:1100px){.pteams{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .ng{padding:18px;border-radius:20px}
+  .ng-match{grid-template-columns:1fr 1fr}.ng-mid{grid-column:1/-1;grid-row:1}
+  .ng-team .logo{width:60px!important;height:60px!important}.ng-team .pb{min-width:0;width:100%}
+  .pc-bets{grid-template-columns:repeat(2,1fr)}
+  .pteams.one .pc{grid-template-columns:1fr}
+}

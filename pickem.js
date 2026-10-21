@@ -16,8 +16,21 @@ function nowLocal(tz) {
   const p = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
-// Bets close at kickoff, or as soon as the game isn't plain "scheduled".
-const isOpen = (g, tz) => !!g && !!g.date && g.status === 'scheduled' && nowLocal(tz) < `${g.date} ${g.time || '12:35'}`;
+// Only the next game is open. Picks lock 4 minutes before kickoff (12:31 for a
+// 12:35 game), and at that moment the following game opens.
+const LOCK_MINUTES = 4;
+function lockTime(g) {
+  const [h, m] = (g.time || '12:35').split(':').map(Number);
+  const t = h * 60 + m - LOCK_MINUTES;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+function nextGame(db, tz) {
+  const now = nowLocal(tz);
+  return db.games
+    .filter((g) => g.date && g.status === 'scheduled' && now < `${g.date} ${lockTime(g)}`)
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0] || null;
+}
+const isOpen = (db, g, tz) => !!g && nextGame(db, tz)?.id === g.id;
 
 // ---------- odds model ----------
 function rng(seed) {
@@ -207,7 +220,7 @@ function buildBet(db, picks, stake, tz) {
   const legs = [], seen = new Set(), winFamily = new Map();
   for (const pk of picks) {
     const g = db.games.find((x) => x.id === String(pk.game));
-    if (!isOpen(g, tz)) return { error: 'One of those games has already started or is closed for picks.' };
+    if (!isOpen(db, g, tz)) return { error: 'Picks for that game are closed. Refresh to see the next game.' };
     const m = markets(db, g).byKey[pk.key];
     if (!m) return { error: 'One of those bets is no longer available. Refresh and try again.' };
     const id = g.id + '|' + m.key;
@@ -243,4 +256,4 @@ function american(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
+module.exports = { LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
