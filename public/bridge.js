@@ -103,6 +103,7 @@
     } catch {}
     try {
       const r = await call(sitePath());
+      if (r.status >= 500) return offline();
       if (follow(r)) return;
       const html = await r.text();
       show(html);

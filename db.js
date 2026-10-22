@@ -140,9 +140,16 @@ function normalize(d) {
 }
 
 // Load into memory (call before each request so serverless instances stay in sync).
-async function refresh() {
+// Vercel Blob's free plan limits how many reads and writes a month are allowed, so
+// each server instance keeps a short-lived copy instead of reading on every request.
+// Anything that changes data reads fresh first (opts.fresh).
+const DB_TTL = 30 * 1000, DOC_TTL = 30 * 1000, LIST_DOC_TTL = 5 * 60 * 1000, LIST_TTL = 10 * 60 * 1000;
+let dbAt = 0;
+async function refresh(opts = {}) {
   if (useBlob) {
+    if (db && !opts.fresh && Date.now() - dbAt < DB_TTL) return db;
     db = (await blobRead()) || null;
+    dbAt = Date.now();
     if (!db) {
       db = seed();
       await save();
@@ -163,7 +170,7 @@ function load() {
   return db;
 }
 async function save() {
-  if (useBlob) return blobWrite(JSON.stringify(db));
+  if (useBlob) { await blobWrite(JSON.stringify(db)); dbAt = Date.now(); return; }
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(FILE + '.tmp', JSON.stringify(db));
   fs.renameSync(FILE + '.tmp', FILE);
@@ -213,8 +220,15 @@ async function getMedia(key) {
 
 // Small JSON documents kept apart from db.json (one per pick'em account), so
 // people placing bets at the same time don't overwrite each other's data.
+const docCache = new Map(); // key -> { json, at }
+const listCache = new Map(); // prefix -> { keys: Set, at }
+function remember(key, json) {
+  if (json == null) docCache.delete(key); else docCache.set(key, { json, at: Date.now() });
+  for (const [prefix, l] of listCache) if (key.startsWith(prefix)) { if (json == null) l.keys.delete(key); else l.keys.add(key); }
+}
 async function putDoc(key, obj) {
   const json = JSON.stringify(obj);
+  if (useBlob) remember(key, json);
   if (useBlob) {
     const { put } = require('@vercel/blob');
     let lastErr;
@@ -234,20 +248,26 @@ async function putDoc(key, obj) {
   fs.writeFileSync(f + '.tmp', json);
   fs.renameSync(f + '.tmp', f);
 }
-async function getDoc(key) {
+async function getDoc(key, opts = {}) {
   if (useBlob) {
+    const c = docCache.get(key);
+    if (c && !opts.fresh && Date.now() - c.at < (opts.maxAge || DOC_TTL)) return JSON.parse(c.json);
     const { get } = require('@vercel/blob');
+    let lastErr;
     for (const a of accessOrder()) {
       try {
         const r = await get('mfl/docs/' + key + '.json', { access: a, useCache: false });
-        if (!r) return null;
+        if (!r) { remember(key, null); return null; }
         access = a;
-        return JSON.parse(await new Response(r.stream).text());
+        const json = await new Response(r.stream).text();
+        remember(key, json);
+        return JSON.parse(json);
       } catch (e) {
-        if (/not.?found/i.test(e.name + e.message)) return null;
+        if (/not.?found/i.test(e.name + e.message)) { remember(key, null); return null; }
+        lastErr = e;
       }
     }
-    return null;
+    throw lastErr;
   }
   try {
     return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'docs', key + '.json'), 'utf8'));
@@ -257,15 +277,20 @@ async function getDoc(key) {
 }
 async function listDocs(prefix) {
   if (useBlob) {
-    const { list } = require('@vercel/blob');
-    const keys = [];
-    let cursor;
-    do {
-      const r = await list({ prefix: 'mfl/docs/' + prefix, cursor, limit: 1000 });
-      for (const b of r.blobs) keys.push(b.pathname.slice('mfl/docs/'.length, -'.json'.length));
-      cursor = r.hasMore ? r.cursor : null;
-    } while (cursor);
-    return Promise.all(keys.map(getDoc)).then((docs) => docs.filter(Boolean));
+    let l = listCache.get(prefix);
+    if (!l || Date.now() - l.at > LIST_TTL) {
+      const { list } = require('@vercel/blob');
+      const keys = new Set();
+      let cursor;
+      do {
+        const r = await list({ prefix: 'mfl/docs/' + prefix, cursor, limit: 1000 });
+        for (const b of r.blobs) keys.add(b.pathname.slice('mfl/docs/'.length, -'.json'.length));
+        cursor = r.hasMore ? r.cursor : null;
+      } while (cursor);
+      l = { keys, at: Date.now() };
+      listCache.set(prefix, l);
+    }
+    return Promise.all([...l.keys].map((k) => getDoc(k, { maxAge: LIST_DOC_TTL }))).then((docs) => docs.filter(Boolean));
   }
   const dir = path.join(DATA_DIR, 'docs', path.dirname(prefix + 'x'));
   try {
@@ -279,6 +304,7 @@ async function listDocs(prefix) {
 async function deleteDoc(key) {
   if (useBlob) {
     const { del } = require('@vercel/blob');
+    remember(key, null);
     try { await del('mfl/docs/' + key + '.json'); } catch {}
     return;
   }

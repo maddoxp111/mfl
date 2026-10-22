@@ -39,6 +39,8 @@ async function main() {
   while (queue.length) {
     const link = queue.shift();
     const res = await fetch(origin + link);
+    // A server error means the site is down: stop, so the last good copy stays up.
+    if (res.status >= 500) throw new Error(`live site returned ${res.status} for ${link}`);
     if (!res.ok) { console.warn('skip', res.status, link); continue; }
     const html = await res.text();
     for (const [, l] of html.matchAll(/(?:href|src)="(\/[^"#]*)"/g)) {

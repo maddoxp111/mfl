@@ -51,11 +51,11 @@ app.get('/media/:key', async (req, res, next) => {
     if (!/^[a-z0-9-]+\.jpg$/.test(req.params.key)) return res.status(404).end();
     const buf = await getMedia(req.params.key);
     if (!buf) return res.status(404).end();
-    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=31536000, immutable' }).send(buf);
+    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable' }).send(buf);
   } catch (e) { next(e); }
 });
 app.use(async (req, res, next) => {
-  try { await refresh(); next(); } catch (e) { next(e); }
+  try { await refresh({ fresh: req.method === 'POST' }); next(); } catch (e) { next(e); }
 });
 // Rolling sessions: anyone who keeps using the site stays signed in. Cookies are
 // signed with SESSION_SECRET, so redeploys and password changes don't sign anyone out.
@@ -1135,7 +1135,7 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
   const name = currentUser(req);
   if (!name) return res.json({ ok: false, error: 'Log in first.' });
   try {
-    const user = await getDoc(userKey(name));
+    const user = await getDoc(userKey(name), { fresh: true });
     if (!user) return res.json({ ok: false, error: 'Account not found. Log in again.' });
     const built = pk.buildBet(db, req.body.picks, req.body.stake, TZ);
     if (built.error) return res.json({ ok: false, error: built.error });
@@ -1166,7 +1166,7 @@ app.post('/pickem/bailout', async (req, res) => {
   const db = load();
   const name = currentUser(req);
   if (!name) return res.redirect('/pickem/login');
-  const user = await getDoc(userKey(name));
+  const user = await getDoc(userKey(name), { fresh: true });
   const acct = user && pk.account(db, user);
   if (acct && acct.balance < pk.BAILOUT_BELOW && !acct.pending) {
     user.bonuses = user.bonuses || [];
@@ -1245,7 +1245,7 @@ app.post('/pickem/signup', async (req, res) => {
   const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
   if (!pk.validName(name)) return res.send(authPage(req, 'signup', 'Usernames are 3-16 letters, numbers or _.'));
   if (pin.length < 6 || pin.length > 72) return res.send(authPage(req, 'signup', 'Your password needs at least 6 characters.'));
-  if (await getDoc(userKey(name))) return res.send(authPage(req, 'signup', 'That username is taken.'));
+  if (await getDoc(userKey(name), { fresh: true })) return res.send(authPage(req, 'signup', 'That username is taken.'));
   await putDoc(userKey(name), { name, ...pk.hashPin(pin), created: new Date().toISOString(), bonuses: [], bets: [] });
   setUserCookie(req, res, name);
   res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
@@ -1257,7 +1257,7 @@ app.post('/pickem/login', async (req, res) => {
   const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
   const t = tries.get(name) || { n: 0, until: 0 };
   if (t.until > Date.now()) return res.send(authPage(req, 'login', 'Too many tries. Wait a minute and try again.'));
-  const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
+  const user = pk.validName(name) ? await getDoc(userKey(name), { fresh: true }) : null;
   if (!user || !pin || pin.length > 72 || !pk.checkPin(user, pin)) {
     t.n++; if (t.n >= 5) { t.n = 0; t.until = Date.now() + 60000; } tries.set(name, t);
     return res.send(authPage(req, 'login', 'Wrong username or password.'));
@@ -1274,7 +1274,7 @@ app.post('/pickem/password', async (req, res) => {
   const cur = String(req.body.current || ''), nw = String(req.body.password || ''), again = String(req.body.again || '');
   const t = tries.get(name) || { n: 0, until: 0 };
   if (t.until > Date.now()) return back('Too many tries. Wait a minute and try again.');
-  const user = await getDoc(userKey(name));
+  const user = await getDoc(userKey(name), { fresh: true });
   if (!user) return res.redirect('/pickem/logout');
   if (!cur || cur.length > 72 || !pk.checkPin(user, cur)) {
     t.n++; if (t.n >= 5) { t.n = 0; t.until = Date.now() + 60000; } tries.set(name, t);
@@ -1665,7 +1665,7 @@ function dailyCard(user) {
 app.post('/pickem/daily', async (req, res) => {
   const name = currentUser(req);
   if (!name) return res.redirect('/pickem/login');
-  const user = await getDoc(userKey(name));
+  const user = await getDoc(userKey(name), { fresh: true });
   if (user) {
     const d = dailyInfo(user);
     if (!d.claimed) {
@@ -2245,7 +2245,7 @@ app.post('/admin/pickem/reprice-spreads', requireAdmin, async (req, res) => {
 
 app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   const name = String(req.params.name).toLowerCase();
-  const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
+  const user = pk.validName(name) ? await getDoc(userKey(name), { fresh: true }) : null;
   if (!user) return res.redirect('/admin/pickem');
   if (req.params.action === 'pin' && String(req.body.pin || '').length >= 4 && String(req.body.pin).length <= 72) Object.assign(user, pk.hashPin(String(req.body.pin)));
   else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount)) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
