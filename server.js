@@ -702,7 +702,7 @@ function slip(user) {
       const b = e.target.closest('.ob'); if (!b) return;
       const i = legs.findIndex((l) => l.game === b.dataset.game && l.key === b.dataset.key);
       if (i >= 0) legs.splice(i, 1);
-      else if (legs.length >= ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'Max ${pk.MAX_LEGS} picks per parlay.'; }
+      else if (legs.length >= ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'Max ${pk.MAX_LEGS} picks per combo.'; }
       else legs.push({ game: b.dataset.game, key: b.dataset.key, label: b.dataset.label, odds: +b.dataset.odds, match: b.dataset.match });
       el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
     });
