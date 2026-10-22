@@ -881,3 +881,20 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .lk-url{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lk .btn.ok{background:#22c55e}
 @media(max-width:760px){.bf-hero .wrap{flex-direction:column;align-items:flex-start}.bf-hero .av{width:110px!important;height:110px!important}.bb-grid{grid-template-columns:1fr}.links{grid-template-columns:1fr}}
+
+/* mobile fixes: closed slide-out menu must not widen the page; link rows fit the screen */
+html,body{overflow-x:clip}
+@media(max-width:760px){
+  .nav{visibility:hidden;transition:transform .25s,visibility 0s .25s}
+  .nav-open .nav{visibility:visible;transition:transform .25s}
+}
+.links{grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))}
+.lk{min-width:0}
+.lk .btn{flex:none}
+@media(max-width:560px){
+  .lk{flex-wrap:wrap}
+  .lk>div{flex:1 1 calc(100% - 60px)}
+  .lk .btn{width:100%;justify-content:center}
+  .bf-game{flex-direction:column;align-items:flex-start}
+  .bf-hero h1{font-size:40px}
+}
