@@ -849,3 +849,9 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .form .ev-sel.empty{color:var(--muted)}
 .form .ev-sel option{color:var(--ink)}
 @media(max-width:760px){.ev select[name=ev_player]{grid-row:2;grid-column:1/-1}.ev select[name=ev_passer]{grid-column:1/-1}}
+.bpts{display:inline-flex;align-items:center;gap:3px;font-weight:800;color:#c4b5fd;font-variant-numeric:tabular-nums}
+.bpts .ic{width:13px;height:13px}
+.stats-row.six{grid-template-columns:repeat(7,1fr)}
+.stats-row .bp .bpts{font:inherit;color:#c4b5fd}
+@media(max-width:1100px){.stats-row.six{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:560px){.stats-row.six{grid-template-columns:repeat(2,1fr)}}

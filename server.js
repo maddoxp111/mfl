@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=16">
+<link rel="stylesheet" href="/static/style.css?v=17">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -734,10 +734,18 @@ function pickNav(cur, name) {
   const items = [['/pickem', 'Games'], ['/pickem/me', 'My bets'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
+// Betting Points: just for show. Every winning bet earns 10, +5 per extra parlay leg,
+// +1 per unit of odds (so long shots earn more). Losses don't take any away.
+function betPointsOf(b) {
+  if (b.status !== 'won') return 0;
+  return 10 + 5 * (b.legs.length - 1) + Math.floor(Math.min(b.odds, 100));
+}
+const betPoints = (bets) => bets.reduce((s, b) => s + betPointsOf(b), 0);
+const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
     <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Bet fake coins on every MFL game. Singles, player props and parlays.</p></div>
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open</span></div>`
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open · ${pts(betPoints(acct.bets))} pts</span></div>`
       : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }
@@ -748,7 +756,7 @@ function betCard(db, b, opts = {}) {
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
       return `<div class="bet-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="bet-f"><span>Bet ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    <div class="bet-f"><span>Bet ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="bet-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -1024,10 +1032,10 @@ app.get('/pickem/leaderboard', async (req, res, next) => {
     const recent = board.flatMap((u) => u.bets.filter((b) => b.status === 'won').map((b) => ({ ...b, who: u.name }))).sort((x, y) => y.payout - x.payout).slice(0, 5);
     const who = (n) => `<a href="/pickem/u/${esc(n)}"><b>@${esc(n)}</b></a>${winners.some((w) => w.name === n) ? ` <span class="star-b" title="Bettor of the Week">${icon('star')}${winners.filter((w) => w.name === n).length}</span>` : ''}`;
     const table = weekly
-      ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>W</th><th>L</th></tr></thead><tbody>
-        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No bets settled this week yet.</td></tr>'}</tbody></table>`
-      : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
-        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
+      ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>Points</th><th>W</th><th>L</th></tr></thead><tbody>
+        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No bets settled this week yet.</td></tr>'}</tbody></table>`
+      : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>Points</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
+        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(betPoints(u.bets))}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
     res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
       ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Bettor of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
       <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>${weekly ? `This week <small class="muted">from ${esc(shortDate(wk))}</small>` : 'Season standings'}</h2>
@@ -1280,38 +1288,47 @@ function recap(db, g) {
   return out.join(' ');
 }
 
-// Player power rating, 40-99, from stats only. It's based on AVERAGE production per team
-// game (TD 6, TD pass 4, INT 5, MVP 2, win 2; thrown INT -5, loss -2), so stacking good
-// games can't run it away, and losing or getting picked off pulls it down. Early in
-// the season it's pulled toward 60, and it takes a long run of strong games to reach the 90s.
-//   one big game (TD + TD pass + MVP) ≈ 63-64 · season averaging that ≈ 80 · elite ≈ 90+
+// Player power rating, 40-99, from stats only. Each team game gets a production score
+// (TD 6, TD pass 4, INT 5, MVP 2, win 2; thrown INT -5, loss -2) and the rating uses a
+// RECENT-WEIGHTED average of those: each older game counts 15% less than the one after it.
+// So stacking good games can't run it away, and going quiet for a few games slides you down
+// (a quiet win keeps you about level, a quiet loss drops you). Early on it's pulled toward 60.
 // `until` lets us compare to the ratings before the last game.
+const RECENT_DECAY = 0.85;
 function ratings(db, until = null) {
   // Exhibitions count for player ratings.
-  const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until));
-  const mvps = {};
-  for (const g of games) { const m = gameMvp(db, g); if (m) mvps[m.team + '|' + m.name.toLowerCase()] = (mvps[m.team + '|' + m.name.toLowerCase()] || 0) + 1; }
+  const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+  const mvpOf = new Map(games.map((g) => [g.id, gameMvp(db, g)]));
   const out = [];
   for (const t of Object.values(db.teams)) {
-    const gp = games.filter((g) => g.home === t.id || g.away === t.id).length;
+    const tg = games.filter((g) => g.home === t.id || g.away === t.id);
+    const gp = tg.length;
     for (const p of t.roster) {
       const n = p.name.toLowerCase();
-      let td = 0, pass = 0, int = 0, picked = 0, wins = 0, losses = 0;
-      for (const g of games) {
-        if (g.home === t.id || g.away === t.id) { const w = winner(g); if (w === t.id) wins++; else if (w) losses++; }
+      const tot = { td: 0, pass: 0, int: 0, picked: 0, wins: 0, losses: 0, mvp: 0 };
+      let wSum = 0, pSum = 0;
+      tg.forEach((g, i) => {
+        const x = { td: 0, pass: 0, int: 0, picked: 0, mvp: 0 };
         for (const e of g.events || []) {
-          if (e.team === t.id && (e.player || '').toLowerCase() === n) { if (e.type === 'TD') td++; else int++; }
-          if (e.type === 'TD' && e.team === t.id && (e.passer || '').toLowerCase() === n) pass++;
-          if (e.type === 'INT' && e.team !== t.id && (e.passer || '').toLowerCase() === n) picked++; // threw the pick
+          if (e.team === t.id && (e.player || '').toLowerCase() === n) { if (e.type === 'TD') x.td++; else x.int++; }
+          if (e.type === 'TD' && e.team === t.id && (e.passer || '').toLowerCase() === n) x.pass++;
+          if (e.type === 'INT' && e.team !== t.id && (e.passer || '').toLowerCase() === n) x.picked++; // threw the pick
         }
-      }
-      const mv = mvps[t.id + '|' + n] || 0;
-      const perGame = gp ? (6 * td + 4 * pass + 5 * int + 2 * mv + 2 * wins - 5 * picked - 2 * losses) / gp : 0;
+        const m = mvpOf.get(g.id);
+        if (m && m.team === t.id && m.name.toLowerCase() === n) x.mvp = 1;
+        const w = winner(g), win = w === t.id ? 1 : 0, loss = w && w !== t.id ? 1 : 0;
+        const prod = 6 * x.td + 4 * x.pass + 5 * x.int + 2 * x.mvp + 2 * win - 5 * x.picked - 2 * loss;
+        const weight = Math.pow(RECENT_DECAY, gp - 1 - i); // newest game = 1
+        wSum += weight; pSum += weight * prod;
+        for (const k in x) tot[k] += x[k];
+        tot.wins += win; tot.losses += loss;
+      });
+      const perGame = wSum ? pSum / wSum : 0;
       const trust = gp / (gp + 4); // how much the stats count vs. the 60 starting point
       // Diminishing returns going up; going down is straight-line so bad games always hurt.
       const value = perGame >= 0 ? 55 * (1 - Math.exp(-perGame / 15)) - 10 : -10 + 1.5 * perGame;
       const r = Math.round(Math.max(40, Math.min(99, 60 + trust * value)));
-      out.push({ t, p, r, td, pass, int, picked, wins, losses, mvp: mv, gp });
+      out.push({ t, p, r, ...tot, gp });
     }
   }
   return out.sort((a, b) => b.r - a.r || b.td - a.td);
@@ -1420,7 +1437,7 @@ const betProfit = (b) => (b.status === 'won' ? b.payout - b.stake : b.status ===
 function weekBoard(board, wk) {
   return board.map((u) => {
     const bets = u.bets.filter((b) => b.status !== 'pending' && weekOf(localDay(b.placed)) === wk);
-    return { name: u.name, profit: bets.reduce((s, b) => s + betProfit(b), 0), won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, n: bets.length };
+    return { name: u.name, points: betPoints(bets), profit: bets.reduce((s, b) => s + betProfit(b), 0), won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, n: bets.length };
   }).filter((u) => u.n).sort((a, b) => b.profit - a.profit || b.won - a.won);
 }
 // Bettor of the Week: best profit in each finished week (needs to be positive).
@@ -1508,7 +1525,8 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       </div>
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
-      <div class="stats-row six">${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Parlays', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <div class="stats-row six">${tile('Betting points', pts(betPoints(acct.bets)), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Parlays', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <p class="muted sm">Betting points are just for bragging rights: every winning bet earns 10, plus 5 for each extra parlay pick and more for long shots.</p>
       <div class="home-grid"><div class="col">
         <div class="card-h"><h2>Bet history</h2><span class="muted sm">${acct.bets.length} bets · ${st.staked.toLocaleString('en-US')} coins wagered</span></div>
         <div class="bets">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No bets yet.</p></div>'}</div>
