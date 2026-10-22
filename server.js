@@ -26,6 +26,18 @@ app.get('/media/:key', async (req, res, next) => {
 app.use(async (req, res, next) => {
   try { await refresh(); next(); } catch (e) { next(e); }
 });
+// Rolling sessions: anyone who keeps using the site stays signed in. Cookies are
+// signed with SESSION_SECRET, so redeploys and password changes don't sign anyone out.
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/static') && !req.path.startsWith('/media')) {
+    const c = readCookies(req);
+    const left = (v) => Number(String(v || '').split('.')[v && v.split('.').length === 3 ? 1 : 0]) - Date.now();
+    const name = currentUser(req);
+    if (name && left(c[USER_COOKIE]) < (SESSION_DAYS - 7) * DAY) setUserCookie(req, res, name);
+    if (isAdmin(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
+  }
+  next();
+});
 
 // ---------- helpers ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -585,9 +597,16 @@ function currentUser(req) {
   const good = sign('u:' + name + ':' + exp);
   return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good)) ? name : null;
 }
+const DAY = 24 * 3600 * 1000;
+const SESSION_DAYS = 365;
+const secureFlag = (req) => (req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '');
 function setUserCookie(req, res, name) {
-  const exp = String(Date.now() + 180 * 24 * 3600 * 1000);
-  res.setHeader('Set-Cookie', `${USER_COOKIE}=${name}.${exp}.${sign('u:' + name + ':' + exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${180 * 24 * 3600}${req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`);
+  const exp = String(Date.now() + SESSION_DAYS * DAY);
+  res.append('Set-Cookie', `${USER_COOKIE}=${name}.${exp}.${sign('u:' + name + ':' + exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
+}
+function setAdminCookie(req, res) {
+  const exp = String(Date.now() + SESSION_DAYS * DAY);
+  res.append('Set-Cookie', `mfl_admin=${exp}.${sign(exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
 }
 const userKey = (name) => 'users/' + name;
 const coins = (n) => `<span class="coins">${icon('coin')}${Number(n).toLocaleString('en-US')}</span>`;
@@ -1018,8 +1037,7 @@ app.post('/admin/login', (req, res) => {
   const p = String(req.body.password || '');
   const ok = p.length === ADMIN_PASSWORD.length && crypto.timingSafeEqual(Buffer.from(p), Buffer.from(ADMIN_PASSWORD));
   if (!ok) return res.redirect('/admin/login?bad=1');
-  const exp = String(Date.now() + 30 * 24 * 3600 * 1000);
-  res.setHeader('Set-Cookie', `mfl_admin=${exp}.${sign(exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}${req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`);
+  setAdminCookie(req, res);
   res.redirect('/admin');
 });
 app.get('/admin/logout', (req, res) => { res.setHeader('Set-Cookie', 'mfl_admin=; Path=/; Max-Age=0'); res.redirect('/'); });
