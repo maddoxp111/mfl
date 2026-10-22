@@ -737,6 +737,18 @@ function seeded(seed) {
   return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 const shuffle = (arr, r) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// QB / defense / playmaker: the saved position wins; otherwise go by which of
+// throwing, picks or scoring the player does most (stats + effective tendencies).
+function playerRole(db, t, p, et = pk.effTend(db)) {
+  const pos = String(p.position || '').toUpperCase();
+  if (/\bQB\b|QUARTERBACK|PASSER/.test(pos)) return 'qb';
+  if (/\b(DB|CB|S|LB|DL|DE)\b|SAFETY|CORNER|LINEBACK|DEF|RUSH/.test(pos)) return 'def';
+  if (pos) return 'skill';
+  const s = playerStats(db, t, p);
+  const score = { qb: et.player(t, p, 'pass') + 8 * s.ptd, def: et.player(t, p, 'int') + 8 * s.int, skill: et.player(t, p, 'td') + 8 * s.td };
+  const best = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
+  return best[1] > score.skill + 2 ? best[0] : 'skill';
+}
 function featured(db, g, m) {
   const k = m.byKey, et = pk.effTend(db), r = seeded('feat:' + g.id + ':' + g.date);
   const stars = [];
@@ -751,11 +763,20 @@ function featured(db, g, m) {
   const opp = (t) => db.teams[t.id === g.home ? g.away : g.home];
   const spr = (t) => m.list.find((x) => x.group === 'Spread' && x.team === t.id);
 
-  // Star cards: always their TD bet, plus 5 rotating picks and a "TD + team wins" combo.
+  // Star cards show bets that fit the player's role: QBs get throwing bets, defenders
+  // get INT bets, everyone else gets scoring bets. Each role has a fixed headline bet
+  // plus rotating picks from its pool, and a "<headline> + team wins" combo.
+  for (const s of stars) s.role2 = playerRole(db, s.t, s.p, et);
+  const ROLE_BETS = {
+    qb: { main: 'ppass', pool: ['p2pass', 'pdual', 'ptd', 'pfirst', 'pint'], combo: 'Throws a TD' },
+    def: { main: 'pint', pool: ['pint_td', 'ptd', 'pfirst', 'p2td'], combo: 'Gets an INT' },
+    skill: { main: 'ptd', pool: ['p2td', 'p3td', 'pfirst', 'pdual', 'pint_td'], combo: 'TD' },
+  };
   const cards = stars.map((s) => {
     const pre = (mk) => `${mk}:${s.t.id}:${s.p.id}`;
-    const rest = shuffle(['p2td', 'p3td', 'pfirst', 'ppass', 'p2pass', 'pdual', 'pint', 'pint_td'].filter((mk) => k[pre(mk)]), r).slice(0, 5);
-    return { ...s, bets: ['ptd', ...rest].map((mk) => ({ m: k[pre(mk)], short: STAR_SHORT[mk] })), combo: [leg(pre('ptd')), leg(`ml:${s.t.id}`)].filter(Boolean) };
+    const rb = ROLE_BETS[s.role2];
+    const rest = shuffle(rb.pool.filter((mk) => k[pre(mk)]), r).slice(0, 5);
+    return { ...s, bets: [rb.main, ...rest].map((mk) => ({ m: k[pre(mk)], short: STAR_SHORT[mk] })), comboName: rb.combo, combo: [leg(pre(rb.main)), leg(`ml:${s.t.id}`)].filter(Boolean) };
   });
 
   // Ready-made star parlays (at most one "who wins" pick each, so they always validate).
@@ -769,22 +790,41 @@ function featured(db, g, m) {
     const ss = byTeam(t);
     for (let i = 0; i < ss.length; i++) for (let j = i + 1; j < ss.length; j++) {
       const a = ss[i].p, b = ss[j].p;
-      add(`${first(a.name)} & ${first(b.name)} both score`, [`ptd:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Duo');
-      add(`${first(a.name)} throws, ${first(b.name)} scores`, [`ppass:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Connection');
+      const ra = ss[i].role2, rb2 = ss[j].role2;
+      if (ra === 'qb' && rb2 !== 'qb') add(`${first(a.name)} throws, ${first(b.name)} scores`, [`ppass:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Connection');
+      else if (rb2 === 'qb' && ra !== 'qb') add(`${first(b.name)} throws, ${first(a.name)} scores`, [`ppass:${t.id}:${b.id}`, `ptd:${t.id}:${a.id}`], 'Connection');
+      else if (ra === 'def' && rb2 === 'def') add(`${first(a.name)} & ${first(b.name)} both get a pick`, [`pint:${t.id}:${a.id}`, `pint:${t.id}:${b.id}`], 'Lockdown');
+      else if (ra === 'def' || rb2 === 'def') { const [d, o] = ra === 'def' ? [a, b] : [b, a]; add(`${first(d.name)} gets a pick, ${first(o.name)} scores`, [`pint:${t.id}:${d.id}`, `ptd:${t.id}:${o.id}`], 'Two-way'); }
+      else if (ra !== 'qb' && rb2 !== 'qb') add(`${first(a.name)} & ${first(b.name)} both score`, [`ptd:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Duo');
     }
-    if (ss.length >= 3) add(`${t.name} big three all score`, ss.slice(0, 3).map((s) => `ptd:${t.id}:${s.p.id}`), 'Trio');
+    const scorers = ss.filter((s) => s.role2 !== 'qb');
+    if (scorers.length >= 3) add(`${t.name} big three all score`, scorers.slice(0, 3).map((s) => `ptd:${t.id}:${s.p.id}`), 'Trio');
     for (const s of ss) {
-      add(`${first(s.p.name)} scores first, ${t.name} win`, [`pfirst:${t.id}:${s.p.id}`, `ml:${t.id}`], 'Statement');
-      add(`${first(s.p.name)} goes off: 2+ TDs & ${t.name} 21+`, [`p2td:${t.id}:${s.p.id}`, `tt:${t.id}:21`], 'Big game');
-      add(`${first(s.p.name)} does it all, ${t.name} win`, [`pdual:${t.id}:${s.p.id}`, `ml:${t.id}`], 'MVP');
-      if (spr(t)) add(`${first(s.p.name)} scores & ${t.name} cover ${pk.fmtLine(spr(t).line)}`, [`ptd:${t.id}:${s.p.id}`, spr(t).key], 'Spread');
-      for (const o of byTeam(opp(t))) add(`${first(s.p.name)} picks one off, ${first(o.p.name)} still scores`, [`pint:${t.id}:${s.p.id}`, `ptd:${opp(t).id}:${o.p.id}`], 'Rivalry');
+      const n = first(s.p.name);
+      if (s.role2 === 'qb') {
+        add(`${n} airs it out: 2+ TD passes & ${t.name} 21+`, [`p2pass:${t.id}:${s.p.id}`, `tt:${t.id}:21`], 'Big game');
+        add(`${n} throws a TD, ${t.name} win`, [`ppass:${t.id}:${s.p.id}`, `ml:${t.id}`], 'Statement');
+        if (spr(t)) add(`${n} throws a TD & ${t.name} cover ${pk.fmtLine(spr(t).line)}`, [`ppass:${t.id}:${s.p.id}`, spr(t).key], 'Spread');
+      } else if (s.role2 === 'def') {
+        add(`${n} picks one off, ${t.name} win`, [`pint:${t.id}:${s.p.id}`, `ml:${t.id}`], 'Statement');
+        add(`${n} ball-hawk: INT & ${t.name} get 2+ picks`, [`pint:${t.id}:${s.p.id}`, `int2:${t.id}`], 'Big game');
+        for (const o of byTeam(opp(t)).filter((o) => o.role2 !== 'def')) add(`${n} gets a pick, ${first(o.p.name)} still ${o.role2 === 'qb' ? 'throws a TD' : 'scores'}`, [`pint:${t.id}:${s.p.id}`, `${o.role2 === 'qb' ? 'ppass' : 'ptd'}:${opp(t).id}:${o.p.id}`], 'Rivalry');
+      } else {
+        add(`${n} scores first, ${t.name} win`, [`pfirst:${t.id}:${s.p.id}`, `ml:${t.id}`], 'Statement');
+        add(`${n} goes off: 2+ TDs & ${t.name} 21+`, [`p2td:${t.id}:${s.p.id}`, `tt:${t.id}:21`], 'Big game');
+        if (spr(t)) add(`${n} scores & ${t.name} cover ${pk.fmtLine(spr(t).line)}`, [`ptd:${t.id}:${s.p.id}`, spr(t).key], 'Spread');
+      }
+      if (s.role2 === 'qb') add(`${n} does it all: throws & runs one in, ${t.name} win`, [`pdual:${t.id}:${s.p.id}`, `ml:${t.id}`], 'MVP');
+      else if (s.role2 === 'def') add(`${n} takes over: INT + TD, ${t.name} win`, [`pint_td:${t.id}:${s.p.id}`, `ml:${t.id}`], 'MVP');
+      else add(`${n} carries them: TD & ${t.name} 28+`, [`ptd:${t.id}:${s.p.id}`, `tt:${t.id}:28`], 'MVP');
     }
   }
   const caps = stars.filter((s) => s.role === 'Captain');
+  const capBet = (s) => ({ qb: 'ppass', def: 'pint', skill: 'ptd' }[s.role2]);
+  const capVerb = { ppass: 'throw a TD', pint: 'get a pick', ptd: 'score' };
   if (caps.length === 2) {
-    add('Captain clash: both captains score', caps.map((s) => `ptd:${s.t.id}:${s.p.id}`), 'Captains');
-    add('Captains both throw a TD', caps.map((s) => `ppass:${s.t.id}:${s.p.id}`), 'Captains');
+    const [x, y] = caps;
+    add(capBet(x) === capBet(y) ? `Captain clash: both captains ${capVerb[capBet(x)]}` : `Captain clash: ${first(x.p.name)} & ${first(y.p.name)} both deliver`, caps.map((s) => `${capBet(s)}:${s.t.id}:${s.p.id}`), 'Captains');
   }
   const combos = shuffle(C, r).slice(0, 16).map((c) => ({ ...c, odds: c.legs.reduce((x, l) => x * l.odds, 1) }));
   return { cards: shuffle(cards, r), combos };
@@ -799,9 +839,9 @@ function featuredHtml(db, g, m) {
     <div class="spot">${cards.map((c) => `<article class="star" style="--c:${esc(c.t.color)}">
       <div class="star-top"><span class="role r-${c.role === 'Hot' ? 'hot' : 'tag'}">${roleIcon[c.role]} ${c.role === 'Hot' ? 'On fire' : c.role}</span>${c.p.number ? `<span class="star-num">${esc(c.p.number)}</span>` : ''}
         <a href="${playerUrl(c.t, c.p)}" target="_blank" rel="noopener" class="star-photo">${avatar(c.t, c.p, 112, 'xl')}</a></div>
-      <div class="star-name"><b>${esc(c.p.name)}</b><small>${logo(c.t, 16)} ${esc(c.t.name)}${c.p.position ? ' · ' + esc(c.p.position) : ''}</small></div>
+      <div class="star-name"><b>${esc(c.p.name)}</b><small>${logo(c.t, 16)} ${esc(c.t.name)} · ${esc(c.p.position || { qb: 'QB', def: 'Defense', skill: 'Playmaker' }[c.role2])}</small></div>
       <div class="star-bets">${c.bets.map((b) => propBtn(db, g, b.m, b.short)).join('')}</div>
-      ${c.combo.length === 2 ? comboBtn(c.combo, `<span>TD + ${esc(c.t.name)} win</span><b>${oddsTxt(c.combo[0].odds * c.combo[1].odds)}</b>`, 'star-combo') : ''}
+      ${c.combo.length === 2 ? comboBtn(c.combo, `<span>${c.comboName} + ${esc(c.t.name)} win</span><b>${oddsTxt(c.combo[0].odds * c.combo[1].odds)}</b>`, 'star-combo') : ''}
     </article>`).join('')}</div>
     <div class="feat-h sub"><div><span class="kicker">${icon('coin')} One tap</span><h2>Star Parlays</h2></div><small>Tap a ticket to drop every pick in your slip.</small></div>
     <div class="tickets">${combos.map((c) => comboBtn(c.legs, `<div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
