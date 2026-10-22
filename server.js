@@ -214,6 +214,7 @@ function layout(req, title, body, opts = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · MFL</title>
 <meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a free just-for-fun picks game for the Thomas Metcalf School flag football league. No real money.">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
@@ -233,7 +234,7 @@ function layout(req, title, body, opts = {}) {
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
     <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
     <div class="acct-box">${user
-      ? `<a class="acct" href="/pickem/me" title="My bets">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
+      ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
       : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
     ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}</div>
   </nav>
@@ -344,7 +345,7 @@ app.get('/', (req, res) => {
           <div class="card"><div class="card-h"><h2>Up Next</h2><a href="/schedule">Full schedule ${icon('arrow')}</a></div><div class="list">${upcoming.slice(0, 4).map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
           <div class="card"><div class="card-h"><h2>Latest Results</h2><a href="/scores">All scores ${icon('arrow')}</a></div><div class="list">${recent.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games played yet.</p>'}</div></div>
         </div>
-        <div class="col"><a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Bet coins on every game, with parlays and player props.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
+        <div class="col"><a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Pick every game with fake coins, with combos and player picks.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
       </div>
     </div>${countdownScript}`));
 });
@@ -448,7 +449,7 @@ function preview(db, g) {
     ${line('TD leader', ldr(a), ldr(b))}
     <p class="pv-note">${last ? `Last meeting: <a href="/games/${last.id}">${esc(db.teams[winner(last) || last.home].name)} ${winner(last) ? 'won' : 'tied'} ${Math.max(last.homeScore, last.awayScore)}–${Math.min(last.homeScore, last.awayScore)}</a> on ${esc(shortDate(last.date))}.` : 'First meeting of the season.'}
       ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%. The spread is <b>${esc(db.teams[m.fav].name)} -${m.line}</b>.` : ''}</p>
-    ${open ? `<a class="btn" href="/pickem">${icon('coin')} Make your picks: ${m.list.length} bets</a>` : ''}
+    ${open ? `<a class="btn" href="/pickem">${icon('coin')} Make your picks: ${m.list.length} picks</a>` : ''}
   </div>`;
 }
 
@@ -476,7 +477,7 @@ app.get('/playoffs/:slug', (req, res) => {
       ${A ? `<div class="bowl-match">${logo(A, 84)}<div class="bowl-mid">${g && isFinal(g) ? `<b>${g.homeScore}–${g.awayScore}</b><small>Final</small>` : '<b>VS</b>'}</div>${logo(B, 84)}</div>` : ''}
       <p>${icon('cal')} ${esc(longDate(g?.date || b.date))} &nbsp; ${icon('clock')} ${g?.date ? time12(g.time) : 'Time TBD'} &nbsp; ${icon('pin')} ${VENUE}</p>
       ${g ? countdown(g) : ''}
-      ${open ? `<a class="btn bowl-cta" href="/pickem">${icon('coin')} Bet on the ${esc(b.name)}</a>` : ''}
+      ${open ? `<a class="btn bowl-cta" href="/pickem">${icon('coin')} Make picks for the ${esc(b.name)}</a>` : ''}
     </div></section>
     <div class="wrap">
       ${champ ? `<div class="champ" style="--a:${esc(champ.color)}">${logo(champ, 88)}<div><div class="kicker">${esc(b.name)} Champions</div><h2>${esc(teamFull(champ))}</h2></div></div>` : ''}
@@ -599,7 +600,7 @@ app.get('/players/:team/:pid', (req, res) => {
         <h1>${esc(p.name)}</h1>
         <div class="pp-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
         <div class="th-stats">${rt ? `<a class="rt-big ${tier(rt.r)}" href="/players/${tm.id}/${p.id}/card" title="Power rating · see trading card"><b>${rt.r}</b><small>Rating</small></a>` : ''}<div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${rt ? rt.mvp : 0}</b><small>MVPs</small></div></div>
-        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/bet/${tm.id}/${p.id}">${icon('coin')} Bet on ${esc(p.name.split(' ')[0])}</a>
+        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/picks/${tm.id}/${p.id}">${icon('coin')} Picks for ${esc(p.name.split(' ')[0])}</a>
       </div>
     </div></section>
     <div class="wrap home-grid">
@@ -655,15 +656,15 @@ function openGames(db) {
   return g ? [g] : [];
 }
 
-// Bet slip: lives in the browser until submitted; the server re-prices every pick.
+// Pick slip: lives in the browser until submitted; the server re-prices every pick.
 function slip(user) {
   return `<aside class="slip" id="slip" hidden>
-    <button class="slip-head" type="button" onclick="document.getElementById('slip').classList.toggle('min')"><b>Bet slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span></button>
+    <button class="slip-head" type="button" onclick="document.getElementById('slip').classList.toggle('min')"><b>Pick slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span></button>
     <div class="slip-body">
       <div id="slipLegs"></div>
-      <label class="slip-stake">Bet<input type="number" id="slipStake" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
+      <label class="slip-stake">Pick<input type="number" id="slipStake" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
       <div class="slip-sum"><span>Odds <b id="slipOdds">–</b></span><span>To win <b id="slipWin">–</b></span></div>
-      ${user ? '<button class="btn slip-go" id="slipGo" type="button">Place bet</button>' : '<a class="btn slip-go" href="/pickem/login?next=/pickem">Log in to bet</a>'}
+      ${user ? '<button class="btn slip-go" id="slipGo" type="button">Lock it in</button>' : '<a class="btn slip-go" href="/pickem/login?next=/pickem">Log in to play</a>'}
       <p class="slip-msg" id="slipMsg"></p>
       <button type="button" class="slip-clear" onclick="mflSlip.clear()">Clear slip</button>
     </div>
@@ -680,7 +681,7 @@ function slip(user) {
       document.querySelectorAll('.combo').forEach((c) => c.classList.toggle('on', JSON.parse(c.dataset.legs).every((x) => legs.some((l) => l.game === x.game && l.key === x.key))));
       el('slip').hidden = !legs.length;
       el('slipCount').textContent = legs.length;
-      el('slipKind').textContent = legs.length > 1 ? legs.length + '-leg parlay' : 'Single';
+      el('slipKind').textContent = legs.length > 1 ? legs.length + '-pick combo' : 'Single';
       el('slipLegs').innerHTML = legs.map((l, i) => '<div class="sl"><div><small>' + l.match + '</small><b>' + l.label + '</b></div><span>' + amer(l.odds) + '</span><button type="button" onclick="mflSlip.remove(' + i + ')" aria-label="Remove">✕</button></div>').join('');
       const odds = legs.reduce((x, l) => x * l.odds, 1), stake = Math.floor(+el('slipStake').value || 0);
       el('slipOdds').textContent = legs.length ? amer(odds) : '–';
@@ -708,14 +709,14 @@ function slip(user) {
     el('slipStake').addEventListener('input', render);
     const go = el('slipGo');
     if (go) go.addEventListener('click', async () => {
-      go.disabled = true; el('slipMsg').textContent = 'Placing bet…'; el('slipMsg').className = 'slip-msg';
+      go.disabled = true; el('slipMsg').textContent = 'Locking in…'; el('slipMsg').className = 'slip-msg';
       try {
-        const r = await fetch('/pickem/bet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: legs.map((l) => ({ game: l.game, key: l.key })), stake: +el('slipStake').value }) });
+        const r = await fetch('/pickem/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: legs.map((l) => ({ game: l.game, key: l.key })), stake: +el('slipStake').value }) });
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         legs = []; store(); render();
         el('slip').hidden = false; el('slipMsg').className = 'slip-msg good';
-        el('slipMsg').innerHTML = 'Bet placed! To win ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My bets →</a>';
+        el('slipMsg').innerHTML = 'Locked in! To win ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a>';
         document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
       } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
       go.disabled = false;
@@ -731,10 +732,10 @@ async function loadAccount(db, name) {
   return user ? { user, acct: pk.account(db, user) } : { user: null, acct: null };
 }
 function pickNav(cur, name) {
-  const items = [['/pickem', 'Games'], ['/pickem/me', 'My bets'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
-// Betting Points: just for show. Every winning bet earns 10, +5 per extra parlay leg,
+// Pick Points: just for show. Every winning bet earns 10, +5 per extra parlay leg,
 // +1 per unit of odds (so long shots earn more). Losses don't take any away.
 function betPointsOf(b) {
   if (b.status !== 'won') return 0;
@@ -744,7 +745,7 @@ const betPoints = (bets) => bets.reduce((s, b) => s + betPointsOf(b), 0);
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
-    <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Bet fake coins on every MFL game. Singles, player props and parlays.</p></div>
+    <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Make picks with fake coins on every MFL game. Singles, player picks and combos.</p></div>
     ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open · ${pts(betPoints(acct.bets))} pts</span></div>`
       : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
@@ -752,11 +753,11 @@ function pickHead(user, acct) {
 function betCard(db, b, opts = {}) {
   const st = { won: 'Won', lost: 'Lost', void: 'Refunded', pending: 'Open' }[b.status];
   return `<div class="bet ${b.status}">
-    <div class="bet-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-leg parlay' : 'Single'}</b>`}<span class="bet-st">${st}</span></div>
+    <div class="bet-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="bet-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
       return `<div class="bet-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="bet-f"><span>Bet ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    <div class="bet-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="bet-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -893,7 +894,7 @@ function featuredHtml(db, g, m) {
   const roleIcon = { Captain: 'C', 'Team Rep': 'TR', Hot: '🔥' };
   const comboBtn = (legs, inner, cls) => `<button type="button" class="combo ${cls}" data-legs="${esc(JSON.stringify(legs))}">${inner}</button>`;
   return `<section class="feat">
-    <div class="feat-h"><div><span class="kicker">${icon('star')} Featured</span><h2>Star Spotlight</h2></div><small>Captains, team reps and the hottest players. Featured bets change every game.</small></div>
+    <div class="feat-h"><div><span class="kicker">${icon('star')} Featured</span><h2>Star Spotlight</h2></div><small>Captains, team reps and the hottest players. Featured picks change every game.</small></div>
     <div class="spot">${cards.map((c) => `<article class="star" style="--c:${esc(c.t.color)}">
       <div class="star-top"><span class="role r-${c.role === 'Hot' ? 'hot' : 'tag'}">${roleIcon[c.role]} ${c.role === 'Hot' ? 'On fire' : c.role}</span>${c.p.number ? `<span class="star-num">${esc(c.p.number)}</span>` : ''}
         <a href="${playerUrl(c.t, c.p)}" target="_blank" rel="noopener" class="star-photo">${avatar(c.t, c.p, 112, 'xl')}</a></div>
@@ -901,11 +902,11 @@ function featuredHtml(db, g, m) {
       <div class="star-bets">${c.bets.map((b) => propBtn(db, g, b.m, b.short)).join('')}</div>
       ${c.combo.length === 2 ? comboBtn(c.combo, `<span>${c.comboName} + ${esc(c.t.name)} win</span><b>${oddsTxt(c.combo[0].odds * c.combo[1].odds)}</b>`, 'star-combo') : ''}
     </article>`).join('')}</div>
-    <div class="feat-h sub"><div><span class="kicker">${icon('coin')} One tap</span><h2>Star Parlays</h2></div><small>Tap a ticket to drop every pick in your slip.</small></div>
+    <div class="feat-h sub"><div><span class="kicker">${icon('coin')} One tap</span><h2>Star Combos</h2></div><small>Tap a ticket to drop every pick in your slip.</small></div>
     <div class="tickets">${combos.map((c) => comboBtn(c.legs, `<div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
       <b class="tk-title">${esc(c.title)}</b>
       <ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
-      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div>`, 'ticket')).join('')}</div>
+      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div>`, 'ticket')).join('')}</div>
   </section>`;
 }
 
@@ -916,7 +917,7 @@ const ROLE_KEYS = {
   skill: { main: 'ptd', big: 'p2td', verb: 'scores', bigVerb: 'scores 2+ TDs' },
 };
 const PROP_ORDER = ['ptd', 'p2td', 'p3td', 'pfirst', 'ppass', 'p2pass', 'pdual', 'pint', 'pint_td'];
-const betForUrl = (t, p) => `/bet/${t.id}/${p.id}`;
+const betForUrl = (t, p) => `/picks/${t.id}/${p.id}`;
 
 // Parlays built around one player: every pick fits each player's role.
 function playerParlays(db, g, m, t, p) {
@@ -959,14 +960,18 @@ function playerParlays(db, g, m, t, p) {
   return out.sort((a, b) => a.odds - b.odds);
 }
 
-app.get('/bet/:team/:pid', async (req, res, next) => {
+// Old /bet/... links (already shared) forward to the new /picks/... address.
+app.get('/bet/:team/:pid', (req, res) => res.redirect(301, `/picks/${encodeURIComponent(req.params.team)}/${encodeURIComponent(req.params.pid)}`));
+app.get('/bet-links', (req, res) => res.redirect(301, '/pick-links'));
+app.get('/pickem/bet/:name/:id', (req, res) => res.redirect(301, `/pickem/ticket/${encodeURIComponent(req.params.name)}/${encodeURIComponent(req.params.id)}`));
+app.get('/picks/:team/:pid', async (req, res, next) => {
   try {
     const db = load();
     const t = db.teams[req.params.team];
     const p = t?.roster.find((x) => x.id === req.params.pid);
     if (!p) {
       const moved = Object.values(db.teams).find((x) => x.roster.some((y) => y.id === req.params.pid));
-      return moved ? res.redirect(`/bet/${moved.id}/${req.params.pid}`) : res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Player not found')));
+      return moved ? res.redirect(`/picks/${moved.id}/${req.params.pid}`) : res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Player not found')));
     }
     const name = currentUser(req);
     const { user } = await loadAccount(db, name);
@@ -977,45 +982,45 @@ app.get('/bet/:team/:pid', async (req, res, next) => {
     const hero = `<section class="bf-hero" style="--c:${esc(t.color)};--c2:${esc(t.color2)}"><div class="wrap">
       ${avatar(t, p, 150, 'xl')}
       <div><div class="kicker">${icon('coin')} Pick'em · ${logo(t, 18)} ${esc(teamFull(t))}${p.number ? ' · #' + esc(p.number) : ''}</div>
-        <h1>Bet on ${esc(p.name)}</h1>
+        <h1>Picks for ${esc(p.name)}</h1>
         <p>${esc(p.position || { qb: 'QB', def: 'Defense', skill: 'Playmaker' }[role])}${r ? ` · Rated ${r.r}` : ''} · <a href="${playerUrl(t, p)}">Player page</a> · <a href="/players/${t.id}/${p.id}/card">Trading card</a></p></div>
     </div></section>`;
     if (!plays) {
-      return res.send(layout(req, `Bet on ${p.name}`, hero + `<div class="wrap"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Bets on ${esc(p.name)} open for the next scheduled game. Check back soon.</p><a class="btn" href="/pickem">Go to Pick'em</a></div></div>`));
+      return res.send(layout(req, `Picks for ${p.name}`, hero + `<div class="wrap"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Picks on ${esc(p.name)} open for the next scheduled game. Check back soon.</p><a class="btn" href="/pickem">Go to Pick'em</a></div></div>`));
     }
     const m = pk.markets(db, g);
     const k = m.byKey;
     const A = db.teams[g.home], B = db.teams[g.away];
     const mine = PROP_ORDER.map((mk) => k[`${mk}:${t.id}:${p.id}`]).filter(Boolean);
     const rk = ROLE_KEYS[role];
-    // Best bets: their headline role bet, their big-game bet, and their most likely other bet.
+    // Top picks: their headline role bet, their big-game bet, and their most likely other bet.
     const bestKeys = [rk.main, rk.big];
     const rest = mine.filter((x) => !bestKeys.some((b) => x.key.startsWith(b + ':'))).sort((a, b) => b.p - a.p)[0];
     const best = [...bestKeys.map((b) => k[`${b}:${t.id}:${p.id}`]), rest].filter(Boolean);
     const bestCard = (x, i) => `<button type="button" class="ob bb" data-game="${g.id}" data-key="${esc(x.key)}" data-label="${esc(x.label)}" data-odds="${x.odds}" data-match="${esc(matchName(db, g))}">
-      <small>${['Best bet', 'Big game', 'Sleeper pick'][i] || 'Pick'}</small><span>${esc(x.label.replace(p.name + ' ', ''))}</span><b>${oddsTxt(x.odds)}</b><em>${Math.round(x.p * 100)}% chance</em></button>`;
+      <small>${['Top pick', 'Big game', 'Sleeper pick'][i] || 'Pick'}</small><span>${esc(x.label.replace(p.name + ' ', ''))}</span><b>${oddsTxt(x.odds)}</b><em>${Math.round(x.p * 100)}% chance</em></button>`;
     const parlays = playerParlays(db, g, m, t, p);
     const ticket = (c) => `<button type="button" class="combo ticket" data-legs="${esc(JSON.stringify(c.legs))}"><div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
       <b class="tk-title">${esc(c.title)}</b><ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
-      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div></button>`;
-    res.send(layout(req, `Bet on ${p.name}`, hero + `<div class="wrap">
+      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div></button>`;
+    res.send(layout(req, `Picks for ${p.name}`, hero + `<div class="wrap">
       <div class="bf-game"><span>${logo(A, 26)} ${esc(A.name)} vs ${esc(B.name)} ${logo(B, 26)}</span><span>${esc(longDate(g.date))} · picks lock at ${time12(pk.lockTime(g))}</span>${countdown({ ...g, time: pk.lockTime(g) })}</div>
-      <h2 class="sec-h">${icon('star')} Best bets</h2>
+      <h2 class="sec-h">${icon('star')} Top picks</h2>
       <div class="bb-grid">${best.map(bestCard).join('')}</div>
-      <h2 class="sec-h">Every ${esc(p.name.split(' ')[0])} bet</h2>
+      <h2 class="sec-h">Every ${esc(p.name.split(' ')[0])} pick</h2>
       <div class="card"><div class="obs">${mine.map((x) => oddsBtn(db, g, x)).join('')}</div></div>
-      <h2 class="sec-h">${icon('coin')} ${esc(p.name.split(' ')[0])} parlays</h2>
-      <div class="tickets">${parlays.map(ticket).join('') || '<p class="muted">No parlays right now.</p>'}</div>
-      <p class="bf-more"><a class="btn ghost" href="/pickem">See every bet for this game</a></p>
+      <h2 class="sec-h">${icon('coin')} ${esc(p.name.split(' ')[0])} combos</h2>
+      <div class="tickets">${parlays.map(ticket).join('') || '<p class="muted">No combos right now.</p>'}</div>
+      <p class="bf-more"><a class="btn ghost" href="/pickem">See every pick for this game</a></p>
     </div>${slip(user)}${countdownScript}`));
   } catch (e) { next(e); }
 });
 
 // Hidden page (not linked anywhere, not indexed): every player's betting link with a copy button.
-app.get('/bet-links', (req, res) => {
+app.get('/pick-links', (req, res) => {
   const db = load();
   res.set('X-Robots-Tag', 'noindex, nofollow');
-  res.send(layout(req, 'Player Bet Links', pageHead("Pick'em", 'Player Bet Links', 'Hidden page. Copy any player\'s link and send it to them.') + `<div class="wrap">
+  res.send(layout(req, 'Player Pick Links', pageHead("Pick'em", 'Player Pick Links', 'Hidden page. Copy any player\'s link and send it to them.') + `<div class="wrap">
     ${Object.values(db.teams).map((t) => `<div class="card"><div class="card-h"><h2 class="th">${logo(t, 28)} ${esc(t.name)}</h2></div><div class="links">
       ${t.roster.map((p) => `<div class="lk">${avatar(t, p, 40)}<div><b>${esc(p.name)}</b><a href="${betForUrl(t, p)}" class="lk-url" data-path="${betForUrl(t, p)}">${betForUrl(t, p)}</a></div><button type="button" class="btn sm" onclick="mflCopy(this)">Copy link</button></div>`).join('')}
     </div></div>`).join('')}
@@ -1040,9 +1045,9 @@ app.get('/pickem', async (req, res, next) => {
     const g = pk.nextGame(db, TZ);
     const side = `
       ${dailyCard(user)}
-      ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open bets</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b, { owner: name })).join('')}</div>` : ''}
+      ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open picks</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b, { owner: name })).join('')}</div>` : ''}
       <div class="card"><div class="card-h"><h2>Leaderboard</h2><a href="/pickem/leaderboard">Full ${icon('arrow')}</a></div>${board.length ? `<ol class="lb">${board.map((u, i) => `<li class="${u.name === name ? 'me' : ''}"><span class="rank">${i + 1}</span><a href="/pickem/u/${esc(u.name)}"><b>@${esc(u.name)}</b></a><small>${u.won}W-${u.lost}L</small>${coins(u.balance)}</li>`).join('')}</ol>` : '<p class="muted">Nobody yet. Be first!</p>'}</div>
-      <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Only the <b>next game</b> is open. Picks lock at <b>12:31</b>, and the next game opens right then.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>parlay</b>.</li><li>No unders or "player does badly" bets, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>`;
+      <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Only the <b>next game</b> is open. Picks lock at <b>12:31</b>, and the next game opens right then.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>combo</b>.</li><li>No unders or "player does badly" picks, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>`;
 
     if (!g) {
       return res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
@@ -1062,7 +1067,7 @@ app.get('/pickem', async (req, res, next) => {
     const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
     const groups = {};
     for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
-    const gameBets = ['Spread', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
+    const gameBets = ['Spread', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} picks</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
 
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
@@ -1094,7 +1099,7 @@ app.get('/pickem', async (req, res, next) => {
 // Old per-game links all go to the single next-game page now.
 app.get('/pickem/game/:id', (req, res) => res.redirect('/pickem'));
 
-app.post('/pickem/bet', async (req, res) => {
+app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
   const db = load();
   const name = currentUser(req);
   if (!name) return res.json({ ok: false, error: 'Log in first.' });
@@ -1111,7 +1116,7 @@ app.post('/pickem/bet', async (req, res) => {
     res.json({ ok: true, balance: bal - built.bet.stake, toWin: Math.floor(built.bet.stake * built.bet.odds) });
   } catch (e) {
     console.error(e);
-    res.json({ ok: false, error: 'Could not place that bet. Try again.' });
+    res.json({ ok: false, error: 'Could not lock in that pick. Try again.' });
   }
 });
 
@@ -1152,18 +1157,18 @@ app.get('/pickem/leaderboard', async (req, res, next) => {
     const winners = weeklyWinners(board);
     const lastW = winners[winners.length - 1];
     const recent = board.flatMap((u) => u.bets.filter((b) => b.status === 'won').map((b) => ({ ...b, who: u.name }))).sort((x, y) => y.payout - x.payout).slice(0, 5);
-    const who = (n) => `<a href="/pickem/u/${esc(n)}"><b>@${esc(n)}</b></a>${winners.some((w) => w.name === n) ? ` <span class="star-b" title="Bettor of the Week">${icon('star')}${winners.filter((w) => w.name === n).length}</span>` : ''}`;
+    const who = (n) => `<a href="/pickem/u/${esc(n)}"><b>@${esc(n)}</b></a>${winners.some((w) => w.name === n) ? ` <span class="star-b" title="Picker of the Week">${icon('star')}${winners.filter((w) => w.name === n).length}</span>` : ''}`;
     const table = weekly
       ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>Points</th><th>W</th><th>L</th></tr></thead><tbody>
-        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No bets settled this week yet.</td></tr>'}</tbody></table>`
+        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
       : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>Points</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
         ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(betPoints(u.bets))}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
     res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
-      ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Bettor of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
+      ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Picker of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
       <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>${weekly ? `This week <small class="muted">from ${esc(shortDate(wk))}</small>` : 'Season standings'}</h2>
         <div class="seg mini"><a class="${weekly ? 'on' : ''}" href="/pickem/leaderboard">This week</a><a class="${weekly ? '' : 'on'}" href="/pickem/leaderboard?view=season">Season</a></div></div>
-        <div class="scroll">${table}</div>${weekly ? '<p class="muted sm">Weeks run Monday to Sunday. The top profit each week is crowned Bettor of the Week.</p>' : ''}</div></div>
-        <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Biggest wins</h2></div>${recent.map((b) => betCard(db, b, { who: b.who, owner: b.who })).join('') || '<p class="muted">No winning bets yet.</p>'}</div>
+        <div class="scroll">${table}</div>${weekly ? '<p class="muted sm">Weeks run Monday to Sunday. The top profit each week is crowned Picker of the Week.</p>' : ''}</div></div>
+        <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Biggest wins</h2></div>${recent.map((b) => betCard(db, b, { who: b.who, owner: b.who })).join('') || '<p class="muted">No winning picks yet.</p>'}</div>
         ${winners.length ? `<div class="card"><div class="card-h"><h2>Past winners</h2></div><ol class="lb">${[...winners].reverse().map((w) => `<li><b>${esc(shortDate(w.week))}</b><small><a href="/pickem/u/${esc(w.name)}">@${esc(w.name)}</a></small><span class="up">+${w.profit.toLocaleString('en-US')}</span></li>`).join('')}</ol></div>` : ''}</div>
       </div></div>${shareScript}`));
   } catch (e) { next(e); }
@@ -1177,13 +1182,13 @@ app.get('/pickem/rules', async (req, res, next) => {
     res.send(layout(req, "Pick'em Rules", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/rules', name)}<div class="card prose">
       <h2>How Pick'em works</h2>
       <p><b>It's free and just for fun.</b> MFL Coins are fake. They can't be bought, sold or traded for anything.</p>
-      <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open bets, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My bets</a>.</p>
-      <h3>Placing bets</h3><p>Tap any odds button to add it to your bet slip, choose how much to bet and hit <b>Place bet</b>. One pick is a single. Two or more picks become a <b>parlay</b>: every pick has to hit, but the odds multiply. Parlays can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
-      <h3>Reading odds</h3><p><b>+150</b> means a 100 coin bet wins 150 more. <b>−200</b> means you bet 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
-      <h3>When bets close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Bets pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
-      <h3>Why there are no unders</h3><p>Every bet is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no bets on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
-      <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the bet if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
-      <h3>Player props</h3><p>Player bets count what's in the box score. If a play isn't recorded, it doesn't count.</p>
+      <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open picks, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My picks</a>.</p>
+      <h3>Placing picks</h3><p>Tap any odds button to add it to your pick slip, choose how much to pick and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to hit, but the odds multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
+      <h3>Reading odds</h3><p><b>+150</b> means a 100 coin pick wins 150 more. <b>−200</b> means you pick 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
+      <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Picks pay out as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
+      <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
+      <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the pick if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
+      <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
     </div></div>`));
   } catch (e) { next(e); }
 });
@@ -1585,7 +1590,7 @@ function weekBoard(board, wk) {
     return { name: u.name, points: betPoints(bets), profit: bets.reduce((s, b) => s + betProfit(b), 0), won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, n: bets.length };
   }).filter((u) => u.n).sort((a, b) => b.profit - a.profit || b.won - a.won);
 }
-// Bettor of the Week: best profit in each finished week (needs to be positive).
+// Picker of the Week: best profit in each finished week (needs to be positive).
 function weeklyWinners(board) {
   const thisWeek = weekOf(today());
   const weeks = new Set(board.flatMap((u) => u.bets.map((b) => weekOf(localDay(b.placed)))));
@@ -1640,9 +1645,9 @@ app.post('/pickem/daily', async (req, res) => {
   res.redirect(req.get('referer')?.includes('/pickem') ? new URL(req.get('referer')).pathname : '/pickem');
 });
 
-const betLink = (owner, b) => `/pickem/bet/${owner}/${b.id}`;
+const betLink = (owner, b) => `/pickem/ticket/${owner}/${b.id}`;
 function shareBtn(owner, b) {
-  return `<button type="button" class="bet-share" onclick="mflShare('${betLink(owner, b)}','My MFL ${b.legs.length > 1 ? b.legs.length + '-leg parlay' : 'pick'}')">${icon('arrow')} Share</button>`;
+  return `<button type="button" class="bet-share" onclick="mflShare('${betLink(owner, b)}','My MFL ${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'pick'}')">${icon('arrow')} Share</button>`;
 }
 
 app.get('/pickem/u/:name', async (req, res, next) => {
@@ -1665,12 +1670,12 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       <div class="prof card">
         <div class="prof-av">${esc(uname.slice(0, 2).toUpperCase())}</div>
         <div><h2>@${esc(uname)}</h2><p class="muted">#${rank} of ${board.length} · joined ${esc(shortDate(localDay(user.created)))}</p>
-          <div class="badges">${botw.map((w) => `<span class="badge-b">${icon('star')} Bettor of the Week · ${esc(shortDate(w.week))}</span>`).join('')}${st.winRate >= 60 && st.settled >= 5 ? '<span class="badge-b hot">🔥 Sharp</span>' : ''}${st.best && st.best.odds >= 10 ? '<span class="badge-b">💰 Long-shot hitter</span>' : ''}</div></div>
+          <div class="badges">${botw.map((w) => `<span class="badge-b">${icon('star')} Picker of the Week · ${esc(shortDate(w.week))}</span>`).join('')}${st.winRate >= 60 && st.settled >= 5 ? '<span class="badge-b hot">🔥 Sharp</span>' : ''}${st.best && st.best.odds >= 10 ? '<span class="badge-b">💰 Long-shot hitter</span>' : ''}</div></div>
         <div class="prof-bal">${coins(acct.balance)}<small>coins</small></div>
       </div>
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
-      <div class="stats-row six">${tile('Betting points', pts(betPoints(acct.bets)), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Parlays', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <div class="stats-row six">${tile('Pick points', pts(betPoints(acct.bets)), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
       ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
         ${req.query.pw === 'ok' ? '<p class="toast">Password changed ✓</p>' : req.query.pw ? `<p class="err">${esc(req.query.pw)}</p>` : ''}
         <form method="post" action="/pickem/password" class="form pw-form">
@@ -1680,35 +1685,35 @@ app.get('/pickem/u/:name', async (req, res, next) => {
           <button class="btn">Change password</button>
           <p class="muted sm">Forgot your current password? Ask the league admin to reset it.</p>
         </form></details>` : ''}
-      <p class="muted sm">Betting points are just for bragging rights: every winning bet earns 10, plus 5 for each extra parlay pick and more for long shots.</p>
+      <p class="muted sm">Pick points are just for bragging rights: every winning pick earns 10, plus 5 for each extra combo pick and more for long shots.</p>
       <div class="home-grid"><div class="col">
-        <div class="card-h"><h2>Bet history</h2><span class="muted sm">${acct.bets.length} bets · ${st.staked.toLocaleString('en-US')} coins wagered</span></div>
-        <div class="bets">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No bets yet.</p></div>'}</div>
+        <div class="card-h"><h2>Pick history</h2><span class="muted sm">${acct.bets.length} picks · ${st.staked.toLocaleString('en-US')} coins played</span></div>
+        <div class="bets">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No picks yet.</p></div>'}</div>
       </div><div class="col">
         ${st.best ? `<div class="card"><div class="card-h"><h2>${icon('fire')} Best hit</h2></div>${betCard(db, st.best, { owner: uname })}</div>` : ''}
-        ${st.fav ? `<div class="card"><div class="card-h"><h2>Favorite player to bet</h2></div><a class="lead-top" href="${playerUrl(st.fav.t, st.fav.p)}" style="--a:${esc(st.fav.t.color)}">${avatar(st.fav.t, st.fav.p, 56)}<div><small>${logo(st.fav.t, 16)} ${esc(st.fav.t.name)}</small><b>${esc(st.fav.p.name)}</b></div><span>${st.fav.n}</span></a><p class="muted sm">Picks on this player</p></div>` : ''}
+        ${st.fav ? `<div class="card"><div class="card-h"><h2>Favorite player to pick</h2></div><a class="lead-top" href="${playerUrl(st.fav.t, st.fav.p)}" style="--a:${esc(st.fav.t.color)}">${avatar(st.fav.t, st.fav.p, 56)}<div><small>${logo(st.fav.t, 16)} ${esc(st.fav.t.name)}</small><b>${esc(st.fav.p.name)}</b></div><span>${st.fav.n}</span></a><p class="muted sm">Picks on this player</p></div>` : ''}
       </div></div>
     </div>${shareScript}`));
   } catch (e) { next(e); }
 });
 
 // Public page for one bet, so people can share their parlays and others can tail them.
-app.get('/pickem/bet/:name/:id', async (req, res, next) => {
+app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
   try {
     const db = load();
     const uname = String(req.params.name).toLowerCase();
     const user = pk.validName(uname) ? await getDoc(userKey(uname)) : null;
     const bet = user && pk.account(db, user).bets.find((b) => b.id === req.params.id);
-    if (!bet) return res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Bet not found')));
+    if (!pick) return res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Pick not found')));
     const me = currentUser(req);
     const { user: viewer, acct } = await loadAccount(db, me);
     const open = bet.legs.every((l) => pk.isOpen(db, db.games.find((g) => g.id === l.game), TZ));
     const legs = bet.legs.map((l) => { const g = db.games.find((x) => x.id === l.game); const m = g && pk.markets(db, g).byKey[l.key]; return m ? { game: g.id, key: l.key, label: m.label, odds: m.odds, match: matchName(db, g) } : null; });
     const canTail = open && legs.every(Boolean);
-    res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'parlay' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-bet">
-      <div class="kicker">${icon('coin')} Shared bet</div><h1>@${esc(uname)}'s ${bet.legs.length > 1 ? `${bet.legs.length}-leg parlay` : 'pick'}</h1>
+    res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'combo' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-bet">
+      <div class="kicker">${icon('coin')} Shared pick</div><h1>@${esc(uname)}'s ${bet.legs.length > 1 ? `${bet.legs.length}-pick combo` : 'pick'}</h1>
       ${betCard(db, bet, { owner: uname })}
-      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${esc(JSON.stringify(legs))}">${icon('coin')} Tail this bet (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This bet is settled.'} <a href="/pickem">See the next game →</a></p>`}
+      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${esc(JSON.stringify(legs))}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
       <p><a href="/pickem/u/${esc(uname)}">See @${esc(uname)}'s profile →</a></p>
     </div>${canTail ? slip(viewer) : ''}${shareScript}`));
   } catch (e) { next(e); }
@@ -2175,7 +2180,7 @@ app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
       ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b></td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" minlength="4" maxlength="72" placeholder="New password" required><button class="btn sm ghost">Set</button></form></td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/coins" class="inline"><input name="amount" type="number" placeholder="+500" required><button class="btn sm ghost">Give</button></form></td>
-        <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their bets?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
+        <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their picks?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
       </tbody></table></div></div></div>`, { ticker: false }));
   } catch (e) { next(e); }
 });
@@ -2204,7 +2209,7 @@ app.post('/admin/pickem/reprice-spreads', requireAdmin, async (req, res) => {
     }
     if (touched) await putDoc(userKey(user.name), user);
   }
-  res.type('text/plain').send(changed.length ? changed.join('\n') : 'No spread bets needed changing.');
+  res.type('text/plain').send(changed.length ? changed.join('\n') : 'No spread picks needed changing.');
 });
 
 app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {

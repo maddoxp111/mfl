@@ -18,7 +18,7 @@ function localPath(u) {
 }
 const isAsset = (p) => /^\/(static|media)\//.test(p) || p.endsWith('.ics');
 // Admin and Pick'em need the real server, so those links go to Vercel.
-const skip = (p) => /^\/(admin|pickem)(\/|$)/.test(p);
+const skip = (p) => /^\/(admin|pickem|picks|pick-links)(\/|$)/.test(p);
 
 function rewrite(html) {
   return html.replace(/(href|src)="(\/[^"]*)"/g, (m, attr, link) => {

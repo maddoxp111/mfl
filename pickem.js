@@ -327,15 +327,15 @@ function account(db, user) {
 // ---------- bet validation ----------
 function buildBet(db, picks, stake, tz) {
   if (!Array.isArray(picks) || !picks.length) return { error: 'Pick at least one bet.' };
-  if (picks.length > MAX_LEGS) return { error: `Parlays can have up to ${MAX_LEGS} picks.` };
+  if (picks.length > MAX_LEGS) return { error: `Combos can have up to ${MAX_LEGS} picks.` };
   const legs = [], seen = new Set(), winFamily = new Map();
   for (const pk of picks) {
     const g = db.games.find((x) => x.id === String(pk.game));
     if (!isOpen(db, g, tz)) return { error: 'Picks for that game are closed. Refresh to see the next game.' };
     const m = markets(db, g).byKey[pk.key];
-    if (!m) return { error: 'One of those bets is no longer available. Refresh and try again.' };
+    if (!m) return { error: 'One of those picks is no longer available. Refresh and try again.' };
     const id = g.id + '|' + m.key;
-    if (seen.has(id)) return { error: 'You picked the same bet twice.' };
+    if (seen.has(id)) return { error: 'You added the same pick twice.' };
     seen.add(id);
     if (m.family === 'win') {
       // Only one "who wins" style pick per game, so parlays can't double-dip.
@@ -347,7 +347,7 @@ function buildBet(db, picks, stake, tz) {
   }
   const odds = Math.round(legs.reduce((x, l) => x * l.odds, 1) * 100) / 100;
   stake = Math.floor(Number(stake));
-  if (!(stake >= MIN_STAKE)) return { error: `Minimum bet is ${MIN_STAKE} coins.` };
+  if (!(stake >= MIN_STAKE)) return { error: `Minimum pick is ${MIN_STAKE} coins.` };
   return { bet: { id: crypto.randomBytes(6).toString('hex'), placed: new Date().toISOString(), stake, odds, legs } };
 }
 
@@ -361,7 +361,7 @@ function checkPin(user, pin) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.hash, 'hex'));
 }
 
-// American odds, the way sportsbooks show them.
+// American odds, the way pick sites show them.
 function american(dec) {
   if (dec >= 2) return '+' + Math.round((dec - 1) * 100);
   return '-' + Math.round(100 / (dec - 1));
