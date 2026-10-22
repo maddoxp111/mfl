@@ -599,7 +599,7 @@ app.get('/players/:team/:pid', (req, res) => {
         <h1>${esc(p.name)}</h1>
         <div class="pp-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
         <div class="th-stats">${rt ? `<a class="rt-big ${tier(rt.r)}" href="/players/${tm.id}/${p.id}/card" title="Power rating · see trading card"><b>${rt.r}</b><small>Rating</small></a>` : ''}<div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${rt ? rt.mvp : 0}</b><small>MVPs</small></div></div>
-        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/bet/${tm.id}/${p.id}">${icon('coin')} Bet for ${esc(p.name.split(' ')[0])}</a>
+        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/bet/${tm.id}/${p.id}">${icon('coin')} Bet on ${esc(p.name.split(' ')[0])}</a>
       </div>
     </div></section>
     <div class="wrap home-grid">
@@ -977,11 +977,11 @@ app.get('/bet/:team/:pid', async (req, res, next) => {
     const hero = `<section class="bf-hero" style="--c:${esc(t.color)};--c2:${esc(t.color2)}"><div class="wrap">
       ${avatar(t, p, 150, 'xl')}
       <div><div class="kicker">${icon('coin')} Pick'em · ${logo(t, 18)} ${esc(teamFull(t))}${p.number ? ' · #' + esc(p.number) : ''}</div>
-        <h1>Bet for ${esc(p.name)}</h1>
+        <h1>Bet on ${esc(p.name)}</h1>
         <p>${esc(p.position || { qb: 'QB', def: 'Defense', skill: 'Playmaker' }[role])}${r ? ` · Rated ${r.r}` : ''} · <a href="${playerUrl(t, p)}">Player page</a> · <a href="/players/${t.id}/${p.id}/card">Trading card</a></p></div>
     </div></section>`;
     if (!plays) {
-      return res.send(layout(req, `Bet for ${p.name}`, hero + `<div class="wrap"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Bets on ${esc(p.name)} open for the next scheduled game. Check back soon.</p><a class="btn" href="/pickem">Go to Pick'em</a></div></div>`));
+      return res.send(layout(req, `Bet on ${p.name}`, hero + `<div class="wrap"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Bets on ${esc(p.name)} open for the next scheduled game. Check back soon.</p><a class="btn" href="/pickem">Go to Pick'em</a></div></div>`));
     }
     const m = pk.markets(db, g);
     const k = m.byKey;
@@ -998,7 +998,7 @@ app.get('/bet/:team/:pid', async (req, res, next) => {
     const ticket = (c) => `<button type="button" class="combo ticket" data-legs="${esc(JSON.stringify(c.legs))}"><div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
       <b class="tk-title">${esc(c.title)}</b><ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
       <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div></button>`;
-    res.send(layout(req, `Bet for ${p.name}`, hero + `<div class="wrap">
+    res.send(layout(req, `Bet on ${p.name}`, hero + `<div class="wrap">
       <div class="bf-game"><span>${logo(A, 26)} ${esc(A.name)} vs ${esc(B.name)} ${logo(B, 26)}</span><span>${esc(longDate(g.date))} · picks lock at ${time12(pk.lockTime(g))}</span>${countdown({ ...g, time: pk.lockTime(g) })}</div>
       <h2 class="sec-h">${icon('star')} Best bets</h2>
       <div class="bb-grid">${best.map(bestCard).join('')}</div>
