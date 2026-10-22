@@ -1274,14 +1274,16 @@ function recap(db, g) {
   return out.join(' ');
 }
 
-// Player power rating, 40-99: production per team game (shrunk toward average early on),
-// MVPs, and a nudge from their Pick'em tendency. `until` lets us compare to last week.
+// Player power rating, 40-99, from stats only. It's based on AVERAGE production per team
+// game (TD 6, TD pass 4, INT 5, MVP 2), so stacking good games can't run it away. Early in
+// the season it's pulled toward 60, and it takes a long run of strong games to reach the 90s.
+//   one big game (TD + TD pass + MVP) ≈ 63-64 · season averaging that ≈ 80 · elite ≈ 90+
+// `until` lets us compare to the ratings before the last game.
 function ratings(db, until = null) {
   // Exhibitions count for player ratings.
   const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until));
   const mvps = {};
   for (const g of games) { const m = gameMvp(db, g); if (m) mvps[m.team + '|' + m.name.toLowerCase()] = (mvps[m.team + '|' + m.name.toLowerCase()] || 0) + 1; }
-  const et = pk.effTend(db);
   const out = [];
   for (const t of Object.values(db.teams)) {
     const gp = games.filter((g) => g.home === t.id || g.away === t.id).length;
@@ -1293,10 +1295,10 @@ function ratings(db, until = null) {
         if (e.type === 'TD' && (e.passer || '').toLowerCase() === n) pass++;
       }
       const mv = mvps[t.id + '|' + n] || 0;
-      const perGame = gp ? (6 * td + 4 * pass + 5 * int + 3 * mv) / gp : 0;
-      const shrink = gp / (gp + 3);
-      const tend = (Math.max(et.player(t, p, 'td'), et.player(t, p, 'pass'), et.player(t, p, 'int')) - 50) / 5;
-      const r = Math.round(Math.max(40, Math.min(99, 60 + perGame * shrink * 4 + tend + mv * 2)));
+      const perGame = gp ? (6 * td + 4 * pass + 5 * int + 2 * mv) / gp : 0;
+      const trust = gp / (gp + 4); // how much the stats count vs. the 60 starting point
+      const value = 55 * (1 - Math.exp(-perGame / 15)) - 10; // diminishing returns; 0 production → -10
+      const r = Math.round(Math.max(40, Math.min(99, 60 + trust * value)));
       out.push({ t, p, r, td, pass, int, mvp: mv, gp });
     }
   }
