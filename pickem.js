@@ -107,6 +107,8 @@ function tendDrift(db) {
         const did = (fn) => evs.some((e) => e.team === me && fn(e));
         d.td += did((e) => e.type === 'TD' && (e.player || '').toLowerCase() === n) ? 6 : -2;
         d.pass += did((e) => e.type === 'TD' && (e.passer || '').toLowerCase() === n) ? 6 : -1;
+        // Threw a pick (logged on the other team's INT row): passing tendency drops.
+        if (evs.some((e) => e.type === 'INT' && e.team !== me && (e.passer || '').toLowerCase() === n)) d.pass -= 3;
         d.int += did((e) => e.type === 'INT' && (e.player || '').toLowerCase() === n) ? 6 : -1;
       }
     }

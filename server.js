@@ -382,7 +382,7 @@ app.get('/games/:id', (req, res) => {
   const plays = `<div class="card"><div class="card-h"><h2>Scoring &amp; Turnovers</h2></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
     const tm = db.teams[e.team] || a;
     return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${e.type === 'TD' ? 'td' : 'int'}">${e.type === 'TD' ? 'Touchdown' : 'Interception'}</span>
-      <p><b>${e.player ? playerLink(tm, e.player) : 'Unknown'}</b>${e.type === 'TD' ? (e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown') : ' picks it off'}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}</p></div></li>`;
+      <p><b>${e.player ? playerLink(tm, e.player) : 'Unknown'}</b>${e.type === 'TD' ? (e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown') : (e.passer ? ` picks off <b>${playerLink(db.teams[e.team === g.home ? g.away : g.home], e.passer)}</b>` : ' picks it off')}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}</p></div></li>`;
   }).join('')}</ol>` : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}</div>`;
 
   const box = (tm) => {
@@ -551,21 +551,27 @@ app.get('/stats/team', (req, res) => {
 
 // ---------- players ----------
 function playerStats(db, tm, p) {
-  const s = { td: 0, ptd: 0, int: 0, log: [] };
+  const s = { td: 0, ptd: 0, int: 0, picked: 0, log: [] };
   const name = p.name.toLowerCase();
   const games = db.games.filter((g) => g.status === 'final').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   for (const g of games) {
-    const row = { g, td: 0, ptd: 0, int: 0, team: null };
+    const row = { g, td: 0, ptd: 0, int: 0, picked: 0, team: null };
     for (const e of g.events || []) {
+      // Threw an interception (the INT row's "thrown by" is on the other team).
+      if (e.type === 'INT' && (e.passer || '').toLowerCase() === name) {
+        const mine = e.team === g.home ? g.away : g.home;
+        if (!row.team || row.team === mine) { row.team = mine; row.picked++; }
+        continue;
+      }
       const hit = (e.player || '').toLowerCase() === name || (e.type === 'TD' && (e.passer || '').toLowerCase() === name);
       if (!hit || (row.team && row.team !== e.team)) continue;
       row.team = e.team;
       if ((e.player || '').toLowerCase() === name) row[e.type === 'TD' ? 'td' : 'int']++;
       if (e.type === 'TD' && (e.passer || '').toLowerCase() === name) row.ptd++;
     }
-    if (row.td || row.ptd || row.int) {
+    if (row.td || row.ptd || row.int || row.picked) {
       s.log.push(row);
-      s.td += row.td; s.ptd += row.ptd; s.int += row.int;
+      s.td += row.td; s.ptd += row.ptd; s.int += row.int; s.picked += row.picked;
     }
   }
   return s;
@@ -599,9 +605,9 @@ app.get('/players/:team/:pid', (req, res) => {
     <div class="wrap home-grid">
       <div class="col">
         <div class="card"><div class="card-h"><h2>Bio</h2></div>${p.bio ? `<div class="bio">${esc(p.bio).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>').replace(/^/, '<p>')}</p></div>` : '<p class="muted">No bio yet.</p>'}</div>
-        <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>
-          ${s.log.map(({ g, td, ptd, int, team }) => { const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
-            return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td></tr>`; }).join('')}
+        <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked off</th></tr></thead><tbody>
+          ${s.log.map(({ g, td, ptd, int, picked, team }) => { const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
+            return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td><td>${picked ? `<span class="down">${picked}</span>` : '–'}</td></tr>`; }).join('')}
           </tbody></table></div><p class="muted sm">Totals include exhibition games.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
       </div>
       <div class="col">
@@ -1264,7 +1270,7 @@ function recap(db, g) {
     out.push(`For the ${db.teams[tid]?.name}, ${list(scorers)} found the end zone${throwers.length ? `, with ${list(throwers)}` : ''}.`);
   }
   if (tds[0]?.player) out.push(`${tds[0].player} opened the scoring.`);
-  if (ints.length) out.push(`${ints.map((e) => e.player || 'Someone').join(', ')} came up with ${ints.length > 1 ? `${ints.length} interceptions` : 'an interception'} on defense.`);
+  if (ints.length) out.push(`${ints.map((e) => (e.player || 'Someone') + (e.passer ? ` (picking off ${e.passer})` : '')).join(', ')} came up with ${ints.length > 1 ? `${ints.length} interceptions` : 'an interception'} on defense.`);
   const m = gameMvp(db, g);
   if (m) out.push(`${m.name} takes home MVP honors with ${m.line}.`);
   if (W && g.type !== 'exhibition') {
@@ -1275,7 +1281,8 @@ function recap(db, g) {
 }
 
 // Player power rating, 40-99, from stats only. It's based on AVERAGE production per team
-// game (TD 6, TD pass 4, INT 5, MVP 2), so stacking good games can't run it away. Early in
+// game (TD 6, TD pass 4, INT 5, MVP 2, win 2; thrown INT -5, loss -2), so stacking good
+// games can't run it away, and losing or getting picked off pulls it down. Early in
 // the season it's pulled toward 60, and it takes a long run of strong games to reach the 90s.
 //   one big game (TD + TD pass + MVP) ≈ 63-64 · season averaging that ≈ 80 · elite ≈ 90+
 // `until` lets us compare to the ratings before the last game.
@@ -1289,17 +1296,22 @@ function ratings(db, until = null) {
     const gp = games.filter((g) => g.home === t.id || g.away === t.id).length;
     for (const p of t.roster) {
       const n = p.name.toLowerCase();
-      let td = 0, pass = 0, int = 0;
-      for (const g of games) for (const e of g.events || []) {
-        if ((e.player || '').toLowerCase() === n) { if (e.type === 'TD') td++; else int++; }
-        if (e.type === 'TD' && (e.passer || '').toLowerCase() === n) pass++;
+      let td = 0, pass = 0, int = 0, picked = 0, wins = 0, losses = 0;
+      for (const g of games) {
+        if (g.home === t.id || g.away === t.id) { const w = winner(g); if (w === t.id) wins++; else if (w) losses++; }
+        for (const e of g.events || []) {
+          if (e.team === t.id && (e.player || '').toLowerCase() === n) { if (e.type === 'TD') td++; else int++; }
+          if (e.type === 'TD' && e.team === t.id && (e.passer || '').toLowerCase() === n) pass++;
+          if (e.type === 'INT' && e.team !== t.id && (e.passer || '').toLowerCase() === n) picked++; // threw the pick
+        }
       }
       const mv = mvps[t.id + '|' + n] || 0;
-      const perGame = gp ? (6 * td + 4 * pass + 5 * int + 2 * mv) / gp : 0;
+      const perGame = gp ? (6 * td + 4 * pass + 5 * int + 2 * mv + 2 * wins - 5 * picked - 2 * losses) / gp : 0;
       const trust = gp / (gp + 4); // how much the stats count vs. the 60 starting point
-      const value = 55 * (1 - Math.exp(-perGame / 15)) - 10; // diminishing returns; 0 production → -10
+      // Diminishing returns going up; going down is straight-line so bad games always hurt.
+      const value = perGame >= 0 ? 55 * (1 - Math.exp(-perGame / 15)) - 10 : -10 + 1.5 * perGame;
       const r = Math.round(Math.max(40, Math.min(99, 60 + trust * value)));
-      out.push({ t, p, r, td, pass, int, mvp: mv, gp });
+      out.push({ t, p, r, td, pass, int, picked, wins, losses, mvp: mv, gp });
     }
   }
   return out.sort((a, b) => b.r - a.r || b.td - a.td);
@@ -1327,12 +1339,12 @@ app.get('/stats/rankings', (req, res) => {
   const lastGame = db.games.filter((g) => isFinal(g)).sort((a, b) => b.date.localeCompare(a.date))[0];
   const before = lastGame ? ratings(db, lastGame.date) : now;
   const prevRank = Object.fromEntries(before.map((x, i) => [x.t.id + '|' + x.p.id, i]));
-  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', 'Every player rated 40–99 from their production per game, MVPs and recent form. Updates after every game.') + `<div class="wrap">
+  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', 'Every player rated 40–99 from their average per game: TDs, TD passes, INTs, MVPs and wins push it up; losses and getting picked off pull it down.') + `<div class="wrap">
     <div class="pr-top">${now.slice(0, 3).map((x) => tradingCard(db, x)).join('')}</div>
-    <div class="card"><div class="scroll"><table class="tbl pr"><thead><tr><th>#</th><th></th><th class="l">Player</th><th class="l">Team</th><th>Rating</th><th>TD</th><th>Pass TD</th><th>INT</th><th>MVP</th></tr></thead><tbody>
+    <div class="card"><div class="scroll"><table class="tbl pr"><thead><tr><th>#</th><th></th><th class="l">Player</th><th class="l">Team</th><th>Rating</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked</th><th>W-L</th><th>MVP</th></tr></thead><tbody>
     ${now.map((x, i) => { const pr = prevRank[x.t.id + '|' + x.p.id]; const mv = pr == null ? 0 : pr - i;
-      return `<tr><td><b>${i + 1}</b></td><td class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : ''}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</td><td class="l"><a class="plink" href="${playerUrl(x.t, x.p)}">${avatar(x.t, x.p, 30)}${esc(x.p.name)}</a></td><td class="l"><span class="th">${logo(x.t, 20)} ${esc(x.t.abbr)}</span></td><td><span class="rt ${tier(x.r)}">${x.r}</span></td><td>${x.td}</td><td>${x.pass}</td><td>${x.int}</td><td>${x.mvp}</td></tr>`; }).join('')}
-    </tbody></table></div><p class="muted sm">Includes every game, exhibitions too. Arrows show movement since the last game.</p></div>
+      return `<tr><td><b>${i + 1}</b></td><td class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : ''}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</td><td class="l"><a class="plink" href="${playerUrl(x.t, x.p)}">${avatar(x.t, x.p, 30)}${esc(x.p.name)}</a></td><td class="l"><span class="th">${logo(x.t, 20)} ${esc(x.t.abbr)}</span></td><td><span class="rt ${tier(x.r)}">${x.r}</span></td><td>${x.td}</td><td>${x.pass}</td><td>${x.int}</td><td>${x.picked ? `<span class="down">${x.picked}</span>` : 0}</td><td>${x.wins}-${x.losses}</td><td>${x.mvp}</td></tr>`; }).join('')}
+    </tbody></table></div><p class="muted sm">Includes every game, exhibitions too. Wins, TDs, TD passes, INTs and MVPs raise a rating; losses and throwing picks lower it. Arrows show movement since the last game.</p></div>
     <p><a class="btn ghost" href="/cards">${icon('star')} See every trading card</a></p>
   </div>`));
 });
@@ -1583,7 +1595,7 @@ function gameForm(db, g, isNew) {
       <input type="hidden" name="ev_type" value="${td ? 'TD' : 'INT'}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
       <div class="ev-who">${logo(tm, 30)}<span class="tag ${td ? 'td' : 'int'}">${td ? 'TD' : 'INT'}</span></div>
       ${rosterSelect(tm, 'ev_player', e.player, td ? 'Who scored?' : 'Who intercepted?')}
-      ${td ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)') : '<input type="hidden" name="ev_passer" value=""><span class="ev-gap"></span>'}
+      ${td ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)') : rosterSelect(tm.id === t1.id ? t2 : t1, 'ev_passer', e.passer, 'Thrown by (who got picked off?)')}
       <input name="ev_note" class="ev-note" placeholder="Note" value="${esc(e.note)}">
       <button type="button" class="ev-x" onclick="this.parentElement.remove();mflEmpty()" aria-label="Remove play">✕</button>
     </div>`;
@@ -1652,7 +1664,7 @@ function readGame(body, g) {
   const types = arr(body.ev_type);
   g.events = types.map((t, i) => ({
     type: t === 'INT' ? 'INT' : 'TD', team: arr(body.ev_team)[i], player: (arr(body.ev_player)[i] || '').trim(),
-    passer: t === 'TD' ? (arr(body.ev_passer)[i] || '').trim() : '', note: (arr(body.ev_note)[i] || '').trim(),
+    passer: (arr(body.ev_passer)[i] || '').trim(), note: (arr(body.ev_note)[i] || '').trim(),
   })).filter((e) => e.player || e.passer || e.note);
   return g;
 }
