@@ -139,7 +139,7 @@ function playerLeaders(db) {
     map[key][k]++;
   };
   for (const g of db.games) {
-    if (g.status !== 'final' || g.type === 'exhibition') continue;
+    if (g.status !== 'final') continue; // player stats count exhibitions too
     for (const e of g.events || []) {
       if (e.type === 'TD') { bump(e.team, e.player, 'td'); bump(e.team, e.passer, 'ptd'); }
       else bump(e.team, e.player, 'int');
@@ -565,7 +565,7 @@ function playerStats(db, tm, p) {
     }
     if (row.td || row.ptd || row.int) {
       s.log.push(row);
-      if (g.type !== 'exhibition') { s.td += row.td; s.ptd += row.ptd; s.int += row.int; }
+      s.td += row.td; s.ptd += row.ptd; s.int += row.int;
     }
   }
   return s;
@@ -602,7 +602,7 @@ app.get('/players/:team/:pid', (req, res) => {
         <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>
           ${s.log.map(({ g, td, ptd, int, team }) => { const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
             return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td></tr>`; }).join('')}
-          </tbody></table></div><p class="muted sm">Season totals don't count exhibitions.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
+          </tbody></table></div><p class="muted sm">Totals include exhibition games.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
       </div>
       <div class="col">
         <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/teams/${tm.id}">Team ${icon('arrow')}</a></div><div class="mates">
@@ -1100,7 +1100,7 @@ app.get('/stats/players', (req, res) => {
   const rows = [];
   for (const tm of Object.values(db.teams)) for (const p of tm.roster) {
     const s = playerStats(db, tm, p);
-    rows.push({ tm, p, ...s, total: s.td + s.ptd + s.int, gp: s.log.filter((r) => r.g.type !== 'exhibition').length });
+    rows.push({ tm, p, ...s, total: s.td + s.ptd + s.int, gp: s.log.length });
   }
   const board = (k, title) => {
     const xs = rows.filter((r) => r[k] > 0).sort((a, b) => b[k] - a[k] || a.p.name.localeCompare(b.p.name)).slice(0, 10);
@@ -1110,11 +1110,11 @@ app.get('/stats/players', (req, res) => {
       ${xs.slice(1).map((r, i) => `<a class="lead-row" href="${playerUrl(r.tm, r.p)}"><span class="rank">${i + 2}</span>${avatar(r.tm, r.p, 30)}<b>${esc(r.p.name)}</b>${logo(r.tm, 18)}<span class="n">${r[k]}</span></a>`).join('')}</div>`;
   };
   const all = rows.sort((a, b) => b.total - a.total || a.p.name.localeCompare(b.p.name));
-  res.send(layout(req, 'Player Leaders', pageHead('2026–27 Season', 'Player Leaders', 'Regular season + bowls. Exhibitions not counted.') + `<div class="wrap">
+  res.send(layout(req, 'Player Leaders', pageHead('2026–27 Season', 'Player Leaders', 'Every game counts here: regular season, bowls and exhibitions.') + `<div class="wrap">
     <div class="lead-grid">${board('td', 'Touchdowns')}${board('ptd', 'Passing TDs')}${board('int', 'Interceptions')}</div>
     <div class="card"><div class="card-h"><h2>All Players</h2></div><div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th><th class="l">Team</th><th>GP*</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Total</th></tr></thead><tbody>
     ${all.map((r) => `<tr><td class="l"><a class="plink" href="${playerUrl(r.tm, r.p)}">${avatar(r.tm, r.p, 28)}${esc(r.p.name)}</a></td><td class="l"><span class="th">${logo(r.tm, 20)} ${esc(r.tm.abbr)}</span></td><td>${r.gp}</td><td>${r.td || '–'}</td><td>${r.ptd || '–'}</td><td>${r.int || '–'}</td><td><b>${r.total || '–'}</b></td></tr>`).join('')}
-    </tbody></table></div><p class="muted sm">*Games with a recorded stat.</p></div>
+    </tbody></table></div><p class="muted sm">*Games with a recorded stat, exhibitions included.</p></div>
   </div>`));
 });
 
@@ -1233,7 +1233,6 @@ function gameMvp(db, g) {
 function mvpCounts(db) {
   const c = {};
   for (const g of db.games) {
-    if (g.type === 'exhibition') continue;
     const m = gameMvp(db, g);
     if (m) c[m.team + '|' + m.name.toLowerCase()] = (c[m.team + '|' + m.name.toLowerCase()] || 0) + 1;
   }
@@ -1278,7 +1277,8 @@ function recap(db, g) {
 // Player power rating, 40-99: production per team game (shrunk toward average early on),
 // MVPs, and a nudge from their Pick'em tendency. `until` lets us compare to last week.
 function ratings(db, until = null) {
-  const games = db.games.filter((g) => isFinal(g) && g.type !== 'exhibition' && (!until || g.date < until));
+  // Exhibitions count for player ratings.
+  const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until));
   const mvps = {};
   for (const g of games) { const m = gameMvp(db, g); if (m) mvps[m.team + '|' + m.name.toLowerCase()] = (mvps[m.team + '|' + m.name.toLowerCase()] || 0) + 1; }
   const et = pk.effTend(db);
@@ -1322,7 +1322,7 @@ function tradingCard(db, x, opts = {}) {
 app.get('/stats/rankings', (req, res) => {
   const db = load();
   const now = ratings(db);
-  const lastGame = db.games.filter((g) => isFinal(g) && g.type !== 'exhibition').sort((a, b) => b.date.localeCompare(a.date))[0];
+  const lastGame = db.games.filter((g) => isFinal(g)).sort((a, b) => b.date.localeCompare(a.date))[0];
   const before = lastGame ? ratings(db, lastGame.date) : now;
   const prevRank = Object.fromEntries(before.map((x, i) => [x.t.id + '|' + x.p.id, i]));
   res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', 'Every player rated 40–99 from their production per game, MVPs and recent form. Updates after every game.') + `<div class="wrap">
@@ -1330,7 +1330,7 @@ app.get('/stats/rankings', (req, res) => {
     <div class="card"><div class="scroll"><table class="tbl pr"><thead><tr><th>#</th><th></th><th class="l">Player</th><th class="l">Team</th><th>Rating</th><th>TD</th><th>Pass TD</th><th>INT</th><th>MVP</th></tr></thead><tbody>
     ${now.map((x, i) => { const pr = prevRank[x.t.id + '|' + x.p.id]; const mv = pr == null ? 0 : pr - i;
       return `<tr><td><b>${i + 1}</b></td><td class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : ''}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</td><td class="l"><a class="plink" href="${playerUrl(x.t, x.p)}">${avatar(x.t, x.p, 30)}${esc(x.p.name)}</a></td><td class="l"><span class="th">${logo(x.t, 20)} ${esc(x.t.abbr)}</span></td><td><span class="rt ${tier(x.r)}">${x.r}</span></td><td>${x.td}</td><td>${x.pass}</td><td>${x.int}</td><td>${x.mvp}</td></tr>`; }).join('')}
-    </tbody></table></div><p class="muted sm">Regular season and bowls. Arrows show movement since the last game.</p></div>
+    </tbody></table></div><p class="muted sm">Includes every game, exhibitions too. Arrows show movement since the last game.</p></div>
     <p><a class="btn ghost" href="/cards">${icon('star')} See every trading card</a></p>
   </div>`));
 });
@@ -1361,7 +1361,7 @@ app.get('/records', (req, res) => {
   const db = load();
   const games = db.games.filter((g) => isFinal(g) && g.type !== 'exhibition');
   const single = { td: [], pass: [], int: [] };
-  for (const g of games) {
+  for (const g of db.games.filter(isFinal)) {
     const per = {};
     for (const e of g.events || []) {
       const add = (name, k) => { if (!name) return; const id = e.team + '|' + name; per[id] = per[id] || { team: e.team, name, td: 0, pass: 0, int: 0 }; per[id][k]++; };
@@ -1382,7 +1382,7 @@ app.get('/records', (req, res) => {
   const gl = (g) => (g ? `<a href="/games/${g.id}">${esc(shortDate(g.date))}</a>` : '');
   const sTd = top(single.td), sPass = top(single.pass), sInt = top(single.int);
   const bTd = best('td'), bPass = best('pass'), bInt = best('int'), bMvp = best('mvp');
-  res.send(layout(req, 'Records Book', pageHead('All-time', 'Records Book', 'The best single-game and season marks in MFL history. Exhibitions not counted.') + `<div class="wrap">
+  res.send(layout(req, 'Records Book', pageHead('All-time', 'Records Book', 'The best single-game and season marks in MFL history. Player records include exhibitions; team records count official games only.') + `<div class="wrap">
     <h2 class="sec-h">Single game: players</h2><div class="rec-grid">
       ${rec('Most TDs', sTd?.n, pl(sTd), gl(sTd?.g))}${rec('Most TD passes', sPass?.n, pl(sPass), gl(sPass?.g))}${rec('Most INTs', sInt?.n, pl(sInt), gl(sInt?.g))}</div>
     <h2 class="sec-h">Single game: teams</h2><div class="rec-grid">
