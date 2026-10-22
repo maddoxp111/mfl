@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=13">
+<link rel="stylesheet" href="/static/style.css?v=14">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -643,6 +643,7 @@ function slip(user) {
     const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
     function render() {
       document.querySelectorAll('.ob').forEach((b) => b.classList.toggle('on', legs.some((l) => l.game === b.dataset.game && l.key === b.dataset.key)));
+      document.querySelectorAll('.combo').forEach((c) => c.classList.toggle('on', JSON.parse(c.dataset.legs).every((x) => legs.some((l) => l.game === x.game && l.key === x.key))));
       el('slip').hidden = !legs.length;
       el('slipCount').textContent = legs.length;
       el('slipKind').textContent = legs.length > 1 ? legs.length + '-leg parlay' : 'Single';
@@ -652,6 +653,17 @@ function slip(user) {
       el('slipWin').textContent = legs.length && stake ? Math.floor(stake * odds).toLocaleString() : '–';
     }
     document.addEventListener('click', (e) => {
+      // Ready-made parlays: add every pick (or take them all back out if already in the slip).
+      const c = e.target.closest('.combo');
+      if (c) {
+        const cl = JSON.parse(c.dataset.legs);
+        const has = (x) => legs.some((l) => l.game === x.game && l.key === x.key);
+        if (cl.every(has)) legs = legs.filter((l) => !cl.some((x) => x.game === l.game && x.key === l.key));
+        else if (legs.length + cl.filter((x) => !has(x)).length > ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'That would go over ${pk.MAX_LEGS} picks.'; el('slip').hidden = false; return; }
+        else cl.filter((x) => !has(x)).forEach((x) => legs.push(x));
+        el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
+        return;
+      }
       const b = e.target.closest('.ob'); if (!b) return;
       const i = legs.findIndex((l) => l.game === b.dataset.game && l.key === b.dataset.key);
       if (i >= 0) legs.splice(i, 1);
@@ -716,6 +728,89 @@ function propBtn(db, g, m, short) {
 }
 const lockTs = (g) => kickoffTs({ ...g, time: pk.lockTime(g) });
 
+// ---------- pick'em: featured star bets ----------
+// Stars = captains, team reps and the 2 hottest other players per team (by tendency).
+// Which bets and parlays get featured is reshuffled for every game.
+const STAR_SHORT = { ptd: 'Scores a TD', p2td: '2+ TDs', p3td: 'Hat trick', pfirst: 'First TD', ppass: 'Throws a TD', p2pass: '2+ TD passes', pdual: 'Score + throw', pint: 'Gets an INT', pint_td: 'INT + TD' };
+function seeded(seed) {
+  let a = [...String(seed)].reduce((x, c) => (x * 31 + c.charCodeAt(0)) | 0, 9);
+  return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const shuffle = (arr, r) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function featured(db, g, m) {
+  const k = m.byKey, et = pk.effTend(db), r = seeded('feat:' + g.id + ':' + g.date);
+  const stars = [];
+  for (const t of [db.teams[g.home], db.teams[g.away]]) {
+    const named = t.roster.filter((p) => p.tag === 'C' || p.tag === 'TR');
+    const heat = (p) => Math.max(et.player(t, p, 'td'), et.player(t, p, 'pass'), et.player(t, p, 'int'));
+    const hot = t.roster.filter((p) => !named.includes(p)).sort((a, b) => heat(b) - heat(a)).slice(0, 2);
+    for (const p of named) stars.push({ t, p, role: p.tag === 'C' ? 'Captain' : 'Team Rep' });
+    for (const p of hot) stars.push({ t, p, role: 'Hot' });
+  }
+  const leg = (key) => (k[key] ? { game: g.id, key, label: k[key].label, odds: k[key].odds, match: matchName(db, g) } : null);
+  const opp = (t) => db.teams[t.id === g.home ? g.away : g.home];
+  const spr = (t) => m.list.find((x) => x.group === 'Spread' && x.team === t.id);
+
+  // Star cards: always their TD bet, plus 5 rotating picks and a "TD + team wins" combo.
+  const cards = stars.map((s) => {
+    const pre = (mk) => `${mk}:${s.t.id}:${s.p.id}`;
+    const rest = shuffle(['p2td', 'p3td', 'pfirst', 'ppass', 'p2pass', 'pdual', 'pint', 'pint_td'].filter((mk) => k[pre(mk)]), r).slice(0, 5);
+    return { ...s, bets: ['ptd', ...rest].map((mk) => ({ m: k[pre(mk)], short: STAR_SHORT[mk] })), combo: [leg(pre('ptd')), leg(`ml:${s.t.id}`)].filter(Boolean) };
+  });
+
+  // Ready-made star parlays (at most one "who wins" pick each, so they always validate).
+  const C = [];
+  const add = (title, keys, tag = '') => { const legs = keys.map(leg); if (legs.every(Boolean)) C.push({ title, tag, legs }); };
+  // First names on tickets, unless two stars share one (e.g. two Maddoxes).
+  const firsts = stars.map((x) => x.p.name.split(' ')[0].toLowerCase());
+  const first = (n) => (firsts.filter((f) => f === n.split(' ')[0].toLowerCase()).length > 1 ? n : n.split(' ')[0]);
+  const byTeam = (t) => stars.filter((s) => s.t.id === t.id);
+  for (const t of [db.teams[g.home], db.teams[g.away]]) {
+    const ss = byTeam(t);
+    for (let i = 0; i < ss.length; i++) for (let j = i + 1; j < ss.length; j++) {
+      const a = ss[i].p, b = ss[j].p;
+      add(`${first(a.name)} & ${first(b.name)} both score`, [`ptd:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Duo');
+      add(`${first(a.name)} throws, ${first(b.name)} scores`, [`ppass:${t.id}:${a.id}`, `ptd:${t.id}:${b.id}`], 'Connection');
+    }
+    if (ss.length >= 3) add(`${t.name} big three all score`, ss.slice(0, 3).map((s) => `ptd:${t.id}:${s.p.id}`), 'Trio');
+    for (const s of ss) {
+      add(`${first(s.p.name)} scores first, ${t.name} win`, [`pfirst:${t.id}:${s.p.id}`, `ml:${t.id}`], 'Statement');
+      add(`${first(s.p.name)} goes off: 2+ TDs & ${t.name} 21+`, [`p2td:${t.id}:${s.p.id}`, `tt:${t.id}:21`], 'Big game');
+      add(`${first(s.p.name)} does it all, ${t.name} win`, [`pdual:${t.id}:${s.p.id}`, `ml:${t.id}`], 'MVP');
+      if (spr(t)) add(`${first(s.p.name)} scores & ${t.name} cover ${pk.fmtLine(spr(t).line)}`, [`ptd:${t.id}:${s.p.id}`, spr(t).key], 'Spread');
+      for (const o of byTeam(opp(t))) add(`${first(s.p.name)} picks one off, ${first(o.p.name)} still scores`, [`pint:${t.id}:${s.p.id}`, `ptd:${opp(t).id}:${o.p.id}`], 'Rivalry');
+    }
+  }
+  const caps = stars.filter((s) => s.role === 'Captain');
+  if (caps.length === 2) {
+    add('Captain clash: both captains score', caps.map((s) => `ptd:${s.t.id}:${s.p.id}`), 'Captains');
+    add('Captains both throw a TD', caps.map((s) => `ppass:${s.t.id}:${s.p.id}`), 'Captains');
+  }
+  const combos = shuffle(C, r).slice(0, 16).map((c) => ({ ...c, odds: c.legs.reduce((x, l) => x * l.odds, 1) }));
+  return { cards: shuffle(cards, r), combos };
+}
+function featuredHtml(db, g, m) {
+  const { cards, combos } = featured(db, g, m);
+  if (!cards.length) return '';
+  const roleIcon = { Captain: 'C', 'Team Rep': 'TR', Hot: '🔥' };
+  const comboBtn = (legs, inner, cls) => `<button type="button" class="combo ${cls}" data-legs="${esc(JSON.stringify(legs))}">${inner}</button>`;
+  return `<section class="feat">
+    <div class="feat-h"><div><span class="kicker">${icon('star')} Featured</span><h2>Star Spotlight</h2></div><small>Captains, team reps and the hottest players. Featured bets change every game.</small></div>
+    <div class="spot">${cards.map((c) => `<article class="star" style="--c:${esc(c.t.color)}">
+      <div class="star-top"><span class="role r-${c.role === 'Hot' ? 'hot' : 'tag'}">${roleIcon[c.role]} ${c.role === 'Hot' ? 'On fire' : c.role}</span>${c.p.number ? `<span class="star-num">${esc(c.p.number)}</span>` : ''}
+        <a href="${playerUrl(c.t, c.p)}" target="_blank" rel="noopener" class="star-photo">${avatar(c.t, c.p, 112, 'xl')}</a></div>
+      <div class="star-name"><b>${esc(c.p.name)}</b><small>${logo(c.t, 16)} ${esc(c.t.name)}${c.p.position ? ' · ' + esc(c.p.position) : ''}</small></div>
+      <div class="star-bets">${c.bets.map((b) => propBtn(db, g, b.m, b.short)).join('')}</div>
+      ${c.combo.length === 2 ? comboBtn(c.combo, `<span>TD + ${esc(c.t.name)} win</span><b>${oddsTxt(c.combo[0].odds * c.combo[1].odds)}</b>`, 'star-combo') : ''}
+    </article>`).join('')}</div>
+    <div class="feat-h sub"><div><span class="kicker">${icon('coin')} One tap</span><h2>Star Parlays</h2></div><small>Tap a ticket to drop every pick in your slip.</small></div>
+    <div class="tickets">${combos.map((c) => comboBtn(c.legs, `<div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
+      <b class="tk-title">${esc(c.title)}</b>
+      <ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
+      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div>`, 'ticket')).join('')}</div>
+  </section>`;
+}
+
 app.get('/pickem', async (req, res, next) => {
   try {
     const db = load();
@@ -758,10 +853,11 @@ app.get('/pickem', async (req, res, next) => {
         </div>
         <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
       </section>
+      ${featuredHtml(db, g, m)}
       <div class="home-grid">
         <div class="col">
-          <section class="card props">
-            <div class="card-h"><h2>${icon('star')} Player props</h2><div class="seg mini" id="ptabs"><a class="on" data-t="all">Both teams</a><a data-t="${A.id}">${esc(A.abbr)}</a><a data-t="${B.id}">${esc(B.abbr)}</a></div></div>
+          <section class="card props" id="all-props">
+            <div class="card-h"><h2>${icon('star')} Every player</h2><div class="seg mini" id="ptabs"><a class="on" data-t="all">Both teams</a><a data-t="${A.id}">${esc(A.abbr)}</a><a data-t="${B.id}">${esc(B.abbr)}</a></div></div>
             <p class="muted sm">Sorted by who's most likely to score. Tap a price to add it to your slip.</p>
             <div class="pteams">${teamProps(A)}${teamProps(B)}</div>
           </section>
