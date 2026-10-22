@@ -122,6 +122,8 @@ function effTend(db, drift = tendDrift(db)) {
 }
 
 // Spread line: expected margin, always on a half point so there are no pushes.
+// League rule: every spread is 13.5 (favorite -13.5, underdog +13.5).
+const SPREAD = 13.5;
 function spreadLine(margin) {
   const l = Math.round(Math.abs(margin) * 2) / 2;
   return l % 1 === 0 ? l + 0.5 : l;
@@ -168,16 +170,11 @@ function markets(db, g) {
 
   // Spread from the average simulated margin (built from every past game, exhibitions included).
   const margin = sims.reduce((x, s) => x + s.a - s.b, 0) / N;
-  const line = spreadLine(margin);
+  const line = SPREAD;
   const fav = margin >= 0 ? A : B, dog = fav === A ? B : A;
   const [fm, fo] = side(fav);
   add('Spread', `spr:${fav.id}:${-line}`, `${fav.name} ${fmtLine(-line)}`, P((s) => s[fm] - s[fo] > line), { team: fav.id, family: 'win', line: -line });
   add('Spread', `spr:${dog.id}:${line}`, `${dog.name} ${fmtLine(line)}`, P((s) => s[fm] - s[fo] < line), { team: dog.id, family: 'win', line });
-  // Alternate lines a touchdown either way.
-  for (const alt of [line + 7, line - 7].filter((x) => x > 0)) {
-    add('Alt spreads', `spr:${fav.id}:${-alt}`, `${fav.name} ${fmtLine(-alt)}`, P((s) => s[fm] - s[fo] > alt), { team: fav.id, family: 'win', line: -alt });
-    add('Alt spreads', `spr:${dog.id}:${alt}`, `${dog.name} ${fmtLine(alt)}`, P((s) => s[fm] - s[fo] < alt), { team: dog.id, family: 'win', line: alt });
-  }
 
   for (const t of [A, B]) {
     const [me] = side(t);
@@ -265,7 +262,8 @@ function legResult(db, leg) {
       if (td) return ok(td.team === a);
       return g.homeScore + g.awayScore === 0 ? 'lost' : 'void'; // points but no plays recorded
     }
-    case 'spr': return ok(score(a) - opp(a) + Number(b) > 0);
+    // Every spread counts at 13.5, including bets placed back when lines differed.
+    case 'spr': return ok(score(a) - opp(a) + Math.sign(Number(b)) * SPREAD > 0);
     case 'exm': return ok(score(a) - opp(a) === +b);
     case 'tie': return ok(g.homeScore === g.awayScore);
     case 'fl': {
@@ -367,4 +365,4 @@ function american(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
+module.exports = { SPREAD, tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };

@@ -712,7 +712,8 @@ function betCard(db, b, opts = {}) {
   return `<div class="bet ${b.status}">
     <div class="bet-h">${opts.who ? `<b>@${esc(opts.who)}</b>` : `<b>${b.legs.length > 1 ? b.legs.length + '-leg parlay' : 'Single'}</b>`}<span class="bet-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
-      return `<div class="bet-leg ${r}"><i></i><div><b>${esc(l.label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+      const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
+      return `<div class="bet-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
     <div class="bet-f"><span>Bet ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
   </div>`;
 }
@@ -895,7 +896,7 @@ app.get('/pickem', async (req, res, next) => {
     const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
     const groups = {};
     for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
-    const gameBets = ['Spread', 'Alt spreads', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
+    const gameBets = ['Spread', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
 
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
@@ -1015,7 +1016,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Reading odds</h3><p><b>+150</b> means a 100 coin bet wins 150 more. <b>−200</b> means you bet 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
       <h3>When bets close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Bets pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
       <h3>Why there are no unders</h3><p>Every bet is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no bets on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
-      <h3>The spread</h3><p>The favorite has to win by more than the line (like <b>-5.5</b>). The underdog <b>+5.5</b> wins the bet if they win or lose by 5 or less. The line is built from every past game, exhibitions included, so it moves after every game. Lines always end in .5, so there are no ties.</p>
+      <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the bet if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
       <h3>Player props</h3><p>Player bets count what's in the box score. If a play isn't recorded, it doesn't count.</p>
     </div></div>`));
   } catch (e) { next(e); }
