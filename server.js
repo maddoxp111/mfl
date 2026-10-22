@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=19">
+<link rel="stylesheet" href="/static/style.css?v=20">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1230,6 +1230,27 @@ app.post('/pickem/login', async (req, res) => {
   setUserCookie(req, res, name);
   res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
 });
+// Change your own password (must know the current one, or the old 4-digit PIN).
+app.post('/pickem/password', async (req, res) => {
+  const name = currentUser(req);
+  if (!name) return res.redirect('/pickem/login?next=/pickem/me');
+  const back = (msg, ok) => res.redirect(`/pickem/u/${name}?pw=${ok ? 'ok' : encodeURIComponent(msg)}#password`);
+  const cur = String(req.body.current || ''), nw = String(req.body.password || ''), again = String(req.body.again || '');
+  const t = tries.get(name) || { n: 0, until: 0 };
+  if (t.until > Date.now()) return back('Too many tries. Wait a minute and try again.');
+  const user = await getDoc(userKey(name));
+  if (!user) return res.redirect('/pickem/logout');
+  if (!cur || cur.length > 72 || !pk.checkPin(user, cur)) {
+    t.n++; if (t.n >= 5) { t.n = 0; t.until = Date.now() + 60000; } tries.set(name, t);
+    return back('Your current password is wrong.');
+  }
+  tries.delete(name);
+  if (nw.length < 6 || nw.length > 72) return back('Your new password needs at least 6 characters.');
+  if (nw !== again) return back("The new passwords don't match.");
+  Object.assign(user, pk.hashPin(nw));
+  await putDoc(userKey(name), user);
+  back('', true);
+});
 app.get('/pickem/logout', (req, res) => { res.setHeader('Set-Cookie', `${USER_COOKIE}=; Path=/; Max-Age=0`); res.redirect('/pickem'); });
 
 // ---------- player leaders ----------
@@ -1650,6 +1671,15 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
       <div class="stats-row six">${tile('Betting points', pts(betPoints(acct.bets)), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Parlays', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
+        ${req.query.pw === 'ok' ? '<p class="toast">Password changed ✓</p>' : req.query.pw ? `<p class="err">${esc(req.query.pw)}</p>` : ''}
+        <form method="post" action="/pickem/password" class="form pw-form">
+          <label>Current password <small class="muted">(or your old 4-digit PIN)</small><input type="password" name="current" required maxlength="72" autocomplete="current-password"></label>
+          <label>New password <small class="muted">(at least 6 characters)</small><input type="password" name="password" required minlength="6" maxlength="72" autocomplete="new-password"></label>
+          <label>New password again<input type="password" name="again" required minlength="6" maxlength="72" autocomplete="new-password"></label>
+          <button class="btn">Change password</button>
+          <p class="muted sm">Forgot your current password? Ask the league admin to reset it.</p>
+        </form></details>` : ''}
       <p class="muted sm">Betting points are just for bragging rights: every winning bet earns 10, plus 5 for each extra parlay pick and more for long shots.</p>
       <div class="home-grid"><div class="col">
         <div class="card-h"><h2>Bet history</h2><span class="muted sm">${acct.bets.length} bets · ${st.staked.toLocaleString('en-US')} coins wagered</span></div>

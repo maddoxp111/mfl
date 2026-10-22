@@ -898,3 +898,9 @@ html,body{overflow-x:clip}
   .bf-game{flex-direction:column;align-items:flex-start}
   .bf-hero h1{font-size:40px}
 }
+.pw-card summary{list-style:none;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.pw-card summary::-webkit-details-marker{display:none}
+.pw-card summary h2{font:800 18px var(--disp);text-transform:uppercase;margin:0}
+.pw-card[open] summary .ic{transform:rotate(180deg)}
+.pw-form{max-width:420px;margin-top:16px}
+.pw-form label small{text-transform:none;font-weight:500}
