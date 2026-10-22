@@ -688,7 +688,7 @@ function slip(user) {
       el('slipWin').textContent = legs.length && stake ? Math.floor(stake * odds).toLocaleString() : '–';
     }
     document.addEventListener('click', (e) => {
-      // Ready-made parlays: add every pick (or take them all back out if already in the slip).
+      // Ready-made combos: add every pick (or take them all back out if already in the slip).
       const c = e.target.closest('.combo');
       if (c) {
         const cl = JSON.parse(c.dataset.legs);
