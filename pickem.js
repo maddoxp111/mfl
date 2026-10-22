@@ -77,29 +77,80 @@ const PRIOR_GAMES = 3, PRIOR_POINTS = 14;
 const tdRate = (h) => ((h.pts + PRIOR_POINTS * PRIOR_GAMES) / (h.gp + PRIOR_GAMES)) / 7;
 
 // Admin "tendencies": 0 = very unlikely, 50 = go by stats alone, 100 = very likely.
-const tv = (o, k) => (o && Number.isFinite(+o[k]) ? Math.max(0, Math.min(100, +o[k])) : 50);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const tv = (o, k) => (o && Number.isFinite(+o[k]) ? clamp(+o[k], 0, 100) : 50);
 const playerW = (v) => Math.pow(2, (v - 50) / 15); // 0 -> ~0.1x, 100 -> ~10x
 const teamW = (v) => Math.pow(2, (v - 50) / 50); //   0 -> 0.5x, 100 -> 2x
 
+// Tendencies drift a little after every finished game (exhibitions too): up when a
+// player/team produces, down a bit when they don't. The admin slider is the
+// starting point; drift is recomputed from game results, so fixing a box score fixes it.
+const DRIFT_MAX = 30;
+function tendDrift(db) {
+  const teams = {}, players = {};
+  const T = (id) => (teams[id] = teams[id] || { off: 0, def: 0, int: 0 });
+  const Pl = (tid, pid) => (players[tid + '|' + pid] = players[tid + '|' + pid] || { td: 0, pass: 0, int: 0 });
+  const games = db.games.filter(isFinal).sort((x, y) => (x.date || '').localeCompare(y.date || ''));
+  for (const g of games) {
+    const evs = g.events || [];
+    const recorded = evs.length > 0; // without a box score we only know the score
+    for (const [me, op] of [[g.home, g.away], [g.away, g.home]]) {
+      const tdsFor = recorded ? evs.filter((e) => e.type === 'TD' && e.team === me).length : Math.round((g.home === me ? g.homeScore : g.awayScore) / 7);
+      const tdsAgainst = recorded ? evs.filter((e) => e.type === 'TD' && e.team === op).length : Math.round((g.home === me ? g.awayScore : g.homeScore) / 7);
+      const t = T(me);
+      t.off += (tdsFor - 2) * 2;
+      t.def += (2 - tdsAgainst) * 2;
+      if (recorded) t.int += evs.some((e) => e.type === 'INT' && e.team === me) ? 3 : -1;
+      if (!recorded || !db.teams[me]) continue;
+      for (const pl of db.teams[me].roster) {
+        const n = pl.name.toLowerCase(), d = Pl(me, pl.id);
+        const did = (fn) => evs.some((e) => e.team === me && fn(e));
+        d.td += did((e) => e.type === 'TD' && (e.player || '').toLowerCase() === n) ? 6 : -2;
+        d.pass += did((e) => e.type === 'TD' && (e.passer || '').toLowerCase() === n) ? 6 : -1;
+        d.int += did((e) => e.type === 'INT' && (e.player || '').toLowerCase() === n) ? 6 : -1;
+      }
+    }
+  }
+  for (const o of [...Object.values(teams), ...Object.values(players)]) for (const k in o) o[k] = clamp(o[k], -DRIFT_MAX, DRIFT_MAX);
+  return { teams, players };
+}
+// What the odds actually use: admin base + automatic drift, kept within 0-100.
+function effTend(db, drift = tendDrift(db)) {
+  const team = (t, k) => clamp(tv(t.tend, k) + (drift.teams[t.id]?.[k] || 0), 0, 100);
+  const player = (t, p, k) => clamp(tv(p.tend, k) + (drift.players[t.id + '|' + p.id]?.[k] || 0), 0, 100);
+  return { team, player, drift };
+}
+
+// Spread line: expected margin, always on a half point so there are no pushes.
+function spreadLine(margin) {
+  const l = Math.round(Math.abs(margin) * 2) / 2;
+  return l % 1 === 0 ? l + 0.5 : l;
+}
+const fmtLine = (v) => (v > 0 ? '+' + v : String(v));
+
 const cache = new Map();
 function markets(db, g) {
-  const sig = g.id + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${(x.events || []).length}`).join(',') +
+  const sig = g.id + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${JSON.stringify(x.events || [])}`).join(',') +
     '|' + Object.values(db.teams).map((t) => JSON.stringify(t.tend || {}) + t.roster.map((p) => p.id + p.name + JSON.stringify(p.tend || {})).join()).join();
   if (cache.has(sig)) return cache.get(sig);
   const A = db.teams[g.home], B = db.teams[g.away];
   const hA = history(db, A.id), hB = history(db, B.id);
+  const et = effTend(db);
   // A team's offense tendency raises its scoring; the other team's defense tendency lowers it.
-  const lA = tdRate(hA) * teamW(tv(A.tend, 'off')) / teamW(tv(B.tend, 'def'));
-  const lB = tdRate(hB) * teamW(tv(B.tend, 'off')) / teamW(tv(A.tend, 'def'));
+  const lA = tdRate(hA) * teamW(et.team(A, 'off')) / teamW(et.team(B, 'def'));
+  const lB = tdRate(hB) * teamW(et.team(B, 'off')) / teamW(et.team(A, 'def'));
+  const intRate = (t, h) => (h.int + 0.8 * PRIOR_GAMES) / (h.gp + PRIOR_GAMES) * teamW(et.team(t, 'int'));
+  const iA = intRate(A, hA), iB = intRate(B, hB);
 
-  // Simulate the game a few thousand times from each team's touchdown rate.
-  const N = 6000;
+  // Simulate the game a few thousand times from each team's touchdown and pick rates.
+  const N = 8000;
   const r = rng([...String(sig)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7));
   const sims = [];
+  const pickSide = () => (r() < lA / (lA + lB) ? 'A' : 'B');
   for (let i = 0; i < N; i++) {
     const a = poisson(lA, r), b = poisson(lB, r);
-    const first = a + b ? (r() < lA / (lA + lB) ? 'A' : 'B') : null;
-    sims.push({ a: a * 7, b: b * 7, first });
+    const first = a + b ? pickSide() : null, last = a + b ? (a && b ? pickSide() : a ? 'A' : 'B') : null;
+    sims.push({ a: a * 7, b: b * 7, first, last, ia: poisson(iA, r), ib: poisson(iB, r) });
   }
   const P = (fn) => sims.filter(fn).length / N;
 
@@ -111,9 +162,23 @@ function markets(db, g) {
     const odds = Math.max(1.02, Math.min(101, Math.round((VIG / p) * 100) / 100));
     list.push({ group, key, label, odds, p, ...extra });
   };
-  const side = (t) => (t.id === A.id ? ['a', 'b', 'A'] : ['b', 'a', 'B']);
+  const side = (t) => (t.id === A.id ? ['a', 'b', 'A', 'ia'] : ['b', 'a', 'B', 'ib']);
 
   for (const t of [A, B]) { const [me, op] = side(t); add('Winner', `ml:${t.id}`, `${t.name} win`, P((s) => s[me] > s[op]), { team: t.id, family: 'win' }); }
+
+  // Spread from the average simulated margin (built from every past game, exhibitions included).
+  const margin = sims.reduce((x, s) => x + s.a - s.b, 0) / N;
+  const line = spreadLine(margin);
+  const fav = margin >= 0 ? A : B, dog = fav === A ? B : A;
+  const [fm, fo] = side(fav);
+  add('Spread', `spr:${fav.id}:${-line}`, `${fav.name} ${fmtLine(-line)}`, P((s) => s[fm] - s[fo] > line), { team: fav.id, family: 'win', line: -line });
+  add('Spread', `spr:${dog.id}:${line}`, `${dog.name} ${fmtLine(line)}`, P((s) => s[fm] - s[fo] < line), { team: dog.id, family: 'win', line });
+  // Alternate lines a touchdown either way.
+  for (const alt of [line + 7, line - 7].filter((x) => x > 0)) {
+    add('Alt spreads', `spr:${fav.id}:${-alt}`, `${fav.name} ${fmtLine(-alt)}`, P((s) => s[fm] - s[fo] > alt), { team: fav.id, family: 'win', line: -alt });
+    add('Alt spreads', `spr:${dog.id}:${alt}`, `${dog.name} ${fmtLine(alt)}`, P((s) => s[fm] - s[fo] < alt), { team: dog.id, family: 'win', line: alt });
+  }
+
   for (const t of [A, B]) {
     const [me] = side(t);
     for (const k of [7, 14, 21, 28, 35]) add('Team points', `tt:${t.id}:${k}`, `${t.name} score ${k}+`, P((s) => s[me] >= k), { team: t.id });
@@ -122,35 +187,52 @@ function markets(db, g) {
   for (const t of [A, B]) {
     const [me, op] = side(t);
     for (const m of [7, 14, 21]) add('Winning margin', `mar:${t.id}:${m}`, `${t.name} win by ${m}+`, P((s) => s[me] - s[op] >= m), { team: t.id, family: 'win' });
+    for (const m of [7, 14]) add('Exact margin', `exm:${t.id}:${m}`, `${t.name} win by exactly ${m}`, P((s) => s[me] - s[op] === m), { team: t.id, family: 'win' });
   }
-  for (const t of [A, B]) { const [me, op, F] = side(t); add('Specials', `first:${t.id}`, `${t.name} score first`, P((s) => s.first === F), { team: t.id }); add('Specials', `so:${t.id}`, `${t.name} win with a shutout`, P((s) => s[me] > 0 && s[op] === 0), { team: t.id, family: 'win' }); }
+  add('Exact margin', 'tie', 'Game ends in a tie', P((s) => s.a === s.b), { family: 'win' });
+  for (const t of [A, B]) {
+    const [me, op, F] = side(t);
+    add('Specials', `first:${t.id}`, `${t.name} score first`, P((s) => s.first === F), { team: t.id });
+    add('Specials', `last:${t.id}`, `${t.name} score the last TD`, P((s) => s.last === F), { team: t.id });
+    add('Specials', `so:${t.id}`, `${t.name} win with a shutout`, P((s) => s[me] > 0 && s[op] === 0), { team: t.id, family: 'win' });
+    add('Specials', `fl:${t.id}`, `${t.name} score first AND win`, P((s) => s.first === F && s[me] > s[op]), { team: t.id, family: 'win' });
+  }
   for (const k of [7, 14]) add('Specials', `both:${k}`, `Both teams score ${k}+`, P((s) => s.a >= k && s.b >= k));
+  for (const t of [A, B]) { const [, , , mi] = side(t); add('Turnovers', `int1:${t.id}`, `${t.name} get an INT`, P((s) => s[mi] >= 1), { team: t.id }); add('Turnovers', `int2:${t.id}`, `${t.name} get 2+ INTs`, P((s) => s[mi] >= 2), { team: t.id }); }
+  add('Turnovers', 'bothint', 'Both teams get an INT', P((s) => s.ia >= 1 && s.ib >= 1));
+  add('Turnovers', 'int3', '3+ total INTs', P((s) => s.ia + s.ib >= 3));
 
   // Player props, from each player's share of their team's plays (with a prior so new players get a price).
   for (const t of [A, B]) {
-    const h = t.id === A.id ? hA : hB, lam = t.id === A.id ? lA : lB;
+    const h = t.id === A.id ? hA : hB, lam = t.id === A.id ? lA : lB, ti = t.id === A.id ? iA : iB;
+    const [, , F] = side(t);
+    const pFirstTeam = P((s) => s.first === F);
     const passFrac = (h.pass + 0.7 * PRIOR_GAMES) / (h.td + PRIOR_GAMES);
-    const intRate = (h.int + 0.8 * PRIOR_GAMES) / (h.gp + PRIOR_GAMES) * teamW(tv(t.tend, 'int'));
     // Each player's share of the team's TDs / passes / picks: stats-based, then
     // scaled by their tendency and re-normalized so the team total stays the same.
     const ph = (pl) => h.players[pl.name.toLowerCase()] || { td: 0, pass: 0, int: 0 };
     const shares = (k, prior) => {
-      const w = t.roster.map((pl) => (ph(pl)[k] + prior) * playerW(tv(pl.tend, k)));
+      const w = t.roster.map((pl) => (ph(pl)[k] + prior) * playerW(et.player(t, pl, k)));
       const sum = w.reduce((a, b) => a + b, 0) || 1;
       return Object.fromEntries(t.roster.map((pl, i) => [pl.id, w[i] / sum]));
     };
     const sTd = shares('td', 0.5), sPass = shares('pass', 0.3), sInt = shares('int', 0.3);
+    const atLeast = (x, k) => { let c = 0, term = Math.exp(-x); for (let i = 0; i < k; i++) { c += term; term *= x / (i + 1); } return 1 - c; };
     for (const pl of t.roster) {
-      const x = lam * sTd[pl.id];
-      add('Touchdown scorers', `ptd:${t.id}:${pl.id}`, `${pl.name} scores a TD`, 1 - Math.exp(-x), { team: t.id, player: pl.id });
-      add('Touchdown scorers', `p2td:${t.id}:${pl.id}`, `${pl.name} scores 2+ TDs`, 1 - Math.exp(-x) * (1 + x), { team: t.id, player: pl.id });
-      const y = lam * passFrac * sPass[pl.id];
-      add('TD passes', `ppass:${t.id}:${pl.id}`, `${pl.name} throws a TD pass`, 1 - Math.exp(-y), { team: t.id, player: pl.id });
-      const z = intRate * sInt[pl.id];
-      add('Interceptions', `pint:${t.id}:${pl.id}`, `${pl.name} gets an INT`, 1 - Math.exp(-z), { team: t.id, player: pl.id });
+      const x = lam * sTd[pl.id], y = lam * passFrac * sPass[pl.id], z = ti * sInt[pl.id];
+      const o = { team: t.id, player: pl.id };
+      add('Touchdown scorers', `ptd:${t.id}:${pl.id}`, `${pl.name} scores a TD`, atLeast(x, 1), o);
+      add('Touchdown scorers', `p2td:${t.id}:${pl.id}`, `${pl.name} scores 2+ TDs`, atLeast(x, 2), o);
+      add('Touchdown scorers', `p3td:${t.id}:${pl.id}`, `${pl.name} scores 3+ TDs (hat trick)`, atLeast(x, 3), o);
+      add('Touchdown scorers', `pfirst:${t.id}:${pl.id}`, `${pl.name} scores the first TD`, pFirstTeam * sTd[pl.id], o);
+      add('TD passes', `ppass:${t.id}:${pl.id}`, `${pl.name} throws a TD pass`, atLeast(y, 1), o);
+      add('TD passes', `p2pass:${t.id}:${pl.id}`, `${pl.name} throws 2+ TD passes`, atLeast(y, 2), o);
+      add('TD passes', `pdual:${t.id}:${pl.id}`, `${pl.name} scores AND throws a TD`, atLeast(x, 1) * atLeast(y, 1), o);
+      add('Interceptions', `pint:${t.id}:${pl.id}`, `${pl.name} gets an INT`, atLeast(z, 1), o);
+      add('Interceptions', `pint_td:${t.id}:${pl.id}`, `${pl.name} gets an INT AND scores a TD`, atLeast(z, 1) * atLeast(x, 1), o);
     }
   }
-  const out = { list, byKey: Object.fromEntries(list.map((m) => [m.key, m])) };
+  const out = { list, byKey: Object.fromEntries(list.map((m) => [m.key, m])), line, fav: fav.id, margin };
   if (cache.size > 200) cache.clear();
   cache.set(sig, out);
   return out;
@@ -183,6 +265,33 @@ function legResult(db, leg) {
       if (td) return ok(td.team === a);
       return g.homeScore + g.awayScore === 0 ? 'lost' : 'void'; // points but no plays recorded
     }
+    case 'spr': return ok(score(a) - opp(a) + Number(b) > 0);
+    case 'exm': return ok(score(a) - opp(a) === +b);
+    case 'tie': return ok(g.homeScore === g.awayScore);
+    case 'fl': {
+      const td = (g.events || []).find((e) => e.type === 'TD');
+      if (!(score(a) > opp(a))) return 'lost';
+      if (td) return ok(td.team === a);
+      return 'void';
+    }
+    case 'last': {
+      const tds = (g.events || []).filter((e) => e.type === 'TD');
+      if (tds.length) return ok(tds[tds.length - 1].team === a);
+      return g.homeScore + g.awayScore === 0 ? 'lost' : 'void';
+    }
+    case 'int1': return ok(count((e) => e.type === 'INT') >= 1);
+    case 'int2': return ok(count((e) => e.type === 'INT') >= 2);
+    case 'bothint': return ok([g.home, g.away].every((t) => (g.events || []).some((e) => e.type === 'INT' && e.team === t)));
+    case 'int3': return ok((g.events || []).filter((e) => e.type === 'INT').length >= 3);
+    case 'p3td': return ok(count((e) => e.type === 'TD' && (e.player || '').toLowerCase() === name) >= 3);
+    case 'pfirst': {
+      const td = (g.events || []).find((e) => e.type === 'TD');
+      if (td) return ok(td.team === a && (td.player || '').toLowerCase() === name);
+      return g.homeScore + g.awayScore === 0 ? 'lost' : 'void';
+    }
+    case 'p2pass': return ok(count((e) => e.type === 'TD' && (e.passer || '').toLowerCase() === name) >= 2);
+    case 'pdual': return ok(count((e) => e.type === 'TD' && (e.player || '').toLowerCase() === name) >= 1 && count((e) => e.type === 'TD' && (e.passer || '').toLowerCase() === name) >= 1);
+    case 'pint_td': return ok(count((e) => e.type === 'INT' && (e.player || '').toLowerCase() === name) >= 1 && count((e) => e.type === 'TD' && (e.player || '').toLowerCase() === name) >= 1);
     case 'ptd': return ok(count((e) => e.type === 'TD' && (e.player || '').toLowerCase() === name) >= 1);
     case 'p2td': return ok(count((e) => e.type === 'TD' && (e.player || '').toLowerCase() === name) >= 2);
     case 'ppass': return ok(count((e) => e.type === 'TD' && (e.passer || '').toLowerCase() === name) >= 1);
@@ -258,4 +367,4 @@ function american(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
+module.exports = { tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };

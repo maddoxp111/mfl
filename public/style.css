@@ -679,3 +679,11 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
   .pc-bets{grid-template-columns:repeat(2,1fr)}
   .pteams.one .pc{grid-template-columns:1fr}
 }
+.tslider{flex-wrap:wrap}
+.tslider .eff{flex-basis:100%;font:600 11px Inter;color:var(--muted)}
+.tslider .eff b{color:var(--ink)}
+.tslider .eff.up{color:#4ade80}.tslider .eff.down{color:var(--red2)}
+.ng-bets{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:340px}
+.ng-team .ng-bets .pb{min-width:0}
+.pc-bets{grid-template-columns:repeat(4,1fr)}
+@media(max-width:760px){.pc-bets{grid-template-columns:repeat(2,1fr)}.ng-bets{grid-template-columns:1fr}}

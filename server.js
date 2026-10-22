@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -439,7 +439,7 @@ function preview(db, g) {
     ${line('Streak', sA.streak || '–', sB.streak || '–')}
     ${line('TD leader', ldr(a), ldr(b))}
     <p class="pv-note">${last ? `Last meeting: <a href="/games/${last.id}">${esc(db.teams[winner(last) || last.home].name)} ${winner(last) ? 'won' : 'tied'} ${Math.max(last.homeScore, last.awayScore)}–${Math.min(last.homeScore, last.awayScore)}</a> on ${esc(shortDate(last.date))}.` : 'First meeting of the season.'}
-      ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%.` : ''}</p>
+      ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%. The spread is <b>${esc(db.teams[m.fav].name)} -${m.line}</b>.` : ''}</p>
     ${open ? `<a class="btn" href="/pickem">${icon('coin')} Make your picks: ${m.list.length} bets</a>` : ''}
   </div>`;
 }
@@ -736,24 +736,25 @@ app.get('/pickem', async (req, res, next) => {
     const m = pk.markets(db, g), k = m.byKey;
     const A = db.teams[g.home], B = db.teams[g.away];
     const wp = (t) => Math.round((k[`ml:${t.id}`]?.p || 0) * 100);
+    const sprOf = (t) => m.list.find((x) => x.group === 'Spread' && x.team === t.id);
     // Players with the best shot at a TD first.
     const tdP = (t, p) => k[`ptd:${t.id}:${p.id}`]?.p || 0;
     const playerCard = (t, p) => `<div class="pc" style="--c:${esc(t.color)}">
       <a class="pc-who" href="${playerUrl(t, p)}" target="_blank" rel="noopener">${avatar(t, p, 52)}<div><b>${esc(p.name)}</b><small>${esc([p.number && '#' + p.number, p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>
-      <div class="pc-bets">${propBtn(db, g, k[`ptd:${t.id}:${p.id}`], 'TD')}${propBtn(db, g, k[`p2td:${t.id}:${p.id}`], '2+ TD')}${propBtn(db, g, k[`ppass:${t.id}:${p.id}`], 'TD pass')}${propBtn(db, g, k[`pint:${t.id}:${p.id}`], 'INT')}</div>
+      <div class="pc-bets">${[['ptd', 'TD'], ['p2td', '2+ TD'], ['p3td', '3+ TD'], ['pfirst', '1st TD'], ['ppass', 'TD pass'], ['p2pass', '2+ pass'], ['pdual', 'Score + throw'], ['pint', 'INT']].map(([mk, n]) => propBtn(db, g, k[`${mk}:${t.id}:${p.id}`], n)).join('')}</div>
     </div>`;
     const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
     const groups = {};
     for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
-    const gameBets = ['Total points', 'Team points', 'Winning margin', 'Specials'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
+    const gameBets = ['Spread', 'Alt spreads', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} bets</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
 
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
         <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><span class="ng-when">${esc(longDate(g.date))} · ${time12(g.time)} · <a href="/games/${g.id}">Preview</a></span></div>
         <div class="ng-match">
-          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small>${propBtn(db, g, k[`ml:${A.id}`], 'To win')}</div>
+          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small><div class="ng-bets">${propBtn(db, g, k[`ml:${A.id}`], 'To win')}${propBtn(db, g, sprOf(A), 'Spread ' + (sprOf(A) ? pk.fmtLine(sprOf(A).line) : ''))}</div></div>
           <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div><small>at ${time12(pk.lockTime(g))}</small></div>
-          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small>${propBtn(db, g, k[`ml:${B.id}`], 'To win')}</div>
+          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small><div class="ng-bets">${propBtn(db, g, k[`ml:${B.id}`], 'To win')}${propBtn(db, g, sprOf(B), 'Spread ' + (sprOf(B) ? pk.fmtLine(sprOf(B).line) : ''))}</div></div>
         </div>
         <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
       </section>
@@ -864,6 +865,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Reading odds</h3><p><b>+150</b> means a 100 coin bet wins 150 more. <b>−200</b> means you bet 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
       <h3>When bets close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Bets pay out as soon as the final score is posted. If a score gets corrected, bets re-settle automatically. Postponed games are refunded (a parlay just drops that pick). A tie counts as a loss for "win" bets.</p>
       <h3>Why there are no unders</h3><p>Every bet is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no bets on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
+      <h3>The spread</h3><p>The favorite has to win by more than the line (like <b>-5.5</b>). The underdog <b>+5.5</b> wins the bet if they win or lose by 5 or less. The line is built from every past game, exhibitions included, so it moves after every game. Lines always end in .5, so there are no ties.</p>
       <h3>Player props</h3><p>Player bets count what's in the box score. If a play isn't recorded, it doesn't count.</p>
     </div></div>`));
   } catch (e) { next(e); }
@@ -1495,21 +1497,26 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
 const TEND_TEAM = [['off', 'Offense', 'Scores a lot'], ['def', 'Defense', 'Holds the other team down'], ['int', 'Picks', 'Gets interceptions']];
 const TEND_PLAYER = [['td', 'Scores TDs'], ['pass', 'Throws TDs'], ['int', 'Gets INTs']];
 const tval = (o, k) => (o && Number.isFinite(+o[k]) ? +o[k] : 50);
-function slider(name, v, label) {
-  return `<div class="tslider" data-v="${v}" data-label="${esc(label)}"><input type="range" name="${name}" min="0" max="100" step="5" value="${v}" oninput="this.nextElementSibling.textContent=this.value;this.parentElement.dataset.v=this.value"><output>${v}</output></div>`;
+function slider(name, v, label, drift = 0) {
+  const eff = Math.max(0, Math.min(100, v + drift));
+  const autoTxt = (d) => (d ? `auto ${d > 0 ? '+' : ''}${d}` : 'auto 0');
+  return `<div class="tslider" data-v="${v}" data-label="${esc(label)}"><input type="range" name="${name}" min="0" max="100" step="5" value="${v}" data-drift="${drift}" oninput="const d=+this.dataset.drift,e=Math.max(0,Math.min(100,+this.value+d));this.nextElementSibling.textContent=this.value;this.parentElement.dataset.v=this.value;this.parentElement.querySelector('.eff b').textContent=e"><output>${v}</output>
+    <small class="eff ${drift > 0 ? 'up' : drift < 0 ? 'down' : ''}" title="Automatic change from game results">${autoTxt(drift)} → <b>${eff}</b></small></div>`;
 }
 app.get('/admin/tendencies', requireAdmin, (req, res) => {
   const db = load();
   const teams = Object.values(db.teams);
-  res.send(layout(req, 'Tendencies', pageHead('Admin', "Pick'em Tendencies", "0 = very unlikely · 50 = go by stats only · 100 = very likely. These only change Pick'em odds, never real stats.") + `<div class="wrap">${adminNav('/admin/tendencies')}${savedMsg(req)}
+  const drift = pk.tendDrift(db);
+  const dT = (t, k) => drift.teams[t.id]?.[k] || 0, dP = (t, p, k) => drift.players[t.id + '|' + p.id]?.[k] || 0;
+  res.send(layout(req, 'Tendencies', pageHead('Admin', "Pick'em Tendencies", "Slider = your starting point (0 very unlikely, 50 stats only, 100 very likely). After every game it adjusts automatically: up when a player or team produces, down a bit when they don't. The odds use the number after the arrow.") + `<div class="wrap">${adminNav('/admin/tendencies')}${savedMsg(req)}
     <form method="post" class="form tend">
       <div class="card"><div class="card-h"><h2>Teams</h2></div>
         <div class="tgrid tgrid-team"><span></span>${TEND_TEAM.map(([, n, d]) => `<span class="th-l"><b>${n}</b><small>${d}</small></span>`).join('')}
-        ${teams.map((t) => `<span class="th">${logo(t, 28)} ${esc(t.name)}</span>${TEND_TEAM.map(([k, n]) => slider(`team.${t.id}.${k}`, tval(t.tend, k), n)).join('')}`).join('')}</div>
+        ${teams.map((t) => `<span class="th">${logo(t, 28)} ${esc(t.name)}</span>${TEND_TEAM.map(([k, n]) => slider(`team.${t.id}.${k}`, tval(t.tend, k), n, dT(t, k))).join('')}`).join('')}</div>
       </div>
       ${teams.map((t) => `<div class="card"><div class="card-h"><h2 class="th">${logo(t, 28)} ${esc(t.name)} players</h2></div>
         <div class="tgrid"><span></span>${TEND_PLAYER.map(([, n]) => `<span class="th-l"><b>${n}</b></span>`).join('')}
-        ${t.roster.map((p) => `<span class="plink">${avatar(t, p, 30)}${esc(p.name)}</span>${TEND_PLAYER.map(([k, n]) => slider(`player.${t.id}.${p.id}.${k}`, tval(p.tend, k), n)).join('')}`).join('')}</div>
+        ${t.roster.map((p) => `<span class="plink">${avatar(t, p, 30)}${esc(p.name)}</span>${TEND_PLAYER.map(([k, n]) => slider(`player.${t.id}.${p.id}.${k}`, tval(p.tend, k), n, dP(t, p, k))).join('')}`).join('')}</div>
       </div>`).join('')}
       <div class="savebar"><button type="button" class="btn ghost" onclick="this.form.querySelectorAll('input[type=range]').forEach(r=>{r.value=50;r.oninput()})">Reset all to 50</button><button class="btn">Save tendencies</button></div>
     </form></div>`, { ticker: false }));
