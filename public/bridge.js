@@ -93,11 +93,19 @@
     return true;
   }
 
+  const domReady = () => (document.readyState === 'loading' ? new Promise((r) => document.addEventListener('DOMContentLoaded', r)) : null);
   async function load() {
+    await domReady();
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('mfl_post') || 'null');
+      sessionStorage.removeItem('mfl_post');
+      if (saved && saved.path === sitePath()) return show(saved.html);
+    } catch {}
     try {
       const r = await call(sitePath());
       if (follow(r)) return;
-      show(await r.text());
+      const html = await r.text();
+      show(html);
     } catch { offline(); }
   }
 
@@ -109,12 +117,13 @@
     const fd = new FormData(f);
     if (e.submitter && e.submitter.name) fd.append(e.submitter.name, e.submitter.value);
     const u = new URL(f.getAttribute('action') || location.href, location.href);
-    const path = (u.pathname.slice(BASE.length) || '/') + u.search;
+    const path = (u.pathname.slice(BASE.length).replace(/(.)\/$/, '$1') || '/') + u.search;
     try {
       const r = await call(path, { method: 'POST', body: new URLSearchParams(fd) });
       if (follow(r)) return;
-      history.replaceState(null, '', local(path));
-      show(await r.text());
+      // Show the answer (like "wrong password") on a fresh page load, so page scripts run once.
+      try { sessionStorage.setItem('mfl_post', JSON.stringify({ path, html: await r.text() })); } catch {}
+      location.replace(local(path));
     } catch { alert("Couldn't reach the live site. Try again in a moment."); }
   });
   // Links added by scripts (like "My picks" after locking in) still point at /...
