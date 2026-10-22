@@ -1632,6 +1632,34 @@ app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
       </tbody></table></div></div></div>`, { ticker: false }));
   } catch (e) { next(e); }
 });
+// One-time fix after spreads became 13.5: move old spread picks on unplayed games to
+// the 13.5 line at today's 13.5 price, and re-total each affected parlay. Safe to run again.
+app.post('/admin/pickem/reprice-spreads', requireAdmin, async (req, res) => {
+  const db = load();
+  const changed = [];
+  for (const user of await listDocs('users/')) {
+    let touched = false;
+    for (const bet of user.bets || []) {
+      let betTouched = false;
+      for (const l of bet.legs) {
+        if (!l.key.startsWith('spr:')) continue;
+        const [, team, line] = l.key.split(':');
+        const g = db.games.find((x) => x.id === l.game);
+        if (!g || isFinal(g) || g.status === 'postponed') continue;
+        const side = Math.sign(Number(line)) * pk.SPREAD;
+        const now = pk.markets(db, g).byKey[`spr:${team}:${side}`];
+        if (!now || (l.key === now.key && l.odds === now.odds)) continue;
+        changed.push(`@${user.name}: ${l.label} ${pk.american(l.odds)} → ${now.label} ${pk.american(now.odds)}`);
+        Object.assign(l, { key: now.key, label: now.label, odds: now.odds });
+        betTouched = true;
+      }
+      if (betTouched) { bet.odds = Math.round(bet.legs.reduce((x, l) => x * l.odds, 1) * 100) / 100; touched = true; }
+    }
+    if (touched) await putDoc(userKey(user.name), user);
+  }
+  res.type('text/plain').send(changed.length ? changed.join('\n') : 'No spread bets needed changing.');
+});
+
 app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   const name = String(req.params.name).toLowerCase();
   const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
