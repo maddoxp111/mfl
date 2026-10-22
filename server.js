@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=17">
+<link rel="stylesheet" href="/static/style.css?v=18">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -599,7 +599,7 @@ app.get('/players/:team/:pid', (req, res) => {
         <h1>${esc(p.name)}</h1>
         <div class="pp-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
         <div class="th-stats">${rt ? `<a class="rt-big ${tier(rt.r)}" href="/players/${tm.id}/${p.id}/card" title="Power rating · see trading card"><b>${rt.r}</b><small>Rating</small></a>` : ''}<div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${rt ? rt.mvp : 0}</b><small>MVPs</small></div></div>
-        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a>
+        <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/bet/${tm.id}/${p.id}">${icon('coin')} Bet for ${esc(p.name.split(' ')[0])}</a>
       </div>
     </div></section>
     <div class="wrap home-grid">
@@ -908,6 +908,128 @@ function featuredHtml(db, g, m) {
       <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div>`, 'ticket')).join('')}</div>
   </section>`;
 }
+
+// ---------- pick'em: one betting page per player (shareable links) ----------
+const ROLE_KEYS = {
+  qb: { main: 'ppass', big: 'p2pass', verb: 'throws a TD', bigVerb: 'throws 2+ TDs' },
+  def: { main: 'pint', big: 'pint_td', verb: 'gets a pick', bigVerb: 'gets a pick-six (INT + TD)' },
+  skill: { main: 'ptd', big: 'p2td', verb: 'scores', bigVerb: 'scores 2+ TDs' },
+};
+const PROP_ORDER = ['ptd', 'p2td', 'p3td', 'pfirst', 'ppass', 'p2pass', 'pdual', 'pint', 'pint_td'];
+const betForUrl = (t, p) => `/bet/${t.id}/${p.id}`;
+
+// Parlays built around one player: every pick fits each player's role.
+function playerParlays(db, g, m, t, p) {
+  const k = m.byKey, et = pk.effTend(db);
+  const leg = (key) => (k[key] ? { game: g.id, key, label: k[key].label, odds: k[key].odds, match: matchName(db, g) } : null);
+  const role = (tm, pl) => playerRole(db, tm, pl, et);
+  const key = (tm, pl, which = 'main') => `${ROLE_KEYS[role(tm, pl)][which]}:${tm.id}:${pl.id}`;
+  const verb = (tm, pl) => ROLE_KEYS[role(tm, pl)].verb;
+  const first = (n) => n.split(' ')[0];
+  const opp = db.teams[t.id === g.home ? g.away : g.home];
+  const me = role(t, p), n = first(p.name);
+  // Teammates/opponents most likely to come through at their own role's bet.
+  const best = (tm, skip = []) => tm.roster.filter((x) => !skip.includes(x.id) && x.id !== p.id).map((x) => ({ x, pr: k[key(tm, x)]?.p || 0 })).sort((a, b) => b.pr - a.pr).slice(0, 3).map((o) => o.x);
+  const mates = best(t), rivals = best(opp);
+  const spr = m.list.find((x) => x.group === 'Spread' && x.team === t.id);
+  const out = [];
+  const add = (title, tag, keys) => {
+    const legs = keys.map(leg);
+    if (!legs.every(Boolean)) return;
+    const odds = legs.reduce((x, l) => x * l.odds, 1);
+    if (odds >= 2 && odds <= 120) out.push({ title, tag, legs, odds });
+  };
+  add(`${n} ${verb(t, p)}, ${t.name} win`, 'Statement', [key(t, p), `ml:${t.id}`]);
+  if (spr) add(`${n} ${verb(t, p)} & ${t.name} cover ${pk.fmtLine(spr.line)}`, 'Spread', [key(t, p), spr.key]);
+  add(`${n} ${ROLE_KEYS[me].bigVerb}${me === 'def' ? `, ${t.name} win` : ` & ${t.name} 21+`}`, 'Big game', [key(t, p, 'big'), me === 'def' ? `ml:${t.id}` : `tt:${t.id}:21`]);
+  if (me === 'skill') add(`${n} scores the first TD & ${t.name} win`, 'Statement', [`pfirst:${t.id}:${p.id}`, `ml:${t.id}`]);
+  if (me === 'qb') add(`${n} does it all: throws & runs one in, ${t.name} win`, 'MVP', [`pdual:${t.id}:${p.id}`, `ml:${t.id}`]);
+  for (const x of mates) {
+    const rx = role(t, x);
+    if (me === 'qb' && rx === 'skill') {
+      add(`${n} throws, ${first(x.name)} scores`, 'Connection', [key(t, p), key(t, x)]);
+      add(`${n} to ${first(x.name)} & ${t.name} win`, 'Stack', [key(t, p), key(t, x), `ml:${t.id}`]);
+    } else if (rx === 'qb' && me === 'skill') {
+      add(`${first(x.name)} throws, ${n} scores`, 'Connection', [key(t, x), key(t, p)]);
+      add(`${first(x.name)} to ${n} & ${t.name} win`, 'Stack', [key(t, x), key(t, p), `ml:${t.id}`]);
+    } else add(`${n} ${verb(t, p)} & ${first(x.name)} ${verb(t, x)}`, 'Teammates', [key(t, p), key(t, x)]);
+  }
+  if (mates.length >= 2) add(`${n}, ${first(mates[0].name)} & ${first(mates[1].name)} all deliver`, 'Trio', [key(t, p), key(t, mates[0]), key(t, mates[1])]);
+  for (const x of rivals) add(`${n} ${verb(t, p)}, ${first(x.name)} answers back`, 'Rivalry', [key(t, p), key(opp, x)]);
+  return out.sort((a, b) => a.odds - b.odds);
+}
+
+app.get('/bet/:team/:pid', async (req, res, next) => {
+  try {
+    const db = load();
+    const t = db.teams[req.params.team];
+    const p = t?.roster.find((x) => x.id === req.params.pid);
+    if (!p) {
+      const moved = Object.values(db.teams).find((x) => x.roster.some((y) => y.id === req.params.pid));
+      return moved ? res.redirect(`/bet/${moved.id}/${req.params.pid}`) : res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Player not found')));
+    }
+    const name = currentUser(req);
+    const { user } = await loadAccount(db, name);
+    const g = pk.nextGame(db, TZ);
+    const plays = g && (g.home === t.id || g.away === t.id);
+    const role = playerRole(db, t, p);
+    const r = ratings(db).find((x) => x.t.id === t.id && x.p.id === p.id);
+    const hero = `<section class="bf-hero" style="--c:${esc(t.color)};--c2:${esc(t.color2)}"><div class="wrap">
+      ${avatar(t, p, 150, 'xl')}
+      <div><div class="kicker">${icon('coin')} Pick'em · ${logo(t, 18)} ${esc(teamFull(t))}${p.number ? ' · #' + esc(p.number) : ''}</div>
+        <h1>Bet for ${esc(p.name)}</h1>
+        <p>${esc(p.position || { qb: 'QB', def: 'Defense', skill: 'Playmaker' }[role])}${r ? ` · Rated ${r.r}` : ''} · <a href="${playerUrl(t, p)}">Player page</a> · <a href="/players/${t.id}/${p.id}/card">Trading card</a></p></div>
+    </div></section>`;
+    if (!plays) {
+      return res.send(layout(req, `Bet for ${p.name}`, hero + `<div class="wrap"><div class="card empty-pick">${icon('clock')}<h2>No game open right now</h2><p class="muted">Bets on ${esc(p.name)} open for the next scheduled game. Check back soon.</p><a class="btn" href="/pickem">Go to Pick'em</a></div></div>`));
+    }
+    const m = pk.markets(db, g);
+    const k = m.byKey;
+    const A = db.teams[g.home], B = db.teams[g.away];
+    const mine = PROP_ORDER.map((mk) => k[`${mk}:${t.id}:${p.id}`]).filter(Boolean);
+    const rk = ROLE_KEYS[role];
+    // Best bets: their headline role bet, their big-game bet, and their most likely other bet.
+    const bestKeys = [rk.main, rk.big];
+    const rest = mine.filter((x) => !bestKeys.some((b) => x.key.startsWith(b + ':'))).sort((a, b) => b.p - a.p)[0];
+    const best = [...bestKeys.map((b) => k[`${b}:${t.id}:${p.id}`]), rest].filter(Boolean);
+    const bestCard = (x, i) => `<button type="button" class="ob bb" data-game="${g.id}" data-key="${esc(x.key)}" data-label="${esc(x.label)}" data-odds="${x.odds}" data-match="${esc(matchName(db, g))}">
+      <small>${['Best bet', 'Big game', 'Sleeper pick'][i] || 'Pick'}</small><span>${esc(x.label.replace(p.name + ' ', ''))}</span><b>${oddsTxt(x.odds)}</b><em>${Math.round(x.p * 100)}% chance</em></button>`;
+    const parlays = playerParlays(db, g, m, t, p);
+    const ticket = (c) => `<button type="button" class="combo ticket" data-legs="${esc(JSON.stringify(c.legs))}"><div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
+      <b class="tk-title">${esc(c.title)}</b><ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
+      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add parlay</span></div></button>`;
+    res.send(layout(req, `Bet for ${p.name}`, hero + `<div class="wrap">
+      <div class="bf-game"><span>${logo(A, 26)} ${esc(A.name)} vs ${esc(B.name)} ${logo(B, 26)}</span><span>${esc(longDate(g.date))} · picks lock at ${time12(pk.lockTime(g))}</span>${countdown({ ...g, time: pk.lockTime(g) })}</div>
+      <h2 class="sec-h">${icon('star')} Best bets</h2>
+      <div class="bb-grid">${best.map(bestCard).join('')}</div>
+      <h2 class="sec-h">Every ${esc(p.name.split(' ')[0])} bet</h2>
+      <div class="card"><div class="obs">${mine.map((x) => oddsBtn(db, g, x)).join('')}</div></div>
+      <h2 class="sec-h">${icon('coin')} ${esc(p.name.split(' ')[0])} parlays</h2>
+      <div class="tickets">${parlays.map(ticket).join('') || '<p class="muted">No parlays right now.</p>'}</div>
+      <p class="bf-more"><a class="btn ghost" href="/pickem">See every bet for this game</a></p>
+    </div>${slip(user)}${countdownScript}`));
+  } catch (e) { next(e); }
+});
+
+// Hidden page (not linked anywhere, not indexed): every player's betting link with a copy button.
+app.get('/bet-links', (req, res) => {
+  const db = load();
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.send(layout(req, 'Player Bet Links', pageHead("Pick'em", 'Player Bet Links', 'Hidden page. Copy any player\'s link and send it to them.') + `<div class="wrap">
+    ${Object.values(db.teams).map((t) => `<div class="card"><div class="card-h"><h2 class="th">${logo(t, 28)} ${esc(t.name)}</h2></div><div class="links">
+      ${t.roster.map((p) => `<div class="lk">${avatar(t, p, 40)}<div><b>${esc(p.name)}</b><a href="${betForUrl(t, p)}" class="lk-url" data-path="${betForUrl(t, p)}">${betForUrl(t, p)}</a></div><button type="button" class="btn sm" onclick="mflCopy(this)">Copy link</button></div>`).join('')}
+    </div></div>`).join('')}
+  </div>
+  <script>
+  document.querySelectorAll('.lk-url').forEach((a) => { a.textContent = location.origin + a.dataset.path; });
+  function mflCopy(btn) {
+    const url = location.origin + btn.parentElement.querySelector('.lk-url').dataset.path;
+    const done = () => { btn.textContent = 'Copied!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('ok'); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt('Copy this link:', url));
+    else prompt('Copy this link:', url);
+  }
+  </script>`, { ticker: false }));
+});
 
 app.get('/pickem', async (req, res, next) => {
   try {
