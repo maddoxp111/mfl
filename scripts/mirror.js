@@ -17,21 +17,25 @@ function localPath(u) {
   return p || '';
 }
 const isAsset = (p) => /^\/(static|media)\//.test(p) || p.endsWith('.ics');
-// Admin and Pick'em need the real server, so those links go to Vercel.
+// Admin and Pick'em pages aren't saved; public/bridge.js loads them live.
 const skip = (p) => /^\/(admin|pickem|picks|pick-links)(\/|$)/.test(p);
 
 function rewrite(html) {
   return html.replace(/(href|src)="(\/[^"]*)"/g, (m, attr, link) => {
     const url = new URL(link, origin);
-    if (skip(url.pathname)) return `${attr}="${origin}${link}"`;
+    if (skip(url.pathname)) return `${attr}="${BASE}${link}"`;
     if (isAsset(url.pathname)) return `${attr}="${BASE}${url.pathname}${url.search}"`;
     return `${attr}="${BASE}${localPath(link)}/"`;
   }).replace(/url\(\/static\//g, `url(${BASE}/static/`);
 }
+// Pages get the bridge, which swaps in the live page. The snapshot's own scripts
+// only run if the live site can't be reached.
+const BRIDGE = `<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="${BASE}/static/bridge.js" data-base="${BASE}"></script>`;
+const page = (html) => rewrite(html).replace(/<script>/g, '<script type="text/x-mfl">').replace('</head>', BRIDGE + '</head>');
 
 async function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
-  const queue = ['/'], seen = new Set(queue), assets = new Set();
+  const queue = ['/'], seen = new Set(queue), assets = new Set(['/static/bridge.js']);
   while (queue.length) {
     const link = queue.shift();
     const res = await fetch(origin + link);
@@ -45,7 +49,7 @@ async function main() {
     }
     const file = path.join(OUT, localPath(link), 'index.html');
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, rewrite(html));
+    fs.writeFileSync(file, page(html));
   }
   for (const p of assets) {
     const res = await fetch(origin + p);
@@ -58,7 +62,7 @@ async function main() {
   }
   // 404 page and no Jekyll processing.
   const nf = await fetch(origin + '/this-page-does-not-exist');
-  fs.writeFileSync(path.join(OUT, '404.html'), rewrite(await nf.text()));
+  fs.writeFileSync(path.join(OUT, '404.html'), page(await nf.text()));
   fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
   console.log(`mirrored ${seen.size} pages and ${assets.size} files`);
 }

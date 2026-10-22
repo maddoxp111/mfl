@@ -11,6 +11,37 @@ const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update(
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 const VENUE = 'Thomas Metcalf School';
 
+// GitHub Pages bridge: the github.io copy loads every page live from this server.
+// Browsers there can't share our cookies, so the bridge sends them in X-MFL-Auth
+// and gets new ones back in X-MFL-Set; redirects come back as X-MFL-Redirect.
+const BRIDGE_ORIGINS = ['https://maddoxp111.github.io', ...(process.env.BRIDGE_ORIGINS || '').split(',').filter(Boolean)];
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (!BRIDGE_ORIGINS.includes(origin)) return next();
+  res.set({
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST',
+    'Access-Control-Allow-Headers': 'Content-Type, X-MFL-Bridge, X-MFL-Auth, X-MFL-Path',
+    'Access-Control-Expose-Headers': 'X-MFL-Set, X-MFL-Redirect',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  });
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (!req.get('X-MFL-Bridge')) return next();
+  req.headers.cookie = req.get('X-MFL-Auth') || '';
+  const here = req.get('X-MFL-Path');
+  req.headers.referer = here && here.startsWith('/') ? `${req.protocol}://${req.get('host')}${here}` : '';
+  const setHeader = res.setHeader.bind(res);
+  res.setHeader = (name, value) => {
+    if (String(name).toLowerCase() === 'set-cookie') {
+      const list = [].concat(value).map((c) => String(c).split(';')[0]);
+      setHeader('X-MFL-Set', JSON.stringify(list));
+    }
+    return setHeader(name, value);
+  };
+  res.redirect = (a, b) => { const url = typeof a === 'number' ? b : a; res.set('X-MFL-Redirect', url).status(200).end(); };
+  next();
+});
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
@@ -1026,9 +1057,9 @@ app.get('/pick-links', (req, res) => {
     </div></div>`).join('')}
   </div>
   <script>
-  document.querySelectorAll('.lk-url').forEach((a) => { a.textContent = location.origin + a.dataset.path; });
+  document.querySelectorAll('.lk-url').forEach((a) => { a.textContent = (window.MFL_ORIGIN || location.origin) + a.dataset.path; });
   function mflCopy(btn) {
-    const url = location.origin + btn.parentElement.querySelector('.lk-url').dataset.path;
+    const url = (window.MFL_ORIGIN || location.origin) + btn.parentElement.querySelector('.lk-url').dataset.path;
     const done = () => { btn.textContent = 'Copied!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('ok'); }, 1600); };
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt('Copy this link:', url));
     else prompt('Copy this link:', url);
@@ -1573,7 +1604,7 @@ app.get('/records', (req, res) => {
   </div>`));
 });
 
-const shareScript = `<script>function mflShare(path,title){const url=location.origin+path;if(navigator.share){navigator.share({title,url}).catch(()=>{});return}navigator.clipboard.writeText(url).then(()=>{const m=document.getElementById('shareMsg');if(m)m.textContent='Link copied! Paste it anywhere.';else alert('Link copied!')}).catch(()=>prompt('Copy this link:',url))}</script>`;
+const shareScript = `<script>function mflShare(path,title){const url=(window.MFL_ORIGIN||location.origin)+path;if(navigator.share){navigator.share({title,url}).catch(()=>{});return}navigator.clipboard.writeText(url).then(()=>{const m=document.getElementById('shareMsg');if(m)m.textContent='Link copied! Paste it anywhere.';else alert('Link copied!')}).catch(()=>prompt('Copy this link:',url))}</script>`;
 
 // ---------- pick'em: profiles, weekly board, daily bonus, sharing ----------
 // Weeks run Monday-Sunday in league time.
