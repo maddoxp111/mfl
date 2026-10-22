@@ -217,7 +217,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1559,6 +1559,16 @@ app.get('/admin', requireAdmin, (req, res) => {
     </tbody></table></div></div></div>`, { ticker: false }));
 });
 
+// Player picker for the box score: that team's roster. A saved name that isn't on the
+// roster anymore (traded, renamed) stays selectable so editing doesn't lose it.
+function rosterSelect(tm, name, cur, placeholder) {
+  const names = tm.roster.map((p) => p.name);
+  const extra = cur && !names.some((n) => n.toLowerCase() === cur.toLowerCase()) ? [cur] : [];
+  return `<select name="${name}" class="ev-sel ${cur ? '' : 'empty'}" onchange="this.classList.toggle('empty',!this.value)">
+    <option value="">${esc(placeholder)}</option>
+    ${[...names, ...extra].map((n) => `<option value="${esc(n)}" ${cur && n.toLowerCase() === cur.toLowerCase() ? 'selected' : ''}>${esc(n)}${extra.includes(n) ? ' (not on roster)' : ''}</option>`).join('')}
+  </select>`;
+}
 function gameForm(db, g, isNew) {
   const teams = Object.values(db.teams);
   const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
@@ -1570,8 +1580,8 @@ function gameForm(db, g, isNew) {
     return `<div class="ev" style="--c:${esc(tm.color)}">
       <input type="hidden" name="ev_type" value="${td ? 'TD' : 'INT'}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
       <div class="ev-who">${logo(tm, 30)}<span class="tag ${td ? 'td' : 'int'}">${td ? 'TD' : 'INT'}</span></div>
-      <input name="ev_player" list="pl-${esc(tm.id)}" placeholder="${td ? 'Who scored?' : 'Who intercepted?'}" value="${esc(e.player)}">
-      ${td ? `<input name="ev_passer" list="pl-${esc(tm.id)}" placeholder="Thrown by (optional)" value="${esc(e.passer)}">` : '<input type="hidden" name="ev_passer" value=""><span class="ev-gap"></span>'}
+      ${rosterSelect(tm, 'ev_player', e.player, td ? 'Who scored?' : 'Who intercepted?')}
+      ${td ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)') : '<input type="hidden" name="ev_passer" value=""><span class="ev-gap"></span>'}
       <input name="ev_note" class="ev-note" placeholder="Note" value="${esc(e.note)}">
       <button type="button" class="ev-x" onclick="this.parentElement.remove();mflEmpty()" aria-label="Remove play">✕</button>
     </div>`;
@@ -1621,7 +1631,7 @@ function gameForm(db, g, isNew) {
   </form>
   <script>
   function mflEmpty(){document.getElementById('evEmpty').hidden=!!document.querySelector('#evs .ev');}
-  function mflAdd(t,type){const tp=document.getElementById('tpl-'+t+'-'+type);document.getElementById('evs').insertAdjacentHTML('beforeend',tp.innerHTML);mflEmpty();const rows=document.querySelectorAll('#evs .ev');rows[rows.length-1].querySelector('input[name=ev_player]').focus();}
+  function mflAdd(t,type){const tp=document.getElementById('tpl-'+t+'-'+type);document.getElementById('evs').insertAdjacentHTML('beforeend',tp.innerHTML);mflEmpty();const rows=document.querySelectorAll('#evs .ev');rows[rows.length-1].querySelector('[name=ev_player]').focus();}
   </script>`;
 }
 
