@@ -1197,7 +1197,8 @@ function authPage(req, mode, err = '') {
     ${err ? `<p class="err">${esc(err)}</p>` : ''}
     <input type="hidden" name="next" value="${esc(next)}">
     <label>Username<input name="name" autocomplete="username" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_]+" placeholder="letters, numbers, _" value="${esc(req.body?.name || '')}"></label>
-    <label>4-digit PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="${signup ? 'new-password' : 'current-password'}"></label>
+    <label>Password<input name="pin" type="password" required maxlength="72" ${signup ? 'minlength="6"' : ''} autocomplete="${signup ? 'new-password' : 'current-password'}"></label>
+    ${signup ? '<p class="muted sm">At least 6 characters.</p>' : '<p class="muted sm">Made your account with a 4-digit PIN? Just type your PIN here.</p>'}
     <button class="btn">${signup ? 'Create account' : 'Log in'}</button>
     <p class="muted sm">${signup ? 'Already have an account? <a href="/pickem/login">Log in</a>' : 'New here? <a href="/pickem/signup">Sign up</a>'}</p>
   </form></div>`, { ticker: false });
@@ -1207,22 +1208,23 @@ app.get('/pickem/signup', (req, res) => res.send(authPage(req, 'signup')));
 app.post('/pickem/signup', async (req, res) => {
   const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
   if (!pk.validName(name)) return res.send(authPage(req, 'signup', 'Usernames are 3-16 letters, numbers or _.'));
-  if (!/^\d{4}$/.test(pin)) return res.send(authPage(req, 'signup', 'Your PIN has to be exactly 4 digits.'));
+  if (pin.length < 6 || pin.length > 72) return res.send(authPage(req, 'signup', 'Your password needs at least 6 characters.'));
   if (await getDoc(userKey(name))) return res.send(authPage(req, 'signup', 'That username is taken.'));
   await putDoc(userKey(name), { name, ...pk.hashPin(pin), created: new Date().toISOString(), bonuses: [], bets: [] });
   setUserCookie(req, res, name);
   res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
 });
-// Slow down PIN guessing: a few tries per name, then a cooldown.
+// Slow down password guessing: a few tries per name, then a cooldown.
+// Older accounts made with a 4-digit PIN log in by typing that PIN as their password.
 const tries = new Map();
 app.post('/pickem/login', async (req, res) => {
   const name = String(req.body.name || '').trim().toLowerCase(), pin = String(req.body.pin || '');
   const t = tries.get(name) || { n: 0, until: 0 };
   if (t.until > Date.now()) return res.send(authPage(req, 'login', 'Too many tries. Wait a minute and try again.'));
   const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
-  if (!user || !/^\d{4}$/.test(pin) || !pk.checkPin(user, pin)) {
+  if (!user || !pin || pin.length > 72 || !pk.checkPin(user, pin)) {
     t.n++; if (t.n >= 5) { t.n = 0; t.until = Date.now() + 60000; } tries.set(name, t);
-    return res.send(authPage(req, 'login', 'Wrong username or PIN.'));
+    return res.send(authPage(req, 'login', 'Wrong username or password.'));
   }
   tries.delete(name);
   setUserCookie(req, res, name);
@@ -2138,10 +2140,10 @@ app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
   try {
     const db = load();
     const board = await leaderboard(db);
-    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten PIN, give coins, or remove an account.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
-      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset PIN</th><th class="l">Give coins</th><th></th></tr></thead><tbody>
+    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten password, give coins, or remove an account.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
+      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset password</th><th class="l">Give coins</th><th></th></tr></thead><tbody>
       ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b></td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
-        <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" pattern="[0-9]{4}" maxlength="4" placeholder="New PIN" required><button class="btn sm ghost">Set</button></form></td>
+        <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" minlength="4" maxlength="72" placeholder="New password" required><button class="btn sm ghost">Set</button></form></td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/coins" class="inline"><input name="amount" type="number" placeholder="+500" required><button class="btn sm ghost">Give</button></form></td>
         <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their bets?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
       </tbody></table></div></div></div>`, { ticker: false }));
@@ -2179,7 +2181,7 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   const name = String(req.params.name).toLowerCase();
   const user = pk.validName(name) ? await getDoc(userKey(name)) : null;
   if (!user) return res.redirect('/admin/pickem');
-  if (req.params.action === 'pin' && /^\d{4}$/.test(req.body.pin || '')) Object.assign(user, pk.hashPin(req.body.pin));
+  if (req.params.action === 'pin' && String(req.body.pin || '').length >= 4 && String(req.body.pin).length <= 72) Object.assign(user, pk.hashPin(String(req.body.pin)));
   else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount)) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
   else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
   await putDoc(userKey(name), user);
