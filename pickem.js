@@ -104,9 +104,11 @@ function markets(db, g) {
   const P = (fn) => sims.filter(fn).length / N;
 
   const list = [];
+  // Every bet is always offered: long shots just pay a lot (capped at +10000)
+  // and near-locks pay very little.
   const add = (group, key, label, p, extra = {}) => {
-    if (!(p > 0.03 && p < 0.97)) return;
-    const odds = Math.max(1.05, Math.min(51, Math.round((VIG / p) * 100) / 100));
+    p = Math.min(0.985, Math.max(0.009, p || 0));
+    const odds = Math.max(1.02, Math.min(101, Math.round((VIG / p) * 100) / 100));
     list.push({ group, key, label, odds, p, ...extra });
   };
   const side = (t) => (t.id === A.id ? ['a', 'b', 'A'] : ['b', 'a', 'B']);
