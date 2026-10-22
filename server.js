@@ -2316,7 +2316,7 @@ app.post('/admin/bowls', requireAdmin, async (req, res) => {
 });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
-app.use((err, req, res, next) => { console.error(err); res.status(500).send('Something went wrong. Try again in a moment.'); });
+app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
 
 if (require.main === module) app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
 module.exports = app;
