@@ -218,7 +218,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20">
+<link rel="stylesheet" href="/static/style.css?v=21">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -752,13 +752,13 @@ function pickHead(user, acct) {
 }
 function betCard(db, b, opts = {}) {
   const st = { won: 'Won', lost: 'Lost', void: 'Refunded', pending: 'Open' }[b.status];
-  return `<div class="bet ${b.status}">
-    <div class="bet-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="bet-st">${st}</span></div>
+  return `<div class="tkt ${b.status}">
+    <div class="tkt-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="tkt-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
-      return `<div class="bet-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="bet-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
-    ${opts.owner && b.id ? `<div class="bet-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
+      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
 async function leaderboard(db) {
@@ -899,7 +899,7 @@ function featuredHtml(db, g, m) {
       <div class="star-top"><span class="role r-${c.role === 'Hot' ? 'hot' : 'tag'}">${roleIcon[c.role]} ${c.role === 'Hot' ? 'On fire' : c.role}</span>${c.p.number ? `<span class="star-num">${esc(c.p.number)}</span>` : ''}
         <a href="${playerUrl(c.t, c.p)}" target="_blank" rel="noopener" class="star-photo">${avatar(c.t, c.p, 112, 'xl')}</a></div>
       <div class="star-name"><b>${esc(c.p.name)}</b><small>${logo(c.t, 16)} ${esc(c.t.name)} · ${esc(c.p.position || { qb: 'QB', def: 'Defense', skill: 'Playmaker' }[c.role2])}</small></div>
-      <div class="star-bets">${c.bets.map((b) => propBtn(db, g, b.m, b.short)).join('')}</div>
+      <div class="star-picks">${c.bets.map((b) => propBtn(db, g, b.m, b.short)).join('')}</div>
       ${c.combo.length === 2 ? comboBtn(c.combo, `<span>${c.comboName} + ${esc(c.t.name)} win</span><b>${oddsTxt(c.combo[0].odds * c.combo[1].odds)}</b>`, 'star-combo') : ''}
     </article>`).join('')}</div>
     <div class="feat-h sub"><div><span class="kicker">${icon('coin')} One tap</span><h2>Star Combos</h2></div><small>Tap a ticket to drop every pick in your slip.</small></div>
@@ -1062,7 +1062,7 @@ app.get('/pickem', async (req, res, next) => {
     const tdP = (t, p) => k[`ptd:${t.id}:${p.id}`]?.p || 0;
     const playerCard = (t, p) => `<div class="pc" style="--c:${esc(t.color)}">
       <a class="pc-who" href="${playerUrl(t, p)}" target="_blank" rel="noopener">${avatar(t, p, 52)}<div><b>${esc(p.name)}</b><small>${esc([p.number && '#' + p.number, p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>
-      <div class="pc-bets">${[['ptd', 'TD'], ['p2td', '2+ TD'], ['p3td', '3+ TD'], ['pfirst', '1st TD'], ['ppass', 'TD pass'], ['p2pass', '2+ pass'], ['pdual', 'Score + throw'], ['pint', 'INT']].map(([mk, n]) => propBtn(db, g, k[`${mk}:${t.id}:${p.id}`], n)).join('')}</div>
+      <div class="pc-picks">${[['ptd', 'TD'], ['p2td', '2+ TD'], ['p3td', '3+ TD'], ['pfirst', '1st TD'], ['ppass', 'TD pass'], ['p2pass', '2+ pass'], ['pdual', 'Score + throw'], ['pint', 'INT']].map(([mk, n]) => propBtn(db, g, k[`${mk}:${t.id}:${p.id}`], n)).join('')}</div>
     </div>`;
     const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
     const groups = {};
@@ -1073,9 +1073,9 @@ app.get('/pickem', async (req, res, next) => {
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
         <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><span class="ng-when">${esc(longDate(g.date))} · ${time12(g.time)} · <a href="/games/${g.id}">Preview</a></span></div>
         <div class="ng-match">
-          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small><div class="ng-bets">${propBtn(db, g, k[`ml:${A.id}`], 'To win')}${propBtn(db, g, sprOf(A), 'Spread ' + (sprOf(A) ? pk.fmtLine(sprOf(A).line) : ''))}</div></div>
+          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small><div class="ng-picks">${propBtn(db, g, k[`ml:${A.id}`], 'To win')}${propBtn(db, g, sprOf(A), 'Spread ' + (sprOf(A) ? pk.fmtLine(sprOf(A).line) : ''))}</div></div>
           <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div><small>at ${time12(pk.lockTime(g))}</small></div>
-          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small><div class="ng-bets">${propBtn(db, g, k[`ml:${B.id}`], 'To win')}${propBtn(db, g, sprOf(B), 'Spread ' + (sprOf(B) ? pk.fmtLine(sprOf(B).line) : ''))}</div></div>
+          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small><div class="ng-picks">${propBtn(db, g, k[`ml:${B.id}`], 'To win')}${propBtn(db, g, sprOf(B), 'Spread ' + (sprOf(B) ? pk.fmtLine(sprOf(B).line) : ''))}</div></div>
         </div>
         <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
       </section>
@@ -1647,7 +1647,7 @@ app.post('/pickem/daily', async (req, res) => {
 
 const betLink = (owner, b) => `/pickem/ticket/${owner}/${b.id}`;
 function shareBtn(owner, b) {
-  return `<button type="button" class="bet-share" onclick="mflShare('${betLink(owner, b)}','My MFL ${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'pick'}')">${icon('arrow')} Share</button>`;
+  return `<button type="button" class="tkt-share" onclick="mflShare('${betLink(owner, b)}','My MFL ${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'pick'}')">${icon('arrow')} Share</button>`;
 }
 
 app.get('/pickem/u/:name', async (req, res, next) => {
@@ -1688,7 +1688,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       <p class="muted sm">Pick points are just for bragging rights: every winning pick earns 10, plus 5 for each extra combo pick and more for long shots.</p>
       <div class="home-grid"><div class="col">
         <div class="card-h"><h2>Pick history</h2><span class="muted sm">${acct.bets.length} picks · ${st.staked.toLocaleString('en-US')} coins played</span></div>
-        <div class="bets">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No picks yet.</p></div>'}</div>
+        <div class="tkts">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No picks yet.</p></div>'}</div>
       </div><div class="col">
         ${st.best ? `<div class="card"><div class="card-h"><h2>${icon('fire')} Best hit</h2></div>${betCard(db, st.best, { owner: uname })}</div>` : ''}
         ${st.fav ? `<div class="card"><div class="card-h"><h2>Favorite player to pick</h2></div><a class="lead-top" href="${playerUrl(st.fav.t, st.fav.p)}" style="--a:${esc(st.fav.t.color)}">${avatar(st.fav.t, st.fav.p, 56)}<div><small>${logo(st.fav.t, 16)} ${esc(st.fav.t.name)}</small><b>${esc(st.fav.p.name)}</b></div><span>${st.fav.n}</span></a><p class="muted sm">Picks on this player</p></div>` : ''}
@@ -1710,7 +1710,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
     const open = bet.legs.every((l) => pk.isOpen(db, db.games.find((g) => g.id === l.game), TZ));
     const legs = bet.legs.map((l) => { const g = db.games.find((x) => x.id === l.game); const m = g && pk.markets(db, g).byKey[l.key]; return m ? { game: g.id, key: l.key, label: m.label, odds: m.odds, match: matchName(db, g) } : null; });
     const canTail = open && legs.every(Boolean);
-    res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'combo' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-bet">
+    res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'combo' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-tkt">
       <div class="kicker">${icon('coin')} Shared pick</div><h1>@${esc(uname)}'s ${bet.legs.length > 1 ? `${bet.legs.length}-pick combo` : 'pick'}</h1>
       ${betCard(db, bet, { owner: uname })}
       ${canTail ? `<button type="button" class="combo btn tail" data-legs="${esc(JSON.stringify(legs))}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
