@@ -4,6 +4,7 @@ const path = require('path');
 // Railway sets RAILWAY_VOLUME_MOUNT_PATH when a volume is attached.
 const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'db.json');
+const START_BACKUP = path.join(__dirname, 'data-start', 'mfl-backup.json');
 
 const SEASON_START = '2026-10-22';
 const SEASON_END = '2027-05-20';
@@ -158,9 +159,15 @@ async function refresh(opts = {}) {
     return normalize(db);
   }
   if (!db) {
+    if (!fs.existsSync(FILE) && fs.existsSync(START_BACKUP)) {
+      // Brand-new server: start from the bundled backup (rebuilt from the old site).
+      await importAll(JSON.parse(fs.readFileSync(START_BACKUP, 'utf8')));
+      return normalize(db);
+    }
     try {
       db = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    } catch {
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e; // never replace a data file we just couldn't read
       db = seed();
       await save();
     }
