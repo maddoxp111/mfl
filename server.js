@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
-const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc } = require('./db');
+const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll } = require('./db');
 const pk = require('./pickem');
 
 const app = express();
@@ -43,7 +43,8 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
-app.use(express.json({ limit: '100kb' }));
+const smallJson = express.json({ limit: '100kb' });
+app.use((req, res, next) => (req.path === '/admin/restore' ? next() : smallJson(req, res, next)));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 // Player photos, served from storage (keys are unique per upload, so cache hard).
 app.get('/media/:key', async (req, res, next) => {
@@ -1778,7 +1779,21 @@ app.get('/admin', requireAdmin, (req, res) => {
     <p class="muted">${all ? '<a href="/admin">Show only ±2 weeks</a>' : 'Showing games within 2 weeks of today · <a href="/admin?show=all">Show all</a>'}</p>
     <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">Date</th><th class="l">Matchup</th><th>Type</th><th>Status</th><th>Score</th><th></th></tr></thead><tbody>
     ${games.map((g) => `<tr class="${g.date === t ? 'today' : ''}"><td class="l">${esc(shortDate(g.date))}</td><td class="l">${esc(db.teams[g.home].abbr)} vs ${esc(db.teams[g.away].abbr)}</td><td>${esc(gameLabel(db, g) || 'Regular')}</td><td>${statusBadge(g)}</td><td>${isFinal(g) ? `${g.homeScore}–${g.awayScore}` : ''}</td><td class="r"><a class="btn sm" href="/admin/game/${g.id}">Edit</a></td></tr>`).join('')}
-    </tbody></table></div></div></div>`, { ticker: false }));
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Backup</h2></div>
+      <p class="muted sm">One file with all league data, Pick'em accounts and photos. Restoring replaces everything with the file's contents.</p>
+      <p><a class="btn sm" href="/admin/backup.json">Download backup</a></p>
+      <form id="restore"><input type="file" accept="application/json,.json" required> <button class="btn sm">Restore from file</button> <span class="muted sm" id="restoreMsg"></span></form>
+    </div></div>
+    <script>document.getElementById('restore').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target.querySelector('input').files[0],m=document.getElementById('restoreMsg');if(!f||!confirm('Replace ALL site data with this backup?'))return;m.textContent='Restoring…';try{const r=await fetch('/admin/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});const d=await r.json();m.textContent=d.ok?'Restored: '+d.docs+' accounts, '+d.media+' photos.':d.error}catch(err){m.textContent='Restore failed.'}});</script>`, { ticker: false }));
+});
+app.get('/admin/backup.json', requireAdmin, async (req, res, next) => {
+  try {
+    res.set('Content-Disposition', `attachment; filename="mfl-backup-${today()}.json"`).json(await exportAll());
+  } catch (e) { next(e); }
+});
+app.post('/admin/restore', requireAdmin, express.json({ limit: '60mb' }), async (req, res) => {
+  try { res.json({ ok: true, ...(await importAll(req.body)) }); } catch (e) { res.status(400).json({ ok: false, error: e.message }); }
 });
 
 // Player picker for the box score: that team's roster. A saved name that isn't on the

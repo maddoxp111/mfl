@@ -311,4 +311,36 @@ async function deleteDoc(key) {
   try { fs.unlinkSync(path.join(DATA_DIR, 'docs', key + '.json')); } catch {}
 }
 
-module.exports = { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc };
+// Whole-site backup (league data, accounts and photos), used to move between hosts.
+async function listMedia() {
+  if (useBlob) {
+    const { list } = require('@vercel/blob');
+    const keys = [];
+    let cursor;
+    do {
+      const r = await list({ prefix: 'mfl/media/', cursor, limit: 1000 });
+      for (const b of r.blobs) keys.push(b.pathname.slice('mfl/media/'.length));
+      cursor = r.hasMore ? r.cursor : null;
+    } while (cursor);
+    return keys;
+  }
+  try { return fs.readdirSync(path.join(DATA_DIR, 'media')); } catch { return []; }
+}
+async function exportAll() {
+  await refresh({ fresh: true });
+  const docs = {};
+  for (const d of await listDocs('users/')) docs['users/' + d.name] = d;
+  const media = {};
+  for (const k of await listMedia()) { const b = await getMedia(k); if (b) media[k] = b.toString('base64'); }
+  return { version: 1, exported: new Date().toISOString(), db, docs, media };
+}
+async function importAll(bundle) {
+  if (!bundle || !bundle.db || !bundle.db.teams || !Array.isArray(bundle.db.games)) throw new Error('That file is not an MFL backup.');
+  for (const [k, b64] of Object.entries(bundle.media || {})) await putMedia(k, Buffer.from(b64, 'base64'), 'image/jpeg');
+  for (const [k, d] of Object.entries(bundle.docs || {})) await putDoc(k, d);
+  db = bundle.db;
+  await save();
+  return { docs: Object.keys(bundle.docs || {}).length, media: Object.keys(bundle.media || {}).length };
+}
+
+module.exports = { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll };
