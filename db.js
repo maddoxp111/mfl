@@ -351,4 +351,4 @@ async function importAll(bundle) {
   return { docs: Object.keys(bundle.docs || {}).length, media: Object.keys(bundle.media || {}).length };
 }
 
-module.exports = { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll };
+module.exports = { DATA_DIR, load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll };

@@ -6,8 +6,28 @@ const pk = require('./pickem');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme';
-const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update('mfl:' + ADMIN_PASSWORD).digest('hex');
+// Admin password: the ADMIN_PASSWORD variable if set; otherwise it's created on the
+// first visit to /admin/login and kept (hashed) in the data folder with a random
+// cookie-signing secret, so nothing secret has to live in this public repo.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || null;
+const AUTH_FILE = path.join(require('./db').DATA_DIR, 'admin.json');
+const adminAuth = (() => {
+  if (ADMIN_PASSWORD) return {};
+  let a = {};
+  try { a = JSON.parse(require('fs').readFileSync(AUTH_FILE, 'utf8')); } catch {}
+  if (!a.secret) {
+    a.secret = crypto.randomBytes(32).toString('hex');
+    require('fs').mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
+    require('fs').writeFileSync(AUTH_FILE, JSON.stringify(a));
+  }
+  return a;
+})();
+const SECRET = process.env.SESSION_SECRET || (ADMIN_PASSWORD ? crypto.createHash('sha256').update('mfl:' + ADMIN_PASSWORD).digest('hex') : adminAuth.secret);
+const adminPasswordSet = () => !!(ADMIN_PASSWORD || adminAuth.hash);
+function adminPasswordOk(p) {
+  if (ADMIN_PASSWORD) return p.length === ADMIN_PASSWORD.length && crypto.timingSafeEqual(Buffer.from(p), Buffer.from(ADMIN_PASSWORD));
+  return !!adminAuth.hash && pk.checkPin(adminAuth, p);
+}
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 const VENUE = 'Thomas Metcalf School';
 
@@ -1758,12 +1778,16 @@ const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>
 app.get('/admin/login', (req, res) => {
   res.send(layout(req, 'Admin Login', `<div class="wrap login"><form method="post" class="card form">
     <img src="/static/mfl-logo.webp" alt="" class="login-logo"><h2>Admin</h2>
-    ${req.query.bad ? '<p class="err">Wrong password.</p>' : ''}<label>Password<input type="password" name="password" autofocus required></label><button class="btn">Log in</button></form></div>`, { ticker: false }));
+    ${adminPasswordSet() ? '' : '<p class="muted sm">No admin password yet. Choose one (at least 8 characters).</p>'}
+    ${req.query.bad ? `<p class="err">${adminPasswordSet() ? 'Wrong password.' : 'Use at least 8 characters.'}</p>` : ''}<label>Password<input type="password" name="password" autofocus required></label><button class="btn">${adminPasswordSet() ? 'Log in' : 'Set password'}</button></form></div>`, { ticker: false }));
 });
 app.post('/admin/login', (req, res) => {
   const p = String(req.body.password || '');
-  const ok = p.length === ADMIN_PASSWORD.length && crypto.timingSafeEqual(Buffer.from(p), Buffer.from(ADMIN_PASSWORD));
-  if (!ok) return res.redirect('/admin/login?bad=1');
+  if (!adminPasswordSet()) {
+    if (p.length < 8 || p.length > 72) return res.redirect('/admin/login?bad=1');
+    Object.assign(adminAuth, pk.hashPin(p));
+    require('fs').writeFileSync(AUTH_FILE, JSON.stringify(adminAuth));
+  } else if (!adminPasswordOk(p)) return res.redirect('/admin/login?bad=1');
   setAdminCookie(req, res);
   res.redirect('/admin');
 });
@@ -2333,5 +2357,9 @@ app.post('/admin/bowls', requireAdmin, async (req, res) => {
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
 
-if (require.main === module) app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+  // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.
+  if (process.env.RAILWAY_ENVIRONMENT && String(PORT) !== '8080') app.listen(8080, () => console.log('MFL also on :8080'));
+}
 module.exports = app;
