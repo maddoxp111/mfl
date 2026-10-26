@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/mirror.js https://www.metcalffootballleague.com /mfl dist
+      - run: node scripts/mirror.js https://metcalffootballleague.vercel.app /mfl dist
       - name: Push to gh-pages branch
         run: |
           cd dist

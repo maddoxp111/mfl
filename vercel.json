@@ -1,4 +1,3 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
-  "functions": { "api/index.js": { "includeFiles": "public/**" } }
+  "rewrites": [{ "source": "/(.*)", "destination": "http://zephyr.proxy.rlwy.net:25221/$1" }]
 }
