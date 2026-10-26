@@ -57,6 +57,9 @@ function describeError(e) {
   return e.message || String(e);
 }
 
+// How to read the commissioner's free-text notes on each game (used by every prompt).
+const COACH_NOTES = `Games may include "coach_notes": the commissioner's own observations of how people played (for example "dom blocked terribly, pedon pressured the ball well, chuck threw the ball in cover well"). Treat them as reliable firsthand scouting. They usually use first names, last names or nicknames: match each one to the roster carefully (a last name, a first name or an obvious nickname like Chuck for Charlie), and ignore any part you can't match with confidence. Two players can share a first name, so a first name alone that fits two players is ambiguous.`;
+
 const RATINGS_SYSTEM = `You are the stats analyst for the Metcalf Football League (MFL), a middle-school flag football league with two teams. Games are one quarter long; a touchdown is worth 7 points.
 
 You get a JSON snapshot of the league and return a power rating for every player.
@@ -70,10 +73,12 @@ How to rate:
 - Winning matters a little: players on the winning side of close games deserve a small bump, especially if they made the key plays.
 - Keep ratings stable: compared with previous_rating, nobody should move more than about 6 points after one new game unless it was historic.
 - Exhibition games count, slightly less than regular games. Playoff bowls count a little more.
+- Coach notes count like a modest stat: clear praise or criticism of a player moves their rating a few points, more if the same thing shows up across games.
+
 
 For each player also write "take": one short sentence (at most 20 words) explaining the rating in plain, friendly language. Use only facts from the data; never invent plays, positions or stats.
 Write "summary": two or three sentences on the state of the league for the power rankings page.
-Return every player in the input exactly once, using their "key".`;
+Return every player in the input exactly once, using their "key".\n\n${COACH_NOTES}`;
 
 const RATINGS_SCHEMA = {
   type: 'object',
@@ -96,8 +101,9 @@ const RATINGS_SCHEMA = {
 const RECAP_SYSTEM = `You write game recaps for the Metcalf Football League (MFL), a middle-school flag football league. Games are one quarter long, all played at Thomas Metcalf School; a touchdown is worth 7 points.
 
 You get one game as JSON: the teams, the final score, the game type and every recorded play with its notes. Write a recap of 3 to 5 sentences in an upbeat local sports-page voice, fun for the players to read. Mention the key scorers, passers, interceptions and any notable catches, sacks or breakups, and use the play notes (for example, if a note says an interception was tipped by someone, give that player credit). Use only facts in the data; never invent plays, quotes, yardage or times. If no plays were recorded, write about the result only.
+Use the coach notes to say who played well, but stay kind: these are kids, so describe struggles gently ("had a tough day blocking") and never insult anyone.
 
-Also pick the game MVP using judgement, not just a point formula: touchdowns, TD passes, interceptions, big catches, sacks and credit from notes all count, and players on the winning team get the tiebreak. Return the MVP's "key" from the roster (or an empty string if nothing was recorded) and a short reason, like "2 TDs and a tipped pass that became a pick".`;
+Also pick the game MVP using judgement, not just a point formula: touchdowns, TD passes, interceptions, big catches, sacks and credit from notes all count, coach notes about who played well, and players on the winning team get the tiebreak. Return the MVP's "key" from the roster (or an empty string if nothing was recorded) and a short reason, like "2 TDs and a tipped pass that became a pick".\n\n${COACH_NOTES}`;
 
 const RECAP_SCHEMA = {
   type: 'object',
@@ -106,7 +112,19 @@ const RECAP_SCHEMA = {
   properties: { recap: { type: 'string' }, mvp_key: { type: 'string' }, mvp_reason: { type: 'string' } },
 };
 
+const TEAM_SYSTEM = `You write the team page summary for a team in the Metcalf Football League (MFL), a middle-school flag football league with two teams. Games are one quarter long; a touchdown is worth 7 points.
+
+You get the team's record, roster with power ratings, every game it has played (with plays and coach notes) and its next game. Write 4 to 6 sentences on the team's season so far: how it's doing, who is carrying it, recent form, what to watch next. Upbeat local sports-page voice, kind to every player. Use only facts in the data; never invent stats, plays or quotes. If no games have been played yet, preview the season from the roster and ratings.\n\n${COACH_NOTES}`;
+
+const TEAM_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['recap'],
+  properties: { recap: { type: 'string' } },
+};
+
 const rateLeague = (input) => ask(RATINGS_SYSTEM, input, RATINGS_SCHEMA);
+const writeTeamRecap = (input) => ask(TEAM_SYSTEM, input, TEAM_SCHEMA);
 const writeRecap = (input) => ask(RECAP_SYSTEM, input, RECAP_SCHEMA);
 
-module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, describeError };
+module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, describeError };

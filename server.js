@@ -579,6 +579,18 @@ app.get('/playoffs/:slug', (req, res) => {
     </div>${countdownScript}`));
 });
 
+// Anyone can ask for a fresh team recap, at most once every 5 minutes per team.
+app.post('/teams/:id/recap', async (req, res) => {
+  const db = load();
+  const tm = db.teams[req.params.id];
+  if (!tm) return res.redirect('/');
+  const back = (q) => res.redirect(`/teams/${tm.id}${q ? '?' + q : ''}#recap`);
+  if (!ai.apiKey()) return back('ai=off');
+  const last = Date.parse(db.teamRecaps?.[tm.id]?.at || 0);
+  if (Date.now() - last < TEAM_COOLDOWN) return back('ai=wait');
+  try { await genTeamRecap(tm.id); back(''); } catch (e) { console.error('Team recap:', e); back('ai=err'); }
+});
+
 app.get('/teams/:id', (req, res) => {
   const db = load();
   const tm = db.teams[req.params.id];
@@ -589,12 +601,21 @@ app.get('/teams/:id', (req, res) => {
   const upcoming = games.filter((g) => g.date && g.date >= today() && g.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
   const leaders = playerLeaders(db).filter((p) => p.team === tm.id);
   const lead = (k) => [...leaders].sort((x, y) => y[k] - x[k])[0];
+  const TR = db.teamRecaps?.[tm.id];
+  const wait = TR ? Math.max(0, TEAM_COOLDOWN - (Date.now() - Date.parse(TR.at))) : 0;
+  const ago = TR ? Math.round((Date.now() - Date.parse(TR.at)) / 60000) : 0;
+  const msg = { off: 'AI recaps are not set up yet.', wait: 'Hold on, this recap was just updated. Try again in a few minutes.', err: "Couldn't write a new recap right now. Try again soon." }[req.query.ai];
+  const recapBox = TR || ai.apiKey() ? `<div class="card team-recap" id="recap"><div class="card-h"><h2>${icon('star')} Team Recap</h2>${TR ? `<span class="muted sm">AI · ${ago < 1 ? 'just now' : ago < 60 ? ago + ' min ago' : esc(shortDate(localDay(TR.at)))}</span>` : ''}</div>
+    ${TR ? `<p>${esc(TR.text)}</p>` : '<p class="muted">No recap yet. Tap below to write one.</p>'}
+    ${msg ? `<p class="muted sm">${msg}</p>` : ''}
+    ${ai.apiKey() ? `<form method="post" action="/teams/${tm.id}/recap" class="recap-go"><button class="btn sm ghost" ${wait ? 'disabled' : ''} onclick="this.textContent='Writing…'">${icon('swap')} ${wait ? `Regenerate in ${Math.ceil(wait / 60000)} min` : 'Regenerate'}</button></form>` : ''}</div>` : '';
   res.send(layout(req, teamFull(tm), `
     <section class="th-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">${logo(tm, 132, 'big')}
       <div><div class="kicker">${esc(tm.city)}</div><h1>${esc(tm.name)}</h1>
       <div class="th-stats"><div><b>${record(s)}</b><small>Record</small></div><div><b>${s.pf}</b><small>Points</small></div><div><b>${s.td}</b><small>TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${s.streak || '–'}</b><small>Streak</small></div></div></div></div></section>
     <div class="wrap home-grid">
       <div class="col">
+        ${recapBox}
         <div class="card"><div class="card-h"><h2>Roster</h2><span class="muted sm">Captain: ${esc(tm.captain)}</span></div><div class="roster">
           ${tm.roster.map((p) => `<a class="pl" href="${playerUrl(tm, p)}">${avatar(tm, p, 46)}<div><b>${p.number ? `<span class="num">#${esc(p.number)}</span> ` : ''}${esc(p.name)}</b><small>${esc([p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
@@ -1629,6 +1650,7 @@ function aiGame(db, g) {
     score: { [db.teams[g.home].name]: g.homeScore, [db.teams[g.away].name]: g.awayScore },
     winner: w ? db.teams[w].name : 'tie',
     plays: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
+    ...(g.notes ? { coach_notes: g.notes } : {}),
   };
 }
 // Everything the rating depends on. previous_rating is added after hashing so a
@@ -1652,6 +1674,30 @@ function aiRatingsInput(db) {
 }
 function aiRecapInput(db, g) {
   return { game: aiGame(db, g), rosters: [g.home, g.away].map((id) => ({ team: db.teams[id].name, players: db.teams[id].roster.map((p) => ({ key: id + '|' + p.id, name: p.name })) })) };
+}
+function aiTeamInput(db, t) {
+  const s = teamStats(db, t.id), rt = ratings(db).filter((x) => x.t.id === t.id);
+  const next = db.games.filter((g) => (g.home === t.id || g.away === t.id) && g.status === 'scheduled' && g.date && g.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  return {
+    team: teamFull(t), record: record(s), points_for: s.pf, points_against: s.pa, streak: s.streak || null, captain: t.captain,
+    roster: rt.map((x) => ({ name: x.p.name, status: tagName(x.p.tag) || undefined, position: x.p.position || undefined, rating: x.r, ...(x.ai ? { analyst_take: x.ai } : {}) })),
+    games: db.games.filter((g) => isFinal(g) && (g.home === t.id || g.away === t.id)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)).map((g) => aiGame(db, g)),
+    next_game: next ? { date: next.date, opponent: db.teams[otherTeam(next, t.id)].name, type: next.type } : null,
+  };
+}
+const TEAM_COOLDOWN = 5 * 60 * 1000;
+const teamBusy = new Set();
+async function genTeamRecap(id) {
+  if (teamBusy.has(id)) return;
+  teamBusy.add(id);
+  try {
+    let db = load();
+    const inp = aiTeamInput(db, db.teams[id]);
+    const out = await ai.writeTeamRecap(inp);
+    db = load();
+    (db.teamRecaps = db.teamRecaps || {})[id] = { hash: hashOf(inp), text: String(out.recap || ''), at: new Date().toISOString() };
+    await save();
+  } finally { teamBusy.delete(id); }
 }
 function freshRecap(db, g) {
   const A = g.aiRecap;
@@ -1699,6 +1745,11 @@ async function runAI() {
       const prev = db.ai && db.ai.gamesKey !== gamesKey ? db.ai.players : db.ai?.prev || null;
       db.ai = { hash: h, at: new Date().toISOString(), model: ai.MODEL, summary: String(out.summary || ''), players, prev, gamesKey };
       await save();
+    }
+    // 3. Team summaries, when anything they cover changed.
+    for (const id of Object.keys(load().teams)) {
+      db = load();
+      if (db.teamRecaps?.[id]?.hash !== hashOf(aiTeamInput(db, db.teams[id]))) await genTeamRecap(id);
     }
     aiState.lastError = null;
   } catch (e) {
@@ -2071,6 +2122,11 @@ function gameForm(db, g, isNew) {
     </section>
 
     <section class="card">
+      <div class="card-h"><h2>Coach's notes</h2><span class="muted sm">Private · the AI reads these for the recap, MVP, power rankings and ratings</span></div>
+      <textarea name="notes" rows="4" maxlength="2000" placeholder="How did people play? e.g. dom blocked terribly, pedon pressured the ball well, chuck threw the ball in cover well">${esc(g.notes || '')}</textarea>
+    </section>
+
+    <section class="card">
       <div class="card-h"><h2>Game Details</h2></div>
       <div class="fgrid">
         <label>Date<input type="date" name="date" value="${esc(g.date || '')}"></label>
@@ -2102,6 +2158,7 @@ function readGame(body, g) {
   g.bowl = g.type === 'playoff' ? body.bowl || null : null;
   g.status = ['scheduled', 'live', 'final', 'postponed'].includes(body.status) ? body.status : 'scheduled';
   g.reason = String(body.reason || '').slice(0, 300);
+  g.notes = String(body.notes || '').trim().slice(0, 2000);
   g.homeScore = num(body.homeScore); g.awayScore = num(body.awayScore);
   delete g.quarters;
   const types = arr(body.ev_type);
