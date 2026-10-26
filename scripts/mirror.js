@@ -33,12 +33,21 @@ function rewrite(html) {
 const BRIDGE = `<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="${BASE}/static/bridge.js" data-base="${BASE}"></script>`;
 const page = (html) => rewrite(html).replace(/<script>/g, '<script type="text/x-mfl">').replace('</head>', BRIDGE + '</head>');
 
+// Retry server errors a few times: the live server is briefly down while it redeploys.
+async function get(url) {
+  for (let i = 0; ; i++) {
+    const res = await fetch(url);
+    if (res.status < 500 || i >= 4) return res;
+    await new Promise((r) => setTimeout(r, 15000));
+  }
+}
+
 async function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
   const queue = ['/'], seen = new Set(queue), assets = new Set(['/static/bridge.js']);
   while (queue.length) {
     const link = queue.shift();
-    const res = await fetch(origin + link);
+    const res = await get(origin + link);
     // A server error means the site is down: stop, so the last good copy stays up.
     if (res.status >= 500) throw new Error(`live site returned ${res.status} for ${link}`);
     if (!res.ok) { console.warn('skip', res.status, link); continue; }
