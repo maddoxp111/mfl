@@ -904,3 +904,17 @@ html,body{overflow-x:clip}
 .pw-card[open] summary .ic{transform:rotate(180deg)}
 .pw-form{max-width:420px;margin-top:16px}
 .pw-form label small{text-transform:none;font-weight:500}
+/* extra box-score stats */
+.tag.catch{background:rgba(56,189,248,.15);color:#7dd3fc}
+.tag.sack{background:rgba(249,115,22,.16);color:#fdba74}
+.tag.pbu{background:rgba(168,85,247,.16);color:#d8b4fe}
+.tag.flag{background:rgba(234,179,8,.15);color:#fde047}
+.chip.catch:hover{border-color:#38bdf8;color:#7dd3fc}
+.chip.sack:hover{border-color:#f97316;color:#fdba74}
+.chip.pbu:hover{border-color:#a855f7;color:#d8b4fe}
+.chip.flag:hover{border-color:#eab308;color:#fde047}
+/* AI analyst */
+.ai-take{margin:10px 0 0;max-width:560px;font-size:14px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}
+.ai-take .ic{flex:none;margin-top:2px;color:#facc15}
+.ai-sum p{margin:0}
+.ai-note{margin:8px 0 0}

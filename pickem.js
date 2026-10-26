@@ -67,7 +67,7 @@ function history(db, teamId) {
         h.players[key][k]++;
       };
       if (e.type === 'TD') { h.td++; bump(e.player, 'td'); if (e.passer) { h.pass++; bump(e.passer, 'pass'); } }
-      else { h.int++; bump(e.player, 'int'); }
+      else if (e.type === 'INT') { h.int++; bump(e.player, 'int'); }
     }
   }
   return h;
@@ -93,7 +93,7 @@ function tendDrift(db) {
   const games = db.games.filter(isFinal).sort((x, y) => (x.date || '').localeCompare(y.date || ''));
   for (const g of games) {
     const evs = g.events || [];
-    const recorded = evs.length > 0; // without a box score we only know the score
+    const recorded = evs.some((e) => e.type === 'TD' || e.type === 'INT'); // without a box score we only know the score
     for (const [me, op] of [[g.home, g.away], [g.away, g.home]]) {
       const tdsFor = recorded ? evs.filter((e) => e.type === 'TD' && e.team === me).length : Math.round((g.home === me ? g.homeScore : g.awayScore) / 7);
       const tdsAgainst = recorded ? evs.filter((e) => e.type === 'TD' && e.team === op).length : Math.round((g.home === me ? g.awayScore : g.homeScore) / 7);

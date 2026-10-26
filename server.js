@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll } = require('./db');
 const pk = require('./pickem');
+const ai = require('./ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,6 +92,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Any admin change can affect ratings and recaps: let the AI analyst catch up.
+app.use('/admin', (req, res, next) => {
+  if (req.method === 'POST' && !req.path.startsWith('/ai')) res.on('finish', () => scheduleAI());
+  next();
+});
+
 // ---------- helpers ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
@@ -134,6 +141,31 @@ function playerLink(tm, name, withAvatar = false) {
   const inner = `${withAvatar ? avatar(tm, p || { name }, 30) : ''}${esc(name)}`;
   return p ? `<a class="plink" href="${playerUrl(tm, p)}">${inner}</a>` : `<span class="plink">${inner}</span>`;
 }
+// Box-score plays besides touchdowns and interceptions. `by` is an optional second
+// player: on the same team (the thrower of a catch) or the other team (the QB sacked).
+const STATS = {
+  CATCH: { key: 'catch', label: 'Notable catch', short: 'Catches', tag: 'catch', who: 'Who caught it?', by: 'Thrown by (optional)', side: 'same', verb: 'makes a highlight catch', from: 'from' },
+  SACK: { key: 'sack', label: 'Sack', short: 'Sacks', tag: 'sack', who: 'Who got the sack?', by: 'QB sacked (optional)', side: 'other', verb: 'sacks', from: '' },
+  PBU: { key: 'pbu', label: 'Pass breakup', short: 'PBUs', tag: 'pbu', who: 'Who broke it up?', by: 'Thrown by (optional)', side: 'other', verb: 'breaks up a pass', from: 'from' },
+  FLAG: { key: 'flag', label: 'Flag pull', short: 'Flag pulls', tag: 'flag', who: 'Who pulled the flag?', by: null, verb: 'pulls a flag' },
+};
+const EV_TYPES = ['TD', 'INT', ...Object.keys(STATS)];
+const otherTeam = (g, id) => (g.home === id ? g.away : g.home);
+// One play as a sentence: "Liam Bair catches a TD pass from Maddox Pedon · note".
+function playLine(db, g, e) {
+  const tm = db.teams[e.team], opp = db.teams[otherTeam(g, e.team)];
+  const who = `<b>${e.player ? playerLink(tm, e.player) : 'Unknown'}</b>`;
+  let txt;
+  if (e.type === 'TD') txt = e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown';
+  else if (e.type === 'INT') txt = e.passer ? ` picks off <b>${playerLink(opp, e.passer)}</b>` : ' picks it off';
+  else {
+    const st = STATS[e.type];
+    const by = e.passer ? (st.side === 'same' ? tm : opp) : null;
+    txt = ` ${st.verb}${by ? `${st.from ? ' ' + st.from : ''} <b>${playerLink(by, e.passer)}</b>` : ''}`;
+  }
+  return `${who}${txt}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}`;
+}
+const playTag = (e) => (e.type === 'TD' ? ['td', 'Touchdown'] : e.type === 'INT' ? ['int', 'Interception'] : [STATS[e.type].tag, STATS[e.type].label]);
 function gameLabel(db, g) {
   if (g.type === 'playoff') return bowlName(db, g.bowl);
   if (g.type === 'exhibition') return 'Exhibition';
@@ -194,7 +226,7 @@ function playerLeaders(db) {
     if (g.status !== 'final') continue; // player stats count exhibitions too
     for (const e of g.events || []) {
       if (e.type === 'TD') { bump(e.team, e.player, 'td'); bump(e.team, e.passer, 'ptd'); }
-      else bump(e.team, e.player, 'int');
+      else if (e.type === 'INT') bump(e.team, e.player, 'int');
     }
   }
   return Object.values(map);
@@ -270,7 +302,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=21">
+<link rel="stylesheet" href="/static/style.css?v=22">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -432,22 +464,25 @@ app.get('/games/:id', (req, res) => {
   const evs = g.events || [];
   const lbl = gameLabel(db, g);
 
-  const plays = `<div class="card"><div class="card-h"><h2>Scoring &amp; Turnovers</h2></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
+  const plays = `<div class="card"><div class="card-h"><h2>Plays</h2></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
     const tm = db.teams[e.team] || a;
-    return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${e.type === 'TD' ? 'td' : 'int'}">${e.type === 'TD' ? 'Touchdown' : 'Interception'}</span>
-      <p><b>${e.player ? playerLink(tm, e.player) : 'Unknown'}</b>${e.type === 'TD' ? (e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown') : (e.passer ? ` picks off <b>${playerLink(db.teams[e.team === g.home ? g.away : g.home], e.passer)}</b>` : ' picks it off')}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}</p></div></li>`;
+    const [cls, label] = playTag(e);
+    return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${cls}">${label}</span>
+      <p>${playLine(db, g, e)}</p></div></li>`;
   }).join('')}</ol>` : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}</div>`;
 
   const box = (tm) => {
     const rows = {};
-    const r = (n) => (rows[n] = rows[n] || { td: 0, ptd: 0, int: 0 });
+    const r = (n) => (rows[n] = rows[n] || { td: 0, ptd: 0, int: 0, catch: 0, sack: 0, pbu: 0, flag: 0 });
     for (const e of evs) {
       if (e.team !== tm.id) continue;
-      if (e.player) r(e.player)[e.type === 'TD' ? 'td' : 'int']++;
+      if (e.player) r(e.player)[e.type === 'TD' ? 'td' : e.type === 'INT' ? 'int' : STATS[e.type].key]++;
       if (e.type === 'TD' && e.passer) r(e.passer).ptd++;
     }
     const list = Object.entries(rows);
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<table class="tbl"><thead><tr><th class="l">Player</th><th>TD</th><th>Pass TD</th><th>INT</th></tr></thead><tbody>${list.map(([n, s]) => `<tr><td class="l">${playerLink(tm, n, true)}</td><td>${s.td || '–'}</td><td>${s.ptd || '–'}</td><td>${s.int || '–'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No player stats recorded.</p>'}</div>`;
+    // Only show the extra stat columns this game actually has.
+    const cols = [['td', 'TD'], ['ptd', 'Pass TD'], ['int', 'INT'], ...Object.values(STATS).map((st) => [st.key, st.short])].filter(([k], i) => i < 3 || list.some(([, x]) => x[k]));
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="muted">No player stats recorded.</p>'}</div>`;
   };
 
   const center = isFinal(g)
@@ -473,7 +508,7 @@ function recapCard(db, g) {
   const m = gameMvp(db, g);
   return `<div class="card recap"><div class="card-h"><h2>Recap</h2>${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</div>
     <div class="recap-body">${m ? `<a class="mvp" href="${m.player ? playerUrl(m.tm, m.player) : '#'}" style="--a:${esc(m.tm.color)}"><span class="mvp-tag">${icon('trophy')} Game MVP</span>${m.player ? avatar(m.tm, m.player, 64) : ''}<b>${esc(m.name)}</b><small>${esc(m.line)}</small></a>` : ''}
-    <p>${esc(recap(db, g))}</p></div></div>`;
+    <p>${esc(recap(db, g))}</p></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}</div>`;
 }
 
 // Auto-generated preview for games that haven't been played yet.
@@ -604,11 +639,14 @@ app.get('/stats/team', (req, res) => {
 
 // ---------- players ----------
 function playerStats(db, tm, p) {
-  const s = { td: 0, ptd: 0, int: 0, picked: 0, log: [] };
+  const extra = Object.values(STATS).map((st) => st.key);
+  const s = { td: 0, ptd: 0, int: 0, picked: 0, log: [], highlights: [] };
+  for (const k of extra) s[k] = 0;
   const name = p.name.toLowerCase();
   const games = db.games.filter((g) => g.status === 'final').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   for (const g of games) {
     const row = { g, td: 0, ptd: 0, int: 0, picked: 0, team: null };
+    for (const k of extra) row[k] = 0;
     for (const e of g.events || []) {
       // Threw an interception (the INT row's "thrown by" is on the other team).
       if (e.type === 'INT' && (e.passer || '').toLowerCase() === name) {
@@ -619,12 +657,15 @@ function playerStats(db, tm, p) {
       const hit = (e.player || '').toLowerCase() === name || (e.type === 'TD' && (e.passer || '').toLowerCase() === name);
       if (!hit || (row.team && row.team !== e.team)) continue;
       row.team = e.team;
-      if ((e.player || '').toLowerCase() === name) row[e.type === 'TD' ? 'td' : 'int']++;
+      if ((e.player || '').toLowerCase() === name) {
+        row[e.type === 'TD' ? 'td' : e.type === 'INT' ? 'int' : STATS[e.type].key]++;
+        if (e.type === 'CATCH' || (e.note && e.type !== 'FLAG')) s.highlights.push({ g, e });
+      }
       if (e.type === 'TD' && (e.passer || '').toLowerCase() === name) row.ptd++;
     }
-    if (row.td || row.ptd || row.int || row.picked) {
+    if (['td', 'ptd', 'int', 'picked', ...extra].some((k) => row[k])) {
       s.log.push(row);
-      s.td += row.td; s.ptd += row.ptd; s.int += row.int; s.picked += row.picked;
+      for (const k of ['td', 'ptd', 'int', 'picked', ...extra]) s[k] += row[k];
     }
   }
   return s;
@@ -651,17 +692,18 @@ app.get('/players/:team/:pid', (req, res) => {
         <a class="pp-team" href="/teams/${tm.id}">${logo(tm, 26)} ${esc(teamFull(tm))}</a>
         <h1>${esc(p.name)}</h1>
         <div class="pp-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
-        <div class="th-stats">${rt ? `<a class="rt-big ${tier(rt.r)}" href="/players/${tm.id}/${p.id}/card" title="Power rating · see trading card"><b>${rt.r}</b><small>Rating</small></a>` : ''}<div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${rt ? rt.mvp : 0}</b><small>MVPs</small></div></div>
+        <div class="th-stats">${rt ? `<a class="rt-big ${tier(rt.r)}" href="/players/${tm.id}/${p.id}/card" title="Power rating · see trading card"><b>${rt.r}</b><small>Rating</small></a>` : ''}<div><b>${s.td}</b><small>TDs</small></div><div><b>${s.ptd}</b><small>Pass TDs</small></div><div><b>${s.int}</b><small>INTs</small></div><div><b>${rt ? rt.mvp : 0}</b><small>MVPs</small></div>${Object.values(STATS).filter((st) => s[st.key]).map((st) => `<div><b>${s[st.key]}</b><small>${st.short}</small></div>`).join('')}</div>${rt?.ai ? `<p class="ai-take">${icon('star')} ${esc(rt.ai)}</p>` : ''}
         <a class="card-link" href="/players/${tm.id}/${p.id}/card">${icon('star')} View trading card</a> <a class="card-link" href="/picks/${tm.id}/${p.id}">${icon('coin')} Picks for ${esc(p.name.split(' ')[0])}</a>
       </div>
     </div></section>
     <div class="wrap home-grid">
       <div class="col">
         <div class="card"><div class="card-h"><h2>Bio</h2></div>${p.bio ? `<div class="bio">${esc(p.bio).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>').replace(/^/, '<p>')}</p></div>` : '<p class="muted">No bio yet.</p>'}</div>
-        <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked off</th></tr></thead><tbody>
-          ${s.log.map(({ g, td, ptd, int, picked, team }) => { const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
-            return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td><td>${picked ? `<span class="down">${picked}</span>` : '–'}</td></tr>`; }).join('')}
+        <div class="card"><div class="card-h"><h2>Game Log</h2></div>${s.log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked off</th><th class="l">Other</th></tr></thead><tbody>
+          ${s.log.map(({ g, td, ptd, int, picked, team, ...row }) => { const other = Object.values(STATS).filter((st) => row[st.key]).map((st) => `${row[st.key]} ${st.short.toLowerCase()}`).join(', '); const o = opp(g, team); const mine = g.home === team ? g.homeScore : g.awayScore; const theirs = g.home === team ? g.awayScore : g.homeScore; const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
+            return `<tr><td class="l"><a href="/games/${g.id}">${esc(shortDate(g.date))}</a>${gameLabel(db, g) ? ` <span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</td><td class="l"><span class="th">${logo(o, 22)} ${esc(o.name)}</span></td><td><span class="res ${r}">${r}</span> ${mine}–${theirs}</td><td>${td || '–'}</td><td>${ptd || '–'}</td><td>${int || '–'}</td><td>${picked ? `<span class="down">${picked}</span>` : '–'}</td><td class="l">${esc(other) || '–'}</td></tr>`; }).join('')}
           </tbody></table></div><p class="muted sm">Totals include exhibition games.</p>` : '<p class="muted">No stats recorded yet.</p>'}</div>
+        ${s.highlights.length ? `<div class="card"><div class="card-h"><h2>${icon('fire')} Highlights</h2></div><ol class="plays">${s.highlights.map(({ g, e }) => { const [cls, label] = playTag(e); return `<li style="--c:${esc(tm.color)}"><div><span class="tag ${cls}">${label}</span> <a class="muted sm" href="/games/${g.id}">${esc(shortDate(g.date))}</a><p>${playLine(db, g, e)}</p></div></li>`; }).join('')}</ol></div>` : ''}
       </div>
       <div class="col">
         <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/teams/${tm.id}">Team ${icon('arrow')}</a></div><div class="mates">
@@ -1426,7 +1468,13 @@ app.get('/calendar.ics', (req, res) => {
 // ---------- MVP, recaps, ratings, records, cards ----------
 // Game MVP is decided automatically from the box score: TD 6, TD pass 4, INT 5, +3 for being on the winning team.
 function gameMvp(db, g) {
-  if (!isFinal(g) || !(g.events || []).length) return null;
+  if (!isFinal(g)) return null;
+  const A = freshRecap(db, g);
+  if (A?.mvp) {
+    const [team, pid] = A.mvp.split('|'), tm = db.teams[team], player = tm?.roster.find((x) => x.id === pid);
+    if (player) return { team, name: player.name, tm, player, line: A.mvpWhy, ai: true };
+  }
+  if (!(g.events || []).length) return null;
   const pts = {};
   const bump = (team, name, k, v) => {
     if (!name) return;
@@ -1436,7 +1484,7 @@ function gameMvp(db, g) {
   };
   for (const e of g.events) {
     if (e.type === 'TD') { bump(e.team, e.player, 'td', 6); bump(e.team, e.passer, 'pass', 4); }
-    else bump(e.team, e.player, 'int', 5);
+    else if (e.type === 'INT') bump(e.team, e.player, 'int', 5);
   }
   const w = winner(g);
   for (const p of Object.values(pts)) if (p.team === w) p.score += 3;
@@ -1458,6 +1506,8 @@ function mvpCounts(db) {
 // Plain-English recap written from the score and box score.
 function recap(db, g) {
   if (!isFinal(g)) return '';
+  const A = freshRecap(db, g);
+  if (A) return A.text;
   const a = db.teams[g.home], b = db.teams[g.away], w = winner(g);
   const W = w ? db.teams[w] : null, L = w ? db.teams[w === a.id ? b.id : a.id] : null;
   const hi = Math.max(g.homeScore, g.awayScore), lo = Math.min(g.homeScore, g.awayScore), margin = hi - lo;
@@ -1497,7 +1547,7 @@ function recap(db, g) {
 // (a quiet win keeps you about level, a quiet loss drops you). Early on it's pulled toward 60.
 // `until` lets us compare to the ratings before the last game.
 const RECENT_DECAY = 0.85;
-function ratings(db, until = null) {
+function statRatings(db, until = null) {
   // Exhibitions count for player ratings.
   const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   const mvpOf = new Map(games.map((g) => [g.id, gameMvp(db, g)]));
@@ -1512,7 +1562,7 @@ function ratings(db, until = null) {
       tg.forEach((g, i) => {
         const x = { td: 0, pass: 0, int: 0, picked: 0, mvp: 0 };
         for (const e of g.events || []) {
-          if (e.team === t.id && (e.player || '').toLowerCase() === n) { if (e.type === 'TD') x.td++; else x.int++; }
+          if (e.team === t.id && (e.player || '').toLowerCase() === n) { if (e.type === 'TD') x.td++; else if (e.type === 'INT') x.int++; }
           if (e.type === 'TD' && e.team === t.id && (e.passer || '').toLowerCase() === n) x.pass++;
           if (e.type === 'INT' && e.team !== t.id && (e.passer || '').toLowerCase() === n) x.picked++; // threw the pick
         }
@@ -1535,6 +1585,22 @@ function ratings(db, until = null) {
   }
   return out.sort((a, b) => b.r - a.r || b.td - a.td);
 }
+// When the AI analyst has run, its ratings (and one-line takes) replace the formula.
+// `until` (the ratings before the last game) uses the AI's previous run.
+function ratings(db, until = null) {
+  const out = statRatings(db, until);
+  const A = db.ai?.players;
+  if (!A) return out;
+  const src = until ? db.ai.prev : A;
+  if (!src) return until ? ratings(db) : out;
+  for (const x of out) {
+    const a = src[x.t.id + '|' + x.p.id];
+    if (!a) continue;
+    x.r = Math.max(40, Math.min(99, Math.round(a.r)));
+    if (!until) x.ai = a.take;
+  }
+  return out.sort((a, b) => b.r - a.r || b.td - a.td);
+}
 const tier = (r) => (r >= 90 ? 'legend' : r >= 80 ? 'gold' : r >= 70 ? 'silver' : 'bronze');
 const TIER_NAME = { legend: 'Legend', gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
 
@@ -1552,18 +1618,113 @@ function tradingCard(db, x, opts = {}) {
   </a>`;
 }
 
+// ---------- AI analyst (Claude Haiku 5.5) ----------
+const hashOf = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
+const playLabel = (e) => (e.type === 'TD' ? 'touchdown' : e.type === 'INT' ? 'interception' : STATS[e.type].label.toLowerCase());
+const secondRole = (e) => (e.type === 'TD' ? 'thrown_by' : e.type === 'INT' ? 'thrown_by_opponent' : e.type === 'SACK' ? 'qb_sacked' : e.type === 'CATCH' ? 'thrown_by' : e.type === 'PBU' ? 'thrown_by_opponent' : 'other');
+function aiGame(db, g) {
+  const w = winner(g);
+  return {
+    date: g.date, type: g.type === 'playoff' ? `playoff (${bowlName(db, g.bowl)})` : g.type,
+    score: { [db.teams[g.home].name]: g.homeScore, [db.teams[g.away].name]: g.awayScore },
+    winner: w ? db.teams[w].name : 'tie',
+    plays: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
+  };
+}
+// Everything the rating depends on. previous_rating is added after hashing so a
+// new run isn't triggered just because the last run changed it.
+function aiRatingsInput(db) {
+  const et = pk.effTend(db), base = statRatings(db);
+  const games = db.games.filter(isFinal).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+  return {
+    teams: Object.values(db.teams).map((t) => { const s = teamStats(db, t.id); return { name: t.name, record: record(s), points_for: s.pf, points_against: s.pa, tendencies: { offense: et.team(t, 'off'), defense: et.team(t, 'def'), interceptions: et.team(t, 'int') } }; }),
+    players: base.map((x) => {
+      const s = playerStats(db, x.t, x.p);
+      return {
+        key: x.t.id + '|' + x.p.id, name: x.p.name, team: x.t.name, status: tagName(x.p.tag) || undefined, position: x.p.position || undefined,
+        tendencies: { scores_tds: et.player(x.t, x.p, 'td'), throws_tds: et.player(x.t, x.p, 'pass'), gets_ints: et.player(x.t, x.p, 'int') },
+        totals: { games_played: x.gp, td: s.td, td_passes: s.ptd, ints: s.int, threw_ints: s.picked, ...Object.fromEntries(Object.values(STATS).map((st) => [st.short.toLowerCase().replace(/ /g, '_'), s[st.key]])) },
+        formula_rating: x.r,
+      };
+    }),
+    games: games.map((g) => aiGame(db, g)),
+  };
+}
+function aiRecapInput(db, g) {
+  return { game: aiGame(db, g), rosters: [g.home, g.away].map((id) => ({ team: db.teams[id].name, players: db.teams[id].roster.map((p) => ({ key: id + '|' + p.id, name: p.name })) })) };
+}
+function freshRecap(db, g) {
+  const A = g.aiRecap;
+  return A && A.hash === hashOf(aiRecapInput(db, g)) ? A : null;
+}
+
+const aiState = { running: false, again: false, timer: null, lastRun: null, lastError: null };
+function scheduleAI(delay = 4000) {
+  if (!ai.apiKey()) return;
+  clearTimeout(aiState.timer);
+  aiState.timer = setTimeout(runAI, delay);
+}
+async function runAI() {
+  if (aiState.running) { aiState.again = true; return; }
+  aiState.running = true;
+  try {
+    await refresh({ fresh: true });
+    let db = load();
+    // 1. A recap and MVP for each final game whose plays changed.
+    for (const id of db.games.filter(isFinal).map((g) => g.id)) {
+      db = load();
+      const g = db.games.find((x) => x.id === id);
+      if (!g || freshRecap(db, g)) continue;
+      const inp = aiRecapInput(db, g);
+      const out = await ai.writeRecap(inp);
+      const g2 = load().games.find((x) => x.id === id);
+      if (!g2) continue;
+      const valid = inp.rosters.some((r) => r.players.some((p) => p.key === out.mvp_key));
+      g2.aiRecap = { hash: hashOf(inp), text: String(out.recap || ''), mvp: valid ? out.mvp_key : null, mvpWhy: String(out.mvp_reason || '').slice(0, 120), at: new Date().toISOString() };
+      await save();
+    }
+    // 2. Ratings for the whole league (after recaps, since the MVPs feed into them), only when something they depend on changed.
+    db = load();
+    const input = aiRatingsInput(db), h = hashOf(input);
+    if (db.ai?.hash !== h) {
+      const prevAll = db.ai?.players || null;
+      for (const p of input.players) p.previous_rating = prevAll?.[p.key]?.r ?? p.formula_rating;
+      const out = await ai.rateLeague(input);
+      db = load();
+      const keys = new Set(input.players.map((p) => p.key));
+      const players = {};
+      for (const p of out.players || []) if (keys.has(p.key) && Number.isFinite(p.rating)) players[p.key] = { r: Math.max(40, Math.min(99, Math.round(p.rating))), take: String(p.take || '').slice(0, 200) };
+      const gamesKey = db.games.filter(isFinal).map((g) => g.id).sort().join(',');
+      // "Previous" ratings (for the arrows) move forward only when a new game is in.
+      const prev = db.ai && db.ai.gamesKey !== gamesKey ? db.ai.players : db.ai?.prev || null;
+      db.ai = { hash: h, at: new Date().toISOString(), model: ai.MODEL, summary: String(out.summary || ''), players, prev, gamesKey };
+      await save();
+    }
+    aiState.lastError = null;
+  } catch (e) {
+    aiState.lastError = ai.describeError(e);
+    console.error('AI analyst:', e);
+  } finally {
+    aiState.lastRun = new Date().toISOString();
+    aiState.running = false;
+    if (aiState.again) { aiState.again = false; scheduleAI(1000); }
+  }
+}
+
 app.get('/stats/rankings', (req, res) => {
   const db = load();
   const now = ratings(db);
   const lastGame = db.games.filter((g) => isFinal(g)).sort((a, b) => b.date.localeCompare(a.date))[0];
   const before = lastGame ? ratings(db, lastGame.date) : now;
   const prevRank = Object.fromEntries(before.map((x, i) => [x.t.id + '|' + x.p.id, i]));
-  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', 'Every player rated 40–99 from their average per game: TDs, TD passes, INTs, MVPs and wins push it up; losses and getting picked off pull it down.') + `<div class="wrap">
+  const byAI = !!db.ai?.players;
+  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', byAI ? 'Every player rated 40–99 by our AI analyst, starting from scouting tendencies and updated from every game: stats, wins and losses, and the notes on each play.' : 'Every player rated 40–99 from their average per game: TDs, TD passes, INTs, MVPs and wins push it up; losses and getting picked off pull it down.') + `<div class="wrap">
+    ${byAI && db.ai.summary ? `<div class="card ai-sum"><div class="card-h"><h2>${icon('star')} Analyst's take</h2><span class="muted sm">AI · updated ${esc(shortDate(localDay(db.ai.at)))}</span></div><p>${esc(db.ai.summary)}</p></div>` : ''}
     <div class="pr-top">${now.slice(0, 3).map((x) => tradingCard(db, x)).join('')}</div>
     <div class="card"><div class="scroll"><table class="tbl pr"><thead><tr><th>#</th><th></th><th class="l">Player</th><th class="l">Team</th><th>Rating</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked</th><th>W-L</th><th>MVP</th></tr></thead><tbody>
     ${now.map((x, i) => { const pr = prevRank[x.t.id + '|' + x.p.id]; const mv = pr == null ? 0 : pr - i;
-      return `<tr><td><b>${i + 1}</b></td><td class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : ''}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</td><td class="l"><a class="plink" href="${playerUrl(x.t, x.p)}">${avatar(x.t, x.p, 30)}${esc(x.p.name)}</a></td><td class="l"><span class="th">${logo(x.t, 20)} ${esc(x.t.abbr)}</span></td><td><span class="rt ${tier(x.r)}">${x.r}</span></td><td>${x.td}</td><td>${x.pass}</td><td>${x.int}</td><td>${x.picked ? `<span class="down">${x.picked}</span>` : 0}</td><td>${x.wins}-${x.losses}</td><td>${x.mvp}</td></tr>`; }).join('')}
-    </tbody></table></div><p class="muted sm">Includes every game, exhibitions too. Wins, TDs, TD passes, INTs and MVPs raise a rating; losses and throwing picks lower it. Arrows show movement since the last game.</p></div>
+      return `<tr><td><b>${i + 1}</b></td><td class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : ''}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</td><td class="l"><a class="plink" href="${playerUrl(x.t, x.p)}">${avatar(x.t, x.p, 30)}${esc(x.p.name)}</a></td><td class="l"><span class="th">${logo(x.t, 20)} ${esc(x.t.abbr)}</span></td><td><span class="rt ${tier(x.r)}" ${x.ai ? `title="${esc(x.ai)}"` : ''}>${x.r}</span></td><td>${x.td}</td><td>${x.pass}</td><td>${x.int}</td><td>${x.picked ? `<span class="down">${x.picked}</span>` : 0}</td><td>${x.wins}-${x.losses}</td><td>${x.mvp}</td></tr>`; }).join('')}
+    </tbody></table></div><p class="muted sm">${byAI ? 'Rated by AI (Claude Haiku 5.5). Tap a player to see why.' : 'Includes every game, exhibitions too. Wins, TDs, TD passes, INTs and MVPs raise a rating; losses and throwing picks lower it.'} Arrows show movement since the last game.</p></div>
     <p><a class="btn ghost" href="/cards">${icon('star')} See every trading card</a></p>
   </div>`));
 });
@@ -1598,7 +1759,7 @@ app.get('/records', (req, res) => {
     const per = {};
     for (const e of g.events || []) {
       const add = (name, k) => { if (!name) return; const id = e.team + '|' + name; per[id] = per[id] || { team: e.team, name, td: 0, pass: 0, int: 0 }; per[id][k]++; };
-      if (e.type === 'TD') { add(e.player, 'td'); add(e.passer, 'pass'); } else add(e.player, 'int');
+      if (e.type === 'TD') { add(e.player, 'td'); add(e.passer, 'pass'); } else if (e.type === 'INT') add(e.player, 'int');
     }
     for (const p of Object.values(per)) for (const k of ['td', 'pass', 'int']) if (p[k]) single[k].push({ ...p, n: p[k], g });
   }
@@ -1772,7 +1933,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -1811,6 +1972,37 @@ app.get('/admin', requireAdmin, (req, res) => {
     </div></div>
     <script>document.getElementById('restore').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target.querySelector('input').files[0],m=document.getElementById('restoreMsg');if(!f||!confirm('Replace ALL site data with this backup?'))return;m.textContent='Restoring…';try{const r=await fetch('/admin/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});const d=await r.json();m.textContent=d.ok?'Restored: '+d.docs+' accounts, '+d.media+' photos.':d.error}catch(err){m.textContent='Restore failed.'}});</script>`, { ticker: false }));
 });
+app.get('/admin/ai', requireAdmin, (req, res) => {
+  const db = load();
+  const src = ai.keySource(), key = ai.apiKey();
+  const recaps = db.games.filter((g) => isFinal(g) && freshRecap(db, g)).length, finals = db.games.filter(isFinal).length;
+  res.send(layout(req, 'AI', pageHead('Admin', 'AI Analyst') + `<div class="wrap">${adminNav('/admin/ai')}${savedMsg(req)}
+    <div class="card"><div class="card-h"><h2>What it does</h2><span class="muted sm">${ai.MODEL}</span></div>
+      <p class="muted">After you save a game, a player, a trade or tendencies, Claude Haiku 5.5 re-rates every player for the power rankings and trading cards, and writes the recap and picks the MVP for any game whose plays changed. It starts from the tendencies, then uses the box scores and reads the notes (a note like "tipped by Pedon" gives Pedon partial credit). Without a key, the site uses the built-in formula.</p></div>
+    <div class="card"><div class="card-h"><h2>Status</h2></div>
+      <p>${key ? `Key: <b>set</b> (${src === 'variable' ? 'from the ANTHROPIC_API_KEY variable' : 'saved here'}, ends in <code>${esc(key.slice(-4))}</code>)` : 'Key: <b>not set</b>'}</p>
+      <p>Ratings: ${db.ai?.at ? `updated ${esc(new Date(db.ai.at).toLocaleString('en-US', { timeZone: TZ }))}` : 'not run yet'} · Recaps: ${recaps} of ${finals} final games</p>
+      <p>${aiState.running ? '<b>Running now…</b>' : aiState.lastRun ? `Last run ${esc(new Date(aiState.lastRun).toLocaleString('en-US', { timeZone: TZ }))}` : ''}${aiState.lastError ? ` · <span class="err">${esc(aiState.lastError)}</span>` : ''}</p>
+      <form method="post" action="/admin/ai/run"><button class="btn sm" ${key ? '' : 'disabled'}>Run now</button></form>
+    </div>
+    ${src === 'variable' ? '' : `<div class="card"><div class="card-h"><h2>API key</h2></div>
+      <form method="post" action="/admin/ai/key" class="form"><label>Anthropic API key<input name="key" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+      <p class="muted sm">Stored only on the server, never in backups. Leave it blank and save to remove it.</p><button class="btn">Save key</button></form></div>`}
+  </div>`, { ticker: false }));
+});
+app.post('/admin/ai/key', requireAdmin, (req, res) => {
+  const key = String(req.body.key || '').trim();
+  if (key && !/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return res.redirect('/admin/ai?err=1');
+  ai.setApiKey(key || null);
+  res.redirect('/admin/ai?saved=1');
+});
+app.post('/admin/ai/run', requireAdmin, (req, res) => {
+  const db = load();
+  delete db.ai?.hash; // force a fresh rating run
+  scheduleAI(100);
+  res.redirect('/admin/ai?saved=1');
+});
+
 app.get('/admin/backup.json', requireAdmin, async (req, res, next) => {
   try {
     res.set('Content-Disposition', `attachment; filename="mfl-backup-${today()}.json"`).json(await exportAll());
@@ -1836,19 +2028,23 @@ function gameForm(db, g, isNew) {
   const t1 = db.teams[g.home] || teams[0], t2 = db.teams[g.away] || teams[1];
   // Every play row posts all five fields so the arrays stay aligned in readGame.
   const evRow = (e) => {
-    const tm = db.teams[e.team] || t1;
-    const td = e.type !== 'INT';
+    const tm = db.teams[e.team] || t1, opp = tm.id === t1.id ? t2 : t1;
+    const type = EV_TYPES.includes(e.type) ? e.type : 'TD', st = STATS[type];
+    const tag = type === 'TD' ? ['td', 'TD'] : type === 'INT' ? ['int', 'INT'] : [st.tag, st.label];
+    const second = type === 'TD' ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)')
+      : type === 'INT' ? rosterSelect(opp, 'ev_passer', e.passer, 'Thrown by (who got picked off?)')
+      : st.by ? rosterSelect(st.side === 'same' ? tm : opp, 'ev_passer', e.passer, st.by) : '<input type="hidden" name="ev_passer" value=""><span></span>';
     return `<div class="ev" style="--c:${esc(tm.color)}">
-      <input type="hidden" name="ev_type" value="${td ? 'TD' : 'INT'}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
-      <div class="ev-who">${logo(tm, 30)}<span class="tag ${td ? 'td' : 'int'}">${td ? 'TD' : 'INT'}</span></div>
-      ${rosterSelect(tm, 'ev_player', e.player, td ? 'Who scored?' : 'Who intercepted?')}
-      ${td ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)') : rosterSelect(tm.id === t1.id ? t2 : t1, 'ev_passer', e.passer, 'Thrown by (who got picked off?)')}
-      <input name="ev_note" class="ev-note" placeholder="Note" value="${esc(e.note)}">
+      <input type="hidden" name="ev_type" value="${type}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
+      <div class="ev-who">${logo(tm, 30)}<span class="tag ${tag[0]}">${tag[1]}</span></div>
+      ${rosterSelect(tm, 'ev_player', e.player, type === 'TD' ? 'Who scored?' : type === 'INT' ? 'Who intercepted?' : st.who)}
+      ${second}
+      <input name="ev_note" class="ev-note" placeholder="${type === 'CATCH' ? 'What happened? e.g. one-handed in traffic' : 'Note, e.g. tipped by Pedon'}" value="${esc(e.note)}">
       <button type="button" class="ev-x" onclick="this.parentElement.remove();mflEmpty()" aria-label="Remove play">✕</button>
     </div>`;
   };
-  const tpl = teams.flatMap((t) => ['TD', 'INT'].map((type) => `<template id="tpl-${t.id}-${type}">${evRow({ team: t.id, type })}</template>`)).join('');
-  const addBtns = teams.map((t) => `<div class="add-team">${logo(t, 22)}<b>${esc(t.name)}</b><button type="button" class="chip td" onclick="mflAdd('${t.id}','TD')">+ Touchdown</button><button type="button" class="chip int" onclick="mflAdd('${t.id}','INT')">+ Interception</button></div>`).join('');
+  const tpl = teams.flatMap((t) => EV_TYPES.map((type) => `<template id="tpl-${t.id}-${type}">${evRow({ team: t.id, type })}</template>`)).join('');
+  const addBtns = teams.map((t) => `<div class="add-team">${logo(t, 22)}<b>${esc(t.name)}</b><button type="button" class="chip td" onclick="mflAdd('${t.id}','TD')">+ Touchdown</button><button type="button" class="chip int" onclick="mflAdd('${t.id}','INT')">+ Interception</button>${Object.entries(STATS).map(([k, st]) => `<button type="button" class="chip ${st.tag}" onclick="mflAdd('${t.id}','${k}')">+ ${st.label}</button>`).join('')}</div>`).join('');
   const statusPills = [['scheduled', 'Scheduled'], ['live', 'Live'], ['final', 'Final'], ['postponed', 'Postponed']]
     .map(([v, n]) => `<label class="pill-r"><input type="radio" name="status" value="${v}" ${g.status === v ? 'checked' : ''}><span>${n}</span></label>`).join('');
   return `<form method="post" class="form ge">
@@ -1867,9 +2063,9 @@ function gameForm(db, g, isNew) {
     </section>
 
     <section class="card">
-      <div class="card-h"><h2>Box Score</h2><span class="muted sm">Touchdowns &amp; interceptions · leave out anything you don't know</span></div>
+      <div class="card-h"><h2>Box Score</h2><span class="muted sm">Touchdowns, interceptions, catches &amp; more · leave out anything you don't know · notes count (e.g. "tipped by Pedon")</span></div>
       <div id="evs">${(g.events || []).map(evRow).join('')}</div>
-      <p id="evEmpty" class="empty" ${(g.events || []).length ? 'hidden' : ''}>No plays added yet. Use the buttons below to add touchdowns and interceptions.</p>
+      <p id="evEmpty" class="empty" ${(g.events || []).length ? 'hidden' : ''}>No plays added yet. Use the buttons below to add touchdowns, interceptions and other stats.</p>
       <div class="adds">${addBtns}</div>
       ${tpl}
     </section>
@@ -1910,7 +2106,7 @@ function readGame(body, g) {
   delete g.quarters;
   const types = arr(body.ev_type);
   g.events = types.map((t, i) => ({
-    type: t === 'INT' ? 'INT' : 'TD', team: arr(body.ev_team)[i], player: (arr(body.ev_player)[i] || '').trim(),
+    type: EV_TYPES.includes(t) ? t : 'TD', team: arr(body.ev_team)[i], player: (arr(body.ev_player)[i] || '').trim(),
     passer: (arr(body.ev_passer)[i] || '').trim(), note: (arr(body.ev_note)[i] || '').trim(),
   })).filter((e) => e.player || e.passer || e.note);
   return g;
@@ -2359,6 +2555,7 @@ app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Som
 
 if (require.main === module) {
   app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+  scheduleAI(15000); // catch up on anything that changed while the server was down
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.
   if (process.env.RAILWAY_ENVIRONMENT && String(PORT) !== '8080') app.listen(8080, () => console.log('MFL also on :8080'));
 }
