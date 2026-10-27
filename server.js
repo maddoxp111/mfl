@@ -304,7 +304,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=29">
+<link rel="stylesheet" href="/static/style.css?v=30">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1573,9 +1573,12 @@ function recap(db, g) {
 // scores are incomplete, so the nudge is small and grows with games played.
 // `until` lets us compare to the ratings before the last game.
 const RECENT_DECAY = 0.85;
-// The commissioner's tendencies turned into a 40-99 starting rating: mostly the
-// player's best skill, plus a little for their second-best.
+// The commissioner's starting rating for a player: their Overall slider (how good and
+// impactful they are in a game, 40-99) when set; otherwise mostly their best skill
+// tendency plus a little for their second-best.
+const overallOf = (p) => (Number.isFinite(+p.tend?.ovr) ? Math.max(40, Math.min(99, Math.round(+p.tend.ovr))) : null);
 function scoutRating(et, t, p) {
+  if (overallOf(p) != null) return overallOf(p);
   const v = ['td', 'pass', 'int'].map((k) => et.player(t, p, k)).sort((a, b) => b - a);
   return Math.round(Math.max(40, Math.min(95, 40 + 0.45 * v[0] + 0.15 * v[1])));
 }
@@ -1678,6 +1681,7 @@ function aiRatingsInput(db) {
       const s = playerStats(db, x.t, x.p);
       return {
         key: x.t.id + '|' + x.p.id, name: x.p.name, team: x.t.name, status: tagName(x.p.tag) || undefined, position: x.p.position || undefined,
+        ...(x.p.bio ? { bio: x.p.bio.slice(0, 400) } : {}),
         tendencies: { scores_tds: et.player(x.t, x.p, 'td'), throws_tds: et.player(x.t, x.p, 'pass'), gets_ints: et.player(x.t, x.p, 'int') },
         totals: { games_played: x.gp, td: s.td, td_passes: s.ptd, ints: s.int, threw_ints: s.picked, ...Object.fromEntries(Object.values(STATS).map((st) => [st.short.toLowerCase().replace(/ /g, '_'), s[st.key]])) },
         scouting_rating: x.base,
@@ -2660,9 +2664,10 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
 const TEND_TEAM = [['off', 'Offense', 'Scores a lot'], ['def', 'Defense', 'Holds the other team down'], ['int', 'Picks', 'Gets interceptions']];
 const TEND_PLAYER = [['td', 'Scores TDs'], ['pass', 'Throws TDs'], ['int', 'Gets INTs']];
 const tval = (o, k) => (o && Number.isFinite(+o[k]) ? +o[k] : 50);
-function slider(name, v, label, drift = 0) {
+function slider(name, v, label, drift = 0, o = {}) {
   const eff = Math.max(0, Math.min(100, v + drift));
   const autoTxt = (d) => (d ? `auto ${d > 0 ? '+' : ''}${d}` : 'auto 0');
+  if (o.overall) return `<div class="tslider ovr" data-label="${esc(label)}"><input type="range" name="${name}" min="40" max="99" step="1" value="${v}" oninput="this.nextElementSibling.textContent=this.value"><output>${v}</output></div>`;
   return `<div class="tslider" data-v="${v}" data-label="${esc(label)}"><input type="range" name="${name}" min="0" max="100" step="5" value="${v}" data-drift="${drift}" oninput="const d=+this.dataset.drift,e=Math.max(0,Math.min(100,+this.value+d));this.nextElementSibling.textContent=this.value;this.parentElement.dataset.v=this.value;this.parentElement.querySelector('.eff b').textContent=e"><output>${v}</output>
     <small class="eff ${drift > 0 ? 'up' : drift < 0 ? 'down' : ''}" title="Automatic change from game results">${autoTxt(drift)} → <b>${eff}</b></small></div>`;
 }
@@ -2678,10 +2683,10 @@ app.get('/admin/tendencies', requireAdmin, (req, res) => {
         ${teams.map((t) => `<span class="th">${logo(t, 28)} ${esc(t.name)}</span>${TEND_TEAM.map(([k, n]) => slider(`team.${t.id}.${k}`, tval(t.tend, k), n, dT(t, k))).join('')}`).join('')}</div>
       </div>
       ${teams.map((t) => `<div class="card"><div class="card-h"><h2 class="th">${logo(t, 28)} ${esc(t.name)} players</h2></div>
-        <div class="tgrid"><span></span>${TEND_PLAYER.map(([, n]) => `<span class="th-l"><b>${n}</b></span>`).join('')}
-        ${t.roster.map((p) => `<span class="plink">${avatar(t, p, 30)}${esc(p.name)}</span>${TEND_PLAYER.map(([k, n]) => slider(`player.${t.id}.${p.id}.${k}`, tval(p.tend, k), n, dP(t, p, k))).join('')}`).join('')}</div>
+        <div class="tgrid tgrid-p"><span></span><span class="th-l"><b>Overall</b><small>How good &amp; impactful in a game (sets the rating)</small></span>${TEND_PLAYER.map(([, n]) => `<span class="th-l"><b>${n}</b></span>`).join('')}
+        ${t.roster.map((p) => `<span class="plink">${avatar(t, p, 30)}${esc(p.name)}</span>${slider(`player.${t.id}.${p.id}.ovr`, overallOf(p) ?? scoutRating(pk.effTend(db), t, p), 'Overall', 0, { overall: true })}${TEND_PLAYER.map(([k, n]) => slider(`player.${t.id}.${p.id}.${k}`, tval(p.tend, k), n, dP(t, p, k))).join('')}`).join('')}</div>
       </div>`).join('')}
-      <div class="savebar"><button type="button" class="btn ghost" onclick="this.form.querySelectorAll('input[type=range]').forEach(r=>{r.value=50;r.oninput()})">Reset all to 50</button><button class="btn">Save tendencies</button></div>
+      <div class="savebar"><button type="button" class="btn ghost" onclick="this.form.querySelectorAll('.tslider:not(.ovr) input[type=range]').forEach(r=>{r.value=50;r.oninput()})">Reset skills to 50</button><button class="btn">Save tendencies</button></div>
     </form></div>`, { ticker: false }));
 });
 app.post('/admin/tendencies', requireAdmin, async (req, res) => {
@@ -2695,7 +2700,8 @@ app.post('/admin/tendencies', requireAdmin, async (req, res) => {
       if (t && TEND_TEAM.some(([k]) => k === parts[2])) (t.tend = t.tend || {})[parts[2]] = num(v);
     } else if (parts[0] === 'player' && parts.length === 4) {
       const p = db.teams[parts[1]]?.roster.find((x) => x.id === parts[2]);
-      if (p && TEND_PLAYER.some(([k]) => k === parts[3])) (p.tend = p.tend || {})[parts[3]] = num(v);
+      if (p && parts[3] === 'ovr') (p.tend = p.tend || {}).ovr = Math.max(40, Math.min(99, Math.round(+v)));
+      else if (p && TEND_PLAYER.some(([k]) => k === parts[3])) (p.tend = p.tend || {})[parts[3]] = num(v);
     }
   }
   await save();

@@ -1171,3 +1171,7 @@ main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
 .tbl.admin .btn.go{background:linear-gradient(180deg,#ff4655,#e8202f);border-color:transparent}
 .tbl.admin tbody tr{cursor:pointer}
 .recap-go{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+.tgrid.tgrid-p{grid-template-columns:minmax(170px,1.2fr) repeat(4,1fr)}
+.tslider.ovr input{accent-color:#ffbf1f}
+.tslider.ovr output{color:#ffd35c;font-size:18px}
+@media(max-width:760px){.tgrid.tgrid-p{grid-template-columns:1fr}}
