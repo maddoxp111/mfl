@@ -1566,17 +1566,24 @@ function recap(db, g) {
   return out.join(' ');
 }
 
-// Player power rating, 40-99, from stats only. Each team game gets a production score
-// (TD 6, TD pass 4, INT 5, MVP 2, win 2; thrown INT -5, loss -2) and the rating uses a
-// RECENT-WEIGHTED average of those: each older game counts 15% less than the one after it.
-// So stacking good games can't run it away, and going quiet for a few games slides you down
-// (a quiet win keeps you about level, a quiet loss drops you). Early on it's pulled toward 60.
+// Player power rating, 40-99 (used when the AI analyst isn't set up). It starts from
+// the commissioner's scouting (tendencies, see scoutRating) and games nudge it: each team
+// game gets a production score (TD 6, TD pass 4, INT 5, MVP 2, win 2; thrown INT -5,
+// loss -2), averaged with recent games counting more (each older game 15% less). Box
+// scores are incomplete, so the nudge is small and grows with games played.
 // `until` lets us compare to the ratings before the last game.
 const RECENT_DECAY = 0.85;
+// The commissioner's tendencies turned into a 40-99 starting rating: mostly the
+// player's best skill, plus a little for their second-best.
+function scoutRating(et, t, p) {
+  const v = ['td', 'pass', 'int'].map((k) => et.player(t, p, k)).sort((a, b) => b - a);
+  return Math.round(Math.max(40, Math.min(95, 40 + 0.45 * v[0] + 0.15 * v[1])));
+}
 function statRatings(db, until = null) {
   // Exhibitions count for player ratings.
   const games = db.games.filter((g) => isFinal(g) && (!until || g.date < until)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   const mvpOf = new Map(games.map((g) => [g.id, gameMvp(db, g)]));
+  const et = pk.effTend(db);
   const out = [];
   for (const t of Object.values(db.teams)) {
     const tg = games.filter((g) => g.home === t.id || g.away === t.id);
@@ -1605,8 +1612,10 @@ function statRatings(db, until = null) {
       const trust = gp / (gp + 4); // how much the stats count vs. the 60 starting point
       // Diminishing returns going up; going down is straight-line so bad games always hurt.
       const value = perGame >= 0 ? 55 * (1 - Math.exp(-perGame / 15)) - 10 : -10 + 1.5 * perGame;
-      const r = Math.round(Math.max(40, Math.min(99, 60 + trust * value)));
-      out.push({ t, p, r, ...tot, gp });
+      // Box scores are incomplete, so games only nudge the scouting rating.
+      const base = scoutRating(et, t, p);
+      const r = Math.round(Math.max(40, Math.min(99, base + 0.4 * trust * value)));
+      out.push({ t, p, r, base, ...tot, gp });
     }
   }
   return out.sort((a, b) => b.r - a.r || b.td - a.td);
@@ -1671,7 +1680,7 @@ function aiRatingsInput(db) {
         key: x.t.id + '|' + x.p.id, name: x.p.name, team: x.t.name, status: tagName(x.p.tag) || undefined, position: x.p.position || undefined,
         tendencies: { scores_tds: et.player(x.t, x.p, 'td'), throws_tds: et.player(x.t, x.p, 'pass'), gets_ints: et.player(x.t, x.p, 'int') },
         totals: { games_played: x.gp, td: s.td, td_passes: s.ptd, ints: s.int, threw_ints: s.picked, ...Object.fromEntries(Object.values(STATS).map((st) => [st.short.toLowerCase().replace(/ /g, '_'), s[st.key]])) },
-        formula_rating: x.r,
+        scouting_rating: x.base,
       };
     }),
     games: games.map((g) => aiGame(db, g)),
@@ -1764,17 +1773,21 @@ async function runAI() {
     db = load();
     const input = aiRatingsInput(db), h = hashOf(input);
     if (db.ai?.hash !== h) {
-      const prevAll = db.ai?.players || null;
-      for (const p of input.players) p.previous_rating = prevAll?.[p.key]?.r ?? p.formula_rating;
       const out = await ai.rateLeague(input);
       db = load();
       const keys = new Set(input.players.map((p) => p.key));
       const players = {};
-      for (const p of out.players || []) if (keys.has(p.key) && Number.isFinite(p.rating)) players[p.key] = { r: Math.max(40, Math.min(99, Math.round(p.rating))), take: String(p.take || '').slice(0, 200) };
+      const scout = Object.fromEntries(input.players.map((p) => [p.key, p.scouting_rating]));
+      for (const p of out.players || []) {
+        if (!keys.has(p.key) || !Number.isFinite(p.rating)) continue;
+        const b = scout[p.key], r = Math.max(b - 12, Math.min(b + 12, Math.round(p.rating))); // stay near the commissioner's scouting
+        players[p.key] = { r: Math.max(40, Math.min(99, r)), take: String(p.take || '').slice(0, 200) };
+      }
       const gamesKey = db.games.filter(isFinal).map((g) => g.id).sort().join(',');
       // "Previous" ratings (for the arrows) move forward only when a new game is in.
-      const prev = db.ai && db.ai.gamesKey !== gamesKey ? db.ai.players : db.ai?.prev || null;
-      db.ai = { hash: h, at: new Date().toISOString(), model: ai.MODEL, summary: String(out.summary || ''), players, prev, gamesKey };
+      // (v2 ratings are anchored to scouting; arrows don't compare against the old v1 ones.)
+      const prev = db.ai?.v !== 2 ? null : db.ai.gamesKey !== gamesKey ? db.ai.players : db.ai.prev || null;
+      db.ai = { v: 2, hash: h, at: new Date().toISOString(), model: ai.MODEL, summary: String(out.summary || ''), players, prev, gamesKey };
       await save();
     }
     // 3. Team summaries, when anything they cover changed.
@@ -1800,7 +1813,7 @@ app.get('/stats/rankings', (req, res) => {
   const before = lastGame ? ratings(db, lastGame.date) : now;
   const prevRank = Object.fromEntries(before.map((x, i) => [x.t.id + '|' + x.p.id, i]));
   const byAI = !!db.ai?.players;
-  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', byAI ? 'Every player rated 40–99 by our AI analyst, starting from scouting tendencies and updated from every game: stats, wins and losses, and the notes on each play.' : 'Every player rated 40–99 from their average per game: TDs, TD passes, INTs, MVPs and wins push it up; losses and getting picked off pull it down.') + `<div class="wrap">
+  res.send(layout(req, 'Power Rankings', pageHead('2026–27 Season', 'Power Rankings', byAI ? 'Every player rated 40–99 by our AI analyst, starting from scouting tendencies and updated from every game: stats, wins and losses, and the notes on each play.' : 'Every player rated 40–99, starting from the commissioner\'s scouting and nudged by every game: TDs, TD passes, INTs, MVPs and wins push it up; losses and getting picked off pull it down.') + `<div class="wrap">
     ${byAI && db.ai.summary ? `<div class="card ai-sum"><div class="card-h"><h2>${icon('star')} Analyst's take</h2><span class="muted sm">AI · updated ${esc(shortDate(localDay(db.ai.at)))}</span></div><p>${esc(db.ai.summary)}</p></div>` : ''}
     <div class="pr-top">${now.slice(0, 3).map((x) => tradingCard(db, x)).join('')}</div>
     <div class="card"><div class="scroll"><table class="tbl pr"><thead><tr><th>#</th><th></th><th class="l">Player</th><th class="l">Team</th><th>Rating</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked</th><th>W-L</th><th>MVP</th></tr></thead><tbody>
