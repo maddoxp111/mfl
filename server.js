@@ -501,16 +501,19 @@ app.get('/games/:id', (req, res) => {
       </div>
       ${g.reason ? `<div class="gh-note">${g.status === 'postponed' ? '<b>Postponed</b> · ' : g.type === 'exhibition' ? '<b>Exhibition</b> · ' : ''}${esc(g.reason)}</div>` : ''}
     </div></section>
-    <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}${recapCard(db, g)}</div>
+    <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}${recapCard(db, g, req)}</div>
     <div class="wrap game-grid">${plays}<div class="col">${box(a)}${box(b)}</div></div>${countdownScript}`));
 });
 
-function recapCard(db, g) {
+function recapCard(db, g, req) {
   if (!isFinal(g)) return '';
   const m = gameMvp(db, g);
-  return `<div class="card recap"><div class="card-h"><h2>Recap</h2>${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</div>
+  const wait = Math.max(0, RECAP_COOLDOWN - (Date.now() - Date.parse(g.aiRecap?.rewrittenAt || 0)));
+  const msg = { off: 'AI recaps are not set up yet.', wait: 'This recap was just rewritten. Try again later.', err: "Couldn't rewrite the recap right now. Try again soon." }[req?.query?.ai];
+  const btn = ai.apiKey() ? `<form method="post" action="/games/${g.id}/recap" class="recap-go"><button class="btn sm ghost" ${wait ? 'disabled' : ''} onclick="this.textContent='Writing…'">${icon('swap')} ${wait ? `Rewrite again in ${Math.ceil(wait / 60000)} min` : 'Rewrite with AI'}</button>${msg ? `<span class="muted sm">${msg}</span>` : ''}</form>` : '';
+  return `<div class="card recap" id="recap"><div class="card-h"><h2>Recap</h2>${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</div>
     <div class="recap-body">${m ? `<a class="mvp" href="${m.player ? playerUrl(m.tm, m.player) : '#'}" style="--a:${esc(m.tm.color)}"><span class="mvp-tag">${icon('trophy')} Game MVP</span>${m.player ? avatar(m.tm, m.player, 64) : ''}<b>${esc(m.name)}</b><small>${esc(m.line)}</small></a>` : ''}
-    <p>${esc(recap(db, g))}</p></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}</div>`;
+    <p>${esc(recap(db, g))}</p></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}${btn}</div>`;
 }
 
 // Auto-generated preview for games that haven't been played yet.
@@ -1687,6 +1690,38 @@ function aiTeamInput(db, t) {
     next_game: next ? { date: next.date, opponent: db.teams[otherTeam(next, t.id)].name, type: next.type } : null,
   };
 }
+const RECAP_COOLDOWN = 30 * 60 * 1000;
+const recapBusy = new Set();
+async function genGameRecap(id) {
+  if (recapBusy.has(id)) return;
+  recapBusy.add(id);
+  try {
+    const db = load(), g = db.games.find((x) => x.id === id);
+    if (!g) return;
+    const inp = aiRecapInput(db, g);
+    const out = await ai.writeRecap(inp);
+    const g2 = load().games.find((x) => x.id === id);
+    if (!g2) return;
+    const valid = inp.rosters.some((r) => r.players.some((p) => p.key === out.mvp_key));
+    g2.aiRecap = { hash: hashOf(inp), text: String(out.recap || ''), mvp: valid ? out.mvp_key : null, mvpWhy: String(out.mvp_reason || '').slice(0, 120), at: new Date().toISOString(), rewrittenAt: g2.aiRecap?.rewrittenAt };
+    await save();
+  } finally { recapBusy.delete(id); }
+}
+// Anyone can ask the AI for a fresh take on a game's recap, once every 30 minutes per game.
+app.post('/games/:id/recap', async (req, res) => {
+  const db = load();
+  const g = db.games.find((x) => x.id === req.params.id);
+  if (!g || !isFinal(g)) return res.redirect('/');
+  const back = (q) => res.redirect(`/games/${g.id}${q ? '?' + q : ''}#recap`);
+  if (!ai.apiKey()) return back('ai=off');
+  if (Date.now() - Date.parse(g.aiRecap?.rewrittenAt || 0) < RECAP_COOLDOWN) return back('ai=wait');
+  try {
+    await genGameRecap(g.id);
+    const g2 = load().games.find((x) => x.id === g.id);
+    if (g2?.aiRecap) { g2.aiRecap.rewrittenAt = new Date().toISOString(); await save(); }
+    back('');
+  } catch (e) { console.error('Game recap:', e); back('ai=err'); }
+});
 const TEAM_COOLDOWN = 5 * 60 * 1000;
 const teamBusy = new Set();
 async function genTeamRecap(id) {
@@ -1723,13 +1758,7 @@ async function runAI() {
       db = load();
       const g = db.games.find((x) => x.id === id);
       if (!g || freshRecap(db, g)) continue;
-      const inp = aiRecapInput(db, g);
-      const out = await ai.writeRecap(inp);
-      const g2 = load().games.find((x) => x.id === id);
-      if (!g2) continue;
-      const valid = inp.rosters.some((r) => r.players.some((p) => p.key === out.mvp_key));
-      g2.aiRecap = { hash: hashOf(inp), text: String(out.recap || ''), mvp: valid ? out.mvp_key : null, mvpWhy: String(out.mvp_reason || '').slice(0, 120), at: new Date().toISOString() };
-      await save();
+      await genGameRecap(id);
     }
     // 2. Ratings for the whole league (after recaps, since the MVPs feed into them), only when something they depend on changed.
     db = load();

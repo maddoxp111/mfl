@@ -1170,3 +1170,4 @@ main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
 .tbl.admin .btn:hover{background:rgba(255,255,255,.1)}
 .tbl.admin .btn.go{background:linear-gradient(180deg,#ff4655,#e8202f);border-color:transparent}
 .tbl.admin tbody tr{cursor:pointer}
+.recap-go{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
