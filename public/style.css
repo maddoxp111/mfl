@@ -918,3 +918,191 @@ html,body{overflow-x:clip}
 .ai-take .ic{flex:none;margin-top:2px;color:#facc15}
 .ai-sum p{margin:0}
 .ai-note{margin:8px 0 0}
+
+/* =====================================================================
+   v3 design system: broadcast-grade look. Tokens first, then components.
+   ===================================================================== */
+:root{
+  --bg:#06070a;--bg2:#0c0e13;--card:#10131a;--card2:#161a23;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);
+  --ink:#f5f6f8;--ink2:#aeb3c0;--muted:#6f7584;--red:#ff3344;--red2:#ff5b69;--amber:#ffbf1f;
+  --r:22px;--r2:14px;--disp:'Barlow Condensed','Inter',system-ui,sans-serif;
+  --glass:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+  --lift:0 1px 0 rgba(255,255,255,.05) inset,0 20px 50px -20px rgba(0,0,0,.6);
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+body{background-color:var(--bg);font-feature-settings:'cv11','ss01';
+  background-image:radial-gradient(1100px 520px at 80% -12%,rgba(255,51,68,.10),transparent 62%),radial-gradient(900px 500px at -10% 0%,rgba(80,110,255,.06),transparent 60%)}
+/* fine film grain over everything, like a broadcast package */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.035;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+h1,h2,h3{text-wrap:balance}
+.tbl td,.gc-score,.rec,.hb-score,.gh-score,.leader-n,.cd b,.th-stats b,.coins{font-variant-numeric:tabular-nums}
+.kicker{font:700 11.5px/1 Inter;letter-spacing:.18em;color:var(--red2)}
+.kicker::before{content:'';width:18px;height:2px;border-radius:2px;background:currentColor;opacity:.9}
+
+/* header */
+.hdr{background:rgba(6,7,10,.7);border-bottom:1px solid var(--line);box-shadow:0 10px 30px -20px rgba(0,0,0,.8)}
+.hdr-in{height:60px}
+.brand{font:900 26px/1 var(--disp);letter-spacing:.04em;gap:9px}
+.brand img{width:32px;height:32px;filter:drop-shadow(0 4px 10px rgba(255,51,68,.35))}
+.dd>button{font:600 13.5px Inter;color:var(--ink2);padding:8px 12px}
+.dd>button:hover,.dd.open>button{background:rgba(255,255,255,.06)}
+.dd.on>button{color:var(--ink);box-shadow:inset 0 -2px 0 var(--red)}
+.dd-m{background:rgba(16,19,26,.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line2);border-radius:16px;box-shadow:0 30px 60px -10px rgba(0,0,0,.7)}
+.dd-m a{font-size:14px}
+.dd-m a:hover{background:rgba(255,255,255,.06)}
+.nav-pick{background:none;color:#ffd35c;border:1px solid rgba(255,191,31,.45);box-shadow:0 0 0 0 rgba(255,191,31,0),inset 0 0 18px rgba(255,191,31,.08);font:700 13.5px Inter;padding:7px 14px}
+.nav-pick:hover{background:rgba(255,191,31,.1);box-shadow:0 8px 30px -8px rgba(255,191,31,.45),inset 0 0 18px rgba(255,191,31,.12)}
+.nav-pick.on{background:linear-gradient(90deg,#ffbf1f,#ffd65e);color:#1a1200;border-color:transparent}
+
+/* ticker: a slim scoreboard strip */
+.ticker{background:linear-gradient(180deg,rgba(12,14,19,.9),rgba(8,9,13,.9));border-bottom:1px solid var(--line)}
+.ticker-in{gap:0;padding:0 12px}
+.tk{width:148px;padding:10px 14px;border:0;border-radius:0;background:none;border-right:1px solid var(--line);position:relative}
+.tk:hover{transform:none;background:rgba(255,255,255,.03)}
+.tk.now{background:linear-gradient(180deg,rgba(255,51,68,.12),transparent)}
+.tk.now::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:var(--red)}
+.tk-top{font:600 10.5px Inter;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
+.tk-top .badge{background:none;padding:0;color:var(--ink2);font:600 10.5px Inter;letter-spacing:.02em}
+.tk-row{font:700 15px var(--disp);letter-spacing:.04em;margin:2px 0}
+.tk-row b{font:800 16px var(--disp)}
+.tk .logo{width:16px!important;height:16px!important;font-size:0!important;border-radius:5px}
+.tk-lbl{font:700 9.5px Inter;letter-spacing:.1em}
+
+/* page heads */
+.ph{padding:64px 0 34px;position:relative}
+.ph h1{font:800 clamp(52px,7.4vw,92px)/.86 var(--disp);letter-spacing:.005em;margin:16px 0 0}
+.ph p{font-size:16px;color:var(--ink2);max-width:760px}
+
+/* cards: layered glass surfaces with editorial labels */
+.card{background:var(--glass),var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--lift)}
+.card-h{margin-bottom:18px}
+.card-h h2{font:700 12.5px/1 Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2);word-spacing:0;display:flex;align-items:center;gap:9px}
+.card-h h2::before{content:'';width:4px;height:14px;border-radius:2px;background:linear-gradient(var(--red),#ff8a3d);flex:none}
+.card-h h2.th::before,.card-h h2:has(.logo)::before,.card-h h2:has(.ic)::before{display:none}
+.card-h h2 .ic{color:var(--red2)}
+.card-h a{font:600 12.5px Inter;color:var(--muted)}
+.card-h a:hover{color:var(--ink)}
+.mk summary h2{font:700 12.5px/1 Inter;letter-spacing:.16em;color:var(--ink2)}
+
+/* buttons */
+.btn{font:700 14px Inter;padding:11px 20px;background:linear-gradient(180deg,#ff4655,#e8202f);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 10px 24px -10px rgba(255,51,68,.7)}
+.btn:hover{background:linear-gradient(180deg,#ff5a68,#f02a39);transform:translateY(-1px)}
+.btn.ghost{background:rgba(255,255,255,.05);border:1px solid var(--line2);box-shadow:none}
+.btn.ghost:hover{background:rgba(255,255,255,.09)}
+.btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+.chip,.seg{border-color:var(--line2)}
+.seg{background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.seg a{font:600 13.5px Inter}
+.seg a.on{background:var(--ink);color:#08090c;box-shadow:0 6px 18px -6px rgba(255,255,255,.35)}
+
+/* badges & tags */
+.badge{font:700 10.5px Inter;letter-spacing:.1em;background:rgba(255,255,255,.06)}
+.badge.final{background:rgba(255,255,255,.1)}
+.tag{font:700 10.5px Inter;letter-spacing:.09em;border-radius:7px}
+
+/* home hero: broadcast scoreboard */
+.hero{border-radius:28px;padding:44px;border:1px solid var(--line2);
+  background:linear-gradient(105deg,color-mix(in srgb,var(--a) 58%,#000) 0%,color-mix(in srgb,var(--a) 20%,transparent) 38%,transparent 52%),linear-gradient(285deg,color-mix(in srgb,var(--b) 58%,#000) 0%,color-mix(in srgb,var(--b) 20%,transparent) 38%,transparent 52%),#0b0d12;
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 40px 100px -30px rgba(0,0,0,.8)}
+.hero::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(115deg,rgba(255,255,255,.025) 0 2px,transparent 2px 14px);mask-image:linear-gradient(90deg,#000,transparent 60%)}
+.hero::after{opacity:.05;background-size:420px;background-position:right -80px center}
+.hero h1{font:800 clamp(44px,5.6vw,76px)/.88 var(--disp);letter-spacing:.005em;margin:16px 0 18px}
+.hero .kicker{color:#fff}
+.hero p{color:rgba(255,255,255,.75)}
+.hero-board{background:rgba(5,6,9,.55);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:26px 28px;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 20px 50px -20px rgba(0,0,0,.8)}
+.hb-team{font:800 20px var(--disp);letter-spacing:.06em}
+.hb-score{font:800 88px/.9 var(--disp);letter-spacing:-.01em}
+.hb-score.vs i{font:800 34px var(--disp);letter-spacing:.12em;color:rgba(255,255,255,.45)}
+
+/* game cards */
+.gc{background:var(--glass),var(--card2);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.gc::before{width:4px}
+.gc:hover{background:var(--glass),#1b2030;border-color:var(--line2);transform:translateY(-2px);box-shadow:0 18px 40px -20px rgba(0,0,0,.8)}
+.gc-name b{font:800 21px/1 var(--disp);letter-spacing:.03em}
+.gc-score{font:800 36px/1 var(--disp)}
+.gc-team:not(.won) .gc-score{color:var(--muted)}
+.gc-foot{border-top:1px solid var(--line)}
+
+/* standings & lists */
+.stand-n b{font:800 19px/1.05 var(--disp);letter-spacing:.03em}
+.rec{font:800 26px var(--disp)}
+.rank{font:800 18px var(--disp)}
+.leader-n{font:800 34px var(--disp)}
+
+/* game page: full-bleed scoreboard */
+.gh{position:relative;overflow:hidden;padding:44px 0 50px;border-bottom:1px solid var(--line);
+  background:linear-gradient(100deg,color-mix(in srgb,var(--a) 62%,#000) 0%,color-mix(in srgb,var(--a) 18%,transparent) 34%,transparent 50%,color-mix(in srgb,var(--b) 18%,transparent) 66%,color-mix(in srgb,var(--b) 62%,#000) 100%),#0a0c10}
+.gh::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(115deg,rgba(255,255,255,.025) 0 2px,transparent 2px 14px)}
+.gh::after{content:'';position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(transparent,var(--bg));pointer-events:none}
+.gh .wrap{position:relative;z-index:1}
+.gh-meta{font-size:13px;color:rgba(255,255,255,.75)}
+.gh-team b{font:800 clamp(30px,4vw,52px)/.9 var(--disp);letter-spacing:.03em}
+.gh-team small{color:rgba(255,255,255,.65)}
+.gh-team .logo{box-shadow:0 20px 50px -10px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.18)}
+.gh-score{font:800 clamp(84px,13vw,160px)/.85 var(--disp);gap:20px;letter-spacing:-.01em;text-shadow:0 10px 40px rgba(0,0,0,.45)}
+.gh-score i{color:rgba(255,255,255,.35);font-size:.4em}
+.gh-score.vs i{font:800 44px var(--disp);letter-spacing:.14em;color:rgba(255,255,255,.55)}
+.recap-body p{font-size:17px;line-height:1.7;color:#d6d9e0;margin:0}
+.mvp{background:linear-gradient(160deg,color-mix(in srgb,var(--a) 35%,transparent),rgba(255,255,255,.02));border:1px solid color-mix(in srgb,var(--a) 50%,transparent)}
+.plays li{border-top:1px solid var(--line)}
+.plays p{font-size:15px}
+
+/* team & player heroes */
+.th-hero,.pp-hero{padding:64px 0;border-bottom:1px solid var(--line)}
+.th-hero::before,.pp-hero::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(115deg,rgba(255,255,255,.022) 0 2px,transparent 2px 14px);mask-image:linear-gradient(90deg,#000,transparent 70%)}
+.th-hero::after,.pp-hero::after{content:'';position:absolute;left:0;right:0;bottom:0;height:100px;background:linear-gradient(transparent,var(--bg));pointer-events:none}
+.th-hero .wrap,.pp-hero .wrap{position:relative;z-index:1}
+.th-hero h1{font:800 clamp(64px,9vw,128px)/.82 var(--disp);letter-spacing:.005em;margin:12px 0 22px}
+.pp-info h1{font:800 clamp(52px,7.4vw,104px)/.84 var(--disp);letter-spacing:.005em;word-spacing:0}
+.th-stats div{background:rgba(5,6,9,.5);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 18px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.th-stats b{font:800 30px/1 var(--disp)}
+.th-stats small{font:600 10.5px Inter;letter-spacing:.12em;color:rgba(255,255,255,.6);margin-top:3px}
+.pp-num{font:800 38px/1 var(--disp);border-radius:14px}
+.pl,.mate{border-radius:14px}
+.pl{background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.pl:hover{background:rgba(255,255,255,.06);border-color:var(--line2)}
+.pl b{font:700 14.5px Inter}
+
+/* tables */
+.tbl{font-size:14px}
+.tbl th{font:700 10.5px Inter;letter-spacing:.12em;padding:12px 10px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:var(--card)}
+.tbl td{padding:13px 10px}
+.tbl tbody tr{transition:background .15s}
+.tbl tbody tr:hover{background:rgba(255,255,255,.035)}
+.rt{font-family:var(--disp)!important;font-weight:800!important;font-size:18px!important}
+
+/* footer */
+.ftr{margin-top:90px;padding:48px 0 56px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.02));border-top:1px solid var(--line)}
+.ftr-brand b{font:800 22px var(--disp);letter-spacing:.04em;text-transform:uppercase}
+.ftr-links{gap:10px 22px;max-width:640px}
+.ftr-links a{color:var(--muted)}
+.ftr-links a:hover{color:var(--ink)}
+
+/* motion */
+main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
+.gh-score,.th-hero h1,.pp-info h1,.ph h1,.hero h1{animation:rise .6s var(--ease) both}
+@media(prefers-reduced-motion:reduce){.gh-score,.th-hero h1,.pp-info h1,.ph h1,.hero h1{animation:none}}
+
+@media(max-width:760px){
+  .ph{padding:40px 0 24px}
+  .ph h1{font-size:clamp(48px,14vw,64px)}
+  .hero{padding:26px;border-radius:22px}
+  .hero h1{font-size:clamp(42px,12vw,56px)}
+  .hb-score{font-size:64px}
+  .gh{padding:30px 0 40px}
+  .gh-score{font-size:clamp(68px,20vw,96px);gap:10px}
+  .gh-team b{font-size:26px}
+  .th-hero,.pp-hero{padding:40px 0}
+  .th-hero h1{font-size:clamp(56px,16vw,80px)}
+  .pp-info h1{font-size:clamp(48px,14vw,68px)}
+  .card{padding:18px;border-radius:18px}
+  .tk{width:132px;padding:9px 12px}
+}
+.tk{width:160px}
+.tk-top{white-space:nowrap;gap:8px}
+.tk-top>span:first-child{overflow:hidden;text-overflow:ellipsis}
+.dd.on>button{box-shadow:none;position:relative}
+.dd.on>button::after{content:'';position:absolute;left:50%;bottom:-11px;width:18px;height:3px;margin-left:-9px;border-radius:3px 3px 0 0;background:var(--red)}
+.kicker:has(.ic)::before{display:none}
+@media(prefers-reduced-motion:reduce){main .card,main .hero,main .gc{animation:none}}
