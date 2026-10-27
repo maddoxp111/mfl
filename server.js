@@ -148,6 +148,7 @@ const STATS = {
   SACK: { key: 'sack', label: 'Sack', short: 'Sacks', tag: 'sack', who: 'Who got the sack?', by: 'QB sacked (optional)', side: 'other', verb: 'sacks', from: '' },
   PBU: { key: 'pbu', label: 'Pass breakup', short: 'PBUs', tag: 'pbu', who: 'Who broke it up?', by: 'Thrown by (optional)', side: 'other', verb: 'breaks up a pass', from: 'from' },
   FLAG: { key: 'flag', label: 'Flag pull', short: 'Flag pulls', tag: 'flag', who: 'Who pulled the flag?', by: null, verb: 'pulls a flag' },
+  PLAY: { key: 'big', label: 'Notable play', short: 'Big plays', tag: 'play', who: 'Who made the play?', by: null, verb: 'makes a notable play' },
 };
 const EV_TYPES = ['TD', 'INT', ...Object.keys(STATS)];
 const otherTeam = (g, id) => (g.home === id ? g.away : g.home);
@@ -158,6 +159,7 @@ function playLine(db, g, e) {
   let txt;
   if (e.type === 'TD') txt = e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown';
   else if (e.type === 'INT') txt = e.passer ? ` picks off <b>${playerLink(opp, e.passer)}</b>` : ' picks it off';
+  else if (e.type === 'PLAY' && e.note) return `${who} <span class="play-what">${esc(e.note)}</span>`;
   else {
     const st = STATS[e.type];
     const by = e.passer ? (st.side === 'same' ? tm : opp) : null;
@@ -302,7 +304,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=27">
+<link rel="stylesheet" href="/static/style.css?v=29">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -680,7 +682,7 @@ function playerStats(db, tm, p) {
       row.team = e.team;
       if ((e.player || '').toLowerCase() === name) {
         row[e.type === 'TD' ? 'td' : e.type === 'INT' ? 'int' : STATS[e.type].key]++;
-        if (e.type === 'CATCH' || (e.note && e.type !== 'FLAG')) s.highlights.push({ g, e });
+        if (e.type === 'CATCH' || e.type === 'PLAY' || (e.note && e.type !== 'FLAG')) s.highlights.push({ g, e });
       }
       if (e.type === 'TD' && (e.passer || '').toLowerCase() === name) row.ptd++;
     }
@@ -2011,10 +2013,17 @@ app.get('/admin', requireAdmin, (req, res) => {
   const all = req.query.show === 'all';
   let games = [...db.games].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
   if (!all) games = games.filter((g) => !g.date || (g.date >= addDays(t, -14) && g.date <= addDays(t, 14)));
-  res.send(layout(req, 'Admin', pageHead('Admin', 'Manage Games') + `<div class="wrap">${adminNav('/admin')}${savedMsg(req)}
+  // The game to enter next: today's, else the most recent one still missing a result, else the next one.
+  const sorted = [...db.games].filter((g) => g.date).sort((a, b) => a.date.localeCompare(b.date));
+  const focus = sorted.find((g) => g.date === t && g.status !== 'postponed') || [...sorted].reverse().find((g) => g.date < t && g.status === 'scheduled') || sorted.find((g) => g.date > t && g.status === 'scheduled');
+  const fa = focus && db.teams[focus.home], fb = focus && db.teams[focus.away];
+  const focusCard = focus ? `<a class="card admin-focus" href="/admin/game/${focus.id}" style="--a:${esc(fa.color)};--b:${esc(fb.color)}">
+      <div><span class="kicker">${focus.date === t ? 'Today' : focus.date < t ? 'Needs a result' : 'Up next'}</span><b>${logo(fa, 34)} ${esc(fa.name)} <i>vs</i> ${esc(fb.name)} ${logo(fb, 34)}</b><small>${esc(longDate(focus.date))} · ${time12(focus.time)}${gameLabel(db, focus) ? ' · ' + esc(gameLabel(db, focus)) : ''}</small></div>
+      <span class="btn">${isFinal(focus) ? 'Edit box score' : 'Enter result'} ${icon('arrow')}</span></a>` : '';
+  res.send(layout(req, 'Admin', pageHead('Admin', 'Manage Games') + `<div class="wrap">${adminNav('/admin')}${savedMsg(req)}${focusCard}
     <p class="muted">${all ? '<a href="/admin">Show only ±2 weeks</a>' : 'Showing games within 2 weeks of today · <a href="/admin?show=all">Show all</a>'}</p>
     <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">Date</th><th class="l">Matchup</th><th>Type</th><th>Status</th><th>Score</th><th></th></tr></thead><tbody>
-    ${games.map((g) => `<tr class="${g.date === t ? 'today' : ''}"><td class="l">${esc(shortDate(g.date))}</td><td class="l">${esc(db.teams[g.home].abbr)} vs ${esc(db.teams[g.away].abbr)}</td><td>${esc(gameLabel(db, g) || 'Regular')}</td><td>${statusBadge(g)}</td><td>${isFinal(g) ? `${g.homeScore}–${g.awayScore}` : ''}</td><td class="r"><a class="btn sm" href="/admin/game/${g.id}">Edit</a></td></tr>`).join('')}
+    ${games.map((g) => `<tr class="${g.date === t ? 'today' : ''}" onclick="if(!event.target.closest('a'))this.querySelector('a').click()"><td class="l">${esc(shortDate(g.date))}</td><td class="l">${esc(db.teams[g.home].abbr)} vs ${esc(db.teams[g.away].abbr)}</td><td>${esc(gameLabel(db, g) || 'Regular')}</td><td>${statusBadge(g)}</td><td>${isFinal(g) ? `${g.homeScore}–${g.awayScore}` : ''}</td><td class="r"><a class="btn sm ${!isFinal(g) && g.status !== 'postponed' && g.date && g.date <= t ? 'go' : ''}" href="/admin/game/${g.id}">${isFinal(g) ? 'Edit' : g.date && g.date <= t && g.status !== 'postponed' ? 'Enter result' : 'Edit'}</a></td></tr>`).join('')}
     </tbody></table></div></div>
     <div class="card"><div class="card-h"><h2>Backup</h2></div>
       <p class="muted sm">One file with all league data, Pick'em accounts and photos. Restoring replaces everything with the file's contents.</p>
@@ -2073,6 +2082,12 @@ function rosterSelect(tm, name, cur, placeholder) {
     ${[...names, ...extra].map((n) => `<option value="${esc(n)}" ${cur && n.toLowerCase() === cur.toLowerCase() ? 'selected' : ''}>${esc(n)}${extra.includes(n) ? ' (not on roster)' : ''}</option>`).join('')}
   </select>`;
 }
+// Short names and hints for the play builder.
+const PLAY_TYPES = [
+  ['TD', 'Touchdown', 'td', 'Who scored?'],
+  ['INT', 'Interception', 'int', 'Who intercepted it?'],
+  ...Object.entries(STATS).map(([k, st]) => [k, st.label, st.tag, st.who]),
+];
 function gameForm(db, g, isNew) {
   const teams = Object.values(db.teams);
   const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
@@ -2081,25 +2096,40 @@ function gameForm(db, g, isNew) {
   const evRow = (e) => {
     const tm = db.teams[e.team] || t1, opp = tm.id === t1.id ? t2 : t1;
     const type = EV_TYPES.includes(e.type) ? e.type : 'TD', st = STATS[type];
-    const tag = type === 'TD' ? ['td', 'TD'] : type === 'INT' ? ['int', 'INT'] : [st.tag, st.label];
-    const second = type === 'TD' ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (no pass / unknown)')
-      : type === 'INT' ? rosterSelect(opp, 'ev_passer', e.passer, 'Thrown by (who got picked off?)')
-      : st.by ? rosterSelect(st.side === 'same' ? tm : opp, 'ev_passer', e.passer, st.by) : '<input type="hidden" name="ev_passer" value=""><span></span>';
-    return `<div class="ev" style="--c:${esc(tm.color)}">
+    const tag = type === 'TD' ? ['td', 'Touchdown'] : type === 'INT' ? ['int', 'Interception'] : [st.tag, st.label];
+    const second = type === 'TD' ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (or a run)')
+      : type === 'INT' ? rosterSelect(opp, 'ev_passer', e.passer, 'Thrown by (who got picked?)')
+      : st.by ? rosterSelect(st.side === 'same' ? tm : opp, 'ev_passer', e.passer, st.by) : '<input type="hidden" name="ev_passer" value="">';
+    const ph = type === 'PLAY' ? 'What happened? e.g. blocked the ball at the line' : type === 'CATCH' ? 'What happened? e.g. one-handed in traffic' : 'Note (optional), e.g. tipped by Pedon';
+    return `<div class="ev ev-${tag[0]}" style="--c:${esc(tm.color)}">
       <input type="hidden" name="ev_type" value="${type}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
-      <div class="ev-who">${logo(tm, 30)}<span class="tag ${tag[0]}">${tag[1]}</span></div>
-      ${rosterSelect(tm, 'ev_player', e.player, type === 'TD' ? 'Who scored?' : type === 'INT' ? 'Who intercepted?' : st.who)}
-      ${second}
-      <input name="ev_note" class="ev-note" placeholder="${type === 'CATCH' ? 'What happened? e.g. one-handed in traffic' : 'Note, e.g. tipped by Pedon'}" value="${esc(e.note)}">
-      <button type="button" class="ev-x" onclick="this.parentElement.remove();mflEmpty()" aria-label="Remove play">✕</button>
+      <div class="ev-who"><span class="ev-n"></span>${logo(tm, 28)}<span class="tag ${tag[0]}">${tag[1]}</span></div>
+      <div class="ev-fields">
+        ${rosterSelect(tm, 'ev_player', e.player, type === 'TD' ? 'Who scored?' : type === 'INT' ? 'Who intercepted?' : st.who)}
+        ${second}
+        <input name="ev_note" class="ev-note" placeholder="${ph}" value="${esc(e.note)}">
+      </div>
+      <div class="ev-act">
+        <button type="button" onclick="mflMove(this,-1)" aria-label="Move up" title="Move up">↑</button>
+        <button type="button" onclick="mflMove(this,1)" aria-label="Move down" title="Move down">↓</button>
+        <button type="button" class="ev-x" onclick="mflRemove(this)" aria-label="Remove play" title="Remove">✕</button>
+      </div>
     </div>`;
   };
   const tpl = teams.flatMap((t) => EV_TYPES.map((type) => `<template id="tpl-${t.id}-${type}">${evRow({ team: t.id, type })}</template>`)).join('');
-  const addBtns = teams.map((t) => `<div class="add-team">${logo(t, 22)}<b>${esc(t.name)}</b><button type="button" class="chip td" onclick="mflAdd('${t.id}','TD')">+ Touchdown</button><button type="button" class="chip int" onclick="mflAdd('${t.id}','INT')">+ Interception</button>${Object.entries(STATS).map(([k, st]) => `<button type="button" class="chip ${st.tag}" onclick="mflAdd('${t.id}','${k}')">+ ${st.label}</button>`).join('')}</div>`).join('');
   const statusPills = [['scheduled', 'Scheduled'], ['live', 'Live'], ['final', 'Final'], ['postponed', 'Postponed']]
     .map(([v, n]) => `<label class="pill-r"><input type="radio" name="status" value="${v}" ${g.status === v ? 'checked' : ''}><span>${n}</span></label>`).join('');
-  return `<form method="post" class="form ge">
-    ${teams.map((t) => `<datalist id="pl-${t.id}">${t.roster.map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`).join('')}
+  // The play builder: pick a team, pick the play, tap the player.
+  const builder = `<div class="pb" id="pb">
+    <div class="pb-step"><span>1</span>Team</div>
+    <div class="pb-teams">${[t1, t2].map((t, i) => `<button type="button" class="pb-team ${i ? '' : 'on'}" data-team="${t.id}" style="--c:${esc(t.color)}">${logo(t, 30)}<b>${esc(t.name)}</b></button>`).join('')}</div>
+    <div class="pb-step"><span>2</span>Play</div>
+    <div class="pb-types">${PLAY_TYPES.map(([k, n, cls, hint], i) => `<button type="button" class="pb-type ${cls} ${i ? '' : 'on'}" data-type="${k}" data-hint="${esc(hint)}">${esc(n)}</button>`).join('')}</div>
+    <div class="pb-step"><span>3</span><em id="pbHint">Who scored?</em> <small class="muted">Tap a player to add the play</small></div>
+    ${[t1, t2].map((t, i) => `<div class="pb-roster" data-team="${t.id}" ${i ? 'hidden' : ''}>${t.roster.map((p) => `<button type="button" class="pb-p" data-name="${esc(p.name)}">${avatar(t, p, 34)}<span>${esc(p.name)}</span></button>`).join('')}<button type="button" class="pb-p pb-unk" data-name=""><span class="av" style="background:var(--card2)">?</span><span>Unknown</span></button></div>`).join('')}
+  </div>`;
+  const evs = g.events || [];
+  return `<form method="post" class="form ge" id="gameForm">
     <input type="hidden" name="home" value="${esc(t1.id)}"><input type="hidden" name="away" value="${esc(t2.id)}">
 
     <section class="card">
@@ -2110,24 +2140,26 @@ function gameForm(db, g, isNew) {
         <span class="sb-vs">VS</span>
         <label class="sb-team">${logo(t2, 64)}<b>${esc(t2.name)}</b><input type="number" min="0" inputmode="numeric" name="awayScore" value="${esc(g.awayScore ?? '')}" placeholder="–"></label>
       </div>
+      <div class="tdsum" id="tdSum" hidden><span></span><button type="button" class="btn sm ghost" onclick="mflUseScore()">Use this score</button></div>
       <p class="muted sm center">Set the status to <b>Final</b> and enter both scores to post the result.</p>
     </section>
 
     <section class="card">
-      <div class="card-h"><h2>Box Score</h2><span class="muted sm">Touchdowns, interceptions, catches &amp; more · leave out anything you don't know · notes count (e.g. "tipped by Pedon")</span></div>
-      <div id="evs">${(g.events || []).map(evRow).join('')}</div>
-      <p id="evEmpty" class="empty" ${(g.events || []).length ? 'hidden' : ''}>No plays added yet. Use the buttons below to add touchdowns, interceptions and other stats.</p>
-      <div class="adds">${addBtns}</div>
+      <div class="card-h"><h2>Box Score</h2><span class="muted sm" id="evCount">${evs.length} play${evs.length === 1 ? '' : 's'}</span></div>
+      ${builder}
+      <div id="evs">${evs.map(evRow).join('')}</div>
+      <p id="evEmpty" class="empty" ${evs.length ? 'hidden' : ''}>No plays yet. Pick a team and a play above, then tap the player.</p>
       ${tpl}
     </section>
 
     <section class="card">
-      <div class="card-h"><h2>Coach's notes</h2><span class="muted sm">Private · the AI reads these for the recap, MVP, power rankings and ratings</span></div>
+      <div class="card-h"><h2>Coach's notes</h2><span class="muted sm">Private · the AI reads these</span></div>
       <textarea name="notes" rows="4" maxlength="2000" placeholder="How did people play? e.g. dom blocked terribly, pedon pressured the ball well, chuck threw the ball in cover well">${esc(g.notes || '')}</textarea>
+      <p class="muted sm">Used for the recap, MVP, power rankings and ratings. Never shown on the site.</p>
     </section>
 
-    <section class="card">
-      <div class="card-h"><h2>Game Details</h2></div>
+    <details class="card details" ${isNew ? 'open' : ''}>
+      <summary><h2>Game details</h2><span class="muted sm">${esc(longDate(g.date))} · ${time12(g.time || '12:35')} · ${esc(gameLabel(db, g) || 'Regular season')}</span>${icon('chev')}</summary>
       <div class="fgrid">
         <label>Date<input type="date" name="date" value="${esc(g.date || '')}"></label>
         <label>Time<input type="time" name="time" value="${esc(g.time || '12:35')}"></label>
@@ -2135,16 +2167,51 @@ function gameForm(db, g, isNew) {
         <label id="bowlF" ${g.type === 'playoff' ? '' : 'hidden'}>Bowl<select name="bowl"><option value="">—</option>${db.bowls.map((b) => opt(b.slug, g.bowl, b.name)).join('')}</select></label>
         <label class="wide">Reason <small class="muted">(shown for postponed or exhibition games)</small><input name="reason" value="${esc(g.reason)}" placeholder="e.g. Rain, assembly, scrimmage"></label>
       </div>
-    </section>
+    </details>
 
     <div class="savebar">
-      ${isNew ? '<a class="btn ghost" href="/admin">Cancel</a>' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game for good?')">Delete game</button>`}
+      ${isNew ? '<a class="btn ghost" href="/admin">Cancel</a>' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game for good?')">Delete</button>`}
+      <span class="savebar-msg" id="dirty"></span>
       <button class="btn">${isNew ? 'Create game' : 'Save changes'}</button>
     </div>
   </form>
   <script>
-  function mflEmpty(){document.getElementById('evEmpty').hidden=!!document.querySelector('#evs .ev');}
-  function mflAdd(t,type){const tp=document.getElementById('tpl-'+t+'-'+type);document.getElementById('evs').insertAdjacentHTML('beforeend',tp.innerHTML);mflEmpty();const rows=document.querySelectorAll('#evs .ev');rows[rows.length-1].querySelector('[name=ev_player]').focus();}
+  (()=>{
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const form=$('#gameForm'),evs=$('#evs');
+  let team=$('.pb-team.on').dataset.team,type=$('.pb-type.on').dataset.type,dirty=false;
+  const mark=()=>{dirty=true;$('#dirty').textContent='Unsaved changes';};
+  const refresh=()=>{
+    const rows=$$('.ev',evs);$('#evEmpty').hidden=rows.length>0;
+    $('#evCount').textContent=rows.length+' play'+(rows.length===1?'':'s');
+    // Touchdowns are worth 7: offer the score the plays add up to.
+    const td={};rows.forEach(r=>{if($('[name=ev_type]',r).value==='TD'){const t=$('[name=ev_team]',r).value;td[t]=(td[t]||0)+7;}});
+    const h=td['${t1.id}']||0,a=td['${t2.id}']||0,box=$('#tdSum');
+    const cur=[form.homeScore.value,form.awayScore.value].join('-');
+    box.hidden=!(h||a)||cur===h+'-'+a;
+    box.dataset.h=h;box.dataset.a=a;$('span',box).textContent='Touchdowns add up to ${esc(t1.abbr)} '+h+' – ${esc(t2.abbr)} '+a;
+  };
+  window.mflUseScore=()=>{const b=$('#tdSum');form.homeScore.value=b.dataset.h;form.awayScore.value=b.dataset.a;const f=$('input[name=status][value=final]');if(f)f.checked=true;mark();refresh();};
+  window.mflRemove=(btn)=>{btn.closest('.ev').remove();mark();refresh();};
+  window.mflMove=(btn,d)=>{const r=btn.closest('.ev'),o=d<0?r.previousElementSibling:r.nextElementSibling;if(!o)return;d<0?o.before(r):o.after(r);mark();};
+  const add=(name)=>{
+    evs.insertAdjacentHTML('beforeend',$('#tpl-'+team+'-'+type).innerHTML);
+    const row=evs.lastElementChild,sel=$('[name=ev_player]',row);
+    sel.value=name;sel.classList.toggle('empty',!name);
+    row.classList.add('fresh');setTimeout(()=>row.classList.remove('fresh'),900);
+    const next=$('select[name=ev_passer]',row)||(type==='PLAY'||type==='CATCH'?$('.ev-note',row):null);
+    if(next)next.focus({preventScroll:true});
+    row.scrollIntoView({block:'nearest',behavior:'smooth'});
+    mark();refresh();
+  };
+  $$('.pb-team').forEach(b=>b.onclick=()=>{team=b.dataset.team;$$('.pb-team').forEach(x=>x.classList.toggle('on',x===b));$$('.pb-roster').forEach(r=>r.hidden=r.dataset.team!==team);});
+  $$('.pb-type').forEach(b=>b.onclick=()=>{type=b.dataset.type;$$('.pb-type').forEach(x=>x.classList.toggle('on',x===b));$('#pbHint').textContent=b.dataset.hint;});
+  $$('.pb-p').forEach(b=>b.onclick=()=>add(b.dataset.name));
+  form.addEventListener('input',()=>{mark();refresh();});
+  form.addEventListener('submit',()=>{dirty=false;});
+  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+  refresh();
+  })();
   </script>`;
 }
 

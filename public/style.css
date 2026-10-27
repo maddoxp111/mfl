@@ -360,11 +360,7 @@ a.plink:hover{color:var(--red2)}
 .form .sb-team input{width:120px;text-align:center;font:900 48px/1 var(--disp);padding:12px 8px;border-radius:14px}
 .sb-team input::-webkit-inner-spin-button{display:none}
 .sb-vs{font:900 20px var(--disp);color:var(--muted);letter-spacing:.1em}
-.ev{display:grid;grid-template-columns:auto 1fr 1fr 140px auto;gap:8px;align-items:center;padding:10px;margin-bottom:8px;background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:12px}
-.ev-who{display:flex;align-items:center;gap:8px;min-width:90px}
 .form .ev input{min-width:0;padding:9px 11px}
-.ev-x{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;width:34px;height:34px;border-radius:8px}
-.ev-x:hover{background:var(--card2);color:var(--red2)}
 .empty{color:var(--muted);text-align:center;padding:22px;border:1px dashed var(--line2);border-radius:12px;margin:0 0 12px}
 .adds{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .add-team{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -376,14 +372,8 @@ a.plink:hover{color:var(--red2)}
 .savebar .btn:last-child{margin-left:auto;padding:12px 28px}
 [hidden]{display:none!important}
 @media(max-width:760px){
-  .ev{grid-template-columns:auto 1fr auto}
-  .ev input[name=ev_player]{grid-column:2/4}
-  .ev input[name=ev_passer],.ev .ev-note{grid-column:1/-1}
-  .ev .ev-x{grid-row:1;grid-column:3}
-  .ev input[name=ev_player]{grid-row:2;grid-column:1/-1}
   .sb{padding:14px;gap:8px}.form .sb-team input{width:84px;font-size:38px}
 }
-@media(max-width:760px){.ev-gap{display:none}}
 
 /* photo cropper */
 .photo-edit{align-items:flex-start}
@@ -848,7 +838,6 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .form .ev select{min-width:0;padding:9px 11px}
 .form .ev-sel.empty{color:var(--muted)}
 .form .ev-sel option{color:var(--ink)}
-@media(max-width:760px){.ev select[name=ev_player]{grid-row:2;grid-column:1/-1}.ev select[name=ev_passer]{grid-column:1/-1}}
 .bpts{display:inline-flex;align-items:center;gap:3px;font-weight:800;color:#c4b5fd;font-variant-numeric:tabular-nums}
 .bpts .ic{width:13px;height:13px}
 .stats-row.six{grid-template-columns:repeat(7,1fr)}
@@ -1106,3 +1095,78 @@ main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
 .dd.on>button::after{content:'';position:absolute;left:50%;bottom:-11px;width:18px;height:3px;margin-left:-9px;border-radius:3px 3px 0 0;background:var(--red)}
 .kicker:has(.ic)::before{display:none}
 @media(prefers-reduced-motion:reduce){main .card,main .hero,main .gc{animation:none}}
+
+/* ===== notable plays + box score builder ===== */
+.tag.play{background:rgba(236,72,153,.16);color:#f9a8d4}
+.play-what{color:var(--ink)}
+.play-what::before{content:'— ';color:var(--muted)}
+.pb{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:18px}
+.pb-step{display:flex;align-items:center;gap:10px;font:700 11px Inter;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin:14px 0 10px}
+.pb-step:first-child{margin-top:0}
+.pb-step span{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--red);color:#fff;font:800 11px Inter;letter-spacing:0}
+.pb-step em{font-style:normal;color:var(--ink);letter-spacing:.1em}
+.pb-step small{letter-spacing:.02em;text-transform:none;font-weight:500}
+.pb-teams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pb-team{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--ink);cursor:pointer;transition:.15s;font:inherit}
+.pb-team b{font:800 22px/1 var(--disp);letter-spacing:.03em;text-transform:uppercase}
+.pb-team:hover{background:rgba(255,255,255,.06)}
+.pb-team.on{border-color:var(--c);background:linear-gradient(120deg,color-mix(in srgb,var(--c) 30%,transparent),rgba(255,255,255,.02));box-shadow:0 0 0 1px var(--c) inset}
+.pb-types{display:flex;flex-wrap:wrap;gap:8px}
+.pb-type{border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--ink2);font:600 13.5px Inter;padding:9px 14px;border-radius:999px;cursor:pointer;transition:.15s}
+.pb-type:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.pb-type.on{color:#0b0c10;border-color:transparent}
+.pb-type.on.td{background:#4ade80}.pb-type.on.int{background:#ff6b77}.pb-type.on.catch{background:#7dd3fc}.pb-type.on.sack{background:#fdba74}
+.pb-type.on.pbu{background:#d8b4fe}.pb-type.on.flag{background:#fde047}.pb-type.on.play{background:#f9a8d4}
+.pb-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.pb-p{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font:600 13.5px Inter;cursor:pointer;text-align:left;transition:.12s}
+.pb-p .av{margin:0;width:34px;height:34px}
+.pb-p:hover{border-color:var(--line2);background:#1d2230;transform:translateY(-1px)}
+.pb-p:active{transform:scale(.97)}
+.pb-unk{color:var(--muted)}
+#evs{counter-reset:play}
+.ev{display:grid;align-items:center;margin-bottom:8px;grid-template-columns:auto 1fr auto;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.025);border:1px solid var(--line);border-left:3px solid var(--c);transition:background .3s}
+.ev.fresh{background:rgba(74,222,128,.08)}
+.ev-who{min-width:112px;display:grid;grid-template-columns:auto auto;align-items:center;gap:6px 8px}
+.ev-who .tag{grid-column:1/-1}
+.ev-n::before{counter-increment:play;content:'#' counter(play);font:800 16px var(--disp);color:var(--muted)}
+.ev-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.ev-fields .ev-note{grid-column:1/-1}
+.ev-fields select,.ev-fields input{width:100%;min-width:0}
+.ev-fields:not(:has(select[name=ev_passer])) .ev-note{grid-column:2}
+.ev-act{display:flex;flex-direction:column;gap:4px}
+.ev-act button{width:32px;height:28px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink2);cursor:pointer;font:600 13px Inter}
+.ev-act button:hover{color:var(--ink);background:rgba(255,255,255,.08)}
+.ev-act .ev-x:hover{color:var(--red2)}
+.tdsum{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:14px 0 0;padding:10px 14px;border-radius:12px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);color:#bbf7d0;font:600 13.5px Inter}
+.details summary{list-style:none;display:flex;align-items:center;gap:14px;cursor:pointer;flex-wrap:wrap}
+.details summary::-webkit-details-marker{display:none}
+.details summary h2{font:700 12.5px/1 Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2);margin:0}
+.details summary .ic{margin-left:auto;transition:transform .2s}
+.details[open] summary{margin-bottom:18px}.details[open] summary .ic{transform:rotate(180deg)}
+.savebar{align-items:center}
+.savebar-msg{color:#fcd34d;font:600 13px Inter;margin-left:auto}
+.savebar-msg:empty{display:none}
+.savebar-msg+.btn{margin-left:12px!important}
+.admin-focus{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  background:linear-gradient(105deg,color-mix(in srgb,var(--a) 35%,transparent),transparent 45%,transparent 55%,color-mix(in srgb,var(--b) 35%,transparent)),var(--card)}
+.admin-focus b{display:flex;align-items:center;gap:12px;font:800 32px/1 var(--disp);text-transform:uppercase;letter-spacing:.02em;margin:10px 0 6px}
+.admin-focus b i{font-style:normal;color:var(--muted);font-size:20px}
+.admin-focus small{color:var(--ink2)}
+.admin-focus:hover{border-color:var(--line2)}
+@media(max-width:760px){
+  .pb{padding:12px}
+  .pb-team b{font-size:18px}
+  .pb-roster{grid-template-columns:1fr 1fr}
+  .ev{grid-template-columns:1fr auto;padding:10px}
+  .ev-who{grid-column:1;grid-template-columns:auto auto auto;min-width:0}
+  .ev-who .tag{grid-column:auto}
+  .ev-act{grid-row:1;grid-column:2;flex-direction:row}
+  .ev-fields{grid-column:1/-1;grid-template-columns:1fr}
+  .ev-fields .ev-note,.ev-fields:not(:has(select[name=ev_passer])) .ev-note{grid-column:1}
+  .admin-focus b{font-size:24px}
+}
+.pb-p span:last-child{text-transform:none;line-height:1.2}
+.tbl.admin .btn{background:rgba(255,255,255,.05);border:1px solid var(--line2);box-shadow:none;color:var(--ink)}
+.tbl.admin .btn:hover{background:rgba(255,255,255,.1)}
+.tbl.admin .btn.go{background:linear-gradient(180deg,#ff4655,#e8202f);border-color:transparent}
+.tbl.admin tbody tr{cursor:pointer}
