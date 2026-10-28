@@ -73,7 +73,7 @@ const PACKS = {
   draft: { name: 'Draft Class Pack', cards: 3, cost: 120, group: 'theme', pool: (c) => /^Rd/.test(c.p.tag || ''), desc: 'Only drafted players, any round.' },
   sleeper: { name: 'Sleeper Pack', cards: 4, cost: 110, group: 'theme', pool: (c) => c.p.tag === 'FA' || /Rd [3-9]/.test(c.p.tag || ''), desc: 'Free agents and late-round picks. Cheap, and sneaky good.' },
   elite: { name: 'Elite Pack', cards: 3, cost: 1500, group: 'chase', min: 'legendary', desc: '3 cards with a Legend or better guaranteed.' },
-  hunt: { name: 'Mythic Hunt', cards: 1, cost: 900, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the Mythic and Dark Matter odds.' },
+  hunt: { name: 'Mythic Hunt', cards: 1, cost: 900, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the usual Mythic and Dark Matter drop rate.' },
   void: { name: 'Dark Matter Pack', cards: 1, cost: 4000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 6, dark: 30 }, desc: 'One Legend or better. About a 1 in 3 shot at Dark Matter.' },
 };
 // One pack per team: only that team's cards.

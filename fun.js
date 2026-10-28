@@ -140,7 +140,7 @@ module.exports = function fun(app, h) {
     const has = (type, key) => packs.some((p) => p.type === type && (key == null || p.key === key));
     const out = [];
     if (!has('starter')) out.push({ type: 'starter', key: 'starter' });
-    for (const w of await prizeWeeks(db, name, user)) out.push({ type: 'prize', key: w, note: `Picker of the Week prize · week of ${h.shortDate(w)}` });
+    for (const w of await prizeWeeks(db, name, user)) out.push({ type: 'prize', key: w, note: `Picker of the Week reward · week of ${h.shortDate(w)}` });
     const n = uniqueCount(user);
     for (const step of cards.COLLECTOR_STEPS) if (n >= step && !has('milestone', 'c' + step)) out.push({ type: 'milestone', key: 'c' + step, note: `Collected ${step} different cards` });
     if (!packs.some((p) => p.type === 'daily' && p.local?.slice(0, 10) === day)) out.push({ type: 'daily', key: day });
@@ -206,7 +206,7 @@ module.exports = function fun(app, h) {
       const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
       res.send(layout(req, 'Packs', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}${flash(req)}
         ${groups}
-        <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Odds & rarities</h2></div><ul class="how">
+        <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v, i, a) => !v.id.startsWith('spec-') || v.id === 'spec-td').map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>

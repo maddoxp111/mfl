@@ -132,6 +132,8 @@ function spreadLine(margin) {
   return l % 1 === 0 ? l + 0.5 : l;
 }
 const fmtLine = (v) => (v > 0 ? '+' + v : String(v));
+// Plain-English margin pick: -13.5 -> "win by 14+", +13.5 -> "within 13".
+const marginLabel = (name, line) => (line < 0 ? `${name} win by ${Math.ceil(-line)}+` : `${name} within ${Math.floor(line)}`);
 
 const cache = new Map();
 function markets(db, g) {
@@ -176,8 +178,8 @@ function markets(db, g) {
   const line = SPREAD;
   const fav = margin >= 0 ? A : B, dog = fav === A ? B : A;
   const [fm, fo] = side(fav);
-  add('Spread', `spr:${fav.id}:${-line}`, `${fav.name} ${fmtLine(-line)}`, P((s) => s[fm] - s[fo] > line), { team: fav.id, family: 'win', line: -line });
-  add('Spread', `spr:${dog.id}:${line}`, `${dog.name} ${fmtLine(line)}`, P((s) => s[fm] - s[fo] < line), { team: dog.id, family: 'win', line });
+  add('Margin', `spr:${fav.id}:${-line}`, marginLabel(fav.name, -line), P((s) => s[fm] - s[fo] > line), { team: fav.id, family: 'win', line: -line });
+  add('Margin', `spr:${dog.id}:${line}`, marginLabel(dog.name, line), P((s) => s[fm] - s[fo] < line), { team: dog.id, family: 'win', line });
 
   for (const t of [A, B]) {
     const [me] = side(t);
@@ -369,10 +371,9 @@ function checkPin(user, pin) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.hash, 'hex'));
 }
 
-// American odds, the way pick sites show them.
-function american(dec) {
-  if (dec >= 2) return '+' + Math.round((dec - 1) * 100);
-  return '-' + Math.round(100 / (dec - 1));
+// Rewards are shown as a multiplier of the coins played: 2.45 -> "2.45×".
+function mult(dec) {
+  return (dec >= 10 ? String(Math.round(dec)) : String(Math.round(dec * 100) / 100)) + '×';
 }
 
-module.exports = { isOut, SPREAD, tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
+module.exports = { isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };

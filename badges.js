@@ -47,8 +47,8 @@ function playerBadges(db, t, p, mvpOf) {
 
 const USER_BADGES = [
   ['firstwin', '✅', 'First Win', 'Won a pick'],
-  ['upset', '🐶', 'Called the Upset', 'Won a "to win" pick on the underdog (+150 or longer)'],
-  ['longshot', '🚀', 'Long Shot', 'Won a pick at +1000 or longer'],
+  ['upset', '🐶', 'Called the Upset', 'Won a "wins" pick on the underdog (2.5× reward or bigger)'],
+  ['longshot', '🚀', 'Long Shot', 'Won a pick with an 11× reward or bigger'],
   ['comboking', '🧩', 'Combo King', 'Won a 4+ pick combo'],
   ['hot', '🔥', 'Hot Streak', '5 winning picks in a row'],
   ['botw', '⭐', 'Picker of the Week', 'Best profit of a week'],

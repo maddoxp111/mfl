@@ -337,7 +337,7 @@ function layout(req, title, body, opts = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · MFL</title>
 <meta name="theme-color" content="#0a0a0d">
-<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a free just-for-fun picks game for the Thomas Metcalf School flag football league. No real money.">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
@@ -477,7 +477,7 @@ app.get('/', async (req, res, next) => {
           <div class="card"><div class="card-h"><h2>Up Next</h2><a href="/schedule">Full schedule ${icon('arrow')}</a></div><div class="list">${upcoming.slice(0, 4).map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
           <div class="card"><div class="card-h"><h2>Latest Results</h2><a href="/scores">All scores ${icon('arrow')}</a></div><div class="list">${recent.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games played yet.</p>'}</div></div>
         </div>
-        <div class="col">${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Pick'em Champion of the Week · ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
+        <div class="col">${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Pick'em Champion of the Week · ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">${signed(lastW.profit)}</span></a>` : ''}
           ${mw ? `<a class="card mw-promo" href="/midweek"><small>${icon('cal')} The Midweek Recap · ${esc(shortDate(mw.date))}</small><b>${esc(mw.headline)}</b><span>${esc(mw.intro.slice(0, 140))}${mw.intro.length > 140 ? '…' : ''}</span></a>` : ''}
           <a class="card promo cards-promo" href="/pickem/cards"><div>${icon('trophy')}</div><div><b>MFL Cards</b><span>Open packs, collect rare cards and play your Starting 8 for coins.</span></div>${icon('arrow')}</a>
           <a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Pick every game with fake coins, with combos and player picks.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
@@ -596,7 +596,7 @@ function preview(db, g) {
     ${line('Streak', sA.streak || '–', sB.streak || '–')}
     ${line('TD leader', ldr(a), ldr(b))}
     <p class="pv-note">${last ? `Last meeting: <a href="/games/${last.id}">${esc(db.teams[winner(last) || last.home].name)} ${winner(last) ? 'won' : 'tied'} ${Math.max(last.homeScore, last.awayScore)}–${Math.min(last.homeScore, last.awayScore)}</a> on ${esc(shortDate(last.date))}.` : 'First meeting of the season.'}
-      ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%. The spread is <b>${esc(db.teams[m.fav].name)} -${m.line}</b>.` : ''}</p>
+      ${m ? ` Pick'em gives the ${esc(a.name)} a ${wp(a)}% chance and the ${esc(b.name)} ${wp(b)}%. To beat the margin pick, the ${esc(db.teams[m.fav].name)} need to win by ${Math.ceil(m.line)} or more.` : ''}</p>
     ${open ? `<a class="btn" href="/pickem">${icon('coin')} Make your picks: ${m.list.length} picks</a>` : ''}
   </div>`;
 }
@@ -824,12 +824,16 @@ function setAdminCookie(req, res) {
   res.append('Set-Cookie', `mfl_admin=${exp}.${sign(exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
 }
 const userKey = (name) => 'users/' + name;
+// Gains and losses as arrows ("+243" reads like a betting line).
+const signed = (n) => `${n >= 0 ? '▲' : '▼'} ${Math.abs(n).toLocaleString('en-US')}`;
 const coins = (n) => `<span class="coins">${icon('coin')}${Number(n).toLocaleString('en-US')}</span>`;
-const oddsTxt = (d) => pk.american(d);
+const oddsTxt = (d) => pk.mult(d);
+// Picks a "combo" button adds to the slip (the slip calls the reward multiplier m).
+const legsAttr = (legs) => esc(JSON.stringify(legs.map((l) => ({ game: l.game, key: l.key, label: l.label, m: l.odds, match: l.match }))));
 function matchName(db, g) { return `${db.teams[g.home].abbr} vs ${db.teams[g.away].abbr}`; }
 
 function oddsBtn(db, g, m, cls = '') {
-  return `<button type="button" class="ob ${cls}" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-odds="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${esc(m.label)}</span><b>${oddsTxt(m.odds)}</b></button>`;
+  return `<button type="button" class="ob ${cls}" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-m="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${esc(m.label)}</span><b>${oddsTxt(m.odds)}</b></button>`;
 }
 function openGames(db) {
   const g = pk.nextGame(db, TZ);
@@ -842,8 +846,8 @@ function slip(user) {
     <button class="slip-head" type="button" onclick="document.getElementById('slip').classList.toggle('min')"><b>Pick slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span></button>
     <div class="slip-body">
       <div id="slipLegs"></div>
-      <label class="slip-stake">Pick<input type="number" id="slipStake" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
-      <div class="slip-sum"><span>Odds <b id="slipOdds">–</b></span><span>To win <b id="slipWin">–</b></span></div>
+      <label class="slip-amt">Coins<input type="number" id="slipAmt" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
+      <div class="slip-sum"><span>Reward <b id="slipMult">–</b></span><span>You'd get <b id="slipWin">–</b></span></div>
       ${user ? '<button class="btn slip-go" id="slipGo" type="button">Lock it in</button>' : '<a class="btn slip-go" href="/pickem/login?next=/pickem">Log in to play</a>'}
       <p class="slip-msg" id="slipMsg"></p>
       <button type="button" class="slip-clear" onclick="mflSlip.clear()">Clear slip</button>
@@ -852,9 +856,9 @@ function slip(user) {
   <script>
   const mflSlip = (() => {
     const KEY = 'mfl_slip';
-    let legs = []; try { legs = JSON.parse(localStorage.getItem(KEY)) || []; } catch {}
+    let legs = []; try { legs = (JSON.parse(localStorage.getItem(KEY)) || []).map((l) => ({ ...l, m: l.m || l['od' + 'ds'] })); } catch {}
     const el = (id) => document.getElementById(id);
-    const amer = (d) => d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
+    const mx = (d) => (d >= 10 ? Math.round(d) : Math.round(d * 100) / 100) + '×';
     const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
     function render() {
       document.querySelectorAll('.ob').forEach((b) => b.classList.toggle('on', legs.some((l) => l.game === b.dataset.game && l.key === b.dataset.key)));
@@ -862,10 +866,10 @@ function slip(user) {
       el('slip').hidden = !legs.length;
       el('slipCount').textContent = legs.length;
       el('slipKind').textContent = legs.length > 1 ? legs.length + '-pick combo' : 'Single';
-      el('slipLegs').innerHTML = legs.map((l, i) => '<div class="sl"><div><small>' + l.match + '</small><b>' + l.label + '</b></div><span>' + amer(l.odds) + '</span><button type="button" onclick="mflSlip.remove(' + i + ')" aria-label="Remove">✕</button></div>').join('');
-      const odds = legs.reduce((x, l) => x * l.odds, 1), stake = Math.floor(+el('slipStake').value || 0);
-      el('slipOdds').textContent = legs.length ? amer(odds) : '–';
-      el('slipWin').textContent = legs.length && stake ? Math.floor(stake * odds).toLocaleString() : '–';
+      el('slipLegs').innerHTML = legs.map((l, i) => '<div class="sl"><div><small>' + l.match + '</small><b>' + l.label + '</b></div><span>' + mx(l.m) + '</span><button type="button" onclick="mflSlip.remove(' + i + ')" aria-label="Remove">✕</button></div>').join('');
+      const m = legs.reduce((x, l) => x * l.m, 1), amt = Math.floor(+el('slipAmt').value || 0);
+      el('slipMult').textContent = legs.length ? mx(m) : '–';
+      el('slipWin').textContent = legs.length && amt ? Math.floor(amt * m).toLocaleString() : '–';
     }
     document.addEventListener('click', (e) => {
       // Ready-made combos: add every pick (or take them all back out if already in the slip).
@@ -883,20 +887,20 @@ function slip(user) {
       const i = legs.findIndex((l) => l.game === b.dataset.game && l.key === b.dataset.key);
       if (i >= 0) legs.splice(i, 1);
       else if (legs.length >= ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'Max ${pk.MAX_LEGS} picks per combo.'; }
-      else legs.push({ game: b.dataset.game, key: b.dataset.key, label: b.dataset.label, odds: +b.dataset.odds, match: b.dataset.match });
+      else legs.push({ game: b.dataset.game, key: b.dataset.key, label: b.dataset.label, m: +b.dataset.m, match: b.dataset.match });
       el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
     });
-    el('slipStake').addEventListener('input', render);
+    el('slipAmt').addEventListener('input', render);
     const go = el('slipGo');
     if (go) go.addEventListener('click', async () => {
       go.disabled = true; el('slipMsg').textContent = 'Locking in…'; el('slipMsg').className = 'slip-msg';
       try {
-        const r = await fetch('/pickem/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: legs.map((l) => ({ game: l.game, key: l.key })), stake: +el('slipStake').value }) });
+        const r = await fetch('/pickem/play', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: legs.map((l) => ({ game: l.game, key: l.key })), amount: +el('slipAmt').value }) });
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         legs = []; store(); render();
         el('slip').hidden = false; el('slipMsg').className = 'slip-msg good';
-        el('slipMsg').innerHTML = 'Locked in! To win ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a>';
+        el('slipMsg').innerHTML = 'Locked in! You could get ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a>';
         document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
       } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
       go.disabled = false;
@@ -947,9 +951,9 @@ function pickNav(cur, name) {
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
-    <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Make picks with fake coins on every MFL game. Singles, player picks and combos.</p></div>
+    <div><div class="kicker">${icon('coin')} Prediction game · MFL coins</div><h1>Pick'em</h1><p>Predict what happens in every MFL game with MFL coins: winners, player picks and combos.</p></div>
     ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open </span></div>`
-      : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
+      : `<div class="wallet cta"><b>Start with ${pk.START_COINS.toLocaleString()} coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }
 function betCard(db, b, opts = {}) {
@@ -957,10 +961,10 @@ function betCard(db, b, opts = {}) {
   return `<div class="tkt ${b.status}">
     <div class="tkt-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="tkt-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
-      const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
+      const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
       return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    <div class="tkt-f"><span>Played ${coins(b.stake)} · ${oddsTxt(b.odds)} reward</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -973,7 +977,7 @@ async function leaderboard(db) {
 // Compact odds button for player cards: short text on the button, full label in the slip.
 function propBtn(db, g, m, short) {
   if (!m) return `<span class="pb off"><span>${short}</span><b>–</b></span>`;
-  return `<button type="button" class="ob pb" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-odds="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${short}</span><b>${oddsTxt(m.odds)}</b></button>`;
+  return `<button type="button" class="ob pb" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-m="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${short}</span><b>${oddsTxt(m.odds)}</b></button>`;
 }
 const lockTs = (g) => kickoffTs({ ...g, time: pk.lockTime(g) });
 
@@ -1010,7 +1014,7 @@ function featured(db, g, m) {
   }
   const leg = (key) => (k[key] ? { game: g.id, key, label: k[key].label, odds: k[key].odds, match: matchName(db, g) } : null);
   const opp = (t) => db.teams[t.id === g.home ? g.away : g.home];
-  const spr = (t) => m.list.find((x) => x.group === 'Spread' && x.team === t.id);
+  const spr = (t) => m.list.find((x) => x.group === 'Margin' && x.team === t.id);
 
   // Star cards show bets that fit the player's role: QBs get throwing bets, defenders
   // get INT bets, everyone else gets scoring bets. Each role has a fixed headline bet
@@ -1074,7 +1078,7 @@ function featured(db, g, m) {
       const n = first(s.p.name);
       add(`${n} ${verb(s)}, ${t.name} win`, 'Statement', [key(s), `ml:${t.id}`]);
       add(`${n} ${R[s.role2].bigVerb}${s.role2 === 'def' ? `, ${t.name} win` : ` & ${t.name} 21+`}`, 'Big game', [key(s, 'big'), s.role2 === 'def' ? `ml:${t.id}` : `tt:${t.id}:21`]);
-      if (spr(t)) add(`${n} ${verb(s)} & ${t.name} cover ${pk.fmtLine(spr(t).line)}`, 'Spread', [key(s), spr(t).key]);
+      if (spr(t)) add(`${n} ${verb(s)} & ${pk.marginLabel(t.name, spr(t).line)}`, 'Margin', [key(s), spr(t).key]);
       for (const x of byTeam(o)) add(`${n} ${verb(s)}, ${first(x.p.name)} answers back`, 'Rivalry', [key(s), key(x)]);
     }
   }
@@ -1096,7 +1100,7 @@ function featuredHtml(db, g, m) {
   const { cards, combos } = featured(db, g, m);
   if (!cards.length) return '';
   const roleIcon = { Captain: 'C', 'Team Rep': 'TR', Hot: '🔥' };
-  const comboBtn = (legs, inner, cls) => `<button type="button" class="combo ${cls}" data-legs="${esc(JSON.stringify(legs))}">${inner}</button>`;
+  const comboBtn = (legs, inner, cls) => `<button type="button" class="combo ${cls}" data-legs="${legsAttr(legs)}">${inner}</button>`;
   return `<section class="feat">
     <div class="feat-h"><div><span class="kicker">${icon('star')} Featured</span><h2>Star Spotlight</h2></div><small>Captains, team reps and the hottest players. Featured picks change every game.</small></div>
     <div class="spot">${cards.map((c) => `<article class="star" style="--c:${esc(c.t.color)}">
@@ -1110,7 +1114,7 @@ function featuredHtml(db, g, m) {
     <div class="tickets">${combos.map((c) => comboBtn(c.legs, `<div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
       <b class="tk-title">${esc(c.title)}</b>
       <ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
-      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div>`, 'ticket')).join('')}</div>
+      <div class="tk-foot"><span class="tk-mult">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div>`, 'ticket')).join('')}</div>
   </section>`;
 }
 
@@ -1136,7 +1140,7 @@ function playerParlays(db, g, m, t, p) {
   // Teammates/opponents most likely to come through at their own role's bet.
   const best = (tm, skip = []) => tm.roster.filter((x) => !skip.includes(x.id) && x.id !== p.id).map((x) => ({ x, pr: k[key(tm, x)]?.p || 0 })).sort((a, b) => b.pr - a.pr).slice(0, 3).map((o) => o.x);
   const mates = best(t), rivals = best(opp);
-  const spr = m.list.find((x) => x.group === 'Spread' && x.team === t.id);
+  const spr = m.list.find((x) => x.group === 'Margin' && x.team === t.id);
   const out = [];
   const add = (title, tag, keys) => {
     const legs = keys.map(leg);
@@ -1145,7 +1149,7 @@ function playerParlays(db, g, m, t, p) {
     if (odds >= 2 && odds <= 120) out.push({ title, tag, legs, odds });
   };
   add(`${n} ${verb(t, p)}, ${t.name} win`, 'Statement', [key(t, p), `ml:${t.id}`]);
-  if (spr) add(`${n} ${verb(t, p)} & ${t.name} cover ${pk.fmtLine(spr.line)}`, 'Spread', [key(t, p), spr.key]);
+  if (spr) add(`${n} ${verb(t, p)} & ${pk.marginLabel(t.name, spr.line)}`, 'Margin', [key(t, p), spr.key]);
   add(`${n} ${ROLE_KEYS[me].bigVerb}${me === 'def' ? `, ${t.name} win` : ` & ${t.name} 21+`}`, 'Big game', [key(t, p, 'big'), me === 'def' ? `ml:${t.id}` : `tt:${t.id}:21`]);
   if (me === 'skill') add(`${n} scores the first TD & ${t.name} win`, 'Statement', [`pfirst:${t.id}:${p.id}`, `ml:${t.id}`]);
   if (me === 'qb') add(`${n} does it all: throws & runs one in, ${t.name} win`, 'MVP', [`pdual:${t.id}:${p.id}`, `ml:${t.id}`]);
@@ -1201,12 +1205,12 @@ app.get('/picks/:team/:pid', async (req, res, next) => {
     const bestKeys = [rk.main, rk.big];
     const rest = mine.filter((x) => !bestKeys.some((b) => x.key.startsWith(b + ':'))).sort((a, b) => b.p - a.p)[0];
     const best = [...bestKeys.map((b) => k[`${b}:${t.id}:${p.id}`]), rest].filter(Boolean);
-    const bestCard = (x, i) => `<button type="button" class="ob bb" data-game="${g.id}" data-key="${esc(x.key)}" data-label="${esc(x.label)}" data-odds="${x.odds}" data-match="${esc(matchName(db, g))}">
+    const bestCard = (x, i) => `<button type="button" class="ob bb" data-game="${g.id}" data-key="${esc(x.key)}" data-label="${esc(x.label)}" data-m="${x.odds}" data-match="${esc(matchName(db, g))}">
       <small>${['Top pick', 'Big game', 'Sleeper pick'][i] || 'Pick'}</small><span>${esc(x.label.replace(p.name + ' ', ''))}</span><b>${oddsTxt(x.odds)}</b><em>${Math.round(x.p * 100)}% chance</em></button>`;
     const parlays = playerParlays(db, g, m, t, p);
-    const ticket = (c) => `<button type="button" class="combo ticket" data-legs="${esc(JSON.stringify(c.legs))}"><div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
+    const ticket = (c) => `<button type="button" class="combo ticket" data-legs="${legsAttr(c.legs)}"><div class="tk-head"><span class="tk-tag">${esc(c.tag)}</span><span class="tk-n">${c.legs.length} picks</span></div>
       <b class="tk-title">${esc(c.title)}</b><ul>${c.legs.map((l) => `<li>${esc(l.label)}<span>${oddsTxt(l.odds)}</span></li>`).join('')}</ul>
-      <div class="tk-foot"><span class="tk-odds">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div></button>`;
+      <div class="tk-foot"><span class="tk-mult">${oddsTxt(c.odds)}</span><span class="tk-add">Add combo</span></div></button>`;
     res.send(layout(req, `Picks for ${p.name}`, hero + `<div class="wrap">
       <div class="bf-game"><span>${logo(A, 26)} ${esc(A.name)} vs ${esc(B.name)} ${logo(B, 26)}</span><span>${esc(longDate(g.date))} · picks lock at ${time12(pk.lockTime(g))}</span>${countdown({ ...g, time: pk.lockTime(g) })}</div>
       <h2 class="sec-h">${icon('star')} Top picks</h2>
@@ -1251,7 +1255,7 @@ app.get('/pickem', async (req, res, next) => {
       ${dailyCard(user)}
       ${user && acct.pending ? `<div class="card"><div class="card-h"><h2>Your open picks</h2><a href="/pickem/me">All ${icon('arrow')}</a></div>${acct.bets.filter((b) => b.status === 'pending').slice(-3).reverse().map((b) => betCard(db, b, { owner: name })).join('')}</div>` : ''}
       <div class="card"><div class="card-h"><h2>Leaderboard</h2><a href="/pickem/leaderboard">Full ${icon('arrow')}</a></div>${board.length ? `<ol class="lb">${board.map((u, i) => `<li class="${u.name === name ? 'me' : ''}"><span class="rank">${i + 1}</span><a href="/pickem/u/${esc(u.name)}"><b>@${esc(u.name)}</b></a><small>${u.won}W-${u.lost}L</small>${coins(u.balance)}</li>`).join('')}</ol>` : '<p class="muted">Nobody yet. Be first!</p>'}</div>
-      <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>. No real money, ever.</li><li>Only the <b>next game</b> is open. Picks lock at <b>12:31</b>, and the next game opens right then.</li><li>Tap odds to add them to your slip. Two or more picks make a <b>combo</b>.</li><li>No unders or "player does badly" picks, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>`;
+      <div class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how"><li>Everyone starts with <b>${pk.START_COINS.toLocaleString()} coins</b>.</li><li>Only the <b>next game</b> is open. Picks lock at <b>12:31</b>, and the next game opens right then.</li><li>Tap a pick to add it to your slip. Two or more picks make a <b>combo</b>.</li><li>No unders or "player does badly" picks, so nobody can win by throwing a game.</li></ul><a href="/pickem/rules">Full rules ${icon('arrow')}</a></div>`;
 
     if (!g) {
       return res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
@@ -1261,7 +1265,7 @@ app.get('/pickem', async (req, res, next) => {
     const m = pk.markets(db, g), k = m.byKey;
     const A = db.teams[g.home], B = db.teams[g.away];
     const wp = (t) => Math.round((k[`ml:${t.id}`]?.p || 0) * 100);
-    const sprOf = (t) => m.list.find((x) => x.group === 'Spread' && x.team === t.id);
+    const sprOf = (t) => m.list.find((x) => x.group === 'Margin' && x.team === t.id);
     // Players with the best shot at a TD first.
     const tdP = (t, p) => k[`ptd:${t.id}:${p.id}`]?.p || 0;
     const playerCard = (t, p) => `<div class="pc" style="--c:${esc(t.color)}">
@@ -1271,15 +1275,15 @@ app.get('/pickem', async (req, res, next) => {
     const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
     const groups = {};
     for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
-    const gameBets = ['Spread', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} picks</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
+    const gameBets = ['Margin', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} picks</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
 
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
         <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><span class="ng-when">${esc(longDate(g.date))} · ${time12(g.time)} · <a href="/games/${g.id}">Preview</a></span></div>
         <div class="ng-match">
-          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% to win</small><div class="ng-picks">${propBtn(db, g, k[`ml:${A.id}`], 'To win')}${propBtn(db, g, sprOf(A), 'Spread ' + (sprOf(A) ? pk.fmtLine(sprOf(A).line) : ''))}</div></div>
+          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% chance</small><div class="ng-picks">${propBtn(db, g, k[`ml:${A.id}`], 'Wins')}${propBtn(db, g, sprOf(A), sprOf(A) ? pk.marginLabel('', sprOf(A).line).trim().replace(/^win by/, 'Wins by').replace(/^within/, 'Within') : 'Margin')}</div></div>
           <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div><small>at ${time12(pk.lockTime(g))}</small></div>
-          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% to win</small><div class="ng-picks">${propBtn(db, g, k[`ml:${B.id}`], 'To win')}${propBtn(db, g, sprOf(B), 'Spread ' + (sprOf(B) ? pk.fmtLine(sprOf(B).line) : ''))}</div></div>
+          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% chance</small><div class="ng-picks">${propBtn(db, g, k[`ml:${B.id}`], 'Wins')}${propBtn(db, g, sprOf(B), sprOf(B) ? pk.marginLabel('', sprOf(B).line).trim().replace(/^win by/, 'Wins by').replace(/^within/, 'Within') : 'Margin')}</div></div>
         </div>
         <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
       </section>
@@ -1310,7 +1314,7 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
   try {
     const user = await getDoc(userKey(name), { fresh: true });
     if (!user) return res.json({ ok: false, error: 'Account not found. Log in again.' });
-    const built = pk.buildBet(db, req.body.picks, req.body.stake, TZ);
+    const built = pk.buildBet(db, req.body.picks, req.body.amount ?? req.body.stake, TZ);
     if (built.error) return res.json({ ok: false, error: built.error });
     const bal = accountOf(db, user, await survivorNow(db)).balance;
     if (built.bet.stake > bal) return res.json({ ok: false, error: `You only have ${bal.toLocaleString('en-US')} coins.` });
@@ -1366,16 +1370,16 @@ app.get('/pickem/leaderboard', async (req, res, next) => {
     const who = (n) => `<a href="/pickem/u/${esc(n)}"><b>@${esc(n)}</b></a>${winners.some((w) => w.name === n) ? ` <span class="star-b" title="Picker of the Week">${icon('star')}${winners.filter((w) => w.name === n).length}</span>` : ''}`;
     const table = weekly
       ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>W</th><th>L</th></tr></thead><tbody>
-        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
+        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${signed(u.profit)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
       : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
-        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
+        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${signed(u.profit)}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
     res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
-      ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Picker of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
+      ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Picker of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">${signed(lastW.profit)}</span></a>` : ''}
       <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>${weekly ? `This week <small class="muted">from ${esc(shortDate(wk))}</small>` : 'Season standings'}</h2>
         <div class="seg mini"><a class="${weekly ? 'on' : ''}" href="/pickem/leaderboard">This week</a><a class="${weekly ? '' : 'on'}" href="/pickem/leaderboard?view=season">Season</a></div></div>
         <div class="scroll">${table}</div>${weekly ? '<p class="muted sm">Weeks run Monday to Sunday. The top profit each week is crowned Picker of the Week.</p>' : ''}</div></div>
         <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Biggest wins</h2></div>${recent.map((b) => betCard(db, b, { who: b.who, owner: b.who })).join('') || '<p class="muted">No winning picks yet.</p>'}</div>
-        ${winners.length ? `<div class="card"><div class="card-h"><h2>Past winners</h2></div><ol class="lb">${[...winners].reverse().map((w) => `<li><b>${esc(shortDate(w.week))}</b><small><a href="/pickem/u/${esc(w.name)}">@${esc(w.name)}</a></small><span class="up">+${w.profit.toLocaleString('en-US')}</span></li>`).join('')}</ol></div>` : ''}</div>
+        ${winners.length ? `<div class="card"><div class="card-h"><h2>Past winners</h2></div><ol class="lb">${[...winners].reverse().map((w) => `<li><b>${esc(shortDate(w.week))}</b><small><a href="/pickem/u/${esc(w.name)}">@${esc(w.name)}</a></small><span class="up">${signed(w.profit)}</span></li>`).join('')}</ol></div>` : ''}</div>
       </div></div>${shareScript}`));
   } catch (e) { next(e); }
 });
@@ -1389,13 +1393,13 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h2>How Pick'em works</h2>
       <p><b>It's free and just for fun.</b> MFL Coins are fake. They can't be bought, sold or traded for anything.</p>
       <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open picks, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My picks</a>.</p>
-      <h3>Placing picks</h3><p>Tap any odds button to add it to your pick slip, choose how much to pick and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to hit, but the odds multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
-      <h3>Reading odds</h3><p><b>+150</b> means a 100 coin pick wins 150 more. <b>−200</b> means you pick 200 to win 100. Odds come from each team's and player's real stats and update as the season goes.</p>
-      <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Picks pay out as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
-      <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
-      <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the pick if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
+      <h3>Making picks</h3><p>Tap any pick to add it to your pick slip, choose how many coins to play and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to be right, but the rewards multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
+      <h3>Rewards</h3><p>Every pick shows a reward like <b>2.5×</b>: play 100 coins and you get 250 back if you're right. Unlikely picks have bigger rewards. They come from each team's and player's real stats and update as the season goes.</p>
+      <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Rewards come in as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
+      <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody gains anything by playing badly on purpose.</p>
+      <h3>Margin picks</h3><p>The favorite's margin pick is <b>win by 14 or more</b>. The other team's is <b>within 13</b>: right if they win, or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
-      <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and pay on the rest. Results update by themselves.</p>
+      <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and count the rest. Results update by themselves.</p>
       <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Starting 8 earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra cards sell for coins. Spend them on picks or card packs.</p>
       <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with coins. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
@@ -2232,7 +2236,7 @@ function dailyCard(user) {
   if (!user) return '';
   const d = dailyInfo(user);
   if (d.claimed) return `<div class="card daily done">${icon('coin')}<div><b>Daily bonus claimed</b><span>Come back tomorrow${d.streak + 1 > 1 ? ` to keep your ${d.streak + 1}-day streak` : ''}.</span></div></div>`;
-  return `<form method="post" action="/pickem/daily" class="card daily">${icon('coin')}<div><b>Daily bonus: +${d.amount} coins</b><span>${d.streak ? `${d.streak}-day streak! ` : ''}Log in every day for up to +${DAILY_BASE + 50}.</span></div><button class="btn">Claim</button></form>`;
+  return `<form method="post" action="/pickem/daily" class="card daily">${icon('coin')}<div><b>Daily bonus: ${d.amount} coins</b><span>${d.streak ? `${d.streak}-day streak! ` : ''}Log in every day for up to ${DAILY_BASE + 50}.</span></div><button class="btn">Claim</button></form>`;
 }
 app.post('/pickem/daily', async (req, res) => {
   const name = currentUser(req);
@@ -2280,7 +2284,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
-      <div class="stats-row six">${tile('Starting 8', coins(acct.points.fantasy))}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <div class="stats-row six">${tile('Starting 8', coins(acct.points.fantasy))}${tile('Profit', signed(acct.profit), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
       ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
         ${req.query.pw === 'ok' ? '<p class="toast">Password changed ✓</p>' : req.query.pw ? `<p class="err">${esc(req.query.pw)}</p>` : ''}
         <form method="post" action="/pickem/password" class="form pw-form">
@@ -2318,7 +2322,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
     res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'combo' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-tkt">
       <div class="kicker">${icon('coin')} Shared pick</div><h1>@${esc(uname)}'s ${bet.legs.length > 1 ? `${bet.legs.length}-pick combo` : 'pick'}</h1>
       ${betCard(db, bet, { owner: uname })}
-      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${esc(JSON.stringify(legs))}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
+      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${legsAttr(legs)}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
       <p><a href="/pickem/u/${esc(uname)}">See @${esc(uname)}'s profile →</a></p>
     </div>${canTail ? slip(viewer) : ''}${shareScript}`));
   } catch (e) { next(e); }
@@ -2500,7 +2504,7 @@ function gameForm(db, g, isNew) {
 
     <section class="card">
       <div class="card-h"><h2>Did not play</h2><span class="muted sm" id="outCount"></span></div>
-      <p class="muted sm">Tap anyone who was out. Every pick on them is cancelled: singles are refunded, and combos drop that pick and pay on the rest.</p>
+      <p class="muted sm">Tap anyone who was out. Every pick on them is cancelled: singles are refunded, and combos drop that pick and count the rest.</p>
       ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}</span></label>`).join('')}</div></div>`).join('')}
     </section>
 
@@ -2954,7 +2958,7 @@ app.post('/admin/pickem/reprice-spreads', requireAdmin, async (req, res) => {
         const side = Math.sign(Number(line)) * pk.SPREAD;
         const now = pk.markets(db, g).byKey[`spr:${team}:${side}`];
         if (!now || (l.key === now.key && l.odds === now.odds)) continue;
-        changed.push(`@${user.name}: ${l.label} ${pk.american(l.odds)} → ${now.label} ${pk.american(now.odds)}`);
+        changed.push(`@${user.name}: ${l.label} ${pk.mult(l.odds)} → ${now.label} ${pk.mult(now.odds)}`);
         Object.assign(l, { key: now.key, label: now.label, odds: now.odds });
         betTouched = true;
       }
@@ -3050,6 +3054,15 @@ require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, p
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
 
+// AI text written before the no-betting-words rule: clean it once on startup.
+function degambleAI(db) {
+  const before = JSON.stringify([db.games, db.midweek, db.teamRecaps, db.teams]);
+  for (const g of db.games) for (const k of ['aiRecap', 'aiPreview']) if (g[k]) g[k] = ai.degamble(g[k]);
+  if (db.midweek) db.midweek = ai.degamble(db.midweek);
+  if (db.teamRecaps) db.teamRecaps = ai.degamble(db.teamRecaps);
+  for (const t of Object.values(db.teams)) for (const p of t.roster) if (p.aiScout) p.aiScout = ai.degamble(p.aiScout);
+  return before !== JSON.stringify([db.games, db.midweek, db.teamRecaps, db.teams]);
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3065,7 +3078,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { if (shrinkLogos(db)) await save(); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db); if (a || b) await save(); }).catch((e) => console.error(e));
   app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.

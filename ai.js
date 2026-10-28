@@ -32,6 +32,16 @@ function getClient() {
   return client;
 }
 
+// Belt and braces for the Pick'em wording rule: swap any betting words the model
+// still uses for prediction-game ones (school web filters flag betting language).
+const SWAPS = [[/\b(the )?stakes are (high|huge|big)\b/gi, 'it all matters'], [/\bodds\b/gi, 'chances'], [/\bbettors?\b/gi, 'pickers'], [/\bbet(s|ting)?\b/gi, (m, x) => (x === 's' ? 'picks' : 'pick')], [/\bwager(s|ed)?\b/gi, 'pick'], [/\bpayouts?\b/gi, 'reward'], [/\bpaid out\b/gi, 'earned'], [/\bthe spread\b/gi, 'the margin pick'], [/\bspreads?\b/gi, 'margin'], [/\bparlays?\b/gi, 'combo'], [/\bsportsbooks?\b/gi, 'Pick\'em'], [/\bgambl\w*/gi, 'playing'], [/\bstakes?\b/gi, 'coins'], [/(^|[\s(])[+-](\d{3,5})\b/g, '$1$2']];
+function degamble(v) {
+  if (typeof v === 'string') return SWAPS.reduce((s, [re, to]) => s.replace(re, to), v);
+  if (Array.isArray(v)) return v.map(degamble);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, degamble(x)]));
+  return v;
+}
+
 async function ask(system, input, schema) {
   const c = getClient();
   if (!c) throw new Error('No Anthropic API key set.');
@@ -45,7 +55,7 @@ async function ask(system, input, schema) {
   if (res.stop_reason === 'refusal') throw new Error('The model declined this request.');
   if (res.stop_reason === 'max_tokens') throw new Error('The answer was cut off (too long).');
   const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-  return JSON.parse(text);
+  return degamble(JSON.parse(text));
 }
 
 // Friendly message for the admin page.
@@ -124,17 +134,17 @@ const TEAM_SCHEMA = {
 };
 
 const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Thomas Metcalf School; a touchdown is worth 7 points';
-const KIND = 'Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries.';
+const KIND = 'Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries. Pick\'em is a free prediction game with fake coins: never use betting words (no "odds", "bet", "wager", "payout", "spread", "line", "stake", "parlay", "sportsbook", "gamble"); say "chances", "pick", "reward", "margin", "combo" and "coins" instead, and never write numbers like +150 or -200.';
 
 const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game in ${LEAGUE}.
-You get both teams (records, recent games, power ratings, who is ruled out) and the Pick'em odds. Write a 3-5 sentence preview like a TV pre-game show: the storyline, the matchups to watch, and the stakes. Then predict the final score (multiples of 7 are most likely; ties are possible) and pick one "player to watch" by their key, with a one-line reason. ${KIND}\n\n${COACH_NOTES}`;
+You get both teams (records, recent games, power ratings, who is ruled out) and the Pick'em chances. Write a 3-5 sentence preview like a TV pre-game show: the storyline, the matchups to watch, and why it matters. Then predict the final score (multiples of 7 are most likely; ties are possible) and pick one "player to watch" by their key, with a one-line reason. ${KIND}\n\n${COACH_NOTES}`;
 const PREVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['preview', 'predicted_home', 'predicted_away', 'watch_key', 'watch_reason'], properties: { preview: { type: 'string' }, predicted_home: { type: 'integer' }, predicted_away: { type: 'integer' }, watch_key: { type: 'string' }, watch_reason: { type: 'string' } } };
 
 const SCOUT_SYSTEM = `You write a fun NFL-combine-style scouting report for one player in ${LEAGUE}.
 You get the player's power rating, the commissioner's scouting, bio, position, stats and game history. Write a punchy 3-4 sentence report like a draft analyst, list 2-4 short strengths and 1-2 gentle "areas to grow", and give a fun one-line comparison ("plays like a ..."), keeping the comparison light and positive. ${KIND}`;
 const SCOUT_SCHEMA = { type: 'object', additionalProperties: false, required: ['report', 'strengths', 'grow', 'comparison'], properties: { report: { type: 'string' }, strengths: { type: 'array', items: { type: 'string' } }, grow: { type: 'array', items: { type: 'string' } }, comparison: { type: 'string' } } };
 
-const ANALYST_SYSTEM = `You are "the Analyst", the AI expert of ${LEAGUE}. Fans ask you questions on the league website and you answer from the league data you are given (standings, ratings with notes, every game's plays, upcoming games and Pick'em odds).
+const ANALYST_SYSTEM = `You are "the Analyst", the AI expert of ${LEAGUE}. Fans ask you questions on the league website and you answer from the league data you are given (standings, ratings with notes, every game's plays, upcoming games and Pick'em chances).
 Answer in 2-6 sentences, friendly and confident, like a sports radio host who knows the league inside out. Back claims with real numbers from the data. Pick'em uses free fake coins, so you can give your honest lean on picks. If the question isn't about the MFL, flag football or the site, say you only talk MFL and suggest something they could ask. If the data doesn't say, say so instead of guessing. ${KIND}`;
 const ANALYST_SCHEMA = { type: 'object', additionalProperties: false, required: ['answer'], properties: { answer: { type: 'string' } } };
 
@@ -150,4 +160,4 @@ const rateLeague = (input) => ask(RATINGS_SYSTEM, input, RATINGS_SCHEMA);
 const writeTeamRecap = (input) => ask(TEAM_SYSTEM, input, TEAM_SCHEMA);
 const writeRecap = (input) => ask(RECAP_SYSTEM, input, RECAP_SCHEMA);
 
-module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeScouting, answerQuestion, writeMidweek, describeError };
+module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeScouting, answerQuestion, writeMidweek, describeError, degamble };

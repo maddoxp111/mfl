@@ -488,8 +488,8 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .sl>span{font:800 15px var(--disp);color:#fcd34d}
 .sl button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:4px}
 .sl button:hover{color:var(--red2)}
-.slip-stake{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px;font:700 13px Inter;color:var(--ink2)}
-.slip-stake input{width:120px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);border-radius:10px;padding:9px 12px;font:800 18px var(--disp);text-align:right}
+.slip-amt{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px;font:700 13px Inter;color:var(--ink2)}
+.slip-amt input{width:120px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);border-radius:10px;padding:9px 12px;font:800 18px var(--disp);text-align:right}
 .slip-sum{display:flex;justify-content:space-between;color:var(--ink2);font-size:13px;margin-bottom:12px}
 .slip-sum b{color:var(--ink);font:800 16px var(--disp)}
 .slip-go{width:100%;justify-content:center;background:linear-gradient(90deg,#f5b301,#ffcf4a);color:#1a1200}
@@ -704,7 +704,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .star-combo span{font:700 12px Inter}.star-combo b{font:900 17px var(--disp);color:#fcd34d}
 .star-combo:hover{background:rgba(245,179,1,.2)}
 .combo.on{background:linear-gradient(135deg,#f5b301,#ffcf4a);border-color:#f5b301;color:#1a1200}
-.combo.on b,.combo.on .tk-odds,.combo.on li span{color:#1a1200!important}
+.combo.on b,.combo.on .tk-mult,.combo.on li span{color:#1a1200!important}
 .tickets{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .ticket{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;background:linear-gradient(180deg,#1d1d26,#16161d);border:1px solid var(--line2);
   -webkit-mask:radial-gradient(circle 9px at 0 62%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 62%,#0000 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 9px at 0 62%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 62%,#0000 98%,#000) right/51% 100% no-repeat}
@@ -717,7 +717,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--red2);outline-offse
 .ticket li{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink2)}
 .ticket li span{color:#fcd34d;font-weight:700}
 .tk-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:6px}
-.tk-odds{font:900 24px var(--disp);color:#fcd34d}
+.tk-mult{font:900 24px var(--disp);color:#fcd34d}
 .tk-add{font:700 12px Inter;padding:6px 12px;border-radius:999px;background:var(--ink);color:var(--bg)}
 .ticket.on .tk-add{background:#1a1200;color:#fcd34d}
 .ticket.on .tk-tag{background:rgba(0,0,0,.15);color:#1a1200}
