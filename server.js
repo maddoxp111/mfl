@@ -341,7 +341,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=34">
+<link rel="stylesheet" href="/static/style.css?v=35">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -841,8 +841,9 @@ function openGames(db) {
 
 // Pick slip: lives in the browser until submitted; the server re-prices every pick.
 function slip(user) {
-  return `<aside class="slip" id="slip" hidden>
-    <button class="slip-head" type="button" onclick="document.getElementById('slip').classList.toggle('min')"><b>Pick slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span></button>
+  return `<div class="slip-bg" id="slipBg" onclick="mflSlip.fold(true)"></div>
+  <aside class="slip min" id="slip" hidden>
+    <button class="slip-head" type="button" onclick="mflSlip.fold()"><b>Pick slip</b><span id="slipCount">0</span><span id="slipKind" class="muted"></span><span class="slip-q" id="slipQuick"></span>${icon('chev')}</button>
     <div class="slip-body">
       <div id="slipLegs"></div>
       <label class="slip-amt">Coins<input type="number" id="slipAmt" min="${pk.MIN_STAKE}" step="10" value="50" inputmode="numeric"></label>
@@ -859,6 +860,15 @@ function slip(user) {
     const el = (id) => document.getElementById(id);
     const mx = (d) => d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
     const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
+    // Phones: the slip is a bar at the bottom that opens into a sheet. Desktop: a panel.
+    const phone = () => matchMedia('(max-width: 760px)').matches;
+    function fold(min = !el('slip').classList.contains('min')) {
+      el('slip').classList.toggle('min', min);
+      el('slipBg').classList.toggle('on', !min && phone() && legs.length > 0);
+      document.body.classList.toggle('has-slip', legs.length > 0);
+    }
+    // Adding a pick: phones just bump the bar; desktop opens the panel.
+    function opened() { if (phone()) { el('slip').classList.remove('bump'); void el('slip').offsetWidth; el('slip').classList.add('bump'); } else fold(false); }
     function render() {
       document.querySelectorAll('.ob').forEach((b) => b.classList.toggle('on', legs.some((l) => l.game === b.dataset.game && l.key === b.dataset.key)));
       document.querySelectorAll('.combo').forEach((c) => c.classList.toggle('on', JSON.parse(c.dataset.legs).every((x) => legs.some((l) => l.game === x.game && l.key === x.key))));
@@ -869,6 +879,8 @@ function slip(user) {
       const m = legs.reduce((x, l) => x * l.m, 1), amt = Math.floor(+el('slipAmt').value || 0);
       el('slipMult').textContent = legs.length ? mx(m) : '–';
       el('slipWin').textContent = legs.length && amt ? Math.floor(amt * m).toLocaleString() : '–';
+      el('slipQuick').textContent = legs.length ? mx(m) : '';
+      fold(el('slip').classList.contains('min'));
     }
     document.addEventListener('click', (e) => {
       // Ready-made combos: add every pick (or take them all back out if already in the slip).
@@ -879,7 +891,7 @@ function slip(user) {
         if (cl.every(has)) legs = legs.filter((l) => !cl.some((x) => x.game === l.game && x.key === l.key));
         else if (legs.length + cl.filter((x) => !has(x)).length > ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'That would go over ${pk.MAX_LEGS} picks.'; el('slip').hidden = false; return; }
         else cl.filter((x) => !has(x)).forEach((x) => legs.push(x));
-        el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
+        el('slipMsg').textContent = ''; opened(); store(); render();
         return;
       }
       const b = e.target.closest('.ob'); if (!b) return;
@@ -887,7 +899,7 @@ function slip(user) {
       if (i >= 0) legs.splice(i, 1);
       else if (legs.length >= ${pk.MAX_LEGS}) { el('slipMsg').textContent = 'Max ${pk.MAX_LEGS} picks per combo.'; }
       else legs.push({ game: b.dataset.game, key: b.dataset.key, label: b.dataset.label, m: +b.dataset.m, match: b.dataset.match });
-      el('slipMsg').textContent = ''; el('slip').classList.remove('min'); store(); render();
+      el('slipMsg').textContent = ''; opened(); store(); render();
     });
     el('slipAmt').addEventListener('input', render);
     const go = el('slipGo');
@@ -898,14 +910,14 @@ function slip(user) {
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         legs = []; store(); render();
-        el('slip').hidden = false; el('slipMsg').className = 'slip-msg good';
+        el('slip').hidden = false; el('slip').classList.remove('min'); el('slipMsg').className = 'slip-msg good';
         el('slipMsg').innerHTML = 'Locked in! You could get ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a>';
         document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
       } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
       go.disabled = false;
     });
     render();
-    return { remove(i) { legs.splice(i, 1); store(); render(); }, clear() { legs = []; store(); render(); } };
+    return { remove(i) { legs.splice(i, 1); store(); render(); }, clear() { legs = []; store(); render(); }, fold };
   })();
   </script>`;
 }
@@ -1267,31 +1279,38 @@ app.get('/pickem', async (req, res, next) => {
     const sprOf = (t) => m.list.find((x) => x.group === 'Margin' && x.team === t.id);
     // Players with the best shot at a TD first.
     const tdP = (t, p) => k[`ptd:${t.id}:${p.id}`]?.p || 0;
-    const playerCard = (t, p) => `<div class="pc" style="--c:${esc(t.color)}">
-      <a class="pc-who" href="${playerUrl(t, p)}" target="_blank" rel="noopener">${avatar(t, p, 52)}<div><b>${esc(p.name)}</b><small>${esc([p.number && '#' + p.number, p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>
-      <div class="pc-picks">${[['ptd', 'TD'], ['p2td', '2+ TD'], ['p3td', '3+ TD'], ['pfirst', '1st TD'], ['ppass', 'TD pass'], ['p2pass', '2+ pass'], ['pdual', 'Score + throw'], ['pint', 'INT']].map(([mk, n]) => propBtn(db, g, k[`${mk}:${t.id}:${p.id}`], n)).join('')}</div>
-    </div>`;
-    const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p) => playerCard(t, p)).join('')}</div>`;
+    // One row per player: tap to open their picks (keeps the page short on phones).
+    const playerCard = (t, p, i) => { const td = k[`ptd:${t.id}:${p.id}`];
+      return `<details class="pc" style="--c:${esc(t.color)}" ${i < 1 ? 'open' : ''}>
+      <summary>${avatar(t, p, 40)}<div class="pc-name"><b>${esc(p.name)}</b><small>${esc([p.number && '#' + p.number, p.position, tagName(p.tag)].filter(Boolean).join(' · ') || t.name)}</small></div>${td ? `<span class="pc-td"><small>TD</small>${oddsTxt(td.odds)}</span>` : ''}${icon('chev')}</summary>
+      <div class="pc-picks">${[['ptd', 'Scores a TD'], ['p2td', '2+ TDs'], ['p3td', '3+ TDs'], ['pfirst', 'First TD'], ['ppass', 'TD pass'], ['p2pass', '2+ TD passes'], ['pdual', 'Score + throw'], ['pint', 'Interception']].map(([mk, n]) => propBtn(db, g, k[`${mk}:${t.id}:${p.id}`], n)).join('')}</div>
+      <a class="pc-more" href="${playerUrl(t, p)}">${esc(p.name.split(' ')[0])}'s profile ${icon('arrow')}</a>
+    </details>`; };
+    const teamProps = (t) => `<div class="pteam" data-team="${t.id}"><h3>${logo(t, 26)} ${esc(t.name)}</h3>${[...t.roster].sort((x, y) => tdP(t, y) - tdP(t, x)).map((p, i) => playerCard(t, p, i)).join('')}</div>`;
     const groups = {};
     for (const x of m.list) (groups[x.group] = groups[x.group] || []).push(x);
     const gameBets = ['Margin', 'Total points', 'Team points', 'Winning margin', 'Exact margin', 'Specials', 'Turnovers'].filter((n) => groups[n]).map((n) => `<details class="card mk"><summary><h2>${n}</h2><span class="muted sm">${groups[n].length} picks</span>${icon('chev')}</summary><div class="obs">${groups[n].map((x) => oddsBtn(db, g, x)).join('')}</div></details>`).join('');
 
     res.send(layout(req, "Pick'em", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem', name)}
       <section class="ng" style="--a:${esc(A.color)};--b:${esc(B.color)}">
-        <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><span class="ng-when">${esc(longDate(g.date))} · ${time12(g.time)} · <a href="/games/${g.id}">Preview</a></span></div>
+        <div class="ng-top"><span class="kicker">${icon('fire')} Next game${gameLabel(db, g) ? ' · ' + esc(gameLabel(db, g)) : ''}</span><a class="ng-when" href="/games/${g.id}">${esc(shortDate(g.date))} · ${time12(g.time)} ${icon('arrow')}</a></div>
         <div class="ng-match">
-          <div class="ng-team">${logo(A, 84)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))} · ${wp(A)}% chance</small><div class="ng-picks">${propBtn(db, g, k[`ml:${A.id}`], 'Wins')}${propBtn(db, g, sprOf(A), sprOf(A) ? pk.marginLabel('', sprOf(A).line).trim().replace(/^win by/, 'Wins by').replace(/^within/, 'Within') : 'Margin')}</div></div>
-          <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>days</small></div><div><b>–</b><small>hrs</small></div><div><b>–</b><small>min</small></div><div><b>–</b><small>sec</small></div></div><small>at ${time12(pk.lockTime(g))}</small></div>
-          <div class="ng-team">${logo(B, 84)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))} · ${wp(B)}% chance</small><div class="ng-picks">${propBtn(db, g, k[`ml:${B.id}`], 'Wins')}${propBtn(db, g, sprOf(B), sprOf(B) ? pk.marginLabel('', sprOf(B).line).trim().replace(/^win by/, 'Wins by').replace(/^within/, 'Within') : 'Margin')}</div></div>
+          <div class="ng-side">${logo(A, 64)}<b>${esc(A.name)}</b><small>${record(teamStats(db, A.id))}</small></div>
+          <div class="ng-mid"><small>Picks lock in</small><div class="cd" data-ts="${lockTs(g)}"><div><b>–</b><small>d</small></div><div><b>–</b><small>h</small></div><div><b>–</b><small>m</small></div><div><b>–</b><small>s</small></div></div></div>
+          <div class="ng-side">${logo(B, 64)}<b>${esc(B.name)}</b><small>${record(teamStats(db, B.id))}</small></div>
         </div>
-        <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="flex:1;background:var(--card2)"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${wp(B)}%</span></div></div>
+        <div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${wp(A)}%</span></div><div style="flex:1"><span>Tie ${Math.max(0, 100 - wp(A) - wp(B))}%</span></div><div style="width:${wp(B)}%;background:${esc(B.color)}"><span>${wp(B)}%</span></div></div>
+        <div class="ng-grid">
+          ${propBtn(db, g, k[`ml:${A.id}`], `${esc(A.name)} win`)}${propBtn(db, g, k[`ml:${B.id}`], `${esc(B.name)} win`)}
+          ${propBtn(db, g, sprOf(A), sprOf(A) ? esc(pk.marginLabel(A.name, sprOf(A).line)) : 'Margin')}${propBtn(db, g, sprOf(B), sprOf(B) ? esc(pk.marginLabel(B.name, sprOf(B).line)) : 'Margin')}
+        </div>
       </section>
       ${featuredHtml(db, g, m)}
       <div class="home-grid">
         <div class="col">
           <section class="card props" id="all-props">
             <div class="card-h"><h2>${icon('star')} Every player</h2><div class="seg mini" id="ptabs"><a class="on" data-t="all">Both teams</a><a data-t="${A.id}">${esc(A.abbr)}</a><a data-t="${B.id}">${esc(B.abbr)}</a></div></div>
-            <p class="muted sm">Sorted by who's most likely to score. Tap a price to add it to your slip.</p>
+            <p class="muted sm">Most likely to score first. Tap a player to see their picks.</p>
             <div class="pteams">${teamProps(A)}${teamProps(B)}</div>
           </section>
           ${gameBets}
@@ -2469,7 +2488,7 @@ function gameForm(db, g, isNew) {
   const statusPills = [['scheduled', 'Scheduled'], ['live', 'Live'], ['final', 'Final'], ['postponed', 'Postponed']]
     .map(([v, n]) => `<label class="pill-r"><input type="radio" name="status" value="${v}" ${g.status === v ? 'checked' : ''}><span>${n}</span></label>`).join('');
   // The play builder: pick a team, pick the play, tap the player.
-  const builder = `<div class="pb" id="pb">
+  const builder = `<div class="bsb" id="pb">
     <div class="pb-step"><span>1</span>Team</div>
     <div class="pb-teams">${[t1, t2].map((t, i) => `<button type="button" class="pb-team ${i ? '' : 'on'}" data-team="${t.id}" style="--c:${esc(t.color)}">${logo(t, 30)}<b>${esc(t.name)}</b></button>`).join('')}</div>
     <div class="pb-step"><span>2</span>Play</div>
