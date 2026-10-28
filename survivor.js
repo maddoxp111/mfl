@@ -1,11 +1,11 @@
 // Survivor pool: each game, everyone still alive picks one player who has to score a
 // touchdown. Miss and you're out; you can't use the same player twice in a round. The
-// last one standing wins the round (and Points), then a new round starts next game.
+// last one standing wins the round (and coins), then a new round starts next game.
 // Everything is worked out live from the picks and the box scores, so fixing a box
 // score or marking a player out re-settles it automatically.
 const pk = require('./pickem');
 
-const PRIZE = 250; // Points for winning a round
+const PRIZE = 250; // coins for winning a round
 const isFinal = (g) => g.status === 'final' && g.homeScore != null && g.awayScore != null;
 
 function scored(db, g, team, pid) {
@@ -69,7 +69,7 @@ function survivorState(db, users, tz) {
   return { round: cur, finished, prize: PRIZE };
 }
 
-// Points a user has won from Survivor.
+// Coins a user has won from Survivor.
 const survivorPoints = (state, name) => state.finished.filter((f) => f.winner === name).length * PRIZE;
 
 module.exports = { PRIZE, survivorState, survivorPoints, scored, teamOf };

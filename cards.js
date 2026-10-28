@@ -1,5 +1,5 @@
 // MFL Cards: collectible player cards, packs and the "Starting 8" fantasy game.
-// Points from cards are the same Points earned in Pick'em, and Points buy packs.
+// Starting 8 fantasy points pay out as Pick'em coins, and coins buy packs.
 const crypto = require('crypto');
 const pk = require('./pickem');
 

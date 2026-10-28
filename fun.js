@@ -5,7 +5,7 @@ const sv = require('./survivor');
 const crypto = require('crypto');
 
 module.exports = function fun(app, h) {
-  const { esc, icon, logo, avatar, pts, layout, pickHead, pickNav, pk, TZ } = h;
+  const { esc, icon, logo, avatar, coins, layout, pickHead, pickNav, pk, TZ } = h;
   const R = cards.RARITIES;
 
   // ---------- card artwork ----------
@@ -26,7 +26,7 @@ module.exports = function fun(app, h) {
 
   const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null) + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
   const flash = (req) => {
-    const m = { lineup: 'Starting 8 saved ✓', sold: 'Card sold ✓', poor: 'Not enough Points for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
+    const m = { lineup: 'Starting 8 saved ✓', sold: 'Card sold ✓', poor: 'Not enough coins for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
     return m ? `<div class="toast ${/Not|Already|off|locked/.test(m) ? 'bad' : ''}">${m}</div>` : '';
   };
   const freshUser = async (name) => h.getDoc(h.userKey(name), { fresh: true });
@@ -51,19 +51,19 @@ module.exports = function fun(app, h) {
       const uniq = mine.length, total = Object.values(own).reduce((s, n) => s + n, 0);
       const slot = (id) => { const c = id && cards.cardInfo(db, id); return c ? cardArt(db, c, { small: true }) : '<div class="slot-empty">+</div>'; };
       const body = `
-        <div class="stats-row">${[['Points', pts(acct.points.balance)], ['Cards', `${total}`], ['Collected', `${uniq} / ${all.length}`], ['Starting 8 points', `${acct.points.fantasy.toLocaleString('en-US')}`]].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
-        ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>8 cards: a full Starting 8 to score points every game.</span></div>${icon('arrow')}</a>`}
+        <div class="stats-row">${[['Coins', coins(acct.balance)], ['Cards', `${total}`], ['Collected', `${uniq} / ${all.length}`], ['Won by Starting 8', coins(acct.points.fantasy)]].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
+        ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>8 cards: a full Starting 8 that earns coins every game.</span></div>${icon('arrow')}</a>`}
         <section class="card lineup-card">
           <div class="card-h"><h2>Starting 8</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
-          <p class="muted sm">Pick 8 cards of different players. Every game they play, your cards score fantasy points × their multiplier, and those become Points (the same Points as Pick'em). Your lineup carries over to the next game until you change it. Tap a card below to add or remove it.</p>
+          <p class="muted sm">Pick 8 cards of different players. Every game they play, your cards score fantasy points × their multiplier, and you get that many coins (the same coins as Pick'em). Your lineup carries over to the next game until you change it. Tap a card below to add or remove it.</p>
           <form method="post" action="/pickem/lineup" id="lineupForm"><input type="hidden" name="cards" id="lineupInput" value="${esc(lineup.join(','))}">
             <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot">${slot(lineup[i])}</div>`).join('')}</div>
             <div class="lineup-bar"><span id="lineupMsg" class="muted sm">${lineup.length}/${cards.LINEUP_SIZE} picked</span><button type="button" class="btn ghost sm" id="autoBtn">Auto-pick best</button><button class="btn sm">Save Starting 8</button></div>
           </form>
         </section>
-        ${last ? `<section class="card"><div class="card-h"><h2>Last game: ${last.total} points</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
+        ${last ? `<section class="card"><div class="card-h"><h2>Last game: +${last.total} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
           <div class="fan-rows">${last.cards.sort((a, b) => b.pts - a.pts).map((x) => `<div class="fan-row"><span class="th">${avatar(x.c.t, x.c.p, 30)} <b>${esc(x.c.p.name)}</b> <small class="muted">${esc(x.c.label)} · ${x.c.mult}×</small></span><span class="muted sm">${x.played ? x.parts.map((q) => `${q.n} ${cards.SCORING_LABEL[q.k].toLowerCase()}${q.n > 1 ? 's' : ''}`).join(', ') || 'no stats' : 'did not play'}</span><b class="${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : ''}${x.pts}</b></div>`).join('')}</div>
-          ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} ${r.total} pts`).join(' · ')}</p>` : ''}</section>` : ''}
+          ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} +${r.total}`).join(' · ')}</p>` : ''}</section>` : ''}
         ${pointsBreakdown(acct)}
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
@@ -71,7 +71,7 @@ module.exports = function fun(app, h) {
           <div class="seg mini rfilter">${['all', ...cards.RARITY_ORDER].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
           <div class="mgrid" id="coll">${(view === 'all' ? [...all].sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
             const n = own[c.id] || 0;
-            const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} pts</button></form>` : '';
+            const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} coins</button></form>` : '';
             return `<div class="mcell ${n ? 'owned' : 'missing'}">${cardArt(db, c, { small: true, count: n, cls: n ? 'pickable' : '' })}${sell}</div>`;
           }).join('') || '<p class="muted">No cards yet. <a href="/pickem/packs">Open a pack →</a></p>'}</div>
         </section>
@@ -158,17 +158,19 @@ module.exports = function fun(app, h) {
     return users.flatMap((u) => (u.packs || []).flatMap((p) => p.cards.map((id) => ({ u: u.name, id, at: p.at })))).filter((x) => cards.RARITY_ORDER.indexOf(cards.cardInfo(db, x.id)?.rarity) >= 3).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10);
   }
   const GROUPS = [['free', 'Free packs', 'Claim these. They refill.'], ['core', 'Packs', 'Any card in the league can drop.'], ['theme', 'Themed packs', 'Only certain kinds of cards.'], ['team', 'Team packs', "Only one team's players."], ['chase', 'Chase packs', 'Expensive. Built for the rarest cards.']];
+  // Where a user's coins came from: picks and the card game are one currency.
   function pointsBreakdown(acct) {
-    const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US');
-    return `<div class="card pts-break"><div class="card-h"><h2>${icon('coin')} Your Points</h2><b class="big">${f(P.balance)}</b></div>
-      <p class="muted sm">One currency for everything: Pick'em wins and Starting 8 fantasy points are the same Points, and they all spend on packs.</p>
+    const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US'), sg = (n) => (n >= 0 ? '+' : '−') + f(Math.abs(n));
+    const picks = acct.balance - P.net;
+    return `<div class="card pts-break"><div class="card-h"><h2>${icon('coin')} Your coins</h2><b class="big">${f(acct.balance)}</b></div>
+      <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Starting 8 and spent on packs.</p>
       <div class="pb-rows">
-        <div><span>Pick'em wins</span><b class="up">+${f(P.picks)}</b></div>
-        <div><span>Starting 8 fantasy</span><b class="up">+${f(P.fantasy)}</b></div>
+        <div><span>From Pick'em (start + picks)</span><b class="${picks >= 0 ? 'up' : 'down'}">${sg(picks)}</b></div>
+        <div><span>Starting 8</span><b class="up">+${f(P.fantasy)}</b></div>
         <div><span>Survivor</span><b class="up">+${f(P.survivor)}</b></div>
-        <div><span>Card sales & rewards</span><b class="up">+${f(P.bonus)}</b></div>
+        <div><span>Card sales &amp; rewards</span><b class="up">+${f(P.bonus)}</b></div>
         <div><span>Spent on packs</span><b class="down">−${f(P.spent)}</b></div>
-        <div class="tot"><span>Balance</span><b>${f(P.balance)}</b></div>
+        <div class="tot"><span>Balance</span><b>${f(acct.balance)}</b></div>
       </div></div>`;
   }
   h.pointsBreakdown = pointsBreakdown;
@@ -182,7 +184,7 @@ module.exports = function fun(app, h) {
       const free = await freeClaims(db, name, user);
       const pulls = await bigPulls(db);
       const taken = await takenOnes(db);
-      const bal = acct.points.balance;
+      const bal = acct.balance;
       const dailyDone = !free.some((f) => f.type === 'daily');
       const packCard = (type, opts = {}) => {
         const P = cards.packInfo(db, type), can = opts.free ? true : P.cost <= bal;
@@ -190,7 +192,7 @@ module.exports = function fun(app, h) {
         return `<form method="post" action="/pickem/packs/open" class="pack pk-${P.team ? 'team' : type}" ${t ? `style="--c:${esc(t.color)};--c2:${esc(t.color2)}"` : ''}><input type="hidden" name="type" value="${esc(type)}">${opts.key ? `<input type="hidden" name="key" value="${esc(opts.key)}">` : ''}
           <div class="pack-art">${t ? logo(t, 34) : '<span>MFL</span>'}<b>${esc(P.name.replace(/ Pack$/, ''))}</b><i>${P.cards} card${P.cards > 1 ? 's' : ''}</i></div>
           <div class="pack-info"><b>${esc(P.name)}</b><small>${esc(opts.note || P.desc)}</small></div>
-          <button class="btn ${can ? '' : 'ghost'}" ${can ? '' : 'disabled'}>${opts.free ? 'Open · Free' : can ? `Open · ${P.cost.toLocaleString('en-US')} pts` : `Need ${P.cost.toLocaleString('en-US')} pts`}</button></form>`;
+          <button class="btn ${can ? '' : 'ghost'}" ${can ? '' : 'disabled'}>${opts.free ? 'Open · Free' : can ? `Open · ${P.cost.toLocaleString('en-US')} coins` : `Need ${P.cost.toLocaleString('en-US')} coins`}</button></form>`;
       };
       const groups = GROUPS.map(([g, title, sub]) => {
         let items;
@@ -231,11 +233,10 @@ module.exports = function fun(app, h) {
       if (!claim) return res.redirect('/pickem/packs?m=used');
       key = claim.key;
     } else {
-      const acct = pk.account(db, user);
-      const bal = h.pointsOf(db, user, acct, await h.survivorNow(db)).balance;
+      const bal = h.accountOf(db, user, await h.survivorNow(db)).balance;
       if (bal < P.cost) return res.redirect('/pickem/packs?m=poor');
     }
-    const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, at: new Date().toISOString(), local: pk.nowLocal(TZ), cards: cards.openPack(db, type, await takenOnes(db)), ...(key ? { key } : {}), ...(type === 'prize' ? { week: key } : {}) };
+    const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, currency: 'coins', at: new Date().toISOString(), local: pk.nowLocal(TZ), cards: cards.openPack(db, type, await takenOnes(db)), ...(key ? { key } : {}), ...(type === 'prize' ? { week: key } : {}) };
     packs.push(pack);
     // A first pack also sets a Starting 8 if there isn't one yet.
     if (type === 'starter' && !(user.lineups || []).length) (user.lineups = []).push({ at: pack.at, local: pack.local, cards: pack.cards.slice(0, cards.LINEUP_SIZE) });
@@ -284,7 +285,7 @@ module.exports = function fun(app, h) {
       const players = g ? [g.home, g.away].flatMap((tid) => db.teams[tid].roster.map((p) => ({ t: db.teams[tid], p }))) : [];
       res.send(layout(req, 'Survivor', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/survivor', name)}${flash(req)}
         <section class="card sv-hero"><div><span class="kicker">Survivor · Round ${r.n}</span><h2>${r.active ? `${r.alive.length} still alive` : `${r.entrants.length} entered`}</h2>
-          <p class="muted">Each game, pick one player who has to score a touchdown. If he doesn't, you're out. You can't use the same player twice in a round. If everyone misses the same game, nobody is out. Last one standing wins <b>${sv.PRIZE} Points</b>. A player ruled out doesn't knock you out.</p></div>
+          <p class="muted">Each game, pick one player who has to score a touchdown. If he doesn't, you're out. You can't use the same player twice in a round. If everyone misses the same game, nobody is out. Last one standing wins <b>${sv.PRIZE} coins</b>. A player ruled out doesn't knock you out.</p></div>
           ${canJoin ? `<form method="post" action="/pickem/survivor/join"><button class="btn">Join Round ${r.n}</button></form>` : !name ? '<a class="btn" href="/pickem/login?next=/pickem/survivor">Log in to play</a>' : r.active && !alive ? '<span class="badge">You\'re out this round</span>' : alive ? `<span class="badge final">You're in</span>` : ''}
         </section>
         ${alive && g ? `<section class="card"><div class="card-h"><h2>Your pick: ${esc(h.matchName(db, g))}</h2><span class="muted sm">${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}</span></div>

@@ -479,7 +479,7 @@ app.get('/', async (req, res, next) => {
         </div>
         <div class="col">${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Pick'em Champion of the Week · ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
           ${mw ? `<a class="card mw-promo" href="/midweek"><small>${icon('cal')} The Midweek Recap · ${esc(shortDate(mw.date))}</small><b>${esc(mw.headline)}</b><span>${esc(mw.intro.slice(0, 140))}${mw.intro.length > 140 ? '…' : ''}</span></a>` : ''}
-          <a class="card promo cards-promo" href="/pickem/cards"><div>${icon('trophy')}</div><div><b>MFL Cards</b><span>Open packs, collect rare cards and play your Starting 8 for Points.</span></div>${icon('arrow')}</a>
+          <a class="card promo cards-promo" href="/pickem/cards"><div>${icon('trophy')}</div><div><b>MFL Cards</b><span>Open packs, collect rare cards and play your Starting 8 for coins.</span></div>${icon('arrow')}</a>
           <a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Pick every game with fake coins, with combos and player picks.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
       </div>
     </div>${countdownScript}`));
@@ -919,40 +919,36 @@ function mvpKeyOf(db, g) {
 async function survivorNow(db) {
   return sv.survivorState(db, await listDocs('users/'), TZ);
 }
-// Points: earned from winning picks, the Starting 8 card game, Survivor wins and
-// selling cards; spent on packs. Worked out live, like coins.
-function pointsOf(db, user, acct, svState) {
+// Coins are the one currency. Besides picks, they come from the Starting 8 card
+// game, Survivor wins and selling cards, and they buy packs. All worked out live.
+// Packs bought before coins paid for them (the old Points) aren't charged.
+function coinExtras(db, user, svState) {
   const fan = cards.fantasy(db, user, (g) => mvpKeyOf(db, g));
-  const picks = betPoints(acct.bets);
   const survivor = svState ? sv.survivorPoints(svState, user.name) : 0;
   const bonus = (user.pointBonuses || []).reduce((s, b) => s + b.amount, 0);
-  const spent = (user.packs || []).reduce((s, p) => s + (p.cost || 0), 0);
-  const earned = picks + fan.total + survivor + bonus;
-  return { picks, fantasy: fan.total, fan, survivor, bonus, earned, spent, balance: earned - spent };
+  const spent = (user.packs || []).filter((p) => p.currency === 'coins').reduce((s, p) => s + (p.cost || 0), 0);
+  return { fantasy: fan.total, fan, survivor, bonus, spent, net: fan.total + survivor + bonus - spent };
+}
+function accountOf(db, user, svState) {
+  const x = coinExtras(db, user, svState);
+  const acct = pk.account(db, user, x.net);
+  acct.points = { ...x, picks: acct.profit, balance: acct.balance };
+  return acct;
 }
 async function loadAccount(db, name) {
   const user = name ? await getDoc(userKey(name)) : null;
   if (!user) return { user: null, acct: null };
-  const acct = pk.account(db, user);
-  acct.points = pointsOf(db, user, acct, await survivorNow(db));
-  return { user, acct };
+  return { user, acct: accountOf(db, user, await survivorNow(db)) };
 }
 function pickNav(cur, name) {
   const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/survivor', 'Survivor'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
-// Pick Points: just for show. Every winning bet earns 10, +5 per extra parlay leg,
-// +1 per unit of odds (so long shots earn more). Losses don't take any away.
-function betPointsOf(b) {
-  if (b.status !== 'won') return 0;
-  return 10 + 5 * (b.legs.length - 1) + Math.floor(Math.min(b.odds, 100));
-}
-const betPoints = (bets) => bets.reduce((s, b) => s + betPointsOf(b), 0);
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
     <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Make picks with fake coins on every MFL game. Singles, player picks and combos.</p></div>
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open </span><a class="wallet-pts" href="/pickem/packs" title="Pick'em + Starting 8 + Survivor: one currency">${icon('star')} ${(acct.points ? acct.points.balance : betPoints(acct.bets)).toLocaleString('en-US')} Points</a></div>`
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open </span></div>`
       : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }
@@ -964,14 +960,14 @@ function betCard(db, b, opts = {}) {
       const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
       return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
 async function leaderboard(db) {
   const users = await listDocs('users/');
   const st = sv.survivorState(db, users, TZ);
-  return users.map((u) => { const a = pk.account(db, u); return { name: u.name, ...a, points: pointsOf(db, u, a, st) }; }).sort((a, b) => b.balance - a.balance || b.won - a.won);
+  return users.map((u) => { const a = accountOf(db, u, st); return { name: u.name, ...a }; }).sort((a, b) => b.balance - a.balance || b.won - a.won);
 }
 
 // Compact odds button for player cards: short text on the button, full label in the slip.
@@ -1316,7 +1312,7 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
     if (!user) return res.json({ ok: false, error: 'Account not found. Log in again.' });
     const built = pk.buildBet(db, req.body.picks, req.body.stake, TZ);
     if (built.error) return res.json({ ok: false, error: built.error });
-    const bal = pk.account(db, user).balance;
+    const bal = accountOf(db, user, await survivorNow(db)).balance;
     if (built.bet.stake > bal) return res.json({ ok: false, error: `You only have ${bal.toLocaleString('en-US')} coins.` });
     user.bets = user.bets || [];
     user.bets.push(built.bet);
@@ -1336,16 +1332,18 @@ app.get('/pickem/me', (req, res) => {
 app.get('/pickem/me.json', async (req, res) => {
   const name = currentUser(req);
   const user = name ? await getDoc(userKey(name)) : null;
-  res.set('Cache-Control', 'no-store').json(user ? { name, balance: pk.account(load(), user).balance } : {});
+  res.set('Cache-Control', 'no-store').json(user ? { name, balance: accountOf(load(), user, await survivorNow(load())).balance } : {});
 });
 
+// Out of coins: a top-up, but not right after spending them on packs.
+const canBailout = (user, acct) => acct.balance < pk.BAILOUT_BELOW && !acct.pending && !(user.packs || []).some((p) => p.currency === 'coins' && p.cost && Date.now() - Date.parse(p.at) < 7 * DAY);
 app.post('/pickem/bailout', async (req, res) => {
   const db = load();
   const name = currentUser(req);
   if (!name) return res.redirect('/pickem/login');
   const user = await getDoc(userKey(name), { fresh: true });
-  const acct = user && pk.account(db, user);
-  if (acct && acct.balance < pk.BAILOUT_BELOW && !acct.pending) {
+  const acct = user && accountOf(db, user, await survivorNow(db));
+  if (acct && canBailout(user, acct)) {
     user.bonuses = user.bonuses || [];
     user.bonuses.push({ amount: pk.BAILOUT_COINS, reason: 'Bailout', at: new Date().toISOString() });
     await putDoc(userKey(name), user);
@@ -1367,10 +1365,10 @@ app.get('/pickem/leaderboard', async (req, res, next) => {
     const recent = board.flatMap((u) => u.bets.filter((b) => b.status === 'won').map((b) => ({ ...b, who: u.name }))).sort((x, y) => y.payout - x.payout).slice(0, 5);
     const who = (n) => `<a href="/pickem/u/${esc(n)}"><b>@${esc(n)}</b></a>${winners.some((w) => w.name === n) ? ` <span class="star-b" title="Picker of the Week">${icon('star')}${winners.filter((w) => w.name === n).length}</span>` : ''}`;
     const table = weekly
-      ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>Points</th><th>W</th><th>L</th></tr></thead><tbody>
-        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
-      : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>Points</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
-        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points.earned)}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
+      ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>W</th><th>L</th></tr></thead><tbody>
+        ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
+      : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
+        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
     res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
       ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Picker of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
       <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>${weekly ? `This week <small class="muted">from ${esc(shortDate(wk))}</small>` : 'Season standings'}</h2>
@@ -1398,9 +1396,9 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the pick if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
       <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and pay on the rest. Results update by themselves.</p>
-      <h3>Points</h3><p>Points are your MFL score and your one currency: Pick'em points and Starting 8 fantasy points are the exact same Points. Earn them by winning picks, from your Starting 8 every game, by winning Survivor (${sv.PRIZE}) and by selling extra cards. Spend them on card packs.</p>
-      <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with Points. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
-      <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} Points. <a href="/pickem/survivor">Play Survivor →</a></p>
+      <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Starting 8 earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra cards sell for coins. Spend them on picks or card packs.</p>
+      <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with coins. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
+      <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
   } catch (e) { next(e); }
@@ -2192,7 +2190,7 @@ const betProfit = (b) => (b.status === 'won' ? b.payout - b.stake : b.status ===
 function weekBoard(board, wk) {
   return board.map((u) => {
     const bets = u.bets.filter((b) => b.status !== 'pending' && weekOf(localDay(b.placed)) === wk);
-    return { name: u.name, points: betPoints(bets), profit: bets.reduce((s, b) => s + betProfit(b), 0), won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, n: bets.length };
+    return { name: u.name, profit: bets.reduce((s, b) => s + betProfit(b), 0), won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, n: bets.length };
   }).filter((u) => u.n).sort((a, b) => b.profit - a.profit || b.won - a.won);
 }
 // Picker of the Week: best profit in each finished week (needs to be positive).
@@ -2262,17 +2260,16 @@ app.get('/pickem/u/:name', async (req, res, next) => {
     const uname = String(req.params.name).toLowerCase();
     const user = pk.validName(uname) ? await getDoc(userKey(uname)) : null;
     if (!user) return res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Player not found')));
-    const acct = pk.account(db, user);
-    const st = profileStats(db, acct);
     const board = await leaderboard(db);
+    const acct = board.find((u) => u.name === uname);
+    const st = profileStats(db, acct);
     const rank = board.findIndex((u) => u.name === uname) + 1;
     const botw = weeklyWinners(board).filter((w) => w.name === uname);
-    acct.points = board.find((u) => u.name === uname).points;
     const ubadges = badges.userBadges({ db, acct, user, weeklyWins: botw.length, survivorWins: acct.points.survivor / sv.PRIZE, fantasy: acct.points.fan });
     const mine = me === uname;
     const { user: viewer, acct: vAcct } = await loadAccount(db, me);
     const tile = (k, v, cls = '') => `<div class="card"><small>${k}</small><b class="${cls}">${v}</b></div>`;
-    const canBail = mine && acct.balance < pk.BAILOUT_BELOW && !acct.pending;
+    const canBail = mine && canBailout(user, acct);
     res.send(layout(req, `@${uname}`, pickHead(viewer, vAcct) + `<div class="wrap">${pickNav(mine ? '/pickem/me' : '', me)}
       <div class="prof card">
         <div class="prof-av">${esc(uname.slice(0, 2).toUpperCase())}</div>
@@ -2283,7 +2280,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
-      <div class="stats-row six">${tile('Points', pts(acct.points.balance), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <div class="stats-row six">${tile('Starting 8', coins(acct.points.fantasy))}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
       ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
         ${req.query.pw === 'ok' ? '<p class="toast">Password changed ✓</p>' : req.query.pw ? `<p class="err">${esc(req.query.pw)}</p>` : ''}
         <form method="post" action="/pickem/password" class="form pw-form">
@@ -3048,7 +3045,7 @@ function ratingOf(db, t, p) {
   if (!ratingMemo.map || Date.now() - ratingMemo.at > 3000) ratingMemo = { at: Date.now(), map: Object.fromEntries(ratings(db).map((x) => [x.p.id, x.r])) };
   return ratingMemo.map[p.id] ?? 60;
 }
-require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, pointsOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
+require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
