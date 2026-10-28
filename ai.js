@@ -123,8 +123,31 @@ const TEAM_SCHEMA = {
   properties: { recap: { type: 'string' } },
 };
 
+const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Thomas Metcalf School; a touchdown is worth 7 points';
+const KIND = 'Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries.';
+
+const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game in ${LEAGUE}.
+You get both teams (records, recent games, power ratings, who is ruled out) and the Pick'em odds. Write a 3-5 sentence preview like a TV pre-game show: the storyline, the matchups to watch, and the stakes. Then predict the final score (multiples of 7 are most likely; ties are possible) and pick one "player to watch" by their key, with a one-line reason. ${KIND}\n\n${COACH_NOTES}`;
+const PREVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['preview', 'predicted_home', 'predicted_away', 'watch_key', 'watch_reason'], properties: { preview: { type: 'string' }, predicted_home: { type: 'integer' }, predicted_away: { type: 'integer' }, watch_key: { type: 'string' }, watch_reason: { type: 'string' } } };
+
+const SCOUT_SYSTEM = `You write a fun NFL-combine-style scouting report for one player in ${LEAGUE}.
+You get the player's power rating, the commissioner's scouting, bio, position, stats and game history. Write a punchy 3-4 sentence report like a draft analyst, list 2-4 short strengths and 1-2 gentle "areas to grow", and give a fun one-line comparison ("plays like a ..."), keeping the comparison light and positive. ${KIND}`;
+const SCOUT_SCHEMA = { type: 'object', additionalProperties: false, required: ['report', 'strengths', 'grow', 'comparison'], properties: { report: { type: 'string' }, strengths: { type: 'array', items: { type: 'string' } }, grow: { type: 'array', items: { type: 'string' } }, comparison: { type: 'string' } } };
+
+const ANALYST_SYSTEM = `You are "the Analyst", the AI expert of ${LEAGUE}. Fans ask you questions on the league website and you answer from the league data you are given (standings, ratings with notes, every game's plays, upcoming games and Pick'em odds).
+Answer in 2-6 sentences, friendly and confident, like a sports radio host who knows the league inside out. Back claims with real numbers from the data. Pick'em uses free fake coins, so you can give your honest lean on picks. If the question isn't about the MFL, flag football or the site, say you only talk MFL and suggest something they could ask. If the data doesn't say, say so instead of guessing. ${KIND}`;
+const ANALYST_SCHEMA = { type: 'object', additionalProperties: false, required: ['answer'], properties: { answer: { type: 'string' } } };
+
+const MIDWEEK_SYSTEM = `You write "The Midweek Recap", the MFL's weekly newsletter, published every Wednesday and covering everything since the Wednesday before, for ${LEAGUE}.
+You get the games in that window (with plays and notes), the power ratings now and the biggest rating movers, Pick'em results, card pack pulls, Survivor status and upcoming games. Write a catchy headline, a 2-3 sentence intro, then 4-6 short sections with titles (for example: Game of the Week, Top Plays, Risers and Fallers, Pick'em Report, Pack Pulls, Survivor Watch, Looking Ahead). Skip sections with nothing to say. ${KIND}`;
+const MIDWEEK_SCHEMA = { type: 'object', additionalProperties: false, required: ['headline', 'intro', 'sections'], properties: { headline: { type: 'string' }, intro: { type: 'string' }, sections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'body'], properties: { title: { type: 'string' }, body: { type: 'string' } } } } } };
+
+const writePreview = (input) => ask(PREVIEW_SYSTEM, input, PREVIEW_SCHEMA);
+const writeScouting = (input) => ask(SCOUT_SYSTEM, input, SCOUT_SCHEMA);
+const answerQuestion = (input) => ask(ANALYST_SYSTEM, input, ANALYST_SCHEMA);
+const writeMidweek = (input) => ask(MIDWEEK_SYSTEM, input, MIDWEEK_SCHEMA);
 const rateLeague = (input) => ask(RATINGS_SYSTEM, input, RATINGS_SCHEMA);
 const writeTeamRecap = (input) => ask(TEAM_SYSTEM, input, TEAM_SCHEMA);
 const writeRecap = (input) => ask(RECAP_SYSTEM, input, RECAP_SCHEMA);
 
-module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, describeError };
+module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeScouting, answerQuestion, writeMidweek, describeError };

@@ -4,6 +4,9 @@ const path = require('path');
 const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll } = require('./db');
 const pk = require('./pickem');
 const ai = require('./ai');
+const cards = require('./cards');
+const sv = require('./survivor');
+const badges = require('./badges');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -304,7 +307,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=31">
+<link rel="stylesheet" href="/static/style.css?v=32">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -318,6 +321,8 @@ function layout(req, title, body, opts = {}) {
       ${teams.map((t) => `<a href="/teams/${t.id}">${logo(t, 22)} ${esc(teamFull(t))}</a>`).join('')}<a href="/transactions">${icon('swap')} Transactions</a></div></div>
     <div class="dd ${on(['/stats', '/records', '/cards'])}"><button>Stats ${icon('chev')}</button><div class="dd-m">
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
+    <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
+      <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
     <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
@@ -391,9 +396,12 @@ function heroNext(db, g, kicker) {
 }
 
 // ---------- public routes ----------
-app.get('/', (req, res) => {
+app.get('/', async (req, res, next) => {
+ try {
   const db = load();
   const t = today();
+  const lastW = weeklyWinners(await leaderboard(db)).at(-1);
+  const mw = (db.midweek || []).at(-1);
   const dated = db.games.filter((g) => g.date).sort((a, b) => a.date.localeCompare(b.date));
   const lastFinal = [...dated].reverse().find(isFinal);
   const upcoming = dated.filter((g) => g.date >= t && g.status !== 'final' && g.status !== 'postponed');
@@ -431,9 +439,13 @@ app.get('/', (req, res) => {
           <div class="card"><div class="card-h"><h2>Up Next</h2><a href="/schedule">Full schedule ${icon('arrow')}</a></div><div class="list">${upcoming.slice(0, 4).map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
           <div class="card"><div class="card-h"><h2>Latest Results</h2><a href="/scores">All scores ${icon('arrow')}</a></div><div class="list">${recent.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games played yet.</p>'}</div></div>
         </div>
-        <div class="col"><a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Pick every game with fake coins, with combos and player picks.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
+        <div class="col">${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Pick'em Champion of the Week · ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
+          ${mw ? `<a class="card mw-promo" href="/midweek"><small>${icon('cal')} The Midweek Recap · ${esc(shortDate(mw.date))}</small><b>${esc(mw.headline)}</b><span>${esc(mw.intro.slice(0, 140))}${mw.intro.length > 140 ? '…' : ''}</span></a>` : ''}
+          <a class="card promo cards-promo" href="/pickem/cards"><div>${icon('trophy')}</div><div><b>MFL Cards</b><span>Open packs, collect rare cards and play your Starting 8 for Points.</span></div>${icon('arrow')}</a>
+          <a class="card promo" href="/pickem"><div>${icon('coin')}</div><div><b>Pick'em is live</b><span>Free to play. Pick every game with fake coins, with combos and player picks.</span></div>${icon('arrow')}</a>${standings}${road}${rules}</div>
       </div>
     </div>${countdownScript}`));
+ } catch (e) { next(e); }
 });
 
 app.get('/schedule', (req, res) => {
@@ -503,7 +515,7 @@ app.get('/games/:id', (req, res) => {
       </div>
       ${g.reason ? `<div class="gh-note">${g.status === 'postponed' ? '<b>Postponed</b> · ' : g.type === 'exhibition' ? '<b>Exhibition</b> · ' : ''}${esc(g.reason)}</div>` : ''}
     </div></section>
-    <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}${recapCard(db, g, req)}</div>
+    <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}${recapCard(db, g, req)}${g.status === 'postponed' ? '' : pollCard(db, g, req)}</div>
     <div class="wrap game-grid">${plays}<div class="col">${box(a)}${box(b)}</div></div>${countdownScript}`));
 });
 
@@ -512,9 +524,11 @@ function recapCard(db, g, req) {
   const m = gameMvp(db, g);
   const wait = Math.max(0, RECAP_COOLDOWN - (Date.now() - Date.parse(g.aiRecap?.rewrittenAt || 0)));
   const msg = { off: 'AI recaps are not set up yet.', wait: 'This recap was just rewritten. Try again later.', err: "Couldn't rewrite the recap right now. Try again soon." }[req?.query?.ai];
+  const fm = fanMvp(db, g);
+  const fanBox = fm ? `<a class="mvp fan" href="${playerUrl(fm.t, fm.p)}" style="--a:${esc(fm.t.color)}"><span class="mvp-tag">${icon('user')} Fan MVP</span>${avatar(fm.t, fm.p, 52)}<b>${esc(fm.p.name)}</b><small>${fm.votes} vote${fm.votes === 1 ? '' : 's'}</small></a>` : '';
   const btn = ai.apiKey() ? `<form method="post" action="/games/${g.id}/recap" class="recap-go"><button class="btn sm ghost" ${wait ? 'disabled' : ''} onclick="this.textContent='Writing…'">${icon('swap')} ${wait ? `Rewrite again in ${Math.ceil(wait / 60000)} min` : 'Rewrite with AI'}</button>${msg ? `<span class="muted sm">${msg}</span>` : ''}</form>` : '';
   return `<div class="card recap" id="recap"><div class="card-h"><h2>Recap</h2>${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</div>
-    <div class="recap-body">${m ? `<a class="mvp" href="${m.player ? playerUrl(m.tm, m.player) : '#'}" style="--a:${esc(m.tm.color)}"><span class="mvp-tag">${icon('trophy')} Game MVP</span>${m.player ? avatar(m.tm, m.player, 64) : ''}<b>${esc(m.name)}</b><small>${esc(m.line)}</small></a>` : ''}
+    <div class="recap-body">${m ? `<a class="mvp" href="${m.player ? playerUrl(m.tm, m.player) : '#'}" style="--a:${esc(m.tm.color)}"><span class="mvp-tag">${icon('trophy')} Game MVP</span>${m.player ? avatar(m.tm, m.player, 64) : ''}<b>${esc(m.name)}</b><small>${esc(m.line)}</small></a>` : ''}${fanBox}
     <p>${esc(recap(db, g))}</p></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}${btn}</div>`;
 }
 
@@ -531,8 +545,10 @@ function preview(db, g) {
   const per = (n, gp) => (gp ? (n / gp).toFixed(1) : '0.0');
   const line = (label, x, y) => `<div class="pv-row"><b>${x}</b><span>${label}</span><b>${y}</b></div>`;
   const ldr = (t) => { const p = lead(t); return p && p.td ? `${esc(p.name)} (${p.td})` : '–'; };
+  const A = g.aiPreview, wk = A?.watch && !pk.isOut(g, ...A.watch.split('|')) ? A.watch : null, watch = wk && cards.findPlayer(db, wk.split('|')[1]);
+  const aiBox = A ? `<div class="aipv"><p>${esc(A.text)}</p><div class="aipv-row"><div class="aipv-pred"><small>AI prediction</small><b>${esc(a.abbr)} ${A.ph} – ${A.pa} ${esc(b.abbr)}</b></div>${watch ? `<a class="aipv-watch" href="${playerUrl(watch.t, watch.p)}">${avatar(watch.t, watch.p, 40)}<div><small>Player to watch</small><b>${esc(watch.p.name)}</b><span>${esc(A.why)}</span></div></a>` : ''}</div></div>` : '';
   return `<div class="card preview" style="--a:${esc(a.color)};--b:${esc(b.color)}">
-    <div class="card-h"><h2>Game Preview</h2>${countdown(g)}</div>
+    <div class="card-h"><h2>Game Preview</h2>${countdown(g)}</div>${aiBox}
     <div class="pv-head"><span>${logo(a, 28)} ${esc(a.abbr)}</span><span>${esc(b.abbr)} ${logo(b, 28)}</span></div>
     ${line('Record', record(sA), record(sB))}
     ${line('Points / game', per(sA.pf, sA.gp), per(sB.pf, sB.gp))}
@@ -734,6 +750,10 @@ app.get('/players/:team/:pid', (req, res) => {
         ${s.highlights.length ? `<div class="card"><div class="card-h"><h2>${icon('fire')} Highlights</h2></div><ol class="plays">${s.highlights.map(({ g, e }) => { const [cls, label] = playTag(e); return `<li style="--c:${esc(tm.color)}"><div><span class="tag ${cls}">${label}</span> <a class="muted sm" href="/games/${g.id}">${esc(shortDate(g.date))}</a><p>${playLine(db, g, e)}</p></div></li>`; }).join('')}</ol></div>` : ''}
       </div>
       <div class="col">
+        ${p.aiScout ? `<div class="card scout"><div class="card-h"><h2>Scouting report</h2><span class="muted sm">AI</span></div><p>${esc(p.aiScout.report)}</p>
+          <div class="scout-cols"><div><small>Strengths</small><ul>${p.aiScout.strengths.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>${p.aiScout.grow.length ? `<div><small>Areas to grow</small><ul>${p.aiScout.grow.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>
+          ${p.aiScout.comparison ? `<p class="scout-cmp">${icon('star')} ${esc(p.aiScout.comparison)}</p>` : ''}</div>` : ''}
+        ${(() => { const bs = badges.playerBadges(db, tm, p, (g) => mvpKeyOf(db, g)); return `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${bs.length} of ${badges.PLAYER_BADGES.length}</span></div>${bs.length ? `<div class="achv">${bs.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div>` : '<p class="muted sm">No badges yet. Hat tricks, pick-sixes, MVPs and more unlock them.</p>'}</div>`; })()}
         <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/teams/${tm.id}">Team ${icon('arrow')}</a></div><div class="mates">
           ${mates.map((m) => `<a class="mate" href="${playerUrl(tm, m)}">${avatar(tm, m, 36)}<div><b>${esc(m.name)}</b><small>${esc([m.position, tagName(m.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
@@ -849,12 +869,38 @@ function slip(user) {
   </script>`;
 }
 
+// The game MVP as "team|playerId" (for card scoring and badges).
+// Cached for a few seconds: points for every user look up every game's MVP.
+let mvpMemo = { at: 0, map: new Map() };
+function mvpKeyOf(db, g) {
+  if (Date.now() - mvpMemo.at > 3000) mvpMemo = { at: Date.now(), map: new Map() };
+  const sig = g.id + '|' + g.homeScore + '-' + g.awayScore + '|' + (g.events || []).length + '|' + (g.aiRecap?.at || '');
+  if (!mvpMemo.map.has(sig)) { const m = gameMvp(db, g); mvpMemo.map.set(sig, m?.player ? `${m.team}|${m.player.id}` : null); }
+  return mvpMemo.map.get(sig);
+}
+async function survivorNow(db) {
+  return sv.survivorState(db, await listDocs('users/'), TZ);
+}
+// Points: earned from winning picks, the Starting 8 card game, Survivor wins and
+// selling cards; spent on packs. Worked out live, like coins.
+function pointsOf(db, user, acct, svState) {
+  const fan = cards.fantasy(db, user, (g) => mvpKeyOf(db, g));
+  const picks = betPoints(acct.bets);
+  const survivor = svState ? sv.survivorPoints(svState, user.name) : 0;
+  const bonus = (user.pointBonuses || []).reduce((s, b) => s + b.amount, 0);
+  const spent = (user.packs || []).reduce((s, p) => s + (p.cost || 0), 0);
+  const earned = picks + fan.total + survivor + bonus;
+  return { picks, fantasy: fan.total, fan, survivor, bonus, earned, spent, balance: earned - spent };
+}
 async function loadAccount(db, name) {
   const user = name ? await getDoc(userKey(name)) : null;
-  return user ? { user, acct: pk.account(db, user) } : { user: null, acct: null };
+  if (!user) return { user: null, acct: null };
+  const acct = pk.account(db, user);
+  acct.points = pointsOf(db, user, acct, await survivorNow(db));
+  return { user, acct };
 }
 function pickNav(cur, name) {
-  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/survivor', 'Survivor'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
 // Pick Points: just for show. Every winning bet earns 10, +5 per extra parlay leg,
@@ -868,7 +914,7 @@ const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
     <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Make picks with fake coins on every MFL game. Singles, player picks and combos.</p></div>
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open · ${pts(betPoints(acct.bets))} pts</span></div>`
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open · ${pts(acct.points ? acct.points.balance : betPoints(acct.bets))} pts</span></div>`
       : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }
@@ -886,7 +932,8 @@ function betCard(db, b, opts = {}) {
 }
 async function leaderboard(db) {
   const users = await listDocs('users/');
-  return users.map((u) => ({ name: u.name, ...pk.account(db, u) })).sort((a, b) => b.balance - a.balance || b.won - a.won);
+  const st = sv.survivorState(db, users, TZ);
+  return users.map((u) => { const a = pk.account(db, u); return { name: u.name, ...a, points: pointsOf(db, u, a, st) }; }).sort((a, b) => b.balance - a.balance || b.won - a.won);
 }
 
 // Compact odds button for player cards: short text on the button, full label in the slip.
@@ -1285,7 +1332,7 @@ app.get('/pickem/leaderboard', async (req, res, next) => {
       ? `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Week profit</th><th>Points</th><th>W</th><th>L</th></tr></thead><tbody>
         ${wb.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points)}</td><td>${u.won}</td><td>${u.lost}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No picks settled this week yet.</td></tr>'}</tbody></table>`
       : `<table class="tbl"><thead><tr><th>#</th><th class="l">Player</th><th>Coins</th><th>Profit</th><th>Points</th><th>W</th><th>L</th><th>Open</th></tr></thead><tbody>
-        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(betPoints(u.bets))}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
+        ${board.map((u, i) => `<tr class="${u.name === name ? 'today' : ''}"><td>${i + 1}</td><td class="l">${who(u.name)}</td><td>${coins(u.balance)}</td><td class="${u.profit >= 0 ? 'up' : 'down'}">${u.profit >= 0 ? '+' : ''}${u.profit.toLocaleString('en-US')}</td><td>${pts(u.points.earned)}</td><td>${u.won}</td><td>${u.lost}</td><td>${u.pending}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody yet.</td></tr>'}</tbody></table>`;
     res.send(layout(req, "Pick'em Leaderboard", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/leaderboard', name)}
       ${lastW ? `<a class="card botw" href="/pickem/u/${esc(lastW.name)}"><span class="botw-ic">${icon('star')}</span><div><small>Picker of the Week · week of ${esc(shortDate(lastW.week))}</small><b>@${esc(lastW.name)}</b></div><span class="up">+${lastW.profit.toLocaleString('en-US')}</span></a>` : ''}
       <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>${weekly ? `This week <small class="muted">from ${esc(shortDate(wk))}</small>` : 'Season standings'}</h2>
@@ -1312,6 +1359,11 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody can cash in by playing badly on purpose.</p>
       <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the pick if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
+      <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and pay on the rest. Results update by themselves.</p>
+      <h3>Points</h3><p>Points are your MFL score and your currency. Earn them by winning picks, from your Starting 8 every game, by winning Survivor (${sv.PRIZE}) and by selling extra cards. Spend them on card packs.</p>
+      <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, plus Specialist cards that score ${cards.SPECIAL_BOOST}× on their specialty. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
+      <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} Points. <a href="/pickem/survivor">Play Survivor →</a></p>
+      <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
   } catch (e) { next(e); }
 });
@@ -1804,6 +1856,33 @@ async function runAI() {
       db = load();
       if (db.teamRecaps?.[id]?.hash !== hashOf(aiTeamInput(db, db.teams[id]))) await genTeamRecap(id);
     }
+    // 4. Pre-game previews for the next few games.
+    for (const g of upcomingForPreview(load())) {
+      db = load();
+      const inp = aiPreviewInput(db, g), hh = hashOf(inp);
+      if (g.aiPreview?.hash === hh) continue;
+      const out = await ai.writePreview(inp);
+      const g2 = load().games.find((x) => x.id === g.id);
+      if (!g2) continue;
+      const keys = new Set(inp.teams.flatMap((t) => t.roster.filter((p) => !p.ruled_out).map((p) => p.key))); // never a player who's out
+      g2.aiPreview = { hash: hh, text: String(out.preview || ''), ph: Math.max(0, out.predicted_home | 0), pa: Math.max(0, out.predicted_away | 0), watch: keys.has(out.watch_key) ? out.watch_key : null, why: String(out.watch_reason || '').slice(0, 160), at: new Date().toISOString() };
+      await save();
+    }
+    // 5. Scouting reports, for players whose numbers changed.
+    for (const [tid, pid] of Object.values(load().teams).flatMap((t) => t.roster.map((p) => [t.id, p.id]))) {
+      db = load();
+      const t = db.teams[tid], p = t?.roster.find((x) => x.id === pid);
+      if (!p) continue;
+      const inp = aiScoutInput(db, t, p), hh = hashOf(inp);
+      if (p.aiScout?.hash === hh) continue;
+      const out = await ai.writeScouting(inp);
+      const p2 = load().teams[tid]?.roster.find((x) => x.id === pid);
+      if (!p2) continue;
+      p2.aiScout = { hash: hh, report: String(out.report || ''), strengths: (out.strengths || []).slice(0, 4).map(String), grow: (out.grow || []).slice(0, 2).map(String), comparison: String(out.comparison || ''), at: new Date().toISOString() };
+      await save();
+    }
+    // 6. The Midweek Recap, on Wednesdays.
+    if (midweekDue(load())) await genMidweek(midweekDue(load()));
     aiState.lastError = null;
   } catch (e) {
     aiState.lastError = ai.describeError(e);
@@ -1814,6 +1893,177 @@ async function runAI() {
     if (aiState.again) { aiState.again = false; scheduleAI(1000); }
   }
 }
+
+// ---------- more AI: previews, scouting, Midweek Recap, Ask the Analyst ----------
+function rosterForAI(db, t, g) {
+  const rt = Object.fromEntries(ratings(db).filter((x) => x.t.id === t.id).map((x) => [x.p.id, x]));
+  return t.roster.map((p) => ({ key: t.id + '|' + p.id, name: p.name, rating: rt[p.id]?.r, ...(rt[p.id]?.ai ? { analyst_take: rt[p.id].ai } : {}), ...(p.position ? { position: p.position } : {}), ...(g && pk.isOut(g, t.id, p.id) ? { ruled_out: true } : {}) }));
+}
+function upcomingForPreview(db) {
+  const t = today();
+  return db.games.filter((g) => g.status === 'scheduled' && g.date && g.date >= t && g.date <= addDays(t, 7)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)).slice(0, 3);
+}
+function aiPreviewInput(db, g) {
+  const open = pk.isOpen(db, g, TZ), m = open ? pk.markets(db, g) : null;
+  const finals = db.games.filter(isFinal).sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 4);
+  return {
+    game: { date: g.date, home_key: g.home, away_key: g.away, type: g.type === 'playoff' ? `playoff (${bowlName(db, g.bowl)})` : g.type },
+    teams: [g.home, g.away].map((id) => { const t = db.teams[id], st = teamStats(db, id); return { key: id, name: t.name, record: record(st), points_for: st.pf, points_against: st.pa, streak: st.streak || null, roster: rosterForAI(db, t, g) }; }),
+    recent_games: finals.map((x) => aiGame(db, x)),
+    ...(m ? { pickem_odds: { [db.teams[g.home].name]: Math.round((m.byKey[`ml:${g.home}`]?.p || 0) * 100) + '% to win', [db.teams[g.away].name]: Math.round((m.byKey[`ml:${g.away}`]?.p || 0) * 100) + '% to win' } } : {}),
+  };
+}
+function aiScoutInput(db, t, p) {
+  const et = pk.effTend(db), x = ratings(db).find((y) => y.t.id === t.id && y.p.id === p.id), s = playerStats(db, t, p);
+  return {
+    name: p.name, team: teamFull(t), status: tagName(p.tag) || undefined, position: p.position || undefined, number: p.number || undefined, bio: p.bio || undefined,
+    power_rating: x?.r, scouting_rating: x?.base, analyst_take: x?.ai,
+    tendencies: { scores_tds: et.player(t, p, 'td'), throws_tds: et.player(t, p, 'pass'), gets_ints: et.player(t, p, 'int') },
+    totals: { games: s.log.length, td: s.td, td_passes: s.ptd, ints: s.int, threw_ints: s.picked, ...Object.fromEntries(Object.values(STATS).map((st) => [st.short.toLowerCase().replace(/ /g, '_'), s[st.key]])) },
+    achievements: badges.playerBadges(db, t, p, (g) => mvpKeyOf(db, g)).map((b) => b[2]),
+  };
+}
+
+// Midweek Recap: every Wednesday (from 7am league time), covering the week since last Wednesday.
+function midweekDue(db) {
+  const now = pk.nowLocal(TZ), d = now.slice(0, 10);
+  if (new Date(d + 'T12:00:00Z').getUTCDay() !== 3 || now.slice(11) < '07:00') return null;
+  return (db.midweek || []).some((x) => x.date === d) ? null : d;
+}
+async function genMidweek(date) {
+  let db = load();
+  const from = addDays(date, -7);
+  const inWin = (ds) => ds > from && ds <= date;
+  const now = ratings(db);
+  const prevSnap = (db.midweek || []).at(-1)?.snapshot || null;
+  const movers = prevSnap ? now.map((x) => ({ name: x.p.name, team: x.t.name, now: x.r, before: prevSnap[x.t.id + '|' + x.p.id] })).filter((x) => x.before != null && x.now !== x.before).sort((a, b) => Math.abs(b.now - b.before) - Math.abs(a.now - a.before)).slice(0, 6) : [];
+  const users = await listDocs('users/');
+  const board = await leaderboard(db);
+  const pickem = board.map((u) => { const bets = u.bets.filter((b) => b.status !== 'pending' && inWin(localDay(b.placed))); return { user: '@' + u.name, won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, profit: bets.reduce((s, b) => s + (b.status === 'won' ? b.payout - b.stake : b.status === 'lost' ? -b.stake : 0), 0) }; }).filter((u) => u.won + u.lost).sort((a, b) => b.profit - a.profit).slice(0, 5);
+  const bigWins = board.flatMap((u) => u.bets.filter((b) => b.status === 'won' && inWin(localDay(b.placed))).map((b) => ({ user: '@' + u.name, payout: b.payout, picks: b.legs.map((l) => l.label) }))).sort((a, b) => b.payout - a.payout).slice(0, 3);
+  const pulls = users.flatMap((u) => (u.packs || []).filter((p) => inWin(localDay(p.at))).flatMap((p) => p.cards.map((id) => ({ user: '@' + u.name, c: cards.cardInfo(db, id) })))).filter((x) => x.c && ['epic', 'legendary', 'mythic'].includes(x.c.rarity)).map((x) => ({ user: x.user, card: `${x.c.p.name} ${x.c.label} (${x.c.rarityName})` })).slice(0, 8);
+  const st = sv.survivorState(db, users, TZ);
+  const input = {
+    covering: { from_after: from, through: date },
+    games: db.games.filter((g) => isFinal(g) && inWin(g.date)).sort((a, b) => a.date.localeCompare(b.date)).map((g) => aiGame(db, g)),
+    standings: Object.values(db.teams).map((t) => ({ team: t.name, record: record(teamStats(db, t.id)) })),
+    power_rankings_top10: now.slice(0, 10).map((x) => ({ name: x.p.name, team: x.t.name, rating: x.r })),
+    rating_movers: movers,
+    pickem_top: pickem, pickem_biggest_wins: bigWins, card_pulls: pulls,
+    survivor: { round: st.round.n, alive: st.round.alive.length, champions: st.finished.map((f) => f.winner).filter(Boolean).map((n) => '@' + n) },
+    upcoming: upcomingForPreview(db).map((g) => ({ date: g.date, matchup: matchName(db, g), ai_prediction: g.aiPreview ? `${g.aiPreview.ph}-${g.aiPreview.pa}` : null })),
+  };
+  const out = await ai.writeMidweek(input);
+  db = load();
+  db.midweek = (db.midweek || []).filter((x) => x.date !== date);
+  db.midweek.push({ date, from, headline: String(out.headline || 'The Midweek Recap'), intro: String(out.intro || ''), sections: (out.sections || []).slice(0, 8).map((x) => ({ title: String(x.title), body: String(x.body) })), at: new Date().toISOString(), snapshot: Object.fromEntries(now.map((x) => [x.t.id + '|' + x.p.id, x.r])) });
+  db.midweek.sort((a, b) => a.date.localeCompare(b.date));
+  await save();
+}
+// Check for a due Midweek Recap every 15 minutes.
+setInterval(() => { try { if (ai.apiKey() && midweekDue(load())) scheduleAI(1000); } catch {} }, 15 * 60 * 1000).unref();
+
+const midweekBody = (x) => `<article class="mw">${x.sections.map((s) => `<section><h3>${esc(s.title)}</h3><p>${esc(s.body).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>')}</p></section>`).join('')}</article>`;
+app.get(['/midweek', '/midweek/:date'], (req, res) => {
+  const db = load();
+  const all = [...(db.midweek || [])].reverse();
+  const x = req.params.date ? all.find((m) => m.date === req.params.date) : all[0];
+  if (req.params.date && !x) return res.status(404).send(layout(req, 'Not Found', pageHead('Midweek Recap', 'Issue not found')));
+  res.send(layout(req, 'Midweek Recap', pageHead(`The Midweek Recap${x ? ' · ' + esc(longDate(x.date)) : ''}`, x ? x.headline : 'The Midweek Recap', x ? esc(x.intro) : 'A new issue drops every Wednesday, covering everything since the Wednesday before.') + `<div class="wrap home-grid">
+    <div class="col">${x ? `<div class="card">${midweekBody(x)}<p class="muted sm">Written by the MFL's AI analyst · covering ${esc(shortDate(addDays(x.from, 1)))} to ${esc(shortDate(x.date))}</p></div>` : `<div class="card empty-pick">${icon('cal')}<h2>First issue coming Wednesday</h2><p class="muted">Check back then.</p></div>`}</div>
+    <div class="col"><div class="card"><div class="card-h"><h2>Past issues</h2></div>${all.length ? `<ol class="lb">${all.map((m) => `<li><a href="/midweek/${m.date}"><b>${esc(shortDate(m.date))}</b></a><small>${esc(m.headline)}</small></li>`).join('')}</ol>` : '<p class="muted">None yet.</p>'}</div>
+      <a class="card promo" href="/analyst"><div>${icon('star')}</div><div><b>Ask the Analyst</b><span>Got a question about the league? Ask our AI.</span></div>${icon('arrow')}</a></div>
+  </div>`));
+});
+
+// Ask the Analyst: rate-limited so nobody can run up the bill.
+const askLog = new Map(); let askDay = '', askToday = 0;
+const ASK_EXAMPLES = ['Who is the best QB in the league?', 'Who wins the next game, and why?', 'Who should I pick in Survivor?', 'Who has been the most underrated player?', 'What should I pick in Pick\'em today?'];
+function analystInput(db) {
+  const next = pk.nextGame(db, TZ), m = next ? pk.markets(db, next) : null;
+  return {
+    today: today(),
+    standings: Object.values(db.teams).map((t) => { const s = teamStats(db, t.id); return { team: teamFull(t), record: record(s), points_for: s.pf, points_against: s.pa, streak: s.streak || null }; }),
+    power_rankings: ratings(db).map((x) => ({ name: x.p.name, team: x.t.name, rating: x.r, ...(x.ai ? { take: x.ai } : {}), td: x.td, td_passes: x.pass, ints: x.int, threw_ints: x.picked, mvps: x.mvp })),
+    games: db.games.filter(isFinal).sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 20).map((g) => aiGame(db, g)),
+    next_game: next ? { date: next.date, matchup: matchName(db, next), ai_preview: next.aiPreview?.text, pickem_win_chance: m ? { [db.teams[next.home].name]: Math.round((m.byKey[`ml:${next.home}`]?.p || 0) * 100) + '%', [db.teams[next.away].name]: Math.round((m.byKey[`ml:${next.away}`]?.p || 0) * 100) + '%' } : null, top_player_picks: m ? m.list.filter((x) => x.key.startsWith('ptd:')).sort((a, b) => b.p - a.p).slice(0, 6).map((x) => ({ pick: x.label, chance: Math.round(x.p * 100) + '%' })) : [] } : null,
+  };
+}
+const analystPage = (req, q = '', a = '', err = '') => layout(req, 'Ask the Analyst', pageHead('AI · Claude Haiku 5.5', 'Ask the Analyst', 'Ask anything about the MFL: players, teams, matchups, Pick\'em, Survivor.') + `<div class="wrap" style="max-width:860px">
+  <form method="post" action="/analyst" class="card form ask"><label>Your question<textarea name="q" rows="3" maxlength="300" required placeholder="e.g. Who's the best defender in the league?">${esc(q)}</textarea></label>
+    <div class="ask-ex">${ASK_EXAMPLES.map((x) => `<button type="button" class="chip" onclick="this.form.q.value=this.textContent">${esc(x)}</button>`).join('')}</div>
+    <button class="btn" onclick="this.textContent='Thinking…'">${icon('star')} Ask</button>${ai.apiKey() ? '' : ' <span class="muted sm">The Analyst is not set up yet.</span>'}</form>
+  ${err ? `<div class="card"><p class="err">${esc(err)}</p></div>` : ''}
+  ${a ? `<div class="card ans"><div class="card-h"><h2>The Analyst</h2></div><p class="ans-q">"${esc(q)}"</p><p class="ans-a">${esc(a).replace(/\n/g, '<br>')}</p></div>` : ''}
+</div>`);
+app.get('/analyst', (req, res) => res.send(analystPage(req)));
+app.post('/analyst', async (req, res) => {
+  const q = String(req.body.q || '').trim().slice(0, 300);
+  if (!q) return res.send(analystPage(req));
+  if (!ai.apiKey()) return res.send(analystPage(req, q, '', 'The Analyst is not set up yet.'));
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const day = today();
+  if (askDay !== day) { askDay = day; askToday = 0; askLog.clear(); }
+  const mine = (askLog.get(ip) || []).filter((t) => Date.now() - t < 24 * 3600 * 1000);
+  if (mine.length && Date.now() - mine[mine.length - 1] < 15000) return res.send(analystPage(req, q, '', 'One question every 15 seconds. Try again in a moment.'));
+  if (mine.length >= 25 || askToday >= 400) return res.send(analystPage(req, q, '', "That's enough questions for today. Come back tomorrow!"));
+  askLog.set(ip, [...mine, Date.now()]); askToday++;
+  try {
+    const out = await ai.answerQuestion({ question: q, league: analystInput(load()) });
+    res.send(analystPage(req, q, String(out.answer || '')));
+  } catch (e) { console.error('Analyst:', e); res.send(analystPage(req, q, '', "The Analyst couldn't answer right now. Try again soon.")); }
+});
+
+// ---------- fan polls: who wins (before the game) and fan MVP (after) ----------
+const MVP_POLL_DAYS = 3;
+function pollState(db, g) {
+  const lock = `${g.date} ${pk.lockTime(g)}`, now = pk.nowLocal(TZ);
+  return { winOpen: g.status === 'scheduled' && !!g.date && now < lock, mvpOpen: isFinal(g) && !!g.date && today() <= addDays(g.date, MVP_POLL_DAYS) };
+}
+function tally(g, kind) {
+  const c = {};
+  for (const v of Object.values(g.votes?.[kind] || {})) c[v] = (c[v] || 0) + 1;
+  return Object.entries(c).sort((a, b) => b[1] - a[1]);
+}
+function fanMvp(db, g) {
+  const top = tally(g, 'mvp')[0];
+  if (!top) return null;
+  const [tid, pid] = top[0].split('|'), t = db.teams[tid], p = t?.roster.find((x) => x.id === pid);
+  return p ? { t, p, votes: top[1] } : null;
+}
+function pollCard(db, g, req) {
+  const st = pollState(db, g), me = currentUser(req), A = db.teams[g.home], B = db.teams[g.away];
+  if (st.winOpen || (!isFinal(g) && Object.keys(g.votes?.win || {}).length)) {
+    const t = tally(g, 'win'), n = t.reduce((s, x) => s + x[1], 0), mine = me && g.votes?.win?.[me];
+    const pct = (id) => (n ? Math.round(((t.find((x) => x[0] === id)?.[1] || 0) / n) * 100) : 50);
+    return `<div class="card poll" id="poll"><div class="card-h"><h2>Fan poll: who wins?</h2><span class="muted sm">${n} vote${n === 1 ? '' : 's'}</span></div>
+      ${st.winOpen ? `<form method="post" action="/games/${g.id}/vote" class="poll-opts"><input type="hidden" name="kind" value="win">${[A, B].map((t) => `<button name="choice" value="${t.id}" class="poll-btn ${mine === t.id ? 'on' : ''}" style="--c:${esc(t.color)}">${logo(t, 28)} ${esc(t.name)}</button>`).join('')}</form>` : ''}
+      <div class="winbar"><div style="width:${pct(A.id)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${pct(A.id)}%</span></div><div style="width:${pct(B.id)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${pct(B.id)}%</span></div></div>
+      <p class="muted sm">${me ? (mine ? 'Your vote is in. You can change it until picks lock.' : 'Tap a team to vote.') : '<a href="/pickem/login">Log in</a> to vote.'}</p></div>`;
+  }
+  if (isFinal(g)) {
+    const t = tally(g, 'mvp'), n = t.reduce((s, x) => s + x[1], 0), mine = me && g.votes?.mvp?.[me];
+    if (!st.mvpOpen && !n) return '';
+    const name = (k) => { const [tid, pid] = k.split('|'); return db.teams[tid]?.roster.find((p) => p.id === pid); };
+    const players = [g.home, g.away].flatMap((tid) => db.teams[tid].roster.filter((p) => !pk.isOut(g, tid, p.id)).map((p) => ({ t: db.teams[tid], p })));
+    return `<div class="card poll" id="poll"><div class="card-h"><h2>Fan MVP vote</h2><span class="muted sm">${n} vote${n === 1 ? '' : 's'}${st.mvpOpen ? ` · open ${MVP_POLL_DAYS} days` : ' · closed'}</span></div>
+      ${t.length ? `<div class="poll-res">${t.slice(0, 5).map(([k, v]) => { const p = name(k), tm = db.teams[k.split('|')[0]]; return p ? `<div class="pr-row"><span class="th">${avatar(tm, p, 28)} ${esc(p.name)}</span><div class="pr-bar"><i style="width:${Math.round((v / n) * 100)}%;background:${esc(tm.color)}"></i></div><b>${v}</b></div>` : ''; }).join('')}</div>` : ''}
+      ${st.mvpOpen ? (me ? `<form method="post" action="/games/${g.id}/vote" class="form poll-mvp"><input type="hidden" name="kind" value="mvp"><select name="choice" required><option value="">Pick your MVP…</option>${players.map(({ t, p }) => `<option value="${t.id}|${p.id}" ${mine === t.id + '|' + p.id ? 'selected' : ''}>${esc(p.name)} (${esc(t.abbr)})</option>`).join('')}</select><button class="btn sm">Vote</button></form>` : '<p class="muted sm"><a href="/pickem/login">Log in</a> to vote.</p>') : ''}</div>`;
+  }
+  return '';
+}
+app.post('/games/:id/vote', async (req, res) => {
+  const me = currentUser(req);
+  const db = load();
+  const g = db.games.find((x) => x.id === req.params.id);
+  if (!g) return res.redirect('/');
+  if (!me) return res.redirect(`/pickem/login?next=/games/${g.id}`);
+  const st = pollState(db, g), kind = String(req.body.kind), choice = String(req.body.choice || '');
+  const ok = kind === 'win' ? st.winOpen && [g.home, g.away].includes(choice)
+    : kind === 'mvp' ? st.mvpOpen && [g.home, g.away].some((tid) => choice.startsWith(tid + '|') && db.teams[tid].roster.some((p) => choice === tid + '|' + p.id && !pk.isOut(g, tid, p.id))) : false;
+  if (ok) { ((g.votes = g.votes || {})[kind] = g.votes[kind] || {})[me] = choice; await save(); }
+  res.redirect(`/games/${g.id}#poll`);
+});
 
 app.get('/stats/rankings', (req, res) => {
   const db = load();
@@ -1979,6 +2229,8 @@ app.get('/pickem/u/:name', async (req, res, next) => {
     const board = await leaderboard(db);
     const rank = board.findIndex((u) => u.name === uname) + 1;
     const botw = weeklyWinners(board).filter((w) => w.name === uname);
+    acct.points = board.find((u) => u.name === uname).points;
+    const ubadges = badges.userBadges({ db, acct, user, weeklyWins: botw.length, survivorWins: acct.points.survivor / sv.PRIZE, fantasy: acct.points.fan });
     const mine = me === uname;
     const { user: viewer, acct: vAcct } = await loadAccount(db, me);
     const tile = (k, v, cls = '') => `<div class="card"><small>${k}</small><b class="${cls}">${v}</b></div>`;
@@ -1990,9 +2242,10 @@ app.get('/pickem/u/:name', async (req, res, next) => {
           <div class="badges">${botw.map((w) => `<span class="badge-b">${icon('star')} Picker of the Week · ${esc(shortDate(w.week))}</span>`).join('')}${st.winRate >= 60 && st.settled >= 5 ? '<span class="badge-b hot">🔥 Sharp</span>' : ''}${st.best && st.best.odds >= 10 ? '<span class="badge-b">💰 Long-shot hitter</span>' : ''}</div></div>
         <div class="prof-bal">${coins(acct.balance)}<small>coins</small></div>
       </div>
+      ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
-      <div class="stats-row six">${tile('Pick points', pts(betPoints(acct.bets)), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
+      <div class="stats-row six">${tile('Points', pts(acct.points.balance), 'bp')}${tile('Profit', (acct.profit >= 0 ? '+' : '') + acct.profit.toLocaleString('en-US'), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
       ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
         ${req.query.pw === 'ok' ? '<p class="toast">Password changed ✓</p>' : req.query.pw ? `<p class="err">${esc(req.query.pw)}</p>` : ''}
         <form method="post" action="/pickem/password" class="form pw-form">
@@ -2094,7 +2347,8 @@ app.get('/admin/ai', requireAdmin, (req, res) => {
       <p>${key ? `Key: <b>set</b> (${src === 'variable' ? 'from the ANTHROPIC_API_KEY variable' : 'saved here'}, ends in <code>${esc(key.slice(-4))}</code>)` : 'Key: <b>not set</b>'}</p>
       <p>Ratings: ${db.ai?.at ? `updated ${esc(new Date(db.ai.at).toLocaleString('en-US', { timeZone: TZ }))}` : 'not run yet'} · Recaps: ${recaps} of ${finals} final games</p>
       <p>${aiState.running ? '<b>Running now…</b>' : aiState.lastRun ? `Last run ${esc(new Date(aiState.lastRun).toLocaleString('en-US', { timeZone: TZ }))}` : ''}${aiState.lastError ? ` · <span class="err">${esc(aiState.lastError)}</span>` : ''}</p>
-      <form method="post" action="/admin/ai/run"><button class="btn sm" ${key ? '' : 'disabled'}>Run now</button></form>
+      <form method="post" action="/admin/ai/run" style="display:inline"><button class="btn sm" ${key ? '' : 'disabled'}>Run now</button></form>
+      <form method="post" action="/admin/ai/midweek" style="display:inline"><button class="btn sm ghost" ${key ? '' : 'disabled'}>Write this week's Midweek Recap now</button></form>
     </div>
     ${src === 'variable' ? '' : `<div class="card"><div class="card-h"><h2>API key</h2></div>
       <form method="post" action="/admin/ai/key" class="form"><label>Anthropic API key<input name="key" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
@@ -2106,6 +2360,12 @@ app.post('/admin/ai/key', requireAdmin, (req, res) => {
   if (key && !/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return res.redirect('/admin/ai?err=1');
   ai.setApiKey(key || null);
   res.redirect('/admin/ai?saved=1');
+});
+app.post('/admin/ai/midweek', requireAdmin, async (req, res) => {
+  // The issue for the most recent Wednesday (today if it's Wednesday).
+  let d = today();
+  while (new Date(d + 'T12:00:00Z').getUTCDay() !== 3) d = addDays(d, -1);
+  try { await genMidweek(d); res.redirect('/midweek'); } catch (e) { aiState.lastError = ai.describeError(e); res.redirect('/admin/ai'); }
 });
 app.post('/admin/ai/run', requireAdmin, (req, res) => {
   const db = load();
@@ -2735,6 +2995,14 @@ app.post('/admin/bowls', requireAdmin, async (req, res) => {
   await save();
   res.redirect('/admin/bowls?saved=1');
 });
+
+// ---------- MFL Cards & Survivor (fun.js) ----------
+let ratingMemo = { at: 0, map: null };
+function ratingOf(db, t, p) {
+  if (!ratingMemo.map || Date.now() - ratingMemo.at > 3000) ratingMemo = { at: Date.now(), map: Object.fromEntries(ratings(db).map((x) => [x.p.id, x.r])) };
+  return ratingMemo.map[p.id] ?? 60;
+}
+require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, pointsOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
