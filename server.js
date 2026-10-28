@@ -66,11 +66,30 @@ app.use((req, res, next) => {
   res.redirect = (a, b) => { const url = typeof a === 'number' ? b : a; res.set('X-MFL-Redirect', url).status(200).end(); };
   next();
 });
+// Gzip pages (they're mostly repeated markup, so they shrink ~10x).
+app.use((req, res, next) => {
+  if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '')) return next();
+  const send = res.send.bind(res);
+  res.send = (body) => {
+    if (typeof body !== 'string' || body.length < 2048 || res.get('Content-Encoding')) return send(body);
+    if (!res.get('Content-Type')) res.type('html');
+    res.set({ 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' });
+    return send(require('zlib').gzipSync(body, { level: 6 }));
+  };
+  next();
+});
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 const smallJson = express.json({ limit: '100kb' });
 app.use((req, res, next) => (req.path === '/admin/restore' ? next() : smallJson(req, res, next)));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 // Player photos, served from storage (keys are unique per upload, so cache hard).
+app.get('/media/logo/:file', (req, res) => {
+  const m = /^([a-z0-9-]+)-([0-9a-f]{10})\.[a-z+]+$/.exec(req.params.file);
+  const t = m && load()?.teams?.[m[1]];
+  const L = t && logoFile(t);
+  if (!L) return res.status(404).end();
+  res.set({ 'Content-Type': L.type, 'Cache-Control': `public, max-age=${L.hash === m[2] ? 31536000 : 300}, immutable` }).send(L.buf);
+});
 app.get('/media/:key', async (req, res, next) => {
   try {
     if (!/^[a-z0-9-]+\.jpg$/.test(req.params.key)) return res.status(404).end();
@@ -125,8 +144,23 @@ function readableOn(hex) {
   const l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
   return l > 0.6 ? '#0b0b0f' : '#ffffff';
 }
+// Logos are stored as data URLs but served as their own cached image files, so a
+// page that shows a logo 40 times doesn't carry 40 copies of it.
+const logoCache = new Map(); // team id -> { src, hash, type, buf }
+function logoFile(t) {
+  let L = logoCache.get(t.id);
+  if (!L || L.src !== t.logo) {
+    const m = /^data:(image\/[a-z+]+);base64,(.+)$/.exec(t.logo || '');
+    if (!m) return null;
+    const buf = Buffer.from(m[2], 'base64');
+    L = { src: t.logo, type: m[1], ext: { 'image/jpeg': 'jpg', 'image/svg+xml': 'svg' }[m[1]] || m[1].slice(6), buf, hash: require('crypto').createHash('sha1').update(buf).digest('hex').slice(0, 10) };
+    logoCache.set(t.id, L);
+  }
+  return L;
+}
 function logo(t, size = 40, cls = '') {
-  if (t.logo) return `<img class="logo ${cls}" src="${esc(t.logo)}" alt="${esc(t.name)}" style="width:${size}px;height:${size}px">`;
+  const L = t.logo && logoFile(t);
+  if (L) return `<img class="logo ${cls}" src="/media/logo/${esc(t.id)}-${L.hash}.${L.ext}" alt="${esc(t.name)}" style="width:${size}px;height:${size}px" decoding="async">`;
   return `<span class="logo mono ${cls}" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.32)}px;background:${esc(t.color)};color:${readableOn(t.color)}">${esc(t.abbr)}</span>`;
 }
 const TAG_NAMES = { C: 'Captain', TR: 'Team Rep', FA: 'Free Agent' };
@@ -307,7 +341,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=32">
+<link rel="stylesheet" href="/static/style.css?v=33">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -914,7 +948,7 @@ const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString
 function pickHead(user, acct) {
   return `<section class="ph pick-ph"><div class="wrap pick-top">
     <div><div class="kicker">${icon('coin')} Free to play · MFL Coins only</div><h1>Pick'em</h1><p>Make picks with fake coins on every MFL game. Singles, player picks and combos.</p></div>
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open · ${pts(acct.points ? acct.points.balance : betPoints(acct.bets))} pts</span></div>`
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open </span><a class="wallet-pts" href="/pickem/packs" title="Pick'em + Starting 8 + Survivor: one currency">${icon('star')} ${(acct.points ? acct.points.balance : betPoints(acct.bets)).toLocaleString('en-US')} Points</a></div>`
       : `<div class="wallet cta"><b>Get ${pk.START_COINS.toLocaleString()} free coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }
@@ -1360,8 +1394,8 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>The spread</h3><p>The favorite has to win by more than the line (<b>-13.5</b>, so by 14 or more). The underdog <b>+13.5</b> wins the pick if they win or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included. Every spread is <b>13.5</b> (favorite -13.5, underdog +13.5), so there are no ties.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
       <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and pay on the rest. Results update by themselves.</p>
-      <h3>Points</h3><p>Points are your MFL score and your currency. Earn them by winning picks, from your Starting 8 every game, by winning Survivor (${sv.PRIZE}) and by selling extra cards. Spend them on card packs.</p>
-      <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, plus Specialist cards that score ${cards.SPECIAL_BOOST}× on their specialty. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
+      <h3>Points</h3><p>Points are your MFL score and your one currency: Pick'em points and Starting 8 fantasy points are the exact same Points. Earn them by winning picks, from your Starting 8 every game, by winning Survivor (${sv.PRIZE}) and by selling extra cards. Spend them on card packs.</p>
+      <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with Points. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} Points. <a href="/pickem/survivor">Play Survivor →</a></p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
@@ -1941,7 +1975,7 @@ async function genMidweek(date) {
   const board = await leaderboard(db);
   const pickem = board.map((u) => { const bets = u.bets.filter((b) => b.status !== 'pending' && inWin(localDay(b.placed))); return { user: '@' + u.name, won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, profit: bets.reduce((s, b) => s + (b.status === 'won' ? b.payout - b.stake : b.status === 'lost' ? -b.stake : 0), 0) }; }).filter((u) => u.won + u.lost).sort((a, b) => b.profit - a.profit).slice(0, 5);
   const bigWins = board.flatMap((u) => u.bets.filter((b) => b.status === 'won' && inWin(localDay(b.placed))).map((b) => ({ user: '@' + u.name, payout: b.payout, picks: b.legs.map((l) => l.label) }))).sort((a, b) => b.payout - a.payout).slice(0, 3);
-  const pulls = users.flatMap((u) => (u.packs || []).filter((p) => inWin(localDay(p.at))).flatMap((p) => p.cards.map((id) => ({ user: '@' + u.name, c: cards.cardInfo(db, id) })))).filter((x) => x.c && ['epic', 'legendary', 'mythic'].includes(x.c.rarity)).map((x) => ({ user: x.user, card: `${x.c.p.name} ${x.c.label} (${x.c.rarityName})` })).slice(0, 8);
+  const pulls = users.flatMap((u) => (u.packs || []).filter((p) => inWin(localDay(p.at))).flatMap((p) => p.cards.map((id) => ({ user: '@' + u.name, c: cards.cardInfo(db, id) })))).filter((x) => x.c && cards.RARITY_ORDER.indexOf(x.c.rarity) >= 2).map((x) => ({ user: x.user, card: `${x.c.p.name} ${x.c.label} (${x.c.rarityName})` })).slice(0, 8);
   const st = sv.survivorState(db, users, TZ);
   const input = {
     covering: { from_after: from, through: date },
@@ -2600,11 +2634,19 @@ app.get('/admin/teams', requireAdmin, (req, res) => {
         <label>Captain<input name="captain" value="${esc(t.captain)}"></label>
         <label>Primary color<input type="color" name="color" value="${esc(t.color)}"></label>
         <label>Secondary color<input type="color" name="color2" value="${esc(t.color2)}"></label>
-        <label class="wide">Logo (PNG/JPG/SVG, under ~3MB)<input type="file" accept="image/*" onchange="const f=this.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{this.form.logo.value=r.result;};r.readAsDataURL(f)"></label>
+        <label class="wide">Logo (PNG/JPG/SVG; big images are shrunk automatically)<input type="file" accept="image/*" onchange="mflLogo(this)"></label>
         <input type="hidden" name="logo" value="">
         <label class="chk"><input type="checkbox" name="clearLogo"> Remove current logo</label>
         <label class="wide">Roster: one per line as "Name | Tag" (tags: C, TR, Rd 1, FA…). Edit bios &amp; photos under Players.<textarea name="roster" rows="10">${esc(t.roster.map((p) => (p.tag ? `${p.name} | ${p.tag}` : p.name)).join('\n'))}</textarea></label>
-      </div><div class="actions"><button class="btn">Save ${esc(t.name)}</button></div></form>`).join('')}</div>`, { ticker: false }));
+      </div><div class="actions"><button class="btn">Save ${esc(t.name)}</button></div></form>`).join('')}</div>
+    <script>
+    // Shrink logos to 256px before upload so pages stay fast.
+    function mflLogo(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{
+      if(/svg/.test(f.type)){inp.form.logo.value=r.result;return;}
+      const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');
+        c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        inp.form.logo.value=c.toDataURL('image/webp',0.86);};im.src=r.result;};r.readAsDataURL(f);}
+    </script>`, { ticker: false }));
 });
 app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
   const db = load();
@@ -2616,7 +2658,7 @@ app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
   t.abbr = String(b.abbr || t.abbr).slice(0, 4).toUpperCase(); t.captain = String(b.captain || '').slice(0, 60);
   t.color = hex(b.color, t.color); t.color2 = hex(b.color2, t.color2);
   if (b.clearLogo) t.logo = null;
-  else if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/.test(b.logo || '')) t.logo = b.logo;
+  else if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/.test(b.logo || '')) { t.logo = b.logo; shrinkLogos(db); }
   const old = t.roster;
   const used = new Set();
   t.roster = String(b.roster || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
@@ -3007,7 +3049,22 @@ require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, p
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
 
+// Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
+function shrinkLogos(db) {
+  let changed = false;
+  for (const t of Object.values(db.teams)) {
+    const m = /^data:image\/png;base64,(.+)$/.exec(t.logo || '');
+    if (!m || m[1].length < 400 * 1024) continue;
+    try {
+      const small = require('./shrinkpng').shrinkPng(Buffer.from(m[1], 'base64'));
+      if (small) { t.logo = 'data:image/png;base64,' + small.toString('base64'); changed = true; console.log(`Shrunk ${t.id} logo: ${m[1].length} -> ${t.logo.length}`); }
+    } catch (e) { console.error('logo shrink failed', t.id, e.message); }
+  }
+  return changed;
+}
+
 if (require.main === module) {
+  refresh().then(async (db) => { if (shrinkLogos(db)) await save(); }).catch((e) => console.error(e));
   app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.

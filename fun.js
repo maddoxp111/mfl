@@ -12,12 +12,12 @@ module.exports = function fun(app, h) {
   function cardArt(db, c, opts = {}) {
     const rt = h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
-    return `<div class="mcard r-${c.rarity} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}">
+    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}">
       <div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
-      <div class="mc-var">${spec ? `${esc(spec.name)}` : esc(c.label)}</div>
+      <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : esc(c.label)}</div>
       ${spec ? `<div class="mc-spec">${esc(spec.desc)}</div>` : ''}
       <div class="mc-foot"><span class="mc-rar">${esc(c.rarityName)}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
     </div>`;
@@ -64,10 +64,12 @@ module.exports = function fun(app, h) {
         ${last ? `<section class="card"><div class="card-h"><h2>Last game: ${last.total} points</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
           <div class="fan-rows">${last.cards.sort((a, b) => b.pts - a.pts).map((x) => `<div class="fan-row"><span class="th">${avatar(x.c.t, x.c.p, 30)} <b>${esc(x.c.p.name)}</b> <small class="muted">${esc(x.c.label)} · ${x.c.mult}×</small></span><span class="muted sm">${x.played ? x.parts.map((q) => `${q.n} ${cards.SCORING_LABEL[q.k].toLowerCase()}${q.n > 1 ? 's' : ''}`).join(', ') || 'no stats' : 'did not play'}</span><b class="${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : ''}${x.pts}</b></div>`).join('')}</div>
           ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} ${r.total} pts`).join(' · ')}</p>` : ''}</section>` : ''}
+        ${pointsBreakdown(acct)}
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
-          ${view === 'all' ? `<p class="muted sm">${all.length} cards: every player has Base, Silver, Gold, Specialist, Legend and a Mythic 1/1. Drop odds per card: ${cards.RARITY_ORDER.map((r) => `${R[r].name} ${(R[r].weight / Object.values(R).reduce((s, x) => s + x.weight, 0) * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')}.</p>` : ''}
-          <div class="mgrid" id="coll">${(view === 'all' ? [...all].sort((a, b) => sortKey(a) - sortKey(b)) : mine).map((c) => {
+          ${view === 'all' ? `<p class="muted sm">${all.length} cards: every player has ${cards.VARIANTS.length} versions, from Base to the 1-of-1 Mythic and Dark Matter cards.</p>` : ''}
+          <div class="seg mini rfilter">${['all', ...cards.RARITY_ORDER].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
+          <div class="mgrid" id="coll">${(view === 'all' ? [...all].sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
             const n = own[c.id] || 0;
             const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} pts</button></form>` : '';
             return `<div class="mcell ${n ? 'owned' : 'missing'}">${cardArt(db, c, { small: true, count: n, cls: n ? 'pickable' : '' })}${sell}</div>`;
@@ -125,15 +127,51 @@ module.exports = function fun(app, h) {
 
   // ---------- packs ----------
   const localDay = () => pk.nowLocal(TZ).slice(0, 10);
+  const weekOf = (day) => { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   async function prizeWeeks(db, name, user) {
     const won = h.weeklyWinners(await h.leaderboard(db)).filter((w) => w.name === name).map((w) => w.week);
     const claimed = new Set((user.packs || []).filter((p) => p.type === 'prize').map((p) => p.week));
     return won.filter((w) => !claimed.has(w));
   }
+  const uniqueCount = (user) => Object.keys(cards.collection(user)).length;
+  // Free packs a user can claim right now: [{ type, key, note }]. `key` makes each claim one-time.
+  async function freeClaims(db, name, user) {
+    const packs = user.packs || [], day = localDay(), wk = weekOf(day);
+    const has = (type, key) => packs.some((p) => p.type === type && (key == null || p.key === key));
+    const out = [];
+    if (!has('starter')) out.push({ type: 'starter', key: 'starter' });
+    for (const w of await prizeWeeks(db, name, user)) out.push({ type: 'prize', key: w, note: `Picker of the Week prize · week of ${h.shortDate(w)}` });
+    const n = uniqueCount(user);
+    for (const step of cards.COLLECTOR_STEPS) if (n >= step && !has('milestone', 'c' + step)) out.push({ type: 'milestone', key: 'c' + step, note: `Collected ${step} different cards` });
+    if (!packs.some((p) => p.type === 'daily' && p.local?.slice(0, 10) === day)) out.push({ type: 'daily', key: day });
+    if (db.games.some((g) => g.date === day && g.status !== 'postponed') && !has('gameday', day)) out.push({ type: 'gameday', key: day, note: "It's game day!" });
+    if (!has('weekly', wk)) out.push({ type: 'weekly', key: wk, note: `Week of ${h.shortDate(wk)}` });
+    return out;
+  }
+  // 1/1 cards someone already owns.
+  async function takenOnes(db) {
+    const users = await h.listDocs('users/');
+    return new Set(users.flatMap((u) => Object.keys(cards.collection(u))).filter((id) => cards.cardInfo(db, id)?.one));
+  }
   async function bigPulls(db) {
     const users = await h.listDocs('users/');
-    return users.flatMap((u) => (u.packs || []).flatMap((p) => p.cards.map((id) => ({ u: u.name, id, at: p.at })))).filter((x) => ['legendary', 'mythic'].includes(cards.cardInfo(db, x.id)?.rarity)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+    return users.flatMap((u) => (u.packs || []).flatMap((p) => p.cards.map((id) => ({ u: u.name, id, at: p.at })))).filter((x) => cards.RARITY_ORDER.indexOf(cards.cardInfo(db, x.id)?.rarity) >= 3).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10);
   }
+  const GROUPS = [['free', 'Free packs', 'Claim these. They refill.'], ['core', 'Packs', 'Any card in the league can drop.'], ['theme', 'Themed packs', 'Only certain kinds of cards.'], ['team', 'Team packs', "Only one team's players."], ['chase', 'Chase packs', 'Expensive. Built for the rarest cards.']];
+  function pointsBreakdown(acct) {
+    const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US');
+    return `<div class="card pts-break"><div class="card-h"><h2>${icon('coin')} Your Points</h2><b class="big">${f(P.balance)}</b></div>
+      <p class="muted sm">One currency for everything: Pick'em wins and Starting 8 fantasy points are the same Points, and they all spend on packs.</p>
+      <div class="pb-rows">
+        <div><span>Pick'em wins</span><b class="up">+${f(P.picks)}</b></div>
+        <div><span>Starting 8 fantasy</span><b class="up">+${f(P.fantasy)}</b></div>
+        <div><span>Survivor</span><b class="up">+${f(P.survivor)}</b></div>
+        <div><span>Card sales & rewards</span><b class="up">+${f(P.bonus)}</b></div>
+        <div><span>Spent on packs</span><b class="down">−${f(P.spent)}</b></div>
+        <div class="tot"><span>Balance</span><b>${f(P.balance)}</b></div>
+      </div></div>`;
+  }
+  h.pointsBreakdown = pointsBreakdown;
 
   app.get('/pickem/packs', async (req, res, next) => {
     try {
@@ -141,33 +179,38 @@ module.exports = function fun(app, h) {
       const name = h.currentUser(req);
       if (!name) return needLogin(req, res, 'Packs', 'open packs');
       const { user, acct } = await h.loadAccount(db, name);
-      const packs = user.packs || [];
-      const starterDone = packs.some((p) => p.type === 'starter');
-      const dailyDone = packs.some((p) => p.type === 'daily' && p.local?.slice(0, 10) === localDay());
-      const prize = await prizeWeeks(db, name, user);
+      const free = await freeClaims(db, name, user);
       const pulls = await bigPulls(db);
+      const taken = await takenOnes(db);
       const bal = acct.points.balance;
-      const shop = [
-        !starterDone && ['starter', 'Free'],
-        ...prize.map((w) => ['prize', 'Free', w]),
-        ['daily', dailyDone ? 'Come back tomorrow' : 'Free'],
-        ['standard', `${cards.PACKS.standard.cost} pts`],
-        ['premium', `${cards.PACKS.premium.cost} pts`],
-      ].filter(Boolean);
+      const dailyDone = !free.some((f) => f.type === 'daily');
+      const packCard = (type, opts = {}) => {
+        const P = cards.packInfo(db, type), can = opts.free ? true : P.cost <= bal;
+        const t = P.team && db.teams[P.team];
+        return `<form method="post" action="/pickem/packs/open" class="pack pk-${P.team ? 'team' : type}" ${t ? `style="--c:${esc(t.color)};--c2:${esc(t.color2)}"` : ''}><input type="hidden" name="type" value="${esc(type)}">${opts.key ? `<input type="hidden" name="key" value="${esc(opts.key)}">` : ''}
+          <div class="pack-art">${t ? logo(t, 34) : '<span>MFL</span>'}<b>${esc(P.name.replace(/ Pack$/, ''))}</b><i>${P.cards} card${P.cards > 1 ? 's' : ''}</i></div>
+          <div class="pack-info"><b>${esc(P.name)}</b><small>${esc(opts.note || P.desc)}</small></div>
+          <button class="btn ${can ? '' : 'ghost'}" ${can ? '' : 'disabled'}>${opts.free ? 'Open · Free' : can ? `Open · ${P.cost.toLocaleString('en-US')} pts` : `Need ${P.cost.toLocaleString('en-US')} pts`}</button></form>`;
+      };
+      const groups = GROUPS.map(([g, title, sub]) => {
+        let items;
+        if (g === 'free') {
+          items = free.map((f) => packCard(f.type, { free: true, key: f.key, note: f.note }));
+          if (dailyDone) items.push(`<div class="pack pk-done"><div class="pack-art"><span>MFL</span><b>Daily</b><i>✓</i></div><div class="pack-info"><b>Daily Pack</b><small>Claimed today. Come back tomorrow.</small></div></div>`);
+        } else items = cards.packTypes(db).filter((t) => cards.packInfo(db, t).group === g).map((t) => packCard(t));
+        return items.length ? `<section class="pack-group"><div class="card-h"><h2>${esc(title)}</h2><span class="muted sm">${esc(sub)}</span></div><div class="packs">${items.join('')}</div></section>` : '';
+      }).join('');
+      const totalW = Object.values(R).reduce((s, x) => s + x.weight, 0);
+      const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
       res.send(layout(req, 'Packs', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}${flash(req)}
-        <div class="packs">${shop.map(([type, price, week]) => {
-          const P = cards.PACKS[type], can = type === 'daily' ? !dailyDone : (P.cost <= bal);
-          return `<form method="post" action="/pickem/packs/open" class="pack pk-${type}"><input type="hidden" name="type" value="${type}">${week ? `<input type="hidden" name="week" value="${esc(week)}">` : ''}
-            <div class="pack-art"><span>MFL</span><b>${esc(P.name.replace(' Pack', ''))}</b><i>${P.cards} card${P.cards > 1 ? 's' : ''}</i></div>
-            <div class="pack-info"><b>${esc(P.name)}</b><small>${esc(week ? `Picker of the Week prize · week of ${h.shortDate(week)}` : P.desc)}</small></div>
-            <button class="btn ${can ? '' : 'ghost'}" ${can ? '' : 'disabled'}>${can ? `Open · ${esc(price)}` : esc(type === 'daily' ? price : `Need ${P.cost} pts`)}</button></form>`;
-        }).join('')}</div>
-        <div class="home-grid"><div class="col"><div class="card"><div class="card-h"><h2>How Points work</h2></div><ul class="how">
-          <li>You have ${pts(bal)} Points (${acct.points.earned.toLocaleString('en-US')} earned, ${acct.points.spent.toLocaleString('en-US')} spent).</li>
-          <li>Earn Points by winning picks, from your Starting 8 every game, by winning Survivor (${sv.PRIZE} pts) and by selling extra cards.</li>
-          <li>Rarities: ${cards.RARITY_ORDER.map((r) => `<b>${R[r].name}</b> ${R[r].mult}×`).join(' · ')}. Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty.</li>
-          <li>Mythic 1/1 cards drop about once in every ${Math.round(Object.values(R).reduce((s, x) => s + x.weight, 0) / R.mythic.weight).toLocaleString('en-US')} cards. Good luck.</li></ul></div></div>
-        <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Big pulls</h2></div>${pulls.length ? `<ol class="lb">${pulls.map((x) => { const c = cards.cardInfo(db, x.id); return `<li><b>@${esc(x.u)}</b><small>${esc(c.p.name)} · ${esc(c.label)}</small><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span></li>`; }).join('')}</ol>` : '<p class="muted">No Legend or Mythic pulls yet. Be the first.</p>'}</div></div></div>
+        ${groups}
+        <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Odds & rarities</h2></div><ul class="how">
+          <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
+          <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v, i, a) => !v.id.startsWith('spec-') || v.id === 'spec-td').map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
+          <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
+          <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
+          <li>Collect more different cards to unlock free Collector Packs at ${cards.COLLECTOR_STEPS.join(', ')}.</li></ul></div></div>
+        <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Big pulls</h2></div>${pulls.length ? `<ol class="lb">${pulls.map((x) => { const c = cards.cardInfo(db, x.id); return `<li><b>@${esc(x.u)}</b><small>${esc(c.p.name)} · ${esc(c.label)}</small><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span></li>`; }).join('')}</ol>` : '<p class="muted">No Legend-or-better pulls yet. Be the first.</p>'}</div></div></div>
       </div>`));
     } catch (e) { next(e); }
   });
@@ -177,23 +220,22 @@ module.exports = function fun(app, h) {
     if (!name) return res.redirect('/pickem/login?next=/pickem/packs');
     const db = h.load();
     const type = String(req.body.type || '');
-    const P = cards.PACKS[type];
+    const P = cards.packInfo(db, type);
     if (!P) return res.redirect('/pickem/packs?m=bad');
     const user = await freshUser(name);
     const packs = (user.packs = user.packs || []);
-    let week = null;
-    if (type === 'starter' && packs.some((p) => p.type === 'starter')) return res.redirect('/pickem/packs?m=used');
-    if (type === 'daily' && packs.some((p) => p.type === 'daily' && p.local?.slice(0, 10) === localDay())) return res.redirect('/pickem/packs?m=used');
-    if (type === 'prize') {
-      week = String(req.body.week || '');
-      if (!(await prizeWeeks(db, name, user)).includes(week)) return res.redirect('/pickem/packs?m=used');
-    }
-    if (P.cost) {
+    let key = null;
+    if (P.free) {
+      const want = String(req.body.key || '');
+      const claim = (await freeClaims(db, name, user)).find((f) => f.type === type && (f.key === want || type === 'starter' || type === 'daily'));
+      if (!claim) return res.redirect('/pickem/packs?m=used');
+      key = claim.key;
+    } else {
       const acct = pk.account(db, user);
       const bal = h.pointsOf(db, user, acct, await h.survivorNow(db)).balance;
       if (bal < P.cost) return res.redirect('/pickem/packs?m=poor');
     }
-    const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost, at: new Date().toISOString(), local: pk.nowLocal(TZ), cards: cards.openPack(db, type), ...(week ? { week } : {}) };
+    const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, at: new Date().toISOString(), local: pk.nowLocal(TZ), cards: cards.openPack(db, type, await takenOnes(db)), ...(key ? { key } : {}), ...(type === 'prize' ? { week: key } : {}) };
     packs.push(pack);
     // A first pack also sets a Starting 8 if there isn't one yet.
     if (type === 'starter' && !(user.lineups || []).length) (user.lineups = []).push({ at: pack.at, local: pack.local, cards: pack.cards.slice(0, cards.LINEUP_SIZE) });
@@ -212,7 +254,7 @@ module.exports = function fun(app, h) {
       const cs = pack.cards.map((id) => cards.cardInfo(db, id)).filter(Boolean);
       const best = cs.reduce((m, c) => Math.max(m, cards.RARITY_ORDER.indexOf(c.rarity)), 0);
       res.send(layout(req, 'Pack', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}
-        <div class="reveal-head"><h2>${esc(cards.PACKS[pack.type].name)}</h2><p class="muted">Tap each card to flip it.</p><button class="btn ghost sm" id="flipAll">Flip all</button></div>
+        <div class="reveal-head"><h2>${esc(cards.packInfo(db, pack.type)?.name || 'Pack')}</h2><p class="muted">Tap each card to flip it.</p><button class="btn ghost sm" id="flipAll">Flip all</button></div>
         <div class="reveal best-${cards.RARITY_ORDER[best]}">${cs.map((c, i) => `<div class="flip r-${c.rarity}" style="--d:${i * 90}ms"><div class="flip-in"><div class="flip-back"><span>MFL</span></div><div class="flip-front">${cardArt(db, c)}</div></div></div>`).join('')}</div>
         <p class="reveal-go center" hidden><a class="btn" href="/pickem/cards">Go to my cards</a> <a class="btn ghost" href="/pickem/packs">Open another</a></p>
         <script>(()=>{const fl=[...document.querySelectorAll('.flip')],go=document.querySelector('.reveal-go');const done=()=>{if(fl.every(f=>f.classList.contains('on')))go.hidden=false;};

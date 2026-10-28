@@ -55,8 +55,10 @@ const USER_BADGES = [
   ['fantasy', '📈', 'Fantasy Star', '100+ points from a Starting 8 in one game'],
   ['collector', '🗂️', 'Collector', '25 different cards'],
   ['fullsquad', '🧑‍🤝‍🧑', 'Full Squad', 'A card of every player in the league'],
-  ['legend', '🌟', 'Legendary Pull', 'Owns a Legend card'],
-  ['mythic', '💎', 'Mythic Pull', 'Owns a Mythic 1/1 card'],
+  ['legend', '🌟', 'Legendary Pull', 'Owns a Legend, All-Star or Clutch card'],
+  ['mythic', '💎', 'Mythic Pull', 'Owns a Mythic, Icon or Dark Matter card'],
+  ['darkmatter', '🌌', 'Dark Matter', 'Owns a Dark Matter 1/1 card'],
+  ['hoarder', '📚', 'Card Shark', '100 different cards'],
   ['survivor', '🏝️', 'Survivor', 'Won a Survivor round'],
 ];
 
@@ -78,8 +80,11 @@ function userBadges(ctx) {
   const players = Object.values(db.teams).flatMap((t) => t.roster.map((p) => p.id));
   const ownPlayers = new Set(own.map((id) => id.split(':')[0]));
   if (players.length && players.every((pid) => ownPlayers.has(pid))) has.add('fullsquad');
-  if (own.some((id) => id.endsWith(':legend'))) has.add('legend');
-  if (own.some((id) => id.endsWith(':mythic'))) has.add('mythic');
+  const rk = (id) => cards.RARITY_ORDER.indexOf(cards.cardInfo(db, id)?.rarity);
+  if (own.some((id) => rk(id) >= 3)) has.add('legend');
+  if (own.some((id) => rk(id) >= 4)) has.add('mythic');
+  if (own.some((id) => rk(id) >= 5)) has.add('darkmatter');
+  if (own.length >= 100) has.add('hoarder');
   if (ctx.survivorWins > 0) has.add('survivor');
   return USER_BADGES.filter(([id]) => has.has(id));
 }
