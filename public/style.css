@@ -88,7 +88,7 @@ img.logo{box-shadow:none;border-radius:0}
 .home{padding-top:28px}
 .hero{position:relative;display:grid;grid-template-columns:1.2fr 1fr;gap:28px;align-items:center;padding:40px;border-radius:26px;margin-bottom:24px;overflow:hidden;border:1px solid var(--line2);
   background:linear-gradient(120deg,color-mix(in srgb,var(--a) 45%,transparent) 0%,transparent 45%),linear-gradient(300deg,color-mix(in srgb,var(--b) 45%,transparent) 0%,transparent 45%),var(--bg2)}
-.hero::after{content:'';position:absolute;inset:0;background:url(/static/mfl-logo.webp) no-repeat right -60px center/340px;opacity:.04;pointer-events:none}
+.hero::after{content:'';position:absolute;inset:0;background:url(/static/mfl-logo-lg.webp) no-repeat right -60px center/340px;opacity:.04;pointer-events:none}
 .hero h1{font:900 clamp(32px,4.4vw,52px)/1 var(--disp);word-spacing:.08em;letter-spacing:-.02em;margin:14px 0 16px;text-transform:uppercase}
 .hero p{color:var(--ink2);margin:0;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .hero .link{color:var(--ink);font-weight:600;display:inline-flex;gap:4px;align-items:center}
@@ -392,8 +392,6 @@ a.plink:hover{color:var(--red2)}
 
 /* ===== polish ===== */
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-main .card,main .hero,main .gc{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
-main .col>.card:nth-child(2){animation-delay:.05s}main .col>.card:nth-child(3){animation-delay:.1s}main .col>.card:nth-child(4){animation-delay:.15s}
 @media(prefers-reduced-motion:reduce){main .card,main .hero,main .gc{animation:none}}
 .card{box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.18)}
 .hero{box-shadow:0 30px 80px rgba(0,0,0,.35)}
@@ -1069,8 +1067,6 @@ h1,h2,h3{text-wrap:balance}
 .ftr-links a:hover{color:var(--ink)}
 
 /* motion */
-main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
-.gh-score,.th-hero h1,.pp-info h1,.ph h1,.hero h1{animation:rise .6s var(--ease) both}
 @media(prefers-reduced-motion:reduce){.gh-score,.th-hero h1,.pp-info h1,.ph h1,.hero h1{animation:none}}
 
 @media(max-width:760px){
