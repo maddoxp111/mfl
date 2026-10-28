@@ -371,9 +371,11 @@ function checkPin(user, pin) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.hash, 'hex'));
 }
 
-// Rewards are shown as a multiplier of the coins played: 2.45 -> "2.45×".
+// Rewards shown the way pick sites do: +150 means 100 coins gets 150 more,
+// -200 means 200 coins gets 100 more.
 function mult(dec) {
-  return (dec >= 10 ? String(Math.round(dec)) : String(Math.round(dec * 100) / 100)) + '×';
+  if (dec >= 2) return '+' + Math.round((dec - 1) * 100);
+  return '-' + Math.round(100 / (dec - 1));
 }
 
 module.exports = { isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };

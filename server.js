@@ -824,8 +824,7 @@ function setAdminCookie(req, res) {
   res.append('Set-Cookie', `mfl_admin=${exp}.${sign(exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
 }
 const userKey = (name) => 'users/' + name;
-// Gains and losses as arrows ("+243" reads like a betting line).
-const signed = (n) => `${n >= 0 ? '▲' : '▼'} ${Math.abs(n).toLocaleString('en-US')}`;
+const signed = (n) => `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}`;
 const coins = (n) => `<span class="coins">${icon('coin')}${Number(n).toLocaleString('en-US')}</span>`;
 const oddsTxt = (d) => pk.mult(d);
 // Picks a "combo" button adds to the slip (the slip calls the reward multiplier m).
@@ -858,7 +857,7 @@ function slip(user) {
     const KEY = 'mfl_slip';
     let legs = []; try { legs = (JSON.parse(localStorage.getItem(KEY)) || []).map((l) => ({ ...l, m: l.m || l['od' + 'ds'] })); } catch {}
     const el = (id) => document.getElementById(id);
-    const mx = (d) => (d >= 10 ? Math.round(d) : Math.round(d * 100) / 100) + '×';
+    const mx = (d) => d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
     const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
     function render() {
       document.querySelectorAll('.ob').forEach((b) => b.classList.toggle('on', legs.some((l) => l.game === b.dataset.game && l.key === b.dataset.key)));
@@ -964,7 +963,7 @@ function betCard(db, b, opts = {}) {
       const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
       return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} · ${oddsTxt(b.odds)} reward</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -1394,7 +1393,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <p><b>It's free and just for fun.</b> MFL Coins are fake. They can't be bought, sold or traded for anything.</p>
       <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open picks, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My picks</a>.</p>
       <h3>Making picks</h3><p>Tap any pick to add it to your pick slip, choose how many coins to play and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to be right, but the rewards multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
-      <h3>Rewards</h3><p>Every pick shows a reward like <b>2.5×</b>: play 100 coins and you get 250 back if you're right. Unlikely picks have bigger rewards. They come from each team's and player's real stats and update as the season goes.</p>
+      <h3>Reading the numbers</h3><p><b>+150</b> means a 100 coin pick gets 150 more if you're right. <b>−200</b> means you play 200 coins to get 100 more. Unlikely picks have bigger numbers. They come from each team's and player's real stats and update as the season goes.</p>
       <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Rewards come in as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
       <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody gains anything by playing badly on purpose.</p>
       <h3>Margin picks</h3><p>The favorite's margin pick is <b>win by 14 or more</b>. The other team's is <b>within 13</b>: right if they win, or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included.</p>

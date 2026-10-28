@@ -34,7 +34,7 @@ function getClient() {
 
 // Belt and braces for the Pick'em wording rule: swap any betting words the model
 // still uses for prediction-game ones (school web filters flag betting language).
-const SWAPS = [[/\b(the )?stakes are (high|huge|big)\b/gi, 'it all matters'], [/\bodds\b/gi, 'chances'], [/\bbettors?\b/gi, 'pickers'], [/\bbet(s|ting)?\b/gi, (m, x) => (x === 's' ? 'picks' : 'pick')], [/\bwager(s|ed)?\b/gi, 'pick'], [/\bpayouts?\b/gi, 'reward'], [/\bpaid out\b/gi, 'earned'], [/\bthe spread\b/gi, 'the margin pick'], [/\bspreads?\b/gi, 'margin'], [/\bparlays?\b/gi, 'combo'], [/\bsportsbooks?\b/gi, 'Pick\'em'], [/\bgambl\w*/gi, 'playing'], [/\bstakes?\b/gi, 'coins'], [/(^|[\s(])[+-](\d{3,5})\b/g, '$1$2']];
+const SWAPS = [[/\b(the )?stakes are (high|huge|big)\b/gi, 'it all matters'], [/\bodds\b/gi, 'chances'], [/\bbettors?\b/gi, 'pickers'], [/\bbet(s|ting)?\b/gi, (m, x) => (x === 's' ? 'picks' : 'pick')], [/\bwager(s|ed)?\b/gi, 'pick'], [/\bpayouts?\b/gi, 'reward'], [/\bpaid out\b/gi, 'earned'], [/\bthe spread\b/gi, 'the margin pick'], [/\bspreads?\b/gi, 'margin'], [/\bparlays?\b/gi, 'combo'], [/\bsportsbooks?\b/gi, 'Pick\'em'], [/\bgambl\w*/gi, 'playing'], [/\bstakes?\b/gi, 'coins']];
 function degamble(v) {
   if (typeof v === 'string') return SWAPS.reduce((s, [re, to]) => s.replace(re, to), v);
   if (Array.isArray(v)) return v.map(degamble);
@@ -134,7 +134,7 @@ const TEAM_SCHEMA = {
 };
 
 const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Thomas Metcalf School; a touchdown is worth 7 points';
-const KIND = 'Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries. Pick\'em is a free prediction game with fake coins: never use betting words (no "odds", "bet", "wager", "payout", "spread", "line", "stake", "parlay", "sportsbook", "gamble"); say "chances", "pick", "reward", "margin", "combo" and "coins" instead, and never write numbers like +150 or -200.';
+const KIND = 'Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries. Pick\'em is a free prediction game with fake coins: never use betting words (no "odds", "bet", "wager", "payout", "spread", "line", "stake", "parlay", "sportsbook", "gamble"); say "chances", "pick", "reward", "margin", "combo" and "coins" instead,';
 
 const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game in ${LEAGUE}.
 You get both teams (records, recent games, power ratings, who is ruled out) and the Pick'em chances. Write a 3-5 sentence preview like a TV pre-game show: the storyline, the matchups to watch, and why it matters. Then predict the final score (multiples of 7 are most likely; ties are possible) and pick one "player to watch" by their key, with a one-line reason. ${KIND}\n\n${COACH_NOTES}`;
