@@ -1175,3 +1175,15 @@ main .card,main .hero,main .gc{animation:rise .55s var(--ease) both}
 .tslider.ovr input{accent-color:#ffbf1f}
 .tslider.ovr output{color:#ffd35c;font-size:18px}
 @media(max-width:760px){.tgrid.tgrid-p{grid-template-columns:1fr}}
+/* did not play */
+.out-team{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.out-chips{display:flex;flex-wrap:wrap;gap:8px}
+.form .out-chip{margin:0;cursor:pointer}
+.out-chip input{position:absolute;opacity:0;pointer-events:none}
+.out-chip span{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--ink2);font:600 13px Inter;transition:.15s}
+.out-chip span .av{margin:0;width:26px;height:26px}
+.out-chip:hover span{color:var(--ink);background:rgba(255,255,255,.06)}
+.out-chip input:checked+span{background:rgba(255,51,68,.14);border-color:rgba(255,51,68,.55);color:#ffb3ba;text-decoration:line-through;text-decoration-color:rgba(255,179,186,.6)}
+.out-chip input:focus-visible+span{box-shadow:0 0 0 3px rgba(255,51,68,.35)}
+.out-note{color:var(--amber)}
+.out-line{margin:12px 0 0}

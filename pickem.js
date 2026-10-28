@@ -103,6 +103,7 @@ function tendDrift(db) {
       if (recorded) t.int += evs.some((e) => e.type === 'INT' && e.team === me) ? 3 : -1;
       if (!recorded || !db.teams[me]) continue;
       for (const pl of db.teams[me].roster) {
+        if (isOut(g, me, pl.id)) continue; // didn't play: no drift either way
         const n = pl.name.toLowerCase(), d = Pl(me, pl.id);
         const did = (fn) => evs.some((e) => e.team === me && fn(e));
         d.td += did((e) => e.type === 'TD' && (e.player || '').toLowerCase() === n) ? 6 : -2;
@@ -134,7 +135,7 @@ const fmtLine = (v) => (v > 0 ? '+' + v : String(v));
 
 const cache = new Map();
 function markets(db, g) {
-  const sig = g.id + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${JSON.stringify(x.events || [])}`).join(',') +
+  const sig = g.id + '|' + (g.out || []).join() + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${JSON.stringify(x.events || [])}`).join(',') +
     '|' + Object.values(db.teams).map((t) => JSON.stringify(t.tend || {}) + t.roster.map((p) => p.id + p.name + JSON.stringify(p.tend || {})).join()).join();
   if (cache.has(sig)) return cache.get(sig);
   const A = db.teams[g.home], B = db.teams[g.away];
@@ -218,6 +219,7 @@ function markets(db, g) {
     const sTd = shares('td', 0.5), sPass = shares('pass', 0.3), sInt = shares('int', 0.3);
     const atLeast = (x, k) => { let c = 0, term = Math.exp(-x); for (let i = 0; i < k; i++) { c += term; term *= x / (i + 1); } return 1 - c; };
     for (const pl of t.roster) {
+      if (isOut(g, t.id, pl.id)) continue; // no picks on players ruled out
       const x = lam * sTd[pl.id], y = lam * passFrac * sPass[pl.id], z = ti * sInt[pl.id];
       const o = { team: t.id, player: pl.id };
       add('Touchdown scorers', `ptd:${t.id}:${pl.id}`, `${pl.name} scores a TD`, atLeast(x, 1), o);
@@ -240,11 +242,16 @@ function markets(db, g) {
 // ---------- settlement ----------
 // Results are worked out live from the current game data, so fixing a score
 // in admin automatically re-settles every bet on that game.
+// Players the commissioner marked as out for a game ("team|playerId").
+const isOut = (g, team, pid) => !!g && (g.out || []).includes(team + '|' + pid);
 function legResult(db, leg) {
   const g = db.games.find((x) => x.id === leg.game);
   if (!g || g.status === 'postponed') return 'void';
-  if (!isFinal(g)) return 'pending';
   const [type, a, b] = leg.key.split(':');
+  // Player picks on someone who didn't play are cancelled: refunded as a single,
+  // dropped from a combo (which is then paid on the picks that are left).
+  if (type.startsWith('p') && isOut(g, a, b)) return 'void';
+  if (!isFinal(g)) return 'pending';
   const score = (t) => (g.home === t ? g.homeScore : g.awayScore);
   const opp = (t) => (g.home === t ? g.awayScore : g.homeScore);
   const team = db.teams[a];
@@ -367,4 +374,4 @@ function american(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { SPREAD, tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };
+module.exports = { isOut, SPREAD, tendDrift, effTend, fmtLine, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, american, nowLocal };

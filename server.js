@@ -304,7 +304,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=30">
+<link rel="stylesheet" href="/static/style.css?v=31">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -484,7 +484,9 @@ app.get('/games/:id', (req, res) => {
     const list = Object.entries(rows);
     // Only show the extra stat columns this game actually has.
     const cols = [['td', 'TD'], ['ptd', 'Pass TD'], ['int', 'INT'], ...Object.values(STATS).map((st) => [st.key, st.short])].filter(([k], i) => i < 3 || list.some(([, x]) => x[k]));
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="muted">No player stats recorded.</p>'}</div>`;
+    const outNames = tm.roster.filter((p) => pk.isOut(g, tm.id, p.id)).map((p) => p.name);
+    const outLine = outNames.length ? `<p class="muted sm out-line">Did not play: ${esc(outNames.join(', '))}</p>` : '';
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="muted">No player stats recorded.</p>'}${outLine}</div>`;
   };
 
   const center = isFinal(g)
@@ -876,7 +878,8 @@ function betCard(db, b, opts = {}) {
     <div class="tkt-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="tkt-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? l.label.replace(/[+-]\d+(\.\d+)?$/, pk.fmtLine(Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD)) : l.label;
-      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+      const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
+      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
     <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)} · +${betPointsOf(b)} pts` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `To win ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
@@ -1589,9 +1592,10 @@ function statRatings(db, until = null) {
   const et = pk.effTend(db);
   const out = [];
   for (const t of Object.values(db.teams)) {
-    const tg = games.filter((g) => g.home === t.id || g.away === t.id);
-    const gp = tg.length;
+    const teamGames = games.filter((g) => g.home === t.id || g.away === t.id);
     for (const p of t.roster) {
+      const tg = teamGames.filter((g) => !pk.isOut(g, t.id, p.id)); // games they actually played
+      const gp = tg.length;
       const n = p.name.toLowerCase();
       const tot = { td: 0, pass: 0, int: 0, picked: 0, wins: 0, losses: 0, mvp: 0 };
       let wSum = 0, pSum = 0;
@@ -1668,6 +1672,7 @@ function aiGame(db, g) {
     winner: w ? db.teams[w].name : 'tie',
     plays: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
     ...(g.notes ? { coach_notes: g.notes } : {}),
+    ...((g.out || []).length ? { did_not_play: g.out.map((k) => { const [tid, pid] = k.split('|'); return db.teams[tid]?.roster.find((p) => p.id === pid)?.name; }).filter(Boolean) } : {}),
   };
 }
 // Everything the rating depends on. previous_rating is added after hashing so a
@@ -2199,6 +2204,12 @@ function gameForm(db, g, isNew) {
     </section>
 
     <section class="card">
+      <div class="card-h"><h2>Did not play</h2><span class="muted sm" id="outCount"></span></div>
+      <p class="muted sm">Tap anyone who was out. Every pick on them is cancelled: singles are refunded, and combos drop that pick and pay on the rest.</p>
+      ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}</span></label>`).join('')}</div></div>`).join('')}
+    </section>
+
+    <section class="card">
       <div class="card-h"><h2>Coach's notes</h2><span class="muted sm">Private · the AI reads these</span></div>
       <textarea name="notes" rows="4" maxlength="2000" placeholder="How did people play? e.g. dom blocked terribly, pedon pressured the ball well, chuck threw the ball in cover well">${esc(g.notes || '')}</textarea>
       <p class="muted sm">Used for the recap, MVP, power rankings and ratings. Never shown on the site.</p>
@@ -2232,6 +2243,7 @@ function gameForm(db, g, isNew) {
     $('#evCount').textContent=rows.length+' play'+(rows.length===1?'':'s');
     // Touchdowns are worth 7: offer the score the plays add up to.
     const td={};rows.forEach(r=>{if($('[name=ev_type]',r).value==='TD'){const t=$('[name=ev_team]',r).value;td[t]=(td[t]||0)+7;}});
+    const nOut=$$('input[name=out]:checked').length;$('#outCount').textContent=nOut?nOut+' out':'';
     const h=td['${t1.id}']||0,a=td['${t2.id}']||0,box=$('#tdSum');
     const cur=[form.homeScore.value,form.awayScore.value].join('-');
     box.hidden=!(h||a)||cur===h+'-'+a;
@@ -2272,6 +2284,8 @@ function readGame(body, g) {
   g.status = ['scheduled', 'live', 'final', 'postponed'].includes(body.status) ? body.status : 'scheduled';
   g.reason = String(body.reason || '').slice(0, 300);
   g.notes = String(body.notes || '').trim().slice(0, 2000);
+  const valid = new Set([g.home, g.away].flatMap((id) => (load().teams[id]?.roster || []).map((p) => id + '|' + p.id)));
+  g.out = [...new Set(arr(body.out))].filter((k) => valid.has(k));
   g.homeScore = num(body.homeScore); g.awayScore = num(body.awayScore);
   delete g.quarters;
   const types = arr(body.ev_type);
