@@ -41,13 +41,28 @@ const VARIANTS = [
   { id: 'allstar', rarity: 'legendary', label: 'All-Star', mult: 2.25 },
   { id: 'clutch', rarity: 'legendary', label: 'Clutch', mult: 1.75, spec: 'clutch' },
   { id: 'icon', rarity: 'mythic', label: 'Icon', mult: 2.5 },
+  // The fun ones. `flat` = bonus points every game they play (never multiplied).
+  { id: 'bench', rarity: 'common', label: 'Benchwarmer', mult: 0.8, flat: 4, quote: 'Happy to be here.' },
+  { id: 'trophy', rarity: 'common', label: 'Participation Trophy', mult: 1, flat: 3, quote: 'Everybody wins!' },
+  { id: 'pizza', rarity: 'common', label: 'Pizza Friday', mult: 1.1, quote: 'Fueled by cafeteria pizza.' },
+  { id: 'cutout', rarity: 'common', label: 'Cardboard Cutout', mult: 1.05, quote: 'Surprisingly solid.' },
+  { id: 'bobble', rarity: 'rare', label: 'Bobblehead', mult: 1.2, quote: 'Nods at every play.' },
+  { id: 'pixel', rarity: 'rare', label: '8-Bit', mult: 1.3, quote: 'Extra good in Modern Bowl.' },
+  { id: 'snow', rarity: 'rare', label: 'Snow Day', mult: 1.25, quote: 'School is cancelled. Football is not.' },
+  { id: 'upside', rarity: 'rare', label: 'Upside Down', mult: 1.25, quote: 'Printed wrong. Worth more.' },
+  { id: 'duck', rarity: 'epic', label: 'Rubber Ducky', mult: 1, flat: 15, quote: 'Squeak.' },
+  { id: 'built', rarity: 'epic', label: 'Built Different', mult: 1.7, quote: 'Not like the others.' },
+  { id: 'throwback', rarity: 'epic', label: 'Throwback', mult: 1.55, quote: 'Back in my day…' },
+  { id: 'spooky', rarity: 'epic', label: 'Spooky', mult: 1.5, quote: 'Halloween Bowl edition.' },
+  { id: 'glitch', rarity: 'legendary', label: 'Glitch', mult: 2.1, quote: 'ERR0R: T00 G00D' },
+  { id: 'goat', rarity: 'mythic', label: 'The GOAT 1/1', mult: 3.5, one: true, quote: 'Greatest of all time.' },
   { id: 'mythic', rarity: 'mythic', label: 'Mythic 1/1', one: true },
   { id: 'dark', rarity: 'dark', label: 'Dark Matter 1/1', one: true },
 ];
 
 // Fantasy points for one player in one game.
 const SCORING = { td: 6, pass: 4, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -3, mvp: 3, win: 2 };
-const SCORING_LABEL = { td: 'Touchdown', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
+const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
 const STAT_CAT = { TD: 'td', INT: 'int', CATCH: 'catch', SACK: 'sack', PBU: 'pbu', FLAG: 'flag', PLAY: 'big' };
 
 const LINEUP_SIZE = 8;
@@ -60,6 +75,7 @@ const PACKS = {
   gameday: { name: 'Game Day Pack', cards: 2, cost: 0, free: 'gameday', group: 'free', desc: 'Free on every day there\'s an MFL game.' },
   weekly: { name: 'Weekly Pack', cards: 3, cost: 0, free: 'weekly', group: 'free', min: 'rare', desc: '3 cards free every week, Silver or better guaranteed.' },
   prize: { name: 'Champion Pack', cards: 5, cost: 0, free: 'prize', group: 'free', min: 'epic', desc: 'Premium pack for the Picker of the Week.' },
+  arcade: { name: 'Arcade Champ Pack', cards: 3, cost: 0, free: 'arcade', group: 'free', min: 'epic', desc: 'Win 3 Arcade games in a day to unlock it.' },
   milestone: { name: 'Collector Pack', cards: 4, cost: 0, free: 'milestone', group: 'free', min: 'epic', desc: 'Reward for collecting more different cards.' },
   standard: { name: 'Standard Pack', cards: 3, cost: 100, group: 'core', desc: '3 cards. Any rarity can drop.' },
   value: { name: 'Value Pack', cards: 6, cost: 180, group: 'core', desc: '6 cards for the price of 5.' },
@@ -72,6 +88,15 @@ const PACKS = {
   leaders: { name: 'Captains Pack', cards: 3, cost: 200, group: 'theme', pool: (c) => ['C', 'TR'].includes(c.p.tag), desc: 'Only captains and team reps.' },
   draft: { name: 'Draft Class Pack', cards: 3, cost: 120, group: 'theme', pool: (c) => /^Rd/.test(c.p.tag || ''), desc: 'Only drafted players, any round.' },
   sleeper: { name: 'Sleeper Pack', cards: 4, cost: 110, group: 'theme', pool: (c) => c.p.tag === 'FA' || /Rd [3-9]/.test(c.p.tag || ''), desc: 'Free agents and late-round picks. Cheap, and sneaky good.' },
+  lunch: { name: 'Lunch Money Pack', cards: 2, cost: 60, group: 'core', desc: '2 cards for your lunch money.' },
+  mystery: { name: 'Mystery Box', cards: 4, cost: 260, group: 'core', mystery: [1, 9], desc: 'Could be 1 card. Could be 9. Nobody knows.' },
+  meme: { name: 'Meme Pack', cards: 3, cost: 180, group: 'fun', pool: (c) => ['bench', 'trophy', 'pizza', 'cutout', 'bobble', 'upside', 'duck', 'built'].includes(c.variant), desc: 'Benchwarmers, trophies, rubber duckies and other weird ones.' },
+  bitpack: { name: '8-Bit Pack', cards: 3, cost: 240, group: 'fun', pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant), desc: '8-Bit, Throwback and Glitch cards. Built for Modern Bowl.' },
+  spooky: { name: 'Spooky Pack', cards: 3, cost: 260, group: 'fun', pool: (c) => ['spooky', 'glitch', 'snow'].includes(c.variant), min: 'epic', desc: 'Spooky cards, with a Gold or better guaranteed.' },
+  cafeteria: { name: 'Cafeteria Pack', cards: 4, cost: 120, group: 'fun', pool: (c) => ['pizza', 'trophy', 'bench', 'cutout', 'base', 'team'].includes(c.variant), desc: 'Pizza Friday and friends. Cheap and cheerful.' },
+  bobble: { name: 'Bobblehead Box', cards: 2, cost: 200, group: 'fun', pool: (c) => c.variant === 'bobble', desc: 'Two bobbleheads. Nod nod.' },
+  snowday: { name: 'Snow Day Pack', cards: 3, cost: 200, group: 'fun', pool: (c) => ['snow', 'upside', 'throwback'].includes(c.variant), desc: 'Snow Day, Upside Down and Throwback cards.' },
+  goat: { name: 'GOAT Hunt', cards: 1, cost: 2500, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 2 }, pool: (c) => ['goat', 'glitch', 'icon', 'mythic', 'allstar', 'legend'].includes(c.variant), desc: 'One Legend-or-better card with a real shot at The GOAT 1/1.' },
   elite: { name: 'Elite Pack', cards: 3, cost: 1500, group: 'chase', min: 'legendary', desc: '3 cards with a Legend or better guaranteed.' },
   hunt: { name: 'Mythic Hunt', cards: 1, cost: 900, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the usual Mythic and Dark Matter drop rate.' },
   void: { name: 'Dark Matter Pack', cards: 1, cost: 4000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 6, dark: 30 }, desc: 'One Legend or better. About a 1 in 3 shot at Dark Matter.' },
@@ -110,7 +135,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, spec, one: !!v.one, t, p };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, t, p };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -159,12 +184,13 @@ function openPack(db, type, taken = new Set()) {
   let pool = catalog(db).filter((c) => !taken.has(c.id));
   if (P.pool) { const f = pool.filter(P.pool); if (f.length) pool = f; }
   const out = [];
+  const n = P.mystery ? P.mystery[0] + rint(P.mystery[1] - P.mystery[0] + 1) : P.cards;
   const pick = (min) => { const id = rollCard(pool, P, min); if (cardInfo(db, id).one) pool = pool.filter((c) => c.id !== id); return id; };
-  for (let i = 0; i < P.cards; i++) out.push(pick());
+  for (let i = 0; i < n; i++) out.push(pick());
   // Guarantees: swap random slots for cards of at least `min` rarity.
   if (P.min && pool.some((c) => RARITY_ORDER.indexOf(c.rarity) >= RARITY_ORDER.indexOf(P.min))) {
     const ok = (id) => RARITY_ORDER.indexOf(cardInfo(db, id).rarity) >= RARITY_ORDER.indexOf(P.min);
-    const need = Math.min(P.mins || 1, P.cards);
+    const need = Math.min(P.mins || 1, n);
     const low = out.map((id, i) => (ok(id) ? -1 : i)).filter((i) => i >= 0);
     for (let k = out.filter(ok).length; k < need && low.length; k++) out[low.splice(rint(low.length), 1)[0]] = pick(P.min);
   }
@@ -216,6 +242,7 @@ function cardScore(card, line) {
     pts += v;
     parts.push({ k, n, pts: Math.round(v * 10) / 10 });
   }
+  if (card.flat) { pts += card.flat; parts.push({ k: 'flat', n: 1, pts: card.flat }); }
   return { pts: Math.round(pts * 10) / 10, played: true, parts };
 }
 

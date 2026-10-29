@@ -340,11 +340,12 @@ function layout(req, title, body, opts = {}) {
 <meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=35">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=36">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  <a class="hdr-arc" href="/arcade">🕹️ Arcade</a>
   <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
   <nav class="nav">
     <div class="dd ${on(['/schedule', '/scores', '/games'])}"><button>Games ${icon('chev')}</button><div class="dd-m">
@@ -357,6 +358,7 @@ function layout(req, title, body, opts = {}) {
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
     <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
       <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
+    <a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
     <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
@@ -368,7 +370,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
 <script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
@@ -472,6 +474,9 @@ app.get('/', async (req, res, next) => {
   res.send(layout(req, 'Metcalf Football League', `
     <div class="wrap home">
       ${hero}
+      <a class="arc-promo" href="/arcade"><div class="arc-promo-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
+        <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>Play Modern Bowl with your Starting 8</b><span>Plus 8-Ball Pool, Trivia, Field Goal Frenzy and more. Win coins, crank up Risk mode for up to 5×.</span></div>
+        <span class="btn">Play now ${icon('arrow')}</span></a>
       <div class="home-grid">
         <div class="col">
           <div class="card"><div class="card-h"><h2>Up Next</h2><a href="/schedule">Full schedule ${icon('arrow')}</a></div><div class="list">${upcoming.slice(0, 4).map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
@@ -937,13 +942,20 @@ async function survivorNow(db) {
 // Coins are the one currency. Besides picks, they come from the Starting 8 card
 // game, Survivor wins and selling cards, and they buy packs. All worked out live.
 // Packs bought before coins paid for them (the old Points) aren't charged.
+const ACHIEVEMENT_COINS = 150;
 function coinExtras(db, user, svState) {
   const fan = cards.fantasy(db, user, (g) => mvpKeyOf(db, g));
   const survivor = svState ? sv.survivorPoints(svState, user.name) : 0;
   const bonus = (user.pointBonuses || []).reduce((s, b) => s + b.amount, 0);
   const spent = (user.packs || []).filter((p) => p.currency === 'coins').reduce((s, p) => s + (p.cost || 0), 0);
-  return { fantasy: fan.total, fan, survivor, bonus, spent, net: fan.total + survivor + bonus - spent };
+  // Arcade games, daily challenges, game-day check-ins and achievements (arcade.js).
+  const ar = arcadeApi ? arcadeApi.arcadeCoins(user) : { arcade: 0, challenges: 0, checkins: 0 };
+  const badgesWon = badges.userBadges({ db, acct: pk.account(db, user), user, weeklyWins: 0, survivorWins: survivor / sv.PRIZE, fantasy: fan }).length;
+  const achieve = badgesWon * ACHIEVEMENT_COINS;
+  const extra = ar.arcade + ar.challenges + ar.checkins + achieve;
+  return { fantasy: fan.total, fan, survivor, bonus, spent, arcade: ar.arcade, challenges: ar.challenges, checkins: ar.checkins, achieve, net: fan.total + survivor + bonus - spent + extra };
 }
+let arcadeApi = null;
 function accountOf(db, user, svState) {
   const x = coinExtras(db, user, svState);
   const acct = pk.account(db, user, x.net);
@@ -956,7 +968,7 @@ async function loadAccount(db, name) {
   return { user, acct: accountOf(db, user, await survivorNow(db)) };
 }
 function pickNav(cur, name) {
-  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/survivor', 'Survivor'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/survivor', 'Survivor'], ['/arcade', 'Arcade'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
@@ -1421,6 +1433,9 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Starting 8 earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra cards sell for coins. Spend them on picks or card packs.</p>
       <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with coins. Set a Starting 8 of different players; every game they score fantasy points (TD ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
+      <h3>MFL Arcade</h3><p>10 games (Modern Bowl, Chess, 8-Ball Pool, Trivia, Checkers, Connect Four, Field Goal Frenzy, QB Bullseye, Flag Pull and Card Memory), each with 4 levels. Winning pays coins; harder levels pay more and Modern Bowl pays the most. <b>Risk mode</b>: put in a third of the prize up front; a win pays 1.5× to 5× the prize (by level), a loss keeps what you put in. Leaving or refreshing mid-game counts as a loss. Each game pays a limited number of wins per day; Practice is always free. Chess, Checkers and Connect Four games are replayed on the server to confirm a win, and Trivia is graded by the server. <a href="/arcade">Play →</a></p>
+      <h3>More ways to earn coins</h3><p>Three daily challenges every day, a game-day check-in (+150 on game days, 11:30 to 2:30), +${ACHIEVEMENT_COINS} for every achievement, a free Arcade Champ Pack for winning 3 Arcade games in a day, plus Pick'em, your Starting 8, Survivor, the daily bonus and selling cards.</p>
+      <h3>Starting 8 positions</h3><p>Your Starting 8 has positions: QB, RB, WR1, WR2, WR3, TE and two UTIL. They don't change fantasy points; they decide who does what in Modern Bowl (QB throws, receivers catch, the first UTIL blocks and the second kicks and leads the defense).</p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
   } catch (e) { next(e); }
@@ -2347,7 +2362,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3068,6 +3083,8 @@ function ratingOf(db, t, p) {
   return ratingMemo.map[p.id] ?? 60;
 }
 require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
+
+arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
