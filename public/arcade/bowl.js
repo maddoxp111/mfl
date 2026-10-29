@@ -54,6 +54,58 @@
   };
   function glyph(c) { return (G[c] || G[c.toUpperCase()] || G['?']).padEnd(35, '.'); }
 
+
+  // ---------- sprites (original design): tall lanky helmet guys with a dark outline ----------
+  // Letters: H helmet, W helmet stripe, F facemask, S skin, A arm, J jersey, D shoulder trim, N number, P pants, K socks, B cleats.
+  const shade = (hex, f) => { const n = parseInt(String(hex || '#888').slice(1, 7), 16) || 0x888888; const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(f < 1 ? v * f : v + (255 - v) * (f - 1))))); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
+  const light = (hex) => { const n = parseInt(String(hex || '#888').slice(1, 7), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 150; };
+  const BODY = [
+    '..HHHH..', '.HHWWHH.', '.HHWHHFF', '.HHHHSF.', '..HSSS..', '...SS...',
+    '.DJJJJD.', 'AJJNNJJA', 'AJJNNJJA', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..',
+  ];
+  // Thin legs that stay close together; a small stride when running.
+  const LEGS = [
+    ['...PP...', '...PP...', '...P.P..', '...K.K..', '...K.K..', '...K.K..', '..BB.BB.'],
+    ['...PP...', '...P.P..', '..P..P..', '..K...K.', '..K...K.', '.K....K.', '.BB...BB'],
+    ['...PP...', '...PP...', '...PP...', '...KK...', '...KK...', '...KK...', '...BBB..'],
+    ['...PP...', '..P.P...', '..P..P..', '.K...K..', '.K...K..', '.K....K.', 'BB....BB'],
+  ];
+  // Throwing pose: arm cocked back over the helmet.
+  const THROW = ['A.HHHH..', 'AHHWWHH.', 'AHHWHHFF', 'AHHHHSF.', 'J.HSSS..', 'J..SS...', 'JDJJJJD.', '.JJNNJJA', '.JJNNJJA', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..'];
+  const CLEATS = { black: '#151515', white: '#f2f2f2', team: null, gold: '#e8b400', red: '#d62828' };
+  const spriteCache = new Map();
+  // look = { skin: 0-4, height: 'short'|'normal'|'tall', visor: bool, sleeves: bool, cleats: key of CLEATS }.
+  // Offense wears its colors; the defense wears white jerseys with colored trim.
+  function buildSprite(team, look, frame, flip, def) {
+    look = look || {};
+    const key = [team.color, team.color2, look.skin, look.height, look.visor, look.sleeves, look.cleats, frame, flip, def].join('|');
+    if (spriteCache.has(key)) return spriteCache.get(key);
+    let legs = [...LEGS[frame === 9 ? 0 : frame]];
+    if (look.height === 'tall') legs = [legs[0], legs[1], legs[1], legs[2], legs[3], legs[4], legs[4], legs[5], legs[6]];
+    if (look.height === 'short') legs = [legs[0], legs[2], legs[3], legs[5], legs[6]];
+    const rows = [...(frame === 9 ? THROW : BODY), ...legs];
+    const col = team.color || '#888', col2 = team.color2 || '#fff', skin = SKIN[Math.max(0, Math.min(4, look.skin | 0))];
+    const jersey = def ? '#f1f1f1' : col;
+    const pal = def
+      ? { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: jersey, D: col, N: col, P: '#e8e8e8', K: col, B: '#151515' }
+      : { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: jersey, D: light(col2) ? col2 : '#ffffff', N: light(col) ? shade(col, 0.55) : '#ffffff', P: light(col2) ? col2 : '#e8e8e8', K: col, B: '#151515' };
+    pal.A = look.sleeves ? jersey : skin;
+    if (look.visor) pal.F = '#1b1d2b';
+    if (look.cleats && look.cleats in CLEATS) pal.B = CLEATS[look.cleats] || col;
+    const W2 = 8, H2 = rows.length, c = document.createElement('canvas'); c.width = W2 + 2; c.height = H2 + 2;
+    const x = c.getContext('2d');
+    const at = (i, j) => (rows[j] ? rows[j][flip ? W2 - 1 - i : i] : undefined);
+    const filled = (i, j) => { const v = at(i, j); return v && v !== '.'; };
+    for (let j = -1; j <= H2; j++) for (let i = -1; i <= W2; i++) {
+      if (filled(i, j)) { x.fillStyle = pal[at(i, j)]; x.fillRect(i + 1, j + 1, 1, 1); }
+      else if (filled(i - 1, j) || filled(i + 1, j) || filled(i, j - 1) || filled(i, j + 1)) { x.fillStyle = '#0a0a0d'; x.fillRect(i + 1, j + 1, 1, 1); }
+    }
+    x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? W2 - 1 : 2, 13, 1, 3); // flag-football flags
+    spriteCache.set(key, c);
+    return c;
+  }
+  window.MFLBowlSprite = buildSprite;
+
   MFLArcade.register('bowl', {
     start(ctx) {
       const R = ctx.rng, L = LVL[ctx.level] || LVL[0];
@@ -146,47 +198,6 @@
       const shade = (hex, f) => { const n = parseInt(String(hex || '#888').slice(1, 7), 16) || 0x888888; const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(f < 1 ? v * f : v + (255 - v) * (f - 1))))); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
       const light = (hex) => { const n = parseInt(String(hex || '#888').slice(1, 7), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 150; };
 
-      // ---------- sprites: little outlined helmet guys, built once per team and skin ----------
-      // 11 x 16, Retro Bowl-ish proportions: big round helmet, wide shoulder pads.
-      // Letters: H helmet, W helmet stripe, F facemask, S skin, J jersey, D shoulder trim, N number, P pants, K socks, B cleats.
-      // Tall, lanky 8 x 21 guys (original design): small round helmet, thin torso, long legs.
-      const BODY = [
-        '..HHHH..', '.HHWWHH.', '.HHWHHFF', '.HHHHSF.', '..HSSS..', '...SS...',
-        '.DJJJJD.', 'SJJNNJJS', 'SJJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..',
-      ];
-      // Thin legs that stay close together; a small stride when running.
-      const LEGS = [
-        ['...PP...', '...PP...', '...P.P..', '...K.K..', '...K.K..', '...K.K..', '..BB.BB.', '........'],
-        ['...PP...', '...P.P..', '..P..P..', '..K...K.', '..K...K.', '.K....K.', '.BB...BB', '........'],
-        ['...PP...', '...PP...', '...PP...', '...KK...', '...KK...', '...KK...', '...BBB..', '........'],
-        ['...PP...', '..P.P...', '..P..P..', '.K...K..', '.K...K..', '.K....K.', 'BB....BB', '........'],
-      ];
-      // Throwing pose: arm cocked back over the helmet.
-      const THROW = ['S.HHHH..', 'SHHWWHH.', 'SHHWHHFF', 'SHHHHSF.', 'J.HSSS..', 'J..SS...', 'JDJJJJD.', '.JJNNJJS', '.JJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..'];
-      const spriteCache = new Map();
-      // Offense wears its colors; the defense wears white jerseys with colored trim (home vs away look).
-      function sprite(team, skin, frame, flip, def) {
-        const key = team.abbr + skin + frame + flip + def;
-        if (spriteCache.has(key)) return spriteCache.get(key);
-        const rows = frame === 9 ? [...THROW, ...LEGS[0]] : [...BODY, ...LEGS[frame]];
-        const col = team.color || '#888', col2 = team.color2 || '#fff';
-        const pal = def
-          ? { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: '#f1f1f1', D: col, N: col, P: '#e8e8e8', K: col, B: '#151515' }
-          : { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: col, D: light(col2) ? col2 : '#ffffff', N: light(col) ? shade(col, 0.55) : '#ffffff', P: light(col2) ? col2 : '#e8e8e8', K: col, B: '#151515' };
-        const W2 = 8, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 23;
-        const x = c.getContext('2d');
-        const at = (i, j) => (rows[j] ? rows[j][flip ? W2 - 1 - i : i] : undefined);
-        const filled = (i, j) => { const v = at(i, j); return v && v !== '.'; };
-        for (let j = -1; j <= 21; j++) for (let i = -1; i <= W2; i++) {
-          if (filled(i, j)) { x.fillStyle = pal[at(i, j)]; x.fillRect(i + 1, j + 1, 1, 1); }
-          else if (filled(i - 1, j) || filled(i + 1, j) || filled(i, j - 1) || filled(i, j + 1)) { x.fillStyle = '#0a0a0d'; x.fillRect(i + 1, j + 1, 1, 1); }
-        }
-        // flag-football flags on the hips
-        x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? W2 - 1 : 2, 13, 1, 3);
-        spriteCache.set(key, c);
-        return c;
-      }
-
       // ---------- game state ----------
       const st = {
         us: 0, them: 0, q: 1, clock: QLEN, ot: 0, phase: 'intro', t: 0, playT: 0, half2: false,
@@ -203,15 +214,15 @@
 
       function setup() {
         const x0 = st.los, ents = [];
-        const add = (pos, x, y) => { const p = P[pos] || { name: pos, ovr: 50 }; ents.push({ pos, p, x, y, vx: 0, vy: 0, sk: SKIN[hashStr(p.name) % SKIN.length], route: null, ri: 0, anim: 0 }); };
+        const add = (pos, x, y) => { const p = P[pos] || { name: pos, ovr: 50 }; ents.push({ pos, p, x, y, vx: 0, vy: 0, look: p.look || { skin: hashStr(p.name) % SKIN.length }, route: null, ri: 0, anim: 0 }); };
         add('UTIL1', x0 - 0.6, MID); add('QB', x0 - 4.5, MID); add('RB', x0 - 5.5, MID + 3);
         add('WR1', x0 - 0.6, 4); add('WR2', x0 - 0.6, FW - 4); add('WR3', x0 - 1.2, 12); add('TE', x0 - 0.8, MID + 8.2);
         // the rest of the offensive line (they block; they're not in your Starting 8)
-        for (const [i, dy] of [[1, -2.7], [2, 2.7], [3, -5.4], [4, 5.4]]) { const base = P.UTIL1 || { ovr: 55 }; ents.push({ pos: 'OL', p: { ...base, name: 'Lineman ' + i, ovr: base.ovr, str: base.str }, x: x0 - 0.7, y: MID + dy, vx: 0, vy: 0, sk: SKIN[(i * 7 + 1) % SKIN.length], route: null, ri: 0, anim: 0 }); }
+        for (const [i, dy] of [[1, -2.7], [2, 2.7], [3, -5.4], [4, 5.4]]) { const base = P.UTIL1 || { ovr: 55 }; ents.push({ pos: 'OL', p: { ...base, name: 'Lineman ' + i, ovr: base.ovr, str: base.str }, x: x0 - 0.7, y: MID + dy, vx: 0, vy: 0, look: { skin: (i * 7 + 1) % SKIN.length, height: i % 2 ? 'short' : 'normal' }, route: null, ri: 0, anim: 0 }); }
         st.ents = ents;
         const by = Object.fromEntries(ents.map((e) => [e.pos, e]));
         const d = [];
-        const dp = (role, x, y, target) => d.push({ role, x, y, vx: 0, vy: 0, target, hist: [], sk: SKIN[(d.length * 3 + st.down) % SKIN.length], tried: false, stun: 0, anim: 0 });
+        const dp = (role, x, y, target) => d.push({ role, x, y, vx: 0, vy: 0, target, hist: [], look: { skin: (d.length * 3 + 1) % SKIN.length, height: ['normal', 'tall', 'short'][d.length % 3] }, tried: false, stun: 0, anim: 0 });
         for (const dy of [-4.1, -1.4, 1.4, 4.1]) dp('dl', x0 + 1.3, MID + dy);
         for (const pos of ['WR1', 'WR2', 'WR3', 'TE']) dp('cover', by[pos].x + L.cushion + 1.5, by[pos].y, by[pos]);
         dp('lb', x0 + 5.5, MID + 2, by.RB); dp('spy', x0 + 5.5, MID - 3); dp('safe', x0 + 14, MID);
@@ -328,7 +339,7 @@
         const face = e.pos === 'QB' && st.aim && st.aim.target ? st.aim.target.x < e.x : Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
         const x = sx(e.x), y = sy(e.y);
         if (x < -12 || x > LW + 12) return;
-        const img = sprite(team, e.sk, e.fallT > st.t || e.diveT > st.t ? 0 : frame, face, def);
+        const img = buildSprite(team, e.look, e.fallT > st.t || e.diveT > st.t ? 0 : frame, face, def);
         if (e.diveT > st.t || e.fallT > st.t) {
           // diving or knocked down: draw the guy tipped over (nearly flat when he lands)
           const k = e.diveT > st.t ? 1 - (e.diveT - st.t) / 0.6 : 1;
@@ -340,7 +351,7 @@
         }
         const jump = e.jumpT > st.t ? Math.round(Math.sin((1 - (e.jumpT - st.t) / 0.4) * Math.PI) * 6) : 0;
         rect(x - 4, y - 1, 8, 2, 'rgba(0,0,0,.3)');
-        g.drawImage(img, x - 5, y - 22 - jump);
+        g.drawImage(img, x - 5, y - img.height + 1 - jump);
       }
       // Name tag under whoever has the ball.
       function nameTag(e) {
@@ -526,9 +537,9 @@
         text(K.kind === 'xp' ? 'EXTRA POINT' : `${K.yards} YARD FIELD GOAL`, cx, 6, '#ffd400', 1, 'center');
         text(`WIND ${K.wind > 0 ? '>' : K.wind < 0 ? '<' : ''} ${Math.abs(K.wind)} MPH`, cx, 16, '#fff', 1, 'center');
         // holder kneeling and the kicker lined up behind the ball
-        g.drawImage(sprite(home, SKIN[1], 0, false, false), cx - 22, LH - 46);
-        if (!K.done) g.drawImage(sprite(home, SKIN[0], 0, false, false), cx - 6, LH - 30);
-        else g.drawImage(sprite(home, SKIN[0], 1, false, false), cx - 6, LH - 40);
+        g.drawImage(buildSprite(home, { skin: 1 }, 0, false, false), cx - 22, LH - 46);
+        if (!K.done) g.drawImage(buildSprite(home, (P.UTIL2 && P.UTIL2.look) || { skin: 0 }, 0, false, false), cx - 6, LH - 30);
+        else g.drawImage(buildSprite(home, (P.UTIL2 && P.UTIL2.look) || { skin: 0 }, 1, false, false), cx - 6, LH - 40);
         text(`${home.abbr} ${st.us} - ${st.them} ${away.abbr}`, 4, LH - 10, '#ffd400', 1, 'left');
         if (!K.done) {
           text(fine ? 'DRAG UP FROM THE BALL AND RELEASE' : 'SWIPE UP TO KICK', cx, 28, '#fff', 1, 'center');

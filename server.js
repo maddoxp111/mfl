@@ -2362,7 +2362,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Game looks'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3084,7 +3084,7 @@ function ratingOf(db, t, p) {
 }
 require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
 
-arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead });
+arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });

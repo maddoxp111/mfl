@@ -140,7 +140,7 @@ module.exports = function arcade(app, h) {
     const boost = card ? (card.mult - 1) * 14 + (card.variant === 'pixel' ? 6 : 0) : 0;
     const td = et.player(t, p, 'td'), pass = et.player(t, p, 'pass'), int = et.player(t, p, 'int');
     const c = (v) => Math.round(Math.max(30, Math.min(99, v + boost)));
-    return { pos, name: p.name, num: p.number || '', ovr: c(ovr), spd: c(ovr * 0.7 + td * 0.3), thr: c(ovr * 0.55 + pass * 0.45), acc: c(ovr * 0.6 + pass * 0.4), cat: c(ovr * 0.6 + td * 0.4), str: c(ovr * 0.9 + 4), kick: c(ovr * 0.8 + 8), def: c(ovr * 0.6 + int * 0.4), stars: Math.max(1, Math.min(5, Math.round((ovr + boost) / 20))), card: card ? card.label : null };
+    return { pos, name: p.name, num: p.number || '', ovr: c(ovr), spd: c(ovr * 0.7 + td * 0.3), thr: c(ovr * 0.55 + pass * 0.45), acc: c(ovr * 0.6 + pass * 0.4), cat: c(ovr * 0.6 + td * 0.4), str: c(ovr * 0.9 + 4), kick: c(ovr * 0.8 + 8), def: c(ovr * 0.6 + int * 0.4), stars: Math.max(1, Math.min(5, Math.round((ovr + boost) / 20))), card: card ? card.label : null, look: p.look || null };
   }
   // A real team's best 8, placed by what they're good at.
   function realLineup(db, t) {
@@ -421,6 +421,39 @@ module.exports = function arcade(app, h) {
       <table class="tbl"><thead><tr><th class="l">When</th><th class="l">Player</th><th class="l">Game</th><th>Level</th><th>Time</th><th>Score</th><th>Coins</th><th></th></tr></thead><tbody>
       ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${m.score ?? ''}</td><td>${m.status === 'void' ? 'void' : '+' + fmt(m.payout - m.stake)}</td>
         <td>${m.status === 'won' ? `<form method="post" action="/admin/arcade/void"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">Void</button></form>` : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No wins yet.</td></tr>'}</tbody></table></div></div>`));
+  });
+  // ---------- admin: how each real player looks in Modern Bowl ----------
+  const LOOK_OPTS = { skin: [0, 1, 2, 3, 4], height: ['short', 'normal', 'tall'], cleats: ['black', 'white', 'team', 'gold', 'red'] };
+  app.get('/admin/looks', h.requireAdmin, (req, res) => {
+    const db = load();
+    const sel = (name, vals, cur, labels) => `<select name="${name}">${vals.map((v, i) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(labels ? labels[i] : v)}</option>`).join('')}</select>`;
+    const rows = Object.values(db.teams).map((t) => `<section class="card"><div class="card-h"><h2>${esc(t.name)}</h2></div><div class="looks">
+      ${t.roster.map((p) => { const L = p.look || {}; return `<form method="post" action="/admin/looks/${esc(t.id)}/${esc(p.id)}" class="look" data-color="${esc(t.color)}" data-color2="${esc(t.color2)}">
+        <canvas width="10" height="25"></canvas><b>${esc(p.name)}</b>
+        <label>Skin ${sel('skin', LOOK_OPTS.skin, L.skin ?? 0, ['Light', 'Fair', 'Tan', 'Brown', 'Dark'])}</label>
+        <label>Height ${sel('height', LOOK_OPTS.height, L.height || 'normal', ['Short', 'Normal', 'Tall'])}</label>
+        <label>Cleats ${sel('cleats', LOOK_OPTS.cleats, L.cleats || 'black', ['Black', 'White', 'Team color', 'Gold', 'Red'])}</label>
+        <label class="chk"><input type="checkbox" name="visor" value="1" ${L.visor ? 'checked' : ''}> Tinted visor</label>
+        <label class="chk"><input type="checkbox" name="sleeves" value="1" ${L.sleeves ? 'checked' : ''}> Long sleeves</label>
+        <button class="btn sm">Save</button></form>`; }).join('')}</div></section>`).join('');
+    res.send(layout(req, 'Game looks', h.pageHead('Admin', 'Modern Bowl looks') + `<div class="wrap">${h.adminNav('/admin/looks')}${req.query.saved ? '<div class="toast">Saved ✓</div>' : ''}
+      <p class="muted">Set how each real player looks in Modern Bowl. The preview updates as you change it.</p>${rows}</div>
+      <style>.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.look{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;align-items:center;padding:12px;border-radius:14px;background:var(--card2)}
+      .look canvas{grid-row:span 6;width:60px;height:150px;image-rendering:pixelated;background:#4a8f3c;border-radius:10px}.look b{font-size:14px}.look label{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2)}.look select{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:3px}.look .btn{justify-self:start}</style>
+      <script src="/static/arcade/arcade.js?v=${ASSET_V}"></script><script src="/static/arcade/bowl.js?v=${ASSET_V}"></script>
+      <script>document.querySelectorAll('.look').forEach((f)=>{const c=f.querySelector('canvas'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
+        const draw=()=>{const look={skin:+f.skin.value,height:f.height.value,cleats:f.cleats.value,visor:f.visor.checked,sleeves:f.sleeves.checked};
+          const img=window.MFLBowlSprite({color:f.dataset.color,color2:f.dataset.color2},look,0,false,false);c.width=img.width;c.height=img.height+1;x.drawImage(img,0,1);};
+        f.addEventListener('change',draw);draw();});</script>`));
+  });
+  app.post('/admin/looks/:team/:pid', h.requireAdmin, async (req, res) => {
+    const db = load(), t = db.teams[req.params.team], p = t && t.roster.find((x) => x.id === req.params.pid);
+    if (p) {
+      const b = req.body, pick = (v, opts, d) => (opts.map(String).includes(String(v)) ? v : d);
+      p.look = { skin: Number(pick(b.skin, LOOK_OPTS.skin, 0)), height: pick(b.height, LOOK_OPTS.height, 'normal'), cleats: pick(b.cleats, LOOK_OPTS.cleats, 'black'), visor: !!b.visor, sleeves: !!b.sleeves };
+      await h.save();
+    }
+    res.redirect('/admin/looks?saved=1#' + encodeURIComponent(req.params.pid));
   });
   app.post('/admin/arcade/void', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
