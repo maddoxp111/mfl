@@ -154,11 +154,12 @@
         '..HHHH..', '.HHWWHH.', '.HHWHHFF', '.HHHHSF.', '..HSSS..', '...SS...',
         '.DJJJJD.', 'SJJNNJJS', 'SJJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..',
       ];
+      // Thin legs that stay close together; a small stride when running.
       const LEGS = [
-        ['..P..P..', '..P..P..', '..P..P..', '..K..K..', '..K..K..', '..K..K..', '.BB.BB..', '........'],
-        ['..PP.P..', '.PP...P.', '.P....P.', 'KK.....K', 'K......K', 'K.......', 'BB....BB', '........'],
-        ['...PP...', '...PP...', '...PP...', '...KK...', '...KK...', '...KK...', '..BBB...', '........'],
-        ['..P.PP..', '.P...PP.', '.P....P.', 'K.....KK', 'K......K', '.......K', 'BB....BB', '........'],
+        ['...PP...', '...PP...', '...P.P..', '...K.K..', '...K.K..', '...K.K..', '..BB.BB.', '........'],
+        ['...PP...', '...P.P..', '..P..P..', '..K...K.', '..K...K.', '.K....K.', '.BB...BB', '........'],
+        ['...PP...', '...PP...', '...PP...', '...KK...', '...KK...', '...KK...', '...BBB..', '........'],
+        ['...PP...', '..P.P...', '..P..P..', '.K...K..', '.K...K..', '.K....K.', 'BB....BB', '........'],
       ];
       // Throwing pose: arm cocked back over the helmet.
       const THROW = ['S.HHHH..', 'SHHWWHH.', 'SHHWHHFF', 'SHHHHSF.', 'J.HSSS..', 'J..SS...', 'JDJJJJD.', '.JJNNJJS', '.JJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..'];
