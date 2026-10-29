@@ -149,37 +149,39 @@
       // ---------- sprites: little outlined helmet guys, built once per team and skin ----------
       // 11 x 16, Retro Bowl-ish proportions: big round helmet, wide shoulder pads.
       // Letters: H helmet, W helmet stripe, F facemask, S skin, J jersey, D shoulder trim, N number, P pants, K socks, B cleats.
+      // Tall, lanky 8 x 21 guys (original design): small round helmet, thin torso, long legs.
       const BODY = [
-        '...HHHHH...', '..HHHWHHH..', '.HHHHWHHHH.', '.HHHHHHFFF.', '.HHHHHSSFF.', '..HHHSSSF..',
-        'DDJJJJJJJDD', 'SJJJJNNJJJS', 'SJJJJNNJJJS', '.JJJJJJJJJ.', '..PPPPPPP..',
+        '..HHHH..', '.HHWWHH.', '.HHWHHFF', '.HHHHSF.', '..HSSS..', '...SS...',
+        '.DJJJJD.', 'SJJNNJJS', 'SJJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..',
       ];
-      // two stiff running frames, like 8-bit football
       const LEGS = [
-        ['..PPP.PPP..', '..PP...PP..', '..KK...KK..', '..KK...KK..', '.BBB...BBB.'],
-        ['..PPPPPP...', '.PPP...PP..', '.KK.....KK.', 'KK......KK.', 'BBB......BB'],
-        ['...PPPPPP..', '..PP...PPP.', '.KK.....KK.', '.KK......KK', 'BB......BBB'],
-        ['..PPPPPP...', '.PPP...PP..', '.KK.....KK.', 'KK......KK.', 'BBB......BB'],
+        ['..P..P..', '..P..P..', '..P..P..', '..K..K..', '..K..K..', '..K..K..', '.BB.BB..', '........'],
+        ['..PP.P..', '.PP...P.', '.P....P.', 'KK.....K', 'K......K', 'K.......', 'BB....BB', '........'],
+        ['...PP...', '...PP...', '...PP...', '...KK...', '...KK...', '...KK...', '..BBB...', '........'],
+        ['..P.PP..', '.P...PP.', '.P....P.', 'K.....KK', 'K......K', '.......K', 'BB....BB', '........'],
       ];
+      // Throwing pose: arm cocked back over the helmet.
+      const THROW = ['S.HHHH..', 'SHHWWHH.', 'SHHWHHFF', 'SHHHHSF.', 'J.HSSS..', 'J..SS...', 'JDJJJJD.', '.JJNNJJS', '.JJNNJJS', '.JJJJJJ.', '..JJJJ..', '..PPPP..', '..PPPP..'];
       const spriteCache = new Map();
       // Offense wears its colors; the defense wears white jerseys with colored trim (home vs away look).
       function sprite(team, skin, frame, flip, def) {
         const key = team.abbr + skin + frame + flip + def;
         if (spriteCache.has(key)) return spriteCache.get(key);
-        const rows = [...BODY, ...LEGS[frame]];
+        const rows = frame === 9 ? [...THROW, ...LEGS[0]] : [...BODY, ...LEGS[frame]];
         const col = team.color || '#888', col2 = team.color2 || '#fff';
         const pal = def
           ? { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: '#f1f1f1', D: col, N: col, P: '#e8e8e8', K: col, B: '#151515' }
           : { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: col, D: light(col2) ? col2 : '#ffffff', N: light(col) ? shade(col, 0.55) : '#ffffff', P: light(col2) ? col2 : '#e8e8e8', K: col, B: '#151515' };
-        const W2 = 11, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 18;
+        const W2 = 8, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 23;
         const x = c.getContext('2d');
         const at = (i, j) => (rows[j] ? rows[j][flip ? W2 - 1 - i : i] : undefined);
         const filled = (i, j) => { const v = at(i, j); return v && v !== '.'; };
-        for (let j = -1; j <= 16; j++) for (let i = -1; i <= W2; i++) {
+        for (let j = -1; j <= 21; j++) for (let i = -1; i <= W2; i++) {
           if (filled(i, j)) { x.fillStyle = pal[at(i, j)]; x.fillRect(i + 1, j + 1, 1, 1); }
           else if (filled(i - 1, j) || filled(i + 1, j) || filled(i, j - 1) || filled(i, j + 1)) { x.fillStyle = '#0a0a0d'; x.fillRect(i + 1, j + 1, 1, 1); }
         }
         // flag-football flags on the hips
-        x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? W2 - 2 : 2, 12, 1, 2);
+        x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? W2 - 1 : 2, 13, 1, 3);
         spriteCache.set(key, c);
         return c;
       }
@@ -321,12 +323,12 @@
       function drawGuy(e, team, def) {
         const moving = Math.hypot(e.vx, e.vy) > 0.4;
         e.anim += moving ? Math.hypot(e.vx, e.vy) * 0.03 : 0;
-        const frame = moving ? 1 + (Math.floor(e.anim * 3) % 2) : 0;
-        const face = Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
+        const frame = e.pos === 'QB' && st.aim && st.aim.target && st.ball.holder === e ? 9 : e.throwT > st.t ? 9 : moving ? 1 + (Math.floor(e.anim * 4) % 3) : 0;
+        const face = e.pos === 'QB' && st.aim && st.aim.target ? st.aim.target.x < e.x : Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
         const x = sx(e.x), y = sy(e.y);
         if (x < -12 || x > LW + 12) return;
-        rect(x - 5, y - 1, 11, 3, 'rgba(0,0,0,.3)');
-        g.drawImage(sprite(team, e.sk, frame, face, def), x - 6, y - 17);
+        rect(x - 4, y - 1, 8, 2, 'rgba(0,0,0,.3)');
+        g.drawImage(sprite(team, e.sk, frame, face, def), x - 5, y - 22);
       }
       function drawBall() {
         const b = st.ball; if (!b) return;
@@ -336,16 +338,19 @@
         if (b.flight) rect(sx(bx) - 1, sy(by) - 1, 3, 1, 'rgba(0,0,0,.35)');
         rect(x - 2, y - 1, 4, 2, '#7a3e12'); rect(x - 1, y - 2, 2, 4, '#7a3e12'); rect(x, y - 1, 1, 1, '#f2e6d0');
       }
+      const arcH = (d) => 0.5 + d * 0.08 + Math.max(0, d - 18) * 0.04; // deeper = higher floater
       function drawAim() {
         const a = st.aim; if (!a || !a.target) return;
         const qb = st.ball.holder; if (!qb) return;
-        const d = dist(qb, a.target);
-        for (let i = 1; i <= 16; i++) {
-          const t = i / 16, x = qb.x + (a.target.x - qb.x) * t, y = qb.y + (a.target.y - qb.y) * t, z = 1.1 + 4 * (d * 0.14) * t * (1 - t);
-          if (i % 2) rect(sx(x), sy(y, z), 1, 1, '#ffffff');
+        const d = dist(qb, a.target), h = arcH(d), n = Math.max(10, Math.round(d * 1.2));
+        for (let i = 1; i <= n; i++) {
+          const t = i / n, x = qb.x + (a.target.x - qb.x) * t, y = qb.y + (a.target.y - qb.y) * t, z = 2.2 + 4 * h * t * (1 - t);
+          if (i % 2 === 0) rect(sx(x), sy(y), 1, 1, 'rgba(0,0,0,.35)');
+          rect(sx(x), sy(y, z), 2, 2, i % 3 ? '#ffffff' : '#ffe000');
         }
         const tx = sx(a.target.x), ty = sy(a.target.y);
-        rect(tx - 3, ty, 2, 1, '#ffd400'); rect(tx + 2, ty, 2, 1, '#ffd400'); rect(tx, ty - 2, 1, 2, '#ffd400'); rect(tx, ty + 1, 1, 2, '#ffd400');
+        for (let k = 0; k < 20; k++) { const ang = k / 20 * 6.283; rect(tx + Math.cos(ang) * 6, ty + Math.sin(ang) * 3, 1, 1, '#ffe000'); }
+        rect(tx - 1, ty - 1, 3, 3, '#ffe000');
       }
       const fmtClock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
       function hud() {
@@ -593,7 +598,7 @@
           if (st.phase === 'flight') {
             const F = st.ball.flight; F.t += dt / F.T;
             const t = Math.min(1, F.t);
-            st.ball.x = F.from.x + (F.target.x - F.from.x) * t; st.ball.y = F.from.y + (F.target.y - F.from.y) * t; st.ball.z = 1.1 + 4 * F.h * t * (1 - t);
+            st.ball.x = F.from.x + (F.target.x - F.from.x) * t; st.ball.y = F.from.y + (F.target.y - F.from.y) * t; st.ball.z = 2.2 * (1 - t) + 0.9 * t + 16 * F.h * t * (1 - t);
             if (t >= 1) resolveCatch();
           }
         } else if (st.phase === 'carry') {
@@ -640,7 +645,8 @@
         const acc = rating(P.QB, 'acc'), arm = rating(P.QB, 'thr');
         const err = (1 - acc / 110) * d * 0.09;
         const t2 = { x: target.x + (R() - 0.5) * 2 * err, y: clamp(target.y + (R() - 0.5) * 2 * err, -1, FW + 1) };
-        st.ball.flight = { from: { x: qb.x, y: qb.y }, target: t2, T: Math.max(0.35, d / (15 + arm / 12)), t: 0, h: d * 0.14 };
+        st.ball.flight = { from: { x: qb.x, y: qb.y }, target: t2, T: Math.max(0.3, d / (17 + arm / 10) * (1 + Math.max(0, d - 18) / 60)), t: 0, h: arcH(d) / 4 + 0.2 };
+        qb.throwT = st.t + 0.3;
         st.ball.holder = null; st.thrown = true; st.phase = 'flight'; st.stats.att++; st.aim = null; sfx('kick');
       }
       function resolveCatch() {
@@ -787,8 +793,8 @@
         drawField();
         if (st.phase === 'presnap' || st.phase === 'fourth') drawPresnap();
         const all = [...st.ents.map((e) => [e, home, false]), ...st.def.map((d) => [d, away, true])].sort((a, b) => a[0].y - b[0].y);
-        for (const [e, team, d] of all) { drawGuy(e, team, d); if (!d && e.p && e.p.stars >= 4 && e.pos !== 'OL') star(sx(e.x), sy(e.y) - 21); }
-        if (st.phase === 'carry' && st.carrier) { const x = sx(st.carrier.x), y = sy(st.carrier.y) - 26; rect(x - 2, y, 5, 1, '#ffd400'); rect(x - 1, y + 1, 3, 1, '#ffd400'); rect(x, y + 2, 1, 1, '#ffd400'); }
+        for (const [e, team, d] of all) { drawGuy(e, team, d); if (!d && e.p && e.p.stars >= 4 && e.pos !== 'OL') star(sx(e.x), sy(e.y) - 27); }
+        if (st.phase === 'carry' && st.carrier) { const x = sx(st.carrier.x), y = sy(st.carrier.y) - 30; rect(x - 2, y, 5, 1, '#ffd400'); rect(x - 1, y + 1, 3, 1, '#ffd400'); rect(x, y + 2, 1, 1, '#ffd400'); }
         drawBall();
         if (st.phase === 'play') drawAim();
         hud();
