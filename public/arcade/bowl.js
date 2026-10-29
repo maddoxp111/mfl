@@ -10,7 +10,7 @@
 // 100 = their goal line; y = 0 far sideline (top of the screen), 53.3 near sideline.
 (function () {
   const FW = 53.33, MID = FW / 2;
-  const LH = 180, FY0 = 40, PY = (LH - 8 - FY0) / FW, PX = 7; // field band and pixels per yard
+  const LH = 240, FY0 = 13, PY = (LH - 3 - FY0) / FW, PX = PY * 2.55; // field band and pixels per yard (depth squashed)
   const QLEN = 150; // 2:30 quarters
   const LVL = [
     { name: 'Rookie', dspd: 5.6, react: 0.55, rush: 2.0, cushion: 4.5, intc: 0.18, td: 0.18, fg: 0.14, track: 1.6, brk: 0.32 },
@@ -49,9 +49,10 @@
     '.': '................................#..', '!': '..#....#....#....#....#.........#..', '?': '.###.#...#....#...#...#.........#..', '+': '.......#....#..#####..#....#.......',
     '/': '....#....#...#...#...#...#....#....', "'": '..#....#...........................', ',': '...........................#...#...', '>': '.#.....#.....#.....#...#...#...#...',
     '(': '...#...#...#....#....#.....#.....#.', ')': '.#.....#.....#....#....#...#...#...', '%': '##..###..#...#...#...#...#..###..##', '#': '.#.#..#.#.#####.#.#.#####.#.#..#.#.',
-    '<': '...#...#...#...#.....#.....#.....#.', '×': '.....#...#.#.#...#...#.#.#...#.....', '·': '.................#.................', '^': '..#...#.#.#...#....................',
+    '<': '...#...#...#...#.....#.....#.....#.',
+    a: '...........###.....#.#####...#.####', b: '#....#....####.#...##...##...#####.', c: '...........###.#....#....#...#.###.', d: '....#....#.#####...##...##...#.####', e: '...........###.#...#######.....###.', f: '..##..#..#.#...###...#....#....#...', g: '......#####...##...#.####....#.###.', h: '#....#....#.##.##..##...##...##...#', i: '..#........##....#....#....#...###.', j: '...#........##....#....#.#..#..##..', k: '#....#....#..#.#.#..##...#.#..#..#.', l: '.##....#....#....#....#....#...###.', m: '..........##.#.#.#.##.#.##...##...#', n: '..........#.##.##..##...##...##...#', o: '...........###.#...##...##...#.###.', p: '..........####.#...#####.#....#....', q: '...........#####...#.####....#....#', r: '..........#.##.##..##....#....#....', s: '...........#####.....###.....#####.', t: '.#....#...###...#....#....#..#..##.', u: '..........#...##...##...##..##.##.#', v: '..........#...##...##...#.#.#...#..', w: '..........#...##...##.#.##.#.#.#.#.', x: '..........#...#.#.#...#...#.#.#...#', y: '..........#...##...#.####....#.###.', z: '..........#####...#...#...#...#####', '×': '.....#...#.#.#...#...#.#.#...#.....', '·': '.................#.................', '^': '..#...#.#.#...#....................',
   };
-  function glyph(c) { const s = (G[c] || G[c.toUpperCase()] || G['?']).padEnd(35, '.'); return s; }
+  function glyph(c) { return (G[c] || G[c.toUpperCase()] || G['?']).padEnd(35, '.'); }
 
   MFLArcade.register('bowl', {
     start(ctx) {
@@ -89,7 +90,7 @@
       function size() {
         const box = wrap.getBoundingClientRect();
         const aspect = document.fullscreenElement === wrap ? window.innerWidth / window.innerHeight : Math.max(1.5, Math.min(2.2, box.width / Math.max(260, Math.min(window.innerHeight - 160, box.width * 0.6))));
-        LW = Math.round(Math.max(270, Math.min(400, LH * aspect)));
+        LW = Math.round(Math.max(360, Math.min(540, LH * aspect)));
         cv.width = LW; cv.height = LH; g.imageSmoothingEnabled = false;
       }
       size();
@@ -128,7 +129,7 @@
       function rect(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
       function textW(s, sc = 1) { return String(s).length * 6 * sc - sc; }
       function text(s, x, y, c = '#fff', sc = 1, align = 'left', shadow = '#000') {
-        s = String(s).toUpperCase();
+        s = String(s);
         let x0 = align === 'center' ? x - textW(s, sc) / 2 : align === 'right' ? x - textW(s, sc) : x;
         x0 = Math.round(x0); y = Math.round(y);
         for (const pass of shadow ? [1, 0] : [0]) {
@@ -146,32 +147,38 @@
       const light = (hex) => { const n = parseInt(String(hex || '#888').slice(1, 7), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 150; };
 
       // ---------- sprites: little outlined helmet guys, built once per team and skin ----------
-      // 10 x 16; letters: H helmet, F facemask, W helmet stripe, S skin, J jersey, N number patch, P pants, K socks, B shoes.
+      // 11 x 16, Retro Bowl-ish proportions: big round helmet, wide shoulder pads.
+      // Letters: H helmet, W helmet stripe, F facemask, S skin, J jersey, D shoulder trim, N number, P pants, K socks, B cleats.
       const BODY = [
-        '...HHHH...', '..HHWHHH..', '..HHWHHFF.', '..HHHSSF..', '...SSSS...', '..JJJJJJ..', '.SJJNNJJS.', '.SJJNNJJS.', '..JJJJJJ..', '..JJJJJJ..', '..PPPPPP..',
+        '...HHHHH...', '..HHWWHHH..', '.HHHWWHHHF.', '.HHHHHHFFF.', '.HHHHHSSF..', '..HHHSSS...',
+        '.DJJJJJJD..', 'SJJJNNJJJS.', 'SJJJNNJJJS.', '.JJJJJJJJ..', '..PPPPPP...',
       ];
       const LEGS = [
-        ['..PP..PP..', '..PP..PP..', '..KK..KK..', '..KK..KK..', '..BB..BB..'],
-        ['..PP.PP...', '.PP...PP..', '.KK....KK.', 'KK.....KK.', 'BB......BB'],
-        ['...PPPP...', '...PP.P...', '...KK.KK..', '...KK..K..', '...BB.BB..'],
-        ['...PP.PP..', '..PP...PP.', '.KK....KK.', '.KK.....KK', 'BB......BB'],
+        ['...PP.PP...', '...PP.PP...', '...KK.KK...', '...KK.KK...', '..BBB.BBB..'],
+        ['...PPPPP...', '..PP...PP..', '..KK....KK.', '.KK.....KK.', '.BB......BB'],
+        ['....PPP....', '....PP.P...', '....KK.KK..', '....KK..K..', '....BB.BB..'],
+        ['...PP.PP...', '..PP...PP..', '.KK.....KK.', '.KK......KK', 'BB.......BB'],
       ];
       const spriteCache = new Map();
+      // Offense wears its colors; the defense wears white jerseys with colored trim (home vs away look).
       function sprite(team, skin, frame, flip, def) {
         const key = team.abbr + skin + frame + flip + def;
         if (spriteCache.has(key)) return spriteCache.get(key);
         const rows = [...BODY, ...LEGS[frame]];
-        const pal = { H: team.color, W: light(team.color) ? shade(team.color, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: team.color, N: light(team.color) ? shade(team.color, 0.55) : shade(team.color, 1.7),
-          P: light(team.color2 || '#fff') ? (team.color2 || '#eee') : '#e9e9e9', K: team.color2 || '#fff', B: '#141414' };
-        const c = document.createElement('canvas'); c.width = 12; c.height = 18;
+        const col = team.color || '#888', col2 = team.color2 || '#fff';
+        const pal = def
+          ? { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: '#f1f1f1', D: col, N: col, P: '#e8e8e8', K: col, B: '#151515' }
+          : { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: col, D: light(col2) ? col2 : '#ffffff', N: light(col) ? shade(col, 0.55) : '#ffffff', P: light(col2) ? col2 : '#e8e8e8', K: col, B: '#151515' };
+        const W2 = 11, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 18;
         const x = c.getContext('2d');
-        const filled = (i, j) => rows[j] && rows[j][flip ? 9 - i : i] && rows[j][flip ? 9 - i : i] !== '.';
-        for (let j = -1; j <= 16; j++) for (let i = -1; i <= 10; i++) {
-          if (filled(i, j)) { x.fillStyle = pal[rows[j][flip ? 9 - i : i]]; x.fillRect(i + 1, j + 1, 1, 1); }
-          else if (filled(i - 1, j) || filled(i + 1, j) || filled(i, j - 1) || filled(i, j + 1)) { x.fillStyle = '#0c0c10'; x.fillRect(i + 1, j + 1, 1, 1); }
+        const at = (i, j) => (rows[j] ? rows[j][flip ? W2 - 1 - i : i] : undefined);
+        const filled = (i, j) => { const v = at(i, j); return v && v !== '.'; };
+        for (let j = -1; j <= 16; j++) for (let i = -1; i <= W2; i++) {
+          if (filled(i, j)) { x.fillStyle = pal[at(i, j)]; x.fillRect(i + 1, j + 1, 1, 1); }
+          else if (filled(i - 1, j) || filled(i + 1, j) || filled(i, j - 1) || filled(i, j + 1)) { x.fillStyle = '#0a0a0d'; x.fillRect(i + 1, j + 1, 1, 1); }
         }
         // flag-football flags on the hips
-        x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? 8 : 2, 12, 1, 2);
+        x.fillStyle = def ? '#ffd400' : '#ff3b3b'; x.fillRect(flip ? W2 - 2 : 2, 12, 1, 2);
         spriteCache.set(key, c);
         return c;
       }
@@ -194,14 +201,16 @@
         const x0 = st.los, ents = [];
         const add = (pos, x, y) => { const p = P[pos] || { name: pos, ovr: 50 }; ents.push({ pos, p, x, y, vx: 0, vy: 0, sk: SKIN[hashStr(p.name) % SKIN.length], route: null, ri: 0, anim: 0 }); };
         add('UTIL1', x0 - 0.6, MID); add('QB', x0 - 4.5, MID); add('RB', x0 - 5.5, MID + 3);
-        add('WR1', x0 - 0.6, 5); add('WR2', x0 - 0.6, FW - 5); add('WR3', x0 - 1.2, 13); add('TE', x0 - 0.8, MID + 6.5);
+        add('WR1', x0 - 0.6, 4); add('WR2', x0 - 0.6, FW - 4); add('WR3', x0 - 1.2, 12); add('TE', x0 - 0.8, MID + 8.2);
+        // the rest of the offensive line (they block; they're not in your Starting 8)
+        for (const [i, dy] of [[1, -2.7], [2, 2.7], [3, -5.4], [4, 5.4]]) { const base = P.UTIL1 || { ovr: 55 }; ents.push({ pos: 'OL', p: { ...base, name: 'Lineman ' + i, ovr: base.ovr, str: base.str }, x: x0 - 0.7, y: MID + dy, vx: 0, vy: 0, sk: SKIN[(i * 7 + 1) % SKIN.length], route: null, ri: 0, anim: 0 }); }
         st.ents = ents;
         const by = Object.fromEntries(ents.map((e) => [e.pos, e]));
         const d = [];
         const dp = (role, x, y, target) => d.push({ role, x, y, vx: 0, vy: 0, target, hist: [], sk: SKIN[(d.length * 3 + st.down) % SKIN.length], tried: false, stun: 0, anim: 0 });
-        dp('rush', x0 + 4.5, MID - 2); dp('rush', x0 + 4.5, MID + 2.5);
+        for (const dy of [-4.1, -1.4, 1.4, 4.1]) dp('dl', x0 + 1.3, MID + dy);
         for (const pos of ['WR1', 'WR2', 'WR3', 'TE']) dp('cover', by[pos].x + L.cushion + 1.5, by[pos].y, by[pos]);
-        dp('lb', x0 + 6.5, MID + 1, by.RB);
+        dp('lb', x0 + 5.5, MID + 2, by.RB); dp('spy', x0 + 5.5, MID - 3); dp('safe', x0 + 14, MID);
         st.def = d;
         st.ball = { x: x0, y: MID, z: 0.5, holder: by.UTIL1, flight: null };
         st.carrier = null; st.aim = null; st.playT = 0; st.thrown = false; st.handoff = false;
@@ -216,73 +225,98 @@
       }
 
       // ---------- coordinates ----------
-      const camLeft = () => LW * 0.36;
+      const camLeft = () => LW * 0.4;
       const sx = (x) => Math.round((x - st.cam) * PX + camLeft());
       const sy = (y, z = 0) => Math.round(FY0 + y * PY - z * PX * 0.75);
       const toWorldDir = (dx, dy) => ({ x: dx / PX, y: dy / PY });
 
       // ---------- drawing ----------
-      function drawStands() {
-        // Bleachers with a pixel crowd, scrolling with the field.
-        rect(0, 0, LW, FY0 - 6, '#1b1f2a');
-        const off = Math.round(st.cam * PX * 0.9);
-        const hype = st.crowdT > 0 ? 1 : 0;
-        for (let row = 0; row < 5; row++) {
-          const y = 6 + row * 5;
-          rect(0, y + 3, LW, 1, row % 2 ? '#2a3040' : '#262b38');
-          for (let i = -2; i < LW / 4 + 2; i++) {
-            const n = i + Math.floor(off / 4) + row * 7, h = (n * 2654435761) >>> 0;
-            const x = i * 4 - (off % 4);
-            const bob = hype && ((h + Math.floor(st.t * 8)) % 3 === 0) ? -1 : 0;
-            const shirt = [home.color, away.color, '#d8d8d8', '#5b6474', home.color2 || '#fff', '#c94b4b', '#3b6fd6'][h % 7];
-            rect(x, y + bob, 2, 2, SKIN[h % 5]); rect(x - 0, y + 2 + bob, 3, 1, shirt);
-          }
-        }
-        rect(0, FY0 - 6, LW, 2, '#5c6370'); rect(0, FY0 - 4, LW, 4, '#2c6e30');
+      // Big field numbers, drawn once into little canvases (upside-down copies for the far side).
+      const numCache = new Map();
+      function bigNum(n, flip) {
+        const key = n + (flip ? 'f' : '');
+        if (numCache.has(key)) return numCache.get(key);
+        const sc = 3, c = document.createElement('canvas'); c.width = textW(n, sc) + 2; c.height = 7 * sc + 2;
+        const x = c.getContext('2d'); x.fillStyle = 'rgba(255,255,255,.82)';
+        let cx = 0;
+        for (const ch of n) { const gl = glyph(ch); for (let i = 0; i < 35; i++) if (gl[i] === '#') x.fillRect(cx + (i % 5) * sc, Math.floor(i / 5) * sc, sc, sc); cx += 6 * sc; }
+        let out = c;
+        if (flip) { out = document.createElement('canvas'); out.width = c.width; out.height = c.height; const y = out.getContext('2d'); y.translate(c.width, c.height); y.rotate(Math.PI); y.drawImage(c, 0, 0); }
+        numCache.set(key, out);
+        return out;
       }
       function drawField() {
+        rect(0, 0, LW, LH, '#3d7f2f');
         // grass stripes every 5 yards, end zones in team colors
         for (let yd = -10; yd < 110; yd += 5) {
           const a = sx(yd), b = sx(yd + 5); if (b < 0 || a > LW) continue;
-          let c = Math.floor(yd / 5) % 2 === 0 ? '#3f9a3f' : '#378a37';
-          if (yd < 0) c = home.color; else if (yd >= 100) c = away.color;
+          let c = Math.floor((yd + 10) / 5) % 2 === 0 ? '#4a8f3c' : '#45883a';
+          if (yd < 0) c = shade(home.color, 0.8); else if (yd >= 100) c = shade(away.color, 0.8);
           rect(a, FY0, b - a, LH - FY0, c);
         }
-        // end zone names
+        // end zone names, big and sideways
         for (const [cx, team] of [[-5, home], [105, away]]) {
-          const x = sx(cx); if (x < -120 || x > LW + 120) continue;
-          const name = team.name.toUpperCase().slice(0, 12);
-          const scl = 1, w = textW(name, scl);
-          // vertical lettering, top to bottom
-          const step = 8;
-          const n = name.length, y0 = Math.round(sy(MID) - (n * step) / 2);
-          for (let i = 0; i < n; i++) text(name[i], x - 2, y0 + i * step, light(team.color) ? '#111' : '#fff', 1, 'left', null);
-          void w;
+          const x = sx(cx); if (x < -60 || x > LW + 60) continue;
+          const name = team.name.toUpperCase().slice(0, 10), n = name.length, step = 16;
+          const y0 = Math.round(sy(MID) - (n * step) / 2);
+          for (let i = 0; i < n; i++) text(name[i], x - 4, y0 + i * step, light(team.color) ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.75)', 2, 'left', null);
         }
-        // yard lines + numbers + hashes
+        // yard lines every 5, full height
         for (let yd = 0; yd <= 100; yd += 5) {
-          const x = sx(yd); if (x < -10 || x > LW + 10) continue;
-          rect(x, FY0, 1, LH - FY0 - 6, yd === 0 || yd === 100 ? '#ffffff' : 'rgba(255,255,255,.85)');
-          if (yd % 10 === 0 && yd > 0 && yd < 100) {
-            const n = String(yd <= 50 ? yd : 100 - yd);
-            text(n, x + 1, sy(5) - 3, 'rgba(255,255,255,.9)', 1, 'center', null);
-            text(n, x + 1, sy(FW - 5) - 3, 'rgba(255,255,255,.9)', 1, 'center', null);
+          const x = sx(yd); if (x < -2 || x > LW + 2) continue;
+          rect(x, FY0, yd % 10 === 0 || yd === 0 || yd === 100 ? 2 : 1, LH - FY0, 'rgba(255,255,255,.9)');
+        }
+        // hash marks: along both sidelines and two rows in the middle
+        for (let yd = 1; yd < 100; yd++) {
+          const x = sx(yd); if (x < 0 || x > LW || yd % 5 === 0) continue;
+          for (const yy of [1.2, MID - 6, MID + 6, FW - 1.2]) rect(x, sy(yy) - 1, 1, 3, 'rgba(255,255,255,.85)');
+        }
+        // big numbers near both sidelines (far ones upside down), with arrows toward the near goal
+        for (let yd = 10; yd <= 90; yd += 10) {
+          const x = sx(yd); if (x < -40 || x > LW + 40) continue;
+          const n = String(yd <= 50 ? yd : 100 - yd);
+          const top = bigNum(n, true), bot = bigNum(n, false);
+          g.drawImage(top, x - Math.round(top.width / 2) + 1, sy(6.5) - Math.round(top.height / 2));
+          g.drawImage(bot, x - Math.round(bot.width / 2) + 1, sy(FW - 6.5) - Math.round(bot.height / 2));
+          if (yd !== 50) {
+            const dir = yd < 50 ? -1 : 1, ax = x + dir * (Math.round(bot.width / 2) + 5);
+            for (const yy of [6.5, FW - 6.5]) { const ay = sy(yy); for (let i = 0; i < 4; i++) rect(ax + dir * -i, ay - i, 1, i * 2 + 1, 'rgba(255,255,255,.82)'); }
           }
         }
-        for (let yd = 1; yd < 100; yd++) { const x = sx(yd); if (x < 0 || x > LW) continue; rect(x, sy(MID - 6), 1, 1, '#e6f2e6'); rect(x, sy(MID + 6), 1, 1, '#e6f2e6'); }
         // sidelines
-        rect(0, FY0, LW, 1, '#fff'); rect(0, LH - 7, LW, 1, '#fff'); rect(0, LH - 6, LW, 6, '#2c6e30');
-        // goal posts (side view)
-        for (const gx of [-10, 110]) {
-          const x = sx(gx); if (x < -10 || x > LW + 10) continue;
-          rect(x, sy(MID) - 30, 2, 30, '#ffd400'); rect(x - 1, sy(MID) - 30, 4, 2, '#ffd400'); rect(x, sy(MID) - 42, 1, 12, '#ffd400');
-        }
+        rect(0, FY0 - 1, LW, 2, '#ffffff'); rect(0, LH - 2, LW, 2, '#ffffff');
         // line of scrimmage + first down marker
         if (['presnap', 'play', 'flight', 'carry', 'dead', 'fourth'].includes(st.phase)) {
-          rect(sx(st.los), FY0 + 1, 1, LH - FY0 - 8, '#4aa3ff');
-          if (st.fd < 100) rect(sx(st.fd), FY0 + 1, 1, LH - FY0 - 8, '#ffd400');
+          rect(sx(st.los), FY0, 2, LH - FY0, '#3f6fff');
+          if (st.fd < 100) rect(sx(st.fd), FY0, 2, LH - FY0, '#ffe000');
         }
       }
+      // Pre-snap: routes with arrowheads, a ring under the QB, stars over the best players.
+      function arrowLine(pts, color) {
+        for (let k = 0; k < pts.length - 1; k++) {
+          const [x1, y1] = pts[k], [x2, y2] = pts[k + 1], n = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+          for (let i = 0; i <= n; i++) rect(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n, 2, 2, color);
+        }
+        const [xa, ya] = pts[pts.length - 2], [xb, yb] = pts[pts.length - 1], ang = Math.atan2(yb - ya, xb - xa);
+        for (let i = 1; i <= 5; i++) for (const s2 of [-1, 1]) rect(xb - Math.cos(ang + s2 * 0.6) * i, yb - Math.sin(ang + s2 * 0.6) * i, 2, 2, color);
+      }
+      function drawPresnap() {
+        for (const e of st.ents) {
+          if (!e.route) continue;
+          const pts = [[sx(e.x), sy(e.y)], ...e.route.map((w) => [sx(w.x), sy(w.y)])];
+          if (!e.stop) { const a = e.route[e.route.length - 2] || { x: e.x, y: e.y }, b = e.route[e.route.length - 1], d = Math.hypot(b.x - a.x, b.y - a.y) || 1; pts.push([sx(b.x + (b.x - a.x) / d * 6), sy(b.y + (b.y - a.y) / d * 6)]); }
+          arrowLine(pts, e.pos === 'TE' ? '#5aa0ff' : '#3ddc5a');
+        }
+        const rb = st.ents.find((e) => e.pos === 'RB');
+        if (rb) arrowLine([[sx(rb.x), sy(rb.y)], [sx(rb.x + 2), sy(rb.y + 2)], [sx(rb.x + 7), sy(rb.y + 2)]], '#5aa0ff');
+        const qb = st.ents.find((e) => e.pos === 'QB');
+        if (qb) { const x = sx(qb.x), y = sy(qb.y); for (let a = 0; a < 24; a++) rect(x + Math.cos(a / 24 * 6.283) * 8, y - 6 + Math.sin(a / 24 * 6.283) * 8, 1, 1, '#ffffff'); }
+        // "1st & 10" tag by the ball
+        const s1 = `${['1st', '2nd', '3rd', '4th'][st.down - 1]} & ${st.fd >= 100 ? 'Goal' : Math.max(1, Math.round(st.fd - st.los))}`;
+        const tx = sx(st.los) + 4, ty = sy(MID + 10);
+        rect(tx, ty, textW(s1) + 8, 11, '#000'); text(s1, tx + 4, ty + 2, '#fff', 1, 'left', null);
+      }
+      function star(x, y) { rect(x, y - 2, 1, 1, '#ffe000'); rect(x - 1, y - 1, 3, 1, '#ffe000'); rect(x - 2, y, 5, 1, '#ffe000'); rect(x - 1, y + 1, 3, 1, '#ffe000'); rect(x - 1, y + 2, 1, 1, '#ffe000'); rect(x + 1, y + 2, 1, 1, '#ffe000'); }
       function drawGuy(e, team, def) {
         const moving = Math.hypot(e.vx, e.vy) > 0.4;
         e.anim += moving ? Math.hypot(e.vx, e.vy) * 0.03 : 0;
@@ -290,7 +324,7 @@
         const face = Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
         const x = sx(e.x), y = sy(e.y);
         if (x < -12 || x > LW + 12) return;
-        rect(x - 4, y, 9, 2, 'rgba(0,0,0,.25)');
+        rect(x - 5, y - 1, 11, 3, 'rgba(0,0,0,.3)'); rect(x - 4, y - 2, 9, 1, 'rgba(0,0,0,.18)');
         g.drawImage(sprite(team, e.sk, frame, face, def), x - 6, y - 17);
       }
       function drawBall() {
@@ -314,17 +348,11 @@
       }
       const fmtClock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
       function hud() {
-        // scoreboard, top left like the real thing
-        const w = 152; box(3, 3, w, 12, '#0d1018', '#000');
-        rect(4, 4, 4, 10, home.color); text(home.abbr.slice(0, 3), 10, 6, '#fff', 1, 'left', null); text(st.us, 44, 6, '#ffd400', 1, 'right', null);
-        rect(48, 4, 4, 10, away.color); text(away.abbr.slice(0, 3), 54, 6, '#fff', 1, 'left', null); text(st.them, 88, 6, '#ffd400', 1, 'right', null);
-        text(st.ot ? 'OT' : `Q${st.q}`, 94, 6, '#9fd3ff', 1, 'left', null); text(fmtClock(st.clock), w, 6, '#fff', 1, 'right', null);
-        if (['presnap', 'play', 'flight', 'carry', 'dead', 'fourth'].includes(st.phase)) {
-          const togo = st.fd >= 100 ? 'GOAL' : Math.max(1, Math.round(st.fd - st.los));
-          const spot = st.los <= 50 ? `OWN ${Math.round(st.los)}` : `OPP ${Math.round(100 - st.los)}`;
-          const s = `${['1ST', '2ND', '3RD', '4TH'][st.down - 1]} & ${togo}  ${spot}`;
-          box(3, 17, textW(s) + 6, 11, '#0d1018', '#000'); text(s, 6, 19, '#fff', 1, 'left', null);
-        }
+        rect(0, 0, LW, 11, '#000');
+        text(`${home.abbr.slice(0, 3)} ${st.us}   ${away.abbr.slice(0, 3)} ${st.them}`, 4, 2, '#fff', 1, 'left', null);
+        text(st.ot ? `OT` : `${['1st', '2nd', '3rd', '4th'][Math.min(4, st.q) - 1]} Qtr ${fmtClock(st.clock)}`, LW / 2, 2, '#fff', 1, 'center', null);
+        if (['presnap', 'play', 'flight', 'carry', 'dead', 'fourth'].includes(st.phase))
+          text(`${['1st', '2nd', '3rd', '4th'][st.down - 1]} & ${st.fd >= 100 ? 'Goal' : Math.max(1, Math.round(st.fd - st.los))}`, LW - 4, 2, '#fff', 1, 'right', null);
       }
       let buttons = [];
       function button(id, label, x, y, w, h = 15, hot = false) {
@@ -512,7 +540,9 @@
         if (st.phase === 'play' || st.phase === 'flight') {
           for (const e of st.ents) {
             if (e === qb) { if (!st.thrown) moveTo(e, st.los - (st.handoff ? 4.5 : 7), MID, 4, dt); continue; }
-            if (e === c) { const r = st.def.filter((d) => d.role === 'rush').sort((a, b) => dist(a, qb) - dist(b, qb))[0]; if (r) moveTo(e, (r.x + qb.x) / 2, (r.y + qb.y) / 2, 4.5, dt); continue; }
+            if (e === c || e.pos === 'OL') { // linemen block the closest pass rusher
+              const r = st.def.filter((d) => d.role === 'dl').sort((a, b) => dist(a, e) - dist(b, e))[0];
+              if (r) moveTo(e, Math.min(st.los, (r.x + qb.x) / 2 + 0.6), (r.y * 2 + qb.y) / 3, 4.2, dt); continue; }
             if (e === rb && st.handoff && st.ball.holder === qb) {
               if (dist(rb, qb) < 1.2) { st.ball.holder = rb; st.carrier = rb; st.phase = 'carry'; st.carryStart = st.los; st.fromRun = true; say('HANDOFF', '#fff', 0.5); }
               else moveTo(e, qb.x + 0.5, qb.y, speedOf(e.p), dt);
@@ -531,12 +561,21 @@
           }
           for (const d of st.def) {
             if (d.stun > 0) { d.stun -= dt; continue; }
-            if (d.role === 'rush') {
-              if (st.playT < L.rush) { d.vx = d.vy = 0; continue; }
+            if (d.role === 'dl') {
+              // Rushers lean on the line; after a moment some of them get free.
+              if (!d.free && st.playT > L.rush && R() < dt * (0.35 + ctx.level * 0.12)) d.free = true;
               const target = st.ball.holder || qb;
-              let sp = L.dspd * 0.92;
-              if (dist(d, c) < 1.1) sp *= 0.25 - rating(c.p, 'str') / 900;
-              moveTo(d, target.x, target.y, Math.max(0.6, sp), dt);
+              let sp = L.dspd * 0.9;
+              const blocked = !d.free && st.ents.some((b) => (b === c || b.pos === 'OL') && dist(b, d) < 1.2);
+              if (blocked) sp *= Math.max(0.05, 0.16 + ctx.level * 0.04 - (rating(c.p, 'str') - 50) / 600);
+              moveTo(d, target.x, target.y, Math.max(0.3, sp), dt);
+            } else if (d.role === 'spy') {
+              moveTo(d, st.los + 5, (st.ball.holder || qb).y, L.dspd * 0.85, dt);
+            } else if (d.role === 'safe') {
+              const deep = Math.max(...st.ents.filter((e) => e.route).map((e) => e.x));
+              let tx = Math.max(st.los + 12, deep + 3), ty = MID;
+              if (st.phase === 'flight' && st.ball.flight) { const T = st.ball.flight.target; if (dist(d, T) < L.track + 5) { tx = T.x; ty = T.y; } }
+              moveTo(d, tx, ty, L.dspd * 0.95, dt);
             } else {
               const tgt = d.target;
               d.hist.push({ x: tgt.x, y: tgt.y, t: st.playT });
@@ -568,7 +607,7 @@
           for (const d of st.def) {
             if (d.stun > 0) { d.stun -= dt; d.vx = d.vy = 0; continue; }
             const lead = dist(d, cr) / (L.dspd + 0.1) * 0.55;
-            moveTo(d, cr.x + cr.vx * lead, cr.y + cr.vy * lead, L.dspd * (d.role === 'rush' ? 0.95 : 1), dt);
+            moveTo(d, cr.x + cr.vx * lead, cr.y + cr.vy * lead, L.dspd * (d.role === 'dl' ? 0.9 : 1), dt);
             if (dist(d, cr) < 0.85 && !(cr.immune > 0)) {
               const brk = L.brk + (rating(cr.p, 'str') - 50) / 300;
               if (!d.tried && R() < brk) { d.tried = true; d.stun = 0.8; say('BROKEN TACKLE!', '#7cfc9a', 0.6); sfx('good'); continue; }
@@ -583,7 +622,7 @@
         let fx = st.los + 10;
         if (st.phase === 'carry' && st.carrier) fx = st.carrier.x + 8;
         else if (st.phase === 'flight' && st.ball.flight) fx = st.ball.x + 6;
-        else if (st.phase === 'play') fx = st.los + 8 + Math.min(10, st.playT * 3);
+        else if (st.phase === 'play') { const qb = st.ball.holder || st.ents.find((e) => e.pos === 'QB'); fx = Math.min(st.los + 8 + Math.min(10, st.playT * 3), qb.x + (camLeft() - 24) / PX); }
         const minC = -10 + camLeft() / PX, maxC = 110 - (LW - camLeft()) / PX;
         fx = clamp(fx, minC, maxC);
         st.cam += (fx - st.cam) * Math.min(1, dt * 3.5);
@@ -605,7 +644,7 @@
       }
       function resolveCatch() {
         const T = st.ball.flight.target;
-        const recv = st.ents.filter((e) => e.pos !== 'QB').map((e) => ({ e, d: dist(e, T) })).sort((a, b) => a.d - b.d)[0];
+        const recv = st.ents.filter((e) => ['RB', 'WR1', 'WR2', 'WR3', 'TE'].includes(e.pos)).map((e) => ({ e, d: dist(e, T) })).sort((a, b) => a.d - b.d)[0];
         const dfd = st.def.map((d) => ({ d, dd: dist(d, T) })).sort((a, b) => a.dd - b.dd)[0];
         const rr = 1.5 + rating(recv && recv.e.p, 'cat') / 120;
         st.ball.flight = null;
@@ -744,10 +783,11 @@
       }
       function render(dt) {
         if (st.phase === 'kick') { drawKick(dt); particles(dt); banner(); return; }
-        drawStands(); drawField();
+        drawField();
+        if (st.phase === 'presnap' || st.phase === 'fourth') drawPresnap();
         const all = [...st.ents.map((e) => [e, home, false]), ...st.def.map((d) => [d, away, true])].sort((a, b) => a[0].y - b[0].y);
-        for (const [e, team, d] of all) drawGuy(e, team, d);
-        if (st.phase === 'carry' && st.carrier) { const x = sx(st.carrier.x), y = sy(st.carrier.y) - 21; rect(x - 2, y, 5, 1, '#ffd400'); rect(x - 1, y + 1, 3, 1, '#ffd400'); rect(x, y + 2, 1, 1, '#ffd400'); }
+        for (const [e, team, d] of all) { drawGuy(e, team, d); if (!d && e.p && e.p.stars >= 4 && e.pos !== 'OL') star(sx(e.x), sy(e.y) - 21); }
+        if (st.phase === 'carry' && st.carrier) { const x = sx(st.carrier.x), y = sy(st.carrier.y) - 26; rect(x - 2, y, 5, 1, '#ffd400'); rect(x - 1, y + 1, 3, 1, '#ffd400'); rect(x, y + 2, 1, 1, '#ffd400'); }
         drawBall();
         if (st.phase === 'play') drawAim();
         hud();
