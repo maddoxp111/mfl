@@ -327,8 +327,26 @@
         const face = e.pos === 'QB' && st.aim && st.aim.target ? st.aim.target.x < e.x : Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
         const x = sx(e.x), y = sy(e.y);
         if (x < -12 || x > LW + 12) return;
+        const img = sprite(team, e.sk, e.fallT > st.t || e.diveT > st.t ? 0 : frame, face, def);
+        if (e.diveT > st.t || e.fallT > st.t) {
+          // diving or knocked down: draw the guy tipped over (nearly flat when he lands)
+          const k = e.diveT > st.t ? 1 - (e.diveT - st.t) / 0.6 : 1;
+          const ang = (face ? -1 : 1) * (Math.PI / 2) * (e.diveT > st.t ? 0.55 + 0.45 * k : 1);
+          const lift = e.diveT > st.t ? Math.sin(k * Math.PI) * 5 : 0;
+          rect(x - 9, y - 1, 18, 3, 'rgba(0,0,0,.3)');
+          g.save(); g.translate(x, y - 4 - lift); g.rotate(ang); g.drawImage(img, -5, -18); g.restore();
+          return;
+        }
+        const jump = e.jumpT > st.t ? Math.round(Math.sin((1 - (e.jumpT - st.t) / 0.4) * Math.PI) * 6) : 0;
         rect(x - 4, y - 1, 8, 2, 'rgba(0,0,0,.3)');
-        g.drawImage(sprite(team, e.sk, frame, face, def), x - 5, y - 22);
+        g.drawImage(img, x - 5, y - 22 - jump);
+      }
+      // Name tag under whoever has the ball.
+      function nameTag(e) {
+        if (!e || !e.p || e.pos === 'OL') return;
+        const nm = String(e.p.name || '').split(' ').pop().slice(0, 12);
+        const x = sx(e.x), y = sy(e.y) + 3, w = textW(nm) + 6;
+        rect(x - Math.round(w / 2), y, w, 10, 'rgba(0,0,0,.8)'); text(nm, x, y + 2, '#fff', 1, 'center', null);
       }
       function drawBall() {
         const b = st.ball; if (!b) return;
@@ -633,7 +651,13 @@
         fx = clamp(fx, minC, maxC);
         st.cam += (fx - st.cam) * Math.min(1, dt * 3.5);
       }
-      function flagFx(e) { const x = sx(e.x), y = sy(e.y) - 10; for (let i = 0; i < 10; i++) st.parts.push({ x, y, vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 70, life: 0.6, c: '#ffd400' }); say('FLAG PULLED', '#fff', 0.7); }
+      function tackleFx(e) {
+        e.fallT = st.t + 1.3; e.vx = e.vy = 0;
+        const d = st.def.slice().sort((a, b) => dist(a, e) - dist(b, e))[0];
+        if (d) { d.x = e.x + (d.x > e.x ? 0.7 : -0.7); d.y = e.y + 0.3; d.fallT = st.t + 1.1; d.vx = d.vy = 0; }
+        sfx('bad');
+      }
+      function flagFx(e) { tackleFx(e); const x = sx(e.x), y = sy(e.y) - 10; for (let i = 0; i < 10; i++) st.parts.push({ x, y, vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 70, life: 0.6, c: '#ffd400' }); say('FLAG PULLED', '#fff', 0.7); }
       function finishCarry(x, why, oob) {
         const gain = x - (st.carryStart ?? st.los);
         if (st.fromRun) st.stats.rush += Math.round(gain); else st.stats.pass += Math.round(gain);
@@ -659,9 +683,20 @@
           if (R() < L.intc) { st.ball.holder = dfd.d; say('INTERCEPTED', '#ff5b69', 1.3); sfx('lose'); return endPlay(T.x, 'int'); }
           say('BROKEN UP', '#fff', 0.8); sfx('bad'); return endPlay(st.los, 'inc', true);
         }
-        if (recv && recv.d < rr) {
+        // Just out of reach: lay out for it (harder catch, and he ends up on the ground).
+        const diving = recv && recv.d >= rr && recv.d < rr + 2;
+        if (recv && (recv.d < rr || diving)) {
           const crowdD = dfd && dfd.dd < 1.6 ? 0.25 : 0;
-          const p = clamp(0.62 + rating(recv.e.p, 'cat') / 300 - crowdD - recv.d * 0.08, 0.2, 0.97);
+          let p = clamp(0.62 + rating(recv.e.p, 'cat') / 300 - crowdD - recv.d * 0.08, 0.2, 0.97);
+          if (diving) { p = clamp(p - 0.2, 0.12, 0.7); recv.e.diveT = st.t + 0.6; recv.e.x = T.x - 0.4; recv.e.y = T.y; say('DIVING!', '#ffd400', 0.6); }
+          else recv.e.jumpT = st.t + 0.4;
+          if (diving && R() < p) {
+            st.stats.comp++; st.ball.holder = recv.e; st.carrier = recv.e; recv.e.fallT = st.t + 1.3; sfx('catch'); cheer(0.1, 1.4);
+            say('DIVING CATCH!', '#7cfc9a', 1.1, (recv.e.p.name || '').toUpperCase());
+            if (T.x >= 100) { st.stats.pass += Math.round(100 - st.los); return touchdown(); }
+            st.stats.pass += Math.round(T.x - st.los); return endPlay(T.x, 'tackle');
+          }
+          if (diving) { recv.e.fallT = st.t + 1.3; say('JUST MISSED', '#fff', 0.8); sfx('bad'); return endPlay(st.los, 'inc', true); }
           if (R() < p) {
             st.stats.comp++; st.ball.holder = recv.e; st.carrier = recv.e; st.carryStart = st.los; st.fromRun = false;
             recv.e.x = T.x; recv.e.y = T.y; st.phase = 'carry'; sfx('catch');
@@ -795,6 +830,7 @@
         const all = [...st.ents.map((e) => [e, home, false]), ...st.def.map((d) => [d, away, true])].sort((a, b) => a[0].y - b[0].y);
         for (const [e, team, d] of all) { drawGuy(e, team, d); if (!d && e.p && e.p.stars >= 4 && e.pos !== 'OL') star(sx(e.x), sy(e.y) - 27); }
         if (st.phase === 'carry' && st.carrier) { const x = sx(st.carrier.x), y = sy(st.carrier.y) - 30; rect(x - 2, y, 5, 1, '#ffd400'); rect(x - 1, y + 1, 3, 1, '#ffd400'); rect(x, y + 2, 1, 1, '#ffd400'); }
+        { let h = st.ball && st.ball.holder; if (h && h.pos === 'UTIL1') h = st.ents.find((e) => e.pos === 'QB'); if (h && !st.def.includes(h) && st.phase !== 'intro' && st.phase !== 'sim') nameTag(h); }
         drawBall();
         if (st.phase === 'play') drawAim();
         hud();
