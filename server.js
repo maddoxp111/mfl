@@ -475,7 +475,7 @@ app.get('/', async (req, res, next) => {
     <div class="wrap home">
       ${hero}
       <a class="arc-promo" href="/arcade"><div class="arc-promo-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
-        <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>Play Modern Bowl with your Starting 8</b><span>Plus 8-Ball Pool, Trivia, Field Goal Frenzy and more. Win coins, crank up Risk mode for up to 5×.</span></div>
+        <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>Play Modern Bowl with your Starting 8</b><span>Plus Chess, 8-Ball Pool, Trivia and 6 more games. Win coins, crank up Risk mode for up to 5×.</span></div>
         <span class="btn">Play now ${icon('arrow')}</span></a>
       <div class="home-grid">
         <div class="col">

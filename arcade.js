@@ -29,7 +29,7 @@ const GAMES = {
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
-const HIDDEN = new Set(['chess', 'checkers', 'connect4']);
+const HIDDEN = new Set();
 const ORDER = ['bowl', 'chess', 'pool', 'trivia', 'checkers', 'connect4', 'fieldgoal', 'bullseye', 'flagpull', 'memory'].filter((g) => !HIDDEN.has(g));
 const CPU_TEAMS = [
   { name: 'JV Squad', abbr: 'JV', color: '#64748b', color2: '#e2e8f0' },
@@ -341,7 +341,7 @@ module.exports = function arcade(app, h) {
     </section>`;
   }
   const WAYS = [
-    ['🏈', 'Arcade games', 'Win any Arcade game. Risk mode multiplies it up to 5×.'],
+    ['🏈', 'Arcade games', 'Win any of the 10 games. Risk mode multiplies it up to 5×.'],
     ['✅', 'Daily challenges', 'Three new challenges every day.'],
     ['📍', 'Game-day check-in', `+${CHECKIN} for showing up on game days.`],
     ['🏆', 'Achievements', '+150 for every achievement you unlock.'],
@@ -362,7 +362,7 @@ module.exports = function arcade(app, h) {
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
-              <p>7 games (more coming), 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
+              <p>10 games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
               <div class="arc-cta"><a class="btn" href="/arcade/bowl">${icon('fire')} Play Modern Bowl</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
