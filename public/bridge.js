@@ -2,7 +2,7 @@
 // live page from the real server, so logins, Pick'em and Admin all work there too.
 // Logins are kept in localStorage, since the two sites can't share cookies.
 (function () {
-  const API = document.currentScript.dataset.api || 'https://metcalffootballleague.vercel.app';
+  const API = document.currentScript.dataset.api || 'https://mfl-production-8234.up.railway.app';
   const BASE = document.currentScript.dataset.base || '';
   const JAR = 'mfl_auth';
   window.MFL_ORIGIN = location.origin + BASE;
