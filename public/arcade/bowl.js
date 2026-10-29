@@ -31,7 +31,7 @@
 .mb-wrap canvas{display:block;width:100%;border-radius:18px;touch-action:none;background:#2f7d32;box-shadow:0 20px 60px -20px rgba(0,0,0,.9)}
 .mb-bar{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:10px}
 .mb-bar button{font:700 12px Inter;color:#aeb3c0;background:#161922;border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:7px 14px;cursor:pointer}
-.mb-bar span{font:600 12px Inter;color:#6f7584}`;
+.mb-bar>span:first-child{font:600 12px Inter;color:#6f7584}.mb-btns{display:flex;gap:6px;flex-shrink:0}`;
 
   function hashStr(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -46,7 +46,8 @@
       const wrap = document.createElement('div'); wrap.className = 'mb-wrap';
       const cv = document.createElement('canvas'); wrap.appendChild(cv);
       const bar = document.createElement('div'); bar.className = 'mb-bar';
-      bar.innerHTML = `<span>${ctx.exhibition ? 'Exhibition' : (ctx.risk ? 'Risk mode · ' : '') + L.name}</span><button type="button" class="mb-quit">Quit</button>`;
+      const fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+      bar.innerHTML = `<span>${ctx.exhibition ? 'Exhibition' : (ctx.risk ? 'Risk mode · ' : '') + L.name}${fine ? ' · Mouse: drag back to throw · Arrows/WASD: move & juke · Space: snap/dive · P: pause' : ''}</span><span class="mb-btns"><button type="button" class="mb-pause">Pause</button><button type="button" class="mb-quit">Quit</button></span>`;
       wrap.appendChild(bar);
       ctx.root.appendChild(wrap);
       const g = cv.getContext('2d');
@@ -365,7 +366,7 @@
         g.fillStyle = 'rgba(124,252,154,.75)'; g.fillRect(cx - (K.tol / 0.9) * mw / 2, my - 10, (K.tol / 0.9) * mw, 20);
         g.fillStyle = '#fff'; g.fillRect(cx + (K.needle / 0.9) * mw / 2 - 2, my - 16, 4, 32);
         label(K.kind === 'xp' ? 'EXTRA POINT' : `${K.yards} YD FIELD GOAL`, cx, H * 0.14, '#ffd400', 0.6);
-        if (!K.done) label('TAP WHEN THE BAR IS IN THE GREEN', cx, H * 0.95, '#fff', 0.34);
+        if (!K.done) label(desktop ? 'CLICK OR PRESS SPACE WHEN THE BAR IS IN THE GREEN' : 'TAP WHEN THE BAR IS IN THE GREEN', cx, H * 0.95, '#fff', 0.34);
         // ball flight
         if (K.done) {
           K.flight = Math.min(1, K.flight + dt * 1.2);
@@ -446,6 +447,7 @@
           // steer toward the finger, always running upfield
           let sp = speedOf(cr.p) * (cr.dive ? 1.4 : 1);
           let ty = st.steerY != null ? clamp(st.steerY, 0.5, FW - 0.5) : cr.y;
+          const kd = keyDir(); if (kd) ty = cr.y + kd * 5;
           if (cr.juke > 0) { cr.juke -= dt; ty = cr.y + cr.jukeDir * 6; sp *= 1.35; }
           const dy = clamp(ty - cr.y, -3, 3);
           cr.vx = sp * Math.cos(Math.atan2(dy, 4)); cr.vy = sp * Math.sin(Math.atan2(dy, 4));
@@ -521,7 +523,7 @@
       function pos(ev) { const r = cv.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
       function hit(p) { return buttons.find((b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h); }
       cv.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault(); cv.setPointerCapture(ev.pointerId);
+        ev.preventDefault(); if (paused) return; cv.setPointerCapture(ev.pointerId);
         const p = pos(ev), b = hit(p);
         ptr = { start: p, cur: p, t: performance.now() };
         if (b) { ptr.button = b.id; return; }
@@ -544,7 +546,7 @@
           st.steerY = screenToWorldY(p.x, p.y);
           // fast swipe upfield = dive
           const el = (performance.now() - ptr.t) / 1000, up = portrait ? ptr.start.y - p.y : p.x - ptr.start.x;
-          if (el < 0.25 && up > 55 && !st.carrier.dive) { st.carrier.dive = 0.35; say('DIVE!', '#fff', 0.5); }
+          if (el < 0.25 && up > 55) dive();
         }
       });
       cv.addEventListener('pointerup', (ev) => {
@@ -555,13 +557,19 @@
         else if (st.phase === 'carry' && quick && !(st.carrier.cool > st.t)) {
           // tap = juke away from the nearest defender
           const cr = st.carrier, nd = st.def.slice().sort((a, b) => dist(a, cr) - dist(b, cr))[0];
-          cr.jukeDir = nd && nd.y > cr.y ? -1 : 1; cr.juke = 0.22; cr.immune = 0.32; cr.cool = st.t + 0.9; say('JUKE!', '#7CFC9A', 0.45); ctx.sound('tap');
+          juke(nd && nd.y > cr.y ? -1 : 1);
         }
         if (st.phase === 'carry') st.steerY = null;
         ptr = null;
       });
       // Each button only works in the phase that shows it (taps can land a frame late).
       const BUTTON_PHASE = { run: 'presnap', play: 'presnap', go: 'fourth', punt: 'fourth', fg: 'fourth', xp: 'pat', two: 'pat', kickoff: 'intro' };
+      // Juke sideways (dir -1 / 1 across the field) with a moment of slipperiness.
+      function juke(dir) {
+        const cr = st.carrier; if (!cr || st.phase !== 'carry' || cr.cool > st.t) return;
+        cr.jukeDir = dir; cr.juke = 0.22; cr.immune = 0.32; cr.cool = st.t + 0.9; say('JUKE!', '#7CFC9A', 0.45); ctx.sound('tap');
+      }
+      function dive() { const cr = st.carrier; if (cr && st.phase === 'carry' && !cr.dive) { cr.dive = 0.35; say('DIVE!', '#fff', 0.5); } }
       function press(id) {
         if (BUTTON_PHASE[id] && BUTTON_PHASE[id] !== st.phase) return;
         ctx.sound('tap');
@@ -588,11 +596,53 @@
         return _touchdown();
       };
 
+      // ---------- keyboard (Retro Bowl computer controls) ----------
+      // Mouse: click to snap, click-drag back & release to throw.
+      // Running: arrow keys / WASD move across the field (a quick press jukes), Space dives.
+      // Space/Enter snaps, kicks and continues; R = run/pass, N = new play; 1/2/3 pick
+      // 4th-down and extra-point options; P or Esc pauses.
+      const desktop = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const held = {};
+      let paused = false;
+      const LAT = () => (portrait ? { ArrowLeft: -1, a: -1, A: -1, ArrowRight: 1, d: 1, D: 1 } : { ArrowUp: -1, w: -1, W: -1, ArrowDown: 1, s: 1, S: 1 });
+      const UPFIELD = () => (portrait ? ['ArrowUp', 'w', 'W'] : ['ArrowRight', 'd', 'D']);
+      function keyDir() { const L2 = LAT(); let d = 0; for (const k in held) if (held[k] && L2[k]) d += L2[k]; return Math.sign(d); }
+      function onKey(e) {
+        if (stop || over || !cv.isConnected) return;
+        if (/INPUT|SELECT|TEXTAREA/.test((e.target && e.target.tagName) || '')) return;
+        const k = e.key;
+        if (e.type === 'keyup') { held[k] = false; return; }
+        const go = k === ' ' || k === 'Enter', lat = LAT()[k], up = UPFIELD().includes(k);
+        const known = go || lat || up || /^[rRnNkKpP123]$/.test(k) || k === 'Escape' || k.startsWith('Arrow');
+        if (!known) return;
+        e.preventDefault();
+        const first = !e.repeat && !held[k];
+        held[k] = true;
+        if (!first) return;
+        const syncPause = () => { const b = bar.querySelector('.mb-pause'); if (b) b.textContent = paused ? 'Resume' : 'Pause'; };
+        if (k === 'p' || k === 'P' || k === 'Escape') { if (st.phase !== 'over') paused = !paused; syncPause(); return; }
+        if (paused) { if (go) { paused = false; syncPause(); } return; }
+        switch (st.phase) {
+          case 'intro': if (go) press('kickoff'); break;
+          case 'presnap': if (go) snap(); else if (/[rR]/.test(k)) press('run'); else if (/[nN]/.test(k)) press('play'); break;
+          case 'fourth': if (k === '1') press('go'); else if (k === '2') press('punt'); else if (k === '3') press('fg'); break;
+          case 'pat': if (k === '1' || /[kK]/.test(k) || go) press('xp'); else if (k === '2') press('two'); break;
+          case 'kick': if (go) kickTap(); break;
+          case 'carry': if (go || up) dive(); else if (lat) juke(lat); break;
+          default: if (go && st.sim) press('simok');
+        }
+      }
+      bar.querySelector('.mb-pause').onclick = (e) => { if (st.phase !== 'over') paused = !paused; e.currentTarget.textContent = paused ? 'Resume' : 'Pause'; e.currentTarget.blur(); };
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('keyup', onKey);
+      window.addEventListener('blur', () => { for (const k in held) held[k] = false; });
+
       // ---------- loop ----------
       let last = performance.now(), stop = false;
       function frame(now) {
         if (stop) return;
         const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        if (paused) { render(0); g.fillStyle = 'rgba(6,7,10,.7)'; g.fillRect(0, 0, W, H); label('PAUSED', W / 2, H * 0.45, '#ffd400', 0.9); label(desktop ? 'PRESS P OR SPACE TO RESUME' : 'TAP P TO RESUME', W / 2, H * 0.45 + 30, '#fff', 0.36); requestAnimationFrame(frame); return; }
         if (st.msg) { st.msg.t += dt; if (st.msg.t > st.msg.dur) st.msg = null; }
         if (['play', 'flight', 'carry'].includes(st.phase)) step(dt);
         else { st.t += dt; step0(dt); }
@@ -622,36 +672,40 @@
           button('run', st.runPlay ? 'RUN PLAY' : 'PASS PLAY', 12, by, bw, bh, st.runPlay);
           if (!st.runPlay) button('play', 'NEW PLAY ↻', W - bw - 12, by, bw, bh);
           label(st.runPlay ? 'HANDOFF TO ' + ((P.RB && P.RB.name) || 'RB').split(' ').pop().toUpperCase() : PLAYS[st.playIdx].name.toUpperCase(), W / 2, by - 30, '#ffd400', 0.45);
-          label('TAP THE FIELD TO SNAP', W / 2, by - 10, '#fff', 0.36);
+          label(desktop ? 'CLICK OR SPACE TO SNAP · R RUN/PASS · N NEW PLAY' : 'TAP THE FIELD TO SNAP', W / 2, by - 10, '#fff', 0.36);
         }
-        if (st.phase === 'play' && !st.runPlay && st.playT < 2.2 && !st.aim) label('PULL BACK & RELEASE TO THROW', W / 2, H - 14, '#fff', 0.34);
-        if (st.phase === 'carry' && st.t % 4 < 2 && st.playT < 6) label('DRAG TO STEER · TAP TO JUKE · SWIPE UP TO DIVE', W / 2, H - 14, 'rgba(255,255,255,.8)', 0.3);
+        if (st.phase === 'play' && !st.runPlay && st.playT < 2.2 && !st.aim) label(desktop ? 'CLICK, DRAG BACK & RELEASE TO THROW' : 'PULL BACK & RELEASE TO THROW', W / 2, H - 14, '#fff', 0.34);
+        if (st.phase === 'carry' && st.t % 4 < 2 && st.playT < 6) label(desktop ? (portrait ? '← → MOVE & JUKE · SPACE TO DIVE' : '↑ ↓ / W S MOVE & JUKE · SPACE TO DIVE') : 'DRAG TO STEER · TAP TO JUKE · SWIPE UP TO DIVE', W / 2, H - 14, 'rgba(255,255,255,.8)', 0.3);
         if (st.phase === 'fourth') {
           label('4TH DOWN', W / 2, H * 0.6, '#ffd400', 0.6);
           const fgYds = Math.round(100 - st.los + 17), bw2 = Math.min(140, (W - 48) / 3);
-          button('go', 'GO FOR IT', W / 2 - bw2 * 1.5 - 12, by, bw2, bh);
-          button('punt', 'PUNT', W / 2 - bw2 / 2, by, bw2, bh);
-          if (fgYds <= 58) button('fg', `FG ${fgYds}`, W / 2 + bw2 / 2 + 12, by, bw2, bh);
+          const kn = (n) => (desktop ? `[${n}] ` : '');
+          button('go', kn(1) + 'GO FOR IT', W / 2 - bw2 * 1.5 - 12, by, bw2, bh);
+          button('punt', kn(2) + 'PUNT', W / 2 - bw2 / 2, by, bw2, bh);
+          if (fgYds <= 58) button('fg', `${kn(3)}FG ${fgYds}`, W / 2 + bw2 / 2 + 12, by, bw2, bh);
         }
         if (st.phase === 'pat') {
           label('TRY FOR POINT', W / 2, H * 0.6, '#ffd400', 0.6);
           const bw2 = Math.min(170, (W - 36) / 2);
-          button('xp', 'KICK XP (+1)', W / 2 - bw2 - 6, by, bw2, bh); button('two', 'GO FOR 2', W / 2 + 6, by, bw2, bh);
+          button('xp', (desktop ? '[1] ' : '') + 'KICK XP (+1)', W / 2 - bw2 - 6, by, bw2, bh); button('two', (desktop ? '[2] ' : '') + 'GO FOR 2', W / 2 + 6, by, bw2, bh);
         }
         if (st.sim) {
           g.fillStyle = 'rgba(6,7,10,.86)'; g.fillRect(0, 0, W, H);
           const k = st.sim.t;
           st.sim.lines.forEach((ln, i) => { if (k > i * 0.8) label(ln, W / 2, H * 0.36 + i * (S * 1.3 + 8), i === 2 ? (st.sim.res === 'turnover' || st.sim.res === 'punt' ? '#7CFC9A' : '#ff5b69') : '#fff', i === 2 ? 0.62 : 0.45); });
           label(`${home.abbr} ${st.us} - ${st.them} ${away.abbr}`, W / 2, H * 0.36 + 3 * (S * 1.3 + 8) + 10, '#ffd400', 0.45);
-          if (k > 2) button('simok', 'CONTINUE ▶', W / 2 - 80, H - 60, 160, 36);
+          if (k > 2) button('simok', desktop ? 'SPACE ▶' : 'CONTINUE ▶', W / 2 - 80, H - 60, 160, 36);
         }
         if (st.phase === 'intro') {
           g.fillStyle = 'rgba(6,7,10,.75)'; g.fillRect(0, 0, W, H);
           label('MODERN BOWL', W / 2, H * 0.28, '#ffd400', 0.9);
           label(`${home.name.toUpperCase()} VS ${away.name.toUpperCase()}`, W / 2, H * 0.28 + 34, '#fff', 0.42);
-          const tips = ['TAP THE FIELD TO SNAP', 'PULL BACK & RELEASE TO THROW', 'DRAG TO STEER · TAP TO JUKE', 'SWIPE UPFIELD TO DIVE', 'THEIR DRIVES ARE SIMULATED'];
+          const tips = desktop
+            ? ['CLICK OR SPACE TO SNAP', 'CLICK, DRAG BACK & RELEASE TO THROW', portrait ? '← → / A D TO MOVE & JUKE' : '↑ ↓ / W S TO MOVE & JUKE', 'SPACE TO DIVE · P TO PAUSE', 'THEIR DRIVES ARE SIMULATED']
+            : ['TAP THE FIELD TO SNAP', 'PULL BACK & RELEASE TO THROW', 'DRAG TO STEER · TAP TO JUKE', 'SWIPE UPFIELD TO DIVE', 'THEIR DRIVES ARE SIMULATED'];
           tips.forEach((t, i) => label(t, W / 2, H * 0.45 + i * 22, 'rgba(255,255,255,.8)', 0.32));
           button('kickoff', 'KICK OFF ▶', W / 2 - 90, H * 0.75, 180, 40, true);
+          if (desktop) label('OR PRESS SPACE', W / 2, H * 0.75 + 62, 'rgba(255,255,255,.7)', 0.3);
         }
         particles(dt); banner();
       }
