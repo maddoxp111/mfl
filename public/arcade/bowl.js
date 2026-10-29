@@ -150,14 +150,15 @@
       // 11 x 16, Retro Bowl-ish proportions: big round helmet, wide shoulder pads.
       // Letters: H helmet, W helmet stripe, F facemask, S skin, J jersey, D shoulder trim, N number, P pants, K socks, B cleats.
       const BODY = [
-        '..HHHH...', '.HHWWHH..', '.HHWWHHF.', '.HHHHHFF.', '..HHSSF..', '...SSS...',
-        '..DJJJD..', '.SJJNJJS.', '.SJJNJJ..', '..JJJJ...', '..PPPP...',
+        '...HHHHH...', '..HHHWHHH..', '.HHHHWHHHH.', '.HHHHHHFFF.', '.HHHHHSSFF.', '..HHHSSSF..',
+        'DDJJJJJJJDD', 'SJJJJNNJJJS', 'SJJJJNNJJJS', '.JJJJJJJJJ.', '..PPPPPPP..',
       ];
+      // two stiff running frames, like 8-bit football
       const LEGS = [
-        ['..PP.P...', '..P..P...', '..K..K...', '..K..K...', '.BB.BB...'],
-        ['..PPPP...', '.PP..PP..', '.K....K..', 'KK.....K.', 'B......BB'],
-        ['...PP....', '...PP....', '...KK....', '...KK....', '..BBB....'],
-        ['..PP.PP..', '.PP...P..', '.K.....K.', 'K......K.', 'BB.....BB'],
+        ['..PPP.PPP..', '..PP...PP..', '..KK...KK..', '..KK...KK..', '.BBB...BBB.'],
+        ['..PPPPPP...', '.PPP...PP..', '.KK.....KK.', 'KK......KK.', 'BBB......BB'],
+        ['...PPPPPP..', '..PP...PPP.', '.KK.....KK.', '.KK......KK', 'BB......BBB'],
+        ['..PPPPPP...', '.PPP...PP..', '.KK.....KK.', 'KK......KK.', 'BBB......BB'],
       ];
       const spriteCache = new Map();
       // Offense wears its colors; the defense wears white jerseys with colored trim (home vs away look).
@@ -169,7 +170,7 @@
         const pal = def
           ? { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: '#f1f1f1', D: col, N: col, P: '#e8e8e8', K: col, B: '#151515' }
           : { H: col, W: light(col) ? shade(col, 0.6) : '#ffffff', F: '#c9ccd3', S: skin, J: col, D: light(col2) ? col2 : '#ffffff', N: light(col) ? shade(col, 0.55) : '#ffffff', P: light(col2) ? col2 : '#e8e8e8', K: col, B: '#151515' };
-        const W2 = 9, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 18;
+        const W2 = 11, c = document.createElement('canvas'); c.width = W2 + 2; c.height = 18;
         const x = c.getContext('2d');
         const at = (i, j) => (rows[j] ? rows[j][flip ? W2 - 1 - i : i] : undefined);
         const filled = (i, j) => { const v = at(i, j); return v && v !== '.'; };
@@ -320,12 +321,12 @@
       function drawGuy(e, team, def) {
         const moving = Math.hypot(e.vx, e.vy) > 0.4;
         e.anim += moving ? Math.hypot(e.vx, e.vy) * 0.03 : 0;
-        const frame = moving ? 1 + (Math.floor(e.anim * 4) % 3) : 0;
+        const frame = moving ? 1 + (Math.floor(e.anim * 3) % 2) : 0;
         const face = Math.abs(e.vx) > 0.2 ? e.vx < 0 : def;
         const x = sx(e.x), y = sy(e.y);
         if (x < -12 || x > LW + 12) return;
-        rect(x - 4, y - 1, 8, 2, 'rgba(0,0,0,.3)');
-        g.drawImage(sprite(team, e.sk, frame, face, def), x - 5, y - 17);
+        rect(x - 5, y - 1, 11, 3, 'rgba(0,0,0,.3)');
+        g.drawImage(sprite(team, e.sk, frame, face, def), x - 6, y - 17);
       }
       function drawBall() {
         const b = st.ball; if (!b) return;
