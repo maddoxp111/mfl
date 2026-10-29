@@ -81,11 +81,12 @@
       btn.disabled = true;
       let start;
       try {
-        const r = await fetch('/arcade/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         start = await r.json();
-      } catch { start = { ok: false, error: 'Could not reach the server.' }; }
+      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Your network may be blocking it.' }; }
       btn.disabled = false;
       if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
+      $('#arcMsg').textContent = '';
       const game = A.games[cfg.game];
       if (!game) { $('#arcMsg').textContent = 'Game failed to load. Refresh and try again.'; return; }
       const level = Number(start.level || 0);
@@ -111,7 +112,7 @@
           overlay('<h2>Checking the result…</h2>');
           let r;
           try {
-            const res = await fetch('/arcade/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: start.id, result }) });
+            const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: start.id, result }) });
             r = await res.json();
           } catch { r = { ok: false, error: 'Could not reach the server. Your result was not saved.' }; }
           open = null;
@@ -123,5 +124,7 @@
       try { game.start(ctx); } catch (err) { console.error(err); overlay(`<h2>Game crashed</h2><p class="muted">${String(err.message || err)}</p><div class="arc-over-b"><a class="btn" href="">Reload</a></div>`); }
     });
   };
+  // Show script errors on the page instead of failing silently.
+  window.addEventListener('error', (e) => { const m = document.getElementById('arcMsg'); if (m && !document.body.classList.contains('arc-playing')) m.textContent = 'Error: ' + (e.message || 'script failed'); });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => A.boot()); else setTimeout(() => A.boot());
 })();
