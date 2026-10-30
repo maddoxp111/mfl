@@ -2087,3 +2087,41 @@ body.arc-playing .ticker{display:none}
 .mcard.v-mythic.ph-full .mc-photo .av{filter:contrast(1.1) saturate(1.1)}
 .mcard.v-mythic.ph-full .mc-photo::after{background:linear-gradient(130deg,transparent 30%,rgba(255,255,255,.22) 31% 33%,transparent 34%),linear-gradient(180deg,rgba(76,5,25,.55),transparent 25%,transparent 42%,rgba(190,18,60,.8) 68%,#2a0410)}
 .mcard.ph-cut .mc-pat{display:none}
+
+/* ===== every card is the same shape: 5:8 ===== */
+.mcard{aspect-ratio:5/8;height:auto!important;min-height:0!important;flex:none;box-sizing:border-box}
+.mgrid .mcard{width:168px}
+.flip{width:170px;height:auto;aspect-ratio:5/8}
+.flip-front .mcard{width:100%;height:100%!important}
+@media(max-width:760px){.mcard,.mgrid .mcard{width:150px}.flip{width:150px}}
+.mc-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:none}
+.mc-var{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:none}
+.mc-spec{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:0;flex:none}
+.mc-photo{flex:none}
+.mc-foot{flex:none}
+/* photos sized to fit the fixed card */
+.mcard .mc-photo .av.xl{max-width:100%}
+.mcard.ph-fade .mc-photo .av,.mcard.ph-cut .mc-photo .av.photo{width:112px!important;height:112px!important}
+.mcard.ph-polaroid .mc-photo .av{width:92px!important;height:106px!important}
+.mcard.ph-tv .mc-photo .av{width:112px!important;height:84px!important}
+.mcard.ph-banner .mc-photo{height:112px}
+/* lineup slots: small but the same shape */
+.slot .mcard{aspect-ratio:5/8}
+.slot .mcard[class*=ph-] .mc-photo .av{width:40px!important;height:40px!important}
+.tr-cards .mcard{width:150px}
+@media(max-width:760px){
+  .mcard{padding:8px 8px 7px;gap:3px}
+  .mc-name{font-size:15px}
+  .mc-spec{-webkit-line-clamp:2;font-size:9.5px}
+  .mc-photo .av{max-width:72px;max-height:72px}
+  .mcard.ph-fade .mc-photo .av,.mcard.ph-cut .mc-photo .av.photo{width:92px!important;height:92px!important;max-width:none;max-height:none}
+  .mcard.ph-polaroid .mc-photo .av{width:78px!important;height:90px!important;padding:5px 5px 16px;max-width:none;max-height:none}
+  .mcard.ph-tv .mc-photo .av{width:96px!important;height:70px!important;max-width:none;max-height:none}
+  .mcard.ph-banner .mc-photo{height:92px;margin-top:-42px;width:calc(100% + 16px);margin-left:-8px;margin-right:-8px}
+  .mcard.ph-banner .mc-photo .av,.mcard.ph-full .mc-photo .av{max-width:none;max-height:none}
+  .mcard.ph-full .mc-top{margin-bottom:56px}
+}
+/* players without a photo (initials) */
+.mcard.ph-polaroid .mc-photo .av:not(.photo){background:var(--c)!important;color:#fff!important;padding:0!important;border:5px solid #f8f5ee;border-bottom-width:16px;box-sizing:border-box}
+.mcard.ph-full .mc-photo .av:not(.photo){align-items:flex-start;padding-top:38px;box-sizing:border-box;font-size:56px!important}
+@media(max-width:760px){.mcard.ph-full .mc-photo .av:not(.photo){padding-top:30px;font-size:44px!important}}
