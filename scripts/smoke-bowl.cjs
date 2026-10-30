@@ -25,6 +25,9 @@ async function start(page, options = {}) {
   await page.locator('.bowl-runtime [role=status]').waitFor({ state: 'hidden' });
   const runtime = page.frames().find(f => f.url().endsWith('/play/football'));
   assert(runtime);
+  // Native HTML5 sizing used a 480x270 buffer even on much larger canvases.
+  // Check the actual allocated application surface, not just CSS dimensions.
+  await runtime.waitForFunction(() => _Y33 === canvas.width && __33 === canvas.height, null, { timeout: 10000 });
   const state = await runtime.evaluate(() => {
     const m = Object.values(_si(64))[0];
     return { roster: _wi(m._Ln), name: _Ai(_zi(m._Ej, 0), 'name'), difficulty: m._2t, quarter: Object.values(_si(71))[0]._Wy };
@@ -131,6 +134,9 @@ async function end(runtime, score, opp) {
   }), fieldImage.toString('base64'));
   assert(colorPixels.primary > 10 && colorPixels.secondary > 10, JSON.stringify(colorPixels));
   console.log('PASS: saved primary and secondary colors appear in actual game pixels');
+  await page.setViewportSize({ width: 900, height: 700 });
+  await run.runtime.waitForFunction(() => canvas.width < 900 && _Y33 === canvas.width && __33 === canvas.height);
+  console.log('PASS: display-resolution game buffer survives resize with appearance settings');
 
 
   await page.screenshot({ path: path.join(data, 'desktop.png') });

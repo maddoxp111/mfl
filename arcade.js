@@ -244,6 +244,7 @@ module.exports = function arcade(app, h) {
     res.type('html').send(fs.readFileSync(path.join(dir, 'frame.html'), 'utf8')
       .replace('<!-- MFL_EXTENSION -->', () => inline('html5game/uph_poki.js'))
       .replace('<!-- MFL_RUNTIME -->', () => inline('runtime.js'))
+      .replace('<!-- MFL_QUALITY -->', () => inline('quality.js'))
       .replace('<!-- MFL_APPEARANCE -->', () => inline('appearance.js'))
       .replace('<!-- MFL_RENDERER -->', () => inline('renderer.js'))
       .replace('<!-- MFL_BRIDGE -->', () => inline('bridge.js')));

@@ -56,6 +56,7 @@
     _4Q(m, m); // populate the runtime's home/away team references
     uniforms(m, home, 'home'); uniforms(m, away, 'away');
     _Hj(17); // rm_match
+    _RX(_ft._SX, canvas.width, canvas.height);
     send('mfl-football-playing');
   }
   function finish() {
