@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'mfl-bowl-'));
 const port = process.env.BOWL_TEST_PORT || '3234';
 const base = `http://127.0.0.1:${port}`;
-const server = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT: port, DATA_DIR: data, BLOB_READ_WRITE_TOKEN: '', BLOB_STORE_ID: '', ANTHROPIC_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT: port, DATA_DIR: data, ADMIN_PASSWORD: 'test-only-admin-password', BLOB_READ_WRITE_TOKEN: '', BLOB_STORE_ID: '', ANTHROPIC_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let browser;
 const errors = [];
 async function start(page, options = {}) {
@@ -64,7 +64,75 @@ async function end(runtime, score, opp) {
   browser = await chromium.launch({ ...(fs.existsSync('/usr/bin/chromium') ? { executablePath: '/usr/bin/chromium' } : {}), args: ['--no-sandbox'] });
   const desktop = await browser.newContext({ viewport: { width: 1200, height: 850 } });
   const page = await desktop.newPage();
+  // Save appearance and color changes through the real admin forms.
+  await desktop.request.post(base + '/admin/login', { form: { password: 'test-only-admin-password' } });
+  await page.goto(base + '/admin/looks');
+  const lookForm = page.locator('form.look').first();
+  const beforePreview = await lookForm.locator('canvas').evaluate(c => c.toDataURL());
+  await lookForm.locator('[name=skin]').selectOption('4');
+  await lookForm.locator('[name=height]').selectOption('tall');
+  await lookForm.locator('[name=cleats]').selectOption('red');
+  await lookForm.locator('[name=visor]').check(); await lookForm.locator('[name=sleeves]').check();
+  assert.notEqual(await lookForm.locator('canvas').evaluate(c => c.toDataURL()), beforePreview);
+  await lookForm.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForURL(/saved=1/);
+  const league = JSON.parse(fs.readFileSync(path.join(data, 'db.json')));
+  const team = Object.values(league.teams)[0];
+  assert.deepEqual(team.roster[0].look, { skin: 4, height: 'tall', cleats: 'red', visor: true, sleeves: true });
+  for (const player of team.roster.slice(1)) {
+    await desktop.request.post(base + `/admin/looks/${team.id}/${player.id}`, { form: { skin: '4', height: 'tall', cleats: 'red', visor: '1', sleeves: '1' } });
+  }
+  await page.goto(base + '/admin/teams');
+  const teamForm = page.locator(`form[action="/admin/teams/${team.id}"]`);
+  await teamForm.locator('[name=color]').evaluate(el => { el.value = '#ed1234'; });
+  await teamForm.locator('[name=color2]').evaluate(el => { el.value = '#127bed'; });
+  await teamForm.locator('button').click(); await page.waitForURL(/saved=1/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'db.json'))).teams[team.id].color, '#ed1234');
+  console.log('PASS: admin appearance preview, appearance save, team-color save');
   let run = await start(page);
+  // Exercise the real native player formation and shader, not just match data.
+  const rendered = await run.runtime.evaluate(() => {
+    const game = Object.values(_si(71))[0];
+    game._6F = 25; game._t11 = 0; game._kp = 0; _eb1(game, game, false);
+    const player = Object.values(_si(73)).find(p => p._lT && p._7j >= 0);
+    if (!player) throw new Error('No roster player in the native formation');
+    const values = {}, uniform = window._UQ;
+    window._UQ = (handle, ...v) => { values[handle] = v; return uniform(handle, ...v); };
+    const sprite = _Te2._Ue2(26), draw = sprite._Ch2;
+    let scale;
+    sprite._Ch2 = function (...args) { scale = args[4]; return draw.apply(this, args); };
+    try {
+      _SQ(player, player); const pose = player.__T; player.__T = 26;
+      _mh1(player,26,0,player.x,player.y,2,2,0,16777215,1); player.__T = pose;
+      return { shirt: values[player._HQ], skin: values[player._OQ], cleats: values[player._PQ],
+        flags: values[_uQ(0,'mflOptions')], scale };
+    } finally { sprite._Ch2 = draw; window._UQ = uniform; _HE1(); }
+  });
+  function near(actual, expected) { assert.equal(actual.length, expected.length); actual.forEach((n,i) => assert(Math.abs(n - expected[i]) < .0001, `${actual} != ${expected}`)); }
+  near(rendered.shirt, [237/255,18/255,52/255]); near(rendered.skin,[90/255,58/255,34/255]);
+  near(rendered.cleats,[214/255,40/255,40/255]); near(rendered.flags,[1,1]); assert.equal(rendered.scale, 2.3);
+  console.log('PASS: saved team RGB, exact skin, red cleats, visor/sleeves, tall scale in native renderer');
+  // Clear the native tutorial dialogs so their dimmer cannot tint the pixels.
+  await run.runtime.evaluate(() => { const game = Object.values(_si(71))[0]; _Lr(game,game); });
+  await page.waitForTimeout(200);
+  const fieldImage = await page.frameLocator('iframe').locator('canvas').screenshot({ path: path.join(data, 'field.png') });
+  const colorPixels = await run.runtime.evaluate(encoded => new Promise(resolve => {
+    const image = new Image(); image.onload = () => {
+      const copy = document.createElement('canvas'); copy.width = image.width; copy.height = image.height;
+      const ctx = copy.getContext('2d'); ctx.drawImage(image,0,0);
+      const pixels = ctx.getImageData(0,0,copy.width,copy.height).data;
+      let primary = 0, secondary = 0;
+      for (let i=0;i<pixels.length;i+=4) {
+        if (pixels[i]===237 && pixels[i+1]===18 && pixels[i+2]===52) primary++;
+        if (pixels[i]===18 && pixels[i+1]===123 && pixels[i+2]===237) secondary++;
+      }
+      resolve({primary,secondary});
+    }; image.src = 'data:image/png;base64,' + encoded;
+  }), fieldImage.toString('base64'));
+  assert(colorPixels.primary > 10 && colorPixels.secondary > 10, JSON.stringify(colorPixels));
+  console.log('PASS: saved primary and secondary colors appear in actual game pixels');
+
+
   await page.screenshot({ path: path.join(data, 'desktop.png') });
   await end(run.runtime, 21, 7);
   await page.getByRole('heading', { name: 'You win!', exact: true }).waitFor();

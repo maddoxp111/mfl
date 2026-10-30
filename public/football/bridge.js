@@ -3,18 +3,18 @@
 // script names are recorded in its _Y._OU1 table.
 (function () {
   let session, sent = false;
+  const playerLooks = new Map();
   const parentOrigin = document.referrer ? new URL(document.referrer).origin : location.origin;
   const master = () => Object.values(_si(64))[0];
   const send = (type, extra = {}) => parent.postMessage({ type, token: session && session.token, ...extra }, parentOrigin);
   const field = (obj, name, value) => { obj[_aF2[name]] = value; };
-  function rgb(hex) {
-    const n = parseInt(String(hex || '#ffffff').slice(1), 16);
-    return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, 1];
+  function uniformColor(hex) {
+    return MFLFootballLooks.bgr(hex || '#ffffff');
   }
   function uniforms(m, team, side) {
     const parts = { helmet: team.color, logo: team.color2, shirt: team.color, sleeve: team.color2,
       pants: team.color2, pants_b: team.color2, stripe: team.color, socks1: team.color, socks2: team.color2, endzone: team.color };
-    for (const [part, color] of Object.entries(parts)) field(m, `col_${part}_${side}`, rgb(color));
+    for (const [part, color] of Object.entries(parts)) field(m, `col_${part}_${side}`, uniformColor(color));
   }
   function start() {
     const m = master(), { home, away } = session.data;
@@ -46,8 +46,9 @@
         speed: p.spd / 10, strength: (p.pos === 'QB' ? p.thr : p.str) / 10,
         skill: (p.pos === 'QB' ? p.acc : p.pos === 'UTIL2' ? p.kick : p.cat) / 10,
         stamina: p.ovr / 10, condition: 100, attitude: 100, resting: 0, teamid: 0,
-        skin: Math.min(2, Math.round((p.look?.skin || 0) / 2)) };
+        skin: 2 - Math.min(2, Math.round((p.look?.skin || 0) / 2)) };
       for (const [key, value] of Object.entries(values)) _Yi(player, key, value);
+      playerLooks.set(player, p.look || {});
       _8j(roster, player);
     }
     m._Ln = roster;
@@ -76,6 +77,7 @@
   window.addEventListener('message', e => {
     if (e.source !== parent || e.origin !== parentOrigin || e.data?.type !== 'mfl-football-start' || session) return;
     session = e.data;
+    MFLFootballLooks.install(playerLooks, session.data.home, session.data.away);
     // Register the end hook before script methods are bound to GameMaker objects.
     const index = _Y._OU1.indexOf('gml_Script_s_end_match');
     window._1d1 = finish;

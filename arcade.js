@@ -244,6 +244,8 @@ module.exports = function arcade(app, h) {
     res.type('html').send(fs.readFileSync(path.join(dir, 'frame.html'), 'utf8')
       .replace('<!-- MFL_EXTENSION -->', () => inline('html5game/uph_poki.js'))
       .replace('<!-- MFL_RUNTIME -->', () => inline('runtime.js'))
+      .replace('<!-- MFL_APPEARANCE -->', () => inline('appearance.js'))
+      .replace('<!-- MFL_RENDERER -->', () => inline('renderer.js'))
       .replace('<!-- MFL_BRIDGE -->', () => inline('bridge.js')));
   });
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);
@@ -458,13 +460,13 @@ module.exports = function arcade(app, h) {
         <label class="chk"><input type="checkbox" name="sleeves" value="1" ${L.sleeves ? 'checked' : ''}> Long sleeves</label>
         <button class="btn sm">Save</button></form>`; }).join('')}</div></section>`).join('');
     res.send(layout(req, 'Game looks', h.pageHead('Admin', 'Modern Bowl looks') + `<div class="wrap">${h.adminNav('/admin/looks')}${req.query.saved ? '<div class="toast">Saved ✓</div>' : ''}
-      <p class="muted">Modern Bowl uses the football game's uniforms and three skin tones. Skin settings use the closest available tone. Height, visor, sleeves and cleats affect this preview only.</p>${rows}</div>
+      <p class="muted">Set each player's appearance in Modern Bowl. Changes apply to new games. <a href="/admin/teams">Edit team colors →</a></p>${rows}</div>
       <style>.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.look{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;align-items:center;padding:12px;border-radius:14px;background:var(--card2)}
-      .look canvas{grid-row:span 6;width:60px;height:150px;image-rendering:pixelated;background:#4a8f3c;border-radius:10px}.look b{font-size:14px}.look label{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2)}.look select{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:3px}.look .btn{justify-self:start}</style>
-      <script src="/static/arcade/arcade.js?v=${ASSET_V}"></script><script src="/static/arcade/bowl-sprite.js?v=${ASSET_V}"></script>
+      .look canvas{grid-row:span 6;width:60px;height:auto;image-rendering:pixelated;background:#4a8f3c;border-radius:10px}.look b{font-size:14px}.look label{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2)}.look select{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:3px}.look .btn{justify-self:start}</style>
+      <script>${require('fs').readFileSync(path.join(__dirname, 'public/football/appearance.js'), 'utf8').replace(/<\/script/gi, '<\\/script')}</script>
       <script>document.querySelectorAll('.look').forEach((f)=>{const c=f.querySelector('canvas'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
         const draw=()=>{const look={skin:+f.skin.value,height:f.height.value,cleats:f.cleats.value,visor:f.visor.checked,sleeves:f.sleeves.checked};
-          const img=window.MFLBowlSprite({color:f.dataset.color,color2:f.dataset.color2},look,0,false,false);c.width=img.width;c.height=img.height+1;x.drawImage(img,0,1);};
+          const img=MFLFootballLooks.preview({color:f.dataset.color,color2:f.dataset.color2},look);c.width=img.width;c.height=img.height+1;x.imageSmoothingEnabled=false;x.drawImage(img,0,1);};
         f.addEventListener('change',draw);draw();});</script>`));
   });
   app.post('/admin/looks/:team/:pid', h.requireAdmin, async (req, res) => {
