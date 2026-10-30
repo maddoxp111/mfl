@@ -13,14 +13,18 @@ module.exports = function fun(app, h) {
   function cardArt(db, c, opts = {}) {
     const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
-    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}">
-      <div class="mc-glow"></div><div class="mc-shine"></div>
+    // Every card gets its own look: a pattern, photo frame, tilt and hue picked from its id.
+    let hh = 2166136261;
+    for (const ch of c.id) hh = Math.imul(hh ^ ch.charCodeAt(0), 16777619) >>> 0;
+    const serial = c.one || c.rarity === 'doh' ? '1/1' : `#${String(hh % 999 + 1).padStart(3, '0')}`;
+    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} pat-${hh % 10} fr-${(hh >>> 8) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(hh >>> 4) % 360};--ang:${(hh >>> 12) % 360}deg;--tilt:${((hh >>> 16) % 9) - 4}deg">
+      <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : esc(c.label)}</div>
       ${spec ? `<div class="mc-spec">${esc(spec.desc)}</div>` : c.quote ? `<div class="mc-spec mc-q">“${esc(c.quote)}”${c.flat ? ` +${c.flat}/game` : ''}</div>` : ''}
-      <div class="mc-foot"><span class="mc-rar">${esc(c.rarityName)}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
+      <div class="mc-foot"><span class="mc-rar">${esc(c.rarityName)}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
     </div>`;
   }
   h.cardArt = cardArt;
