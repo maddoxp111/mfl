@@ -2148,3 +2148,15 @@ body.arc-playing .ticker{display:none}
 .cb-st.have{color:#4ade80}
 .cb-group .mcell.owned .mcard{box-shadow:0 0 0 2px #4ade80,0 0 18px rgba(74,222,128,.35)}
 .arc-new{display:inline-block;vertical-align:middle;margin-left:6px;font:800 10px Inter;letter-spacing:.08em;padding:3px 7px;border-radius:999px;background:linear-gradient(90deg,#22d3ee,#a855f7);color:#fff}
+/* one-time "not affiliated" notice */
+.disc{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:16px;background:rgba(5,6,9,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.disc[hidden]{display:none}
+.disc-on,.disc-on body{overflow:hidden}
+.disc-box{max-width:420px;width:100%;background:var(--card);border:1px solid var(--line2);border-radius:20px;padding:26px 22px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.7);animation:discIn .35s cubic-bezier(.2,1.4,.4,1) both}
+.disc-box img{margin:0 auto 8px;display:block}
+.disc-box h2{font:900 28px var(--disp);text-transform:uppercase;margin-bottom:10px}
+.disc-box p{color:var(--ink2);line-height:1.55;margin-bottom:18px}
+.disc-box p b{color:var(--ink)}
+.disc-box .btn{width:100%;justify-content:center}
+.disc-box .btn:disabled{opacity:.55;cursor:not-allowed}
+@keyframes discIn{from{opacity:0;transform:scale(.92)}}

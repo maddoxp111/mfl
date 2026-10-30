@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=56">
+<link rel="stylesheet" href="/static/style.css?v=57">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -381,7 +381,20 @@ ${opts.ticker === false ? '' : ticker(db)}
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
   <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
-${hypeBowl(db) ? hypeBarScript : ''}<script>
+${hypeBowl(db) ? hypeBarScript : ''}<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script>
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
 document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
 const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
