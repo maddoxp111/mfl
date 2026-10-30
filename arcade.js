@@ -26,11 +26,12 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football. Throw, juke and score before the clock runs out.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 60, maxScore: 140, need: [14, 21, 28, 35], isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
-const HIDDEN = new Set();
-const ORDER = ['bowl', 'chess', 'pool', 'trivia', 'checkers', 'connect4', 'fieldgoal', 'bullseye', 'flagpull', 'memory'].filter((g) => !HIDDEN.has(g));
+const HIDDEN = new Set(['blitz3d']);
+const ORDER = ['bowl', 'blitz3d', 'chess', 'pool', 'trivia', 'checkers', 'connect4', 'fieldgoal', 'bullseye', 'flagpull', 'memory'].filter((g) => !HIDDEN.has(g));
 const CPU_TEAMS = [
   { name: 'JV Squad', abbr: 'JV', color: '#64748b', color2: '#e2e8f0' },
   { name: 'Hall Monitors', abbr: 'HMS', color: '#7c3aed', color2: '#f5f3ff' },
@@ -282,6 +283,10 @@ module.exports = function arcade(app, h) {
         const quiz = triviaQuiz(db, rng, TRIVIA.n[level]);
         secret = quiz.map((q) => q.a);
         data = { questions: quiz.map(({ q, opts }) => ({ q, opts })), secs: TRIVIA.secs[level], need: TRIVIA.need[level], ...(practice ? { answers: secret } : {}) };
+      } else if (req.body.game === 'blitz3d') {
+        // Your Starting 8 if you have one (QB first), otherwise a real team's lineup.
+        const team = bowlTeam(db, user, 'mine') || bowlTeam(db, user, Object.keys(db.teams)[0]);
+        data = { players: (team.players || []).filter(Boolean).map((p) => ({ name: p.name, team: team.name, color: team.color, color2: team.color2, number: p.number || '' })) };
       } else if (req.body.game === 'memory') {
         data = { players: Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ name: p.name, team: t.name, color: t.color, color2: t.color2, photo: p.photo ? '/media/' + p.photo : null, number: p.number || '' }))) };
       }
@@ -384,12 +389,12 @@ module.exports = function arcade(app, h) {
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
       const tile = (id) => { const G = GAMES[id]; const left = user ? G.daily - paidToday(user, id) : G.daily;
-        return `<a class="arc-tile ${id === 'bowl' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(G.prizes[3] * RISK_MULT[3])}</span>${user ? `<span class="arc-left">${Math.max(0, left)} paid wins left today</span>` : ''}</a>`; };
+        return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(G.prizes[3] * RISK_MULT[3])}</span>${user ? `<span class="arc-left">${Math.max(0, left)} paid wins left today</span>` : ''}</a>`; };
       const recent = user ? (user.arcade || []).filter((m) => m.status !== 'open').slice(-6).reverse() : [];
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
-              <p>10 games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
+              <p>${ORDER.length} games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
               <div class="arc-cta"><a class="btn" href="/arcade/bowl">${icon('fire')} Play Modern Bowl</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
