@@ -46,7 +46,7 @@ module.exports = function trading(app, h) {
       const rows = (await h.listDocs('users/')).map((u) => { const own = cards.collection(u); return { name: u.name, own, score: score(db, own), n: Object.keys(own).length }; })
         .filter((r) => r.n).sort((a, b) => b.score - a.score || b.n - a.n);
       const total = cards.catalog(db).length;
-      res.send(layout(req, 'Top Collectors', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/collectors', me)}
+      res.send(layout(req, 'Top Collectors', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/collectors', me)}
         <div class="card"><div class="card-h"><h2>${icon('trophy')} Top Collectors</h2><span class="muted sm">Collection score</span></div>
           <p class="muted sm">Score counts each different card you own: Base 1, Silver 3, Gold 10, Legend 40, Mythic 150, Dark Matter 400, Big Doh Mi 10,000. Tap anyone to see their cards and offer a trade.</p>
           <ol class="col-lb">${rows.map((r, i) => { const best = sorted(db, r.own).slice(0, 3);
@@ -65,7 +65,7 @@ module.exports = function trading(app, h) {
       const { user, acct } = await h.loadAccount(db, me);
       const own = cards.collection(them), list = sorted(db, own);
       const lineup = new Set(((them.lineups || []).at(-1)?.cards || []).filter((id) => own[id]));
-      res.send(layout(req, `@${name}'s cards`, pickHead(user, acct) + `<div class="wrap">${pickNav('', me)}
+      res.send(layout(req, `@${name}'s cards`, pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/collection', me)}
         <div class="card coll-head"><div><div class="kicker">${icon('star')} Collection</div><h2>@${esc(name)}</h2><p class="muted">${list.length} different cards · score ${score(db, own).toLocaleString('en-US')}</p></div>
           ${me && me !== name ? `<a class="btn" href="/pickem/trade/${esc(name)}">${icon('swap')} Offer a trade</a>` : me === name ? '<a class="btn ghost" href="/pickem/cards">My cards</a>' : `<a class="btn" href="/pickem/login?next=/pickem/collection/${esc(name)}">Log in to trade</a>`}</div>
         ${lineup.size ? `<div class="card"><div class="card-h"><h2>Starting 8</h2></div><div class="mgrid">${[...lineup].map((id) => `<div class="mcell">${cardArt(db, cards.cardInfo(db, id), { small: true })}</div>`).join('')}</div></div>` : ''}
@@ -86,7 +86,7 @@ module.exports = function trading(app, h) {
       const them = await userDoc(name);
       if (!them || name === me) return res.redirect('/pickem/collectors');
       const { user, acct } = await h.loadAccount(db, me);
-      res.send(layout(req, 'Offer a trade', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/trades', me)}${flash(req)}
+      res.send(layout(req, 'Offer a trade', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/trades', me)}${flash(req)}
         <form method="post" action="/pickem/trade/${esc(name)}" class="trade-form">
           <div class="card"><div class="card-h"><h2>You give</h2><span class="muted sm" data-cnt="give">0 picked</span></div>${picker(db, cards.collection(user), 'give', `Pick up to ${MAX_CARDS} of your cards.`)}</div>
           <div class="card"><div class="card-h"><h2>You get from @${esc(name)}</h2><span class="muted sm" data-cnt="get">0 picked</span></div>${picker(db, cards.collection(them), 'get', `Pick up to ${MAX_CARDS} of their cards.`)}</div>
@@ -131,7 +131,7 @@ module.exports = function trading(app, h) {
       const { user, acct } = await h.loadAccount(db, me);
       const mine = (await allTrades()).filter((t) => t.from === me || t.to === me);
       const inc = mine.filter((t) => t.status === 'open' && t.to === me), out = mine.filter((t) => t.status === 'open' && t.from === me), past = mine.filter((t) => t.status !== 'open').slice(0, 20);
-      res.send(layout(req, 'Trades', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/trades', me)}${flash(req)}
+      res.send(layout(req, 'Trades', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/trades', me)}${flash(req)}
         <div class="card coll-head"><div><div class="kicker">${icon('swap')} Card trades</div><h2>Trade cards with anyone</h2><p class="muted">Find someone on the collectors list, open their cards and offer a trade. They can accept or decline.</p></div><a class="btn" href="/pickem/collectors">${icon('trophy')} Find collectors</a></div>
         <h3 class="tr-h">Offers for you (${inc.length})</h3>${inc.map((t) => tradeCard(db, t, me)).join('') || '<p class="muted">No offers right now.</p>'}
         <h3 class="tr-h">Your offers (${out.length})</h3>${out.map((t) => tradeCard(db, t, me)).join('') || '<p class="muted">You have no open offers.</p>'}

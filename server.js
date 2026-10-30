@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=46">
+<link rel="stylesheet" href="/static/style.css?v=48">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -366,9 +366,10 @@ function layout(req, title, body, opts = {}) {
       <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
     <div class="nav-main"><a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
     <a class="nav-career ${on(['/career'])}" href="/career">🏈 Career</a>
-    <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a></div>
+    <a class="nav-cards ${CARD_PAGES.test(cur) ? 'on' : ''}" href="/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick ${on(['/pickem']) && !CARD_PAGES.test(cur) ? 'on' : ''}" href="/pickem">${icon('coin')} Pick'em</a></div>
     <div class="acct-box">${user
-      ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
+      ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a><a class="acct-out" href="/pickem/logout">Log out</a>`
       : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
     ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}</div>
   </nav>
@@ -1061,15 +1062,21 @@ async function loadAccount(db, name) {
   if (!user) return { user: null, acct: null };
   return { user, acct: accountOf(db, user, await survivorNow(db)) };
 }
+// Pick'em and MFL Cards are separate sections, each with its own tab bar.
+const CARD_PAGES = /^\/pickem\/(cards|packs|trades?|collectors|collection)(\/|$)/;
 function pickNav(cur, name) {
-  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/trades', 'Trades'], ['/pickem/collectors', 'Collectors'], ['/pickem/survivor', 'Survivor'], ['/arcade', 'Arcade'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
-  return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
+  const items = CARD_PAGES.test(cur)
+    ? [['/pickem/cards', 'My cards'], ['/pickem/packs', 'Packs'], ['/pickem/trades', 'Trades'], ['/pickem/collectors', 'Collectors']]
+    : [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/survivor', 'Survivor'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  return `<div class="seg sec-nav">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 }
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
-function pickHead(user, acct) {
-  return `<section class="ph pick-ph"><div class="wrap pick-top">
-    <div><div class="kicker">${icon('coin')} Prediction game · MFL coins</div><h1>Pick'em</h1><p>Predict what happens in every MFL game with MFL coins: winners, player picks and combos.</p></div>
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${acct.won}W · ${acct.lost}L · ${acct.pending} open </span></div>`
+function pickHead(user, acct, mode) {
+  const cardsMode = mode === 'cards';
+  return `<section class="ph pick-ph ${cardsMode ? 'cards-ph' : ''}"><div class="wrap pick-top">
+    ${cardsMode ? `<div><div class="kicker">${icon('star')} Collect · trade · play</div><h1>MFL Cards</h1><p>Open packs, set your Starting 8 and trade cards with other collectors.</p></div>`
+      : `<div><div class="kicker">${icon('coin')} Prediction game · MFL coins</div><h1>Pick'em</h1><p>Predict what happens in every MFL game with MFL coins: winners, player picks and combos.</p></div>`}
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${cardsMode ? `${Object.keys(cards.collection(user)).length} different cards` : `${acct.won}W · ${acct.lost}L · ${acct.pending} open `}</span></div>`
       : `<div class="wallet cta"><b>Start with ${pk.START_COINS.toLocaleString()} coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
   </div></section>`;
 }

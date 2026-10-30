@@ -29,7 +29,7 @@ module.exports = function fun(app, h) {
   }
   h.cardArt = cardArt;
 
-  const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null) + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
+  const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null, /^\/pickem\/(cards|packs)/.test(req.path) ? 'cards' : '') + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
   const flash = (req) => {
     const m = { lineup: 'Starting 8 saved ✓', sold: 'Card sold ✓', poor: 'Not enough coins for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
     return m ? `<div class="toast ${/Not|Already|off|locked/.test(m) ? 'bad' : ''}">${m}</div>` : '';
@@ -102,7 +102,7 @@ module.exports = function fun(app, h) {
           document.getElementById('autoBtn').onclick=()=>{const all=[...document.querySelectorAll('#coll .mcard.pickable')].map(c=>({id:c.dataset.id,pid:c.dataset.pid,f:(c.dataset.fit||'0,0,0,0,0').split(',').map(Number)}));
             const used=new Set(),col=[0,1,2,2,2,3,4,4];ids=col.map(k=>{const b=all.filter(x=>!used.has(x.pid)).sort((a,b)=>b.f[k]-a.f[k])[0];if(!b)return'';used.add(b.pid);return b.id;});sel=-1;draw();};
           draw();})();</script>`;
-      res.send(layout(req, 'My Cards', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${body}</div>`));
+      res.send(layout(req, 'My Cards', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${body}</div>`));
     } catch (e) { next(e); }
   });
 
@@ -223,7 +223,7 @@ module.exports = function fun(app, h) {
       }).join('');
       const totalW = Object.values(R).reduce((s, x) => s + x.weight, 0);
       const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
-      res.send(layout(req, 'Packs', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}${flash(req)}
+      res.send(layout(req, 'Packs', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/packs', name)}${flash(req)}
         ${groups}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${r === 'doh' ? (100 / cards.DOH_ODDS) : (R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
@@ -273,7 +273,7 @@ module.exports = function fun(app, h) {
       if (!pack) return res.redirect('/pickem/packs');
       const cs = pack.cards.map((id) => cards.cardInfo(db, id)).filter(Boolean);
       const best = cs.reduce((m, c) => Math.max(m, cards.RARITY_ORDER.indexOf(c.rarity)), 0);
-      res.send(layout(req, 'Pack', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}
+      res.send(layout(req, 'Pack', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/packs', name)}
         <div class="reveal-head"><h2>${esc(cards.packInfo(db, pack.type)?.name || 'Pack')}</h2><p class="muted">Tap each card to flip it.</p><button class="btn ghost sm" id="flipAll">Flip all</button></div>
         <div class="reveal best-${cards.RARITY_ORDER[best]}">${cs.map((c, i) => `<div class="flip r-${c.rarity}" style="--d:${i * 90}ms"><div class="flip-in"><div class="flip-back"><span>MFL</span></div><div class="flip-front">${cardArt(db, c)}</div></div></div>`).join('')}</div>
         <p class="reveal-go center" hidden><a class="btn" href="/pickem/cards">Go to my cards</a> <a class="btn ghost" href="/pickem/packs">Open another</a></p>

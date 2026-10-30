@@ -2013,3 +2013,20 @@ body.arc-playing .ticker{display:none}
 .tr.declined,.tr.cancelled,.tr.failed{opacity:.6}
 @media(max-width:700px){.tr-grid{grid-template-columns:1fr}.tr-x{justify-self:center;transform:rotate(90deg)}}
 .prof-acts{display:flex;gap:8px;flex-wrap:wrap;width:100%}
+/* Cards is its own section */
+.nav-cards{display:flex;align-items:center;gap:6px;font:700 13.5px Inter;padding:7px 14px;border-radius:999px;color:#e9d5ff;border:1px solid rgba(192,132,252,.45);background:rgba(192,132,252,.08);white-space:nowrap}
+.nav-cards:hover{background:rgba(192,132,252,.16)}
+.nav-cards.on{background:linear-gradient(90deg,#a855f7,#ec4899);color:#fff;border-color:transparent}
+.acct-out{font:600 12.5px Inter;color:var(--muted);padding:6px 4px;white-space:nowrap}
+.acct-out:hover{color:var(--ink)}
+.cards-ph{background:radial-gradient(700px 260px at 85% 0,rgba(168,85,247,.28),transparent 70%),radial-gradient(500px 220px at 10% 100%,rgba(236,72,153,.18),transparent 70%)}
+.cards-ph .kicker{color:#d8b4fe}
+@media(max-width:1180px) and (min-width:761px){.nav-cards{padding:7px 10px;font-size:13px}.acct-out{display:none}}
+@media(max-width:1020px) and (min-width:761px){.nav-career{display:none}}
+@media(max-width:760px){
+  .nav-main{grid-template-columns:repeat(2,1fr)}
+  .nav-main .nav-cards{background:rgba(192,132,252,.1)}
+  .acct-box{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+  .acct-out{display:flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid var(--line2);border-radius:999px;font-size:15px}
+  .acct-box .nav-admin{grid-column:1/-1}
+}
