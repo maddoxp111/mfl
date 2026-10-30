@@ -10,13 +10,23 @@ module.exports = function fun(app, h) {
   const POS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL', 'UTIL'];
 
   // ---------- card artwork ----------
+  // How each card type shows the player photo.
+  const PHOTO = {
+    icon: 'full', allstar: 'full', legend: 'full', mythic: 'full', dark: 'full', clutch: 'full',
+    action: 'banner', gold: 'banner', built: 'banner', spooky: 'banner', 'spec-play': 'banner',
+    holo: 'fade', silver: 'fade', team: 'fade', doh: 'fade', 'spec-td': 'fade',
+    throwback: 'polaroid', trophy: 'polaroid', cutout: 'polaroid', pizza: 'polaroid', upside: 'polaroid',
+    pixel: 'tv', glitch: 'tv',
+    'spec-pass': 'duo', 'spec-int': 'duo', 'spec-def': 'duo', snow: 'duo',
+    spec: 'cut', goat: 'cut',
+  };
   function cardArt(db, c, opts = {}) {
     const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
     // Each kind of card (Base, Holo, Gold...) has its own pattern, photo frame and hue; every card of that kind matches.
     const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
-    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${(vi * 53) % 360}deg">
+    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${(vi * 53) % 360}deg">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
