@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=39">
+<link rel="stylesheet" href="/static/style.css?v=40">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -578,11 +578,12 @@ function recapCard(db, g, req) {
   const wait = Math.max(0, RECAP_COOLDOWN - (Date.now() - Date.parse(g.aiRecap?.rewrittenAt || 0)));
   const msg = { off: 'AI recaps are not set up yet.', wait: 'This recap was just rewritten. Try again later.', err: "Couldn't rewrite the recap right now. Try again soon." }[req?.query?.ai];
   const fm = fanMvp(db, g);
+  const story = freshRecap(db, g)?.story || [];
   const fanBox = fm ? `<a class="mvp fan" href="${playerUrl(fm.t, fm.p)}" style="--a:${esc(fm.t.color)}"><span class="mvp-tag">${icon('user')} Fan MVP</span>${avatar(fm.t, fm.p, 52)}<b>${esc(fm.p.name)}</b><small>${fm.votes} vote${fm.votes === 1 ? '' : 's'}</small></a>` : '';
   const btn = ai.apiKey() ? `<form method="post" action="/games/${g.id}/recap" class="recap-go"><button class="btn sm ghost" ${wait ? 'disabled' : ''} onclick="this.textContent='Writing…'">${icon('swap')} ${wait ? `Rewrite again in ${Math.ceil(wait / 60000)} min` : 'Rewrite with AI'}</button>${msg ? `<span class="muted sm">${msg}</span>` : ''}</form>` : '';
   return `<div class="card recap" id="recap"><div class="card-h"><h2>Recap</h2>${gameLabel(db, g) ? `<span class="tag ${g.type}">${esc(gameLabel(db, g))}</span>` : ''}</div>
     <div class="recap-body">${m ? `<a class="mvp" href="${m.player ? playerUrl(m.tm, m.player) : '#'}" style="--a:${esc(m.tm.color)}"><span class="mvp-tag">${icon('trophy')} Game MVP</span>${m.player ? avatar(m.tm, m.player, 64) : ''}<b>${esc(m.name)}</b><small>${esc(m.line)}</small></a>` : ''}${fanBox}
-    <p>${esc(recap(db, g))}</p></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}${btn}</div>`;
+    <div class="recap-txt"><p class="recap-lead">${esc(recap(db, g))}</p>${story.length ? `<div class="recap-more" id="rm-${esc(g.id)}">${story.map((x) => `<p>${esc(x)}</p>`).join('')}</div><button type="button" class="btn sm ghost recap-toggle" aria-expanded="false" aria-controls="rm-${esc(g.id)}" onclick="const o=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',!o);this.previousElementSibling.classList.toggle('open',!o);this.textContent=o?'Read the full story':'Show less';if(o)this.closest('.recap').scrollIntoView({block:'start',behavior:'smooth'})">Read the full story</button>` : ''}</div></div>${freshRecap(db, g) ? '<p class="muted sm ai-note">Recap and MVP by our AI analyst.</p>' : ''}${btn}</div>`;
 }
 
 // Auto-generated preview for games that haven't been played yet.
@@ -1944,7 +1945,7 @@ async function genGameRecap(id) {
     const g2 = load().games.find((x) => x.id === id);
     if (!g2) return;
     const valid = inp.rosters.some((r) => r.players.some((p) => p.key === out.mvp_key));
-    g2.aiRecap = { hash: hashOf(inp), text: String(out.recap || ''), mvp: valid ? out.mvp_key : null, mvpWhy: String(out.mvp_reason || '').slice(0, 120), at: new Date().toISOString(), rewrittenAt: g2.aiRecap?.rewrittenAt };
+    g2.aiRecap = { hash: recapHash(inp), text: String(out.recap || ''), story: (out.story || []).map(String).filter(Boolean).slice(0, 14), mvp: valid ? out.mvp_key : null, mvpWhy: String(out.mvp_reason || '').slice(0, 120), at: new Date().toISOString(), rewrittenAt: g2.aiRecap?.rewrittenAt };
     await save();
   } finally { recapBusy.delete(id); }
 }
@@ -1977,9 +1978,11 @@ async function genTeamRecap(id) {
     await save();
   } finally { teamBusy.delete(id); }
 }
+const RECAP_FORMAT = 2; // bump to rewrite every recap
+const recapHash = (inp) => hashOf({ ...inp, format: RECAP_FORMAT });
 function freshRecap(db, g) {
   const A = g.aiRecap;
-  return A && A.hash === hashOf(aiRecapInput(db, g)) ? A : null;
+  return A && A.hash === recapHash(aiRecapInput(db, g)) ? A : null;
 }
 
 const aiState = { running: false, again: false, timer: null, lastRun: null, lastError: null };

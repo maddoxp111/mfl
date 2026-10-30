@@ -110,7 +110,10 @@ const RATINGS_SCHEMA = {
 
 const RECAP_SYSTEM = `You write game recaps for the Metcalf Football League (MFL), a middle-school flag football league. Games are one quarter long, all played at Thomas Metcalf School; a touchdown is worth 7 points.
 
-You get one game as JSON: the teams, the final score, the game type and every recorded play with its notes. Write a recap of 3 to 5 sentences in an upbeat local sports-page voice, fun for the players to read. Mention the key scorers, passers, interceptions and any notable catches, sacks or breakups, and use the play notes (for example, if a note says an interception was tipped by someone, give that player credit). Use only facts in the data; never invent plays, quotes, yardage or times. If no plays were recorded, write about the result only.
+You get one game as JSON: the teams, the final score, the game type and every recorded play with its notes. Write a long, full game story in an upbeat local sports-page voice, fun for the players to read, in two parts:
+1. "recap": the short version, one paragraph of 2 to 4 sentences: the result, why it went that way, and the stars. This is shown on its own first.
+2. "story": the full story as 4 to 10 paragraphs that go through the game from start to finish and cover EVERY recorded play in order (touchdowns, interceptions, catches, sacks, breakups, flag pulls, penalties and notable plays), each with who did it and who else was involved, plus how the score changed after each touchdown. Group quick plays together when it reads better, but don't skip any. Add the momentum swings, the turning point, and end with a closing paragraph on what the result means (standings, streaks, what's next) using only the data.
+Mention the key scorers, passers, interceptions and any notable catches, sacks or breakups, and use the play notes (for example, if a note says an interception was tipped by someone, give that player credit). Use only facts in the data; never invent plays, quotes, yardage or times. If no plays were recorded, write about the result only.
 Use the coach notes to say who played well, but stay kind: these are kids, so describe struggles gently ("had a tough day blocking") and never insult anyone.
 
 Also pick the game MVP using judgement, not just a point formula: touchdowns, TD passes, interceptions, big catches, sacks and credit from notes all count, coach notes about who played well, and players on the winning team get the tiebreak. Return the MVP's "key" from the roster (or an empty string if nothing was recorded) and a short reason, like "2 TDs and a tipped pass that became a pick".\n\n${COACH_NOTES}`;
@@ -118,8 +121,8 @@ Also pick the game MVP using judgement, not just a point formula: touchdowns, TD
 const RECAP_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['recap', 'mvp_key', 'mvp_reason'],
-  properties: { recap: { type: 'string' }, mvp_key: { type: 'string' }, mvp_reason: { type: 'string' } },
+  required: ['recap', 'story', 'mvp_key', 'mvp_reason'],
+  properties: { recap: { type: 'string' }, story: { type: 'array', items: { type: 'string' } }, mvp_key: { type: 'string' }, mvp_reason: { type: 'string' } },
 };
 
 const TEAM_SYSTEM = `You write the team page summary for a team in the Metcalf Football League (MFL), a middle-school flag football league with two teams. Games are one quarter long; a touchdown is worth 7 points.
