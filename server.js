@@ -323,7 +323,7 @@ function gameCard(db, g, opts = {}) {
   return `<a class="gc ${g.status}" href="/games/${g.id}" style="--a:${esc(a.color)};--b:${esc(b.color)}">
     <div class="gc-head"><span class="gc-date">${opts.noDate ? '' : esc(shortDate(g.date))}</span>${lbl ? `<span class="tag ${g.type}">${esc(lbl)}</span>` : ''}${statusBadge(g)}</div>
     ${side(a, g.homeScore)}${side(b, g.awayScore)}
-    <div class="gc-foot"><span>${icon('pin')} ${VENUE}</span>${g.reason && (g.status === 'postponed' || g.type === 'exhibition') ? `<span class="gc-reason">${esc(g.reason)}</span>` : ''}</div>
+    <div class="gc-foot"><span>${icon('pin')} ${VENUE}</span>${isFinal(g) && boxStatus(g) !== 'complete' ? `<span class="gc-box">Box score ${boxStatus(g)}</span>` : ''}${g.reason && (g.status === 'postponed' || g.type === 'exhibition') ? `<span class="gc-reason">${esc(g.reason)}</span>` : ''}</div>
   </a>`;
 }
 
@@ -341,7 +341,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=37">
+<link rel="stylesheet" href="/static/style.css?v=38">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -529,7 +529,7 @@ app.get('/games/:id', (req, res) => {
     const [cls, label] = playTag(e);
     return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${cls}">${label}</span>
       <p>${playLine(db, g, e)}</p></div></li>`;
-  }).join('')}</ol>` : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}</div>`;
+  }).join('')}</ol>` : boxStatus(g) === 'unknown' ? '' : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}${boxNote(g) ? `<p class="box-warn ${boxStatus(g)}">${icon('clock')} ${esc(boxNote(g))}</p>` : ''}</div>`;
 
   const box = (tm) => {
     const rows = {};
@@ -544,7 +544,7 @@ app.get('/games/:id', (req, res) => {
     const cols = [['td', 'TD'], ['ptd', 'Pass TD'], ['int', 'INT'], ...Object.values(STATS).map((st) => [st.key, st.short])].filter(([k], i) => i < 3 || list.some(([, x]) => x[k]));
     const outNames = tm.roster.filter((p) => pk.isOut(g, tm.id, p.id)).map((p) => p.name);
     const outLine = outNames.length ? `<p class="muted sm out-line">Did not play: ${esc(outNames.join(', '))}</p>` : '';
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="muted">No player stats recorded.</p>'}${outLine}</div>`;
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${boxStatus(g) === 'unknown' ? 'Box score unknown.' : 'No player stats recorded.'}</p>`}${outLine}</div>`;
   };
 
   const center = isFinal(g)
@@ -1875,6 +1875,10 @@ function tradingCard(db, x, opts = {}) {
 const hashOf = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 const playLabel = (e) => (e.type === 'TD' ? 'touchdown' : e.type === 'INT' ? 'interception' : STATS[e.type].label.toLowerCase());
 const secondRole = (e) => (e.type === 'TD' ? 'thrown_by' : e.type === 'INT' ? 'thrown_by_opponent' : e.type === 'SACK' ? 'qb_sacked' : e.type === 'CATCH' ? 'thrown_by' : e.type === 'PBU' ? 'thrown_by_opponent' : 'other');
+// How much of a game's box score was recorded: complete (default), incomplete or unknown.
+const BOX_STATUS = { complete: 'Complete', incomplete: 'Incomplete', unknown: 'Unknown' };
+const boxStatus = (g) => (BOX_STATUS[g.boxStatus] ? g.boxStatus : 'complete');
+const boxNote = (g) => ({ incomplete: 'Box score is incomplete: some plays from this game were not recorded, so player stats may be missing.', unknown: 'Box score unknown: the plays from this game were not recorded, so no player stats count from it.' })[boxStatus(g)] || '';
 function aiGame(db, g) {
   const w = winner(g);
   return {
@@ -1883,6 +1887,7 @@ function aiGame(db, g) {
     winner: w ? db.teams[w].name : 'tie',
     plays: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
     ...(g.notes ? { coach_notes: g.notes } : {}),
+    ...(boxStatus(g) !== 'complete' ? { box_score: boxStatus(g) === 'unknown' ? 'unknown: plays were not recorded, do not read anything into missing stats' : 'incomplete: some plays are missing, stats undercount' } : {}),
     ...((g.out || []).length ? { did_not_play: g.out.map((k) => { const [tid, pid] = k.split('|'); return db.teams[tid]?.roster.find((p) => p.id === pid)?.name; }).filter(Boolean) } : {}),
   };
 }
@@ -2628,6 +2633,7 @@ function gameForm(db, g, isNew) {
 
     <section class="card">
       <div class="card-h"><h2>Box Score</h2><span class="muted sm" id="evCount">${evs.length} play${evs.length === 1 ? '' : 's'}</span></div>
+      <div class="box-st"><span class="muted sm">Box score is</span><div class="pills">${Object.entries(BOX_STATUS).map(([v, n]) => `<label class="pill-r"><input type="radio" name="boxStatus" value="${v}" ${boxStatus(g) === v ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div></div>
       ${builder}
       <div id="evs">${evs.map(evRow).join('')}</div>
       <p id="evEmpty" class="empty" ${evs.length ? 'hidden' : ''}>No plays yet. Pick a team and a play above, then tap the player.</p>
@@ -2715,6 +2721,7 @@ function readGame(body, g) {
   g.status = ['scheduled', 'live', 'final', 'postponed'].includes(body.status) ? body.status : 'scheduled';
   g.reason = String(body.reason || '').slice(0, 300);
   g.notes = String(body.notes || '').trim().slice(0, 2000);
+  if (BOX_STATUS[body.boxStatus] && body.boxStatus !== 'complete') g.boxStatus = body.boxStatus; else delete g.boxStatus;
   const valid = new Set([g.home, g.away].flatMap((id) => (load().teams[id]?.roster || []).map((p) => id + '|' + p.id)));
   g.out = [...new Set(arr(body.out))].filter((k) => valid.has(k));
   g.homeScore = num(body.homeScore); g.awayScore = num(body.awayScore);
