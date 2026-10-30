@@ -205,11 +205,12 @@ function openPack(db, type, taken = new Set()) {
   return out;
 }
 
-// What a user owns: every pack card, minus cards they sold.
+// What a user owns: every pack card plus cards traded in, minus cards sold or traded away.
 function collection(user) {
   const own = {};
   for (const pack of user.packs || []) for (const id of pack.cards) own[id] = (own[id] || 0) + 1;
-  for (const id of user.sold || []) if (own[id]) own[id]--;
+  for (const id of user.tradeIn || []) own[id] = (own[id] || 0) + 1;
+  for (const id of [...(user.sold || []), ...(user.tradeOut || [])]) if (own[id]) own[id]--;
   for (const k of Object.keys(own)) if (!own[k]) delete own[k];
   return own;
 }

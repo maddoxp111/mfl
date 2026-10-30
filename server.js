@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=44">
+<link rel="stylesheet" href="/static/style.css?v=46">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1062,7 +1062,7 @@ async function loadAccount(db, name) {
   return { user, acct: accountOf(db, user, await survivorNow(db)) };
 }
 function pickNav(cur, name) {
-  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/survivor', 'Survivor'], ['/arcade', 'Arcade'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
+  const items = [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/cards', 'Cards'], ['/pickem/packs', 'Packs'], ['/pickem/trades', 'Trades'], ['/pickem/collectors', 'Collectors'], ['/pickem/survivor', 'Survivor'], ['/arcade', 'Arcade'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}${name ? '<a href="/pickem/logout">Log out</a>' : ''}</div>`;
 }
 const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString('en-US')}</span>`;
@@ -2427,6 +2427,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
         <div><h2>@${esc(uname)}</h2><p class="muted">#${rank} of ${board.length} · joined ${esc(shortDate(localDay(user.created)))}</p>
           <div class="badges">${botw.map((w) => `<span class="badge-b">${icon('star')} Picker of the Week · ${esc(shortDate(w.week))}</span>`).join('')}${st.winRate >= 60 && st.settled >= 5 ? '<span class="badge-b hot">🔥 Sharp</span>' : ''}${st.best && st.best.odds >= 10 ? '<span class="badge-b">💰 Long-shot hitter</span>' : ''}</div></div>
         <div class="prof-bal">${coins(acct.balance)}<small>coins</small></div>
+        <div class="prof-acts"><a class="btn sm ghost" href="/pickem/collection/${esc(uname)}">${icon('star')} See their cards</a>${me && !mine ? `<a class="btn sm" href="/pickem/trade/${esc(uname)}">${icon('swap')} Offer a trade</a>` : ''}</div>
       </div>
       ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
@@ -3210,7 +3211,9 @@ function ratingOf(db, t, p) {
   if (!ratingMemo.map || Date.now() - ratingMemo.at > 3000) ratingMemo = { at: Date.now(), map: Object.fromEntries(ratings(db).map((x) => [x.p.id, x.r])) };
   return ratingMemo.map[p.id] ?? 60;
 }
-require('./fun')(app, { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf });
+{ const funH = { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pageHead, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf };
+  require('./fun')(app, funH);
+  require('./trading')(app, funH); }
 
 arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
 
