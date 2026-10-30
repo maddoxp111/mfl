@@ -543,7 +543,7 @@ app.get('/games/:id', (req, res) => {
   const evs = g.events || [];
   const lbl = gameLabel(db, g);
 
-  const plays = `<div class="card"><div class="card-h"><h2>Plays</h2></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
+  const plays = `<div class="card"><div class="card-h"><h2>Plays</h2><span class="muted sm">Not in game order</span></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
     const tm = db.teams[e.team] || a;
     const [cls, label] = playTag(e);
     return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${cls}">${label}</span>
@@ -1913,7 +1913,7 @@ function aiGame(db, g) {
     date: g.date, type: g.type === 'playoff' ? `playoff (${bowlName(db, g.bowl)})` : g.type,
     score: { [db.teams[g.home].name]: g.homeScore, [db.teams[g.away].name]: g.awayScore },
     winner: w ? db.teams[w].name : 'tie',
-    plays: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
+    plays_not_in_game_order: (g.events || []).map((e) => ({ team: db.teams[e.team]?.name, play: playLabel(e), player: e.player || 'unknown', ...(e.passer ? { [secondRole(e)]: e.passer } : {}), ...(e.note ? { note: e.note } : {}) })),
     ...(g.notes ? { coach_notes: g.notes } : {}),
     ...(boxStatus(g) !== 'complete' ? { box_score: boxStatus(g) === 'unknown' ? 'unknown: plays were not recorded, do not read anything into missing stats' : 'incomplete: some plays are missing, stats undercount' } : {}),
     ...((g.out || []).length ? { did_not_play: g.out.map((k) => { const [tid, pid] = k.split('|'); return db.teams[tid]?.roster.find((p) => p.id === pid)?.name; }).filter(Boolean) } : {}),
@@ -1998,7 +1998,7 @@ async function genTeamRecap(id) {
     await save();
   } finally { teamBusy.delete(id); }
 }
-const RECAP_FORMAT = 2; // bump to rewrite every recap
+const RECAP_FORMAT = 3; // bump to rewrite every recap
 const recapHash = (inp) => hashOf({ ...inp, format: RECAP_FORMAT });
 function freshRecap(db, g) {
   const A = g.aiRecap;
