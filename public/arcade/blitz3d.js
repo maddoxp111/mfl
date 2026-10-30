@@ -21,10 +21,19 @@
 .bz-tag.open{border-color:#2bd46b}.bz-tag.open i{background:#2bd46b}
 .bz-tag.mid{border-color:#ffc21a}.bz-tag.mid i{background:#ffc21a}
 .bz-tag.cov{border-color:#ff3344}.bz-tag.cov i{background:#ff3344;color:#fff}
-.bz-tag.car{border-color:#ffc21a;cursor:default;padding:3px 8px}
+.bz-tag.car{border-color:#ffc21a;cursor:default;padding:3px 9px 3px 3px;font-size:13px}
+.bz-face{display:inline-block;flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:#1d212c 50% 30%/220% auto no-repeat;box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+.bz-tag.car .bz-face{width:30px;height:30px}
+.bz-rc .bz-face{width:26px;height:26px}
+.bz-rc span{display:flex;align-items:center;gap:6px}
+.bz-squad{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.bz-squad div{display:flex;flex-direction:column;align-items:center;gap:4px;font:800 12px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;color:#c9ccd4;max-width:74px}
+.bz-squad .bz-face{width:46px;height:46px;box-shadow:0 0 0 2px #ffc21a}
+.bz-nof{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:400 11px 'Press Start 2P',monospace;color:#07080b;background:#ffc21a}
+.bz-squad em{font-style:normal;color:#6f7584;font-size:10px}
 .bz-tag.hide{display:none}
 .bz-pop{position:absolute;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:11px;text-shadow:2px 2px 0 #000;white-space:nowrap;animation:bz-rise 1.1s ease-out both}
-.bz-banner{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);text-align:center;font-family:'Press Start 2P',monospace;white-space:nowrap;animation:bz-zoom .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:3px 3px 0 #000}
+.bz-banner{position:absolute;left:50%;top:21%;transform:translate(-50%,-50%);text-align:center;font-family:'Press Start 2P',monospace;white-space:nowrap;animation:bz-zoom .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:3px 3px 0 #000}
 .bz-banner b{display:block;font-size:20px;line-height:1.3}
 .bz-banner i{display:block;font-style:normal;font-size:10px;margin-top:8px;color:#f5f6f8}
 .bz-stick{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(255,255,255,.08);pointer-events:none}
@@ -57,7 +66,7 @@
 .bz-go:active{transform:translateY(3px);box-shadow:0 1px 0 #a37a00}
 .bz-err{padding:40px 18px;text-align:center;font:600 15px/1.5 Inter,sans-serif;color:#c9ccd4;background:#0f1117;border:1px solid #1d212c;border-radius:12px}
 .bz-err b{display:block;font-family:'Press Start 2P',monospace;font-size:12px;color:#ff3344;margin-bottom:12px}
-@media (max-width:520px){.bz-stat b{font-size:9px}.bz-stat span{font-size:6px}.bz-btn{font-size:15px}.bz-snap{font-size:17px}.bz-banner b{font-size:15px}.bz-banner i{font-size:8px}.bz-title{font-size:19px}.bz-tag{font-size:10px;padding:2px 6px 2px 2px;border-width:1.5px}.bz-tag i{width:14px;height:14px;font-size:7px}.bz-btn:not(.bz-rc) small{display:none}.bz-ctl{min-height:58px;padding:6px;gap:5px}}
+@media (max-width:520px){.bz-stat b{font-size:9px}.bz-stat span{font-size:6px}.bz-btn{font-size:15px}.bz-snap{font-size:17px}.bz-banner b{font-size:15px}.bz-banner i{font-size:8px}.bz-title{font-size:19px}.bz-tag{font-size:10px;padding:2px 6px 2px 2px;border-width:1.5px}.bz-tag i{width:14px;height:14px;font-size:7px}.bz-face{width:20px;height:20px}.bz-tag.car .bz-face{width:24px;height:24px}.bz-squad .bz-face{width:38px;height:38px}.bz-btn:not(.bz-rc) small{display:none}.bz-ctl{min-height:58px;padding:6px;gap:5px}}
 @keyframes bz-rise{0%{opacity:0;transform:translate(-50%,-20%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-240%) scale(1)}}
 @keyframes bz-zoom{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}60%{opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes bz-pulse{50%{transform:scale(1.06)}}
@@ -186,13 +195,30 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       if (Math.abs(lum(TEAM) - lum(TEAM2)) < 0.12) TEAM2 = lum(TEAM) > 0.5 ? hex('#15171d') : hex('#f2f4f7');
       const teamName = String(t0.team || 'MFL').toUpperCase().slice(0, 16);
       const GEN = [{ n: 'You', num: 7 }, { n: 'Flash', num: 1 }, { n: 'Hands', num: 81 }, { n: 'Rocket', num: 19 }];
-      const NAMES = [0, 1, 2, 3].map((i) => (roster[i] ? String(roster[i].name) : GEN[i].n));
+      // QB = players[0]; receivers = the WR / TE / RB entries (WRs first), else the next players in the list
+      const rank = (q) => { const t = String(q.pos || '').toUpperCase(); return /^WR/.test(t) ? 0 : /^TE/.test(t) ? 1 : /^RB/.test(t) ? 2 : 9; };
+      let recv = roster.slice(1).map((q, k) => ({ q, k })).filter((o) => rank(o.q) < 9).sort((a, b) => rank(a.q) - rank(b.q) || a.k - b.k).map((o) => o.q);
+      if (recv.length < 3) recv = recv.concat(roster.slice(1).filter((q) => recv.indexOf(q) < 0));
+      const safeUrl = (u) => (typeof u === 'string' && /^\/[A-Za-z0-9_\-./%]+$/.test(u) && u.indexOf('..') < 0 ? u : null);
+      const CLEATS = { black: hex('#111318'), white: hex('#f2f4f7'), team: TEAM, gold: hex('#ffc21a'), red: hex('#d81f2a') };
+      const normLook = (l, dflt) => {
+        l = l && typeof l === 'object' ? l : {};
+        const sk = Number.isInteger(l.skin) ? clamp(l.skin, 0, 4) : dflt;
+        return { skin: sk, hs: l.height === 'short' ? 0.92 : l.height === 'tall' ? 1.08 : 1, cleat: CLEATS[l.cleats] || CLEATS.black, visor: !!l.visor, sleeves: !!l.sleeves };
+      };
+      const SQUAD = [0, 1, 2, 3].map((i) => {
+        const q = i === 0 ? roster[0] : recv[i - 1], g = GEN[i];
+        const n = q && /^\d{1,2}$/.test(String(q.number == null ? '' : q.number).trim()) ? +q.number : g.num;
+        return { name: q ? String(q.name) : g.n, pos: q && /^[A-Z0-9]{1,5}$/i.test(String(q.pos || '')) ? String(q.pos).toUpperCase() : i ? 'WR' : 'QB', num: n, photo: q ? safeUrl(q.photo) : null, look: normLook(q && q.look, [1, 2, 0, 3][i]), cell: -1 };
+      });
+      const NAMES = SQUAD.map((q) => q.name);
+      const SKIN = ['#f3cfae', '#dcaa83', '#b98056', '#8a5535', '#5a361f'].map(hex);
       const shortName = (s) => { const p = String(s).trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
       const redTeam = TEAM[0] > 0.6 && TEAM[1] < 0.45 && TEAM[2] < 0.45;
       const DEFA = redTeam ? hex('#1f3f99') : hex('#c8102e');
       const OFFC = { jer: TEAM, pad: shade(TEAM, 1.12), pant: TEAM2, helm: TEAM2, stripe: TEAM, num: TEAM2 };
       const DEFC = { jer: hex('#eef1f5'), pad: hex('#ffffff'), pant: DEFA, helm: DEFA, stripe: hex('#eef1f5'), num: DEFA };
-      const SHOE = hex('#111318'), MASK = hex('#9aa0ad'), BALLC = hex('#7a3e17'), LACE = hex('#f5f6f8');
+      const VISOR = [0.04, 0.05, 0.08, 1], MASK = hex('#9aa0ad'), BALLC = hex('#7a3e17'), LACE = hex('#f5f6f8');
 
       // ---------- DOM ----------
       const root = ctx.root; root.innerHTML = '';
@@ -247,7 +273,8 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         G.white = mkTex(new Uint8Array([255, 255, 255, 255]));
         G.field = mkTex(fieldCanvas());
         G.crowd = mkTex(crowdCanvas(), true);
-        G.dyn = gl.createBuffer(); G.tr = gl.createBuffer();
+        G.dyn = gl.createBuffer(); G.tr = gl.createBuffer(); G.fb = gl.createBuffer();
+        G.atlas = mkTex(atlas); atlasDirty = true;
         statics.length = 0;
         const W = buildWorld();
         for (const k of ['plain', 'field', 'crowd', 'glow']) {
@@ -383,6 +410,53 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         return W;
       }
 
+      // ---------- atlas: player photos (row 0, 4 cells of 256) + helmet numbers (128px cells below) ----------
+      const atlas = document.createElement('canvas'); atlas.width = 1024; atlas.height = 1024;
+      const ag = atlas.getContext('2d');
+      ag.fillStyle = '#808080'; ag.fillRect(0, 0, 1024, 1024);
+      let atlasDirty = true;
+      const numMap = {};
+      let numN = 0;
+      function numCell(n, team) {
+        const key = n + '|' + team;
+        if (numMap[key] != null) return numMap[key];
+        if (numN >= 48) return -1;
+        const k = numN++, x = (k % 8) * 128, y = 256 + Math.floor(k / 8) * 128;
+        ag.fillStyle = css(team ? DEFA : TEAM2); ag.fillRect(x, y, 128, 128);
+        ag.fillStyle = css(team ? hex('#ffffff') : TEAM);
+        ag.font = '900 92px "Barlow Condensed", Impact, "Arial Narrow", sans-serif'; ag.textAlign = 'center'; ag.textBaseline = 'middle';
+        ag.fillText(String(n), x + 64, y + 68, 116);
+        atlasDirty = true;
+        return (numMap[key] = 100 + k);
+      }
+      function cellUV(c) {
+        if (c >= 100) { const k = c - 100, x = (k % 8) * 128, y = 256 + Math.floor(k / 8) * 128; return [(x + 6) / 1024, (y + 6) / 1024, (x + 122) / 1024, (y + 122) / 1024]; }
+        const x = c * 256; return [(x + 6) / 1024, 6 / 1024, (x + 250) / 1024, 250 / 1024];
+      }
+      // load photos: same-origin JPEG portraits; crop the face (eyebrows to chin) into a cell
+      SQUAD.forEach((q, i) => {
+        if (!q.photo) return;
+        const img = new Image();
+        img.onload = () => {
+          if (finished) return;
+          try {
+            const w = img.naturalWidth, h = img.naturalHeight, sz = Math.min(w, h) * 0.42;
+            ag.fillStyle = css(SKIN[q.look.skin]); ag.fillRect(i * 256, 0, 256, 256);
+            ag.drawImage(img, w * 0.5 - sz / 2, h * 0.43 - sz / 2, sz, sz, i * 256, 0, 256, 256);
+            q.cell = i; atlasDirty = true;
+            for (const p of all) if (p.sq === i) { p.face = i; p.ncell = -1; }
+          } catch (e) { noPhoto(i); }
+        };
+        img.onerror = () => noPhoto(i);
+        img.src = q.photo;
+      });
+      function noPhoto(i) {
+        SQUAD[i].photo = null; SQUAD[i].cell = -1;
+        root.querySelectorAll('[data-pf="' + i + '"]').forEach((e) => { if (e.closest('.bz-squad')) { e.className = 'bz-face bz-nof'; e.removeAttribute('style'); e.textContent = SQUAD[i].num; } else e.remove(); });
+        for (const p of all) if (p.sq === i) { p.face = -1; p.ncell = numCell(p.num, 0); }
+      }
+      const faceHTML = (i) => (SQUAD[i].photo ? `<s class="bz-face" data-pf="${i}" style="background-image:url('${SQUAD[i].photo}')"></s>` : '');
+
       // ---------- sizing ----------
       let cssW = 360, cssH = 270;
       function fit() {
@@ -401,12 +475,12 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       // ---------- game state ----------
       let phase = 'splash', clock = CLOCK, score = 0, los = 25, down = 1, fdz = 35, playIdx = 0, tPlay = 0, airT = 0, deadT = 0;
       let off = [], def = [], all = [], qb = null, wr = [], carrier = null, ball = null, pend = null, plays = 0, tds = 0, finished = false;
-      let jukeT = 0, jukeCd = 0, sep = [9, 9, 9], parts = [], rushCalled = false, pressured = false, lastSpot = 25;
+      let introT = 0, introCut = false, closeP = null, deadTot = 0, newDrive = false, jukeT = 0, jukeCd = 0, sep = [9, 9, 9], parts = [], rushCalled = false, pressured = false, lastSpot = 25;
       const cam = { e: [0, 12, 9], c: [0, 0, 35] };
       const input = { l: 0, r: 0, u: 0, d: 0, stick: null };
 
       function mk(role, team, x, z, ex) {
-        return Object.assign({ role, team, x, z, y: 0, vx: 0, vz: 0, h: team ? Math.PI : 0, ph: crand() * 6, fall: 0, stun: 0, eng: 0, imm: 0, tried: 0, w: 1, arm: 0, armT: 0, cel: 0, reach: 0 }, ex || {});
+        return Object.assign({ lk: normLook(null, (crand() * 5) | 0), num: 0, face: -1, role, team, x, z, y: 0, vx: 0, vz: 0, h: team ? Math.PI : 0, ph: crand() * 6, fall: 0, stun: 0, eng: 0, imm: 0, tried: 0, w: 1, arm: 0, armT: 0, cel: 0, reach: 0 }, ex || {});
       }
       function buildRoute(p, r) {
         const s = p.x < 0 ? -1 : 1, pts = [[p.x, p.z]];
@@ -431,18 +505,20 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       function setupPlay() {
         tPlay = 0; airT = 0; carrier = null; jukeT = 0; jukeCd = 0; rushCalled = false; pressured = false; parts = parts.filter((p) => p.life > 0);
         const zc = (z) => clamp(z, -8, 108);
-        qb = mk('qb', 0, 0, los - 4.5);
+        const sq = (i) => ({ lk: SQUAD[i].look, num: SQUAD[i].num, face: SQUAD[i].cell, sq: i });
+        qb = mk('qb', 0, 0, los - 4.5, sq(0));
         off = [qb];
         for (let i = -2; i <= 2; i++) off.push(mk('ol', 0, i * 1.9, los - 0.9, { w: 1.3 }));
-        wr = [mk('wr', 0, -15, los - 0.7, { i: 0 }), mk('wr', 0, 15, los - 0.7, { i: 1 }), mk('wr', 0, 8, los - 1.6, { i: 2 })];
+        wr = [0, 1, 2].map((i) => mk('wr', 0, [-15, 15, 8][i], los - [0.7, 0.7, 1.6][i], Object.assign({ i }, sq(i + 1))));
         off.push(...wr);
         const pl = PLAYS[playIdx];
         wr.forEach((w, i) => { w.R = buildRoute(w, pl.routes[i]); });
         def = [mk('dl', 1, -1.1, los + 0.9, { w: 1.3 }), mk('dl', 1, 1.3, los + 0.9, { w: 1.3 })];
         const rs = rng() < 0.5 ? -1 : 1;
-        def.push(mk('rush', 1, rs * 5.6, los + 1.3));
-        wr.forEach((w, i) => def.push(mk('cb', 1, w.x - w.R.s * 0.5, zc(los + L.cush + rng() * 1.5), { cov: i, lagK: 0.8 + rng() * 0.45, spdK: 0.96 + rng() * 0.08 })));
-        def.push(mk('s', 1, (rng() - 0.5) * 6, zc(los + L.safD)));
+        def.push(mk('rush', 1, rs * 5.6, los + 1.3, { num: 55 }));
+        wr.forEach((w, i) => def.push(mk('cb', 1, w.x - w.R.s * 0.5, zc(los + L.cush + rng() * 1.5), { cov: i, lagK: 0.8 + rng() * 0.45, spdK: 0.96 + rng() * 0.08, num: [24, 21, 31][i] })));
+        def.push(mk('s', 1, (rng() - 0.5) * 6, zc(los + L.safD), { num: 42 }));
+        for (const p of off.concat(def)) p.ncell = p.face < 0 && p.num ? numCell(p.num, p.team) : -1;
         all = off.concat(def);
         ball = { mode: 'spot', x: 0, y: 0.15, z: los };
         sep = [9, 9, 9];
@@ -478,7 +554,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           s.addEventListener('click', snap); ctl.appendChild(s);
         } else if (ph === 'pass') {
           wr.forEach((w, i) => {
-            const b = el('button', 'bz-btn bz-rc', `<b>${i + 1}</b><small>${esc(shortName(NAMES[i + 1]))}</small>`); b.type = 'button';
+            const b = el('button', 'bz-btn bz-rc', `<span>${faceHTML(i + 1)}<b>${i + 1}</b></span><small>${esc(shortName(NAMES[i + 1]))}</small>`); b.type = 'button';
             b.addEventListener('pointerdown', (e) => { e.preventDefault(); throwTo(i); }); ctl.appendChild(b); rcBtns.push(b);
           });
         } else if (ph === 'run') {
@@ -498,7 +574,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
 
       // tags over receivers / ball carrier
       const tags = [0, 1, 2].map((i) => {
-        const t = el('button', 'bz-tag hide', `<i>${i + 1}</i><span>${esc(shortName(NAMES[i + 1]))}</span>`); t.type = 'button';
+        const t = el('button', 'bz-tag hide', `<i>${i + 1}</i>${faceHTML(i + 1)}<span>${esc(shortName(NAMES[i + 1]))}</span>`); t.type = 'button';
         t.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (phase === 'pass') throwTo(i); });
         tagL.appendChild(t); return t;
       });
@@ -520,7 +596,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       // ---------- actions ----------
       function snap() {
         if (phase !== 'pre' || finished) return;
-        clearBanner(); phase = 'pass'; tPlay = 0; plays++;
+        clearBanner(); phase = 'pass'; tPlay = 0; plays++; introT = 0;
         ball = { mode: 'held', p: qb };
         ctx.sound('whistle');
         setControls();
@@ -573,11 +649,12 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         input.stick = null; stickEl.style.display = 'none';
         const nx = { los, down, fdz, pen: 0 };
         let head = '', sub = '', col = '#ffc21a';
-        const reset = () => { nx.los = 25; nx.down = 1; nx.fdz = 35; };
+        const reset = () => { nx.los = 25; nx.down = 1; nx.fdz = 35; newDrive = true; };
+        closeP = null;
         if (kind === 'td') {
           score += 7; tds++; reset(); head = 'TOUCHDOWN!'; sub = `+7 · ${score} of ${NEED}`; col = '#2bd46b';
           ctx.sound('win'); confetti(carrier ? carrier.x : 0, carrier ? carrier.z : 100);
-          if (carrier) carrier.cel = 3;
+          if (carrier) { carrier.cel = 3; closeP = carrier; }
         } else if (kind === 'int') {
           reset(); nx.pen = PEN; head = 'INTERCEPTED!'; sub = `Ball back to your 25 · -${PEN} sec`; col = '#ff3344'; ctx.sound('bad');
         } else if (kind === 'inc') {
@@ -589,20 +666,26 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           else if (kind === 'oob') head = 'OUT OF BOUNDS';
           else head = 'TACKLED';
           sub = gain > 0 ? `+${gain} yards` : gain < 0 ? `${gain} yards` : 'No gain';
-          if (ns >= fdz) { nx.down = 1; nx.fdz = Math.min(ns + 10, 100); head = 'FIRST DOWN!'; col = '#2bd46b'; ctx.sound('good'); }
+          if (ns >= fdz) { nx.down = 1; nx.fdz = Math.min(ns + 10, 100); head = 'FIRST DOWN!'; col = '#2bd46b'; ctx.sound('good'); if (carrier && kind !== 'sack') closeP = carrier; }
           else nx.down = down + 1;
         }
         if (nx.down > 4) { reset(); nx.pen = PEN; head = 'TURNOVER ON DOWNS'; sub = `Ball back to your 25 · -${PEN} sec`; col = '#ff3344'; }
-        pend = nx;
+        pend = nx; deadTot = deadT;
+        if (closeP) { closeP.hold = true; deadT += 0.4; deadTot = deadT; }
         banner(head, sub, col);
-        setControls(); ctlMsg(kind === 'td' ? `<b>${esc(shortName(carrier ? NAMES[carrier.i + 1] : NAMES[1]))}</b> takes it to the house!` : 'Next play coming up…');
+        setControls(); ctlMsg(closeP ? `<b>${esc(NAMES[closeP.i + 1])}</b> ${kind === 'td' ? 'takes it to the house!' : 'moves the chains!'}` : 'Next play coming up…');
         lastSpot = los;
       }
       function nextPlay() {
         if (pend) { los = pend.los; down = pend.down; fdz = pend.fdz; clock = Math.max(0, clock - pend.pen); pend = null; }
         if (clock <= 0) { gameOver(); return; }
-        clearBanner();
+        clearBanner(); closeP = null;
         phase = 'pre'; setupPlay(); setControls(true);
+        if (newDrive) { newDrive = false; startIntro(); }
+      }
+      function startIntro() {
+        introT = 2.1; introCut = true;
+        banner('1st & 10', `${esc(NAMES[0])} takes the field`, '#ffc21a');
       }
       function gameOver() {
         if (phase === 'over') return;
@@ -657,8 +740,14 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           if (p.stun > 0) p.stun -= dt;
           if (p.imm > 0) p.imm -= dt;
           if (p.armT > 0) p.armT -= dt;
-          if (p.cel > 0) p.cel -= dt;
+          if (p.cel > 0) { p.cel -= dt; if (p.cel < 0) p.cel = 0; }
           if (p.fallT) { p.fall = Math.min(1, p.fall + dt * 4); }
+        }
+        if (introT > 0 && phase === 'pre') introT -= dt;
+        if (closeP && phase === 'dead' && deadTot - deadT > 0.45) {
+          const c = closeP; c.fallT = 0; if (c.fall > 0) c.fall = Math.max(0, c.fall - dt * 2.5);
+          if (c.fall <= 0 && !c.cel) c.point = 1;
+          let dh = -c.h; while (dh > Math.PI) dh -= 6.2832; while (dh < -Math.PI) dh += 6.2832; c.h += dh * Math.min(1, dt * 6);
         }
         if (phase === 'pre' || phase === 'splash') {
           for (const p of all) { p.vx *= 0.8; p.vz *= 0.8; p.ph += dt * 0.5; }
@@ -815,7 +904,15 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const VP = new Float32Array(16), VPI = new Float32Array(16);
       function updateCam(dt) {
         let e, c;
-        if (phase === 'run' && carrier) {
+        let rate = phase === 'run' ? 6 : 3.2;
+        if (closeP && phase === 'dead' && deadTot - deadT > 0.35) {
+          const q = closeP, hh = 2.05 * SC * q.lk.hs;
+          e = [q.x + 0.55, hh + 0.35, q.z + 3.0]; c = [q.x, hh - 0.08, q.z]; rate = 4;
+        } else if (phase === 'pre' && introT > 0) {
+          const hh = 2.05 * SC * qb.lk.hs;
+          e = [0.45, hh + 0.3, los - 1.75]; c = [0, hh - 0.05, los - 4.5];
+          if (introCut) { introCut = false; dt = -1; }
+        } else if (phase === 'run' && carrier) {
           e = [carrier.x * 0.8, 8.2, carrier.z - 11.5]; c = [carrier.x * 0.95, 0.4, carrier.z + 8];
         } else if ((phase === 'dead' || phase === 'over') && carrier) {
           e = [carrier.x * 0.8, 9, carrier.z - 12.5]; c = [carrier.x, 0.5, carrier.z + 6];
@@ -830,7 +927,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           const look = phase === 'pass' ? Math.min(tPlay, 3) * 1.2 : 0;
           e = [0, 15, los - 19]; c = [0, 0, los + 7 + look];
         }
-        const k = dt < 0 ? 1 : 1 - Math.exp(-dt * (phase === 'run' ? 6 : 3.2));
+        const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
         for (let i = 0; i < 3; i++) { cam.e[i] += (e[i] - cam.e[i]) * k; cam.c[i] += (c[i] - cam.c[i]) * k; }
         // matrices (mirror x so +x is screen right)
         const asp = cv.width / cv.height, fovy = clamp(2 * Math.atan(Math.tan((78 * Math.PI) / 360) / asp), 0.75, 1.15);
@@ -852,30 +949,48 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       }
 
       // ---------- drawing ----------
-      const dyn = new Batch(12000), tr = new Batch(3000);
+      const dyn = new Batch(16000), tr = new Batch(3000), fb = new Batch(400);
+      // textured quad facing local +z (dir 1) or local ±x (dir 2/-2), centered at (cx,cy,cz), uv from an atlas cell
+      function tquad(m, cx, cy, cz, w, h, dir, cell) {
+        const [u0, v0, u1, v1] = cellUV(cell), hw = w / 2, hh = h / 2;
+        const L = dir === 1 ? [[hw, 0], [-hw, 0]] : [[0, dir > 0 ? -hw : hw], [0, dir > 0 ? hw : -hw]];
+        const P = (lx, ly, lz) => [m[0] * lx + m[1] * ly + m[2] * lz + m[3], m[4] * lx + m[5] * ly + m[6] * lz + m[7], m[8] * lx + m[9] * ly + m[10] * lz + m[11]];
+        const a = P(cx + L[0][0], cy + hh, cz + L[0][1]), b2 = P(cx + L[1][0], cy + hh, cz + L[1][1]), c2 = P(cx + L[1][0], cy - hh, cz + L[1][1]), d = P(cx + L[0][0], cy - hh, cz + L[0][1]);
+        const ax = dir === 1 ? 2 : 0, sg = dir === -2 ? -1 : 1, n = [m[ax] * sg, m[4 + ax] * sg, m[8 + ax] * sg];
+        fb.quad(a, b2, c2, d, n, [1, 1, 1, 1], FLIPU ? [u1, v0, u0, v0, u0, v1, u1, v1] : [u0, v0, u1, v0, u1, v1, u0, v1]);
+      }
+      const FLIPU = false;
       const SC = 1.12;
       function drawPlayer(b, p) {
-        const C = p.team ? DEFC : OFFC, s = SC, wx = p.w || 1;
+        const C = p.team ? DEFC : OFFC, lk = p.lk, s = SC * lk.hs, wx = p.w || 1, skin = SKIN[lk.skin];
         const sp = Math.hypot(p.vx, p.vz), amp = p.fall > 0 ? 0 : Math.min(1, sp / 5.5);
         const sw = Math.sin(p.ph) * 0.95 * amp;
         const jump = p.cel > 0 ? Math.abs(Math.sin(p.cel * 7)) * 0.7 : 0;
         let m = mT(IDM, p.x, (p.y || 0) + jump + p.fall * 0.15, p.z);
         m = mRY(m, p.h + (p === carrier && jukeT > 0 ? Math.sin((p.spin || 0)) * 0.6 : 0));
-        const stance = phase === 'pre' && (p.role === 'ol' || p.role === 'dl' || p.role === 'rush') ? 0.5 : phase === 'pre' ? 0.25 : 0;
+        const stance = phase === 'pre' && (p.role === 'ol' || p.role === 'dl' || p.role === 'rush') ? 0.5 : phase === 'pre' ? (p.role === 'qb' ? 0.08 : 0.25) : 0;
         m = mRX(m, p.fall > 0 ? p.fall * 1.42 : 0.06 + 0.2 * amp + stance);
         const B = (mm, cx, cy, cz, sx, sy, sz, col) => b.box(mm, cx * s, cy * s, cz * s, sx * s, sy * s, sz * s, col);
         const bend = stance > 0.3 ? 0.5 : 0;
         for (const sd of [-1, 1]) {
           let lm = mT(m, sd * 0.15 * wx * s, 0.95 * s, 0); lm = mRX(lm, sd * sw * 0.9 - bend);
-          B(lm, 0, -0.44, 0, 0.22, 0.9, 0.25, C.pant);
-          B(lm, 0, -0.89, 0.06, 0.21, 0.12, 0.34, SHOE);
+          B(lm, 0, -0.23, 0, 0.24, 0.46, 0.27, C.pant);
+          B(lm, 0, -0.66, 0, 0.17, 0.42, 0.19, skin);
+          B(lm, 0, -0.89, 0.06, 0.2, 0.12, 0.34, lk.cleat);
         }
         B(m, 0, 1.3, 0, 0.62 * wx, 0.66, 0.36, C.jer);
         B(m, 0, 1.33, 0, 0.3, 0.28, 0.38, C.num);
         B(m, 0, 1.63, 0, 0.88 * wx, 0.17, 0.44, C.pad);
-        B(m, 0, 1.94, 0.02, 0.36, 0.34, 0.4, C.helm);
-        B(m, 0, 2.115, 0.02, 0.09, 0.025, 0.42, C.stripe);
-        B(m, 0, 1.87, 0.23, 0.3, 0.14, 0.06, MASK);
+        B(m, 0, 1.76, 0, 0.17, 0.12, 0.17, skin);
+        // open-face helmet: skin face plate poking out of the shell, photo on its front
+        B(m, 0, 1.95, 0.09, 0.27, 0.3, 0.14, skin);
+        B(m, 0, 1.98, -0.04, 0.38, 0.36, 0.36, C.helm);
+        B(m, 0, 2.165, -0.04, 0.09, 0.02, 0.38, C.stripe);
+        B(m, 0, 1.79, 0.19, 0.3, 0.035, 0.035, MASK);
+        for (const sd of [-1, 1]) B(m, sd * 0.155, 1.84, 0.12, 0.03, 0.1, 0.12, MASK);
+        if (lk.visor) B(m, 0, 2.035, 0.168, 0.28, 0.07, 0.02, VISOR);
+        if (p.face >= 0) tquad(m, 0, 1.95 * s, 0.1615 * s, 0.26 * s, 0.29 * s, 1, p.face);
+        else if (p.ncell >= 0) for (const sd of [-2, 2]) tquad(m, (sd > 0 ? 0.192 : -0.192) * s, 1.99 * s, -0.05 * s, 0.22 * s, 0.22 * s, sd, p.ncell);
         for (const sd of [-1, 1]) {
           let a = -sd * sw * 0.85, rz = 0;
           if (p.cel > 0) { a = Math.PI - 0.2; rz = sd * (0.35 + Math.sin(p.cel * 9) * 0.15); }
@@ -883,8 +998,10 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           else if (p.role === 'qb' && sd === 1) { if (p.armT > 0) a = p.armT > 0.2 ? 2.4 : -1.6; else if (phase === 'pass') a = 2.0; }
           else if (stance > 0.3) a = -0.9;
           else if (p.stun > 0) { a = -1.4; rz = sd * 0.9; }
+          else if (p.point && sd === 1) { a = -2.6; rz = 0.2; }
           let am = mT(m, sd * 0.42 * wx * s, 1.6 * s, 0); am = mRZ(am, rz); am = mRX(am, a);
-          B(am, 0, -0.3, 0, 0.17, 0.62, 0.18, C.jer);
+          B(am, 0, -0.15, 0, 0.19, 0.3, 0.2, C.jer);
+          B(am, 0, -0.45, 0, 0.15, 0.32, 0.16, lk.sleeves ? C.jer : skin);
         }
       }
       function drawBall(b, x, y, z, yaw, pitch) {
@@ -916,7 +1033,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         gl.uniform3f(G.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(G.u.uFogR, 70, 230, 0.75);
         for (const s of statics) bindDraw(s.b, s.n, s.tex);
         // dynamic
-        dyn.n = 0; tr.n = 0;
+        dyn.n = 0; tr.n = 0; fb.n = 0;
         for (const p of all) drawPlayer(dyn, p);
         if (ball) {
           if (ball.mode === 'held' && ball.p) {
@@ -956,6 +1073,12 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         if (carrier && (phase === 'run')) tr.ring(carrier.x, carrier.z, 0.9, 1.2, [1, 0.76, 0.1, 0.85], 0.05, 18);
         for (const p of all) tr.disc(p.x + 0.12, p.z - 0.1, 0.62 * (p.w || 1) + p.fall * 0.5, [0, 0, 0, 0.33], 0.02, 9);
         if (dyn.n) bindDraw(G.dyn, dyn.n, G.white, dyn.f.subarray(0, dyn.n * 12));
+        if (atlasDirty) {
+          atlasDirty = false;
+          try { gl.bindTexture(gl.TEXTURE_2D, G.atlas); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas); gl.generateMipmap(gl.TEXTURE_2D); }
+          catch (e) { SQUAD.forEach((q, i) => { if (q.photo) noPhoto(i); }); ag.fillStyle = '#808080'; ag.fillRect(0, 0, 1024, 256); atlasDirty = true; }
+        }
+        if (fb.n) bindDraw(G.fb, fb.n, G.atlas, fb.f.subarray(0, fb.n * 12));
         if (tr.n) { gl.depthMask(false); bindDraw(G.tr, tr.n, G.white, tr.f.subarray(0, tr.n * 12)); gl.depthMask(true); }
         updTags();
       }
@@ -975,8 +1098,8 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
             if (tags[i].dataset.c !== c) { tags[i].dataset.c = c; tags[i].classList.remove('open', 'mid', 'cov'); tags[i].classList.add(c); if (rcBtns[i]) { rcBtns[i].classList.remove('open', 'mid', 'cov'); rcBtns[i].classList.add(c); } }
           } else if (tags[i].dataset.c) { tags[i].dataset.c = ''; tags[i].classList.remove('open', 'mid', 'cov'); }
         });
-        const showC = carrier && (phase === 'run' || phase === 'dead');
-        if (showC) { const nm = shortName(NAMES[carrier.i + 1]); if (carTag.textContent !== nm) carTag.textContent = nm; }
+        const showC = carrier && (phase === 'run' || (phase === 'dead' && !closeP));
+        if (showC && carTag.dataset.k !== String(carrier.i)) { carTag.dataset.k = String(carrier.i); carTag.innerHTML = faceHTML(carrier.i + 1) + `<span>${esc(NAMES[carrier.i + 1])}</span>`; }
         setTag(carTag, showC ? project(carrier.x, 2.95, carrier.z) : null, showC);
         if (jukeBtn && (tagFrame & 1)) {
           const r = jukeCd > 0 ? 1 - jukeCd / L.cd : 1;
@@ -1081,6 +1204,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const splash = el('div', 'bz-splash', `
         <div class="bz-title">BLITZ 3D</div><div class="bz-tag2">One drive at a time. Two minutes. Go score.</div>
         <div class="bz-goal">${esc(ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend'][lvl])}: score <em>${NEED}</em> points<br>(${tdN} touchdowns) before <em>2:00</em> runs out</div>
+        <div class="bz-squad">${SQUAD.map((q, i) => `<div>${q.photo ? faceHTML(i) : `<s class="bz-face bz-nof">${q.num}</s>`}<span>${esc(shortName(q.name))}</span><em>${esc(q.pos)} #${q.num}</em></div>`).join('')}</div>
         <ul class="bz-how">
           <li><i>1</i><span><b>Pick a play</b> (Quick, Deep or Screen), then hit <b>SNAP</b>${touchy ? '' : ' (Space)'}.</span></li>
           <li><i>2</i><span><b>Throw</b>: ${touchy ? 'tap a receiver' : 'click a receiver or press 1 / 2 / 3'}. <b style="color:#2bd46b">Green = open</b>, red = covered. Watch the rush!</span></li>
@@ -1095,8 +1219,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         fit();
         ctx.sound('whistle');
         phase = 'pre'; setupPlay(); setControls(true);
-        banner('1st & 10', 'Your ball at the 25', '#ffc21a');
-        setTimeout(() => { if (phase === 'pre') clearBanner(); }, 1600);
+        startIntro();
         try { cv.focus({ preventScroll: true }); } catch (e) {}
       });
 
