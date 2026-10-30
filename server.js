@@ -185,9 +185,13 @@ const STATS = {
   SACK: { key: 'sack', label: 'Sack', short: 'Sacks', tag: 'sack', who: 'Who got the sack?', by: 'QB sacked (optional)', side: 'other', verb: 'sacks', from: '' },
   PBU: { key: 'pbu', label: 'Pass breakup', short: 'PBUs', tag: 'pbu', who: 'Who broke it up?', by: 'Thrown by (optional)', side: 'other', verb: 'breaks up a pass', from: 'from' },
   FLAG: { key: 'flag', label: 'Flag pull', short: 'Flag pulls', tag: 'flag', who: 'Who pulled the flag?', by: null, verb: 'pulls a flag' },
+  PEN: { key: 'pen', label: 'Penalty', short: 'Penalties', tag: 'pen', who: 'Who got flagged?', by: null, verb: 'is flagged' },
   PLAY: { key: 'big', label: 'Notable play', short: 'Big plays', tag: 'play', who: 'Who made the play?', by: null, verb: 'makes a notable play' },
 };
 const EV_TYPES = ['TD', 'INT', ...Object.keys(STATS)];
+// Penalty flags a play can carry (type PEN, kind in e.pen).
+const PENALTIES = { PI: 'Pass interference', HOLD: 'Holding', GUARD: 'Flag guarding', CONTACT: 'Illegal contact', RUSH: 'Early rush (before 7 bananas)', OFF: 'Offsides', FS: 'False start', FWD: 'Illegal forward pass', DELAY: 'Delay of game', ROUGH: 'Roughing the passer', UNS: 'Unsportsmanlike conduct', OTHER: 'Other' };
+const penName = (k) => PENALTIES[k] || 'a penalty';
 const otherTeam = (g, id) => (g.home === id ? g.away : g.home);
 // One play as a sentence: "Liam Bair catches a TD pass from Maddox Pedon · note".
 function playLine(db, g, e) {
@@ -197,6 +201,7 @@ function playLine(db, g, e) {
   if (e.type === 'TD') txt = e.passer ? ` catches a TD pass from <b>${playerLink(tm, e.passer)}</b>` : ' scores a touchdown';
   else if (e.type === 'INT') txt = e.passer ? ` picks off <b>${playerLink(opp, e.passer)}</b>` : ' picks it off';
   else if (e.type === 'PLAY' && e.note) return `${who} <span class="play-what">${esc(e.note)}</span>`;
+  else if (e.type === 'PEN') return `${e.player ? who : `<b>${esc(tm.name)}</b>`} flagged for <b>${esc(penName(e.pen))}</b>${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}`;
   else {
     const st = STATS[e.type];
     const by = e.passer ? (st.side === 'same' ? tm : opp) : null;
@@ -204,7 +209,7 @@ function playLine(db, g, e) {
   }
   return `${who}${txt}${e.note ? ` <span class="muted">· ${esc(e.note)}</span>` : ''}`;
 }
-const playTag = (e) => (e.type === 'TD' ? ['td', 'Touchdown'] : e.type === 'INT' ? ['int', 'Interception'] : [STATS[e.type].tag, STATS[e.type].label]);
+const playTag = (e) => (e.type === 'TD' ? ['td', 'Touchdown'] : e.type === 'INT' ? ['int', 'Interception'] : e.type === 'PEN' && PENALTIES[e.pen] ? ['pen', `Flag: ${e.pen === 'PI' ? 'PI' : PENALTIES[e.pen]}`] : [STATS[e.type].tag, STATS[e.type].label]);
 function gameLabel(db, g) {
   if (g.type === 'playoff') return bowlName(db, g.bowl);
   if (g.type === 'exhibition') return 'Exhibition';
@@ -341,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=38">
+<link rel="stylesheet" href="/static/style.css?v=39">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -533,7 +538,7 @@ app.get('/games/:id', (req, res) => {
 
   const box = (tm) => {
     const rows = {};
-    const r = (n) => (rows[n] = rows[n] || { td: 0, ptd: 0, int: 0, catch: 0, sack: 0, pbu: 0, flag: 0 });
+    const r = (n) => (rows[n] = rows[n] || { td: 0, ptd: 0, int: 0, ...Object.fromEntries(Object.values(STATS).map((st) => [st.key, 0])) });
     for (const e of evs) {
       if (e.team !== tm.id) continue;
       if (e.player) r(e.player)[e.type === 'TD' ? 'td' : e.type === 'INT' ? 'int' : STATS[e.type].key]++;
@@ -543,8 +548,10 @@ app.get('/games/:id', (req, res) => {
     // Only show the extra stat columns this game actually has.
     const cols = [['td', 'TD'], ['ptd', 'Pass TD'], ['int', 'INT'], ...Object.values(STATS).map((st) => [st.key, st.short])].filter(([k], i) => i < 3 || list.some(([, x]) => x[k]));
     const outNames = tm.roster.filter((p) => pk.isOut(g, tm.id, p.id)).map((p) => p.name);
+    const pens = evs.filter((e) => e.team === tm.id && e.type === 'PEN');
+    const penLine = pens.length ? `<p class="muted sm out-line">Penalties: ${pens.length} (${esc(Object.entries(pens.reduce((o, e) => ((o[e.pen === 'PI' ? 'PI' : penName(e.pen)] = (o[e.pen === 'PI' ? 'PI' : penName(e.pen)] || 0) + 1), o), {})).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(', '))})</p>` : '';
     const outLine = outNames.length ? `<p class="muted sm out-line">Did not play: ${esc(outNames.join(', '))}</p>` : '';
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${boxStatus(g) === 'unknown' ? 'Box score unknown.' : 'No player stats recorded.'}</p>`}${outLine}</div>`;
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${boxStatus(g) === 'unknown' ? 'Box score unknown.' : 'No player stats recorded.'}</p>`}${penLine}${outLine}</div>`;
   };
 
   const center = isFinal(g)
@@ -1873,7 +1880,7 @@ function tradingCard(db, x, opts = {}) {
 
 // ---------- AI analyst (Claude Haiku 5.5) ----------
 const hashOf = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
-const playLabel = (e) => (e.type === 'TD' ? 'touchdown' : e.type === 'INT' ? 'interception' : STATS[e.type].label.toLowerCase());
+const playLabel = (e) => (e.type === 'TD' ? 'touchdown' : e.type === 'INT' ? 'interception' : e.type === 'PEN' ? `penalty: ${penName(e.pen).toLowerCase()}` : STATS[e.type].label.toLowerCase());
 const secondRole = (e) => (e.type === 'TD' ? 'thrown_by' : e.type === 'INT' ? 'thrown_by_opponent' : e.type === 'SACK' ? 'qb_sacked' : e.type === 'CATCH' ? 'thrown_by' : e.type === 'PBU' ? 'thrown_by_opponent' : 'other');
 // How much of a game's box score was recorded: complete (default), incomplete or unknown.
 const BOX_STATUS = { complete: 'Complete', incomplete: 'Incomplete', unknown: 'Unknown' };
@@ -2587,13 +2594,14 @@ function gameForm(db, g, isNew) {
     const second = type === 'TD' ? rosterSelect(tm, 'ev_passer', e.passer, 'Thrown by (or a run)')
       : type === 'INT' ? rosterSelect(opp, 'ev_passer', e.passer, 'Thrown by (who got picked?)')
       : st.by ? rosterSelect(st.side === 'same' ? tm : opp, 'ev_passer', e.passer, st.by) : '<input type="hidden" name="ev_passer" value="">';
-    const ph = type === 'PLAY' ? 'What happened? e.g. blocked the ball at the line' : type === 'CATCH' ? 'What happened? e.g. one-handed in traffic' : 'Note (optional), e.g. tipped by Pedon';
+    const pen = type === 'PEN' ? `<select name="ev_pen">${Object.entries(PENALTIES).map(([k, n]) => `<option value="${k}" ${(e.pen || 'PI') === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : '<input type="hidden" name="ev_pen" value="">';
+    const ph = type === 'PEN' ? 'Note (optional), e.g. wiped out a TD' : type === 'PLAY' ? 'What happened? e.g. blocked the ball at the line' : type === 'CATCH' ? 'What happened? e.g. one-handed in traffic' : 'Note (optional), e.g. tipped by Pedon';
     return `<div class="ev ev-${tag[0]}" style="--c:${esc(tm.color)}">
       <input type="hidden" name="ev_type" value="${type}"><input type="hidden" name="ev_team" value="${esc(tm.id)}">
       <div class="ev-who"><span class="ev-n"></span>${logo(tm, 28)}<span class="tag ${tag[0]}">${tag[1]}</span></div>
       <div class="ev-fields">
         ${rosterSelect(tm, 'ev_player', e.player, type === 'TD' ? 'Who scored?' : type === 'INT' ? 'Who intercepted?' : st.who)}
-        ${second}
+        ${pen}${second}
         <input name="ev_note" class="ev-note" placeholder="${ph}" value="${esc(e.note)}">
       </div>
       <div class="ev-act">
@@ -2730,7 +2738,8 @@ function readGame(body, g) {
   g.events = types.map((t, i) => ({
     type: EV_TYPES.includes(t) ? t : 'TD', team: arr(body.ev_team)[i], player: (arr(body.ev_player)[i] || '').trim(),
     passer: (arr(body.ev_passer)[i] || '').trim(), note: (arr(body.ev_note)[i] || '').trim(),
-  })).filter((e) => e.player || e.passer || e.note);
+    ...(t === 'PEN' ? { pen: PENALTIES[arr(body.ev_pen)[i]] ? arr(body.ev_pen)[i] : 'OTHER' } : {}),
+  })).filter((e) => e.player || e.passer || e.note || e.pen);
   return g;
 }
 
