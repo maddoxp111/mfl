@@ -379,7 +379,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
 ${hypeBowl(db) ? hypeBarScript : ''}<script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
