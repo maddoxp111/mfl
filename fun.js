@@ -13,11 +13,10 @@ module.exports = function fun(app, h) {
   function cardArt(db, c, opts = {}) {
     const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
-    // Every card gets its own look: a pattern, photo frame, tilt and hue picked from its id.
-    let hh = 2166136261;
-    for (const ch of c.id) hh = Math.imul(hh ^ ch.charCodeAt(0), 16777619) >>> 0;
-    const serial = c.one || c.rarity === 'doh' ? '1/1' : `#${String(hh % 999 + 1).padStart(3, '0')}`;
-    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} pat-${hh % 10} fr-${(hh >>> 8) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(hh >>> 4) % 360};--ang:${(hh >>> 12) % 360}deg;--tilt:${((hh >>> 16) % 9) - 4}deg">
+    // Each kind of card (Base, Holo, Gold...) has its own pattern, photo frame and hue; every card of that kind matches.
+    const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
+    const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
+    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${(vi * 53) % 360}deg">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
