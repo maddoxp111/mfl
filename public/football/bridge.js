@@ -46,7 +46,7 @@
       const values = { fname: names.shift(), lname: names.join(' ') || p.name,
         speed: p.spd / 10, strength: (p.pos === 'QB' ? p.thr : p.str) / 10,
         skill: (p.pos === 'QB' ? p.acc : p.pos === 'UTIL2' ? p.kick : p.cat) / 10,
-        stamina: p.ovr / 10, condition: 100, attitude: 100, resting: 0, teamid: 0,
+        stamina: p.ovr / 10, condition: p.condition ?? 100, attitude: p.morale ?? 100, resting: 0, teamid: 0,
         skin: 2 - Math.min(2, Math.round((p.look?.skin || 0) / 2)) };
       for (const [key, value] of Object.entries(values)) _Yi(player, key, value);
       playerLooks.set(player, p.look || {});

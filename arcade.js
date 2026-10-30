@@ -235,6 +235,9 @@ module.exports = function arcade(app, h) {
   }
 
   // ---------- routes ----------
+  require('./career')(app, h, db => Object.values(db.teams).slice(0, 2).map(t => ({
+    ...bowlTeam(db, null, t.id), id: t.id,
+  })));
   // The supplied runtime has global input handlers, so isolate it in a frame.
   // Inline the scripts to retain Chromebook compatibility (see gameJs above).
   app.get('/play/football', (req, res) => {
@@ -387,7 +390,7 @@ module.exports = function arcade(app, h) {
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
               <p>10 games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
-              <div class="arc-cta"><a class="btn" href="/arcade/bowl">${icon('fire')} Play Modern Bowl</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
+              <div class="arc-cta"><a class="btn" href="/arcade/bowl">${icon('fire')} Play Modern Bowl</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
         <div class="wrap">${req.query.m === 'checkin' ? '<div class="toast">Checked in ✓</div>' : ''}
@@ -420,6 +423,7 @@ module.exports = function arcade(app, h) {
       const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
       res.send(layout(req, G.name, `<div class="wrap arc-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career">Play Franchise / Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
           <div class="arc-modes">${['coins', 'practice'].map((m) => `<label class="mode"><input type="radio" name="mode" value="${m}" ${(m === 'coins' && user) || (m === 'practice' && !user) ? 'checked' : ''} ${m === 'coins' && !user ? 'disabled' : ''}><span>${m === 'coins' ? `${icon('coin')} Play for coins` : `${icon('star')} Practice${id === 'bowl' ? ' / Exhibition' : ''}`}</span></label>`).join('')}</div>
           ${!user ? `<p class="muted sm"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins. Practice is free.</p>` : ''}

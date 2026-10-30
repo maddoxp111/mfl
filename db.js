@@ -338,6 +338,7 @@ async function exportAll() {
   await refresh({ fresh: true });
   const docs = {};
   for (const d of await listDocs('users/')) docs['users/' + d.name] = d;
+  for (const d of await listDocs('careers/')) docs['careers/' + d.owner] = d;
   const media = {};
   for (const k of await listMedia()) { const b = await getMedia(k); if (b) media[k] = b.toString('base64'); }
   return { version: 1, exported: new Date().toISOString(), db, docs, media };

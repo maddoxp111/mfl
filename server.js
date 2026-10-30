@@ -359,6 +359,7 @@ function layout(req, title, body, opts = {}) {
     <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
       <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
     <a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
+    <a class="${on(['/career'])}" href="/career">🏈 Career</a>
     <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
