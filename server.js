@@ -341,10 +341,11 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=36">
+<link rel="stylesheet" href="/static/style.css?v=37">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  ${user ? `<a class="hdr-coins" href="/pickem/me" aria-label="My coins">${icon('coin')}<span data-balance>…</span></a>` : ''}
   <a class="hdr-arc" href="/arcade">🕹️ Arcade</a>
   <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
   <nav class="nav">
@@ -358,27 +359,28 @@ function layout(req, title, body, opts = {}) {
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
     <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
       <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
-    <a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
-    <a class="${on(['/career'])}" href="/career">🏈 Career</a>
-    <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a>
+    <div class="nav-main"><a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
+    <a class="nav-career ${on(['/career'])}" href="/career">🏈 Career</a>
+    <a class="nav-pick ${on(['/pickem'])}" href="/pickem">${icon('coin')} Pick'em</a></div>
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a>`
       : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
     ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}</div>
   </nav>
 </div></header>
+${hypeBanner(db, cur)}
 ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
   <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
-<script>
+${hypeBowl(db) ? hypeBarScript : ''}<script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
 document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
 const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
-// Pages already carry the balance; only the github.io snapshot needs to look it up.
-if(window.MFL_ORIGIN&&document.querySelector('.acct [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'))}).catch(()=>{});
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'))}).catch(()=>{});
 // Start loading a page as soon as a finger or mouse lands on its link.
 if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
 document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
@@ -474,7 +476,7 @@ app.get('/', async (req, res, next) => {
 
   res.send(layout(req, 'Metcalf Football League', `
     <div class="wrap home">
-      ${hero}
+      ${hypeTakeover(db) || hero}
       <a class="arc-promo" href="/arcade"><div class="arc-promo-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
         <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>Play Modern Bowl with your Starting 8</b><span>Plus Chess, 8-Ball Pool, Trivia and 6 more games. Win coins, crank up Risk mode for up to 5×.</span></div>
         <span class="btn">Play now ${icon('arrow')}</span></a>
@@ -615,6 +617,89 @@ const BOWL_THEMES = {
   'spring-bowl': { cls: 'spring', fx: ['🌸', '🌷', '🌼', '🦋'], tag: 'Fresh start, same rivalry' },
   'super-bowl': { cls: 'super', fx: ['🏆', '✨', '🎉', '⭐'], tag: 'Winner takes the season' },
 };
+// Bowl hype: from a week before a bowl until the day after it, the whole site promotes it.
+// (For the Halloween Bowl on Oct 30 that's through Oct 31; it all disappears on Nov 1.)
+function hypeBowl(db) {
+  const d = pk.nowLocal(TZ).slice(0, 10);
+  for (const b of db.bowls) {
+    const g = db.games.find((x) => x.bowl === b.slug);
+    if (!g || !g.date || g.status === 'postponed') continue;
+    if (d >= addDays(g.date, -7) && d <= addDays(g.date, 1)) return { b, g, th: BOWL_THEMES[b.slug] || { cls: 'super', fx: ['⭐'], tag: 'MFL Postseason' } };
+  }
+  return null;
+}
+const hypeState = (g) => (isFinal(g) ? 'final' : kickoffTs(g) <= Date.now() ? 'live' : 'pre');
+function hypeBanner(db, cur) {
+  const h = hypeBowl(db);
+  if (!h || cur === `/playoffs/${h.b.slug}`) return '';
+  const { b, g, th } = h, A = db.teams[g.home], B = db.teams[g.away], st = hypeState(g), wn = winner(g);
+  const msg = st === 'final'
+    ? `${wn ? `<b>${esc(db.teams[wn].name)} win the ${esc(b.name)}!</b>` : `<b>${esc(b.name)} ends in a tie!</b>`}<span>${esc(A.abbr)} ${g.homeScore}–${g.awayScore} ${esc(B.abbr)}</span>`
+    : st === 'live'
+      ? `<b><i class="hb-live"></i>${esc(b.name)} is ON</b><span>${esc(A.abbr)} vs ${esc(B.abbr)} · ${VENUE}</span>`
+      : `<b>${esc(b.name)}</b><span>${esc(A.abbr)} vs ${esc(B.abbr)} · ${g.date === today() ? 'Today' : esc(shortDate(g.date))} ${time12(g.time)} · <span class="hb-cd" data-ts="${kickoffTs(g)}"></span></span>`;
+  return `<a class="hype-bar ${th.cls}" href="/playoffs/${b.slug}"><span class="hb-fx" aria-hidden="true">${th.fx[0]}</span><span class="hb-msg">${msg}</span><span class="hb-go">${st === 'final' ? 'Recap' : 'Pregame show'} ${icon('arrow')}</span></a>`;
+}
+const hypeBarScript = `<script>(()=>{const e=document.querySelector('.hb-cd');if(!e)return;const f=()=>{const s=Math.max(0,Math.floor((+e.dataset.ts-Date.now())/1000));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);e.textContent=s?'kickoff in '+(d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'+(d?'':' '+String(s%60).padStart(2,'0')+'s'):'kickoff!'};f();setInterval(f,1000)})()</script>`;
+
+// Home page takeover card for the bowl being hyped.
+function hypeTakeover(db) {
+  const h = hypeBowl(db);
+  if (!h) return '';
+  const { b, g, th } = h, A = db.teams[g.home], B = db.teams[g.away], st = hypeState(g), wn = winner(g);
+  const fx = Array.from({ length: 12 }, (_, i) => `<i style="left:${(i * 37) % 100}%;animation-delay:-${(i * 1.3) % 8}s;animation-duration:${7 + (i % 4) * 2}s;font-size:${14 + (i % 3) * 8}px">${th.fx[i % th.fx.length]}</i>`).join('');
+  const open = pk.isOpen(db, g, TZ);
+  return `<section class="hype-take bowl-hero ${th.cls}"><div class="bowl-fx" aria-hidden="true">${fx}</div>
+    <div class="ht-in"><div class="kicker">${icon('trophy')} ${st === 'final' ? 'Final' : st === 'live' ? 'Happening now' : g.date === today() ? 'Today' : esc(shortDate(g.date))} · ${esc(th.tag)}</div>
+    <h2 class="ht-title">The ${esc(b.name)}</h2>
+    <div class="bowl-match">${logo(A, 72)}<div class="bowl-mid">${st === 'final' ? `<b>${g.homeScore}–${g.awayScore}</b><small>${wn ? esc(db.teams[wn].abbr) + ' win' : 'Tie'}</small>` : '<b>VS</b>'}</div>${logo(B, 72)}</div>
+    <p class="ht-sub">${st === 'final' ? 'The trophy has been handed out. Relive it all.' : `${esc(A.name)} vs ${esc(B.name)}. One game. Bragging rights until the next bowl.`}</p>
+    ${st === 'pre' ? countdown(g) : ''}
+    <div class="ht-btns"><a class="btn bowl-cta" href="/playoffs/${b.slug}">${st === 'final' ? 'See the recap' : '📺 Watch the pregame show'}</a>${open ? `<a class="btn ghost" href="/pickem">${icon('coin')} Make your picks</a>` : ''}</div></div></section>`;
+}
+
+// Pregame show for a bowl: AI breakdown (if the analyst wrote one) plus numbers that are always there.
+function bowlShow(db, b, g, req) {
+  const A = db.teams[g.home], B = db.teams[g.away];
+  const sA = teamStats(db, A.id), sB = teamStats(db, B.id);
+  const R = ratings(db), top = (t) => R.filter((x) => x.t.id === t.id && !pk.isOut(g, t.id, x.p.id)).slice(0, 3);
+  const open = pk.isOpen(db, g, TZ), m = open ? pk.markets(db, g) : null;
+  const wp = (t) => (m ? Math.round((m.byKey[`ml:${t.id}`]?.p || 0) * 100) : null);
+  const meets = db.games.filter((x) => isFinal(x) && ((x.home === A.id && x.away === B.id) || (x.home === B.id && x.away === A.id)));
+  const winsOf = (t) => meets.filter((x) => winner(x) === t.id).length, ties = meets.filter((x) => !winner(x)).length;
+  const pts = meets.reduce((s, x) => s + x.homeScore + x.awayScore, 0);
+  const S = g.aiBowlShow;
+  const ai = S ? `<div class="card show-ai"><div class="card-h"><h2>📺 ${esc(S.headline)}</h2><span class="muted sm">MFL AI Analyst</span></div>
+      <p class="show-intro">${esc(S.intro)}</p>
+      <div class="show-secs">${S.sections.map((s) => `<div class="show-sec"><h3>${esc(s.title)}</h3><p>${esc(s.body)}</p></div>`).join('')}</div>
+      <div class="show-call"><small>The Analyst's call</small><b>${esc(A.abbr)} ${S.ph} – ${S.pa} ${esc(B.abbr)}</b><span>${esc(S.call)}</span></div></div>`
+    : g.aiPreview ? `<div class="card show-ai"><div class="card-h"><h2>📺 The Analyst's Preview</h2><span class="muted sm">MFL AI Analyst</span></div><p class="show-intro">${esc(g.aiPreview.text)}</p>
+      <div class="show-call"><small>The Analyst's call</small><b>${esc(A.abbr)} ${g.aiPreview.ph} – ${g.aiPreview.pa} ${esc(B.abbr)}</b>${g.aiPreview.why ? `<span>Player to watch: ${esc(g.aiPreview.why)}</span>` : ''}</div></div>` : '';
+  const watch = (t) => `<div class="show-team" style="--a:${esc(t.color)}"><div class="show-th">${logo(t, 30)}<b>${esc(t.name)}: players to watch</b></div>
+    ${top(t).map((x, i) => `<a class="show-pl" href="${playerUrl(t, x.p)}">${avatar(t, x.p, 42)}<div><b>${esc(x.p.name)}</b><small>${i === 0 ? 'Go-to player' : i === 1 ? 'Difference maker' : 'X-factor'}${x.td ? ` · ${x.td} TD` : ''}${x.ptd ? ` · ${x.ptd} pass TD` : ''}</small></div><span class="show-r">${x.r}</span></a>`).join('') || '<p class="muted">Roster TBD.</p>'}</div>`;
+  const per = (n, gp) => (gp ? (n / gp).toFixed(1) : '0.0');
+  const bar = (label, x, y, nx = parseFloat(x) || 0, ny = parseFloat(y) || 0) => { const t = nx + ny || 1; return `<div class="tape-row"><b>${x}</b><div class="tape-bar"><span style="width:${(nx / t) * 100}%;background:${esc(A.color)}"></span><span style="width:${(ny / t) * 100}%;background:${esc(B.color)}"></span><em>${label}</em></div><b>${y}</b></div>`; };
+  return `<div class="show">
+    <div class="show-head"><span class="show-live">● PREGAME SHOW</span><h2>Everything you need before kickoff</h2></div>
+    ${ai}
+    <div class="show-grid">
+      <div class="card"><div class="card-h"><h2>Tale of the Tape</h2></div>
+        <div class="pv-head"><span>${logo(A, 26)} ${esc(A.abbr)}</span><span>${esc(B.abbr)} ${logo(B, 26)}</span></div>
+        ${bar('Wins', sA.w, sB.w)}${bar('Points / game', per(sA.pf, sA.gp), per(sB.pf, sB.gp))}${bar('Touchdowns', sA.td, sB.td)}${bar('Interceptions', sA.int, sB.int)}
+        <div class="tape-row plain"><b>${record(sA)}</b><em>Record</em><b>${record(sB)}</b></div>
+        <div class="tape-row plain"><b>${sA.streak || '–'}</b><em>Streak</em><b>${sB.streak || '–'}</b></div></div>
+      <div class="card"><div class="card-h"><h2>By the Numbers</h2></div><div class="show-nums">
+        <div><b>${meets.length}</b><small>Meetings this season</small></div>
+        <div><b>${winsOf(A)}-${winsOf(B)}${ties ? `-${ties}` : ''}</b><small>Series (${esc(A.abbr)}-${esc(B.abbr)}${ties ? '-T' : ''})</small></div>
+        <div><b>${meets.length ? (pts / meets.length).toFixed(1) : '–'}</b><small>Points per meeting</small></div>
+        <div><b>${m ? `${wp(A)}%` : '–'}</b><small>Pick'em: ${esc(A.abbr)} win chance</small></div></div>
+        ${m ? `<div class="winbar"><div style="width:${wp(A)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${wp(A)}%</span></div><div style="width:${100 - wp(A)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${100 - wp(A)}%</span></div></div>` : ''}</div>
+    </div>
+    <div class="show-grid">${watch(A)}${watch(B)}</div>
+    ${pollCard(db, g, req)}
+    ${open ? `<a class="card show-pick" href="/pickem">${icon('coin')}<div><b>Lock in your ${esc(b.name)} picks</b><span>Winner, player TDs and combos with your MFL coins. Picks lock at kickoff.</span></div>${icon('arrow')}</a>` : ''}
+  </div>`;
+}
 app.get('/playoffs/:slug', (req, res) => {
   const db = load();
   const b = db.bowls.find((x) => x.slug === req.params.slug);
@@ -635,7 +720,7 @@ app.get('/playoffs/:slug', (req, res) => {
     </div></section>
     <div class="wrap">
       ${champ ? `<div class="champ" style="--a:${esc(champ.color)}">${logo(champ, 88)}<div><div class="kicker">${esc(b.name)} Champions</div><h2>${esc(teamFull(champ))}</h2></div></div>` : ''}
-      ${g && isFinal(g) ? recapCard(db, g) : g && g.status !== 'postponed' ? preview(db, g) : ''}
+      ${g && isFinal(g) ? recapCard(db, g) : g && g.status !== 'postponed' ? bowlShow(db, b, g, req) : ''}
       <div class="bowl-grid">
         <div class="card"><div class="card-h"><h2>The Matchup</h2></div>${g ? gameCard(db, g) : ''}</div>
         <div class="card"><div class="card-h"><h2>All Bowls</h2></div><ol class="road">
@@ -1942,6 +2027,19 @@ async function runAI() {
       g2.aiPreview = { hash: hh, text: String(out.preview || ''), ph: Math.max(0, out.predicted_home | 0), pa: Math.max(0, out.predicted_away | 0), watch: keys.has(out.watch_key) ? out.watch_key : null, why: String(out.watch_reason || '').slice(0, 160), at: new Date().toISOString() };
       await save();
     }
+    // 4b. The pregame show for a bowl that's being hyped.
+    { db = load(); const h = hypeBowl(db);
+      if (h && h.g.status === 'scheduled') {
+        const inp = { ...aiPreviewInput(db, h.g), bowl: { name: h.b.name, theme: h.th.tag } }, hh = hashOf(inp);
+        if (h.g.aiBowlShow?.hash !== hh) {
+          const out = await ai.writeBowlShow(inp);
+          const g2 = load().games.find((x) => x.id === h.g.id);
+          if (g2) {
+            g2.aiBowlShow = { hash: hh, headline: String(out.headline || '').slice(0, 120), intro: String(out.intro || ''), sections: (out.sections || []).slice(0, 6).map((x) => ({ title: String(x.title || ''), body: String(x.body || '') })), ph: Math.max(0, out.predicted_home | 0), pa: Math.max(0, out.predicted_away | 0), call: String(out.call || '').slice(0, 240), at: new Date().toISOString() };
+            await save();
+          }
+        }
+      } }
     // 5. Scouting reports, for players whose numbers changed.
     for (const [tid, pid] of Object.values(load().teams).flatMap((t) => t.roster.map((p) => [t.id, p.id]))) {
       db = load();
@@ -3093,7 +3191,7 @@ app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Som
 // AI text written before the no-betting-words rule: clean it once on startup.
 function degambleAI(db) {
   const before = JSON.stringify([db.games, db.midweek, db.teamRecaps, db.teams]);
-  for (const g of db.games) for (const k of ['aiRecap', 'aiPreview']) if (g[k]) g[k] = ai.degamble(g[k]);
+  for (const g of db.games) for (const k of ['aiRecap', 'aiPreview', 'aiBowlShow']) if (g[k]) g[k] = ai.degamble(g[k]);
   if (db.midweek) db.midweek = ai.degamble(db.midweek);
   if (db.teamRecaps) db.teamRecaps = ai.degamble(db.teamRecaps);
   for (const t of Object.values(db.teams)) for (const p of t.roster) if (p.aiScout) p.aiScout = ai.degamble(p.aiScout);

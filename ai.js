@@ -140,6 +140,10 @@ const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game
 You get both teams (records, recent games, power ratings, who is ruled out) and the Pick'em chances. Write a 3-5 sentence preview like a TV pre-game show: the storyline, the matchups to watch, and why it matters. Then predict the final score (multiples of 7 are most likely; ties are possible) and pick one "player to watch" by their key, with a one-line reason. ${KIND}\n\n${COACH_NOTES}`;
 const PREVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['preview', 'predicted_home', 'predicted_away', 'watch_key', 'watch_reason'], properties: { preview: { type: 'string' }, predicted_home: { type: 'integer' }, predicted_away: { type: 'integer' }, watch_key: { type: 'string' }, watch_reason: { type: 'string' } } };
 
+const BOWL_SYSTEM = `You host the big pregame show for a bowl game (a playoff game with a holiday theme) in ${LEAGUE}.
+You get both teams (records, recent games, power ratings with notes, who is ruled out), the bowl's name and theme, and the Pick'em chances. Hype it up like a TV pregame show for the biggest game of the season, with a little fun nod to the bowl's theme. Write a catchy headline, a 2-3 sentence intro, then 4-5 short sections with titles: the big storyline, keys to victory for each team (one section per team, named after the team), the matchup to watch, and an X-factor. Back claims with real numbers and names from the data. Then predict the final score (multiples of 7 are most likely; ties are possible) with a one-sentence reason. ${KIND}\n\n${COACH_NOTES}`;
+const BOWL_SCHEMA = { type: 'object', additionalProperties: false, required: ['headline', 'intro', 'sections', 'predicted_home', 'predicted_away', 'call'], properties: { headline: { type: 'string' }, intro: { type: 'string' }, sections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'body'], properties: { title: { type: 'string' }, body: { type: 'string' } } } }, predicted_home: { type: 'integer' }, predicted_away: { type: 'integer' }, call: { type: 'string' } } };
+
 const SCOUT_SYSTEM = `You write a fun NFL-combine-style scouting report for one player in ${LEAGUE}.
 You get the player's power rating, the commissioner's scouting, bio, position, stats and game history. Write a punchy 3-4 sentence report like a draft analyst, list 2-4 short strengths and 1-2 gentle "areas to grow", and give a fun one-line comparison ("plays like a ..."), keeping the comparison light and positive. ${KIND}`;
 const SCOUT_SCHEMA = { type: 'object', additionalProperties: false, required: ['report', 'strengths', 'grow', 'comparison'], properties: { report: { type: 'string' }, strengths: { type: 'array', items: { type: 'string' } }, grow: { type: 'array', items: { type: 'string' } }, comparison: { type: 'string' } } };
@@ -152,6 +156,7 @@ const MIDWEEK_SYSTEM = `You write "The Midweek Recap", the MFL's weekly newslett
 You get the games in that window (with plays and notes), the power ratings now and the biggest rating movers, Pick'em results, card pack pulls, Survivor status and upcoming games. Write a catchy headline, a 2-3 sentence intro, then 4-6 short sections with titles (for example: Game of the Week, Top Plays, Risers and Fallers, Pick'em Report, Pack Pulls, Survivor Watch, Looking Ahead). Skip sections with nothing to say. ${KIND}`;
 const MIDWEEK_SCHEMA = { type: 'object', additionalProperties: false, required: ['headline', 'intro', 'sections'], properties: { headline: { type: 'string' }, intro: { type: 'string' }, sections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'body'], properties: { title: { type: 'string' }, body: { type: 'string' } } } } } };
 
+const writeBowlShow = (input) => ask(BOWL_SYSTEM, input, BOWL_SCHEMA);
 const writePreview = (input) => ask(PREVIEW_SYSTEM, input, PREVIEW_SCHEMA);
 const writeScouting = (input) => ask(SCOUT_SYSTEM, input, SCOUT_SCHEMA);
 const answerQuestion = (input) => ask(ANALYST_SYSTEM, input, ANALYST_SCHEMA);
@@ -160,4 +165,4 @@ const rateLeague = (input) => ask(RATINGS_SYSTEM, input, RATINGS_SCHEMA);
 const writeTeamRecap = (input) => ask(TEAM_SYSTEM, input, TEAM_SCHEMA);
 const writeRecap = (input) => ask(RECAP_SYSTEM, input, RECAP_SCHEMA);
 
-module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeScouting, answerQuestion, writeMidweek, describeError, degamble };
+module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeBowlShow, writeScouting, answerQuestion, writeMidweek, describeError, degamble };
