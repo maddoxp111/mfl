@@ -33,7 +33,7 @@ async function start(page, options = {}) {
     return { roster: _wi(m._Ln), name: _Ai(_zi(m._Ej, 0), 'name'), difficulty: m._2t, quarter: Object.values(_si(71))[0]._Wy };
   });
   assert.equal(state.roster, 8); assert.equal(state.name, match.data.home.name);
-  assert.equal(state.difficulty, (options.level || 0) + 1); assert.equal(state.quarter, 1);
+  assert.equal(state.difficulty, [2,3,4,4][options.level || 0]); assert.equal(state.quarter, 1);
   // Exercise actual pointer input, rather than calling the kickoff script.
   const canvas = frame.locator('canvas'); const box = await canvas.boundingBox();
   if (options.mobile) {
@@ -47,6 +47,34 @@ async function start(page, options = {}) {
   await runtime.waitForFunction(() => { const m = Object.values(_si(71))[0]; return m._7z || m._Vy !== 0 || m._kp !== 1; }, null, { timeout: 6000 });
   return { runtime, match };
 }
+const defenseSamples = new Map();
+async function sampleDefense(runtime, level) {
+  const sample = await runtime.evaluate(() => {
+    const game = Object.values(_si(71))[0];
+    game._6F = 25; game._t11 = 0; game._kp = 0; _eb1(game,game,false); _Lr(game,game);
+    const defenders = Object.values(_si(75));
+    const back = defenders.find(p => p._O01 === 9);
+    const line = defenders.find(p => p._O01 === 6);
+    if (!back || !line) throw new Error('Native defense formation is missing');
+    // Same airborne pass and starting position at every level: test the native
+    // coverage brain and movement update with the effective difficulty applied.
+    game._kp = 2;
+    const ball = Object.values(_si(77))[0], landing = Object.values(_si(78))[0];
+    ball._kp = 3; landing._w31 = 1260; landing._x31 = 300;
+    back.x = 1200; back.y = 300; back._U81 = 0;
+    back._Da = 0; back._Ea = 0; back._g21 = 0; back._k31 = false;
+    _q7(back,back); _r7(back,back);
+    const sample = { speed: back._j51, strength: back._i51, response: back._o71,
+      closing: Math.hypot(back._Da, back._Ea), rush: line._j51, rushStrength: line._i51 };
+    // Reassigning a new play must not stack the tuning or leave it behind.
+    _Y41(back,back);
+    if (Math.abs(back._j51 - sample.speed) > .000001) throw new Error('Difficulty stacked during skill refresh');
+    return sample;
+  });
+  assert(sample.closing > 0, JSON.stringify(sample));
+  defenseSamples.set(level, sample);
+}
+
 async function end(runtime, score, opp) {
   // Enter the real engine's final-quarter transition with fixture scores. No
   // accelerated run is presented as a full manually played football game.
@@ -140,6 +168,7 @@ async function end(runtime, score, opp) {
 
 
   await page.screenshot({ path: path.join(data, 'desktop.png') });
+  await sampleDefense(run.runtime, 0);
   await end(run.runtime, 21, 7);
   await page.getByRole('heading', { name: 'You win!', exact: true }).waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
@@ -149,6 +178,7 @@ async function end(runtime, score, opp) {
   const phone = await mobile.newPage(); run = await start(phone, { level: 3, mobile: true });
   assert(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await phone.screenshot({ path: path.join(data, 'mobile.png') });
+  await sampleDefense(run.runtime, 3);
   await end(run.runtime, 7, 14);
   await phone.getByRole('heading', { name: 'Game over', exact: true }).waitFor();
   console.log('PASS: 390px mobile layout, Legend difficulty, loss result');
@@ -169,6 +199,7 @@ async function end(runtime, score, opp) {
   const active = JSON.parse(fs.readFileSync(userFile));
   active.arcade.find(m => m.id === run.match.id).at = new Date(Date.now() - 60000).toISOString();
   fs.writeFileSync(userFile, JSON.stringify(active));
+  await sampleDefense(run.runtime, 2);
   const settlement = page.waitForResponse(r => r.url().endsWith('/api/m/finish'));
   await end(run.runtime, 21, 7);
   const result = await (await settlement).json();
@@ -182,9 +213,19 @@ async function end(runtime, score, opp) {
   const bridged = await bridgeContext.newPage();
   await bridged.addInitScript(origin => { window.MFL_API_ORIGIN = origin; }, base);
   run = await start(bridged, { parentBase: `http://localhost:${port}`, level: 1 });
+  await sampleDefense(run.runtime, 1);
   await end(run.runtime, 14, 14);
   await bridged.getByRole('heading', { name: "It's a tie", exact: true }).waitFor();
   console.log('PASS: different parent/runtime origins (Pages bridge), tie result');
+  assert.equal(defenseSamples.size, 4);
+  for (let level=1;level<4;level++) {
+    const easy = defenseSamples.get(level-1), hard = defenseSamples.get(level);
+    for (const field of ['speed','strength','response','closing','rush','rushStrength']) {
+      assert(hard[field] > easy[field], `${field} does not increase: ${JSON.stringify([...defenseSamples])}`);
+    }
+  }
+  console.log('PASS: all four levels increase actual native coverage, closing movement, tackles and pass rush');
+  console.log('Defense samples:', JSON.stringify([...defenseSamples]));
   assert.deepEqual(errors, []);
   console.log('PASS: no JavaScript runtime errors; screenshots in ' + data);
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); server.kill('SIGTERM'); });

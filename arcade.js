@@ -247,6 +247,7 @@ module.exports = function arcade(app, h) {
       .replace('<!-- MFL_QUALITY -->', () => inline('quality.js'))
       .replace('<!-- MFL_APPEARANCE -->', () => inline('appearance.js'))
       .replace('<!-- MFL_RENDERER -->', () => inline('renderer.js'))
+      .replace('<!-- MFL_DIFFICULTY -->', () => inline('difficulty.js'))
       .replace('<!-- MFL_BRIDGE -->', () => inline('bridge.js')));
   });
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);

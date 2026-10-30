@@ -4,6 +4,7 @@
 (function () {
   let session, sent = false;
   const playerLooks = new Map();
+  let difficulty;
   const parentOrigin = document.referrer ? new URL(document.referrer).origin : location.origin;
   const master = () => Object.values(_si(64))[0];
   const send = (type, extra = {}) => parent.postMessage({ type, token: session && session.token, ...extra }, parentOrigin);
@@ -25,7 +26,7 @@
     _Yi(fixture, 'away_score', -1); _Yi(fixture, 'home_score', -1);
     _Yi(fixture, 'human_win', 'unplayed');
     field(m, 'myteam_id', 0); field(m, 'myteam', _zi(m._Ej, 0));
-    field(m, 'op_difficulty', session.level + 1); // easy, medium, hard, extreme
+    field(m, 'op_difficulty', difficulty.native);
     field(m, 'op_matchlength', 0); // the supplied game's two-minute quarters
     field(m, 'year', 2); // enables normal timeouts rather than first-season tutorial restrictions
     field(m, 'intro', 0);
@@ -34,7 +35,7 @@
       _Yi(t, 'name', team.name); _Yi(t, 'tla', team.abbr);
       const rating = team.players?.length ? team.players.reduce((sum, p) => sum + p.ovr, 0) / team.players.length / 10 : 3 + session.level * 2;
       _Yi(t, 'offense', Math.min(10, rating));
-      _Yi(t, 'defense', Math.min(10, rating));
+      _Yi(t, 'defense', Math.min(10, i === 1 ? Math.max(rating, difficulty.defense) : rating));
       _Yi(t, 'roof', 1); // deterministic clear-weather exhibition
     });
     const roster = _4j();
@@ -79,6 +80,7 @@
     if (e.source !== parent || e.origin !== parentOrigin || e.data?.type !== 'mfl-football-start' || session) return;
     session = e.data;
     MFLFootballLooks.install(playerLooks, session.data.home, session.data.away);
+    difficulty = MFLFootballDifficulty.install(session.level);
     // Register the end hook before script methods are bound to GameMaker objects.
     const index = _Y._OU1.indexOf('gml_Script_s_end_match');
     window._1d1 = finish;
