@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=43">
+<link rel="stylesheet" href="/static/style.css?v=44">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -3015,6 +3015,10 @@ app.get('/admin/transactions', requireAdmin, (req, res) => {
         <label>Player<select name="player">${teams.map((t) => `<optgroup label="${esc(t.name)}">${t.roster.map((p) => `<option value="${t.id}|${esc(p.id)}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
         <label>Date<input type="date" name="date" value="${today()}"></label><label>Note<input name="note"></label>
         <div class="actions"><button class="btn ghost danger" onclick="return confirm('Remove this player from the roster?')">Release</button></div></form>
+      <form method="post" class="card form"><div class="card-h"><h2>Fix a roster mistake</h2></div><input type="hidden" name="type" value="fix">
+        <p class="muted sm">Moves a player to the other team without posting a transaction. Use it when someone was put on the wrong team.</p>
+        <label>Player<select name="player">${teams.map((t) => `<optgroup label="${esc(t.name)} → move to ${esc(teams.find((x) => x.id !== t.id)?.name || '')}">${t.roster.map((p) => `<option value="${t.id}|${esc(p.id)}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+        <div class="actions"><button class="btn">Move to the other team</button></div></form>
       <form method="post" class="card form"><div class="card-h"><h2>Other news</h2></div><input type="hidden" name="type" value="note">
         <label>Team (optional)<select name="team"><option value="">—</option>${teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
         <label>What happened<input name="note" required></label><label>Date<input type="date" name="date" value="${today()}"></label>
@@ -3063,6 +3067,12 @@ app.post('/admin/transactions', requireAdmin, async (req, res) => {
     if (i < 0) return fail('Player not found.');
     tx.team = t.id; tx.out = [t.roster[i].name];
     t.roster.splice(i, 1);
+  } else if (b.type === 'fix') {
+    const [tid, pid] = String(b.player || '').split('|');
+    const from = db.teams[tid], to = Object.values(db.teams).find((t) => t.id !== tid);
+    if (!from || !to || !move(from, to, [pid]).length) return fail('Player not found.');
+    await save();
+    return res.redirect('/admin/transactions?saved=1');
   } else if (b.type === 'note') {
     if (!note) return fail('Write what happened.');
     tx.team = db.teams[b.team] ? b.team : null;
