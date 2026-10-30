@@ -6,6 +6,7 @@
   const BASE = document.currentScript.dataset.base || '';
   const JAR = 'mfl_auth';
   window.MFL_ORIGIN = location.origin + BASE;
+  window.MFL_API_ORIGIN = API;
   document.documentElement.classList.add('mfl-loading');
 
   const jar = () => { try { return JSON.parse(localStorage.getItem(JAR)) || {}; } catch { return {}; } };
