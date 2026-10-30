@@ -11,7 +11,7 @@ module.exports = function fun(app, h) {
 
   // ---------- card artwork ----------
   function cardArt(db, c, opts = {}) {
-    const rt = h.ratingOf(db, c.t, c.p);
+    const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
     return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}">
       <div class="mc-glow"></div><div class="mc-shine"></div>
@@ -222,7 +222,7 @@ module.exports = function fun(app, h) {
       res.send(layout(req, 'Packs', pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/packs', name)}${flash(req)}
         ${groups}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
-          <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
+          <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${r === 'doh' ? (100 / cards.DOH_ODDS) : (R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v, i, a) => !v.id.startsWith('spec-') || v.id === 'spec-td').map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
           <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>

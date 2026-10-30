@@ -1903,3 +1903,12 @@ body.arc-playing .ticker{display:none}
 .recap-more.open::after{opacity:0}
 .recap-more p+p{margin-top:12px!important}
 .recap-toggle{margin-top:10px}
+/* Big Doh Mi: Dom's 0.001% card */
+.mcard.r-doh{--rc:#fde047;background:radial-gradient(circle at 50% 30%,rgba(253,224,71,.35),transparent 55%),conic-gradient(from 200deg at 50% 60%,#7c2d12,#b45309,#fde047,#16a34a,#0ea5e9,#7c3aed,#db2777,#7c2d12);color:#fff}
+.mcard.r-doh::before{content:'';position:absolute;inset:0;z-index:-1;padding:3px;border-radius:16px;background:conic-gradient(from 0deg,#fde047,#f97316,#ec4899,#8b5cf6,#22d3ee,#4ade80,#fde047);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 1.6s linear infinite}
+.r-doh .mc-shine{opacity:1;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);background-size:250% 100%;animation:shine 2.4s linear infinite}
+.r-doh .mc-name,.r-doh .mc-var{text-shadow:0 2px 0 #000,0 0 14px #fde047}
+.r-doh .mc-rt{color:#fff;text-shadow:0 0 3px #000,0 2px 0 #000,0 0 14px #fde047}
+.flip.r-doh.on .flip-front{animation:pop 1.6s .5s both}
+.reveal.best-doh{background:radial-gradient(ellipse at center,rgba(253,224,71,.35),transparent 70%)}
+.rar-tag.r-doh{color:#fde047;box-shadow:0 0 14px rgba(253,224,71,.6)}

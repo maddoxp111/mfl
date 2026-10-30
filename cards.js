@@ -11,8 +11,12 @@ const RARITIES = {
   legendary: { name: 'Legend', mult: 2, weight: 90, sell: 150 },
   mythic: { name: 'Mythic', mult: 3, weight: 8, sell: 500 },
   dark: { name: 'Dark Matter', mult: 4, weight: 2, sell: 1500 },
+  // Never rolled by weight: see DOH_ODDS.
+  doh: { name: 'Big Doh Mi', mult: 101, weight: 0, sell: 10000 },
 };
-const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'dark'];
+const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'dark', 'doh'];
+// Big Doh Mi: a 1 in 100,000 (0.001%) shot on every card pulled.
+const DOH_ODDS = 100000;
 
 // Specialist cards score extra on one kind of play.
 const SPECIALTIES = {
@@ -58,11 +62,13 @@ const VARIANTS = [
   { id: 'goat', rarity: 'mythic', label: 'The GOAT 1/1', mult: 3.5, one: true, quote: 'Greatest of all time.' },
   { id: 'mythic', rarity: 'mythic', label: 'Mythic 1/1', one: true },
   { id: 'dark', rarity: 'dark', label: 'Dark Matter 1/1', one: true },
+  // Dom only. 101x = every point he scores comes with 100 extra.
+  { id: 'doh', rarity: 'doh', label: 'Big Doh Mi', mult: 101, rating: 99, only: 'dom-chiodo', quote: 'Every point he scores: +100 more.' },
 ];
 
 // Fantasy points for one player in one game.
-const SCORING = { td: 6, pass: 4, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -3, mvp: 3, win: 2 };
-const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
+const SCORING = { td: 10, pass: 7, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -5, mvp: 3, win: 2 };
+const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown catch or run', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
 const STAT_CAT = { TD: 'td', INT: 'int', CATCH: 'catch', SACK: 'sack', PBU: 'pbu', FLAG: 'flag', PLAY: 'big' };
 
 const LINEUP_SIZE = 8;
@@ -135,7 +141,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, t, p };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, rating: v.rating || null, t, p };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -143,7 +149,7 @@ function catalog(db) {
   const key = JSON.stringify([Object.values(db.teams).map((t) => [t.id, t.tend, t.roster.map((p) => [p.id, p.name, p.tend, p.position, p.grade, p.tag])]), db.games.map((g) => [g.status, g.homeScore, g.awayScore, (g.events || []).length])]);
   if (key !== catKey) {
     const et = pk.effTend(db);
-    catVal = Object.values(db.teams).flatMap((t) => t.roster.flatMap((p) => VARIANTS.map((v) => makeCard(et, t, p, v))));
+    catVal = Object.values(db.teams).flatMap((t) => t.roster.flatMap((p) => VARIANTS.filter((v) => !v.only || v.only === p.id).map((v) => makeCard(et, t, p, v))));
     catMap = new Map(catVal.map((c) => [c.id, c]));
     catKey = key;
   }
@@ -168,6 +174,8 @@ function rollRarity(pool, P = {}, minRarity = 'common') {
   return rs[0];
 }
 function rollCard(pool, P, minRarity) {
+  const doh = pool.find((c) => c.rarity === 'doh');
+  if (doh && rint(DOH_ODDS) === 0) return doh.id;
   const r = rollRarity(pool, P, minRarity) || rollRarity(pool, {}, minRarity) || rollRarity(pool, {});
   const options = pool.filter((c) => c.rarity === r);
   return options[rint(options.length)].id;
@@ -271,4 +279,4 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer };
+module.exports = { DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer };
