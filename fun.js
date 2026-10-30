@@ -86,7 +86,7 @@ module.exports = function fun(app, h) {
         ${pointsBreakdown(acct)}
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
-          ${view === 'all' ? `<p class="muted sm">${all.length} cards: every player has ${cards.VARIANTS.length} versions, from Base to the 1-of-1 Mythic and Dark Matter cards.</p>` : ''}
+          <p class="muted sm"><a href="/pickem/cards/book">${icon('star')} Open the Card Book</a> to see every card, which ones you're missing and which packs drop them.</p>${view === 'all' ? `<p class="muted sm">${all.length} cards: every player has ${cards.VARIANTS.length} versions, from Base to the 1-of-1 Mythic and Dark Matter cards.</p>` : ''}
           <div class="seg mini rfilter">${['all', ...cards.RARITY_ORDER].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
           <div class="mgrid" id="coll">${(view === 'all' ? [...all].sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
             const n = own[c.id] || 0;

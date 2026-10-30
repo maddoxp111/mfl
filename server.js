@@ -346,7 +346,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=55">
+<link rel="stylesheet" href="/static/style.css?v=56">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1066,7 +1066,7 @@ async function loadAccount(db, name) {
 const CARD_PAGES = /^\/pickem\/(cards|packs|trades?|collectors|collection)(\/|$)/;
 function pickNav(cur, name) {
   const items = CARD_PAGES.test(cur)
-    ? [['/pickem/cards', 'My cards'], ['/pickem/packs', 'Packs'], ['/pickem/trades', 'Trades'], ['/pickem/collectors', 'Collectors']]
+    ? [['/pickem/cards', 'My cards'], ['/pickem/cards/book', 'Card Book'], ['/pickem/packs', 'Packs'], ['/pickem/trades', 'Trades'], ['/pickem/collectors', 'Collectors']]
     : [['/pickem', 'Games'], ['/pickem/me', 'My picks'], ['/pickem/survivor', 'Survivor'], ['/pickem/leaderboard', 'Leaderboard'], ['/pickem/rules', 'How it works']];
   return `<div class="seg sec-nav">${items.map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 }
@@ -3220,7 +3220,8 @@ function ratingOf(db, t, p) {
 }
 { const funH = { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pageHead, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf };
   require('./fun')(app, funH);
-  require('./trading')(app, funH); }
+  require('./trading')(app, funH);
+  require('./cardbook')(app, funH); }
 
 arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
 
