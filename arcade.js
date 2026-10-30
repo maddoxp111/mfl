@@ -286,7 +286,8 @@ module.exports = function arcade(app, h) {
       } else if (req.body.game === 'blitz3d') {
         // Your Starting 8 if you have one (QB first), otherwise a real team's lineup.
         const team = bowlTeam(db, user, 'mine') || bowlTeam(db, user, Object.keys(db.teams)[0]);
-        data = { players: (team.players || []).filter(Boolean).map((p) => ({ name: p.name, team: team.name, color: team.color, color2: team.color2, number: p.number || '' })) };
+        const photoOf = (nm) => { for (const t of Object.values(db.teams)) { const x = t.roster.find((r) => r.name === nm); if (x) return x.photo ? '/media/' + x.photo : null; } return null; };
+        data = { players: (team.players || []).filter(Boolean).map((p) => ({ name: p.name, pos: p.pos, team: team.name, color: team.color, color2: team.color2, number: p.num || '', photo: photoOf(p.name), look: p.look || null })) };
       } else if (req.body.game === 'memory') {
         data = { players: Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ name: p.name, team: t.name, color: t.color, color2: t.color2, photo: p.photo ? '/media/' + p.photo : null, number: p.number || '' }))) };
       }
