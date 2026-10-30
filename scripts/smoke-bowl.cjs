@@ -55,7 +55,8 @@ async function sampleDefense(runtime, level) {
     const defenders = Object.values(_si(75));
     const back = defenders.find(p => p._O01 === 9);
     const line = defenders.find(p => p._O01 === 6);
-    if (!back || !line) throw new Error('Native defense formation is missing');
+    const linebacker = defenders.find(p => p._O01 === 7);
+    if (!back || !line || !linebacker) throw new Error('Native defense formation is missing');
     // Same airborne pass and starting position at every level: test the native
     // coverage brain and movement update with the effective difficulty applied.
     game._kp = 2;
@@ -65,7 +66,8 @@ async function sampleDefense(runtime, level) {
     back._Da = 0; back._Ea = 0; back._g21 = 0; back._k31 = false;
     _q7(back,back); _r7(back,back);
     const sample = { speed: back._j51, strength: back._i51, response: back._o71,
-      closing: Math.hypot(back._Da, back._Ea), rush: line._j51, rushStrength: line._i51 };
+      closing: Math.hypot(back._Da, back._Ea), rush: line._j51, rushStrength: line._i51,
+      linebacker: linebacker._j51 };
     // Reassigning a new play must not stack the tuning or leave it behind.
     _Y41(back,back);
     if (Math.abs(back._j51 - sample.speed) > .000001) throw new Error('Difficulty stacked during skill refresh');
@@ -220,11 +222,20 @@ async function end(runtime, score, opp) {
   assert.equal(defenseSamples.size, 4);
   for (let level=1;level<4;level++) {
     const easy = defenseSamples.get(level-1), hard = defenseSamples.get(level);
-    for (const field of ['speed','strength','response','closing','rush','rushStrength']) {
+    for (const field of ['speed','strength','response','closing','rush','rushStrength','linebacker']) {
       assert(hard[field] > easy[field], `${field} does not increase: ${JSON.stringify([...defenseSamples])}`);
     }
   }
+  // Regression ceiling from the prior All-Pro native pass scenario, rather
+  // than merely checking that the four labels differ from one another.
+  const previousAllPro = { speed: .180, strength: 4.75, closing: .15228,
+    rush: .095, rushStrength: 10, linebacker: .145 };
+  for (const [field, previous] of Object.entries(previousAllPro)) {
+    assert(Math.abs(defenseSamples.get(3)[field] / previous - .8) < .000001,
+      `Legend ${field} must be 80% of previous All-Pro: ${JSON.stringify(defenseSamples.get(3))}`);
+  }
   console.log('PASS: all four levels increase actual native coverage, closing movement, tackles and pass rush');
+  console.log('PASS: Legend acceleration, strength and measured closing movement are 80% of previous All-Pro');
   console.log('Defense samples:', JSON.stringify([...defenseSamples]));
   assert.deepEqual(errors, []);
   console.log('PASS: no JavaScript runtime errors; screenshots in ' + data);

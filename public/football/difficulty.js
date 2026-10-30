@@ -2,10 +2,12 @@
 // engine has assigned roles. Raw MFL player/card ratings remain unchanged.
 (function () {
   const profiles = [
-    { native: 2, defense: 5, rush: .065, linebacker: .105, secondary: .140, lineStrength: 6, strength: 2.5, coverage: .60 },
-    { native: 3, defense: 7, rush: .080, linebacker: .125, secondary: .160, lineStrength: 8, strength: 3.5, coverage: .75 },
-    { native: 4, defense: 9, rush: .095, linebacker: .145, secondary: .180, lineStrength: 10, strength: 4.75, coverage: .90 },
-    { native: 4, defense: 10, rush: .110, linebacker: .165, secondary: .200, lineStrength: 12, strength: 6, coverage: 1 },
+    { native: 2, defense: 5, rush: .045, linebacker: .075, secondary: .105, lineStrength: 4, strength: 1.6, coverage: .45 },
+    { native: 3, defense: 7, rush: .055, linebacker: .090, secondary: .118, lineStrength: 5.3, strength: 2.3, coverage: .60 },
+    { native: 4, defense: 9, rush: .065, linebacker: .103, secondary: .131, lineStrength: 6.6, strength: 3.05, coverage: .75 },
+    // Legend is 80% of the previous All-Pro acceleration and strength, with
+    // its .90 coverage commitment: measured pass-closing movement is also 80%.
+    { native: 4, defense: 10, rush: .076, linebacker: .116, secondary: .144, lineStrength: 8, strength: 3.8, coverage: .90 },
   ];
   function install(level) {
     const profile = profiles[Math.max(0, Math.min(3, Math.floor(Number(level) || 0)))];
@@ -14,16 +16,18 @@
       skills(self, other);
       if (self._lT) return;
       const line = self._O01 === 6, linebacker = self._O01 === 7;
-      self._j51 = Math.max(self._j51, line ? profile.rush : linebacker ? profile.linebacker : profile.secondary);
-      self._i51 = Math.max(self._i51, line ? profile.lineStrength : profile.strength);
+      // Set effective attributes, rather than floors: native Extreme values
+      // would otherwise override the reduced settings and keep defense too fast.
+      self._j51 = line ? profile.rush : linebacker ? profile.linebacker : profile.secondary;
+      self._i51 = line ? profile.lineStrength : profile.strength;
     };
-    // The native coverage brain often selects a 0.25–0.5 movement factor even
-    // on Extreme. Give each level a distinct minimum commitment to its target.
+    // Keep native targets and stopping decisions, with a bounded movement
+    // commitment per level so native sprint decisions cannot exceed the tuning.
     const cover = window._381;
     window._381 = function (self, other) {
       cover(self, other);
       if (!self._lT && self._O01 !== 6 && self._o71 > 0) {
-        self._o71 = Math.max(self._o71, profile.coverage);
+        self._o71 = profile.coverage;
       }
     };
     return profile;
