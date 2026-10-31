@@ -651,17 +651,18 @@ function hypeBowl(db) {
   }
   return null;
 }
-const hypeState = (g) => (isFinal(g) ? 'final' : kickoffTs(g) <= Date.now() ? 'live' : 'pre');
+const hypeState = (g) => (isFinal(g) ? 'final' : g.date < today() ? 'wait' : kickoffTs(g) <= Date.now() ? 'live' : 'pre');
 function hypeBanner(db, cur) {
   const h = hypeBowl(db);
   if (!h || cur === `/playoffs/${h.b.slug}`) return '';
   const { b, g, th } = h, A = db.teams[g.home], B = db.teams[g.away], st = hypeState(g), wn = winner(g);
   const msg = st === 'final'
     ? `${wn ? `<b>${esc(db.teams[wn].name)} win the ${esc(b.name)}!</b>` : `<b>${esc(b.name)} ends in a tie!</b>`}<span>${esc(A.abbr)} ${g.homeScore}–${g.awayScore} ${esc(B.abbr)}</span>`
+    : st === 'wait' ? `<b>${esc(b.name)}</b><span>${esc(A.abbr)} vs ${esc(B.abbr)} · Final score coming soon</span>`
     : st === 'live'
       ? `<b><i class="hb-live"></i>${esc(b.name)} is ON</b><span>${esc(A.abbr)} vs ${esc(B.abbr)} · ${VENUE}</span>`
       : `<b>${esc(b.name)}</b><span>${esc(A.abbr)} vs ${esc(B.abbr)} · ${g.date === today() ? 'Today' : esc(shortDate(g.date))} ${time12(g.time)} · <span class="hb-cd" data-ts="${kickoffTs(g)}"></span></span>`;
-  return `<a class="hype-bar ${th.cls}" href="/playoffs/${b.slug}"><span class="hb-fx" aria-hidden="true">${th.fx[0]}</span><span class="hb-msg">${msg}</span><span class="hb-go">${st === 'final' ? 'Recap' : 'Pregame show'} ${icon('arrow')}</span></a>`;
+  return `<a class="hype-bar ${th.cls}" href="/playoffs/${b.slug}"><span class="hb-fx" aria-hidden="true">${th.fx[0]}</span><span class="hb-msg">${msg}</span><span class="hb-go">${st === 'final' ? 'Recap' : st === 'wait' ? 'Matchup' : 'Pregame show'} ${icon('arrow')}</span></a>`;
 }
 const hypeBarScript = `<script>(()=>{const e=document.querySelector('.hb-cd');if(!e)return;const f=()=>{const s=Math.max(0,Math.floor((+e.dataset.ts-Date.now())/1000));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);e.textContent=s?'kickoff in '+(d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'+(d?'':' '+String(s%60).padStart(2,'0')+'s'):'kickoff!'};f();setInterval(f,1000)})()</script>`;
 
@@ -673,7 +674,7 @@ function hypeTakeover(db) {
   const fx = Array.from({ length: 12 }, (_, i) => `<i style="left:${(i * 37) % 100}%;animation-delay:-${(i * 1.3) % 8}s;animation-duration:${7 + (i % 4) * 2}s;font-size:${14 + (i % 3) * 8}px">${th.fx[i % th.fx.length]}</i>`).join('');
   const open = pk.isOpen(db, g, TZ);
   return `<section class="hype-take bowl-hero ${th.cls}"><div class="bowl-fx" aria-hidden="true">${fx}</div>
-    <div class="ht-in"><div class="kicker">${icon('trophy')} ${st === 'final' ? 'Final' : st === 'live' ? 'Happening now' : g.date === today() ? 'Today' : esc(shortDate(g.date))} · ${esc(th.tag)}</div>
+    <div class="ht-in"><div class="kicker">${icon('trophy')} ${st === 'final' ? 'Final' : st === 'wait' ? 'Final score coming soon' : st === 'live' ? 'Happening now' : g.date === today() ? 'Today' : esc(shortDate(g.date))} · ${esc(th.tag)}</div>
     <h2 class="ht-title">The ${esc(b.name)}</h2>
     <div class="bowl-match">${logo(A, 72)}<div class="bowl-mid">${st === 'final' ? `<b>${g.homeScore}–${g.awayScore}</b><small>${wn ? esc(db.teams[wn].abbr) + ' win' : 'Tie'}</small>` : '<b>VS</b>'}</div>${logo(B, 72)}</div>
     <p class="ht-sub">${st === 'final' ? 'The trophy has been handed out. Relive it all.' : `${esc(A.name)} vs ${esc(B.name)}. One game. Bragging rights until the next bowl.`}</p>
@@ -1798,7 +1799,6 @@ function recap(db, g) {
     const throwers = Object.entries(th).sort((x, y) => y[1] - x[1]).map(([n, c]) => `${n} throwing ${c > 1 ? c + ' TDs' : 'one'}`);
     out.push(`For the ${db.teams[tid]?.name}, ${list(scorers)} found the end zone${throwers.length ? `, with ${list(throwers)}` : ''}.`);
   }
-  if (tds[0]?.player) out.push(`${tds[0].player} opened the scoring.`);
   if (ints.length) out.push(`${ints.map((e) => (e.player || 'Someone') + (e.passer ? ` (picking off ${e.passer})` : '')).join(', ')} came up with ${ints.length > 1 ? `${ints.length} interceptions` : 'an interception'} on defense.`);
   const m = gameMvp(db, g);
   if (m) out.push(`${m.name} takes home MVP honors with ${m.line}.`);
