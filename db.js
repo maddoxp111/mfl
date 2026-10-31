@@ -48,7 +48,7 @@ function seed() {
         { name: 'Braxton Iliff-Murphy', tag: 'Rd 1' },
         { name: 'Kamden Doage', tag: 'Rd 2' },
         { name: 'Luka Corrales', tag: 'Rd 3' },
-        { name: 'Wally Barrickman', tag: 'Rd 4' },
+        { name: 'Wally Barickman', tag: 'Rd 4' },
         { name: 'Dom Chiodo', tag: 'FA' },
         { name: 'Kayson Link', tag: 'FA' },
       ],

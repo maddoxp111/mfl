@@ -3250,6 +3250,15 @@ function degambleAI(db) {
   for (const t of Object.values(db.teams)) for (const p of t.roster) if (p.aiScout) p.aiScout = ai.degamble(p.aiScout);
   return before !== JSON.stringify([db.games, db.midweek, db.teamRecaps, db.teams]);
 }
+// Name spelling fixes, applied once on startup everywhere a name appears (rosters, plays,
+// transactions, AI text). Player ids and links stay the same.
+const NAME_FIXES = [['Barrickman', 'Barickman']];
+function fixNames(db) {
+  let json = JSON.stringify(db), changed = false;
+  for (const [from, to] of NAME_FIXES) if (json.includes(from)) { json = json.split(from).join(to); changed = true; }
+  if (changed) { const fixed = JSON.parse(json); for (const k of Object.keys(fixed)) db[k] = fixed[k]; }
+  return changed;
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3265,7 +3274,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db); if (a || b) await save(); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db); if (a || b || c) await save(); }).catch((e) => console.error(e));
   app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.
