@@ -374,7 +374,7 @@ module.exports = function arcade(app, h) {
     </section>`;
   }
   const WAYS = [
-    ['🏈', 'Arcade games', 'Win any of the 10 games. Risk mode multiplies it up to 5×.'],
+    ['🏈', 'Arcade games', 'Win any Arcade game. Risk mode multiplies it up to 5×.'],
     ['✅', 'Daily challenges', 'Three new challenges every day.'],
     ['📍', 'Game-day check-in', `+${CHECKIN} for showing up on game days.`],
     ['🏆', 'Achievements', '+150 for every achievement you unlock.'],

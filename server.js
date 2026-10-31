@@ -308,6 +308,8 @@ function icon(name) {
   return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 }
 
+// "Mon 11/2": short enough for the ticker on phones.
+const tickDate = (d) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(d + 'T12:00:00Z').getUTCDay()]} ${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
 function ticker(db) {
   const t = today();
   const sorted = db.games.filter((g) => g.date).sort((a, b) => a.date.localeCompare(b.date));
@@ -318,7 +320,7 @@ function ticker(db) {
     const a = db.teams[g.home], b = db.teams[g.away], w = winner(g);
     const row = (tm, sc) => `<div class="tk-row ${w && w !== tm.id ? 'dim' : ''}">${logo(tm, 18)}<span>${esc(tm.abbr)}</span><b>${isFinal(g) ? sc : ''}</b></div>`;
     const lbl = gameLabel(db, g);
-    return `<a class="tk ${g.date === t ? 'now' : ''}" href="/games/${g.id}"><div class="tk-top"><span>${esc(g.date === t ? 'Today' : shortDate(g.date))}</span>${statusBadge(g)}</div>${row(a, g.homeScore)}${row(b, g.awayScore)}${lbl ? `<div class="tk-lbl">${esc(lbl)}</div>` : ''}</a>`;
+    return `<a class="tk ${g.date === t ? 'now' : ''}" href="/games/${g.id}"><div class="tk-top"><span>${esc(g.date === t ? 'Today' : tickDate(g.date))}</span>${statusBadge(g)}</div>${row(a, g.homeScore)}${row(b, g.awayScore)}${lbl ? `<div class="tk-lbl">${esc(lbl)}</div>` : ''}</a>`;
   }).join('')}</div></div>`;
 }
 
@@ -347,7 +349,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=57">
+<link rel="stylesheet" href="/static/style.css?v=60">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1549,7 +1551,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Starting 8 earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra cards sell for coins. Spend them on picks or card packs.</p>
       <h3>MFL Cards &amp; the Starting 8</h3><p>Collect cards of every player: ${cards.RARITY_ORDER.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.filter((v) => !v.only).length} different cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter), plus one card nobody has pulled yet: Dom's Big Doh Mi, a 0.001% drop that scores 101×. Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${cards.packTypes(load()).filter((t) => !cards.packInfo(load(), t).free).length} packs to buy with coins. Set a Starting 8 of different players; every game they score fantasy points (TD catch or run ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
-      <h3>MFL Arcade</h3><p>10 games (Modern Bowl, Chess, 8-Ball Pool, Trivia, Checkers, Connect Four, Field Goal Frenzy, QB Bullseye, Flag Pull and Card Memory), each with 4 levels. Winning pays coins; harder levels pay more and Modern Bowl pays the most. <b>Risk mode</b>: put in a third of the prize up front; a win pays 1.5× to 5× the prize (by level), a loss keeps what you put in. Leaving or refreshing mid-game counts as a loss. Each game pays a limited number of wins per day; Practice is always free. Chess, Checkers and Connect Four games are replayed on the server to confirm a win, and Trivia is graded by the server. <a href="/arcade">Play →</a></p>
+      <h3>MFL Arcade</h3><p>11 games (Modern Bowl, 3D Blitz, Chess, 8-Ball Pool, Trivia, Checkers, Connect Four, Field Goal Frenzy, QB Bullseye, Flag Pull and Card Memory), each with 4 levels. Winning pays coins; harder levels pay more and Modern Bowl pays the most. <b>Risk mode</b>: put in a third of the prize up front; a win pays 1.5× to 5× the prize (by level), a loss keeps what you put in. Leaving or refreshing mid-game counts as a loss. Each game pays a limited number of wins per day; Practice is always free. Chess, Checkers and Connect Four games are replayed on the server to confirm a win, and Trivia is graded by the server. <a href="/arcade">Play →</a></p>
       <h3>More ways to earn coins</h3><p>Three daily challenges every day, a game-day check-in (+150 on game days, 11:30 to 2:30), +${ACHIEVEMENT_COINS} for every achievement, a free Arcade Champ Pack for winning 3 Arcade games in a day, plus Pick'em, your Starting 8, Survivor, the daily bonus and selling cards.</p>
       <h3>Starting 8 positions</h3><p>Your Starting 8 has positions: QB, RB, WR1, WR2, WR3, TE and two UTIL. They don't change fantasy points; they decide who does what in Modern Bowl (QB throws, receivers catch, the first UTIL blocks and the second kicks and leads the defense).</p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
