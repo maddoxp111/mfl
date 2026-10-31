@@ -26,7 +26,7 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
-  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'A full 3D football game: 2-minute quarters, running clock, 2 timeouts a half. Beat the CPU team.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 120, maxScore: 105, isNew: true },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: drag to throw, control your catches, 16-play playbook, 2-minute quarters. Plus Franchise mode.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 150, maxScore: 100, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
@@ -484,6 +484,7 @@ module.exports = function arcade(app, h) {
       const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
       res.send(layout(req, G.name, `<div class="wrap arc-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        ${id === 'blitz3d' ? `<a class="card bf-promo" href="/arcade/blitz3d/franchise"><span class="bf-promo-e">🏆</span><div><b>Franchise mode</b><small>Run a program for seasons: 12-team league, playoffs and the Blitz Bowl, recruiting, upgrades and records. 3 save slots.</small></div><span class="btn">Play Franchise ${icon('arrow')}</span></a>` : ''}
         ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career">Play Franchise / Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
           <div class="arc-modes">${['coins', 'practice'].map((m) => `<label class="mode"><input type="radio" name="mode" value="${m}" ${(m === 'coins' && user) || (m === 'practice' && !user) ? 'checked' : ''} ${m === 'coins' && !user ? 'disabled' : ''}><span>${m === 'coins' ? `${icon('coin')} Play for coins` : `${icon('star')} Practice${id === 'bowl' ? ' / Exhibition' : ''}`}</span></label>`).join('')}</div>
