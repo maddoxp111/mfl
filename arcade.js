@@ -413,6 +413,61 @@ module.exports = function arcade(app, h) {
     } catch (e) { next(e); }
   });
 
+  // ---------- 3D Blitz franchise mode ----------
+  // Saves live in docs "blitzfranchise/<user>": { slots: { 1: { meta, data, updated } } }. Franchise
+  // games pay no coins, so the client owns the save; the server only stores it (size-capped).
+  const BF_SLOTS = ['1', '2', '3'], BF_MAX = 600 * 1024;
+  const bfKey = (name) => 'blitzfranchise/' + name;
+  const bfMeta = (m) => (m && typeof m === 'object' ? Object.fromEntries(Object.entries(m).slice(0, 12).map(([k, v]) => [String(k).slice(0, 24), typeof v === 'number' ? v : String(v).slice(0, 80)])) : {});
+  app.get('/arcade/blitz3d/franchise', async (req, res, next) => {
+    try {
+      const db = load();
+      const name = currentUser(req);
+      const { user, acct } = await loadAccount(db, name);
+      // Every real MFL player with ratings, photo and look, for building rosters.
+      const players = Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ ...bowlPlayer(db, t, p, '', null), id: p.id, team: t.id, photo: p.photo ? '/media/' + p.photo : null, tag: p.tag || '' })));
+      const teams = Object.values(db.teams).map((t) => ({ id: t.id, name: t.name, city: t.city, abbr: t.abbr, color: t.color, color2: t.color2 }));
+      const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS };
+      const script = ['arcade', 'blitz3d', 'blitzfranchise'].map((f) => `<script>${gameJs(f)}</script>`).join('');
+      res.send(layout(req, '3D Blitz Franchise', `<div class="wrap arc-page bf-page">
+        <div class="arc-head"><a href="/arcade/blitz3d" class="muted sm">${icon('arrow')} 3D Blitz</a><h1><span>🏟️</span> Franchise</h1><p class="muted">Build a program, play every game, win titles. Franchise games don't pay coins.</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        ${name ? '' : `<p class="muted sm"><a href="/pickem/login?next=/arcade/blitz3d/franchise">Log in</a> to save your franchise to your account (otherwise it saves on this device only).</p>`}
+        <div id="bfRoot"></div></div>
+        <script>window.MFL_FRANCHISE=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>${script}`, { ticker: false }));
+    } catch (e) { next(e); }
+  });
+  app.get('/api/bf/saves', async (req, res) => {
+    const name = currentUser(req);
+    if (!name) return json(res, { ok: false, error: 'Log in to use account saves.' });
+    const doc = (await getDoc(bfKey(name), { fresh: true })) || { slots: {} };
+    json(res, { ok: true, saves: BF_SLOTS.map((slot) => ({ slot, ...(doc.slots[slot] ? { meta: doc.slots[slot].meta, updated: doc.slots[slot].updated } : { empty: true }) })) });
+  });
+  app.get('/api/bf/save/:slot', async (req, res) => {
+    const name = currentUser(req), slot = String(req.params.slot);
+    if (!name || !BF_SLOTS.includes(slot)) return json(res, { ok: false, error: 'Not found.' });
+    const doc = (await getDoc(bfKey(name), { fresh: true })) || { slots: {} };
+    json(res, doc.slots[slot] ? { ok: true, ...doc.slots[slot] } : { ok: false, error: 'Empty slot.' });
+  });
+  app.post('/api/bf/save/:slot', async (req, res) => {
+    const name = currentUser(req), slot = String(req.params.slot);
+    if (!name || !BF_SLOTS.includes(slot)) return json(res, { ok: false, error: 'Log in to save.' });
+    const data = req.body && req.body.data;
+    if (!data || typeof data !== 'object' || JSON.stringify(data).length > BF_MAX) return json(res, { ok: false, error: 'That save is too big or empty.' });
+    const doc = (await getDoc(bfKey(name), { fresh: true })) || { owner: name, slots: {} };
+    doc.owner = name;
+    doc.slots[slot] = { meta: bfMeta(req.body.meta), data, updated: new Date().toISOString() };
+    await putDoc(bfKey(name), doc);
+    json(res, { ok: true, updated: doc.slots[slot].updated });
+  });
+  app.post('/api/bf/delete/:slot', async (req, res) => {
+    const name = currentUser(req), slot = String(req.params.slot);
+    if (!name || !BF_SLOTS.includes(slot)) return json(res, { ok: false });
+    const doc = (await getDoc(bfKey(name), { fresh: true })) || { owner: name, slots: {} };
+    delete doc.slots[slot];
+    await putDoc(bfKey(name), doc);
+    json(res, { ok: true });
+  });
+
   app.get('/arcade/:game', async (req, res, next) => {
     try {
       const id = req.params.game, G = !HIDDEN.has(id) && GAMES[id];

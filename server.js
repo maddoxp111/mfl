@@ -80,7 +80,8 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 const smallJson = express.json({ limit: '100kb' });
-app.use((req, res, next) => (req.path === '/admin/restore' ? next() : smallJson(req, res, next)));
+const saveJson = express.json({ limit: '1mb' }); // 3D Blitz franchise saves
+app.use((req, res, next) => (req.path === '/admin/restore' ? next() : req.path.startsWith('/api/bf/save/') ? saveJson(req, res, next) : smallJson(req, res, next)));
 app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 // Player photos, served from storage (keys are unique per upload, so cache hard).
 app.get('/media/logo/:file', (req, res) => {
