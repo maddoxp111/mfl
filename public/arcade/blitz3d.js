@@ -92,9 +92,9 @@
   // intK / incK: how much a close defender turns a throw into an INT / incompletion.
   const LV = [
     { need: 14, cb: 6.7, lag: 0.62, cush: 7.5, saf: 6.4, safD: 17, react: 0.5, rushD: 3.6, rushV: 5.8, pur: 6.4, stun: 1.15, cd: 1.5, brk: 0.3, intK: 0.22, incK: 0.38 },
-    { need: 21, cb: 7.7, lag: 0.46, cush: 6.5, saf: 7.1, safD: 15, react: 0.38, rushD: 3.0, rushV: 6.7, pur: 8.0, stun: 0.85, cd: 2.2, brk: 0.12, intK: 0.38, incK: 0.48 },
-    { need: 28, cb: 8.15, lag: 0.33, cush: 5.5, saf: 7.7, safD: 13.5, react: 0.27, rushD: 2.5, rushV: 7.5, pur: 8.3, stun: 0.65, cd: 2.8, brk: 0.05, intK: 0.55, incK: 0.55 },
-    { need: 28, cb: 8.5, lag: 0.21, cush: 4.5, saf: 8.2, safD: 12, react: 0.16, rushD: 2.0, rushV: 8.2, pur: 8.55, stun: 0.5, cd: 3.2, brk: 0, intK: 0.65, incK: 0.6 },
+    { need: 21, cb: 7.7, lag: 0.46, cush: 6.5, saf: 7.1, safD: 15, react: 0.38, rushD: 2.8, rushV: 6.8, pur: 8.15, stun: 0.8, cd: 2.3, brk: 0.08, intK: 0.38, incK: 0.48 },
+    { need: 21, cb: 8.15, lag: 0.33, cush: 5.5, saf: 7.7, safD: 13.5, react: 0.27, rushD: 2.5, rushV: 7.5, pur: 8.2, stun: 0.65, cd: 2.8, brk: 0.05, intK: 0.55, incK: 0.55 },
+    { need: 21, cb: 8.5, lag: 0.21, cush: 4.5, saf: 8.2, safD: 12, react: 0.16, rushD: 2.0, rushV: 8.2, pur: 8.4, stun: 0.5, cd: 3.2, brk: 0, intK: 0.5, incK: 0.6 },
   ];
   const CLOCK = 120, WR_V = 8, RUN_V = 8.4, JUKE_V = 12.5, JUKE_T = 0.38, HW = 26.65, TACKLE_R = 0.95, BALL_V = 21, PEN = 5;
   const PLAYS = [
@@ -134,6 +134,7 @@
       P[i * 3 + 2] = m[8] * lx + m[9] * ly + m[10] * lz + m[11];
     }
     for (let f = 0; f < 6; f++) {
+      if (f === 3 && this.nb) continue; // bottom faces are never seen on moving figures
       const F = BOXF[f], ax = F[0], sg = F[1];
       const nx = m[ax] * sg, ny = m[4 + ax] * sg, nz = m[8 + ax] * sg;
       const a = F[2] * 3, b = F[3] * 3, d = F[4] * 3, e = F[5] * 3;
@@ -614,7 +615,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         qb.armT = 0.35; qb.h = Math.atan2(p.x - qb.x, p.z - qb.z);
         phase = 'air'; airT = 0;
         ctx.sound('kick');
-        setControls(); ctlMsg(`Ball's in the air to <b>${esc(shortName(NAMES[i + 1]))}</b>…`);
+        setControls(); ctlMsg(`<span>Ball's in the air to <b>${esc(shortName(NAMES[i + 1]))}</b>…</span>`);
       }
       function juke() {
         if (phase !== 'run' || !carrier || jukeCd > 0 || carrier.fall > 0) return;
@@ -631,7 +632,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         let fooled = 0;
         for (const d of def) if (Math.hypot(d.x - carrier.x, d.z - carrier.z) < 3.4 && d.stun <= 0) { d.stun = L.stun; fooled++; }
         ctx.sound(fooled ? 'good' : 'tap');
-        if (fooled) { const s = project(carrier.x, 2.9, carrier.z); if (s) pop(fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED!', '#2bd46b', s[0], s[1]); }
+        if (fooled) { const s = project(carrier.x, 1.1, carrier.z); if (s) pop(fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED!', '#2bd46b', s[0], s[1]); }
       }
       function moveDir() {
         if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.25) { const l = Math.hypot(input.stick[0], input.stick[1]); return [input.stick[0] / l, input.stick[1] / l]; }
@@ -673,7 +674,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         pend = nx; deadTot = deadT;
         if (closeP) { closeP.hold = true; deadT += 0.4; deadTot = deadT; }
         banner(head, sub, col);
-        setControls(); ctlMsg(closeP ? `<b>${esc(NAMES[closeP.i + 1])}</b> ${kind === 'td' ? 'takes it to the house!' : 'moves the chains!'}` : 'Next play coming up…');
+        setControls(); ctlMsg(closeP ? `<span><b>${esc(NAMES[closeP.i + 1])}</b> ${kind === 'td' ? 'takes it to the house!' : 'moves the chains!'}</span>` : 'Next play coming up…');
         lastSpot = los;
       }
       function nextPlay() {
@@ -832,7 +833,6 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         const [nd, d] = nearestDef(r.x, r.z);
         r.vx = posAt(r.R, tPlay).vx; r.vz = posAt(r.R, tPlay).vz;
         if (Math.abs(r.x) > HW) { ball = { mode: 'loose', x: b.tx, y: 1.4, z: b.tz, vx: (b.tx - b.fx) / b.T * 0.4, vy: 1, vz: (b.tz - b.fz) / b.T * 0.4 }; endPlay('inc', 0, 'Out of bounds'); return; }
-        if (DBG) (DBG.log = DBG.log || []).push({ t: +tPlay.toFixed(2), tgt: b.target, sep0: +b.sep0.toFixed(1), d: +d.toFixed(1), D: Math.round(b.D), play: playIdx });
         const x = clamp(Math.max(d, b.sep0 * 0.6) / 2.6, 0, 1); // how open he was at the throw still counts
         const pInt = (1 - x) * (1 - x) * L.intK;
         const pInc = (1 - x) * L.incK + (pressured ? 0.15 : 0) + Math.max(0, b.D - 28) * 0.012 * (1 + lvl * 0.7);
@@ -889,7 +889,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           if (dist < TACKLE_R + lvl * 0.08 && jukeT <= 0 && c.fall <= 0) {
             if (!d.tried && rng() < L.brk) {
               d.tried = 1; d.stun = 1.1; ctx.sound('good');
-              const s = project(c.x, 2.9, c.z); if (s) pop('BROKE IT!', '#2bd46b', s[0], s[1]);
+              const s = project(c.x, 1.1, c.z); if (s) pop('BROKE IT!', '#2bd46b', s[0], s[1]);
             } else {
               c.fallT = 1; d.fallT = 1; d.vx = d.vz = 0; c.vx *= 0.3; c.vz *= 0.3;
               endPlay('tackle', c.z); return;
@@ -907,7 +907,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         let rate = phase === 'run' ? 6 : 3.2;
         if (closeP && phase === 'dead' && deadTot - deadT > 0.35) {
           const q = closeP, hh = 2.05 * SC * q.lk.hs;
-          e = [q.x + 0.55, hh + 0.35, q.z + 3.0]; c = [q.x, hh - 0.08, q.z]; rate = 4;
+          e = [q.x + 0.6, hh + 0.55, q.z + 3.7]; c = [q.x, hh - 0.25, q.z]; rate = 4;
         } else if (phase === 'pre' && introT > 0) {
           const hh = 2.05 * SC * qb.lk.hs;
           e = [0.45, hh + 0.3, los - 1.75]; c = [0, hh - 0.05, los - 4.5];
@@ -950,6 +950,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
 
       // ---------- drawing ----------
       const dyn = new Batch(16000), tr = new Batch(3000), fb = new Batch(400);
+      dyn.nb = true;
       // textured quad facing local +z (dir 1) or local ±x (dir 2/-2), centered at (cx,cy,cz), uv from an atlas cell
       function tquad(m, cx, cy, cz, w, h, dir, cell) {
         const [u0, v0, u1, v1] = cellUV(cell), hw = w / 2, hh = h / 2;
@@ -965,7 +966,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         const C = p.team ? DEFC : OFFC, lk = p.lk, s = SC * lk.hs, wx = p.w || 1, skin = SKIN[lk.skin];
         const sp = Math.hypot(p.vx, p.vz), amp = p.fall > 0 ? 0 : Math.min(1, sp / 5.5);
         const sw = Math.sin(p.ph) * 0.95 * amp;
-        const jump = p.cel > 0 ? Math.abs(Math.sin(p.cel * 7)) * 0.7 : 0;
+        const jump = p.cel > 0 ? Math.abs(Math.sin(p.cel * 7)) * 0.4 : 0;
         let m = mT(IDM, p.x, (p.y || 0) + jump + p.fall * 0.15, p.z);
         m = mRY(m, p.h + (p === carrier && jukeT > 0 ? Math.sin((p.spin || 0)) * 0.6 : 0));
         const stance = phase === 'pre' && (p.role === 'ol' || p.role === 'dl' || p.role === 'rush') ? 0.5 : phase === 'pre' ? (p.role === 'qb' ? 0.08 : 0.25) : 0;
@@ -1040,7 +1041,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
             const p = ball.p, f = p.fall;
             const hx = Math.sin(p.h), hz = Math.cos(p.h);
             if (p.role === 'qb' && phase === 'pass') drawBall(dyn, p.x + hz * 0.45 - hx * 0.1, 2.05, p.z - hx * 0.45 - hz * 0.1, p.h, -0.5);
-            else drawBall(dyn, p.x + hx * (0.32 + f * 0.8) - hz * 0.25, 1.35 - f * 0.9 + (p.cel > 0 ? Math.abs(Math.sin(p.cel * 7)) * 0.7 : 0), p.z + hz * (0.32 + f * 0.8) + hx * 0.25, p.h, 0.3);
+            else drawBall(dyn, p.x + hx * (0.32 + f * 0.8) - hz * 0.25, 1.35 - f * 0.9 + (p.cel > 0 ? Math.abs(Math.sin(p.cel * 7)) * 0.4 : 0), p.z + hz * (0.32 + f * 0.8) + hx * 0.25, p.h, 0.3);
           } else if (ball.mode === 'air') {
             const b = ball, u = Math.min(1, b.t / b.T), dy = (b.ty - b.fy) + 4 * b.hgt * (1 - 2 * u), hl = Math.hypot(b.tx - b.fx, b.tz - b.fz);
             drawBall(dyn, b.x, b.y, b.z, Math.atan2(b.tx - b.fx, b.tz - b.fz), -Math.atan2(dy, hl));

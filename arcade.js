@@ -26,11 +26,11 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
-  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football. Throw, juke and score before the clock runs out.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 60, maxScore: 140, need: [14, 21, 28, 35], isNew: true },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football. Throw, juke and score before the clock runs out.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 130, maxScore: 105, need: [14, 21, 21, 21], isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
-const HIDDEN = new Set(['blitz3d']);
+const HIDDEN = new Set();
 const ORDER = ['bowl', 'blitz3d', 'chess', 'pool', 'trivia', 'checkers', 'connect4', 'fieldgoal', 'bullseye', 'flagpull', 'memory'].filter((g) => !HIDDEN.has(g));
 const CPU_TEAMS = [
   { name: 'JV Squad', abbr: 'JV', color: '#64748b', color2: '#e2e8f0' },
