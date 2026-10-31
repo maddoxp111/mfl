@@ -66,6 +66,99 @@ const VARIANTS = [
   { id: 'doh', rarity: 'doh', label: 'Big Doh Mi', mult: 101, rating: 99, only: 'dom-chiodo', quote: 'Every point he scores: +100 more.' },
 ];
 
+// ---------- card sets ----------
+// 54 themed sets in 9 series. Every player has 5 parallels in every set (Base, Silver, Gold,
+// Prism, Black), so the sets add 54 × 5 × roster size cards. Set cards only drop from set packs.
+// Each set: [id, name, emoji, color1, color2, pattern 0-9, photo style, quote]
+const SERIES = [
+  ['school', 'School Days', [
+    ['picture-day', 'Picture Day', '📸', '#38bdf8', '#0c4a6e', 1, 'fade', 'Say cheese!'],
+    ['hall-pass', 'Hall Pass', '🎫', '#facc15', '#713f12', 4, 'frame', 'Just going to the water fountain.'],
+    ['gym-class', 'Gym Class', '🏃', '#f97316', '#431407', 0, 'banner', 'Dodgeball champion.'],
+    ['science-fair', 'Science Fair', '🧪', '#4ade80', '#052e16', 5, 'tv', 'Hypothesis: we win.'],
+    ['library', 'Library Hush', '📚', '#a78bfa', '#2e1065', 8, 'polaroid', 'Shhh. Playbook study.'],
+    ['bus-ride', 'Bus Ride', '🚌', '#fbbf24', '#3f2a05', 7, 'banner', 'Back seat legend.'],
+  ]],
+  ['spirit', 'Spirit Week', [
+    ['pajama-day', 'Pajama Day', '🛌', '#f9a8d4', '#500724', 1, 'fade', 'Slippers on, game face on.'],
+    ['crazy-hair', 'Crazy Hair Day', '🤪', '#22d3ee', '#164e63', 3, 'full', 'Helmet barely fits.'],
+    ['twin-day', 'Twin Day', '👯', '#c084fc', '#3b0764', 6, 'duo', 'Double trouble.'],
+    ['pep-rally', 'Pep Rally', '📣', '#ef4444', '#450a0a', 3, 'banner', 'LOUDER!'],
+    ['homecoming', 'Homecoming', '👑', '#fde68a', '#78350f', 9, 'full', 'Crowned on the field.'],
+    ['color-war', 'Color War', '🎨', '#34d399', '#4c1d95', 2, 'fade', 'Pick a side.'],
+  ]],
+  ['bowls', 'Bowl Season', [
+    ['halloween', 'Halloween Bowl', '🎃', '#fb923c', '#1c1917', 6, 'full', 'Spooky good.'],
+    ['turkey', 'Turkey Bowl', '🦃', '#d97706', '#431407', 0, 'banner', 'Thankful for touchdowns.'],
+    ['christmas', 'Christmas Bowl', '🎄', '#22c55e', '#7f1d1d', 1, 'polaroid', 'Wrapped up a win.'],
+    ['spring', 'Spring Bowl', '🌸', '#f472b6', '#14532d', 9, 'fade', 'Fresh start.'],
+    ['super', 'Super Bowl', '🏆', '#fde047', '#1e1b4b', 3, 'full', 'Winner takes the season.'],
+    ['new-year', "New Year's Bowl", '🎆', '#e0e7ff', '#0f172a', 5, 'duo', 'Midnight magic.'],
+  ]],
+  ['wild', 'Wild World', [
+    ['galaxy', 'Galaxy', '🌌', '#818cf8', '#020617', 1, 'full', 'Out of this world.'],
+    ['ocean', 'Deep Ocean', '🌊', '#06b6d4', '#082f49', 6, 'fade', 'Making waves.'],
+    ['jungle', 'Jungle', '🌴', '#84cc16', '#052e16', 8, 'banner', 'King of the jungle.'],
+    ['volcano', 'Volcano', '🌋', '#f97316', '#1c0a00', 3, 'full', 'Erupts every snap.'],
+    ['arctic', 'Arctic', '🧊', '#e0f2fe', '#0c4a6e', 4, 'duo', 'Ice in his veins.'],
+    ['desert', 'Desert Storm', '🏜️', '#fcd34d', '#78350f', 7, 'polaroid', 'Hot hands.'],
+  ]],
+  ['art', 'Art Class', [
+    ['chalkboard', 'Chalkboard', '🖍️', '#d1fae5', '#1f3d2b', 4, 'frame', 'X\'s and O\'s.'],
+    ['blueprint', 'Blueprint', '📐', '#93c5fd', '#1e3a8a', 4, 'duo', 'Built by design.'],
+    ['comic', 'Comic Book', '💥', '#facc15', '#991b1b', 1, 'banner', 'KA-POW!'],
+    ['graffiti', 'Graffiti', '🎨', '#e879f9', '#1e1b4b', 2, 'full', 'Tagged it.'],
+    ['stained-glass', 'Stained Glass', '⛪', '#f59e0b', '#1e3a8a', 8, 'fade', 'A work of art.'],
+    ['origami', 'Origami', '🦢', '#fda4af', '#4c0519', 2, 'polaroid', 'Folds defenders.'],
+  ]],
+  ['arcade', 'Arcade', [
+    ['neon', 'Neon Nights', '🌃', '#f0abfc', '#0b0118', 0, 'full', 'Glows in the dark.'],
+    ['pixel-plus', 'Pixel Pro', '👾', '#4ade80', '#020617', 4, 'tv', 'Press start.'],
+    ['high-score', 'High Score', '🕹️', '#fde047', '#1e1b4b', 5, 'tv', 'New record!'],
+    ['circuit', 'Circuit Board', '🔌', '#34d399', '#022c22', 4, 'duo', 'Wired to win.'],
+    ['hologram', 'Hologram', '💠', '#67e8f9', '#083344', 9, 'fade', 'Now you see him.'],
+    ['vhs', 'VHS Tape', '📼', '#fca5a5', '#1c1917', 7, 'tv', 'Be kind, rewind.'],
+  ]],
+  ['weather', 'Weather Report', [
+    ['thunder', 'Thunderstruck', '⚡', '#fde047', '#1e293b', 3, 'full', 'Lightning fast.'],
+    ['rainy-day', 'Rainy Day', '🌧️', '#94a3b8', '#0f172a', 0, 'duo', 'Mud game.'],
+    ['sunshine', 'Sunshine', '☀️', '#fde68a', '#c2410c', 3, 'fade', 'Bright future.'],
+    ['tornado', 'Tornado', '🌪️', '#cbd5e1', '#334155', 5, 'banner', 'Spins out of tackles.'],
+    ['rainbow', 'Rainbow', '🌈', '#f472b6', '#2563eb', 9, 'full', 'Pot of gold.'],
+    ['blizzard', 'Blizzard', '❄️', '#f0f9ff', '#1e40af', 1, 'polaroid', 'Snowed in. Still scored.'],
+  ]],
+  ['snacks', 'Snack Attack', [
+    ['cereal', 'Cereal Box', '🥣', '#fb7185', '#7c2d12', 1, 'banner', 'Part of a winning breakfast.'],
+    ['nachos', 'Nacho Day', '🧀', '#facc15', '#7c2d12', 2, 'polaroid', 'Extra cheesy.'],
+    ['donut', 'Donut Run', '🍩', '#f9a8d4', '#831843', 5, 'fade', 'Sweet moves.'],
+    ['hot-sauce', 'Hot Sauce', '🌶️', '#ef4444', '#450a0a', 3, 'full', 'Too spicy to tackle.'],
+    ['popcorn', 'Popcorn', '🍿', '#fef3c7', '#991b1b', 0, 'frame', 'Movie star.'],
+    ['smoothie', 'Smoothie', '🥤', '#a3e635', '#701a75', 6, 'duo', 'Blended to perfection.'],
+  ]],
+  ['legends', 'MFL Legends', [
+    ['highlight', 'Highlight Reel', '🎬', '#f8fafc', '#18181b', 7, 'full', 'Top 10 play.'],
+    ['film-room', 'Film Room', '🎞️', '#d4d4d8', '#27272a', 4, 'tv', 'Studied every snap.'],
+    ['playbook', 'Playbook', '📋', '#bbf7d0', '#14532d', 4, 'frame', 'Drawn up in the dirt.'],
+    ['captains', 'Captains Club', '🎖️', '#fbbf24', '#1e3a8a', 9, 'banner', 'Leads by example.'],
+    ['all-mfl', 'All-MFL', '🌟', '#fde047', '#7f1d1d', 3, 'full', 'First team, all league.'],
+    ['hall-of-fame', 'Hall of Fame', '🏛️', '#fef3c7', '#422006', 8, 'fade', 'Forever MFL.'],
+  ]],
+];
+// Parallels: every set card comes in these five.
+const PARALLELS = [
+  { id: 'base', label: '', rarity: 'common', mult: 1.05 },
+  { id: 'silver', label: 'Silver', rarity: 'rare', mult: 1.3 },
+  { id: 'gold', label: 'Gold', rarity: 'epic', mult: 1.6 },
+  { id: 'prism', label: 'Prism', rarity: 'legendary', mult: 2.1 },
+  { id: 'black', label: 'Black', rarity: 'mythic', mult: 2.8 },
+];
+const SETS = SERIES.flatMap(([series, seriesName, sets]) => sets.map(([id, name, emoji, c1, c2, pat, photo, quote]) => ({ id, name, emoji, c1, c2, pat, photo, quote, series, seriesName })));
+const SET_MAP = new Map(SETS.map((x) => [x.id, x]));
+for (const st of SETS) for (const par of PARALLELS) {
+  VARIANTS.push({ id: `set-${st.id}-${par.id}`, rarity: par.rarity, label: par.label ? `${st.name} ${par.label}` : st.name, mult: par.mult, quote: st.quote, set: st.id, par: par.id });
+}
+const isSetCard = (c) => !!c.set;
+
 // Fantasy points for one player in one game.
 const SCORING = { td: 10, pass: 7, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -5, mvp: 3, win: 2 };
 const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown catch or run', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
@@ -107,9 +200,21 @@ const PACKS = {
   hunt: { name: 'Mythic Hunt', cards: 1, cost: 900, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the usual Mythic and Dark Matter drop rate.' },
   void: { name: 'Dark Matter Pack', cards: 1, cost: 4000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 6, dark: 30 }, desc: 'One Legend or better. About a 1 in 3 shot at Dark Matter.' },
 };
+// Set packs: one per series, plus packs across every set.
+const SET_COLORS = { school: ['#0369a1', '#0c2133'], spirit: ['#be185d', '#2a0717'], bowls: ['#b45309', '#1c1105'], wild: ['#4338ca', '#0b0a24'], art: ['#0f766e', '#04201d'], arcade: ['#7e22ce', '#13041f'], weather: ['#475569', '#0b1220'], snacks: ['#dc2626', '#2a0606'], legends: ['#a16207', '#1a1203'] };
+for (const [series, seriesName, sets] of SERIES) {
+  PACKS['series-' + series] = { name: `${seriesName} Pack`, cards: 4, cost: 220, group: 'sets', sets: true, colors: SET_COLORS[series], pool: (c) => SET_MAP.get(c.set)?.series === series, desc: `4 cards from the ${seriesName} sets: ${sets.map((x) => x[1]).join(', ')}.` };
+}
+Object.assign(PACKS, {
+  'set-hunter': { name: 'Set Hunter Pack', cards: 6, cost: 380, group: 'sets', sets: true, colors: ['#0e7490', '#05161c'], desc: '6 cards from any of the 54 card sets.' },
+  'set-gold': { name: 'Golden Ticket', cards: 3, cost: 700, group: 'sets', sets: true, min: 'epic', mins: 2, colors: ['#ca8a04', '#1f1503'], desc: '3 set cards with two Gold or better guaranteed.' },
+  'set-prism': { name: 'Prism Chase', cards: 1, cost: 1100, group: 'sets', sets: true, boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 4 }, colors: ['#db2777', '#1e1b4b'], desc: 'One Prism or Black set card. About 1 in 4 is Black.' },
+  'set-black': { name: 'Black Label', cards: 1, cost: 3200, group: 'sets', sets: true, pool: (c) => c.par === 'black', colors: ['#18181b', '#000000'], desc: 'One guaranteed Black parallel from any set.' },
+});
+
 // One pack per team: only that team's cards.
 const TEAM_PACK = { cards: 3, cost: 140, group: 'team' };
-const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300];
+const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
 function packInfo(db, type) {
   if (PACKS[type]) return PACKS[type];
   const m = /^team-(.+)$/.exec(type || '');
@@ -141,7 +246,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, rating: v.rating || null, t, p };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, rating: v.rating || null, set: v.set || null, par: v.par || null, t, p };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -189,7 +294,7 @@ function openPack(db, type, taken = new Set()) {
     for (let i = players.length - 1; i > 0; i--) { const j = rint(i + 1); [players[i], players[j]] = [players[j], players[i]]; }
     return players.slice(0, P.cards).map((pid) => `${pid}:base`);
   }
-  let pool = catalog(db).filter((c) => !taken.has(c.id));
+  let pool = catalog(db).filter((c) => !taken.has(c.id) && (P.sets ? c.set : !c.set));
   if (P.pool) { const f = pool.filter(P.pool); if (f.length) pool = f; }
   const out = [];
   const n = P.mystery ? P.mystery[0] + rint(P.mystery[1] - P.mystery[0] + 1) : P.cards;
@@ -280,4 +385,4 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer };
+module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer };

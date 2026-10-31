@@ -24,14 +24,17 @@ module.exports = function fun(app, h) {
     const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
     // Each kind of card (Base, Holo, Gold...) has its own pattern, photo frame and hue; every card of that kind matches.
+    // Set cards look like their set (colors, pattern, photo style) with a parallel finish on top.
     const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
+    const st = c.set && cards.SET_MAP.get(c.set), si = st ? cards.SETS.indexOf(st) : 0;
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
-    return `<div class="mcard r-${c.rarity} v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${(vi * 53) % 360}deg">
+    const look = st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`;
+    return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
-      <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : esc(c.label)}</div>
+      <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
       ${spec ? `<div class="mc-spec">${esc(spec.desc)}</div>` : c.quote ? `<div class="mc-spec mc-q">“${esc(c.quote)}”${c.flat ? ` +${c.flat}/game` : ''}</div>` : ''}
       <div class="mc-foot"><span class="mc-rar">${esc(c.rarityName)}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
     </div>`;
@@ -86,9 +89,9 @@ module.exports = function fun(app, h) {
         ${pointsBreakdown(acct)}
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
-          <p class="muted sm"><a href="/pickem/cards/book">${icon('star')} Open the Card Book</a> to see every card, which ones you're missing and which packs drop them.</p>${view === 'all' ? `<p class="muted sm">${all.length} cards: every player has ${cards.VARIANTS.length} versions, from Base to the 1-of-1 Mythic and Dark Matter cards.</p>` : ''}
+          <p class="muted sm"><a href="/pickem/cards/book">${icon('star')} Open the Card Book</a> to see every card, which ones you're missing and which packs drop them.</p>${view === 'all' ? `<p class="muted sm">Showing the ${all.filter((c) => !c.set).length} classic cards. The ${all.filter((c) => c.set).length.toLocaleString('en-US')} card-set cards are in the <a href="/pickem/cards/book?tab=sets">Card Book</a>.</p>` : ''}
           <div class="seg mini rfilter">${['all', ...cards.RARITY_ORDER].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
-          <div class="mgrid" id="coll">${(view === 'all' ? [...all].sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
+          <div class="mgrid" id="coll">${(view === 'all' ? all.filter((c) => !c.set).sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
             const n = own[c.id] || 0;
             const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} coins</button></form>` : '';
             return `<div class="mcell ${n ? 'owned' : 'missing'}">${cardArt(db, c, { small: true, count: n, cls: n ? 'pickable' : '', fit: n ? fit(c) : null })}${sell}</div>`;
@@ -185,7 +188,7 @@ module.exports = function fun(app, h) {
     const users = await h.listDocs('users/');
     return users.flatMap((u) => (u.packs || []).flatMap((p) => p.cards.map((id) => ({ u: u.name, id, at: p.at })))).filter((x) => cards.RARITY_ORDER.indexOf(cards.cardInfo(db, x.id)?.rarity) >= 3).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10);
   }
-  const GROUPS = [['free', 'Free packs', 'Claim these. They refill.'], ['core', 'Packs', 'Any card in the league can drop.'], ['fun', 'Fun packs', 'The weird and wonderful cards.'], ['theme', 'Themed packs', 'Only certain kinds of cards.'], ['team', 'Team packs', "Only one team's players."], ['chase', 'Chase packs', 'Expensive. Built for the rarest cards.']];
+  const GROUPS = [['free', 'Free packs', 'Claim these. They refill.'], ['core', 'Packs', 'Any card in the league can drop.'], ['fun', 'Fun packs', 'The weird and wonderful cards.'], ['theme', 'Themed packs', 'Only certain kinds of cards.'], ['team', 'Team packs', "Only one team's players."], ['sets', 'Card Set packs', `${cards.SETS.length} themed sets, 5 versions of every player in each. Set cards only come from these packs.`], ['chase', 'Chase packs', 'Expensive. Built for the rarest cards.']];
   // Where a user's coins came from: picks and the card game are one currency.
   function pointsBreakdown(acct) {
     const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US'), sg = (n) => (n >= 0 ? '+' : '−') + f(Math.abs(n));
@@ -218,7 +221,7 @@ module.exports = function fun(app, h) {
         const P = cards.packInfo(db, type), can = opts.free ? true : P.cost <= bal;
         const t = P.team && db.teams[P.team];
         return `<form method="post" action="/pickem/packs/open" class="pack pk-${P.team ? 'team' : type}" ${t ? `style="--c:${esc(t.color)};--c2:${esc(t.color2)}"` : ''}><input type="hidden" name="type" value="${esc(type)}">${opts.key ? `<input type="hidden" name="key" value="${esc(opts.key)}">` : ''}
-          <div class="pack-art">${t ? logo(t, 34) : '<span>MFL</span>'}<b>${esc(P.name.replace(/ Pack$/, ''))}</b><i>${P.cards} card${P.cards > 1 ? 's' : ''}</i></div>
+          <div class="pack-art" ${P.colors ? `style="--p1:${P.colors[0]};--p2:${P.colors[1]}"` : ''}>${t ? logo(t, 34) : '<span>MFL</span>'}<b>${esc(P.name.replace(/ Pack$/, ''))}</b><i>${P.cards} card${P.cards > 1 ? 's' : ''}</i></div>
           <div class="pack-info"><b>${esc(P.name)}</b><small>${esc(opts.note || P.desc)}</small></div>
           <button class="btn ${can ? '' : 'ghost'}" ${can ? '' : 'disabled'}>${opts.free ? 'Open · Free' : can ? `Open · ${P.cost.toLocaleString('en-US')} coins` : `Need ${P.cost.toLocaleString('en-US')} coins`}</button></form>`;
       };
@@ -236,8 +239,9 @@ module.exports = function fun(app, h) {
         ${groups}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${r === 'doh' ? (100 / cards.DOH_ODDS) : (R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack.</li>
-          <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v, i, a) => !v.id.startsWith('spec-') || v.id === 'spec-td').map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
+          <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
+          <li>Card sets: ${cards.SETS.length} themed sets with 5 versions of every player each (Base ${cards.PARALLELS[0].mult}×, Silver ${cards.PARALLELS[1].mult}×, Gold ${cards.PARALLELS[2].mult}×, Prism ${cards.PARALLELS[3].mult}×, Black ${cards.PARALLELS[4].mult}×). They only come from Card Set packs.</li>
           <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
           <li>Collect more different cards to unlock free Collector Packs at ${cards.COLLECTOR_STEPS.join(', ')}.</li></ul></div></div>
         <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Big pulls</h2></div>${pulls.length ? `<ol class="lb">${pulls.map((x) => { const c = cards.cardInfo(db, x.id); return `<li><b>@${esc(x.u)}</b><small>${esc(c.p.name)} · ${esc(c.label)}</small><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span></li>`; }).join('')}</ol>` : '<p class="muted">No Legend-or-better pulls yet. Be the first.</p>'}</div></div></div>
