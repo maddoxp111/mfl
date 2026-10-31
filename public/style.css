@@ -2171,3 +2171,9 @@ body.arc-playing .ticker{display:none}
 .tk-top{gap:6px}
 .tk-top>span:first-child{flex:none;overflow:visible;text-overflow:clip;max-width:none}
 .tk-top .badge{flex:none;margin-left:auto}
+/* trade-offer badge */
+.nbadge{position:absolute;top:-5px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff3344;color:#fff;font:800 11px/18px Inter;font-style:normal;text-align:center;box-shadow:0 0 0 2px var(--bg)}
+.nbadge.in{position:static;display:inline-block;vertical-align:middle;margin-left:4px;box-shadow:none}
+.nav-cards,.burger{position:relative}
+.burger .nbadge{top:2px;right:0}
+@media(max-width:760px){.nav-open .burger span:first-of-type{transform:translateY(3.5px) rotate(45deg)}.nav-open .burger span:last-of-type{transform:translateY(-3.5px) rotate(-45deg)}}
