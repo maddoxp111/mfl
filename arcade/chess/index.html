@@ -1,0 +1,1576 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chess · MFL</title>
+<meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
+<link rel="icon" href="/mfl/static/mfl-logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mfl/static/style.css?v=64">
+<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="/mfl/static/bridge.js" data-base="/mfl"></script></head><body>
+<header class="hdr"><div class="hdr-in">
+  <a class="brand" href="/mfl/"><img src="/mfl/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  
+  <a class="hdr-arc" href="/mfl/arcade/">🕹️ Arcade</a>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
+  <nav class="nav">
+    <div class="dd "><button>Games <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/schedule/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Schedule</a><a href="/mfl/scores/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Scores</a><a href="/mfl/history/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Head-to-Head</a></div></div>
+    <div class="dd "><button>Playoffs <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/playoffs/halloween-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Halloween Bowl</a><a href="/mfl/playoffs/turkey-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Turkey Bowl</a><a href="/mfl/playoffs/christmas-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Christmas Bowl</a><a href="/mfl/playoffs/spring-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Spring Bowl</a><a href="/mfl/playoffs/super-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Super Bowl</a></div></div>
+    <div class="dd "><button>Teams <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:22px;height:22px" decoding="async"> Team Pedon Pineapples</a><a href="/mfl/teams/xavier/"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:22px;height:22px" decoding="async"> Team Xavier KTCS</a><a href="/mfl/transactions/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Transactions</a></div></div>
+    <div class="dd "><button>Stats <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/stats/team/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team Stats</a><a href="/mfl/stats/players/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Player Leaders</a><a href="/mfl/stats/rankings/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Power Rankings</a><a href="/mfl/records/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Records Book</a><a href="/mfl/cards/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Trading Cards</a></div></div>
+    <div class="dd "><button>News <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/midweek/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Midweek Recap</a><a href="/mfl/analyst/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Ask the Analyst</a><a href="/mfl/pickem/survivor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Survivor</a><a href="/mfl/pickem/cards"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> MFL Cards</a></div></div>
+    <div class="nav-main"><a class="nav-arc on" href="/mfl/arcade/">🕹️ Arcade</a>
+    <a class="nav-career " href="/mfl/career/">🏈 Career</a>
+    <a class="nav-cards " href="/mfl/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick " href="/mfl/pickem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Pick'em</a></div>
+    <div class="acct-box"><a class="acct" href="/mfl/pickem/login?next=%2Fpickem">Log in</a><a class="acct primary" href="/mfl/pickem/signup">Sign up</a>
+    </div>
+  </nav>
+</div></header>
+<a class="hype-bar halloween" href="/mfl/playoffs/halloween-bowl/"><span class="hb-fx" aria-hidden="true">🎃</span><span class="hb-msg"><b>Pineapples win the Halloween Bowl!</b><span>PDN 70–42 KTC</span></span><span class="hb-go">Recap <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+<div class="ticker"><div class="ticker-in"><a class="tk " href="/mfl/games/4/"><div class="tk-top"><span>Mon 10/26</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/5/"><div class="tk-top"><span>Tue 10/27</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/6/"><div class="tk-top"><span>Thu 10/29</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>14</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>14</b></div></a><a class="tk " href="/mfl/games/7/"><div class="tk-top"><span>Fri 10/30</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>70</b></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>42</b></div><div class="tk-lbl">Halloween Bowl</div></a><a class="tk " href="/mfl/games/8/"><div class="tk-top"><span>Mon 11/2</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/9/"><div class="tk-top"><span>Tue 11/3</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/10/"><div class="tk-top"><span>Thu 11/5</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/11/"><div class="tk-top"><span>Fri 11/6</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/12/"><div class="tk-top"><span>Mon 11/9</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/13/"><div class="tk-top"><span>Tue 11/10</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/14/"><div class="tk-top"><span>Thu 11/12</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/15/"><div class="tk-top"><span>Fri 11/13</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a></div></div>
+<main><div class="wrap arc-page">
+        <div class="arc-head"><a href="/mfl/arcade/" class="muted sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Arcade</a><h1><span>♟️</span> Chess</h1><p class="muted">Checkmate the computer.</p></div>
+        
+        <section class="arc-setup card"><form id="arcSetup">
+          <div class="arc-modes"><label class="mode"><input type="radio" name="mode" value="coins"  disabled><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Play for coins</span></label><label class="mode"><input type="radio" name="mode" value="practice" checked ><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Practice</span></label></div>
+          <p class="muted sm"><a href="/mfl/pickem/login?next=/arcade/chess">Log in</a> to play for coins. Practice is free.</p>
+          <div class="lvls"><label class="lvl"><input type="radio" name="level" value="0" checked><span><b>Rookie</b><small>Win 80</small><em>Risk: 27 → 120</em></span></label><label class="lvl"><input type="radio" name="level" value="1" ><span><b>Pro</b><small>Win 200</small><em>Risk: 67 → 500</em></span></label><label class="lvl"><input type="radio" name="level" value="2" ><span><b>All-Pro</b><small>Win 450</small><em>Risk: 150 → 1,575</em></span></label><label class="lvl"><input type="radio" name="level" value="3" ><span><b>Legend</b><small>Win 900</small><em>Risk: 300 → 4,500</em></span></label></div>
+          
+          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Pay a third of the prize up front for 1.5× to 5× the win.</small></span></label>
+          
+          <button type="submit" class="btn arc-go"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Play</button><p id="arcMsg" class="err"></p>
+        </form></section>
+        <section id="arcStage" class="arc-stage" hidden></section>
+      </div>
+      <script type="text/x-mfl">window.MFL_ARCADE={"game":"chess"};
+      (function(){const f=document.getElementById('arcSetup');const sync=()=>{const p=f.mode&&f.mode.value==='practice';f.querySelectorAll('[data-coins]').forEach(e=>e.hidden=p);f.querySelectorAll('[data-practice]').forEach(e=>e.hidden=!p);if(p&&f.risk)f.risk.checked=false;};f.addEventListener('change',sync);sync();})();</script><script type="text/x-mfl">// MFL Arcade harness: every game registers here and gets the same ctx.
+//
+//   MFLArcade.register('chess', { start(ctx) { ... ctx.finish({ won: true, moves }) } });
+//
+// ctx = {
+//   root,        // empty <div> the game draws into (it owns everything inside)
+//   game,        // game id
+//   level,       // 0..3  (Rookie, Pro, All-Pro, Legend)
+//   levelName,
+//   seed,        // match seed string (from the server)
+//   rng,         // seeded random() for this match
+//   data,        // game-specific data from the server (rosters, trivia questions...)
+//   exhibition,  // true = just for fun, no coins
+//   risk,        // true = Risk mode
+//   finish(result),  // call once: { won: bool, score?, detail?, moves?, stats? }
+//   sound(name),     // 'tap' | 'good' | 'bad' | 'win' | 'lose' | 'whistle' | 'kick' | 'catch'
+// }
+(function () {
+  // Same generator as engines.js, so the server can replay seeded AI choices.
+  function rng(seed) {
+    let h = 2166136261 >>> 0;
+    const s = String(seed);
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  let actx = null;
+  function sound(name) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const seq = {
+        tap: [[660, 0.04]], good: [[660, 0.07], [880, 0.09]], bad: [[220, 0.12], [160, 0.16]],
+        win: [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.22]], lose: [[392, 0.14], [330, 0.14], [262, 0.3]],
+        whistle: [[1800, 0.08], [1600, 0.18]], kick: [[140, 0.08]], catch: [[520, 0.05], [700, 0.06]],
+      }[name] || [[440, 0.05]];
+      let t = actx.currentTime;
+      for (const [f, d] of seq) {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = name === 'kick' ? 'triangle' : 'square';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + 0.02);
+        t += d * 0.9;
+      }
+    } catch {}
+  }
+
+  const A = (window.MFLArcade = { games: {}, rng, sound, register(id, g) { this.games[id] = g; } });
+
+  const $ = (s) => document.querySelector(s);
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+
+  function overlay(html) {
+    let o = $('#arcOverlay');
+    if (!o) { o = document.createElement('div'); o.id = 'arcOverlay'; o.className = 'arc-over'; document.body.appendChild(o); }
+    o.innerHTML = `<div class="arc-over-in">${html}</div>`;
+    o.hidden = false;
+    return o;
+  }
+
+  // Start a match (or an exhibition) from the setup form, then hand off to the game.
+  A.boot = function () {
+    const cfg = window.MFL_ARCADE;
+    const form = $('#arcSetup');
+    if (!cfg || !form) return;
+    let open = null; // a coin match that's running: leaving the page forfeits it
+    window.addEventListener('beforeunload', (e) => { if (open && open.risk) { e.preventDefault(); e.returnValue = ''; } });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const body = Object.fromEntries(fd.entries());
+      body.game = cfg.game;
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      let start;
+      try {
+        const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        start = await r.json();
+      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Your network may be blocking it.' }; }
+      btn.disabled = false;
+      if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
+      $('#arcMsg').textContent = '';
+      const game = A.games[cfg.game];
+      if (!game) { $('#arcMsg').textContent = 'Game failed to load. Refresh and try again.'; return; }
+      const level = Number(start.level || 0);
+      open = start.id ? { id: start.id, risk: !!start.risk } : null;
+      document.body.classList.add('arc-playing');
+      const stage = $('#arcStage');
+      stage.hidden = false;
+      form.closest('.arc-setup').hidden = true;
+      stage.innerHTML = '<div class="arc-root"></div>';
+      const root = stage.querySelector('.arc-root');
+      window.scrollTo({ top: stage.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+      let done = false;
+      const ctx = {
+        root, game: cfg.game, level, levelName: start.levelName, seed: start.seed, rng: rng(start.seed), data: start.data || {},
+        exhibition: !start.id, risk: !!start.risk, sound,
+        async finish(result) {
+          if (done) return; done = true;
+          sound(result && result.won ? 'win' : 'lose');
+          if (!start.id) {
+            overlay(`<h2>${result.won ? 'You win!' : result.tie ? "It's a tie" : 'Game over'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="muted">Exhibition: just for fun.</p><div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+            return;
+          }
+          overlay('<h2>Checking the result…</h2>');
+          let r;
+          try {
+            const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: start.id, result }) });
+            r = await res.json();
+          } catch { r = { ok: false, error: 'Could not reach the server. Your result was not saved.' }; }
+          open = null;
+          const coins = r.ok ? (r.net > 0 ? `<p class="arc-coins up">+${fmt(r.net)} coins</p>` : r.net < 0 ? `<p class="arc-coins down">${fmt(r.net)} coins</p>` : '') : '';
+          overlay(`<h2>${r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+          document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
+        },
+      };
+      try { game.start(ctx); } catch (err) { console.error(err); overlay(`<h2>Game crashed</h2><p class="muted">${String(err.message || err)}</p><div class="arc-over-b"><a class="btn" href="">Reload</a></div>`); }
+    });
+  };
+  // Show script errors on the page instead of failing silently.
+  window.addEventListener('error', (e) => { const m = document.getElementById('arcMsg'); if (m && !document.body.classList.contains('arc-playing')) m.textContent = 'Error: ' + (e.message || 'script failed'); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => A.boot()); else setTimeout(() => A.boot());
+})();
+</script><script type="text/x-mfl">/*
+ * MFL Arcade board-game engines: chess, checkers (American 8x8), connect four.
+ * UMD: window.MFLEngines in the browser, module.exports in Node. No DOM use.
+ *
+ * Players: 0 = the human (always moves first: White in chess, Dark in checkers, Gold in connect4),
+ *          1 = the AI.
+ *
+ * Top level
+ *   rng(seed)                               -> seeded random() (same algorithm as arcade.js)
+ *   LEVELS                                  -> ['Rookie', 'Pro', 'All-Pro', 'Legend'] (level 0..3)
+ *   aiMove(game, state, level, seed, ply)   -> AI move string for `state` (never mutates state).
+ *        `ply` = number of moves already played in the game (= index of this move in the move list).
+ *        Fully deterministic: all tie-breaks / noise come from rng(seed + ':' + ply).
+ *   verify(game, moves, level, seed)        -> { result: 'win'|'loss'|'draw'|'invalid', reason, plies }
+ *        Replays from the start position. Even indexes are human moves (must be legal), odd indexes are
+ *        AI moves (must equal aiMove(game, state, level, seed, index)). A game that stops before it is over
+ *        (resign / quit) counts as 'loss'. Moves after the game ended are 'invalid'.
+ *   games.chess / games.checkers / games.connect4 (also exported as chess / checkers / connect4)
+ *
+ * Every game object has the same interface (states are treated as immutable by callers):
+ *   create()               -> start state
+ *   moves(state)           -> legal move strings for the side to move ([] once the game is over)
+ *   play(state, move)      -> new state, or null if the move is illegal / the game is over
+ *   status(state)          -> { over, winner: 0|1|null, reason }   (over && winner === null means draw)
+ *   turn(state)            -> 0|1 (whose move it is)
+ *   ai(state, level, seed, ply) -> same as aiMove(<game>, ...)
+ *
+ * Move formats
+ *   chess:    UCI, lower case: "e2e4", "e1g1" (castling = king move), "e7e8q" (promotion piece q/r/b/n required)
+ *   checkers: "a3-b4" (simple move) or "a3xc5xe7" (jump; every landing square listed). Dark (human) starts on
+ *             ranks 1-3 and moves up the board; a1 is a playing square.
+ *   connect4: column digit "0".."6" (left to right).
+ *
+ * Game-specific helpers
+ *   chess.board(s)      -> 64 chars, index = rank*8 + file (a1 = 0, h8 = 63): 'PNBRQK' white, 'pnbrqk' black, '' empty
+ *   chess.inCheck(s)    -> side to move is in check
+ *   chess.san(s, uci)   -> SAN text for a legal move ("Nf3", "exd5", "O-O", "e8=Q#")
+ *   chess.fen(s), chess.fromFen(fen), chess.perft(s, depth)
+ *   checkers.board(s)   -> 64 ints, index = rank*8 + file: 1 human man, 2 human king, -1 AI man, -2 AI king, 0 empty
+ *   checkers.parse(mv)  -> { path: [idx...], caps: [idx...] }    checkers.name(idx) / checkers.index('c3')
+ *   connect4.cell(s, col, row) -> 0 empty, 1 human, 2 AI (row 0 = bottom)
+ *   connect4.height(s, col), connect4.winLine(s) -> [[col,row] ...] (4 or more cells) or null
+ *
+ * Levels (all searches are fixed depth / fixed node budgets, never wall-clock, so replays match exactly;
+ * when a deeper iteration runs out of its node budget it is discarded and the previous depth's answer is used)
+ *   chess:    Rookie depth 1, no quiescence, +-300cp noise, 15% random moves; Pro depth 2 + quiescence, small noise;
+ *             All-Pro depth 3 + quiescence; Legend iterative deepening 1..5 + quiescence, 120k-node budget
+ *             (depth 4 is almost always completed, depth 5 when it fits).
+ *   checkers: Rookie depth 1 + noise + 10% random moves; Pro depth 3 + small noise; All-Pro depth 5;
+ *             Legend 5 -> 7 -> 9 with a 90k-node budget. Capture sequences are always searched past the horizon.
+ *   connect4: Rookie depth 1 + noise + 20% random moves (misses roughly 1 block in 7); Pro depth 3; All-Pro depth 5;
+ *             Legend 8 -> 10 -> 12 ... with a transposition table and an 80k-node budget (solves endgames).
+ *
+ * Draw rules: chess = stalemate, 50-move rule, threefold repetition (automatic), insufficient material, and a
+ * safety cap of 300 moves each. Checkers = 40 moves each without a capture or crowning, and a cap of 200 moves each.
+ * Measured in Node on the dev box, Legend AI moves: chess avg ~45 ms / max ~145 ms, checkers avg ~47 / max ~130,
+ * connect4 avg ~40 / max ~125.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.MFLEngines = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // Same generator as arcade.js.
+  function rng(seed) {
+    let h = 2166136261 >>> 0;
+    const s = String(seed);
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const LEVELS = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
+  const clampLevel = (l) => Math.max(0, Math.min(3, Math.floor(Number(l) || 0)));
+  const INF = 1e9;
+
+  // Pick among root moves: `scored` = [{ m, s }] with exact scores for the best ones.
+  function pickBest(scored, r) {
+    let best = -INF;
+    for (const x of scored) if (x.s > best) best = x.s;
+    const ties = scored.filter((x) => x.s === best);
+    return ties[Math.floor(r() * ties.length)].m;
+  }
+
+  // =====================================================================================
+  // CHESS (0x88 board, make/unmake, negamax + alpha-beta + quiescence)
+  // =====================================================================================
+  const chess = (function () {
+    const P = 1, N = 2, B = 3, R = 4, Q = 5, K = 6;
+    const NO = [33, 31, 18, 14, -33, -31, -18, -14];
+    const KO = [1, -1, 16, -16, 17, 15, -17, -15];
+    const BO = [17, 15, -17, -15];
+    const RO = [1, -1, 16, -16];
+    const VAL = [0, 100, 320, 330, 500, 900, 0];
+    const CM = new Int8Array(128).fill(15);
+    CM[4] = 12; CM[0] = 13; CM[7] = 14; CM[116] = 3; CM[112] = 7; CM[119] = 11;
+    const CH = '.PNBRQK..pnbrqk';
+    const MAX_FULL = 300; // safety cap: the game is a draw once 300 moves each have been played
+    const sqName = (sq) => 'abcdefgh'[sq & 7] + ((sq >> 4) + 1);
+    const sqParse = (s) => (s.charCodeAt(0) - 97) + (s.charCodeAt(1) - 49) * 16;
+
+    // Piece-square tables (rank 8 first, white's view).
+    const T = {
+      1: [0, 0, 0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 50, 50, 10, 10, 20, 30, 30, 20, 10, 10, 5, 5, 10, 25, 25, 10, 5, 5, 0, 0, 0, 20, 20, 0, 0, 0, 5, -5, -10, 0, 0, -10, -5, 5, 5, 10, 10, -20, -20, 10, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+      2: [-50, -40, -30, -30, -30, -30, -40, -50, -40, -20, 0, 0, 0, 0, -20, -40, -30, 0, 10, 15, 15, 10, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 15, 20, 20, 15, 0, -30, -30, 5, 10, 15, 15, 10, 5, -30, -40, -20, 0, 5, 5, 0, -20, -40, -50, -40, -30, -30, -30, -30, -40, -50],
+      3: [-20, -10, -10, -10, -10, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 10, 10, 10, 10, 0, -10, -10, 10, 10, 10, 10, 10, 10, -10, -10, 5, 0, 0, 0, 0, 5, -10, -20, -10, -10, -10, -10, -10, -10, -20],
+      4: [0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 10, 10, 10, 10, 10, 5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 5, 5, 0, 0, 0],
+      5: [-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5, 5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0, -10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20],
+      6: [-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20],
+      7: [-50, -40, -30, -20, -20, -30, -40, -50, -30, -20, -10, 0, 0, -10, -20, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -30, 0, 0, 0, 0, -30, -30, -50, -30, -30, -30, -30, -30, -30, -50],
+    };
+    // PSQ[code][sq] (white-positive score incl. material). code 7 / 15 = king endgame table.
+    const PSQ = [];
+    for (let c = 0; c < 16; c++) PSQ.push(new Int16Array(128));
+    for (let t = 1; t <= 7; t++) {
+      const v = t === 7 ? 0 : VAL[t];
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & 0x88) continue;
+        const r = sq >> 4, f = sq & 7;
+        PSQ[t][sq] = v + T[t][(7 - r) * 8 + f];
+        PSQ[t | 8][sq] = -(v + T[t][r * 8 + f]);
+      }
+    }
+
+    function create() { return fromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'); }
+
+    function fromFen(fen) {
+      const parts = String(fen).trim().split(/\s+/);
+      const b = new Int8Array(128);
+      const k = [-1, -1];
+      let r = 7, f = 0;
+      for (const ch of parts[0]) {
+        if (ch === '/') { r--; f = 0; continue; }
+        if (ch >= '1' && ch <= '8') { f += +ch; continue; }
+        const i = CH.indexOf(ch);
+        const sq = r * 16 + f;
+        b[sq] = i;
+        if ((i & 7) === K) k[i >> 3] = sq;
+        f++;
+      }
+      const cs = parts[2] || '-';
+      const castle = (cs.includes('K') ? 1 : 0) | (cs.includes('Q') ? 2 : 0) | (cs.includes('k') ? 4 : 0) | (cs.includes('q') ? 8 : 0);
+      const p = { b, side: parts[1] === 'b' ? 1 : 0, castle, ep: parts[3] && parts[3] !== '-' ? sqParse(parts[3]) : -1,
+        half: +(parts[4] || 0), full: +(parts[5] || 1), k, hist: [], st: [] };
+      p.hist.push(key(p));
+      return p;
+    }
+
+    function fen(p) {
+      let out = '';
+      for (let r = 7; r >= 0; r--) {
+        let e = 0;
+        for (let f = 0; f < 8; f++) {
+          const pc = p.b[r * 16 + f];
+          if (!pc) { e++; continue; }
+          if (e) { out += e; e = 0; }
+          out += CH[pc];
+        }
+        if (e) out += e;
+        if (r) out += '/';
+      }
+      const cs = (p.castle & 1 ? 'K' : '') + (p.castle & 2 ? 'Q' : '') + (p.castle & 4 ? 'k' : '') + (p.castle & 8 ? 'q' : '');
+      return `${out} ${p.side ? 'b' : 'w'} ${cs || '-'} ${p.ep >= 0 ? sqName(p.ep) : '-'} ${p.half} ${p.full}`;
+    }
+
+    function clone(p) {
+      return { b: new Int8Array(p.b), side: p.side, castle: p.castle, ep: p.ep, half: p.half, full: p.full, k: p.k.slice(), hist: p.hist.slice(), st: [] };
+    }
+
+    // Position key for repetition (ep only counted when a pawn could actually take).
+    function key(p) {
+      let s = '';
+      for (let sq = 0; sq < 128; sq++) { if (sq & 0x88) { sq += 7; continue; } s += CH[p.b[sq]]; }
+      let ep = '-';
+      if (p.ep >= 0) {
+        const pawn = P | (p.side << 3), from = p.side ? p.ep + 16 : p.ep - 16;
+        if ((!((from - 1) & 0x88) && p.b[from - 1] === pawn) || (!((from + 1) & 0x88) && p.b[from + 1] === pawn)) ep = sqName(p.ep);
+      }
+      return s + p.side + p.castle + ep;
+    }
+
+    function attacked(p, sq, by) {
+      const b = p.b;
+      let s;
+      if (by === 0) {
+        s = sq - 15; if (!(s & 0x88) && b[s] === 1) return true;
+        s = sq - 17; if (!(s & 0x88) && b[s] === 1) return true;
+      } else {
+        s = sq + 15; if (!(s & 0x88) && b[s] === 9) return true;
+        s = sq + 17; if (!(s & 0x88) && b[s] === 9) return true;
+      }
+      const c = by << 3, kn = N | c, kg = K | c, bi = B | c, rk = R | c, qn = Q | c;
+      for (let i = 0; i < 8; i++) { s = sq + NO[i]; if (!(s & 0x88) && b[s] === kn) return true; }
+      for (let i = 0; i < 8; i++) { s = sq + KO[i]; if (!(s & 0x88) && b[s] === kg) return true; }
+      for (let i = 0; i < 4; i++) {
+        const o = BO[i]; s = sq + o;
+        while (!(s & 0x88)) { const pc = b[s]; if (pc) { if (pc === bi || pc === qn) return true; break; } s += o; }
+      }
+      for (let i = 0; i < 4; i++) {
+        const o = RO[i]; s = sq + o;
+        while (!(s & 0x88)) { const pc = b[s]; if (pc) { if (pc === rk || pc === qn) return true; break; } s += o; }
+      }
+      return false;
+    }
+
+    const inCheckP = (p) => attacked(p, p.k[p.side], p.side ^ 1);
+
+    // Move int: from | to<<7 | promo<<14 | flag<<17 (flag 1 = en passant, 2 = castle, 4 = double push)
+    function addPawn(out, from, to, promoRank, capsOnly) {
+      if ((to >> 4) === promoRank) {
+        out.push(from | (to << 7) | (Q << 14));
+        if (!capsOnly) { out.push(from | (to << 7) | (N << 14)); out.push(from | (to << 7) | (R << 14)); out.push(from | (to << 7) | (B << 14)); }
+      } else out.push(from | (to << 7));
+    }
+
+    function gen(p, out, capsOnly) {
+      const b = p.b, us = p.side, them = us ^ 1;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & 0x88) { sq += 7; continue; }
+        const pc = b[sq];
+        if (!pc || (pc >> 3) !== us) continue;
+        const t = pc & 7;
+        if (t === P) {
+          const dir = us ? -16 : 16, promoRank = us ? 0 : 7, startRank = us ? 6 : 1;
+          let to = sq + dir;
+          if (!(to & 0x88) && !b[to]) {
+            if ((to >> 4) === promoRank) addPawn(out, sq, to, promoRank, capsOnly);
+            else if (!capsOnly) {
+              out.push(sq | (to << 7));
+              if ((sq >> 4) === startRank && !b[to + dir]) out.push(sq | ((to + dir) << 7) | (4 << 17));
+            }
+          }
+          for (let d = -1; d <= 1; d += 2) {
+            to = sq + dir + d;
+            if (to & 0x88) continue;
+            const tp = b[to];
+            if (tp && (tp >> 3) === them) addPawn(out, sq, to, promoRank, capsOnly);
+            else if (to === p.ep) out.push(sq | (to << 7) | (1 << 17));
+          }
+        } else if (t === N || t === K) {
+          const offs = t === N ? NO : KO;
+          for (let i = 0; i < 8; i++) {
+            const to = sq + offs[i];
+            if (to & 0x88) continue;
+            const tp = b[to];
+            if (!tp) { if (!capsOnly) out.push(sq | (to << 7)); } else if ((tp >> 3) === them) out.push(sq | (to << 7));
+          }
+          if (t === K && !capsOnly) {
+            if (us === 0 && sq === 4) {
+              if ((p.castle & 1) && !b[5] && !b[6] && b[7] === R && !attacked(p, 4, 1) && !attacked(p, 5, 1) && !attacked(p, 6, 1)) out.push(4 | (6 << 7) | (2 << 17));
+              if ((p.castle & 2) && !b[3] && !b[2] && !b[1] && b[0] === R && !attacked(p, 4, 1) && !attacked(p, 3, 1) && !attacked(p, 2, 1)) out.push(4 | (2 << 7) | (2 << 17));
+            } else if (us === 1 && sq === 116) {
+              if ((p.castle & 4) && !b[117] && !b[118] && b[119] === (R | 8) && !attacked(p, 116, 0) && !attacked(p, 117, 0) && !attacked(p, 118, 0)) out.push(116 | (118 << 7) | (2 << 17));
+              if ((p.castle & 8) && !b[115] && !b[114] && !b[113] && b[112] === (R | 8) && !attacked(p, 116, 0) && !attacked(p, 115, 0) && !attacked(p, 114, 0)) out.push(116 | (114 << 7) | (2 << 17));
+            }
+          }
+        } else {
+          const offs = t === B ? BO : t === R ? RO : KO;
+          for (let i = 0; i < offs.length; i++) {
+            const o = offs[i];
+            let to = sq + o;
+            while (!(to & 0x88)) {
+              const tp = b[to];
+              if (!tp) { if (!capsOnly) out.push(sq | (to << 7)); } else { if ((tp >> 3) === them) out.push(sq | (to << 7)); break; }
+              to += o;
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    // Returns false if the move leaves the mover's king in check (caller must still unmake).
+    function make(p, m) {
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = m >> 17;
+      const b = p.b, us = p.side, pc = b[from], cap = b[to];
+      p.st.push(m, cap, p.castle, p.ep, p.half);
+      b[to] = promo ? (promo | (us << 3)) : pc;
+      b[from] = 0;
+      if (flag & 1) b[us ? to + 16 : to - 16] = 0;
+      else if (flag & 2) {
+        if (to > from) { b[from + 1] = b[from + 3]; b[from + 3] = 0; } else { b[from - 1] = b[from - 4]; b[from - 4] = 0; }
+      }
+      if ((pc & 7) === K) p.k[us] = to;
+      p.castle &= CM[from] & CM[to];
+      p.ep = (flag & 4) ? (from + to) >> 1 : -1;
+      p.half = ((pc & 7) === P || cap) ? 0 : p.half + 1;
+      if (us) p.full++;
+      p.side = us ^ 1;
+      return !attacked(p, p.k[us], us ^ 1);
+    }
+
+    function unmake(p) {
+      const st = p.st;
+      const half = st.pop(), ep = st.pop(), castle = st.pop(), cap = st.pop(), m = st.pop();
+      p.side ^= 1;
+      const us = p.side, b = p.b;
+      if (us) p.full--;
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = m >> 17;
+      const pc = promo ? (P | (us << 3)) : b[to];
+      b[from] = pc; b[to] = cap;
+      if (flag & 1) b[us ? to + 16 : to - 16] = P | ((us ^ 1) << 3);
+      else if (flag & 2) {
+        if (to > from) { b[from + 3] = b[from + 1]; b[from + 1] = 0; } else { b[from - 4] = b[from - 1]; b[from - 1] = 0; }
+      }
+      if ((pc & 7) === K) p.k[us] = from;
+      p.castle = castle; p.ep = ep; p.half = half;
+    }
+
+    function legalInts(p) {
+      const out = [];
+      for (const m of gen(p, [], false)) { if (make(p, m)) out.push(m); unmake(p); }
+      return out;
+    }
+
+    const uci = (m) => sqName(m & 127) + sqName((m >> 7) & 127) + (((m >> 14) & 7) ? 'xxnbrq'[(m >> 14) & 7] : '');
+
+    function perft(p, d) {
+      if (d === 0) return 1;
+      let n = 0;
+      for (const m of gen(p, [], false)) { if (make(p, m)) n += d === 1 ? 1 : perft(p, d - 1); unmake(p); }
+      return n;
+    }
+
+    function insufficient(p) {
+      const minors = [];
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & 0x88) { sq += 7; continue; }
+        const t = p.b[sq] & 7;
+        if (!t || t === K) continue;
+        if (t === P || t === R || t === Q) return false;
+        minors.push({ t, c: (((sq >> 4) + (sq & 7)) & 1) });
+        if (minors.length > 2) return false;
+      }
+      if (minors.length <= 1) return true;
+      // K+B vs K+B (or more bishops) all on the same colour
+      return minors.every((x) => x.t === B && x.c === minors[0].c);
+    }
+
+    function status(p) {
+      const legal = legalInts(p).length;
+      if (!legal) return inCheckP(p) ? { over: true, winner: p.side ^ 1, reason: 'checkmate' } : { over: true, winner: null, reason: 'stalemate' };
+      if (p.half >= 100) return { over: true, winner: null, reason: '50-move rule' };
+      if (insufficient(p)) return { over: true, winner: null, reason: 'insufficient material' };
+      const k = p.hist[p.hist.length - 1];
+      let c = 0;
+      for (const h of p.hist) if (h === k) c++;
+      if (c >= 3) return { over: true, winner: null, reason: 'threefold repetition' };
+      if (p.full > MAX_FULL) return { over: true, winner: null, reason: 'move limit' };
+      return { over: false, winner: null, reason: '' };
+    }
+
+    function moves(p) { return status(p).over ? [] : legalInts(p).map(uci); }
+
+    function findMove(p, mv) {
+      mv = String(mv).trim().toLowerCase();
+      for (const m of legalInts(p)) if (uci(m) === mv) return m;
+      return 0;
+    }
+
+    function play(p, mv) {
+      if (status(p).over) return null;
+      const m = findMove(p, mv);
+      if (!m) return null;
+      const q = clone(p);
+      make(q, m);
+      q.st = [];
+      if (q.half === 0) q.hist = [];
+      q.hist.push(key(q));
+      return q;
+    }
+
+    function board(p) {
+      const out = [];
+      for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { const pc = p.b[r * 16 + f]; out.push(pc ? CH[pc] : ''); }
+      return out;
+    }
+
+    function san(p, mv) {
+      const m = findMove(p, mv);
+      if (!m) return mv;
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = m >> 17;
+      const t = p.b[from] & 7, cap = p.b[to] || (flag & 1);
+      let s;
+      if (flag & 2) s = to > from ? 'O-O' : 'O-O-O';
+      else if (t === P) s = (cap ? 'abcdefgh'[from & 7] + 'x' : '') + sqName(to) + (promo ? '=' + 'xxNBRQ'[promo] : '');
+      else {
+        const others = legalInts(p).filter((o) => o !== m && ((o >> 7) & 127) === to && (p.b[o & 127] & 7) === t).map((o) => o & 127);
+        let dis = '';
+        if (others.length) {
+          if (!others.some((o) => (o & 7) === (from & 7))) dis = 'abcdefgh'[from & 7];
+          else if (!others.some((o) => (o >> 4) === (from >> 4))) dis = String((from >> 4) + 1);
+          else dis = sqName(from);
+        }
+        s = 'xxNBRQK'[t] + dis + (cap ? 'x' : '') + sqName(to);
+      }
+      const q = clone(p);
+      make(q, m);
+      if (inCheckP(q)) s += legalInts(q).length ? '+' : '#';
+      return s;
+    }
+
+    // ---------------- search ----------------
+    const MATE = 100000;
+    function evaluate(p) {
+      const b = p.b;
+      let s = 0, nonPawn = 0, mat0 = 0, mat1 = 0, queens = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & 0x88) { sq += 7; continue; }
+        const pc = b[sq];
+        if (!pc) continue;
+        const t = pc & 7;
+        if (t === K) continue;
+        s += PSQ[pc][sq];
+        if (t !== P) nonPawn += VAL[t];
+        if (t === Q) queens++;
+        if (pc >> 3) mat1 += VAL[t]; else mat0 += VAL[t];
+      }
+      const end = queens === 0 || nonPawn <= 1800;
+      const k0 = p.k[0], k1 = p.k[1];
+      s += PSQ[end ? 7 : 6][k0] + PSQ[end ? 15 : 14][k1];
+      // Help the stronger side finish: push the lone king to the edge and bring the kings together.
+      if (end && Math.abs(mat0 - mat1) >= 300) {
+        const strong = mat0 > mat1 ? 0 : 1, weak = p.k[strong ^ 1], sk = p.k[strong];
+        const wr = weak >> 4, wf = weak & 7;
+        const edge = Math.max(3 - wr, wr - 4) + Math.max(3 - wf, wf - 4);
+        const dist = Math.abs(wr - (sk >> 4)) + Math.abs(wf - (sk & 7));
+        const bonus = edge * 12 + (14 - dist) * 4;
+        s += strong === 0 ? bonus : -bonus;
+      }
+      return p.side ? -s : s;
+    }
+
+    function orderScores(p, list, killers, ply) {
+      const sc = new Array(list.length);
+      for (let i = 0; i < list.length; i++) {
+        const m = list[i];
+        const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7;
+        const victim = p.b[to] & 7, att = p.b[from] & 7;
+        let v = 0;
+        if (victim) v = 100000 + VAL[victim] * 10 - VAL[att] / 10;
+        else if ((m >> 17) & 1) v = 100000 + 1000 - 10;
+        if (promo) v += promo === Q ? 90000 : 1000;
+        if (!v && killers && (killers[ply * 2] === m || killers[ply * 2 + 1] === m)) v = 50000;
+        sc[i] = v;
+      }
+      return sc;
+    }
+    // Selection step: move the best remaining move to index i (stable: first max wins).
+    function pickNext(list, sc, i) {
+      let bi = i;
+      for (let j = i + 1; j < list.length; j++) if (sc[j] > sc[bi]) bi = j;
+      if (bi !== i) { let t = list[i]; list[i] = list[bi]; list[bi] = t; t = sc[i]; sc[i] = sc[bi]; sc[bi] = t; }
+      return list[i];
+    }
+
+    function makeSearcher(p, cfg) {
+      const killers = new Int32Array(256);
+      const S = { nodes: 0, stop: false, limit: 0 };
+      function qs(alpha, beta, ply, qd) {
+        S.nodes++;
+        const stand = evaluate(p);
+        if (stand >= beta) return stand;
+        if (stand > alpha) alpha = stand;
+        if (qd <= 0) return stand;
+        const list = gen(p, [], true);
+        const sc = orderScores(p, list, null, ply);
+        for (let i = 0; i < list.length; i++) {
+          const m = pickNext(list, sc, i);
+          if (!make(p, m)) { unmake(p); continue; }
+          const v = -qs(-beta, -alpha, ply + 1, qd - 1);
+          unmake(p);
+          if (v >= beta) return v;
+          if (v > alpha) alpha = v;
+        }
+        return alpha;
+      }
+      function nm(depth, alpha, beta, ply) {
+        if (depth <= 0) return cfg.qs ? qs(alpha, beta, ply, cfg.qd || 6) : (S.nodes++, evaluate(p));
+        S.nodes++;
+        if (S.limit && S.nodes > S.limit) { S.stop = true; return 0; }
+        if (p.half >= 100) return 0;
+        const list = gen(p, [], false);
+        const sc = orderScores(p, list, killers, ply);
+        let legal = 0, best = -INF;
+        for (let i = 0; i < list.length; i++) {
+          const m = pickNext(list, sc, i);
+          if (!make(p, m)) { unmake(p); continue; }
+          legal++;
+          const v = -nm(depth - 1, -beta, -alpha, ply + 1);
+          unmake(p);
+          if (S.stop) return 0;
+          if (v > best) best = v;
+          if (v > alpha) alpha = v;
+          if (alpha >= beta) {
+            if (!p.b[(m >> 7) & 127] && !((m >> 14) & 7) && killers[ply * 2] !== m) { killers[ply * 2 + 1] = killers[ply * 2]; killers[ply * 2] = m; }
+            break;
+          }
+        }
+        if (!legal) return inCheckP(p) ? -(MATE - ply) : 0;
+        return best;
+      }
+      S.nm = nm;
+      return S;
+    }
+
+    const LV = [
+      { depth: 1, qs: false, noise: 300, blunder: 0.15 },
+      { depth: 2, qs: true, qd: 4, noise: 40 },
+      { depth: 3, qs: true, qd: 6, noise: 0 },
+      { depth: 5, qs: true, qd: 6, noise: 0, nodeLimit: 120000 },
+    ];
+
+    function ai(state, level, seed, ply) {
+      const cfg = LV[clampLevel(level)];
+      const p = clone(state);
+      if (ply == null) ply = 0;
+      const r = rng(String(seed) + ':' + ply);
+      const legal = legalInts(p);
+      if (!legal.length) return null;
+      const tie = legal.map(() => r());
+      // root order: tactical score, then the seeded key
+      const osc = orderScores(p, legal, null, 0);
+      let root = legal.map((m, i) => ({ m, o: osc[i], k: tie[i], s: 0 }));
+      root.sort((a, b) => (b.o - a.o) || (a.k - b.k));
+      if (cfg.blunder && r() < cfg.blunder) return uci(legal[Math.floor(r() * legal.length)]);
+      if (root.length === 1) return uci(root[0].m);
+
+      const S = makeSearcher(p, cfg);
+      // Draw claims the AI can see at the root (repetition / 50 moves).
+      const rootDraw = (m) => {
+        // called with m already made
+        const k = key(p);
+        let c = 0;
+        for (const h of state.hist) if (h === k) c++;
+        if (c >= 2) return true;
+        return p.half >= 100;
+      };
+      function iterate(depth, noise) {
+        const out = [];
+        let best = -INF;
+        for (const x of root) {
+          make(p, x.m);
+          let v;
+          if (rootDraw(x.m)) {
+            v = legalInts(p).length === 0 && inCheckP(p) ? MATE - 1 : 0;
+          } else if (noise) {
+            v = -S.nm(depth - 1, -INF, INF, 1);
+          } else {
+            const a = best === -INF ? -INF : best - 1;
+            v = -S.nm(depth - 1, -INF, -a, 1);
+          }
+          unmake(p);
+          if (S.stop) return null;
+          if (noise) v += Math.round((tie[legal.indexOf(x.m)] - 0.5) * noise) + Math.round((r() - 0.5) * noise);
+          if (v > best) best = v;
+          out.push({ m: x.m, s: v, k: x.k });
+        }
+        return out;
+      }
+      let result = null;
+      const startDepth = cfg.nodeLimit ? 1 : cfg.depth;
+      for (let d = startDepth; d <= cfg.depth; d++) {
+        S.limit = d > startDepth ? cfg.nodeLimit : 0; // the first iteration always completes; later ones share the node budget
+        const res = iterate(d, cfg.noise);
+        if (!res) break;
+        result = res;
+        if (d < cfg.depth) {
+          // best first for the next iteration (stable on the seeded key)
+          root = res.slice().sort((a, b) => (b.s - a.s) || (a.k - b.k)).map((x) => ({ m: x.m, k: x.k }));
+          if (Math.abs(res.reduce((a, x) => Math.max(a, x.s), -INF)) > MATE - 100) break; // mate found
+        }
+      }
+      return uci(pickBest(result, r));
+    }
+
+    return {
+      create, fromFen, fen, moves, play, status, board, san, perft, ai,
+      turn: (p) => p.side,
+      inCheck: (p) => inCheckP(p),
+      _internal: { legalInts, gen, make, unmake, evaluate, uci, key, makeSearcher, LV, clone },
+    };
+  })();
+
+  // =====================================================================================
+  // CHECKERS (American / English draughts). Board index = rank*8 + file, a1 = 0 is a playing square.
+  // =====================================================================================
+  const checkers = (function () {
+    const name = (i) => 'abcdefgh'[i & 7] + ((i >> 3) + 1);
+    const index = (s) => (s.charCodeAt(0) - 97) + (s.charCodeAt(1) - 49) * 8;
+    const DIRS = [[1, 1], [1, -1], [-1, 1], [-1, -1]]; // [dRank, dFile]
+
+    function create() {
+      const b = new Int8Array(64);
+      for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+        if ((r + f) & 1) continue;
+        if (r < 3) b[r * 8 + f] = 1; else if (r > 4) b[r * 8 + f] = -1;
+      }
+      return { b, side: 0, quiet: 0, ply: 0 };
+    }
+
+    // Neighbour tables: dir 0 (+1,+1), 1 (+1,-1), 2 (-1,+1), 3 (-1,-1) as [dRank, dFile].
+    const STEP = new Int8Array(256).fill(-1), JUMP = new Int8Array(256).fill(-1), DARK = [];
+    for (let sq = 0; sq < 64; sq++) {
+      const r = sq >> 3, f = sq & 7;
+      if (!((r + f) & 1)) DARK.push(sq);
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([dr, df], d) => {
+        if (r + dr >= 0 && r + dr < 8 && f + df >= 0 && f + df < 8) STEP[sq * 4 + d] = (r + dr) * 8 + f + df;
+        if (r + 2 * dr >= 0 && r + 2 * dr < 8 && f + 2 * df >= 0 && f + 2 * df < 8) JUMP[sq * 4 + d] = (r + 2 * dr) * 8 + f + 2 * df;
+      });
+    }
+    const NOCAPS = [];
+
+    // Generate full moves: { path: [...], caps: [...], cv: captured values, pc: moving piece, crown }
+    function gen(b, side) {
+      const sign = side === 0 ? 1 : -1, caps = [];
+      for (let i = 0; i < 32; i++) {
+        const sq = DARK[i], pc = b[sq];
+        if (pc * sign <= 0) continue;
+        b[sq] = 0; // the moving piece leaves its square for the duration of the jump
+        jumps(b, sq, sign, pc === 2 || pc === -2, pc, [sq], [], [], caps);
+        b[sq] = pc;
+      }
+      if (caps.length) return caps;
+      const simple = [], crowns = [];
+      const lastRank = sign > 0 ? 7 : 0;
+      for (let i = 0; i < 32; i++) {
+        const sq = DARK[i], pc = b[sq];
+        if (pc * sign <= 0) continue;
+        const king = pc === 2 || pc === -2;
+        for (let d = 0; d < 4; d++) {
+          if (!king && (d >> 1) !== (sign > 0 ? 0 : 1)) continue;
+          const to = STEP[sq * 4 + d];
+          if (to < 0 || b[to]) continue;
+          const crown = !king && (to >> 3) === lastRank;
+          (crown ? crowns : simple).push({ path: [sq, to], caps: NOCAPS, cv: NOCAPS, pc, crown });
+        }
+      }
+      return crowns.length ? crowns.concat(simple) : simple;
+    }
+    function jumps(b, sq, sign, king, pc, path, capl, cv, out) {
+      let found = false;
+      for (let d = 0; d < 4; d++) {
+        if (!king && (d >> 1) !== (sign > 0 ? 0 : 1)) continue;
+        const land = JUMP[sq * 4 + d];
+        if (land < 0 || b[land]) continue;
+        const mid = STEP[sq * 4 + d], mp = b[mid];
+        if (mp * sign >= 0) continue; // empty, own piece, or already jumped (marked)
+        found = true;
+        b[mid] = 50 * sign; // jumped pieces stay on the board until the move ends
+        path.push(land); capl.push(mid); cv.push(mp);
+        if (!king && (land >> 3) === (sign > 0 ? 7 : 0)) out.push({ path: path.slice(), caps: capl.slice(), cv: cv.slice(), pc, crown: true }); // crowning ends the move
+        else if (!jumps(b, land, sign, king, pc, path, capl, cv, out)) out.push({ path: path.slice(), caps: capl.slice(), cv: cv.slice(), pc, crown: false });
+        path.pop(); capl.pop(); cv.pop();
+        b[mid] = mp;
+      }
+      return found;
+    }
+    function doMove(b, m) {
+      b[m.path[0]] = 0;
+      for (let i = 0; i < m.caps.length; i++) b[m.caps[i]] = 0;
+      b[m.path[m.path.length - 1]] = m.crown ? (m.pc > 0 ? 2 : -2) : m.pc;
+    }
+    function undoMove(b, m) {
+      b[m.path[m.path.length - 1]] = 0;
+      for (let i = 0; i < m.caps.length; i++) b[m.caps[i]] = m.cv[i];
+      b[m.path[0]] = m.pc;
+    }
+    const str = (m) => m.path.map(name).join(m.caps.length ? 'x' : '-');
+
+    function applyMove(s, m) {
+      const b = new Int8Array(s.b);
+      doMove(b, m);
+      return { b, side: s.side ^ 1, quiet: (m.caps.length || m.crown) ? 0 : s.quiet + 1, ply: s.ply + 1 };
+    }
+
+    function status(s) {
+      if (!gen(s.b, s.side).length) {
+        let any = false;
+        const sign = s.side === 0 ? 1 : -1;
+        for (let i = 0; i < 64; i++) if (s.b[i] && Math.sign(s.b[i]) === sign) any = true;
+        return { over: true, winner: s.side ^ 1, reason: any ? 'no moves' : 'no pieces' };
+      }
+      if (s.quiet >= 80) return { over: true, winner: null, reason: '40-move rule' };
+      if (s.ply >= 400) return { over: true, winner: null, reason: 'move limit' }; // safety cap: 200 moves each
+      return { over: false, winner: null, reason: '' };
+    }
+    function moves(s) { return status(s).over ? [] : gen(s.b, s.side).map(str); }
+    function play(s, mv) {
+      if (status(s).over) return null;
+      mv = String(mv).trim().toLowerCase();
+      for (const m of gen(s.b, s.side)) if (str(m) === mv) return applyMove(s, m);
+      return null;
+    }
+    function parse(mv) {
+      const parts = String(mv).toLowerCase().split(/[-x]/).map(index);
+      const caps = [];
+      if (String(mv).includes('x')) for (let i = 1; i < parts.length; i++) caps.push((parts[i - 1] + parts[i]) >> 1);
+      return { path: parts, caps };
+    }
+
+    // ---------- search ----------
+    const WIN = 100000;
+    const CENTER = new Int8Array(64);
+    for (const n of ['c3', 'e3', 'd4', 'f4', 'c5', 'e5', 'd6', 'f6']) CENTER[index(n)] = 1;
+    function evaluate(b, side) {
+      let v = 0, n = 0;
+      for (let i = 0; i < 32; i++) {
+        const sq = DARK[i], pc = b[sq];
+        if (!pc) continue;
+        n++;
+        const r = sq >> 3;
+        if (pc === 1) v += 100 + r * 4 + (r === 0 ? 10 : 0) + CENTER[sq] * 6;
+        else if (pc === -1) v -= 100 + (7 - r) * 4 + (r === 7 ? 10 : 0) + CENTER[sq] * 6;
+        else if (pc === 2) v += 165 + CENTER[sq] * 8;
+        else v -= 165 + CENTER[sq] * 8;
+      }
+      // trading down helps the side that is ahead
+      if (v > 50) v += (24 - n) * 3; else if (v < -50) v -= (24 - n) * 3;
+      return side === 0 ? v : -v;
+    }
+    // Captures: longer jumps first (stable). Crowning moves are already listed first by gen().
+    function order(list) {
+      if (!list[0].caps.length) return list;
+      return list.map((m, i) => ({ m, i })).sort((a, b) => (b.m.caps.length - a.m.caps.length) || (a.i - b.i)).map((x) => x.m);
+    }
+    function makeSearcher(b) {
+      const S = { nodes: 0, stop: false, limit: 0 };
+      const hist = new Int32Array(64 * 64);
+      const byHist = (list) => {
+        if (list.length < 2 || list[0].caps.length) return order(list);
+        const sc = list.map((m, i) => ({ m, i, h: hist[m.path[0] * 64 + m.path[1]] + (m.crown ? 1e8 : 0) }));
+        sc.sort((a, b) => (b.h - a.h) || (a.i - b.i));
+        return sc.map((x) => x.m);
+      };
+      function nm(side, quiet, depth, alpha, beta, ply) {
+        S.nodes++;
+        if (S.limit && S.nodes > S.limit) { S.stop = true; return 0; }
+        const list = gen(b, side);
+        if (!list.length) return -(WIN - ply);
+        if (quiet >= 80) return 0;
+        // keep searching forced captures past the horizon (bounded)
+        if (depth <= 0 && (!list[0].caps.length || depth < -6)) return evaluate(b, side);
+        let best = -INF;
+        const ol = byHist(list);
+        for (let i = 0; i < ol.length; i++) {
+          const m = ol[i];
+          doMove(b, m);
+          const v = -nm(side ^ 1, (m.caps.length || m.crown) ? 0 : quiet + 1, depth - 1, -beta, -alpha, ply + 1);
+          undoMove(b, m);
+          if (S.stop) return 0;
+          if (v > best) best = v;
+          if (v > alpha) alpha = v;
+          if (alpha >= beta) { if (!m.caps.length && depth > 0) hist[m.path[0] * 64 + m.path[1]] += depth * depth; break; }
+        }
+        return best;
+      }
+      // score of a root move for the side to move in s
+      S.root = function (s, m, depth, alpha, beta) {
+        doMove(b, m);
+        const v = -nm(s.side ^ 1, (m.caps.length || m.crown) ? 0 : s.quiet + 1, depth - 1, -beta, -alpha, 1);
+        undoMove(b, m);
+        return v;
+      };
+      return S;
+    }
+    // depths: iterative deepening; budget: total node budget shared by every iteration after the first
+    // (an iteration that runs out is discarded and the previous depth's answer is used: deterministic).
+    const LV = [
+      { depths: [1], noise: 120, blunder: 0.1 },
+      { depths: [3], noise: 10 },
+      { depths: [5] },
+      { depths: [5, 7, 9], budget: 80000 },
+    ];
+    function ai(s, level, seed, ply) {
+      const cfg = LV[clampLevel(level)];
+      if (ply == null) ply = s.ply || 0;
+      const r = rng(String(seed) + ':' + ply);
+      const list = gen(s.b, s.side);
+      if (!list.length) return null;
+      let root = order(list).map((m) => ({ m, k: r() }));
+      if (cfg.blunder && r() < cfg.blunder) return str(root[Math.floor(r() * root.length)].m);
+      if (root.length === 1) return str(root[0].m);
+      const S = makeSearcher(new Int8Array(s.b), 0);
+      let result = null;
+      for (const d of cfg.depths) {
+        S.limit = result ? cfg.budget : 0; // the first depth always completes
+        const out = [];
+        let best = -INF;
+        for (const x of root) {
+          let v;
+          if (cfg.noise) v = S.root(s, x.m, d, -INF, INF) + Math.round((r() - 0.5) * cfg.noise);
+          else { const a = best === -INF ? -INF : best - 1; v = S.root(s, x.m, d, a, INF); }
+          if (S.stop) break;
+          if (v > best) best = v;
+          out.push({ m: x.m, s: v, k: x.k });
+        }
+        if (S.stop) break;
+        result = out;
+        if (Math.abs(best) > WIN - 1000) break; // forced win/loss found
+        root = out.slice().sort((a, b) => (b.s - a.s) || (a.k - b.k));
+      }
+      return str(pickBest(result, r));
+    }
+    return {
+      create, moves, play, status, ai, parse, name, index,
+      turn: (s) => s.side,
+      board: (s) => Array.from(s.b),
+      _internal: { gen, str, applyMove, evaluate, LV, makeSearcher },
+    };
+  })();
+
+  // =====================================================================================
+  // CONNECT FOUR (7 columns x 6 rows). cell index = col*6 + row, row 0 = bottom. 1 = human, 2 = AI.
+  // =====================================================================================
+  const connect4 = (function () {
+    const W = 7, H = 6;
+    const ORDER = [3, 2, 4, 1, 5, 0, 6];
+    const WINDOWS = [];
+    for (let c = 0; c < W; c++) for (let r = 0; r < H; r++) {
+      for (const [dc, dr] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+        const ec = c + 3 * dc, er = r + 3 * dr;
+        if (ec < 0 || ec >= W || er < 0 || er >= H) continue;
+        WINDOWS.push([0, 1, 2, 3].map((i) => (c + i * dc) * H + (r + i * dr)));
+      }
+    }
+    function create() { return { cells: new Int8Array(W * H), h: new Int8Array(W), n: 0, side: 0, win: null }; }
+    function lineAt(cells, c, r, who) {
+      for (const [dc, dr] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+        const line = [[c, r]];
+        for (const sgn of [1, -1]) {
+          let cc = c + dc * sgn, rr = r + dr * sgn;
+          while (cc >= 0 && cc < W && rr >= 0 && rr < H && cells[cc * H + rr] === who) { line.push([cc, rr]); cc += dc * sgn; rr += dr * sgn; }
+        }
+        if (line.length >= 4) return line;
+      }
+      return null;
+    }
+    function wins(cells, c, r, who) {
+      for (let d = 0; d < 4; d++) {
+        const dc = d === 1 ? 0 : 1, dr = d === 0 ? 0 : d === 3 ? -1 : 1;
+        let n = 1, cc = c + dc, rr = r + dr;
+        while (cc < W && rr >= 0 && rr < H && cells[cc * H + rr] === who) { n++; cc += dc; rr += dr; }
+        cc = c - dc; rr = r - dr;
+        while (cc >= 0 && rr >= 0 && rr < H && cells[cc * H + rr] === who) { n++; cc -= dc; rr -= dr; }
+        if (n >= 4) return true;
+      }
+      return false;
+    }
+    function status(s) {
+      if (s.win) return { over: true, winner: s.win.who - 1, reason: 'four in a row' };
+      if (s.n >= W * H) return { over: true, winner: null, reason: 'board full' };
+      return { over: false, winner: null, reason: '' };
+    }
+    function moves(s) {
+      if (status(s).over) return [];
+      const out = [];
+      for (let c = 0; c < W; c++) if (s.h[c] < H) out.push(String(c));
+      return out;
+    }
+    function play(s, mv) {
+      if (status(s).over) return null;
+      const c = String(mv).trim();
+      if (!/^[0-6]$/.test(c)) return null;
+      const col = +c;
+      if (s.h[col] >= H) return null;
+      const cells = new Int8Array(s.cells), h = new Int8Array(s.h), r = h[col], who = s.side + 1;
+      cells[col * H + r] = who; h[col]++;
+      const line = lineAt(cells, col, r, who);
+      return { cells, h, n: s.n + 1, side: s.side ^ 1, win: line ? { who, line } : null };
+    }
+
+    // ---------- search ----------
+    const WIN = 100000;
+    const WT = [0, 1, 8, 40];
+    // Window score for `me` (the side to move). A three whose empty cell is playable right now is a real threat:
+    // for the side to move it is a win next move, for the opponent it must be answered.
+    function evaluate(cells, me, h) {
+      let v = 0;
+      const op = 3 - me;
+      for (let i = 0; i < WINDOWS.length; i++) {
+        const w = WINDOWS[i];
+        let a = 0, o = 0, e = -1;
+        for (let j = 0; j < 4; j++) { const x = cells[w[j]]; if (x === me) a++; else if (x === op) o++; else e = w[j]; }
+        if (!o) { v += WT[a]; if (a === 3 && h && h[(e / H) | 0] === e % H) v += 150; }
+        else if (!a) { v -= WT[o]; if (o === 3 && h && h[(e / H) | 0] === e % H) v -= 60; }
+      }
+      for (let r = 0; r < H; r++) { const x = cells[3 * H + r]; if (x === me) v += 4; else if (x === op) v -= 4; }
+      return v;
+    }
+    // Zobrist keys (fixed, seeded) for the per-move transposition table.
+    const ZR = rng('mfl-connect4-zobrist');
+    const ZH = new Int32Array(W * H * 3), ZL = new Int32Array(W * H * 3);
+    for (let i = 0; i < ZH.length; i++) { ZH[i] = (ZR() * 4294967296) | 0; ZL[i] = (ZR() * 4294967296) | 0; }
+    const TT_BITS = 15, TT_SIZE = 1 << TT_BITS, TT_MASK = TT_SIZE - 1;
+    function makeSearcher(st, cfg) {
+      const cells = new Int8Array(st.cells), h = new Int8Array(st.h);
+      const S = { nodes: 0, stop: false, limit: 0, cells, h };
+      let n = st.n, kh = 0, kl = 0;
+      for (let i = 0; i < W * H; i++) if (cells[i]) { kh ^= ZH[i * 3 + cells[i]]; kl ^= ZL[i * 3 + cells[i]]; }
+      // fresh table for every AI move, so results only depend on the position (deterministic)
+      const tH = new Int32Array(TT_SIZE), tL = new Int32Array(TT_SIZE), tV = new Int32Array(TT_SIZE);
+      const tD = new Int8Array(TT_SIZE), tF = new Int8Array(TT_SIZE), tM = new Int8Array(TT_SIZE); // tF: 0 empty, 1 exact, 2 lower, 3 upper
+      const put = (c, r, who) => { const i = c * H + r; cells[i] = who; h[c]++; n++; kh ^= ZH[i * 3 + who]; kl ^= ZL[i * 3 + who]; };
+      const take = (c, r, who) => { const i = c * H + r; cells[i] = 0; h[c]--; n--; kh ^= ZH[i * 3 + who]; kl ^= ZL[i * 3 + who]; };
+      // side to move = me; returns score for me
+      function nm(depth, alpha, beta, me) {
+        S.nodes++;
+        if (S.limit && S.nodes > S.limit) { S.stop = true; return 0; }
+        if (n >= W * H) return 0;
+        if (depth <= 0) return evaluate(cells, me, cfg.threats ? h : null);
+        const op = 3 - me;
+        let forced = -1, threats = 0;
+        for (let i = 0; i < W; i++) {
+          const c = ORDER[i];
+          if (h[c] >= H) continue;
+          if (wins(cells, c, h[c], me)) return WIN - (n + 1);
+          if (wins(cells, c, h[c], op)) { threats++; forced = c; }
+        }
+        if (threats > 1) return -(WIN - (n + 2)); // two threats: can only block one
+        const slot = kl & TT_MASK;
+        let ttMove = -1;
+        if (tF[slot] && tH[slot] === kh && tL[slot] === kl) {
+          ttMove = tM[slot];
+          if (tD[slot] >= depth) {
+            const v = tV[slot], f = tF[slot];
+            if (f === 1) return v;
+            if (f === 2 && v >= beta) return v;
+            if (f === 3 && v <= alpha) return v;
+          }
+        }
+        const alpha0 = alpha;
+        let best = -INF, bestMove = -1;
+        for (let i = -1; i < W; i++) {
+          let c;
+          if (i < 0) { c = forced >= 0 ? forced : ttMove; if (c < 0) continue; }
+          else { c = ORDER[i]; if (c === ttMove && forced < 0) continue; if (forced >= 0) break; }
+          if (h[c] >= H) continue;
+          const r = h[c];
+          put(c, r, me);
+          const v = -nm(depth - 1, -beta, -alpha, op);
+          take(c, r, me);
+          if (S.stop) return 0;
+          if (v > best) { best = v; bestMove = c; }
+          if (v > alpha) alpha = v;
+          if (alpha >= beta) break;
+        }
+        tH[slot] = kh; tL[slot] = kl; tV[slot] = best; tD[slot] = depth; tM[slot] = bestMove;
+        tF[slot] = best <= alpha0 ? 3 : best >= beta ? 2 : 1;
+        return best;
+      }
+      // score of playing column c at the root
+      S.root = function (c, depth, alpha, beta) {
+        const me = st.side + 1, r = h[c];
+        put(c, r, me);
+        let v;
+        if (wins(cells, c, r, me)) v = WIN - n;
+        else v = -nm(depth - 1, -beta, -alpha, 3 - me);
+        take(c, r, me);
+        return v;
+      };
+      return S;
+    }
+    const LV = [
+      { depths: [1], noise: 40, blunder: 0.2, threats: true },
+      { depths: [3], noise: 4, threats: true },
+      { depths: [5] },
+      { depths: [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42], budget: 80000 },
+    ];
+    function ai(s, level, seed, ply) {
+      const cfg = LV[clampLevel(level)];
+      if (ply == null) ply = s.n;
+      const r = rng(String(seed) + ':' + ply);
+      const cols = ORDER.filter((c) => s.h[c] < H);
+      if (!cols.length || status(s).over) return null;
+      const keys = cols.map(() => r());
+      if (cfg.blunder && r() < cfg.blunder) return String(cols[Math.floor(r() * cols.length)]);
+      if (cols.length === 1) return String(cols[0]);
+      let result = null;
+      const S = makeSearcher(s, cfg);
+      for (const d of cfg.depths) {
+        S.limit = result ? cfg.budget : 0; // the first depth always completes; later ones share the node budget
+        const out = [];
+        let best = -INF;
+        for (let i = 0; i < cols.length; i++) {
+          const c = cols[i];
+          let v;
+          if (cfg.noise) v = S.root(c, d, -INF, INF) + Math.round((keys[i] - 0.5) * cfg.noise * 2);
+          else { const a = best === -INF ? -INF : best - 1; v = S.root(c, d, a, INF); }
+          if (S.stop) break;
+          if (v > best) best = v;
+          out.push({ m: c, s: v });
+        }
+        if (S.stop) break;
+        result = out;
+      }
+      return String(pickBest(result, r));
+    }
+    return {
+      create, moves, play, status, ai,
+      turn: (s) => s.side,
+      cell: (s, c, r) => s.cells[c * H + r],
+      height: (s, c) => s.h[c],
+      winLine: (s) => (s.win ? s.win.line.slice() : null),
+      cols: W, rows: H,
+      _internal: { evaluate, wins, LV },
+    };
+  })();
+
+  const games = { chess, checkers, connect4 };
+  const MAX_PLIES = { chess: 600, checkers: 400, connect4: 42 };
+
+  function aiMove(game, state, level, seed, ply) {
+    const G = games[game];
+    if (!G) throw new Error('unknown game ' + game);
+    return G.ai(state, level, seed, ply);
+  }
+
+  function verify(game, moves, level, seed) {
+    const G = games[game];
+    if (!G) return { result: 'invalid', reason: 'unknown game' };
+    if (typeof moves === 'string') moves = moves.trim() ? moves.trim().split(/[\s,]+/) : [];
+    if (!Array.isArray(moves)) return { result: 'invalid', reason: 'moves must be an array' };
+    if (moves.length > MAX_PLIES[game]) return { result: 'invalid', reason: 'too many moves' };
+    level = clampLevel(level);
+    let s = G.create();
+    for (let i = 0; i < moves.length; i++) {
+      const mv = String(moves[i]).trim().toLowerCase();
+      if (G.status(s).over) return { result: 'invalid', reason: `move ${i + 1} played after the game ended`, plies: i };
+      if (i % 2 === 1) {
+        const want = G.ai(s, level, seed, i);
+        if (want !== mv) return { result: 'invalid', reason: `AI move ${i + 1} should be ${want}, got ${mv}`, plies: i };
+      }
+      const next = G.play(s, mv);
+      if (!next) return { result: 'invalid', reason: `illegal move ${i + 1}: ${mv}`, plies: i };
+      s = next;
+    }
+    const st = G.status(s);
+    if (!st.over) return { result: 'loss', reason: 'game not finished (resigned)', plies: moves.length };
+    if (st.winner === 0) return { result: 'win', reason: st.reason, plies: moves.length };
+    if (st.winner === 1) return { result: 'loss', reason: st.reason, plies: moves.length };
+    return { result: 'draw', reason: st.reason, plies: moves.length };
+  }
+
+  return { rng, LEVELS, games, chess, checkers, connect4, aiMove, verify };
+});
+</script><script type="text/x-mfl">// MFL Arcade: Chess vs the bot. Rules + AI live in engines.js (MFLEngines.chess), so the server can replay.
+// Controls: tap a piece, then tap a highlighted square (tap the piece again to cancel). Pawns reaching the
+// last rank open a promotion picker. Resign = loss.
+(function () {
+  const CSS = `
+.chess-wrap{--bw:360px;--sq:45px;width:var(--bw);max-width:100%;margin:0 auto;font-family:Inter,system-ui,sans-serif;color:#f5f6f8;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.chess-bar{display:flex;align-items:center;gap:10px;padding:8px 2px;min-height:44px}
+.chess-av{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font:800 13px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.04em;flex:none}
+.chess-bar.ai .chess-av{background:#1d212c;color:#ff3344;border:1px solid #2a2f3c}
+.chess-bar.me .chess-av{background:#ffc21a;color:#07080b}
+.chess-who{display:flex;flex-direction:column;line-height:1.1;min-width:0;flex:none}
+.chess-who small{white-space:nowrap}
+.chess-who b{font:800 15px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.05em}
+.chess-who small{color:#6f7584;font-size:12px}
+.chess-capt{margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:0;min-height:20px;min-width:0;flex:1;font-family:'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2','DejaVu Sans',sans-serif;font-size:17px;line-height:1}
+.chess-chip{display:inline-flex;flex-wrap:wrap;justify-content:flex-end;background:#cfd6e2;border-radius:8px;padding:2px 6px 2px 8px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.chess-chip:empty{display:none}
+.chess-capt i{font-style:normal;margin-left:-3px}
+.chess-capt .w{color:#fbfbfd;text-shadow:0 0 1px #111,1px 0 0 #111,-1px 0 0 #111,0 1px 0 #111,0 -1px 0 #111}
+.chess-capt .b{color:#14161c}
+.chess-capt em{font:700 12px Inter,sans-serif;color:#6f7584;margin-left:6px;font-style:normal}
+.chess-bar.turn .chess-av{box-shadow:0 0 0 2px #07080b,0 0 0 4px #ffc21a}
+.chess-bar.ai.turn .chess-av{box-shadow:0 0 0 2px #07080b,0 0 0 4px #ff3344}
+.chess-think{display:none;gap:3px;margin-left:4px}
+.chess-bar.thinking .chess-think{display:inline-flex}
+.chess-think span{width:5px;height:5px;border-radius:50%;background:#ff3344;animation:chess-dot 1s infinite ease-in-out}
+.chess-think span:nth-child(2){animation-delay:.15s}.chess-think span:nth-child(3){animation-delay:.3s}
+@keyframes chess-dot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.chess-bw{position:relative;width:var(--bw);height:var(--bw);border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px #2a2f3c;touch-action:manipulation}
+.chess-board{display:grid;grid-template-columns:repeat(8,var(--sq));grid-template-rows:repeat(8,var(--sq));width:var(--bw);height:var(--bw)}
+.chess-sq{position:relative;display:grid;place-items:center;cursor:pointer}
+.chess-sq.l{background:#cfd6e2}.chess-sq.d{background:#6c7c98}
+.chess-sq.last::after{content:'';position:absolute;inset:0;background:rgba(255,194,26,.38)}
+.chess-sq.sel::after{content:'';position:absolute;inset:0;background:rgba(255,194,26,.62)}
+.chess-sq.chk{background-image:radial-gradient(circle,rgba(255,51,68,1) 0,rgba(255,51,68,.75) 35%,rgba(255,51,68,0) 72%)}
+.chess-sq.tgt::before{content:'';position:absolute;width:30%;height:30%;border-radius:50%;background:rgba(7,8,11,.32);z-index:3;pointer-events:none}
+.chess-sq.tgt.cap::before{width:86%;height:86%;background:transparent;border:calc(var(--sq)*.08) solid rgba(7,8,11,.38);box-sizing:border-box}
+.chess-sq.tgt:hover::before{background:rgba(255,194,26,.55)}
+.chess-sq.tgt.cap:hover::before{border-color:rgba(255,194,26,.8);background:transparent}
+.chess-co{position:absolute;font:700 calc(var(--sq)*.2) Inter,sans-serif;pointer-events:none;z-index:2;opacity:.9}
+.chess-co.r{left:3px;top:2px}.chess-co.f{right:3px;bottom:1px}
+.chess-sq.l .chess-co{color:#6c7c98}.chess-sq.d .chess-co{color:#cfd6e2}
+.chess-pc{position:relative;z-index:4;font-family:'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2','DejaVu Sans',sans-serif;font-size:calc(var(--sq)*.8);line-height:1;pointer-events:none;will-change:transform;transform:translateY(-2%)}
+.chess-pc.w{color:#fbfbfd;text-shadow:0 0 1px #111,1px 0 0 #111,-1px 0 0 #111,0 1px 0 #111,0 -1px 0 #111,0 3px 4px rgba(0,0,0,.45)}
+.chess-pc.b{color:#14161c;text-shadow:0 0 1px rgba(255,255,255,.35),0 3px 4px rgba(0,0,0,.4)}
+.chess-pc.lift{transform:translateY(-8%) scale(1.08)}
+.chess-promo{position:absolute;inset:0;z-index:20;background:rgba(7,8,11,.72);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.chess-promo[hidden]{display:none}
+.chess-promo-in{background:#161922;border:1px solid #2a2f3c;border-radius:16px;padding:14px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.6);animation:chess-pop .18s ease-out}
+.chess-promo-in p{margin:0 0 10px;font:800 15px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:#ffc21a}
+.chess-promo-in div{display:flex;gap:8px}
+.chess-promo button{width:calc(var(--sq)*1.25);height:calc(var(--sq)*1.25);min-width:54px;min-height:54px;border-radius:12px;border:1px solid #2a2f3c;background:#cfd6e2;cursor:pointer;display:grid;place-items:center;padding:0}
+.chess-promo button:hover,.chess-promo button:focus-visible{background:#ffc21a;outline:none}
+.chess-promo button span{font-family:'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2','DejaVu Sans',sans-serif;font-size:calc(max(var(--sq),44px)*.9);line-height:1;color:#fbfbfd;text-shadow:0 0 1px #111,1px 0 0 #111,-1px 0 0 #111,0 1px 0 #111,0 -1px 0 #111}
+@keyframes chess-pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.chess-status{margin:12px 0 8px;text-align:center;font:800 22px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.06em;min-height:28px}
+.chess-status.check{color:#ff3344;animation:chess-shake .35s}
+.chess-status.win{color:#ffc21a}
+@keyframes chess-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.chess-moves{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:6px 2px;min-height:34px;font:600 13px Inter,sans-serif;color:#9aa1b0;mask-image:linear-gradient(90deg,transparent 0,#000 18px)}
+.chess-moves::-webkit-scrollbar{display:none}
+.chess-moves span{flex:none;padding:3px 7px;border-radius:7px;background:#0f1117;border:1px solid #1d212c;white-space:nowrap}
+.chess-moves span b{color:#6f7584;font-weight:600;margin-right:4px}
+.chess-moves span.cur{border-color:#ffc21a;color:#f5f6f8}
+.chess-moves .chess-empty{background:none;border:none;color:#6f7584}
+.chess-act{display:flex;justify-content:center;gap:10px;margin-top:8px}
+.chess-btn{font:800 14px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:10px 20px;border-radius:999px;border:1px solid #2a2f3c;background:#161922;color:#f5f6f8;cursor:pointer;min-height:42px}
+.chess-btn:hover{border-color:#6f7584}
+.chess-btn.confirm{background:#ff3344;border-color:#ff3344;color:#fff}
+.chess-btn:disabled{opacity:.4;cursor:default}
+`;
+  const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+  const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+  const FILES = 'abcdefgh';
+  const sqName = (i) => FILES[i % 8] + (Math.floor(i / 8) + 1);
+  const sqIdx = (s) => (s.charCodeAt(0) - 97) + (s.charCodeAt(1) - 49) * 8;
+  const glyph = (pc) => `<span class="chess-pc ${pc === pc.toUpperCase() ? 'w' : 'b'}">${GLYPH[pc.toLowerCase()]}︎</span>`;
+
+  function start(ctx) {
+    const E = window.MFLEngines, C = E.chess;
+    if (!document.getElementById('chess-css')) { const st = document.createElement('style'); st.id = 'chess-css'; st.textContent = CSS; document.head.appendChild(st); }
+    const root = ctx.root;
+    root.innerHTML = `
+<div class="chess-wrap">
+  <div class="chess-bar ai"><div class="chess-av">BOT</div><div class="chess-who"><b>MFL Bot <span class="chess-think"><span></span><span></span><span></span></span></b><small>${ctx.levelName || E.LEVELS[ctx.level]} · Black</small></div><div class="chess-capt" data-c="ai"></div></div>
+  <div class="chess-bw"><div class="chess-board"></div>
+    <div class="chess-promo" hidden><div class="chess-promo-in"><p>Promote to</p><div></div></div></div></div>
+  <div class="chess-bar me"><div class="chess-av">YOU</div><div class="chess-who"><b>You</b><small>White · moves first</small></div><div class="chess-capt" data-c="me"></div></div>
+  <div class="chess-status">Your move</div>
+  <div class="chess-moves"><span class="chess-empty">Tap a piece, then tap where it goes.</span></div>
+  <div class="chess-act"><button class="chess-btn" data-a="resign">Resign</button></div>
+</div>`;
+    const wrap = root.querySelector('.chess-wrap'), boardEl = root.querySelector('.chess-board');
+    const statusEl = root.querySelector('.chess-status'), movesEl = root.querySelector('.chess-moves');
+    const promoEl = root.querySelector('.chess-promo'), resignBtn = root.querySelector('[data-a=resign]');
+    const barAI = root.querySelector('.chess-bar.ai'), barMe = root.querySelector('.chess-bar.me');
+
+    let state = C.create();
+    const moves = [], sans = [];
+    let sel = -1, last = null, busy = false, over = false;
+    const timers = new Set();
+    const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); if (!over || fn.force) fn(); }, ms); timers.add(t); return t; };
+
+    // squares: display order rank 8 -> 1 (human plays White at the bottom)
+    const sqEls = new Array(64);
+    for (let row = 7; row >= 0; row--) for (let f = 0; f < 8; f++) {
+      const i = row * 8 + f, d = document.createElement('div');
+      d.className = 'chess-sq ' + ((row + f) % 2 ? 'l' : 'd');
+      d.dataset.i = i;
+      sqEls[i] = d;
+      boardEl.appendChild(d);
+    }
+
+    function size() {
+      const avail = root.clientWidth || 360;
+      const vh = window.innerHeight || 800;
+      let bw = Math.min(avail, 560, Math.max(280, vh - 270));
+      bw = Math.max(240, Math.floor(bw / 8) * 8);
+      wrap.style.setProperty('--bw', bw + 'px');
+      wrap.style.setProperty('--sq', bw / 8 + 'px');
+    }
+    size();
+    const onResize = () => size();
+    window.addEventListener('resize', onResize);
+    let ro = null;
+    if (window.ResizeObserver) { ro = new ResizeObserver(onResize); ro.observe(root); }
+
+    const legal = () => (over || busy ? [] : C.moves(state));
+    function render() {
+      const b = C.board(state);
+      const lm = legal();
+      const tg = new Map();
+      if (sel >= 0) for (const m of lm) if (sqIdx(m) === sel) tg.set(sqIdx(m.slice(2, 4)), m);
+      const checkSq = C.inCheck(state) ? b.indexOf(state.side === 0 ? 'K' : 'k') : -1;
+      for (let i = 0; i < 64; i++) {
+        const el = sqEls[i], pc = b[i];
+        let cls = 'chess-sq ' + ((Math.floor(i / 8) + (i % 8)) % 2 ? 'l' : 'd');
+        if (last && (i === last[0] || i === last[1])) cls += ' last';
+        if (i === sel) cls += ' sel';
+        if (i === checkSq) cls += ' chk';
+        if (tg.has(i)) cls += ' tgt' + (pc || (b[sel] === 'P' && i % 8 !== sel % 8) ? ' cap' : '');
+        el.className = cls;
+        let html = pc ? glyph(pc) : '';
+        if (i % 8 === 0) html += `<span class="chess-co r">${Math.floor(i / 8) + 1}</span>`;
+        if (i < 8) html += `<span class="chess-co f">${FILES[i]}</span>`;
+        el.innerHTML = html;
+        if (i === sel && pc) el.firstChild.classList.add('lift');
+      }
+      // captured material
+      const count = (arr, ch) => arr.filter((x) => x === ch).length;
+      const start = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+      let meVal = 0, aiVal = 0, meHtml = '', aiHtml = '';
+      for (const t of ['q', 'r', 'b', 'n', 'p']) {
+        const lostBlack = Math.max(0, start[t] - count(b, t)), lostWhite = Math.max(0, start[t] - count(b, t.toUpperCase()));
+        meHtml += `<i class="b">${GLYPH[t]}︎</i>`.repeat(lostBlack);
+        aiHtml += `<i class="w">${GLYPH[t]}︎</i>`.repeat(lostWhite);
+      }
+      for (const pc of b) if (pc) { if (pc === pc.toUpperCase()) meVal += VAL[pc.toLowerCase()]; else aiVal += VAL[pc]; }
+      root.querySelector('[data-c=me]').innerHTML = `<span class="chess-chip">${meHtml}</span>` + (meVal > aiVal ? `<em>+${meVal - aiVal}</em>` : '');
+      root.querySelector('[data-c=ai]').innerHTML = `<span class="chess-chip">${aiHtml}</span>` + (aiVal > meVal ? `<em>+${aiVal - meVal}</em>` : '');
+      barMe.classList.toggle('turn', !over && state.side === 0);
+      barAI.classList.toggle('turn', !over && state.side === 1);
+    }
+
+    function renderMoves() {
+      if (!sans.length) return;
+      let html = '';
+      for (let i = 0; i < sans.length; i += 2) {
+        html += `<span class="${i >= sans.length - 2 ? 'cur' : ''}"><b>${i / 2 + 1}.</b>${sans[i]}${sans[i + 1] ? ' ' + sans[i + 1] : ''}</span>`;
+      }
+      movesEl.innerHTML = html;
+      movesEl.scrollLeft = movesEl.scrollWidth;
+    }
+
+    function setStatus(text, cls) {
+      statusEl.className = 'chess-status' + (cls ? ' ' + cls : '');
+      statusEl.textContent = text;
+    }
+
+    // slide the piece that just landed on `to` from `from`
+    function animate(from, to) {
+      const el = sqEls[to].querySelector('.chess-pc');
+      if (!el || !el.animate) return;
+      const sq = boardEl.clientWidth / 8;
+      const dx = ((from % 8) - (to % 8)) * sq, dy = (Math.floor(to / 8) - Math.floor(from / 8)) * sq;
+      el.animate([{ transform: `translate(${dx}px,${dy}px) scale(1.1)` }, { transform: 'translate(0,0) scale(1)' }], { duration: 190, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    }
+
+    function apply(mv, byHuman) {
+      const before = C.board(state);
+      const san = C.san(state, mv);
+      state = C.play(state, mv);
+      moves.push(mv); sans.push(san);
+      const from = sqIdx(mv), to = sqIdx(mv.slice(2, 4));
+      last = [from, to];
+      sel = -1;
+      render();
+      animate(from, to);
+      // castling: also slide the rook
+      if (/[Kk]/.test(before[from]) && Math.abs(to - from) === 2) {
+        const rf = to > from ? from + 3 : from - 4, rt = to > from ? from + 1 : from - 1;
+        animate(rf, rt);
+      }
+      renderMoves();
+      const captured = before[to] || (/[Pp]/.test(before[from]) && from % 8 !== to % 8);
+      const st = C.status(state);
+      if (st.over) return end(st);
+      if (C.inCheck(state)) { ctx.sound('whistle'); setStatus(state.side === 0 ? 'Check! Your move' : 'Check!', 'check'); }
+      else { ctx.sound(captured ? (byHuman ? 'good' : 'bad') : 'tap'); setStatus(state.side === 0 ? 'Your move' : 'Bot is thinking…'); }
+      if (state.side === 1) botTurn();
+    }
+
+    function botTurn() {
+      busy = true;
+      barAI.classList.add('thinking');
+      render();
+      const t0 = Date.now();
+      later(() => {
+        const mv = E.aiMove('chess', state, ctx.level, ctx.seed, moves.length);
+        const wait = Math.max(0, 480 - (Date.now() - t0));
+        later(() => {
+          barAI.classList.remove('thinking');
+          busy = false;
+          apply(mv, false);
+          if (!over && !C.inCheck(state)) setStatus('Your move');
+        }, wait);
+      }, 140);
+    }
+
+    function end(st) {
+      over = true; busy = false;
+      barAI.classList.remove('thinking');
+      render();
+      const n = Math.ceil(moves.length / 2);
+      let res;
+      if (st.winner === 0) { res = { won: true, detail: `Checkmate in ${n} moves` }; setStatus('Checkmate! You win', 'win'); }
+      else if (st.winner === 1) { res = { won: false, detail: `Checkmated in ${n} moves` }; setStatus('Checkmate', 'check'); }
+      else {
+        const why = { stalemate: 'Stalemate', '50-move rule': '50-move rule', 'insufficient material': 'Not enough pieces to mate', 'threefold repetition': 'Threefold repetition', 'move limit': 'Move limit reached' }[st.reason] || st.reason;
+        res = { won: false, tie: true, detail: `Draw: ${why} after ${n} moves` }; setStatus('Draw: ' + why);
+      }
+      resignBtn.disabled = true;
+      const f = () => done(res); f.force = true;
+      later(f, 1100);
+    }
+
+    let finished = false;
+    function done(res) {
+      if (finished) return; finished = true;
+      over = true;
+      for (const t of timers) clearTimeout(t);
+      timers.clear();
+      window.removeEventListener('resize', onResize);
+      if (ro) ro.disconnect();
+      ctx.finish(Object.assign({ moves: moves.slice() }, res));
+    }
+
+    function choosePromotion(cands) {
+      const box = promoEl.querySelector('.chess-promo-in div');
+      box.innerHTML = '';
+      for (const t of ['q', 'r', 'b', 'n']) {
+        const mv = cands.find((m) => m[4] === t);
+        if (!mv) continue;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', { q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight' }[t]);
+        btn.innerHTML = `<span>${GLYPH[t]}︎</span>`;
+        btn.addEventListener('click', (e) => { e.stopPropagation(); promoEl.hidden = true; apply(mv, true); });
+        box.appendChild(btn);
+      }
+      promoEl.hidden = false;
+    }
+    promoEl.addEventListener('click', (e) => { if (e.target === promoEl) { promoEl.hidden = true; sel = -1; render(); } });
+
+    boardEl.addEventListener('click', (e) => {
+      const el = e.target.closest('.chess-sq');
+      if (!el || over || busy || state.side !== 0) return;
+      const i = +el.dataset.i;
+      const b = C.board(state);
+      const lm = legal();
+      if (sel >= 0) {
+        const cands = lm.filter((m) => sqIdx(m) === sel && sqIdx(m.slice(2, 4)) === i);
+        if (cands.length > 1) return choosePromotion(cands);
+        if (cands.length === 1) return apply(cands[0], true);
+      }
+      if (b[i] && b[i] === b[i].toUpperCase() && i !== sel) {
+        sel = i;
+        if (!lm.some((m) => sqIdx(m) === i)) ctx.sound('bad'); else ctx.sound('tap');
+      } else sel = -1;
+      render();
+    });
+
+    let confirmT = null;
+    resignBtn.addEventListener('click', () => {
+      if (over) return;
+      if (!resignBtn.classList.contains('confirm')) {
+        resignBtn.classList.add('confirm'); resignBtn.textContent = 'Tap again to resign';
+        confirmT = setTimeout(() => { resignBtn.classList.remove('confirm'); resignBtn.textContent = 'Resign'; }, 2600);
+        return;
+      }
+      clearTimeout(confirmT);
+      over = true;
+      resignBtn.disabled = true;
+      setStatus('You resigned');
+      done({ won: false, detail: `You resigned after ${Math.ceil(moves.length / 2)} moves` });
+    });
+
+    render();
+    // test hook: lets automated tests read the position
+    root.__chess = { seed: ctx.seed, level: ctx.level, get state() { return state; }, get moves() { return moves.slice(); }, get busy() { return busy; }, get over() { return over; } };
+  }
+
+  window.MFLArcade.register('chess', { start });
+})();
+</script></main>
+<footer class="ftr"><div class="wrap ftr-in">
+  <div class="ftr-brand"><img src="/mfl/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at Thomas Metcalf School</small></div></div>
+  <div class="ftr-links"><a href="/mfl/schedule/">Schedule</a><a href="/mfl/scores/">Scores</a><a href="/mfl/arcade/">Arcade</a><a href="/mfl/career/">Career</a><a href="/mfl/pickem/cards">Cards</a><a href="/mfl/pickem">Pick'em</a><a href="/mfl/history/">Head-to-Head</a><a href="/mfl/stats/players/">Leaders</a><a href="/mfl/stats/rankings/">Rankings</a><a href="/mfl/records/">Records</a><a href="/mfl/cards/">Cards</a><a href="/mfl/calendar.ics">Add to calendar</a><a href="/mfl/teams/pedon/">Pineapples</a><a href="/mfl/teams/xavier/">KTCS</a><a href="/mfl/admin">Admin</a></div>
+</div></footer>
+<script type="text/x-mfl">(()=>{const e=document.querySelector('.hb-cd');if(!e)return;const f=()=>{const s=Math.max(0,Math.floor((+e.dataset.ts-Date.now())/1000));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);e.textContent=s?'kickoff in '+(d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'+(d?'':' '+String(s%60).padStart(2,'0')+'s'):'kickoff!'};f();setInterval(f,1000)})()</script><div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/mfl/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script type="text/x-mfl">
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<script type="text/x-mfl">
+document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
+document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
+const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/mfl/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+// Start loading a page as soon as a finger or mouse lands on its link.
+if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
+</script>
+</body></html>

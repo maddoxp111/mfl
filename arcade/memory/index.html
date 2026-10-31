@@ -1,0 +1,546 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Memory · MFL</title>
+<meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
+<link rel="icon" href="/mfl/static/mfl-logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mfl/static/style.css?v=64">
+<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="/mfl/static/bridge.js" data-base="/mfl"></script></head><body>
+<header class="hdr"><div class="hdr-in">
+  <a class="brand" href="/mfl/"><img src="/mfl/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  
+  <a class="hdr-arc" href="/mfl/arcade/">🕹️ Arcade</a>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
+  <nav class="nav">
+    <div class="dd "><button>Games <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/schedule/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Schedule</a><a href="/mfl/scores/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Scores</a><a href="/mfl/history/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Head-to-Head</a></div></div>
+    <div class="dd "><button>Playoffs <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/playoffs/halloween-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Halloween Bowl</a><a href="/mfl/playoffs/turkey-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Turkey Bowl</a><a href="/mfl/playoffs/christmas-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Christmas Bowl</a><a href="/mfl/playoffs/spring-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Spring Bowl</a><a href="/mfl/playoffs/super-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Super Bowl</a></div></div>
+    <div class="dd "><button>Teams <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:22px;height:22px" decoding="async"> Team Pedon Pineapples</a><a href="/mfl/teams/xavier/"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:22px;height:22px" decoding="async"> Team Xavier KTCS</a><a href="/mfl/transactions/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Transactions</a></div></div>
+    <div class="dd "><button>Stats <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/stats/team/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team Stats</a><a href="/mfl/stats/players/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Player Leaders</a><a href="/mfl/stats/rankings/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Power Rankings</a><a href="/mfl/records/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Records Book</a><a href="/mfl/cards/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Trading Cards</a></div></div>
+    <div class="dd "><button>News <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/midweek/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Midweek Recap</a><a href="/mfl/analyst/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Ask the Analyst</a><a href="/mfl/pickem/survivor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Survivor</a><a href="/mfl/pickem/cards"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> MFL Cards</a></div></div>
+    <div class="nav-main"><a class="nav-arc on" href="/mfl/arcade/">🕹️ Arcade</a>
+    <a class="nav-career " href="/mfl/career/">🏈 Career</a>
+    <a class="nav-cards " href="/mfl/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick " href="/mfl/pickem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Pick'em</a></div>
+    <div class="acct-box"><a class="acct" href="/mfl/pickem/login?next=%2Fpickem">Log in</a><a class="acct primary" href="/mfl/pickem/signup">Sign up</a>
+    </div>
+  </nav>
+</div></header>
+<a class="hype-bar halloween" href="/mfl/playoffs/halloween-bowl/"><span class="hb-fx" aria-hidden="true">🎃</span><span class="hb-msg"><b>Pineapples win the Halloween Bowl!</b><span>PDN 70–42 KTC</span></span><span class="hb-go">Recap <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+<div class="ticker"><div class="ticker-in"><a class="tk " href="/mfl/games/4/"><div class="tk-top"><span>Mon 10/26</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/5/"><div class="tk-top"><span>Tue 10/27</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/6/"><div class="tk-top"><span>Thu 10/29</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>14</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>14</b></div></a><a class="tk " href="/mfl/games/7/"><div class="tk-top"><span>Fri 10/30</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>70</b></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>42</b></div><div class="tk-lbl">Halloween Bowl</div></a><a class="tk " href="/mfl/games/8/"><div class="tk-top"><span>Mon 11/2</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/9/"><div class="tk-top"><span>Tue 11/3</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/10/"><div class="tk-top"><span>Thu 11/5</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/11/"><div class="tk-top"><span>Fri 11/6</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/12/"><div class="tk-top"><span>Mon 11/9</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/13/"><div class="tk-top"><span>Tue 11/10</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/14/"><div class="tk-top"><span>Thu 11/12</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/15/"><div class="tk-top"><span>Fri 11/13</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a></div></div>
+<main><div class="wrap arc-page">
+        <div class="arc-head"><a href="/mfl/arcade/" class="muted sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Arcade</a><h1><span>🃏</span> Card Memory</h1><p class="muted">Match MFL player cards from memory.</p></div>
+        
+        <section class="arc-setup card"><form id="arcSetup">
+          <div class="arc-modes"><label class="mode"><input type="radio" name="mode" value="coins"  disabled><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Play for coins</span></label><label class="mode"><input type="radio" name="mode" value="practice" checked ><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Practice</span></label></div>
+          <p class="muted sm"><a href="/mfl/pickem/login?next=/arcade/memory">Log in</a> to play for coins. Practice is free.</p>
+          <div class="lvls"><label class="lvl"><input type="radio" name="level" value="0" checked><span><b>Rookie</b><small>Win 30</small><em>Risk: 10 → 45</em></span></label><label class="lvl"><input type="radio" name="level" value="1" ><span><b>Pro</b><small>Win 70</small><em>Risk: 23 → 175</em></span></label><label class="lvl"><input type="radio" name="level" value="2" ><span><b>All-Pro</b><small>Win 150</small><em>Risk: 50 → 525</em></span></label><label class="lvl"><input type="radio" name="level" value="3" ><span><b>Legend</b><small>Win 280</small><em>Risk: 93 → 1,400</em></span></label></div>
+          
+          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Pay a third of the prize up front for 1.5× to 5× the win.</small></span></label>
+          
+          <button type="submit" class="btn arc-go"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Play</button><p id="arcMsg" class="err"></p>
+        </form></section>
+        <section id="arcStage" class="arc-stage" hidden></section>
+      </div>
+      <script type="text/x-mfl">window.MFL_ARCADE={"game":"memory"};
+      (function(){const f=document.getElementById('arcSetup');const sync=()=>{const p=f.mode&&f.mode.value==='practice';f.querySelectorAll('[data-coins]').forEach(e=>e.hidden=p);f.querySelectorAll('[data-practice]').forEach(e=>e.hidden=!p);if(p&&f.risk)f.risk.checked=false;};f.addEventListener('change',sync);sync();})();</script><script type="text/x-mfl">// MFL Arcade harness: every game registers here and gets the same ctx.
+//
+//   MFLArcade.register('chess', { start(ctx) { ... ctx.finish({ won: true, moves }) } });
+//
+// ctx = {
+//   root,        // empty <div> the game draws into (it owns everything inside)
+//   game,        // game id
+//   level,       // 0..3  (Rookie, Pro, All-Pro, Legend)
+//   levelName,
+//   seed,        // match seed string (from the server)
+//   rng,         // seeded random() for this match
+//   data,        // game-specific data from the server (rosters, trivia questions...)
+//   exhibition,  // true = just for fun, no coins
+//   risk,        // true = Risk mode
+//   finish(result),  // call once: { won: bool, score?, detail?, moves?, stats? }
+//   sound(name),     // 'tap' | 'good' | 'bad' | 'win' | 'lose' | 'whistle' | 'kick' | 'catch'
+// }
+(function () {
+  // Same generator as engines.js, so the server can replay seeded AI choices.
+  function rng(seed) {
+    let h = 2166136261 >>> 0;
+    const s = String(seed);
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  let actx = null;
+  function sound(name) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const seq = {
+        tap: [[660, 0.04]], good: [[660, 0.07], [880, 0.09]], bad: [[220, 0.12], [160, 0.16]],
+        win: [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.22]], lose: [[392, 0.14], [330, 0.14], [262, 0.3]],
+        whistle: [[1800, 0.08], [1600, 0.18]], kick: [[140, 0.08]], catch: [[520, 0.05], [700, 0.06]],
+      }[name] || [[440, 0.05]];
+      let t = actx.currentTime;
+      for (const [f, d] of seq) {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = name === 'kick' ? 'triangle' : 'square';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + 0.02);
+        t += d * 0.9;
+      }
+    } catch {}
+  }
+
+  const A = (window.MFLArcade = { games: {}, rng, sound, register(id, g) { this.games[id] = g; } });
+
+  const $ = (s) => document.querySelector(s);
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+
+  function overlay(html) {
+    let o = $('#arcOverlay');
+    if (!o) { o = document.createElement('div'); o.id = 'arcOverlay'; o.className = 'arc-over'; document.body.appendChild(o); }
+    o.innerHTML = `<div class="arc-over-in">${html}</div>`;
+    o.hidden = false;
+    return o;
+  }
+
+  // Start a match (or an exhibition) from the setup form, then hand off to the game.
+  A.boot = function () {
+    const cfg = window.MFL_ARCADE;
+    const form = $('#arcSetup');
+    if (!cfg || !form) return;
+    let open = null; // a coin match that's running: leaving the page forfeits it
+    window.addEventListener('beforeunload', (e) => { if (open && open.risk) { e.preventDefault(); e.returnValue = ''; } });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const body = Object.fromEntries(fd.entries());
+      body.game = cfg.game;
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      let start;
+      try {
+        const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        start = await r.json();
+      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Your network may be blocking it.' }; }
+      btn.disabled = false;
+      if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
+      $('#arcMsg').textContent = '';
+      const game = A.games[cfg.game];
+      if (!game) { $('#arcMsg').textContent = 'Game failed to load. Refresh and try again.'; return; }
+      const level = Number(start.level || 0);
+      open = start.id ? { id: start.id, risk: !!start.risk } : null;
+      document.body.classList.add('arc-playing');
+      const stage = $('#arcStage');
+      stage.hidden = false;
+      form.closest('.arc-setup').hidden = true;
+      stage.innerHTML = '<div class="arc-root"></div>';
+      const root = stage.querySelector('.arc-root');
+      window.scrollTo({ top: stage.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+      let done = false;
+      const ctx = {
+        root, game: cfg.game, level, levelName: start.levelName, seed: start.seed, rng: rng(start.seed), data: start.data || {},
+        exhibition: !start.id, risk: !!start.risk, sound,
+        async finish(result) {
+          if (done) return; done = true;
+          sound(result && result.won ? 'win' : 'lose');
+          if (!start.id) {
+            overlay(`<h2>${result.won ? 'You win!' : result.tie ? "It's a tie" : 'Game over'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="muted">Exhibition: just for fun.</p><div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+            return;
+          }
+          overlay('<h2>Checking the result…</h2>');
+          let r;
+          try {
+            const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: start.id, result }) });
+            r = await res.json();
+          } catch { r = { ok: false, error: 'Could not reach the server. Your result was not saved.' }; }
+          open = null;
+          const coins = r.ok ? (r.net > 0 ? `<p class="arc-coins up">+${fmt(r.net)} coins</p>` : r.net < 0 ? `<p class="arc-coins down">${fmt(r.net)} coins</p>` : '') : '';
+          overlay(`<h2>${r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+          document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
+        },
+      };
+      try { game.start(ctx); } catch (err) { console.error(err); overlay(`<h2>Game crashed</h2><p class="muted">${String(err.message || err)}</p><div class="arc-over-b"><a class="btn" href="">Reload</a></div>`); }
+    });
+  };
+  // Show script errors on the page instead of failing silently.
+  window.addEventListener('error', (e) => { const m = document.getElementById('arcMsg'); if (m && !document.body.classList.contains('arc-playing')) m.textContent = 'Error: ' + (e.message || 'script failed'); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => A.boot()); else setTimeout(() => A.boot());
+})();
+</script><script type="text/x-mfl">// Card Memory: flip MFL player cards and find the pairs before time (or misses) run out.
+(function () {
+  const P = 'mm';
+  const CSS = `
+.mm-wrap{position:relative;margin:0 auto;color:#f5f6f8;font-family:Inter,system-ui,sans-serif;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;max-width:100%}
+.mm-hud{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 10px;background:#0f1117;border:1px solid #1d212c;border-bottom:0;border-radius:12px 12px 0 0}
+.mm-stat{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.mm-stat span{font-family:'Press Start 2P',monospace;font-size:7px;color:#6f7584}
+.mm-stat b{font-family:'Press Start 2P',monospace;font-size:11px;color:#ffc21a;white-space:nowrap}
+.mm-stat.low b{color:#ff3344;animation:mm-blink .5s steps(2) infinite}
+.mm-stat.bump b{animation:mm-bump .35s ease-out}
+.mm-quit{font-family:'Press Start 2P',monospace;font-size:8px;background:#1d212c;color:#f5f6f8;border:1px solid #2a2f3c;border-radius:8px;padding:8px 9px;cursor:pointer}
+.mm-quit.sure{background:#ff3344;border-color:#ff3344}
+.mm-bar{height:3px;background:#1d212c;border-left:1px solid #1d212c;border-right:1px solid #1d212c}
+.mm-bar i{display:block;height:100%;width:100%;background:#ffc21a;transform-origin:left;transition:background .3s}
+.mm-stage{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 0%,#162a1b 0%,#0b120d 60%,#07080b 100%);border:1px solid #1d212c;border-top:0;border-radius:0 0 12px 12px;padding:10px;touch-action:manipulation}
+.mm-stage.shake{animation:mm-shake .35s linear}
+.mm-stage.shake2{animation:mm-shake2 .45s linear}
+.mm-grid{display:grid;justify-content:center;margin:0 auto}
+.mm-card{position:relative;padding:0;border:0;background:none;cursor:pointer;perspective:700px;font:inherit;color:inherit;outline:none}
+.mm-card:focus-visible .mm-back{box-shadow:0 0 0 3px #ffc21a}
+.mm-in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .42s cubic-bezier(.3,1.35,.5,1)}
+.mm-card.up .mm-in,.mm-card.got .mm-in{transform:rotateY(180deg)}
+.mm-card:not(.up):not(.got):hover .mm-in{transform:rotateY(8deg) translateY(-2px)}
+.mm-back,.mm-face{position:absolute;inset:0;border-radius:calc(var(--w) * .09);backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.mm-back{background:#141a2e;border:2px solid #2a3350;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 #05060a}
+.mm-back::before{content:"";position:absolute;inset:4px;border-radius:calc(var(--w) * .06);border:1px dashed rgba(255,194,26,.35);background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 6px,transparent 6px 12px)}
+.mm-ball{position:relative;width:46%;aspect-ratio:1.6;background:#9a5424;border-radius:50%;box-shadow:inset -3px -3px 0 #6b3412,0 0 0 2px #3a1d0a}
+.mm-ball::after{content:"";position:absolute;left:28%;right:28%;top:46%;height:2px;background:#fff;box-shadow:0 -3px 0 -0px transparent}
+.mm-back b{position:absolute;bottom:9%;left:0;right:0;text-align:center;font-family:'Press Start 2P',monospace;font-size:calc(var(--w) * .1);color:#ffc21a;letter-spacing:1px}
+.mm-face{transform:rotateY(180deg);background:linear-gradient(160deg,var(--c1) 0%,var(--c1) 45%,var(--c2) 100%);border:3px solid var(--c1);box-shadow:0 3px 0 #05060a;display:flex;flex-direction:column}
+.mm-num{position:absolute;top:5%;left:7%;font-family:'Press Start 2P',monospace;font-size:calc(var(--w) * .11);color:var(--tx);text-shadow:1px 1px 0 rgba(0,0,0,.35);z-index:2}
+.mm-pic{flex:1;margin:18% 9% 0;border-radius:calc(var(--w) * .06);background:rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,.55)}
+.mm-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.mm-pic span{font-family:'Barlow Condensed',Inter,sans-serif;font-weight:900;font-size:calc(var(--w) * .38);color:var(--tx);line-height:1;letter-spacing:.5px;text-shadow:2px 2px 0 rgba(0,0,0,.3)}
+.mm-name{padding:5% 4% 2%;text-align:center;font-family:'Barlow Condensed',Inter,sans-serif;font-weight:800;font-size:calc(var(--w) * .15);line-height:1;text-transform:uppercase;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-team{padding:0 4% 7%;text-align:center;font-family:Inter,sans-serif;font-weight:600;font-size:calc(var(--w) * .085);line-height:1.1;color:var(--tx);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-card.got .mm-face{box-shadow:0 0 0 2px #ffc21a,0 0 16px rgba(255,194,26,.55)}
+.mm-card.got{animation:mm-got .5s cubic-bezier(.2,1.8,.4,1)}
+.mm-ok{position:absolute;right:-5px;top:-5px;width:calc(var(--w) * .24);height:calc(var(--w) * .24);min-width:18px;min-height:18px;background:#7CFF6B;border-radius:50%;box-shadow:0 0 0 2px #07080b;z-index:3;display:none;align-items:center;justify-content:center}
+.mm-ok svg{width:62%;height:62%}
+.mm-card.got .mm-ok{display:flex;animation:mm-got .4s .1s both}
+.mm-peek{position:absolute;left:0;right:0;top:0;height:var(--hh,46px);display:flex;align-items:center;justify-content:center;gap:12px;background:#ffc21a;color:#07080b;font-family:'Press Start 2P',monospace;font-size:12px;border-radius:12px 12px 0 0;z-index:4;animation:mm-zoom2 .3s ease-out both}
+.mm-peek b{font-size:16px}
+@keyframes mm-zoom2{from{opacity:0;transform:scaleY(.4)}to{opacity:1;transform:none}}
+.mm-card.no .mm-in{animation:mm-no .4s linear}
+.mm-card.dim{opacity:.55;transition:opacity .4s}
+.mm-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.mm-p{position:absolute;width:6px;height:6px;margin:-3px 0 0 -3px;animation:mm-p .7s ease-out forwards}
+.mm-pop{position:absolute;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:12px;text-shadow:2px 2px 0 #000;white-space:nowrap;animation:mm-rise 1s ease-out both}
+.mm-banner{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);text-align:center;font-family:'Press Start 2P',monospace;white-space:nowrap;animation:mm-zoom .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:3px 3px 0 #000;background:rgba(7,8,11,.78);padding:16px 18px;border-radius:12px;border:2px solid #2a2f3c}
+.mm-banner b{display:block;font-size:18px;line-height:1.3}
+.mm-banner i{display:block;font-style:normal;font-size:9px;margin-top:8px;color:#f5f6f8}
+.mm-splash{position:absolute;inset:0;background:rgba(7,8,11,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;gap:14px;z-index:6}
+.mm-title{font-family:'Press Start 2P',monospace;color:#ffc21a;font-size:17px;line-height:1.45;text-shadow:3px 3px 0 #6b4f00}
+.mm-how{font-size:14px;line-height:1.5;color:#c9ccd4;max-width:300px;margin:0}
+.mm-how b{color:#f5f6f8}
+.mm-goal{font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.8;color:#f5f6f8;background:#161922;padding:10px 12px;border-radius:8px;border:1px solid #2a2f3c}
+.mm-goal em{font-style:normal;color:#ffc21a}
+.mm-start{font-family:'Press Start 2P',monospace;font-size:13px;background:#ffc21a;color:#07080b;border:0;border-radius:10px;padding:14px 22px;box-shadow:0 4px 0 #a37a00;cursor:pointer;animation:mm-pulse 1.1s ease-in-out infinite}
+.mm-start:active{transform:translateY(3px);box-shadow:0 1px 0 #a37a00}
+@keyframes mm-got{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+@keyframes mm-no{0%,100%{transform:rotateY(180deg) translateX(0)}20%{transform:rotateY(180deg) translateX(-6px)}40%{transform:rotateY(180deg) translateX(6px)}60%{transform:rotateY(180deg) translateX(-4px)}80%{transform:rotateY(180deg) translateX(4px)}}
+@keyframes mm-p{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+@keyframes mm-rise{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-200%) scale(1)}}
+@keyframes mm-zoom{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}60%{opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
+@keyframes mm-pulse{50%{transform:scale(1.06)}}
+@keyframes mm-blink{50%{opacity:.35}}
+@keyframes mm-bump{40%{transform:scale(1.5)}}
+@keyframes mm-shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-3px,2px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,-1px)}}
+@keyframes mm-shake2{0%,100%{transform:translate(0,0)}15%{transform:translate(-6px,3px)}30%{transform:translate(5px,-4px)}45%{transform:translate(-4px,-2px)}60%{transform:translate(4px,3px)}80%{transform:translate(-2px,1px)}}
+`;
+  function injectCSS() {
+    if (document.getElementById(P + '-css')) return;
+    const s = document.createElement('style'); s.id = P + '-css'; s.textContent = CSS; document.head.appendChild(s);
+  }
+  function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const safeColor = (c, d) => (typeof c === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim()) ? c.trim() : d);
+  function textOn(hex) {
+    let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    const n = parseInt(h, 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 165 ? '#0b0d12' : '#ffffff';
+  }
+  function initials(name) {
+    const w = String(name || '?').trim().split(/\s+/).filter(Boolean);
+    if (!w.length) return '?';
+    return ((w[0][0] || '') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase();
+  }
+  function shortName(name) {
+    const w = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (w.length < 2) return w[0] || 'Player';
+    return w[0][0] + '. ' + w.slice(1).join(' ');
+  }
+
+  // cols x rows on a wide screen (transposed on a narrow phone), time limit, allowed misses, peek seconds
+  const LEVELS = [
+    { a: 4, b: 3, time: 120, misses: Infinity, peek: 3 },
+    { a: 4, b: 4, time: 100, misses: 12, peek: 2.5 },
+    { a: 5, b: 4, time: 90, misses: 10, peek: 2 },
+    { a: 6, b: 4, time: 75, misses: 8, peek: 1.5 },
+  ];
+  const FIRST = ['Jayden', 'Mia', 'Liam', 'Ava', 'Noah', 'Zoe', 'Mason', 'Ella', 'Lucas', 'Aria', 'Ethan', 'Nora', 'Caleb', 'Ruby', 'Owen', 'Maya', 'Elijah', 'Lily', 'Carter', 'Sofia'];
+  const LAST = ['Reyes', 'Brooks', 'Carter', 'Nguyen', 'Patel', 'Hayes', 'Foster', 'Kim', 'Rivera', 'Bennett', 'Diaz', 'Coleman', 'Price', 'Ward', 'Ortiz', 'Hughes'];
+  const TEAMS = [['Hawks', '#1f6feb', '#0b2e6b'], ['Bolts', '#ffc21a', '#a35a00'], ['Rockets', '#ff3344', '#5a0b14'], ['Gators', '#22a35a', '#0b3d22'], ['Storm', '#7b4dff', '#2a1170'], ['Titans', '#f5f6f8', '#6f7584']];
+
+  MFLArcade.register('memory', {
+    start(ctx) {
+      injectCSS();
+      const L = LEVELS[Math.max(0, Math.min(3, ctx.level | 0))];
+      const rng = ctx.rng;
+      let cs = 777;
+      const crand = () => { cs = (cs * 1103515245 + 12345) & 0x7fffffff; return cs / 0x7fffffff; }; // cosmetic only
+      const pairs = (L.a * L.b) / 2;
+      const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+
+      // ---- pick players ----
+      const src = Array.isArray(ctx.data && ctx.data.players) ? ctx.data.players.filter((p) => p && p.name) : [];
+      const seen = new Set();
+      let pool = shuffle(src.slice()).filter((p) => { const k = String(p.name).toLowerCase() + '|' + (p.team || ''); if (seen.has(k)) return false; seen.add(k); return true; });
+      pool = pool.slice(0, pairs);
+      let fi = 0;
+      while (pool.length < pairs) {
+        const t = TEAMS[Math.floor(rng() * TEAMS.length)];
+        const nm = FIRST[Math.floor(rng() * FIRST.length)] + ' ' + LAST[Math.floor(rng() * LAST.length)];
+        if (pool.some((p) => p.name === nm)) { fi++; if (fi > 200) break; continue; }
+        pool.push({ name: nm, team: t[0], color: t[1], color2: t[2], photo: null, number: 1 + Math.floor(rng() * 89) });
+      }
+      const people = pool.map((p, i) => {
+        const c1 = safeColor(p.color, '#2a62ff');
+        return { id: i, name: String(p.name), team: String(p.team || ''), c1, c2: safeColor(p.color2, '#0f1117'), tx: textOn(c1), photo: typeof p.photo === 'string' && p.photo ? p.photo : null, number: p.number != null && p.number !== '' ? String(p.number).slice(0, 3) : '' };
+      });
+      const deck = shuffle(people.flatMap((p) => [p, p]));
+
+      // ---- DOM ----
+      const root = ctx.root;
+      root.innerHTML = '';
+      const wrap = el('div', 'mm-wrap');
+      const hud = el('div', 'mm-hud');
+      const sTime = el('div', 'mm-stat', `<span>TIME</span><b>${L.time}</b>`);
+      const sPairs = el('div', 'mm-stat', `<span>PAIRS</span><b>0/${pairs}</b>`);
+      const sMiss = el('div', 'mm-stat', `<span>${L.misses === Infinity ? 'MISSES' : 'MISSES LEFT'}</span><b>${L.misses === Infinity ? '0' : L.misses}</b>`);
+      const quit = el('button', 'mm-quit', 'QUIT'); quit.type = 'button';
+      hud.append(sTime, sPairs, sMiss, quit);
+      const bar = el('div', 'mm-bar', '<i></i>');
+      const stage = el('div', 'mm-stage');
+      const grid = el('div', 'mm-grid');
+      const fx = el('div', 'mm-fx');
+      stage.append(grid, fx);
+      wrap.append(hud, bar, stage);
+      root.appendChild(wrap);
+
+      const cards = deck.map((p, idx) => {
+        const b = el('button', 'mm-card');
+        b.type = 'button';
+        b.setAttribute('aria-label', 'Card ' + (idx + 1));
+        b.style.setProperty('--c1', p.c1); b.style.setProperty('--c2', p.c2); b.style.setProperty('--tx', p.tx);
+        const ini = esc(initials(p.name));
+        b.innerHTML = `<div class="mm-in"><div class="mm-back"><div class="mm-ball"></div><b>MFL</b></div><div class="mm-face">${p.number ? `<div class="mm-num">#${esc(p.number)}</div>` : ''}<div class="mm-pic">${p.photo ? `<img alt="" draggable="false" src="${esc(p.photo)}">` : `<span>${ini}</span>`}</div><div class="mm-name">${esc(shortName(p.name))}</div><div class="mm-team">${esc(p.team)}</div></div></div><i class="mm-ok"><svg viewBox="0 0 10 10"><path d="M2 5.2l2.2 2.2L8.2 2.8" stroke="#07080b" stroke-width="2" fill="none" stroke-linecap="square"/></svg></i>`;
+        const img = b.querySelector('img');
+        if (img) img.addEventListener('error', () => { img.parentNode.innerHTML = `<span>${ini}</span>`; });
+        grid.appendChild(b);
+        const c = { el: b, p, up: false, got: false, idx };
+        b.addEventListener('click', () => flip(c));
+        return c;
+      });
+
+      function layout() {
+        const W = Math.min(root.clientWidth || 360, 1000);
+        const narrow = W < 600;
+        const cols = narrow ? Math.min(L.a, L.b) : Math.max(L.a, L.b), rows = (L.a * L.b) / cols;
+        const gap = W < 400 ? 6 : 10;
+        const availW = W - 22 - gap * (cols - 1);
+        const availH = Math.max(320, (window.innerHeight || 800) - 175) - 22 - gap * (rows - 1);
+        let cw = Math.min(availW / cols, availH / rows / 1.34, 140);
+        cw = Math.max(52, Math.floor(cw));
+        const ch = Math.round(cw * 1.34);
+        grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+        grid.style.gridAutoRows = ch + 'px';
+        grid.style.gap = gap + 'px';
+        grid.style.setProperty('--w', cw + 'px');
+        cards.forEach((c) => { c.el.style.width = cw + 'px'; c.el.style.height = ch + 'px'; });
+        wrap.style.width = Math.min(W, cols * cw + gap * (cols - 1) + 24) + 'px';
+      }
+      layout();
+      const onResize = () => layout();
+      window.addEventListener('resize', onResize);
+
+      // ---- state ----
+      let state = 'splash', open = [], matched = 0, misses = 0, combo = 0, bestCombo = 0, lock = false, t0 = 0, elapsed = 0, timer = 0, finished = false, flips = 0;
+      const timers = new Set();
+      const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (!finished) fn(); }, ms); timers.add(id); return id; };
+
+      function bump(s) { s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump'); }
+      function updHud() {
+        const left = Math.max(0, L.time - elapsed);
+        sTime.querySelector('b').textContent = Math.ceil(left);
+        sTime.classList.toggle('low', state === 'play' && left <= 10);
+        sPairs.querySelector('b').textContent = `${matched}/${pairs}`;
+        if (L.misses === Infinity) sMiss.querySelector('b').textContent = misses;
+        else { const ml = L.misses - misses; sMiss.querySelector('b').textContent = Math.max(0, ml); sMiss.classList.toggle('low', ml <= 2); }
+        const f = state === 'splash' || state === 'peek' ? 1 : left / L.time;
+        const i = bar.querySelector('i'); i.style.transform = `scaleX(${f})`; i.style.background = f < 0.2 ? '#ff3344' : f < 0.45 ? '#ff8a00' : '#ffc21a';
+      }
+      function centerOf(c) { const r = c.el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2]; }
+      function particles(x, y, n, colors) {
+        for (let i = 0; i < n; i++) {
+          const d = el('div', 'mm-p'); const a = crand() * 6.283;
+          const v = 30 + crand() * 70;
+          d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.background = colors[i % colors.length];
+          d.style.setProperty('--dx', Math.cos(a) * v + 'px'); d.style.setProperty('--dy', Math.sin(a) * v + 'px'); d.style.setProperty('--r', (crand() * 360 | 0) + 'deg');
+          if (i % 3 === 0) { d.style.width = d.style.height = '4px'; }
+          fx.appendChild(d); setTimeout(() => d.remove(), 750);
+        }
+      }
+      function pop(x, y, txt, col, size) { const e = el('div', 'mm-pop', txt); e.style.left = x + 'px'; e.style.top = y + 'px'; e.style.color = col; if (size) e.style.fontSize = size + 'px'; fx.appendChild(e); setTimeout(() => e.remove(), 1050); }
+      function banner(txt, sub, col) { fx.querySelectorAll('.mm-banner').forEach((b) => b.remove()); const b = el('div', 'mm-banner', `<b style="color:${col}">${txt}</b>${sub ? `<i>${sub}</i>` : ''}`); fx.appendChild(b); return b; }
+      function shake(big) { stage.classList.remove('shake', 'shake2'); void stage.offsetWidth; stage.classList.add(big ? 'shake2' : 'shake'); }
+
+      function flip(c) {
+        if (state !== 'play' || lock || c.up || c.got) return;
+        c.up = true; c.el.classList.add('up'); flips++;
+        ctx.sound('tap');
+        open.push(c);
+        if (open.length < 2) return;
+        const [a, b] = open; open = [];
+        if (a.p.id === b.p.id) {
+          matched++; combo++; bestCombo = Math.max(bestCombo, combo);
+          lock = true;
+          later(() => {
+            lock = false;
+            a.got = b.got = true; a.el.classList.add('got'); b.el.classList.add('got');
+            ctx.sound('good');
+            const [x1, y1] = centerOf(a), [x2, y2] = centerOf(b);
+            particles(x1, y1, 14, ['#ffc21a', '#ffffff', a.p.c1]); particles(x2, y2, 14, ['#ffc21a', '#ffffff', a.p.c1]);
+            pop((x1 + x2) / 2, (y1 + y2) / 2, combo >= 2 ? `COMBO x${combo}!` : 'MATCH!', combo >= 2 ? '#7CFF6B' : '#ffc21a', combo >= 3 ? 14 : 12);
+            shake(combo >= 3);
+            bump(sPairs);
+            updHud();
+            if (matched === pairs) win();
+          }, 300);
+        } else {
+          misses++; combo = 0;
+          lock = true;
+          later(() => { a.el.classList.add('no'); b.el.classList.add('no'); ctx.sound('bad'); bump(sMiss); updHud(); }, 420);
+          later(() => {
+            a.el.classList.remove('no', 'up'); b.el.classList.remove('no', 'up'); a.up = b.up = false; lock = false;
+            if (misses > L.misses) lose('TOO MANY MISSES');
+          }, 900);
+        }
+      }
+
+      function tick() {
+        if (state !== 'play') return;
+        elapsed = (performance.now() - t0) / 1000;
+        updHud();
+        if (elapsed >= L.time) { elapsed = L.time; lose("TIME'S UP"); }
+      }
+      function stopTimer() { clearInterval(timer); timer = 0; }
+
+      function win() {
+        state = 'over'; stopTimer(); updHud();
+        later(() => {
+          ctx.sound('whistle');
+          banner('ALL MATCHED!', `${Math.round(elapsed)}s, ${misses} MISSES`, '#ffc21a');
+          const s = stage.getBoundingClientRect();
+          for (let i = 0; i < 5; i++) later(() => particles(s.width * (0.15 + crand() * 0.7), s.height * (0.2 + crand() * 0.5), 22, ['#ffc21a', '#fff', '#7CFF6B', '#4cc9ff', '#ff3344']), i * 140);
+          shake(true);
+        }, 450);
+        later(() => finish(true), 1900);
+      }
+      function lose(why) {
+        if (state === 'over') return;
+        state = 'over'; stopTimer(); updHud(); lock = true;
+        shake(true);
+        banner(why, `${matched}/${pairs} PAIRS`, '#ff3344');
+        // reveal the rest
+        later(() => cards.forEach((c, i) => { if (!c.got) setTimeout(() => { c.el.classList.add('up', 'dim'); }, i * 25); }), 500);
+        later(() => finish(false), 1900);
+      }
+      function finish(won, quitted) {
+        if (finished) return; finished = true; stopTimer();
+        timers.forEach((id) => clearTimeout(id)); timers.clear();
+        window.removeEventListener('resize', onResize);
+        lock = true;
+        const secs = Math.round(elapsed);
+        ctx.finish({
+          won: !!won && !quitted,
+          score: matched,
+          detail: quitted ? `Quit with ${matched}/${pairs} pairs.` : won ? `Matched all ${pairs} pairs in ${secs}s with ${misses} ${misses === 1 ? 'miss' : 'misses'}.` : `Matched ${matched}/${pairs} pairs (${misses} misses, ${secs}s).`,
+          stats: { pairs: matched, total: pairs, misses, seconds: secs, bestCombo, flips },
+        });
+      }
+      let quitArm = 0;
+      quit.addEventListener('click', () => {
+        if (finished) return;
+        if (!quitArm) { quitArm = 1; quit.textContent = 'SURE?'; quit.classList.add('sure'); setTimeout(() => { quitArm = 0; quit.textContent = 'QUIT'; quit.classList.remove('sure'); }, 2200); return; }
+        finish(false, true);
+      });
+
+      // ---- start: splash -> peek -> play ----
+      const lvName = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend'][ctx.level | 0];
+      const splash = el('div', 'mm-splash', `
+        <div class="mm-title">CARD<br>MEMORY</div>
+        <p class="mm-how">Tap two cards to flip them. Find the <b>matching players</b>! You get a quick <b>peek</b> at every card first, so remember where they are.</p>
+        <div class="mm-goal">${esc(lvName)}: MATCH <em>${pairs} PAIRS</em><br>IN ${L.time}s${L.misses === Infinity ? '' : `, MAX <em>${L.misses}</em> MISSES`}</div>
+        <button type="button" class="mm-start">START</button>`);
+      stage.appendChild(splash);
+      stage.style.minHeight = '420px';
+      updHud();
+      splash.querySelector('.mm-start').addEventListener('click', () => {
+        splash.remove(); stage.style.minHeight = '';
+        ctx.sound('whistle');
+        state = 'peek';
+        cards.forEach((c, i) => later(() => c.el.classList.add('up'), i * 30));
+        const steps = Math.ceil(L.peek);
+        const b = el('div', 'mm-peek', 'MEMORIZE! <b></b>');
+        b.style.setProperty('--hh', hud.offsetHeight + 'px');
+        wrap.appendChild(b);
+        const startPeek = cards.length * 30 + 400;
+        for (let s = 0; s < steps; s++) later(() => { b.querySelector('b').textContent = String(steps - s); }, startPeek + s * 1000 * (L.peek / steps));
+        later(() => {
+          b.remove();
+          cards.forEach((c, i) => later(() => c.el.classList.remove('up'), i * 20));
+          later(() => {
+            state = 'play'; t0 = performance.now(); elapsed = 0;
+            timer = setInterval(tick, 100);
+            updHud();
+            ctx.sound('tap');
+          }, cards.length * 20 + 350);
+        }, startPeek + L.peek * 1000);
+      });
+
+      if (window.__arcTest) window.__arcTest.memory = { get state() { return state; }, get lock() { return lock; }, ids: () => cards.map((c) => c.p.id), get matched() { return matched; } };
+    },
+  });
+})();
+</script></main>
+<footer class="ftr"><div class="wrap ftr-in">
+  <div class="ftr-brand"><img src="/mfl/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at Thomas Metcalf School</small></div></div>
+  <div class="ftr-links"><a href="/mfl/schedule/">Schedule</a><a href="/mfl/scores/">Scores</a><a href="/mfl/arcade/">Arcade</a><a href="/mfl/career/">Career</a><a href="/mfl/pickem/cards">Cards</a><a href="/mfl/pickem">Pick'em</a><a href="/mfl/history/">Head-to-Head</a><a href="/mfl/stats/players/">Leaders</a><a href="/mfl/stats/rankings/">Rankings</a><a href="/mfl/records/">Records</a><a href="/mfl/cards/">Cards</a><a href="/mfl/calendar.ics">Add to calendar</a><a href="/mfl/teams/pedon/">Pineapples</a><a href="/mfl/teams/xavier/">KTCS</a><a href="/mfl/admin">Admin</a></div>
+</div></footer>
+<script type="text/x-mfl">(()=>{const e=document.querySelector('.hb-cd');if(!e)return;const f=()=>{const s=Math.max(0,Math.floor((+e.dataset.ts-Date.now())/1000));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);e.textContent=s?'kickoff in '+(d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'+(d?'':' '+String(s%60).padStart(2,'0')+'s'):'kickoff!'};f();setInterval(f,1000)})()</script><div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/mfl/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script type="text/x-mfl">
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<script type="text/x-mfl">
+document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
+document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
+const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/mfl/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+// Start loading a page as soon as a finger or mouse lands on its link.
+if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
+</script>
+</body></html>

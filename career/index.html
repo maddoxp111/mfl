@@ -1,0 +1,525 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MFL Football Career · MFL</title>
+<meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
+<link rel="icon" href="/mfl/static/mfl-logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mfl/static/style.css?v=64">
+<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="/mfl/static/bridge.js" data-base="/mfl"></script></head><body>
+<header class="hdr"><div class="hdr-in">
+  <a class="brand" href="/mfl/"><img src="/mfl/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  
+  <a class="hdr-arc" href="/mfl/arcade/">🕹️ Arcade</a>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
+  <nav class="nav">
+    <div class="dd "><button>Games <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/schedule/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Schedule</a><a href="/mfl/scores/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Scores</a><a href="/mfl/history/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Head-to-Head</a></div></div>
+    <div class="dd "><button>Playoffs <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/playoffs/halloween-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Halloween Bowl</a><a href="/mfl/playoffs/turkey-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Turkey Bowl</a><a href="/mfl/playoffs/christmas-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Christmas Bowl</a><a href="/mfl/playoffs/spring-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Spring Bowl</a><a href="/mfl/playoffs/super-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Super Bowl</a></div></div>
+    <div class="dd "><button>Teams <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:22px;height:22px" decoding="async"> Team Pedon Pineapples</a><a href="/mfl/teams/xavier/"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:22px;height:22px" decoding="async"> Team Xavier KTCS</a><a href="/mfl/transactions/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Transactions</a></div></div>
+    <div class="dd "><button>Stats <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/stats/team/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team Stats</a><a href="/mfl/stats/players/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Player Leaders</a><a href="/mfl/stats/rankings/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Power Rankings</a><a href="/mfl/records/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Records Book</a><a href="/mfl/cards/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Trading Cards</a></div></div>
+    <div class="dd "><button>News <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/midweek/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Midweek Recap</a><a href="/mfl/analyst/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Ask the Analyst</a><a href="/mfl/pickem/survivor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Survivor</a><a href="/mfl/pickem/cards"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> MFL Cards</a></div></div>
+    <div class="nav-main"><a class="nav-arc " href="/mfl/arcade/">🕹️ Arcade</a>
+    <a class="nav-career on" href="/mfl/career/">🏈 Career</a>
+    <a class="nav-cards " href="/mfl/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick " href="/mfl/pickem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Pick'em</a></div>
+    <div class="acct-box"><a class="acct" href="/mfl/pickem/login?next=%2Fpickem">Log in</a><a class="acct primary" href="/mfl/pickem/signup">Sign up</a>
+    </div>
+  </nav>
+</div></header>
+<a class="hype-bar halloween" href="/mfl/playoffs/halloween-bowl/"><span class="hb-fx" aria-hidden="true">🎃</span><span class="hb-msg"><b>Pineapples win the Halloween Bowl!</b><span>PDN 70–42 KTC</span></span><span class="hb-go">Recap <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+<div class="ticker"><div class="ticker-in"><a class="tk " href="/mfl/games/4/"><div class="tk-top"><span>Mon 10/26</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/5/"><div class="tk-top"><span>Tue 10/27</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>7</b></div></a><a class="tk " href="/mfl/games/6/"><div class="tk-top"><span>Thu 10/29</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>14</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>14</b></div></a><a class="tk " href="/mfl/games/7/"><div class="tk-top"><span>Fri 10/30</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>70</b></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b>42</b></div><div class="tk-lbl">Halloween Bowl</div></a><a class="tk " href="/mfl/games/8/"><div class="tk-top"><span>Mon 11/2</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/9/"><div class="tk-top"><span>Tue 11/3</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/10/"><div class="tk-top"><span>Thu 11/5</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/11/"><div class="tk-top"><span>Fri 11/6</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/12/"><div class="tk-top"><span>Mon 11/9</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/13/"><div class="tk-top"><span>Tue 11/10</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/14/"><div class="tk-top"><span>Thu 11/12</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a><a class="tk " href="/mfl/games/15/"><div class="tk-top"><span>Fri 11/13</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-921d793832.png" alt="Pineapples" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-103dc704b2.png" alt="KTCS" style="width:18px;height:18px" decoding="async"><span>KTC</span><b></b></div></a></div></div>
+<main><div class="wrap career-page">
+        <div class="career-heading"><a href="/mfl/arcade/bowl/" class="muted sm">← Modern Bowl</a><div class="kicker">Thomas Metcalf School · McLean County</div><h1>MFL Football Career</h1><p>Metcalf Football League. Your school. Your program. Your story.</p></div>
+        <section class="card career-login"><h2>Build your Metcalf legacy</h2><p>Coach either MFL team against middle schools across McLean County. Develop your roster, play a full season, and bring home the County Cup.</p><a class="btn" href="/mfl/pickem/login?next=/career">Log in to save your career</a><a class="btn ghost" href="/mfl/pickem/signup?next=/career">Create an account</a></section>
+        <p id="career-error" class="err" role="alert"></p><p id="career-status" role="status" aria-live="polite"></p>
+        <div id="career-hub"></div><section id="career-field" hidden></section>
+        <p class="muted sm career-note">A fictional MFL school competition featuring the two site teams and McLean County middle schools. School opponent rosters and uniform palettes are created for the game. Program credits belong to this career; your site coins are separate.</p>
+      </div><style>.career-page {
+  padding-bottom: 40px;
+  max-width: 1250px;
+}
+.career-heading {
+  padding: 28px 0 12px;
+}
+.career-heading h1 {
+  font-size: clamp(30px, 5vw, 52px);
+  margin: 8px 0;
+}
+.career-heading .kicker {
+  margin-top: 20px;
+  color: var(--accent, #ffc21a);
+}
+.career-heading p {
+  color: var(--ink2);
+}
+.career-page h2 {
+  font-size: 20px;
+  margin: 0 0 14px;
+}
+.career-page h3 {
+  font-size: 16px;
+}
+.career-page .card {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.career-page button,
+.career-page select,
+.career-page input {
+  font: inherit;
+}
+.career-page select,
+.career-page input {
+  width: 100%;
+  background: var(--card2);
+  color: var(--ink);
+  padding: 10px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  min-width: 0;
+}
+.career-page label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink2);
+  font-size: 13px;
+}
+.career-page .btn {
+  margin: 3px 4px 3px 0;
+}
+.career-page button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.career-start {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.career-start .wide {
+  grid-column: 1/-1;
+}
+.career-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.career-team {
+  display: flex !important;
+  align-items: center;
+  padding: 20px;
+  border: 2px solid var(--line2);
+  border-top: 5px solid var(--team);
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--ink) !important;
+  font-weight: 700;
+}
+.career-team:has(input:checked) {
+  background: var(--card2);
+  border-color: var(--team);
+}
+.career-team input {
+  width: auto;
+}
+.career-summary {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-left: 5px solid var(--team);
+}
+.career-summary h2 {
+  margin: 0;
+}
+.career-summary p {
+  margin: 6px 0 0;
+  color: var(--ink2);
+}
+.career-stats {
+  display: flex;
+  gap: 25px;
+}
+.career-stats b {
+  display: block;
+  font-size: 24px;
+}
+.career-stats small {
+  color: var(--ink2);
+}
+.career-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.career-match {
+  background: linear-gradient(135deg, var(--card), var(--card2));
+  border-top: 3px solid var(--team);
+}
+.career-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.career-matchup span {
+  flex: 1;
+}
+.career-matchup span:last-child {
+  text-align: right;
+}
+.career-matchup small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.career-page .career-scroll {
+  overflow-x: auto;
+}
+.career-page table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.career-page th,
+.career-page td {
+  padding: 11px 8px;
+  border-bottom: 1px solid var(--line2);
+  text-align: left;
+  white-space: nowrap;
+}
+.career-page th {
+  font-size: 11px;
+  color: var(--ink2);
+  text-transform: uppercase;
+}
+.career-page tr.ours {
+  background: var(--card2);
+  font-weight: bold;
+}
+.career-page details {
+  margin-top: 14px;
+}
+.career-page summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.career-choice {
+  display: block !important;
+  width: 100%;
+  text-align: left;
+  margin: 8px 0 !important;
+  white-space: normal;
+}
+.career-choice small {
+  display: block;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-top: 5px;
+}
+.career-story p {
+  line-height: 1.7;
+  color: var(--ink2);
+}
+.career-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.career-page .career-news {
+  list-style: none;
+  padding: 0;
+}
+.career-news li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.career-news b,
+.career-news small {
+  display: block;
+}
+.career-news p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink2);
+}
+.career-news small {
+  color: var(--ink2);
+  font-size: 11px;
+}
+.career-note {
+  line-height: 1.6;
+  margin-top: 22px;
+}
+.career-login p {
+  max-width: 650px;
+  line-height: 1.7;
+}
+.career-game canvas {
+  touch-action: none;
+}
+.career-game iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16/9;
+  border: 0;
+  background: #000;
+}
+.career-game {
+  background: #070908;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.career-game-toolbar {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.career-game-toolbar p {
+  font-size: 12px;
+  color: #aaa;
+  margin: 5px;
+}
+.career-result {
+  text-align: center;
+  padding: 32px !important;
+}
+.career-grade {
+  color: var(--ink2);
+  font-size: 11px;
+}
+.career-program {
+  display: grid;
+  gap: 12px;
+}
+.career-program p {
+  font-size: 13px;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.career-program h3 {
+  margin: 10px 0 0;
+}
+.career-empty {
+  padding: 40px;
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .career-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .career-start {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .career-teams {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .career-summary {
+    gap: 16px;
+  }
+  .career-stats {
+    gap: 20px;
+  }
+  .career-page .card {
+    padding: 16px;
+  }
+  .career-matchup {
+    font-size: 18px;
+    gap: 10px;
+  }
+  .career-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .career-game {
+    margin: 0 -10px;
+    border-radius: 0;
+  }
+  .career-page th,
+  .career-page td {
+    padding: 10px 7px;
+  }
+  .career-heading h1 {
+    font-size: 34px;
+  }
+}
+</style><script type="text/x-mfl">window.MFL_CAREER={"signedIn":false,"account":null,"teams":[{"name":"Pineapples","abbr":"PDN","color":"#f2b705","color2":"#1d6b2f","id":"pedon"},{"name":"KTCS","abbr":"KTC","color":"#3d006c","color2":"#262b00","id":"xavier"}],"state":null};</script><script type="text/x-mfl">(function () {
+  const config = window.MFL_CAREER;
+  if (!config?.signedIn) return;
+  const hub = document.getElementById('career-hub'), field = document.getElementById('career-field');
+  const error = document.getElementById('career-error'), status = document.getElementById('career-status');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const levels = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
+  let state = config.state, busy = false, release = null;
+  const resultKey = 'mfl-career-result:' + config.account;
+  function rememberResult(result) {
+    try { if (result) sessionStorage.setItem(resultKey, JSON.stringify(result)); else sessionStorage.removeItem(resultKey); } catch {}
+  }
+  const ourTeam = () => state.teams.find(t => t.id === state.teamId);
+  const gameNow = () => state.rounds[state.week]?.games.find(g => g.home === state.teamId || g.away === state.teamId);
+  const findTeam = id => state.teams.find(t => t.id === id);
+  const button = (label, action, extra = '', disabled = false) => `<button type="button" class="btn ghost sm" data-action="${action}" ${extra} ${disabled ? 'disabled' : ''}>${label}</button>`;
+  async function request(action, data = {}) {
+    const response = await fetch('/api/career/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, revision: state?.revision || 0 }) });
+    const body = await response.json();
+    if (body.state) state = body.state;
+    if (!body.ok) throw new Error(body.error || 'Career could not be saved. Try again.');
+    return body;
+  }
+  async function commitResult(result) {
+    try { const body = await request('finish', result); rememberResult(null); return body; }
+    catch (err) {
+      // A save may succeed even when its response is lost. Recover the server
+      // state before retrying, so a completed matchup cannot trap the result UI.
+      try {
+        const latest = await (await fetch('/api/career')).json();
+        if (latest.ok && latest.state) {
+          state = latest.state;
+          const played = state.rounds.flatMap(r => r.games).find(g => g.id === result.id);
+          if (played && played.score !== null) { rememberResult(null); return latest; }
+        }
+      } catch {}
+      throw err;
+    }
+  }
+  function render() {
+    if (!state) {
+      hub.innerHTML = `<section class="card"><h2>Your first season starts at Metcalf</h2><p class="muted">Lead one of the site’s two teams. Your roster starts with its real MFL players, ratings, appearances and team colors.</p>
+        <form id="career-new" class="career-start"><div class="wide career-teams">${config.teams.map((t, i) => `<label class="career-team" style="--team:${esc(t.color)}"><input type="radio" name="team" value="${esc(t.id)}" ${!i ? 'checked' : ''}>${esc(t.name)}</label>`).join('')}</div>
+        <label>Coach name<input name="coach" maxlength="32" value="Coach" required></label><label>Difficulty<select name="level">${levels.map((l, i) => `<option value="${i}">${l}</option>`).join('')}</select></label>
+        <div class="wide"><p class="muted sm">A full county schedule, a four-team playoff, and a new class every school year. Your career saves to your account.</p><button class="btn" type="submit">Start MFL career</button></div></form></section>`;
+      return;
+    }
+    const ours = ourTeam(), record = state.standings.find(t => t.id === state.teamId), round = state.rounds[state.week];
+    const next = gameNow(), other = next ? findTeam(next.home === state.teamId ? next.away : next.home) : null;
+    const locked = !!state.pending, complete = state.phase === 'complete', story = state.story;
+    const roster = ours.players.map(p => `<tr><td><b>${esc(p.name)}</b><br><span class="career-grade">Grade ${p.grade}${p.fictional ? ' · Generated player' : ' · MFL roster'}</span></td><td>${esc(p.pos)}</td><td>${p.ovr}</td><td>${p.spd}</td><td>${p.pos === 'QB' ? p.acc : p.pos === 'UTIL2' ? p.kick : p.cat}</td><td>${p.condition}%</td><td>${p.morale}%</td></tr>`).join('');
+    hub.innerHTML = `<section class="card career-summary" style="--team:${esc(ours.color)}"><div><div class="kicker">School year ${state.season} · ${esc(state.coach)}</div><h2>${esc(ours.name)}</h2><p>Thomas Metcalf School · ${esc(state.levelName)}</p></div><div class="career-stats"><div><b>${record.w}–${record.l}${record.t ? '–' + record.t : ''}</b><small>Season record</small></div><div><b>${state.budget}</b><small>Program credits</small></div><div><b>${state.titles || 0}</b><small>County Cups</small></div></div></section>
+      <div class="career-layout"><div>
+        <section class="card career-match" style="--team:${esc(ours.color)}"><div class="kicker">${complete ? 'School year complete' : esc(round.label)}</div>
+          ${complete ? `<h2>${state.champion === state.teamId ? '🏆 County champions!' : esc(findTeam(state.champion).name) + ' won the County Cup'}</h2><p class="muted">Celebrate the eighth graders and welcome your new sixth-grade class. Facilities and program credits carry into the next school year.</p>${button('Begin next school year', 'next-season')}` : other ? `<div class="career-matchup"><span>${esc(ours.name)}</span><small>vs</small><span>${esc(other.name)}</span></div><p class="muted sm">${next.home === state.teamId ? 'Home at Thomas Metcalf' : 'Away at ' + esc(other.name)} · ${esc(other.city)}</p>
+            <button class="btn" type="button" data-action="play">${locked ? 'Resume matchup' : 'Play ' + esc(round.label)}</button>${locked ? button('Forfeit matchup (0–21)', 'forfeit') + '<p class="muted sm">Saved matchup ready. Resuming starts the game again from kickoff.</p>' : ''}` : `<h2>Your season on the field is complete</h2><p class="muted">Follow the remaining county playoff games to the championship.</p>${button('Simulate ' + esc(round.label), 'watch')}`}
+        </section>
+        <section class="card career-story"><div class="kicker">The Metcalf story</div><h2>${esc(story.title)}</h2><p>${esc(story.text)}</p>${state.choice ? '<p class="muted sm">Your team activity is complete for this matchup.</p>' : story.choices.map(c => `<button type="button" class="btn ghost sm career-choice" data-action="choice" data-choice="${c.id}" ${locked ? 'disabled' : ''}>${esc(c.label)}<small>${esc(c.detail)}</small></button>`).join('')}</section>
+        <section class="card"><h2>Your roster</h2><p class="muted sm">Condition and morale affect game-day attributes. Career grades advance each school year; eighth graders graduate.</p><div class="career-scroll"><table><thead><tr><th>Player</th><th>Position</th><th>OVR</th><th>Speed</th><th>Skill</th><th>Condition</th><th>Morale</th></tr></thead><tbody>${roster}</tbody></table></div>${ours.reserves?.length ? `<details><summary>Practice squad · ${ours.reserves.length}</summary><p class="muted sm">Move a player back into their starting position. Your current starter joins the practice squad.</p>${ours.reserves.map(p => `<p><b>${esc(p.name)}</b> · ${esc(p.pos)} · Grade ${p.grade} · ${p.ovr} OVR<br>${button('Start ' + esc(p.name), 'activate', `data-player="${esc(p.id)}"`, locked || complete)}</p>`).join('')}</details>` : ''}</section>
+        <section class="card"><h2>County schedule &amp; playoffs</h2><p class="muted sm">Top four by wins (ties count half), then point difference and points scored.</p><div class="career-scroll"><table><thead><tr><th>Round</th><th>Home</th><th>Score</th><th>Away</th></tr></thead><tbody>${state.rounds.map(r => r.games.filter(g => g.home === state.teamId || g.away === state.teamId || r.kind !== 'regular').map(g => `<tr class="${g.id === next?.id ? 'ours' : ''}"><td>${esc(r.label)}</td><td>${esc(findTeam(g.home).abbr)}</td><td>${g.score === null ? 'vs' : `${g.score}–${g.opp}${g.overtime ? ' OT' : ''}`}</td><td>${esc(findTeam(g.away).abbr)}</td></tr>`).join('')).join('')}</tbody></table></div><details><summary>All county results</summary><div class="career-scroll"><table><tbody>${state.rounds.flatMap(r => r.games.map(g => `<tr><td>${esc(r.label)}</td><td>${esc(findTeam(g.home).name)}</td><td>${g.score === null ? 'vs' : g.score + '–' + g.opp}</td><td>${esc(findTeam(g.away).name)}</td></tr>`)).join('')}</tbody></table></div></details></section>
+      </div><aside>
+        <section class="card career-program"><h2>Manage the program</h2><label>Game difficulty<select id="career-level" ${locked ? 'disabled' : ''}>${levels.map((l, i) => `<option value="${i}" ${state.level === i ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <h3>After-school practice</h3><p>${state.trained ? 'Practice is complete for this matchup.' : 'Choose one session before the next matchup. Skills and speed improve ratings; recovery restores condition.'}</p><div class="career-actions">${['speed', 'skills', 'recovery'].map(f => button(f[0].toUpperCase() + f.slice(1), 'train', `data-focus="${f}"`, locked || state.trained || complete || !next)).join('')}</div>
+          <h3>School facilities</h3>${['training', 'recovery'].map(f => { const n = state.facilities[f], cost = 25 + n * 15; return `<div><b>${f === 'training' ? 'Practice equipment' : 'Recovery space'} · ${n}/3</b><p>${f === 'training' ? 'Each level adds +1 to attribute gains in practice.' : 'Each level adds +5 to recovery practice and +3 condition after matches.'}</p>${button(n === 3 ? 'Fully upgraded' : `Upgrade · ${cost} credits`, 'facility', `data-facility="${f}"`, locked || complete || n === 3 || state.budget < cost)}</div>`; }).join('')}
+          <details><summary>Open tryouts</summary><p>Welcome one sixth grader per matchup for 12 credits. They replace your current starter at the listed position in this career.</p>${state.candidates.map(p => `<div><b>${esc(p.name)}</b><p>${p.pos} · Grade 6 · ${p.ovr} OVR · ${p.spd} speed</p>${button('Welcome ' + esc(p.pos), 'recruit', `data-player="${esc(p.id)}"`, locked || complete || !next || state.recruited || state.budget < 12)}</div>`).join('')}</details>
+        </section>
+        <section class="card"><h2>McLean County standings</h2><div class="career-scroll"><table><thead><tr><th>School / team</th><th>W</th><th>L</th><th>T</th></tr></thead><tbody>${state.standings.map((t, i) => `<tr class="${t.id === state.teamId ? 'ours' : ''}"><td>${i + 1}. ${esc(t.name)}</td><td>${t.w}</td><td>${t.l}</td><td>${t.t}</td></tr>`).join('')}</tbody></table></div></section>
+        <section class="card"><h2>School paper</h2><ul class="career-news">${state.news.slice(0, 8).map(n => `<li><small>School year ${n.season} · ${n.week < 11 ? 'Week ' + (n.week + 1) : 'County playoffs'}</small><b>${esc(n.title)}</b><p>${esc(n.text)}</p></li>`).join('')}</ul></section>
+        ${state.history.length ? `<section class="card"><h2>Program history</h2>${state.history.map(h => `<p><b>Year ${h.season}: ${h.w}–${h.l}${h.t ? '–' + h.t : ''}${h.title ? ' 🏆' : ''}</b><br><small class="muted">County champions: ${esc(h.champion)}</small></p>`).join('')}</section>` : ''}
+      </aside></div>`;
+  }
+  async function action(name, data = {}) {
+    if (busy) return;
+    busy = true; error.textContent = ''; status.textContent = 'Saving career…';
+    hub.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    try {
+      const body = name === 'finish' ? await commitResult(data) : await request(name, data);
+      render(); status.textContent = 'Career saved to your account.';
+      if (body.match) mount(body.match);
+    } catch (err) { error.textContent = err.message; status.textContent = ''; render(); }
+    finally { busy = false; }
+  }
+  function unmount() {
+    if (release) release();
+    release = null; field.replaceChildren(); field.hidden = true; hub.hidden = false;
+  }
+  function mount(match) {
+    unmount(); hub.hidden = true; field.hidden = false;
+    field.innerHTML = `<div class="career-game"><p role="status">Loading MFL football…</p><iframe title="MFL career football game" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="career-game-toolbar"><button type="button" class="btn ghost sm" data-fullscreen>Full screen</button><button type="button" class="btn ghost sm" data-return>Return to career</button><p>Your matchup is saved. Returning lets you restart it from kickoff.</p></div></div>`;
+    const frame = field.querySelector('iframe'), loading = field.querySelector('[role=status]');
+    const origin = new URL(window.MFL_API_ORIGIN || location.origin).origin, token = crypto.randomUUID();
+    let finished = false;
+    async function receive(e) {
+      if (e.source !== frame.contentWindow || e.origin !== origin) return;
+      const msg = e.data || {};
+      if (msg.type === 'mfl-football-ready') frame.contentWindow.postMessage({ type: 'mfl-football-start', token, data: match.data, level: match.level, seed: match.seed }, origin);
+      else if (msg.token === token && msg.type === 'mfl-football-playing') { loading.hidden = true; frame.focus(); }
+      else if (msg.token === token && msg.type === 'mfl-football-error') { loading.hidden = false; loading.textContent = 'Football could not load. Return to career and try again.'; }
+      else if (msg.token === token && msg.type === 'mfl-football-finish' && !finished) {
+        finished = true;
+        const result = { id: match.id, token: match.token, score: msg.result.score, opp: msg.result.opp, stats: msg.result.stats };
+        rememberResult(result);
+        unmount(); hub.hidden = true; field.hidden = false;
+        field.innerHTML = `<section class="card career-result"><h2>${esc(match.data.home.abbr)} ${result.score} – ${result.opp} ${esc(match.data.away.abbr)}</h2><p role="status">Saving your result…</p><button class="btn" type="button" hidden>Retry saving result</button></section>`;
+        const save = async () => {
+          const retry = field.querySelector('button'), message = field.querySelector('[role=status]'); retry.hidden = true;
+          try { await commitResult(result); unmount(); render(); status.textContent = 'Final score saved. Your county season has advanced.'; }
+          catch (err) { message.textContent = err.message; retry.hidden = false; }
+        };
+        field.querySelector('button').addEventListener('click', save); await save();
+      }
+    }
+    window.addEventListener('message', receive);
+    release = () => { window.removeEventListener('message', receive); frame.remove(); };
+    frame.src = origin + '/play/football';
+    field.querySelector('[data-fullscreen]').addEventListener('click', () => { const request = frame.requestFullscreen || frame.webkitRequestFullscreen; if (request) Promise.resolve(request.call(frame)).catch(() => {}); });
+    field.querySelector('[data-return]').addEventListener('click', () => { unmount(); render(); status.textContent = 'Matchup saved. Resume to restart from kickoff.'; });
+    field.scrollIntoView({ block: 'start' });
+  }
+  hub.addEventListener('click', e => {
+    const b = e.target.closest('[data-action]'); if (!b || b.disabled) return;
+    const { action: name, ...data } = b.dataset;
+    if (name === 'forfeit') {
+      if (!window.confirm('Forfeit this matchup 0–21 and advance the county season?')) return;
+      data.id = state.pending.id;
+    }
+    action(name, data);
+  });
+  hub.addEventListener('submit', e => { if (e.target.id !== 'career-new') return; e.preventDefault(); action('new', Object.fromEntries(new FormData(e.target))); });
+  hub.addEventListener('change', e => { if (e.target.id === 'career-level') action('difficulty', { level: Number(e.target.value) }); });
+  window.addEventListener('pagehide', () => { if (release) release(); });
+  render();
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(resultKey));
+    if (saved && state?.pending?.id === saved.id) action('finish', saved);
+    else if (saved) rememberResult(null);
+  } catch {}
+})();
+</script></main>
+<footer class="ftr"><div class="wrap ftr-in">
+  <div class="ftr-brand"><img src="/mfl/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at Thomas Metcalf School</small></div></div>
+  <div class="ftr-links"><a href="/mfl/schedule/">Schedule</a><a href="/mfl/scores/">Scores</a><a href="/mfl/arcade/">Arcade</a><a href="/mfl/career/">Career</a><a href="/mfl/pickem/cards">Cards</a><a href="/mfl/pickem">Pick'em</a><a href="/mfl/history/">Head-to-Head</a><a href="/mfl/stats/players/">Leaders</a><a href="/mfl/stats/rankings/">Rankings</a><a href="/mfl/records/">Records</a><a href="/mfl/cards/">Cards</a><a href="/mfl/calendar.ics">Add to calendar</a><a href="/mfl/teams/pedon/">Pineapples</a><a href="/mfl/teams/xavier/">KTCS</a><a href="/mfl/admin">Admin</a></div>
+</div></footer>
+<script type="text/x-mfl">(()=>{const e=document.querySelector('.hb-cd');if(!e)return;const f=()=>{const s=Math.max(0,Math.floor((+e.dataset.ts-Date.now())/1000));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);e.textContent=s?'kickoff in '+(d?d+'d ':'')+(d||h?h+'h ':'')+m+'m'+(d?'':' '+String(s%60).padStart(2,'0')+'s'):'kickoff!'};f();setInterval(f,1000)})()</script><div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/mfl/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script type="text/x-mfl">
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<script type="text/x-mfl">
+document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
+document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
+const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/mfl/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+// Start loading a page as soon as a finger or mouse lands on its link.
+if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
+</script>
+</body></html>
