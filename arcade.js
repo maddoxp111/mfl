@@ -26,7 +26,7 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
-  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football. Throw, juke and score before the clock runs out.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 130, maxScore: 105, need: [14, 21, 21, 21], isNew: true },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'A full 3D football game: 2-minute quarters, running clock, 2 timeouts a half. Beat the CPU team.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 120, maxScore: 105, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.

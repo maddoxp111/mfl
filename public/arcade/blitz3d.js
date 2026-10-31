@@ -1,10 +1,39 @@
 // Blitz 3D: an original arcade football drive, drawn with a tiny raw-WebGL renderer (no libraries).
-// Two minutes of game clock: pick a play, snap, throw to the open receiver, run, juke, score.
+// A full 4-quarter game vs a CPU team: you play offense (pick a play, snap, throw, run, juke); CPU drives are simulated.
 (function () {
   const P = 'bz';
   const CSS = `
-.bz-wrap{position:relative;width:100%;max-width:1000px;margin:0 auto;color:#f5f6f8;font-family:Inter,system-ui,sans-serif;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
-.bz-wrap.bz-intro{min-height:540px}
+.bz-wrap{position:relative;width:100%;max-width:1000px;margin:0 auto;color:#f5f6f8;font-family:Inter,system-ui,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+.bz-wrap *{-webkit-touch-callout:none}
+.bz-fsb{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:32px;margin-right:4px;background:#1d212c;color:#f5f6f8;border:1px solid #2a2f3c;border-radius:8px;cursor:pointer;padding:0}
+.bz-fsb svg{width:16px;height:16px}
+.bz-ov{max-width:none;display:flex;flex-direction:column;overflow:hidden;background:#07080b;border-radius:12px}
+.bz-ov .bz-stage{flex:1 1 auto;border:0;min-height:0}
+.bz-ov .bz-hud{border-radius:0;border:0;padding:6px calc(8px + env(safe-area-inset-right,0px)) 6px calc(8px + env(safe-area-inset-left,0px))}
+.bz-ov .bz-ctl{position:absolute;left:0;right:0;bottom:0;z-index:3;min-height:0;background:linear-gradient(transparent,rgba(7,8,11,.55));border:0;border-radius:0;align-items:flex-end;padding:18px calc(8px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));pointer-events:none}
+.bz-ov .bz-ctl>*{pointer-events:auto}
+.bz-ov .bz-btn{min-height:54px;background:rgba(22,25,34,.86);border-color:rgba(255,255,255,.18)}
+.bz-ov .bz-btn.sel{background:rgba(42,36,16,.92);border-color:#ffc21a}
+.bz-ov .bz-snap{background:#ffc21a;border-color:#ffc21a}
+.bz-ov .bz-rc{min-height:62px}
+.bz-ov .bz-rc .bz-face{width:34px;height:34px}
+.bz-ov .bz-rc.open{background:rgba(16,40,26,.9)}.bz-ov .bz-rc.mid{background:rgba(42,36,16,.9)}.bz-ov .bz-rc.cov{background:rgba(42,18,22,.9)}
+.bz-ov .bz-msg{flex:1 1 auto;align-self:flex-end;pointer-events:none;background:rgba(15,17,23,.8);border-radius:999px;padding:9px 12px;font-size:12px}
+.bz-ov .bz-juke{flex:0 0 88px;width:88px;height:88px;min-height:88px;border-radius:50%;font-size:22px;margin-left:auto}
+.bz-ov .bz-to{flex:0 0 58px}
+.bz-ov.bz-land .bz-hud{position:absolute;top:0;left:0;right:0;z-index:4;background:linear-gradient(rgba(7,8,11,.9),rgba(7,8,11,.55) 70%,transparent);flex-wrap:nowrap;padding-bottom:12px}
+.bz-ov.bz-land .bz-stat.sm{order:0;flex:1 1 0;flex-direction:column}
+.bz-ov.bz-land .bz-br{display:none}
+.bz-ov.bz-land{border-radius:0}
+.bz-land .bz-splash{gap:7px;padding:8px 14px}.bz-land .bz-title{font-size:16px}.bz-land .bz-tag2{font-size:12px}.bz-land .bz-squad{display:none}
+.bz-land .bz-goal{font-size:8px;padding:6px 10px}.bz-land .bz-how{grid-template-columns:1fr 1fr;max-width:800px;gap:4px 14px}.bz-land .bz-how li{font-size:11.5px;line-height:1.3}.bz-land .bz-go{padding:10px 18px}
+.bz-ov.bz-land .bz-btn{min-height:50px}
+.bz-ov .bz-tag{padding:4px 9px 4px 4px;font-size:13px}
+.bz-ov .bz-tag .bz-face{width:28px;height:28px}
+.bz-ov .bz-banner{top:24%}
+.bz-wrap:fullscreen{width:100vw;height:100vh;max-width:none;border-radius:0}
+.bz-wrap:-webkit-full-screen{width:100vw;height:100vh;max-width:none;border-radius:0}
+.bz-wrap.bz-intro{min-height:600px}
 .bz-hud{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:7px 8px;background:#0f1117;border:1px solid #1d212c;border-bottom:0;border-radius:12px 12px 0 0}
 .bz-stat{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;flex:1 1 0}
 .bz-stat span{font-family:'Press Start 2P',monospace;font-size:7px;color:#6f7584;white-space:nowrap}
@@ -39,7 +68,7 @@
 .bz-stick{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(255,255,255,.08);pointer-events:none}
 .bz-stick b{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,194,26,.85)}
 .bz-ctl{display:flex;align-items:stretch;gap:6px;padding:8px;min-height:66px;box-sizing:border-box;background:#0f1117;border:1px solid #1d212c;border-radius:0 0 12px 12px}
-.bz-btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:800 17px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#f5f6f8;background:#1d212c;border:2px solid #2a2f3c;border-radius:10px;padding:6px 4px;cursor:pointer;position:relative;overflow:hidden;touch-action:manipulation}
+.bz-btn{flex:1 1 0;min-width:0;min-height:48px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:800 17px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#f5f6f8;background:#1d212c;border:2px solid #2a2f3c;border-radius:10px;padding:6px 4px;cursor:pointer;position:relative;overflow:hidden;touch-action:manipulation}
 .bz-btn small{font:600 10px/1.1 Inter,sans-serif;text-transform:none;letter-spacing:0;color:#9aa0ad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .bz-btn kbd{font:8px 'Press Start 2P',monospace;color:#6f7584}
 .bz-btn.sel{border-color:#ffc21a;background:#2a2410;color:#ffc21a}
@@ -53,7 +82,9 @@
 .bz-juke.cool{background:#5a1a22;border-color:#5a1a22;box-shadow:none}
 .bz-msg{flex:1 1 auto;display:flex;align-items:center;justify-content:center;text-align:center;font:700 13px/1.35 Inter,sans-serif;color:#c9ccd4;padding:0 6px}
 .bz-msg b{color:#ffc21a}
-.bz-splash{position:absolute;inset:0;z-index:5;background:rgba(7,8,11,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center;border-radius:12px;overflow:auto}
+.bz-splash{position:absolute;inset:0;z-index:5;background:rgba(7,8,11,.9);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:16px;text-align:center;border-radius:12px;overflow:auto}
+.bz-splash>:first-child{margin-top:auto}.bz-splash>:last-child{margin-bottom:auto;flex:0 0 auto}
+.bz-br{display:none}
 .bz-title{font-family:'Press Start 2P',monospace;color:#ffc21a;font-size:24px;line-height:1.3;text-shadow:3px 3px 0 #6b4f00}
 .bz-tag2{font:800 15px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:1px;color:#c9ccd4;margin-top:-6px}
 .bz-goal{font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.8;color:#f5f6f8;background:#161922;padding:10px 12px;border-radius:8px;border:1px solid #2a2f3c;max-width:360px}
@@ -66,7 +97,18 @@
 .bz-go:active{transform:translateY(3px);box-shadow:0 1px 0 #a37a00}
 .bz-err{padding:40px 18px;text-align:center;font:600 15px/1.5 Inter,sans-serif;color:#c9ccd4;background:#0f1117;border:1px solid #1d212c;border-radius:12px}
 .bz-err b{display:block;font-family:'Press Start 2P',monospace;font-size:12px;color:#ff3344;margin-bottom:12px}
-@media (max-width:520px){.bz-stat b{font-size:9px}.bz-stat span{font-size:6px}.bz-btn{font-size:15px}.bz-snap{font-size:17px}.bz-banner b{font-size:15px}.bz-banner i{font-size:8px}.bz-title{font-size:19px}.bz-tag{font-size:10px;padding:2px 6px 2px 2px;border-width:1.5px}.bz-tag i{width:14px;height:14px;font-size:7px}.bz-face{width:20px;height:20px}.bz-tag.car .bz-face{width:24px;height:24px}.bz-squad .bz-face{width:38px;height:38px}.bz-btn:not(.bz-rc) small{display:none}.bz-ctl{min-height:58px;padding:6px;gap:5px}}
+.bz-stat span i{font-style:normal;color:#ffc21a;letter-spacing:1px}.bz-stat span i.off{color:#2a2f3c}
+.bz-stat.run b{color:#ffc21a}.bz-stat.stop b{color:#f5f6f8}
+.bz-to{flex:0.7 1 0}.bz-to.off{opacity:.35}
+.bz-btn:disabled{opacity:.35;cursor:default}
+.bz-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:230px;width:max-content;max-width:90%;box-sizing:border-box;padding:14px 18px;background:rgba(15,17,23,.95);border:2px solid var(--oc,#ffc21a);border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6);animation:bz-zoom .45s cubic-bezier(.2,1.4,.4,1) both}
+.bz-card h3{margin:0 0 8px;font:900 22px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--oc,#ffc21a)}
+.bz-card p{margin:5px 0;font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.6;color:#c9ccd4}
+.bz-card p b{color:#f5f6f8}
+.bz-card .res{margin-top:10px;font-size:15px;color:#f5f6f8}
+.bz-card .sc{margin-top:8px;font-size:11px;color:#ffc21a}
+@media (max-width:520px){.bz-hud{flex-wrap:wrap;row-gap:6px}.bz-quit{order:4}.bz-fsb{order:3}.bz-br{display:block;order:5;flex:0 0 100%;height:0}.bz-stat.sm{order:6;flex:1 1 40%;flex-direction:row;justify-content:center;gap:6px}.bz-card{min-width:200px;padding:11px 12px}.bz-card h3{font-size:18px}.bz-card .res{font-size:12px}
+.bz-stat b{font-size:9px}.bz-stat span{font-size:6px}.bz-btn{font-size:15px}.bz-snap{font-size:17px}.bz-banner b{font-size:15px}.bz-banner i{font-size:8px}.bz-title{font-size:19px}.bz-tag{font-size:10px;padding:2px 6px 2px 2px;border-width:1.5px}.bz-tag i{width:14px;height:14px;font-size:7px}.bz-face{width:20px;height:20px}.bz-tag.car .bz-face{width:24px;height:24px}.bz-squad .bz-face{width:38px;height:38px}.bz-btn:not(.bz-rc) small{display:none}.bz-ctl{min-height:58px;padding:6px;gap:5px}}
 @keyframes bz-rise{0%{opacity:0;transform:translate(-50%,-20%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-240%) scale(1)}}
 @keyframes bz-zoom{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}60%{opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes bz-pulse{50%{transform:scale(1.06)}}
@@ -91,12 +133,26 @@
   // pur: pursuit speed after the catch, stun: juke stun (s), cd: juke cooldown, brk: broken-tackle chance,
   // intK / incK: how much a close defender turns a throw into an INT / incompletion.
   const LV = [
-    { need: 14, cb: 6.7, lag: 0.62, cush: 7.5, saf: 6.4, safD: 17, react: 0.5, rushD: 3.6, rushV: 5.8, pur: 6.4, stun: 1.15, cd: 1.5, brk: 0.3, intK: 0.22, incK: 0.38 },
-    { need: 21, cb: 7.7, lag: 0.46, cush: 6.5, saf: 7.1, safD: 15, react: 0.38, rushD: 2.8, rushV: 6.8, pur: 8.15, stun: 0.8, cd: 2.3, brk: 0.08, intK: 0.38, incK: 0.48 },
-    { need: 21, cb: 8.15, lag: 0.33, cush: 5.5, saf: 7.7, safD: 13.5, react: 0.27, rushD: 2.5, rushV: 7.5, pur: 8.2, stun: 0.65, cd: 2.8, brk: 0.05, intK: 0.55, incK: 0.55 },
-    { need: 21, cb: 8.5, lag: 0.21, cush: 4.5, saf: 8.2, safD: 12, react: 0.16, rushD: 2.0, rushV: 8.2, pur: 8.4, stun: 0.5, cd: 3.2, brk: 0, intK: 0.5, incK: 0.6 },
+    { cb: 6.7, lag: 0.62, cush: 7.5, saf: 6.4, safD: 17, react: 0.5, rushD: 3.6, rushV: 5.8, pur: 6.4, stun: 1.15, cd: 1.5, brk: 0.3, intK: 0.22, incK: 0.38 },
+    { cb: 7.7, lag: 0.46, cush: 6.5, saf: 7.1, safD: 15, react: 0.38, rushD: 2.8, rushV: 6.8, pur: 8.15, stun: 0.8, cd: 2.3, brk: 0.08, intK: 0.38, incK: 0.48 },
+    { cb: 8.15, lag: 0.33, cush: 5.5, saf: 7.7, safD: 13.5, react: 0.27, rushD: 2.5, rushV: 7.5, pur: 8.2, stun: 0.65, cd: 2.8, brk: 0.05, intK: 0.55, incK: 0.55 },
+    { cb: 8.5, lag: 0.21, cush: 4.5, saf: 8.2, safD: 12, react: 0.16, rushD: 2.0, rushV: 8.2, pur: 8.4, stun: 0.5, cd: 3.2, brk: 0, intK: 0.5, incK: 0.6 },
   ];
-  const CLOCK = 120, WR_V = 8, RUN_V = 8.4, JUKE_V = 12.5, JUKE_T = 0.38, HW = 26.65, TACKLE_R = 0.95, BALL_V = 21, PEN = 5;
+  const WR_V = 8, RUN_V = 8.4, JUKE_V = 12.5, JUKE_T = 0.38, HW = 26.65, TACKLE_R = 0.95, BALL_V = 21, QLEN = 120;
+  // CPU opponents by level (the site's CPU teams) and how well they move the ball when simulated:
+  // g: average gain, big: big-play chance, loss: loss chance, to: turnover chance per play, fg: kicker accuracy
+  const CPUS = [
+    { name: 'JV Squad', abbr: 'JV', c1: '#64748b', c2: '#e2e8f0' },
+    { name: 'Hall Monitors', abbr: 'HMS', c1: '#7c3aed', c2: '#f5f3ff' },
+    { name: 'Detention Kings', abbr: 'DK', c1: '#b91c1c', c2: '#111111' },
+    { name: 'The Faculty', abbr: 'FAC', c1: '#0f172a', c2: '#facc15' },
+  ];
+  const CPUD = [
+    { g: 3.6, big: 0.05, loss: 0.23, to: 0.055, fg: 0.6 },
+    { g: 4.6, big: 0.07, loss: 0.18, to: 0.04, fg: 0.72 },
+    { g: 5.2, big: 0.09, loss: 0.15, to: 0.03, fg: 0.82 },
+    { g: 5.3, big: 0.1, loss: 0.12, to: 0.032, fg: 0.88 },
+  ];
   const PLAYS = [
     { name: 'Quick', sub: 'Slant · Hitch · Drag', routes: [{ w: [[0, 3], [-10, 10]] }, { w: [[0, 6], [0.6, 5]], sit: 1 }, { w: [[0, 2], [-20, 6]] }] },
     { name: 'Deep', sub: 'Go · Post · Corner', routes: [{ w: [[0, 42]] }, { w: [[0, 11], [-9, 24]] }, { w: [[0, 10], [8, 20]] }] },
@@ -184,7 +240,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
     start(ctx) {
       injectCSS();
       try { document.fonts && document.fonts.load('10px "Press Start 2P"'); } catch (e) {}
-      const lvl = clamp(ctx.level | 0, 0, 3), L = LV[lvl], NEED = L.need, rng = ctx.rng;
+      const lvl = clamp(ctx.level | 0, 0, 3), L = LV[lvl], OPP = CPUS[lvl], CD = CPUD[lvl], rng = ctx.rng;
       const DBG = window.__blitzDebug || null;
       let cs = 20240611; const crand = () => ((cs = (cs * 1664525 + 1013904223) >>> 0) / 4294967296); // cosmetic only
 
@@ -215,10 +271,11 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const NAMES = SQUAD.map((q) => q.name);
       const SKIN = ['#f3cfae', '#dcaa83', '#b98056', '#8a5535', '#5a361f'].map(hex);
       const shortName = (s) => { const p = String(s).trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
-      const redTeam = TEAM[0] > 0.6 && TEAM[1] < 0.45 && TEAM[2] < 0.45;
-      const DEFA = redTeam ? hex('#1f3f99') : hex('#c8102e');
+      const O1 = hex(OPP.c1), O2 = hex(OPP.c2);
+      const away = Math.hypot(O1[0] - TEAM[0], O1[1] - TEAM[1], O1[2] - TEAM[2]) < 0.35; // colors clash: CPU wears its light set
+      const DEFA = O1, OPPCSS = css(lum(O1) < 0.2 ? O2 : O1);
       const OFFC = { jer: TEAM, pad: shade(TEAM, 1.12), pant: TEAM2, helm: TEAM2, stripe: TEAM, num: TEAM2 };
-      const DEFC = { jer: hex('#eef1f5'), pad: hex('#ffffff'), pant: DEFA, helm: DEFA, stripe: hex('#eef1f5'), num: DEFA };
+      const DEFC = away ? { jer: O2, pad: shade(O2, 1.05), pant: O1, helm: O1, stripe: O2, num: O1 } : { jer: O1, pad: shade(O1, 1.12), pant: O2, helm: O1, stripe: O2, num: O2 };
       const VISOR = [0.04, 0.05, 0.08, 1], MASK = hex('#9aa0ad'), BALLC = hex('#7a3e17'), LACE = hex('#f5f6f8');
 
       // ---------- DOM ----------
@@ -226,9 +283,16 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const wrap = el('div', 'bz-wrap bz-intro');
       const hud = el('div', 'bz-hud');
       const stat = (t) => el('div', 'bz-stat', `<span>${t}</span><b>-</b>`);
-      const hScore = stat('SCORE'), hClock = stat('CLOCK'), hDown = stat('DOWN'), hBall = stat('BALL');
+      const hYou = stat('YOU'), hClock = stat('Q1'), hOpp = stat(esc(OPP.abbr)), hDown = stat('DOWN'), hBall = stat('BALL');
+      hYou.querySelector('span').style.color = css(lum(TEAM) < 0.2 ? TEAM2 : TEAM); hOpp.querySelector('span').style.color = OPPCSS;
+      hDown.classList.add('sm'); hBall.classList.add('sm');
       const quit = el('button', 'bz-quit', 'QUIT'); quit.type = 'button';
-      hud.append(hScore, hClock, hDown, hBall, quit);
+      const touchy = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window && (navigator.maxTouchPoints || 0) > 0);
+      const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+      const fsBtn = el('button', 'bz-fsb', '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5"/></svg>');
+      fsBtn.type = 'button'; fsBtn.title = 'Full screen'; fsBtn.setAttribute('aria-label', 'Full screen');
+      if (!fsOK) fsBtn.style.display = 'none';
+      hud.append(hYou, hClock, hOpp, hDown, hBall, fsBtn, quit, el('div', 'bz-br'));
       const stage = el('div', 'bz-stage');
       const cv = el('canvas', 'bz-cv'); cv.tabIndex = 0; cv.setAttribute('aria-label', 'Football field');
       const tagL = el('div', 'bz-tags'), fx = el('div', 'bz-fx');
@@ -333,7 +397,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         g.lineWidth = 0.35 * SX; g.strokeStyle = '#f2f5ee'; g.stroke();
         txt('MFL', 0, 50, 0, 3.2, css(TEAM2), 8);
         txt(teamName, 0, -5, Math.PI, 5.2, css(lum(TEAM) > 0.55 ? shade(TEAM, 1.15) : hex('#f2f5ee')), 40);
-        txt('BLITZ', 0, 105, 0, 5.4, '#f2f5ee', 40);
+        txt(OPP.name.toUpperCase(), 0, 105, 0, 5.4, css(O2[0] + O2[1] + O2[2] > 1.2 ? O2 : hex('#f2f5ee')), 40);
         return c;
       }
       function crowdCanvas() {
@@ -423,8 +487,8 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         if (numMap[key] != null) return numMap[key];
         if (numN >= 48) return -1;
         const k = numN++, x = (k % 8) * 128, y = 256 + Math.floor(k / 8) * 128;
-        ag.fillStyle = css(team ? DEFA : TEAM2); ag.fillRect(x, y, 128, 128);
-        ag.fillStyle = css(team ? hex('#ffffff') : TEAM);
+        ag.fillStyle = css(team ? DEFC.helm : TEAM2); ag.fillRect(x, y, 128, 128);
+        ag.fillStyle = css(team ? DEFC.stripe : TEAM);
         ag.font = '900 92px "Barlow Condensed", Impact, "Arial Narrow", sans-serif'; ag.textAlign = 'center'; ag.textBaseline = 'middle';
         ag.fillText(String(n), x + 64, y + 68, 116);
         atlasDirty = true;
@@ -460,23 +524,75 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
 
       // ---------- sizing ----------
       let cssW = 360, cssH = 270;
+      let rscale = 1, por = 0, lnd = 0; // adaptive render scale, portrait-ness of the view (0 = wide, 1 = tall)
+      const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+      function headerH() {
+        // a fixed/sticky site header covering the top of the viewport
+        try {
+          let e = document.elementFromPoint((document.documentElement.clientWidth || 360) / 2, 3);
+          while (e && e !== document.body && e !== document.documentElement) {
+            if (wrap.contains(e)) return 0;
+            const p = getComputedStyle(e).position;
+            if (p === 'fixed' || p === 'sticky') { const b = e.getBoundingClientRect().bottom; return b > 0 && b < 160 ? b : 0; }
+            e = e.parentElement;
+          }
+        } catch (er) {}
+        return 0;
+      }
+      let ovMode = false;
       function fit() {
-        const rw = Math.max(260, Math.min(root.clientWidth || 360, 1000));
-        const narrow = rw < 560;
-        let ch = Math.round(rw / (narrow ? 4 / 3 : 16 / 9));
-        const maxH = Math.max(210, (window.innerHeight || 800) - 175);
-        if (ch > maxH) ch = maxH;
+        const vw = document.documentElement.clientWidth || window.innerWidth || 360;
+        const vh = Math.round((window.visualViewport && window.visualViewport.height) || window.innerHeight || 700);
+        const fs = fsEl() === wrap;
+        const ov = fs || touchy || vw < 700;
+        const land = vw > vh;
+        ovMode = ov;
+        wrap.classList.toggle('bz-ov', ov); wrap.classList.toggle('bz-land', ov && land);
+        if (ov && ctl.parentNode !== stage) stage.appendChild(ctl);
+        if (!ov && ctl.parentNode !== wrap) wrap.appendChild(ctl);
+        wrap.style.marginLeft = ''; wrap.style.width = ''; wrap.style.height = ''; cv.style.height = ''; wrap.style.minHeight = ov ? '0' : '';
+        if (ov && land && !fs && phase !== 'splash') { const l = root.getBoundingClientRect().left; wrap.style.width = vw + 'px'; wrap.style.marginLeft = -l + 'px'; }
+        let rw, ch;
+        if (ov) {
+          const avail = fs ? vh : Math.max(260, vh - headerH() - 4);
+          wrap.style.height = avail + 'px';
+          rw = Math.max(260, wrap.clientWidth || vw);
+          ch = land ? avail : Math.max(220, avail - hud.offsetHeight);
+        } else {
+          rw = Math.max(260, Math.min(root.clientWidth || 360, 1000));
+          ch = Math.round(rw / (rw < 560 ? 4 / 3 : 16 / 9));
+          ch = Math.min(ch, Math.max(210, vh - 175));
+        }
         cssW = rw; cssH = ch;
         cv.style.height = ch + 'px';
-        let dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-        if (rw * ch * dpr * dpr > 1.3e6) dpr = Math.sqrt(1.3e6 / (rw * ch));
-        cv.width = Math.round(rw * dpr); cv.height = Math.round(ch * dpr);
+        por = clamp((1.3 - rw / ch) / 0.75, 0, 1); lnd = ov && land ? 1 : 0;
+        sizeBuffer();
       }
+      function sizeBuffer() {
+        const small = Math.min(cssW, cssH) < 500;
+        let dpr = Math.min(window.devicePixelRatio || 1, small ? 1.35 : 1.5) * rscale;
+        const budget = small ? 0.9e6 : 1.3e6;
+        if (cssW * cssH * dpr * dpr > budget) dpr = Math.sqrt(budget / (cssW * cssH));
+        const w = Math.max(160, Math.round(cssW * dpr)), h = Math.max(120, Math.round(cssH * dpr));
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      }
+      function scrollIn() {
+        if (fsEl()) return;
+        try { const t = wrap.getBoundingClientRect().top + window.scrollY - headerH() - (ovMode ? 2 : 8); window.scrollTo(0, Math.max(0, t)); } catch (e) {}
+      }
+      function toggleFS() {
+        try {
+          if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+          const r = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+          if (r) { const pr = r.call(wrap, { navigationUI: 'hide' }); if (pr && pr.catch) pr.catch(() => {}); }
+        } catch (e) {}
+      }
+      fsBtn.addEventListener('click', toggleFS);
 
       // ---------- game state ----------
-      let phase = 'splash', clock = CLOCK, score = 0, los = 25, down = 1, fdz = 35, playIdx = 0, tPlay = 0, airT = 0, deadT = 0;
+      let phase = 'splash', clock = QLEN, score = 0, opp = 0, qtr = 1, toLeft = 2, clockRun = false, recv2 = 'you', otLeft = 0, go4 = false, cpuD = null, brkT = 0, brkThen = null, kick = null, elapsed = 0, los = 25, down = 1, fdz = 35, playIdx = 0, tPlay = 0, airT = 0, deadT = 0;
       let off = [], def = [], all = [], qb = null, wr = [], carrier = null, ball = null, pend = null, plays = 0, tds = 0, finished = false;
-      let introT = 0, introCut = false, closeP = null, deadTot = 0, newDrive = false, jukeT = 0, jukeCd = 0, sep = [9, 9, 9], parts = [], rushCalled = false, pressured = false, lastSpot = 25;
+      let introT = 0, introCut = false, closeP = null, deadTot = 0, jukeT = 0, jukeCd = 0, sep = [9, 9, 9], parts = [], rushCalled = false, pressured = false;
       const cam = { e: [0, 12, 9], c: [0, 0, 35] };
       const input = { l: 0, r: 0, u: 0, d: 0, stick: null };
 
@@ -510,7 +626,8 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         qb = mk('qb', 0, 0, los - 4.5, sq(0));
         off = [qb];
         for (let i = -2; i <= 2; i++) off.push(mk('ol', 0, i * 1.9, los - 0.9, { w: 1.3 }));
-        wr = [0, 1, 2].map((i) => mk('wr', 0, [-15, 15, 8][i], los - [0.7, 0.7, 1.6][i], Object.assign({ i }, sq(i + 1))));
+        const wide = 12, slot = 6.5; // same formation on every screen so difficulty is identical
+        wr = [0, 1, 2].map((i) => mk('wr', 0, [-wide, wide, slot][i], los - [0.7, 0.7, 1.6][i], Object.assign({ i }, sq(i + 1))));
         off.push(...wr);
         const pl = PLAYS[playIdx];
         wr.forEach((w, i) => { w.R = buildRoute(w, pl.routes[i]); });
@@ -531,19 +648,23 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const ddTxt = () => `${ORD[Math.min(down, 4)]} & ${fdz >= 100 ? 'G' : Math.max(1, Math.round(fdz - los))}`;
       let hudCache = '';
       function updHud() {
-        const s = [score, clock > 0 ? Math.ceil(clock) : 0, down, Math.round(los), fdz].join('|');
+        const s = [score, opp, qtr, toLeft, clockRun, phase, clock > 0 ? Math.ceil(clock) : 0, down, Math.round(los), fdz].join('|');
         if (s === hudCache) return; hudCache = s;
-        hScore.querySelector('b').textContent = `${score}/${NEED}`;
-        hScore.classList.toggle('hit', score >= NEED);
+        hYou.querySelector('b').textContent = score;
+        hOpp.querySelector('b').textContent = opp;
+        hClock.querySelector('span').innerHTML = `${qtr > 4 ? 'OT' : 'Q' + qtr} <i${toLeft > 0 ? '' : ' class="off"'}>●</i><i${toLeft > 1 ? '' : ' class="off"'}>●</i>`;
         hClock.querySelector('b').textContent = fmtClock(clock);
+        const runs = clockRun || phase === 'pass' || phase === 'air' || phase === 'run' || phase === 'kick';
+        hClock.classList.toggle('run', runs); hClock.classList.toggle('stop', !runs);
+        const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
         hClock.classList.toggle('low', clock <= 15 && phase !== 'splash');
-        hDown.querySelector('b').textContent = ddTxt();
-        hBall.querySelector('b').textContent = ballTxt(los);
+        const cpuBall = phase === 'cpu' || phase === 'break' || phase === 'over';
+        hDown.querySelector('b').textContent = phase === 'cpu' ? OPP.abbr + ' BALL' : cpuBall ? '-' : ddTxt();
+        hBall.querySelector('b').textContent = cpuBall ? '-' : ballTxt(los);
       }
-      const touchy = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
-      let ctlPhase = '', rcBtns = [], jukeBtn = null;
+            let ctlPhase = '', rcBtns = [], jukeBtn = null;
       function setControls(force) {
-        const ph = phase === 'air' || phase === 'dead' || phase === 'over' ? 'msg' : phase;
+        const ph = phase === 'pre' && down === 4 && !go4 ? 'fourth' : phase === 'pass' || phase === 'run' || phase === 'pre' ? phase : phase === 'dead' ? 'dead' : 'msg';
         if (ph === ctlPhase && !force) return;
         ctlPhase = ph; ctl.innerHTML = ''; rcBtns = []; jukeBtn = null;
         if (ph === 'pre') {
@@ -553,6 +674,14 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           });
           const s = el('button', 'bz-btn bz-snap', `Snap${touchy ? '' : '<kbd>SPACE</kbd>'}`); s.type = 'button';
           s.addEventListener('click', snap); ctl.appendChild(s);
+          ctl.appendChild(toButton());
+        } else if (ph === 'fourth') {
+          const fd = 117 - Math.round(los), inR = los >= 60;
+          const mkB = (cls, h, fn, dis) => { const b = el('button', 'bz-btn ' + cls, h); b.type = 'button'; b.disabled = !!dis; b.addEventListener('click', fn); ctl.appendChild(b); return b; };
+          mkB('bz-snap', `Go for it<small>4th & ${fdz >= 100 ? 'goal' : Math.max(1, Math.round(fdz - los))}</small>`, () => choose4th('go'));
+          mkB('', `Punt${touchy ? '<small>to ' + esc(OPP.abbr) + '</small>' : '<kbd>P</kbd>'}`, () => choose4th('punt'));
+          mkB('', `Field goal<small>${inR ? fd + ' yd · ' + Math.round(fgPct(fd) * 100) + '%' : 'out of range'}</small>`, () => choose4th('fg'), !inR);
+          ctl.appendChild(toButton());
         } else if (ph === 'pass') {
           wr.forEach((w, i) => {
             const b = el('button', 'bz-btn bz-rc', `<span>${faceHTML(i + 1)}<b>${i + 1}</b></span><small>${esc(shortName(NAMES[i + 1]))}</small>`); b.type = 'button';
@@ -564,11 +693,31 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           jukeBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); juke(); }); ctl.appendChild(jukeBtn);
         } else {
           ctl.appendChild(el('div', 'bz-msg', ''));
+          if (ph === 'dead') ctl.appendChild(toButton());
         }
+      }
+      function toButton() {
+        const b = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${touchy ? '' : '<kbd>T</kbd>'}`); b.type = 'button';
+        b.addEventListener('click', callTimeout); return b;
+      }
+      const canTimeout = () => (phase === 'pre' || phase === 'dead') && clockRun && toLeft > 0 && clock > 0;
+      function callTimeout() {
+        if (!canTimeout() || finished) return;
+        toLeft--; clockRun = false; ctx.sound('whistle');
+        if (phase === 'pre') banner('TIMEOUT', `${toLeft} left this half · clock stopped`, '#ffc21a');
+        else pop('TIMEOUT', '#ffc21a', cssW / 2, cssH * 0.72);
+        setControls(true); hudCache = '';
+      }
+      const fgPct = (d) => clamp(1.04 - (d - 20) * 0.018 - lvl * 0.025, 0.15, 0.97);
+      function choose4th(k) {
+        if (phase !== 'pre' || down !== 4 || go4 || finished) return;
+        if (k === 'go') { go4 = true; ctx.sound('tap'); setControls(true); return; }
+        if (k === 'fg' && los < 60) return;
+        doKick(k);
       }
       function ctlMsg(h) { const m = ctl.querySelector('.bz-msg'); if (m) m.innerHTML = h; }
       function pickPlay(i) {
-        if (phase !== 'pre') return;
+        if (phase !== 'pre' || (down === 4 && !go4)) return;
         if (i !== playIdx) { playIdx = i; ctx.sound('tap'); setupPlay(); }
         ctl.querySelectorAll('.bz-btn:not(.bz-snap)').forEach((b, k) => b.classList.toggle('sel', k === playIdx));
       }
@@ -597,6 +746,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       // ---------- actions ----------
       function snap() {
         if (phase !== 'pre' || finished) return;
+        if (down === 4 && !go4) { choose4th('go'); return; }
         clearBanner(); phase = 'pass'; tPlay = 0; plays++; introT = 0;
         ball = { mode: 'held', p: qb };
         ctx.sound('whistle');
@@ -648,53 +798,181 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         phase = 'dead'; deadT = kind === 'td' ? 3.0 : 2.0;
         ctx.sound('whistle');
         input.stick = null; stickEl.style.display = 'none';
-        const nx = { los, down, fdz, pen: 0 };
+        const nx = { los, down, fdz, next: null };
         let head = '', sub = '', col = '#ffc21a';
-        const reset = () => { nx.los = 25; nx.down = 1; nx.fdz = 35; newDrive = true; };
-        closeP = null;
+        closeP = null; clockRun = true;
         if (kind === 'td') {
-          score += 7; tds++; reset(); head = 'TOUCHDOWN!'; sub = `+7 · ${score} of ${NEED}`; col = '#2bd46b';
+          score += 7; tds++; nx.next = ['cpu', 25]; clockRun = false;
+          head = 'TOUCHDOWN!'; sub = `+7 · ${score}–${opp}`; col = '#2bd46b';
           ctx.sound('win'); confetti(carrier ? carrier.x : 0, carrier ? carrier.z : 100);
           if (carrier) { carrier.cel = 3; closeP = carrier; }
         } else if (kind === 'int') {
-          reset(); nx.pen = PEN; head = 'INTERCEPTED!'; sub = `Ball back to your 25 · -${PEN} sec`; col = '#ff3344'; ctx.sound('bad');
+          nx.next = ['cpu', clamp(Math.round(100 - spot), 5, 95)]; clockRun = false;
+          head = 'INTERCEPTED!'; sub = `${esc(OPP.name)} ball`; col = '#ff3344'; ctx.sound('bad');
         } else if (kind === 'inc') {
-          head = 'INCOMPLETE'; col = '#c9ccd4'; nx.down = down + 1; sub = extra || ''; ctx.sound('bad');
+          head = 'INCOMPLETE'; col = '#c9ccd4'; nx.down = down + 1; sub = extra || 'Clock stops'; clockRun = false; ctx.sound('bad');
         } else {
           const ns = clamp(spot, 1, 99), gain = Math.round(ns - los);
           nx.los = ns;
           if (kind === 'sack') { head = 'SACKED!'; col = '#ff3344'; ctx.sound('bad'); }
-          else if (kind === 'oob') head = 'OUT OF BOUNDS';
+          else if (kind === 'oob') { head = 'OUT OF BOUNDS'; clockRun = false; }
           else head = 'TACKLED';
           sub = gain > 0 ? `+${gain} yards` : gain < 0 ? `${gain} yards` : 'No gain';
           if (ns >= fdz) { nx.down = 1; nx.fdz = Math.min(ns + 10, 100); head = 'FIRST DOWN!'; col = '#2bd46b'; ctx.sound('good'); if (carrier && kind !== 'sack') closeP = carrier; }
           else nx.down = down + 1;
         }
-        if (nx.down > 4) { reset(); nx.pen = PEN; head = 'TURNOVER ON DOWNS'; sub = `Ball back to your 25 · -${PEN} sec`; col = '#ff3344'; }
+        if (nx.down > 4 && !nx.next) { nx.next = ['cpu', clamp(Math.round(100 - nx.los), 5, 95)]; clockRun = false; head = 'TURNOVER ON DOWNS'; sub = `${esc(OPP.name)} ball`; col = '#ff3344'; }
         pend = nx; deadTot = deadT;
         if (closeP) { closeP.hold = true; deadT += 0.4; deadTot = deadT; }
         banner(head, sub, col);
-        setControls(); ctlMsg(closeP ? `<span><b>${esc(NAMES[closeP.i + 1])}</b> ${kind === 'td' ? 'takes it to the house!' : 'moves the chains!'}</span>` : 'Next play coming up…');
-        lastSpot = los;
+        setControls(true); ctlMsg(closeP ? `<span><b>${esc(NAMES[closeP.i + 1])}</b> ${kind === 'td' ? 'takes it to the house!' : 'moves the chains!'}</span>` : clockRun ? '<span>Clock is <b>running</b>…</span>' : 'Clock stopped');
       }
       function nextPlay() {
-        if (pend) { los = pend.los; down = pend.down; fdz = pend.fdz; clock = Math.max(0, clock - pend.pen); pend = null; }
-        if (clock <= 0) { gameOver(); return; }
-        clearBanner(); closeP = null;
-        phase = 'pre'; setupPlay(); setControls(true);
-        if (newDrive) { newDrive = false; startIntro(); }
+        let nxt = null;
+        if (pend) { los = pend.los; down = pend.down; fdz = pend.fdz; nxt = pend.next; pend = null; }
+        clearBanner(); closeP = null; go4 = false;
+        const cont = nxt ? () => (nxt[0] === 'cpu' ? toCpu(nxt[1]) : toYou(nxt[1])) : resumePre;
+        if (clock <= 0) endQuarter(cont); else cont();
+      }
+      function resumePre() { phase = 'pre'; setupPlay(); setControls(true); }
+      function toYou(yd) { if (qtr === 5) { if (otLeft <= 0) return gameOver(); otLeft--; } startPlayerDrive(yd); }
+      function toCpu(yd) { if (qtr === 5) { if (otLeft <= 0) return gameOver(); otLeft--; } startCpuDrive(yd); }
+      function startPlayerDrive(yd) {
+        los = clamp(Math.round(yd), 1, 99); down = 1; fdz = Math.min(los + 10, 100); go4 = false; clockRun = false; carrier = null;
+        phase = 'pre'; setupPlay(); setControls(true); startIntro();
       }
       function startIntro() {
         introT = 2.1; introCut = true;
-        banner('1st & 10', `${esc(NAMES[0])} takes the field`, '#ffc21a');
+        banner('1st & 10', `${esc(NAMES[0])} and the offense · ${ballTxt(los)}`, '#ffc21a');
+      }
+      // ---- 4th down kicks ----
+      function doKick(type) {
+        phase = 'kick'; clearBanner(); plays++;
+        qb.x = 0; qb.z = los - 7; qb.h = 0;
+        const fx = 0, fz = type === 'fg' ? los - 7 : los - 12;
+        if (type === 'fg') {
+          const d = 117 - los, good = rng() < fgPct(d);
+          const ax = good ? (rng() - 0.5) * 3.6 : (rng() < 0.5 ? -1 : 1) * (3.6 + rng() * 2.5);
+          const short = !good && d > 45 && rng() < 0.4;
+          kick = { type, good, d };
+          ball = { mode: 'air', kick: 1, fx, fy: 0.4, fz, tx: ax * 1.25, ty: short ? 0.3 : 3.2 + d * 0.04, tz: short ? 108 : 112, T: 1.5 + d * 0.012, t: 0, hgt: 4 + d * 0.08, x: fx, y: 0.4, z: fz };
+        } else {
+          const net = 36 + Math.round(rng() * 12), land = los + net;
+          kick = { type, land, net: Math.min(net, 100 - los) };
+          ball = { mode: 'air', kick: 1, fx, fy: 1.6, fz, tx: (rng() - 0.5) * 18, ty: 0.3, tz: Math.min(land, 108), T: 3.3, t: 0, hgt: 15, x: fx, y: 1.6, z: fz };
+        }
+        ctx.sound('kick'); setControls(true); ctlMsg(type === 'fg' ? `<span><b>${117 - Math.round(los)} yard</b> field goal try…</span>` : '<span>Punting it away…</span>');
+      }
+      function endKick() {
+        const k = kick; kick = null;
+        phase = 'dead'; deadT = 2.2; deadTot = deadT; closeP = null; carrier = null; clockRun = false;
+        ball = { mode: 'loose', x: ball.x, y: Math.max(0.3, ball.y), z: ball.z, vx: 0, vy: -2, vz: 4 };
+        const nx = { los, down, fdz, next: null };
+        if (k.type === 'fg') {
+          if (k.good) { score += 3; nx.next = ['cpu', 25]; banner('IT\'S GOOD!', `+3 · ${score}–${opp}`, '#2bd46b'); ctx.sound('good'); confetti(0, 110); }
+          else { nx.next = ['cpu', clamp(107 - Math.round(los), 20, 95)]; banner('NO GOOD', `${k.d} yd try missed`, '#ff3344'); ctx.sound('bad'); }
+        } else {
+          const tb = k.land >= 100;
+          nx.next = ['cpu', tb ? 20 : clamp(100 - Math.round(k.land), 5, 95)];
+          banner('PUNT', tb ? 'Touchback' : `${k.net} yards`, '#c9ccd4');
+        }
+        pend = nx; setControls(true); ctlMsg(`${esc(OPP.name)} ball next`);
+      }
+      // ---- simulated CPU drive ----
+      function simCpu(spot, clk) {
+        const start = spot; let down = 1, fd = spot + 10, plays = 0, used = 0;
+        const lead = opp - score, endHalf = clk.q === 2 || clk.q >= 4;
+        const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t) });
+        const tick = (t) => { t = Math.min(t, clk.t); used += t; clk.t -= t; };
+        for (let guard = 0; guard < 60; guard++) {
+          if (clk.t <= 0) return fin('CLOCK');
+          const late = endHalf && clk.t < 40, hurry = late && (clk.q === 2 || lead <= 0 || clk.q === 5), burn = clk.q >= 4 && lead > 0;
+          const needTD = clk.q >= 4 && lead + 3 <= 0 && clk.t < 70;
+          // kick it when time is nearly gone and in range, or on 4th down in range
+          if (spot >= 62 && ((endHalf && clk.t < 14 && !needTD) || (down === 4 && !needTD))) {
+            const d = 117 - spot; tick(5); plays++;
+            return fin(rng() < clamp(CD.fg * (1.25 - (d - 20) * 0.012), 0.2, 0.97) ? 'FG' : 'MISS');
+          }
+          if (down === 4 && !(fd - spot <= 2 && spot >= 40) && !(clk.q >= 4 && lead < 0 && clk.t < 150)) { tick(6); plays++; return fin('PUNT'); }
+          const r = rng();
+          let g;
+          if (r < CD.loss) g = -1 - Math.floor(rng() * 5);
+          else if (r < CD.loss + CD.big) g = 15 + Math.floor(rng() * 35);
+          else g = Math.round(CD.g * (0.2 + 1.6 * rng()));
+          plays++;
+          tick(hurry ? 4 + rng() * 3 : burn ? 11 + rng() * 5 : 6 + rng() * 5);
+          if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, 99); return fin(rng() < 0.6 ? 'INT' : 'FUMBLE'); }
+          spot = Math.max(1, spot + g);
+          if (spot >= 100) { spot = 100; return fin('TD'); }
+          if (spot >= fd) { down = 1; fd = Math.min(spot + 10, 100); } else down++;
+          if (down > 4) return fin('DOWNS');
+        }
+        return fin('PUNT');
+      }
+      const RES = { TD: ['TOUCHDOWN', '#ff3344'], FG: ['FIELD GOAL', '#ff3344'], MISS: ['MISSED FG', '#2bd46b'], PUNT: ['PUNT', '#c9ccd4'], INT: ['INTERCEPTED!', '#2bd46b'], FUMBLE: ['FUMBLE! YOUR BALL', '#2bd46b'], DOWNS: ['STOPPED ON DOWNS', '#2bd46b'], CLOCK: ['', '#c9ccd4'] };
+      function startCpuDrive(start) {
+        clearBanner(); carrier = null; clockRun = false;
+        phase = 'cpu'; los = 100 - start; setupPlay();
+        const clk = { q: qtr, t: clock }, r = simCpu(start, clk);
+        cpuD = { r, start, c0: clock, t: 0, dur: Math.min(5, 1.1 + r.plays * 0.32), shown: false, el: el('div', 'bz-card') };
+        cpuD.el.style.setProperty('--oc', OPPCSS);
+        fx.appendChild(cpuD.el); drawCard();
+        setControls(true); ctlMsg(`<span><b>${esc(OPP.name)}</b> have the ball…</span>`);
+      }
+      function drawCard() {
+        const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, n = Math.max(1, Math.round(r.plays * k)), y = Math.round(r.yds * k);
+        const res = d.shown ? RES[r.res] : null;
+        const label = r.res === 'CLOCK' ? (qtr === 2 ? 'END OF HALF' : qtr >= 4 ? 'END OF GAME' : 'END OF QUARTER') : res ? res[0] : '';
+        d.el.innerHTML = `<h3>${esc(OPP.name)} drive</h3><p>Plays <b>${n}</b> · Yards <b>${y}</b></p><p>Started at their ${d.start}</p>` +
+          (d.shown ? `<p class="res" style="color:${res[1]}">${label}</p><p class="sc">YOU ${score} – ${opp} ${esc(OPP.abbr)}</p>` : '<p class="res">…</p>');
+      }
+      function cpuStep(dt) {
+        const d = cpuD; d.t += dt;
+        clock = d.c0 + (d.r.t - d.c0) * Math.min(1, d.t / d.dur);
+        if (!d.shown && d.t >= d.dur) {
+          d.shown = true; clock = d.r.t;
+          if (d.r.res === 'TD') { opp += 7; ctx.sound('bad'); } else if (d.r.res === 'FG') { opp += 3; ctx.sound('bad'); }
+          else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') ctx.sound('good'); else ctx.sound('whistle');
+          drawCard(); hudCache = '';
+        } else if (!d.shown && ((d.t * 8) | 0) !== ((d.t - dt) * 8 | 0)) drawCard();
+        if (d.shown && d.t >= d.dur + 2.1) {
+          d.el.remove(); cpuD = null;
+          const r = d.r, sp = r.spot;
+          let cont;
+          if (r.res === 'TD' || r.res === 'FG') cont = () => toYou(25);
+          else if (r.res === 'MISS') cont = () => toYou(clamp(107 - sp, 20, 80));
+          else if (r.res === 'PUNT') cont = () => toYou(20 + Math.floor(rng() * 16));
+          else if (r.res === 'CLOCK') cont = () => startCpuDrive(sp);
+          else cont = () => toYou(clamp(100 - sp, 20, 65));
+          if (clock <= 0) endQuarter(cont); else cont();
+        }
+      }
+      // ---- quarters, halftime, overtime ----
+      function brk(title, sub, then, t) {
+        phase = 'break'; clockRun = false; clearBanner(); brkT = t || 2.6; brkThen = then;
+        banner(title, sub, '#ffc21a'); setControls(true); ctlMsg(`<span>YOU <b>${score}</b> – <b>${opp}</b> ${esc(OPP.abbr)}</span>`); ctx.sound('whistle');
+      }
+      function endQuarter(cont) {
+        clockRun = false; clock = 0; hudCache = '';
+        if (qtr >= 4) {
+          if (qtr === 4 && score === opp) {
+            brk('OVERTIME!', `Tied ${score}–${opp} · one possession each`, () => { qtr = 5; clock = QLEN; otLeft = 2; toLeft = Math.max(toLeft, 1); const youFirst = rng() < 0.5; clearBanner(); if (youFirst) toYou(25); else toCpu(25); }, 3);
+          } else gameOver();
+          return;
+        }
+        if (qtr === 2) {
+          brk('HALFTIME', `YOU ${score} – ${opp} ${esc(OPP.abbr)} · timeouts reset`, () => { qtr = 3; clock = QLEN; toLeft = 2; hudCache = ''; if (recv2 === 'you') startPlayerDrive(25); else startCpuDrive(25); }, 3.4);
+          return;
+        }
+        brk(`END OF Q${qtr}`, `YOU ${score} – ${opp} ${esc(OPP.abbr)}`, () => { qtr++; clock = QLEN; hudCache = ''; cont(); });
       }
       function gameOver() {
         if (phase === 'over') return;
-        phase = 'over'; clock = 0;
-        const won = score >= NEED;
-        banner(won ? 'YOU WIN!' : 'FINAL', `${score} points · needed ${NEED}`, won ? '#2bd46b' : '#ff3344');
-        setControls(); ctlMsg(won ? 'What a drive!' : 'Out of time.');
-        updHud();
+        phase = 'over'; clock = 0; clockRun = false;
+        const won = score > opp, tie = score === opp;
+        banner(won ? 'YOU WIN!' : tie ? 'TIE GAME' : 'FINAL', `YOU ${score} – ${opp} ${esc(OPP.abbr)}`, won ? '#2bd46b' : tie ? '#ffc21a' : '#ff3344');
+        setControls(true); ctlMsg(won ? `<span>You beat <b>${esc(OPP.name)}</b>!</span>` : tie ? 'Dead even.' : `<span><b>${esc(OPP.name)}</b> win this one.</span>`);
+        hudCache = ''; updHud();
         setTimeout(() => finish(won, false), 2200 / ((DBG && DBG.speed) || 1));
       }
       function confetti(x, z) {
@@ -750,7 +1028,20 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           if (c.fall <= 0 && !c.cel) c.point = 1;
           let dh = -c.h; while (dh > Math.PI) dh -= 6.2832; while (dh < -Math.PI) dh += 6.2832; c.h += dh * Math.min(1, dt * 6);
         }
-        if (phase === 'pre' || phase === 'splash') {
+        if (phase !== 'splash' && phase !== 'over') elapsed += dt;
+        if ((phase === 'pre' || phase === 'dead') && clockRun && clock > 0) {
+          clock = Math.max(0, clock - dt);
+          if (clock <= 0 && phase === 'pre') { endQuarter(resumePre); return; }
+        }
+        if (phase === 'cpu') cpuStep(dt);
+        if (phase === 'break') { brkT -= dt; if (brkT <= 0) { const f = brkThen; brkThen = null; clearBanner(); f(); } }
+        if (phase === 'kick') {
+          if (clock > 0) clock = Math.max(0, clock - dt);
+          const b = ball; b.t += dt; const u = Math.min(1, b.t / b.T);
+          b.x = b.fx + (b.tx - b.fx) * u; b.z = b.fz + (b.tz - b.fz) * u; b.y = b.fy + (b.ty - b.fy) * u + 4 * b.hgt * u * (1 - u);
+          if (u >= 1) endKick();
+        }
+        if (phase === 'pre' || phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'kick') {
           for (const p of all) { p.vx *= 0.8; p.vz *= 0.8; p.ph += dt * 0.5; }
           return;
         }
@@ -839,7 +1130,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         const roll = rng();
         if (roll < pInt && nd) {
           ball = { mode: 'held', p: nd }; nd.reach = 1;
-          endPlay('int', 0);
+          endPlay('int', b.tz);
         } else if (roll < pInt + pInc) {
           const s = project(r.x, 2.6, r.z);
           if (nd && d < 1.6 && s) pop('BROKEN UP!', '#ff3344', s[0], s[1]);
@@ -913,9 +1204,14 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           e = [0.45, hh + 0.3, los - 1.75]; c = [0, hh - 0.05, los - 4.5];
           if (introCut) { introCut = false; dt = -1; }
         } else if (phase === 'run' && carrier) {
-          e = [carrier.x * 0.8, 8.2, carrier.z - 11.5]; c = [carrier.x * 0.95, 0.4, carrier.z + 8];
+          e = [carrier.x * (0.8 + 0.15 * por), 8.2 + 12 * por + 1.5 * lnd, carrier.z - 11.5 + 2 * por]; c = [carrier.x * 0.95, 0.4, carrier.z + 8 - 4 * por];
         } else if ((phase === 'dead' || phase === 'over') && carrier) {
           e = [carrier.x * 0.8, 9, carrier.z - 12.5]; c = [carrier.x, 0.5, carrier.z + 6];
+        } else if (phase === 'kick' && ball && ball.mode === 'air') {
+          e = [ball.x * 0.3, Math.max(6, ball.y + 4), ball.z - 15]; c = [ball.x * 0.6, ball.y * 0.4, ball.z + 10];
+        } else if (phase === 'cpu' || phase === 'break') {
+          const t = performance.now() / 1000 * 0.1;
+          e = [Math.sin(t) * 24, 16, 50 - Math.cos(t) * 30]; c = [0, 0, 50];
         } else if (phase === 'air' && ball && ball.mode === 'air') {
           const k = Math.min(1, ball.t / ball.T);
           const fz = los + 10 + (ball.tz - los - 10) * (0.4 + 0.6 * k);
@@ -925,12 +1221,12 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           e = [Math.sin(t) * 22, 13, los - 6 - Math.cos(t) * 16]; c = [0, 0, los + 6];
         } else {
           const look = phase === 'pass' ? Math.min(tPlay, 3) * 1.2 : 0;
-          e = [0, 15, los - 19]; c = [0, 0, los + 7 + look];
+          e = [0, 15 + 27 * por + 3 * lnd, los - 19 - 5 * por - 2 * lnd]; c = [0, 0, los + 7 + look + 3 * por - 1.5 * lnd];
         }
         const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
         for (let i = 0; i < 3; i++) { cam.e[i] += (e[i] - cam.e[i]) * k; cam.c[i] += (c[i] - cam.c[i]) * k; }
         // matrices (mirror x so +x is screen right)
-        const asp = cv.width / cv.height, fovy = clamp(2 * Math.atan(Math.tan((78 * Math.PI) / 360) / asp), 0.75, 1.15);
+        const asp = cv.width / cv.height, fovy = clamp(2 * Math.atan(Math.tan((78 * Math.PI) / 360) / asp), 0.75, 1.2 + 0.12 * por);
         const f = 1 / Math.tan(fovy / 2), n = 0.8, fa = 400;
         const ex = -cam.e[0], ey = cam.e[1], ez = cam.e[2], cx = -cam.c[0], cy = cam.c[1], cz = cam.c[2];
         let zx = ex - cx, zy = ey - cy, zz = ez - cz; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
@@ -1119,13 +1415,32 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         while (sim > 1e-6 && n < 400 && !finished) { const d = Math.min(sim, 1 / 60); step(d); sim -= d; n++; }
         render(el2);
         updHud();
+        // adaptive render scale: drop resolution when frames are slow, recover slowly when fast
+        if (el2 > 0 && el2 < 0.25) {
+          ftAvg += (el2 - ftAvg) * 0.05; ftT += el2;
+          if (ftT > 1.5 && ftAvg > 0.036 && rscale > 0.55) { rscale = Math.max(0.55, rscale - 0.15); ftT = 0; sizeBuffer(); }
+          else if (ftT > 5 && ftAvg < 0.02 && rscale < 1) { rscale = Math.min(1, rscale + 0.1); ftT = 0; sizeBuffer(); }
+          else if (ftT > 5) ftT = 0;
+        }
       }
+      let ftAvg = 1 / 60, ftT = 0;
       function startLoop() { if (running || finished) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
       function stopLoop() { running = false; cancelAnimationFrame(raf); }
       const onVis = () => { if (document.hidden) stopLoop(); else startLoop(); };
       document.addEventListener('visibilitychange', onVis);
-      const onResize = () => { fit(); };
+      let rzT = 0;
+      const onResize = () => { clearTimeout(rzT); rzT = setTimeout(() => { if (!finished) { fit(); hudCache = ''; } }, 80); };
+      const onOrient = () => { onResize(); setTimeout(() => { if (!finished && phase !== 'splash') { fit(); scrollIn(); } }, 350); };
       window.addEventListener('resize', onResize);
+      window.addEventListener('orientationchange', onOrient);
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
+      document.addEventListener('fullscreenchange', onResize); document.addEventListener('webkitfullscreenchange', onResize);
+      // no page scroll / pinch / double-tap zoom while playing (the splash text may still scroll)
+      const noScroll = (e) => { if (!finished && !(e.target && e.target.closest && e.target.closest('.bz-splash'))) e.preventDefault(); };
+      wrap.addEventListener('touchmove', noScroll, { passive: false });
+      wrap.addEventListener('gesturestart', noScroll, { passive: false });
+      wrap.addEventListener('dblclick', (e) => e.preventDefault());
+      wrap.addEventListener('contextmenu', (e) => { if (!finished) e.preventDefault(); });
       cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glLost = true; });
       cv.addEventListener('webglcontextrestored', () => { try { setupGL(); glLost = false; } catch (err) { console.error(err); } });
 
@@ -1143,6 +1458,10 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
           return;
         }
         if (e.key === 'Shift' || e.code === 'KeyJ') { if (phase === 'run') { e.preventDefault(); juke(); } return; }
+        if (e.code === 'KeyT') { callTimeout(); return; }
+        if (e.code === 'KeyP') { choose4th('punt'); return; }
+        if (e.code === 'KeyF') { choose4th('fg'); return; }
+        if (e.code === 'KeyG') { choose4th('go'); return; }
         const n = { Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 }[e.code];
         if (n != null) { e.preventDefault(); if (phase === 'pre') pickPlay(n); else if (phase === 'pass') throwTo(n); }
       }
@@ -1156,7 +1475,7 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
         if (phase === 'pass') {
           let bi = -1, bd = 1e9;
           wr.forEach((w, i) => { const s = project(w.x, 1.4, w.z); if (!s) return; const d = Math.hypot(s[0] - x, s[1] - y); if (d < bd) { bd = d; bi = i; } });
-          if (bi >= 0 && bd < Math.max(60, cssW * 0.09)) throwTo(bi);
+          if (bi >= 0 && bd < (e.pointerType === 'touch' || touchy ? Math.max(90, cssW * 0.16) : Math.max(60, cssW * 0.09))) throwTo(bi);
           return;
         }
         if (phase === 'run') {
@@ -1181,16 +1500,20 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       function cleanup() {
         stopLoop();
         document.removeEventListener('visibilitychange', onVis);
-        window.removeEventListener('resize', onResize);
+        window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onOrient);
+        if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize);
+        document.removeEventListener('fullscreenchange', onResize); document.removeEventListener('webkitfullscreenchange', onResize);
+        try { if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
         window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur);
       }
       function finish(won, quitted) {
         if (finished) return; finished = true; cleanup();
         ctx.finish({
           won: !!won && !quitted,
+          tie: !quitted && score === opp,
           score,
-          detail: quitted ? `Quit with ${score} points (needed ${NEED})` : `You scored ${score} (needed ${NEED})`,
-          stats: { tds, plays, level: lvl },
+          detail: quitted ? `Quit at ${score}–${opp} vs ${esc(OPP.name)}` : score > opp ? `You won ${score}–${opp} vs ${esc(OPP.name)}` : score === opp ? `Tied ${score}–${opp} with ${esc(OPP.name)}` : `You lost ${score}–${opp} vs ${esc(OPP.name)}`,
+          stats: { tds, plays, level: lvl, opp, quarter: Math.min(qtr, 5) },
         });
       }
       let quitArm = 0;
@@ -1201,26 +1524,27 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       });
 
       // ---------- splash ----------
-      const tdN = Math.ceil(NEED / 7);
       const splash = el('div', 'bz-splash', `
-        <div class="bz-title">BLITZ 3D</div><div class="bz-tag2">One drive at a time. Two minutes. Go score.</div>
-        <div class="bz-goal">${esc(ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend'][lvl])}: score <em>${NEED}</em> points<br>(${tdN} touchdowns) before <em>2:00</em> runs out</div>
+        <div class="bz-title">BLITZ 3D</div><div class="bz-tag2">Full game · four quarters · beat the CPU</div>
+        <div class="bz-goal">${esc(ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend'][lvl])}: beat <em style="color:${OPPCSS}">${esc(OPP.name)}</em><br>4 quarters × <em>2:00</em> · running clock<br>2 timeouts per half</div>
         <div class="bz-squad">${SQUAD.map((q, i) => `<div>${q.photo ? faceHTML(i) : `<s class="bz-face bz-nof">${q.num}</s>`}<span>${esc(shortName(q.name))}</span><em>${esc(q.pos)} #${q.num}</em></div>`).join('')}</div>
         <ul class="bz-how">
           <li><i>1</i><span><b>Pick a play</b> (Quick, Deep or Screen), then hit <b>SNAP</b>${touchy ? '' : ' (Space)'}.</span></li>
           <li><i>2</i><span><b>Throw</b>: ${touchy ? 'tap a receiver' : 'click a receiver or press 1 / 2 / 3'}. <b style="color:#2bd46b">Green = open</b>, red = covered. Watch the rush!</span></li>
           <li><i>3</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'steer with arrows / WASD'}, <b>JUKE</b>${touchy ? '' : ' (Shift)'} to shake tacklers.</span></li>
-          <li><i>4</i><span>4 downs to reach the <b style="color:#ffc21a">yellow line</b>. Touchdown = 7. The clock only runs during plays.</span></li>
+          <li><i>4</i><span>4 downs to reach the <b style="color:#ffc21a">yellow line</b>. On 4th down: go for it, <b>punt</b> or kick a <b>field goal</b> (3). Touchdown = 7.</span></li>
+          <li><i>5</i><span>The clock <b>keeps running</b> between plays (stops on incompletions, out of bounds, scores). Call a <b>timeout</b>${touchy ? '' : ' (T)'} to stop it. You play offense; the CPU's drives are quick-simmed.</span></li>
         </ul>
         <button type="button" class="bz-go">START</button>`);
       wrap.appendChild(splash);
       splash.querySelector('.bz-go').addEventListener('click', () => {
         if (phase !== 'splash') return;
         splash.remove(); wrap.classList.remove('bz-intro');
-        fit();
+        fit(); scrollIn(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
         ctx.sound('whistle');
-        phase = 'pre'; setupPlay(); setControls(true);
-        startIntro();
+        const youFirst = rng() < 0.5; recv2 = youFirst ? 'cpu' : 'you';
+        if (youFirst) startPlayerDrive(25); else startCpuDrive(25);
+        pop(`COIN TOSS: ${youFirst ? 'YOU RECEIVE' : esc(OPP.abbr) + ' RECEIVES'}`, '#ffc21a', cssW / 2, cssH * 0.82);
         try { cv.focus({ preventScroll: true }); } catch (e) {}
       });
 
@@ -1228,7 +1552,8 @@ void main(){vec4 c=vC*texture2D(uTex,vT);gl_FragColor=vec4(mix(c.rgb,uFog,vF),c.
       const api = {
         get phase() { return phase; }, get clock() { return clock; }, get score() { return score; }, get los() { return los; }, get down() { return down; }, get fdz() { return fdz; },
         get tPlay() { return tPlay; }, get sep() { return sep.slice(); }, get carrier() { return carrier; }, get def() { return def; }, get wr() { return wr; }, get qb() { return qb; },
-        get jukeCd() { return jukeCd; }, input, snap, throwTo, juke, pickPlay, need: NEED,
+        get jukeCd() { return jukeCd; }, get opp() { return opp; }, get qtr() { return qtr; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; }, get go4() { return go4; }, get elapsed() { return elapsed; }, input, snap, throwTo, juke, pickPlay, choose4th, callTimeout,
+        debugSet(o) { if (phase !== 'pre') return; los = o.los; down = o.down; fdz = Math.min(100, los + (o.togo || 5)); go4 = false; if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.you != null) score = o.you; if (o.opp != null) opp = o.opp; if (o.run != null) clockRun = o.run; resumePre(); },
         start() { splash.querySelector('.bz-go') && splash.querySelector('.bz-go').click(); },
       };
       if (DBG) DBG.api = api;
