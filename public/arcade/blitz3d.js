@@ -310,105 +310,6 @@
     this.quad([x - w, y, z], [x + w, y, z], [x + w * 0.4, y + len, z + len * 0.08], [x - w * 0.4, y + len, z + len * 0.08], [0, 0, 0], c);
   };
 
-  // ---------- shaders ----------
-  const SH_LIGHT = `uniform vec3 uL;uniform vec3 uEye;uniform vec3 uAmbC;uniform vec3 uSunC;uniform vec3 uGndC;uniform vec3 uFog;uniform sampler2D uShadow;uniform vec3 uShadowP;
-varying vec3 vW;varying vec3 vN;varying vec4 vSh;varying float vF;
-float unpack(vec4 c){return dot(c,vec4(1.0,1.0/255.0,1.0/65025.0,1.0/16581375.0));}
-float shadowAt(){
-  if(uShadowP.x<0.5)return 1.0;
-  vec3 s=vSh.xyz/vSh.w*0.5+0.5;
-  if(s.x<0.0||s.x>1.0||s.y<0.0||s.y>1.0||s.z>1.0)return 1.0;
-  float acc=0.0;float d=s.z-0.0022;
-#ifdef PCF9
-  for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){acc+=d>unpack(texture2D(uShadow,s.xy+vec2(float(i),float(j))*uShadowP.y*uShadowP.z))?0.0:1.0;}
-  return acc/9.0;
-#else
-  acc+=d>unpack(texture2D(uShadow,s.xy+vec2(-0.5,-0.5)*uShadowP.y))?0.0:1.0;acc+=d>unpack(texture2D(uShadow,s.xy+vec2(0.5,-0.5)*uShadowP.y))?0.0:1.0;
-  acc+=d>unpack(texture2D(uShadow,s.xy+vec2(-0.5,0.5)*uShadowP.y))?0.0:1.0;acc+=d>unpack(texture2D(uShadow,s.xy+vec2(0.5,0.5)*uShadowP.y))?0.0:1.0;
-  return acc*0.25;
-#endif
-}
-// per-pixel: sun + shadow, hemispheric sky/ground ambient, specular with a per-material exponent, soft rim light, baked AO
-vec3 lit4(vec3 base,float spec,float gloss,float ao){
-  vec3 n=normalize(vN);float sh=shadowAt();float nl=max(dot(n,uL),0.0);
-  vec3 v=normalize(uEye-vW);vec3 h=normalize(uL+v);float sp=pow(max(dot(n,h),0.0),gloss)*spec;
-  float hemi=n.y*0.5+0.5;vec3 amb=mix(uGndC,uAmbC,hemi)*ao;
-  float fr=pow(1.0-max(dot(n,v),0.0),3.0);float rim=fr*(0.16+0.3*spec)*ao*(0.45+0.55*sh);
-  vec3 c=base*base;vec3 col=c*(amb+uSunC*nl*sh)+uSunC*sp*sh*(0.25+0.75*nl)+uAmbC*rim*(0.35+0.65*c);
-  col=mix(col,uFog*uFog,vF);return sqrt(max(col,0.0));}
-vec3 lit(vec3 base,float spec){return lit4(base,spec,28.0,1.0);}`;
-  const VS_WORLD = `attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;
-uniform mat4 uVP;uniform mat4 uLVP;uniform vec3 uEye;uniform vec3 uFogR;uniform vec2 uUV;
-varying vec4 vC;varying vec2 vT;varying float vF;varying vec3 vW;varying vec3 vN;varying vec4 vSh;varying float vLit;
-void main(){vW=aP;vN=aN;vLit=dot(aN,aN)>0.01?1.0:0.0;gl_Position=uVP*vec4(aP,1.0);vSh=uLVP*vec4(aP,1.0);vC=aC;vT=aT+uUV;
-vF=clamp((distance(aP,uEye)-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0)*uFogR.z;}`;
-  const FS_WORLD = `precision mediump float;uniform sampler2D uTex;uniform float uSpec;uniform float uEmis;varying vec4 vC;varying vec2 vT;varying float vLit;
-#LIGHT#
-void main(){vec4 t=texture2D(uTex,vT);vec3 base=vC.rgb*t.rgb;
-if(vLit>0.5){gl_FragColor=vec4(lit(base,uSpec*t.a),uEmis);}
-else{gl_FragColor=vec4(mix(base,uFog,vF),uEmis>0.5?uEmis:vC.a);}}`;
-  // skinned players: slot -> colour / texture source / material (see SL)
-  const VS_SKIN = `attribute vec3 aP;attribute vec3 aN;attribute float aB;attribute float aS;attribute vec2 aT;attribute float aA;
-uniform vec4 uBones[51];uniform vec3 uCol[18];uniform vec3 uScale;uniform mat4 uVP;uniform mat4 uLVP;uniform vec3 uEye;uniform vec3 uFogR;uniform vec4 uNumUV;uniform vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uWet;
-varying vec4 vC;varying vec2 vT;varying float vF;varying vec3 vW;varying vec3 vN;varying vec4 vSh;varying float vTex;varying vec3 vM;
-void main(){int b=int(aB)*3;int s=int(aS);vec3 lp=aP*uScale;if(s==15&&uVis<0.5)lp=vec3(0.0);vec4 p=vec4(lp,1.0);
-vec3 w=vec3(dot(uBones[b],p),dot(uBones[b+1],p),dot(uBones[b+2],p));
-vec3 n=normalize(vec3(dot(uBones[b].xyz,aN),dot(uBones[b+1].xyz,aN),dot(uBones[b+2].xyz,aN)));
-vC=vec4(uCol[s],1.0);
-bool num=(s==8||s==16);bool kit=(s==0||s==1||s==3||s==12||s==13);
-vTex=(num||s==11)?1.0:(s==9?2.0:(kit?3.0:0.0));
-vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
-vec2 mt=(s==3)?vec2(0.95,70.0):(s==15?vec2(1.3,110.0):(s==7?vec2(0.6,34.0):((s==5||s==14)?vec2(0.35,26.0):((s==2||s==10||s==9)?vec2(0.2,14.0):vec2(0.07,9.0)))));
-mt.x+=uWet*0.35;vM=vec3(mt,aA);
-vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vSh=uLVP*vec4(w,1.0);vF=clamp((distance(w,uEye)-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0)*uFogR.z;}`;
-  const FS_SKIN = `precision mediump float;uniform sampler2D uTex;uniform sampler2D uKit;uniform float uAlpha;varying vec4 vC;varying vec2 vT;varying float vTex;varying vec3 vM;
-#LIGHT#
-void main(){vec3 base;
-if(vTex>2.5){base=texture2D(uKit,vT).rgb;}
-else if(vTex>1.5){base=texture2D(uTex,vT).rgb;}
-else if(vTex>0.5){vec4 t=texture2D(uTex,vT);if(t.a<0.45)discard;base=vC.rgb*t.rgb;}
-else base=vC.rgb;
-gl_FragColor=vec4(lit4(base,vM.x,vM.y,vM.z),uAlpha);}`;
-  const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
-  const VS_DEPTH_S = `attribute vec3 aP;attribute float aB;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;
-void main(){int b=int(aB)*3;vec3 lp=aP*uScale;if(aS==15.0&&uVis<0.5)lp=vec3(0.0);vec4 p=vec4(lp,1.0);vec3 w=vec3(dot(uBones[b],p),dot(uBones[b+1],p),dot(uBones[b+2],p));gl_Position=uLVP*vec4(w,1.0);}`;
-  const FS_DEPTH = `precision mediump float;void main(){vec4 e=fract(gl_FragCoord.z*vec4(1.0,255.0,65025.0,16581375.0));gl_FragColor=e-e.yzww*vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);}`;
-  const VS_QUAD = `attribute vec2 aP;varying vec2 vUV;void main(){vUV=aP*0.5+0.5;gl_Position=vec4(aP,0.999,1.0);}`;
-  const FS_SKY = `precision mediump float;uniform mat4 uInvVP;uniform vec3 uSun;uniform float uNight;uniform float uTime;uniform vec3 uTop;uniform vec3 uHor;uniform float uCloud;varying vec2 vUV;
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
-void main(){vec4 a=uInvVP*vec4(vUV*2.0-1.0,1.0,1.0);vec4 b=uInvVP*vec4(vUV*2.0-1.0,-1.0,1.0);vec3 d=normalize(a.xyz/a.w-b.xyz/b.w);
-float h=clamp(d.y,0.0,1.0);vec3 col=mix(uHor,uTop,pow(h,0.55));float em=0.0;
-if(uNight>0.5){vec2 sp=d.xz/max(d.y,0.03)*60.0;float st=step(0.985,hash(floor(sp)))*smoothstep(0.08,0.35,d.y)*(0.4+0.6*hash(floor(sp)+7.0));col+=vec3(0.8,0.85,1.0)*st;em=st*0.6;}
-else{float s=max(dot(d,uSun),0.0);float disc=smoothstep(0.9985,0.9995,s);col+=vec3(1.0,0.92,0.7)*disc*1.2+vec3(1.0,0.85,0.55)*pow(s,10.0)*0.22;em=disc;}
-if(d.y>0.0&&uCloud>0.0){vec2 cp=d.xz/(d.y+0.12)*1.6+vec2(uTime*0.012,0.0);float n=noise(cp)*0.5+noise(cp*2.3+3.1)*0.26+noise(cp*4.9+9.0)*0.14;
-float c=smoothstep(0.46,0.66,n)*uCloud*smoothstep(0.0,0.2,d.y);vec3 cc=uNight>0.5?vec3(0.07,0.08,0.11):mix(vec3(0.72,0.74,0.8),vec3(1.0),smoothstep(0.5,0.8,n));col=mix(col,cc,c*0.92);em*=1.0-c;}
-gl_FragColor=vec4(col,em);}`;
-  const VS_CROWD = `attribute vec3 aP;attribute vec3 aC;attribute vec2 aM;attribute vec2 aT;uniform mat4 uVP;uniform float uTime;uniform float uExcite;uniform float uWave;uniform vec3 uEye;uniform vec3 uFogR;
-varying vec3 vC;varying float vF;varying vec2 vT;
-void main(){float ph=aM.x;float amp=aM.y;float up=1.0-aT.y;float bob=max(0.0,sin(uTime*2.6+ph))*amp*(0.35+0.9*uExcite);
-float wv=max(0.0,sin(uTime*1.8-aP.z*0.07+aP.x*0.02))*uWave*amp*3.0;vec3 p=aP;p.y+=(bob+wv)*(0.4+0.6*up);p.x+=sin(uTime*1.3+ph)*0.03*up;
-vC=aC;vT=aT;gl_Position=uVP*vec4(p,1.0);vF=clamp((distance(p,uEye)-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0)*uFogR.z;}`;
-  const FS_CROWD = `precision mediump float;uniform sampler2D uTex;uniform vec3 uFog;uniform float uDim;varying vec3 vC;varying float vF;varying vec2 vT;
-void main(){vec4 t=texture2D(uTex,vT);if(t.a<0.35)discard;vec3 c=t.a>0.8?t.rgb*vC:t.rgb;gl_FragColor=vec4(mix(c*uDim,uFog,vF),0.0);}`;
-  const FS_EXTRACT = `precision mediump float;uniform sampler2D uTex;uniform vec2 uPx;varying vec2 vUV;
-void main(){vec4 c=texture2D(uTex,vUV)+texture2D(uTex,vUV+vec2(uPx.x,0.0))+texture2D(uTex,vUV+vec2(0.0,uPx.y))+texture2D(uTex,vUV+uPx);c*=0.25;
-float l=dot(c.rgb,vec3(0.3,0.59,0.11));gl_FragColor=vec4(c.rgb*(c.a+smoothstep(0.78,1.0,l)*0.35),1.0);}`;
-  const FS_BLUR = `precision mediump float;uniform sampler2D uTex;uniform vec2 uDir;varying vec2 vUV;
-void main(){vec3 c=texture2D(uTex,vUV).rgb*0.227;c+=(texture2D(uTex,vUV+uDir*1.385).rgb+texture2D(uTex,vUV-uDir*1.385).rgb)*0.316;c+=(texture2D(uTex,vUV+uDir*3.23).rgb+texture2D(uTex,vUV-uDir*3.23).rgb)*0.07;gl_FragColor=vec4(c,1.0);}`;
-  const FS_FINAL = `precision mediump float;uniform sampler2D uTex;uniform sampler2D uBloom;uniform vec2 uPx;uniform float uBloomK;uniform float uFxaa;uniform float uVig;uniform float uKick;varying vec2 vUV;
-vec3 fxaa(vec2 uv){vec3 rgbNW=texture2D(uTex,uv+vec2(-1.0,-1.0)*uPx).rgb;vec3 rgbNE=texture2D(uTex,uv+vec2(1.0,-1.0)*uPx).rgb;vec3 rgbSW=texture2D(uTex,uv+vec2(-1.0,1.0)*uPx).rgb;vec3 rgbSE=texture2D(uTex,uv+vec2(1.0,1.0)*uPx).rgb;vec3 rgbM=texture2D(uTex,uv).rgb;
-vec3 lm=vec3(0.299,0.587,0.114);float lNW=dot(rgbNW,lm),lNE=dot(rgbNE,lm),lSW=dot(rgbSW,lm),lSE=dot(rgbSE,lm),lM=dot(rgbM,lm);
-float lMin=min(lM,min(min(lNW,lNE),min(lSW,lSE)));float lMax=max(lM,max(max(lNW,lNE),max(lSW,lSE)));
-vec2 dir=vec2(-((lNW+lNE)-(lSW+lSE)),((lNW+lSW)-(lNE+lSE)));float dr=max((lNW+lNE+lSW+lSE)*0.03125,0.0078125);float rc=1.0/(min(abs(dir.x),abs(dir.y))+dr);
-dir=min(vec2(8.0),max(vec2(-8.0),dir*rc))*uPx;
-vec3 A=0.5*(texture2D(uTex,uv+dir*(1.0/3.0-0.5)).rgb+texture2D(uTex,uv+dir*(2.0/3.0-0.5)).rgb);vec3 B=A*0.5+0.25*(texture2D(uTex,uv+dir*-0.5).rgb+texture2D(uTex,uv+dir*0.5).rgb);
-float lB=dot(B,lm);return (lB<lMin||lB>lMax)?A:B;}
-void main(){vec3 c=uFxaa>0.5?fxaa(vUV):texture2D(uTex,vUV).rgb;c+=texture2D(uBloom,vUV).rgb*uBloomK;
-float l=dot(c,vec3(0.3,0.59,0.11));c=mix(vec3(l),c,1.12);c=(c-0.5)*1.05+0.5;c*=vec3(1.0,0.995,0.975);
-vec2 q=vUV-0.5;float v=1.0-dot(q,q)*uVig;c*=v;c+=uKick*vec3(1.0,0.95,0.8)*(1.0-smoothstep(0.0,0.6,length(q)));
-gl_FragColor=vec4(c,1.0);}`;
-
   // ---------- small WebAudio helper (both Arcade and Franchise) ----------
   function Sfx() {
     let ac = null, out = null, noise = null, crowdG = null, crowdN = null, muted = false, lvl = 0.15;
@@ -522,6 +423,308 @@ gl_FragColor=vec4(c,1.0);}`;
       blitz: L(0.06, 0.32), disguise: L(0, 0.7), pursuit: L(6.4, 8.35), stun: L(1.1, 0.5),
     };
   }
+
+  // =====================================================================================
+  // Shaders (GLSL ES 1.00 so the same source runs on WebGL1 and WebGL2 contexts)
+  // Physically based: GGX specular, Schlick Fresnel, Smith visibility, hemispheric + cubemap ambient,
+  // one shadowed key light (3 cascades, rotated PCF) plus four unshadowed stadium fills, HDR output.
+  // =====================================================================================
+  const FS_PRE = `precision HP float;
+//OUT
+`;
+  // shared fragment lighting library; #defines: DERIV (derivatives available), SHADOW_PACKED (RGBA depth), NCASC n, PCF_HI
+  const SH_LIB = `uniform HP vec3 uEye;uniform vec3 uSunDir;uniform vec3 uSunCol;uniform vec4 uLP[4];uniform vec3 uLC[4];uniform vec3 uAmbC;uniform vec3 uGndC;uniform float uEnvK;
+uniform samplerCube uEnv;uniform vec3 uFog;uniform vec3 uFogR;uniform sampler2D uShadow;uniform mat4 uLVP0;uniform mat4 uLVP1;uniform mat4 uLVP2;uniform vec4 uShadowP;uniform vec3 uSplit;uniform float uTime;
+varying vec3 vW;varying vec3 vN;varying float vVD;
+float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(0.06711056,0.00583715))));}
+float unpackD(vec4 c){return dot(c,vec4(1.0,1.0/255.0,1.0/65025.0,1.0/16581375.0));}
+float shD(vec2 uv){
+#ifdef SHADOW_PACKED
+  return unpackD(texture2D(uShadow,uv));
+#else
+  return texture2D(uShadow,uv).r;
+#endif
+}
+// cascaded shadow lookup: pick the tightest cascade whose box holds the point; rotated 8-tap disc; returns 0 (shadow) .. 1 (lit)
+float shadowAt(vec3 N,float NL){
+  if(uShadowP.x<0.5)return 1.0;
+  float nc=uShadowP.z;float no=1.3-NL;
+  vec4 s4=uLVP0*vec4(vW+N*0.03*no,1.0);int c=0;float csc=0.0;
+  if(max(abs(s4.x),abs(s4.y))>0.97){
+    if(nc<1.5)return 1.0;
+    s4=uLVP1*vec4(vW+N*0.1*no,1.0);c=1;csc=1.0;
+    if(max(abs(s4.x),abs(s4.y))>0.97){
+      if(nc<2.5)return 1.0;
+      s4=uLVP2*vec4(vW+N*0.35*no,1.0);c=2;csc=2.0;
+      if(max(abs(s4.x),abs(s4.y))>0.99)return 1.0;}}
+  vec3 s=s4.xyz*0.5+0.5;if(s.z>1.0)return 1.0;
+  vec2 uv=vec2((s.x+csc)/nc,s.y);
+  float d=s.z-uShadowP.w*(c==0?1.0:(c==1?2.0:4.0));
+  float r=uShadowP.y*(c==0?3.0:(c==1?2.0:1.2));
+  float a=ign(gl_FragCoord.xy+fract(uTime)*17.0)*6.2832;vec2 R=vec2(cos(a),sin(a));
+  vec2 tx=vec2(r/nc,r);
+  float acc=0.0;
+#define TAP(o) {vec2 q=vec2(o.x*R.x-o.y*R.y,o.x*R.y+o.y*R.x)*tx;acc+=step(d,shD(uv+q));}
+  TAP(vec2(-0.613,0.617))TAP(vec2(0.170,-0.040))TAP(vec2(-0.299,-0.791))TAP(vec2(0.645,0.493))
+#ifdef PCF_HI
+  TAP(vec2(-0.651,-0.195))TAP(vec2(0.421,-0.712))TAP(vec2(-0.102,0.962))TAP(vec2(0.946,-0.152))
+  return acc*0.125;
+#else
+  return acc*0.25;
+#endif
+}
+float D_GGX(float NH,float a){float a2=a*a;float d=NH*NH*(a2-1.0)+1.0;return a2/(3.14159*d*d+1e-6);}
+float V_Smith(float NV,float NL,float a){float a2=a*a;float gv=NL*sqrt(NV*NV*(1.0-a2)+a2);float gl=NV*sqrt(NL*NL*(1.0-a2)+a2);return 0.5/(gv+gl+1e-5);}
+vec3 F_Schlick(vec3 F0,float VH){float f=pow(1.0-VH,5.0);return F0+(1.0-F0)*f;}
+vec3 envBRDF(vec3 F0,float rough,float NV){vec4 r=rough*vec4(-1.0,-0.0275,-0.572,0.022)+vec4(1.0,0.0425,1.04,-0.04);float a004=min(r.x*r.x,exp2(-9.28*NV))*r.x+r.y;vec2 AB=vec2(-1.04,1.04)*a004+r.zw;return F0*AB.x+AB.y;}
+vec3 toLin(vec3 c){return c*(c*(c*0.305306011+0.682171111)+0.012522878);}
+// direct + ambient shading. mode: 0 dielectric/metal, 1 skin (wrap + subsurface), 2 clearcoat (helmet)
+vec3 shadePBR(vec3 albedo,vec3 N,float rough,float metal,float ao,float cav,int mode,float specOcc){
+  vec3 V=normalize(uEye-vW);float NV=max(dot(N,V),1e-3);
+  vec3 F0=mix(vec3(0.04),albedo,metal);vec3 diff=albedo*(1.0-metal);
+  float a=max(rough*rough,0.003);
+  // key light (shadowed)
+  float NLr=dot(N,uSunDir);float NL=max(NLr,0.0);
+  float sh=shadowAt(N,NL)*ao;
+  vec3 col=vec3(0.0);
+  {vec3 H=normalize(V+uSunDir);float NH=max(dot(N,H),0.0),VH=max(dot(V,H),0.0);
+   vec3 F=F_Schlick(F0,VH);float D=D_GGX(NH,a),Vs=V_Smith(NV,NL,a);
+   vec3 kd=diff*(1.0-F)/3.14159*NL;
+   if(mode==1){float w=0.45;float wrap=clamp((NLr+w)/(1.0+w),0.0,1.0);float band=smoothstep(0.0,0.45,wrap)*(1.0-smoothstep(0.45,1.0,wrap));kd=diff*(wrap*0.85+0.15*NL)/3.14159+vec3(0.45,0.07,0.02)*band*0.11*diff.r;}
+   col+=uSunCol*(kd*mix(0.08,1.0,sh)+D*Vs*F*NL*sh*(mode==1?0.5:1.0));
+   if(mode==2){float Dc=D_GGX(NH,0.02);col+=uSunCol*Dc*0.25*pow(1.0-VH,2.0)*NL*sh;}}
+  // fills: stadium towers (point lights with a soft downward cone)
+  for(int i=0;i<4;i++){vec3 Lv=uLP[i].xyz-vW;float dist=length(Lv);vec3 L=Lv/max(dist,0.1);
+   float att=uLP[i].w/(dist*dist+40.0);float cone=0.35+0.65*clamp(L.y*1.6,0.0,1.0);
+   float nl=max(dot(N,L),0.0);if(mode==1)nl=clamp((dot(N,L)+0.3)/1.3,0.0,1.0)*0.9;
+   vec3 H=normalize(V+L);float NH=max(dot(N,H),0.0),VH=max(dot(V,H),0.0);vec3 F=F_Schlick(F0,VH);
+   float ar=clamp(a+2.6/dist,a,1.0);float D=D_GGX(NH,ar)*(a*a)/(ar*ar);float Vs=V_Smith(NV,nl,ar);
+   col+=uLC[i]*att*cone*(diff*(1.0-F)/3.14159*nl*ao+D*Vs*F*nl*ao*specOcc*(mode==2?1.6:1.0));}
+  // ambient: hemisphere diffuse + cubemap specular
+  float hemi=N.y*0.5+0.5;vec3 amb=mix(uGndC,uAmbC,hemi);
+  col+=amb*diff*ao*cav;
+  vec3 R=reflect(-V,N);float lod=rough*5.5;
+  vec3 env=textureCube(uEnv,R,lod).rgb*uEnvK;
+  vec3 kS=envBRDF(F0,rough,NV);
+  col+=env*kS*ao*specOcc*(mode==2?1.35:1.0);
+  if(mode==2){vec3 envC=textureCube(uEnv,R,0.5).rgb*uEnvK;float fr=pow(1.0-NV,4.0);col+=envC*(0.04+0.6*fr)*0.6*ao*specOcc;}
+  return col;
+}
+vec3 fogIt(vec3 c){float d=distance(vW,uEye);float f=clamp((d-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0);f=f*f*uFogR.z;return mix(c,uFog,f);}
+#ifdef DERIV
+// tangent frame from screen-space derivatives (no tangent attributes)
+mat3 cotangent(vec3 N,vec3 p,vec2 uv){vec3 dp1=dFdx(p),dp2=dFdy(p);vec2 duv1=dFdx(uv),duv2=dFdy(uv);vec3 dp2perp=cross(dp2,N),dp1perp=cross(N,dp1);vec3 T=dp2perp*duv1.x+dp1perp*duv2.x;vec3 B=dp2perp*duv1.y+dp1perp*duv2.y;float invmax=inversesqrt(max(dot(T,T),dot(B,B))+1e-9);return mat3(T*invmax,B*invmax,N);}
+vec3 perturb(vec3 N,vec3 p,vec2 uv,vec3 nm,float k){nm=nm*2.0-1.0;nm.xy*=k;return normalize(cotangent(N,p,uv)*normalize(nm));}
+#else
+vec3 perturb(vec3 N,vec3 p,vec2 uv,vec3 nm,float k){return N;}
+#endif
+`;
+  // ---- world geometry: statics, props, ball, markers. aC.a: alpha for unlit, 'emis' material draws unlit ----
+  const VS_WORLD = `attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;
+uniform mat4 uVP;uniform HP vec3 uEye;uniform vec2 uUV;uniform HP vec3 uCamF;uniform float uFlipV;
+varying vec4 vC;varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vLit;
+void main(){vW=aP;vN=aN;vLit=dot(aN,aN)>0.01?1.0:0.0;gl_Position=uVP*vec4(aP,1.0);vC=aC;vT=vec2(aT.x,mix(aT.y,1.0-aT.y,uFlipV))+uUV;vVD=dot(aP-uEye,uCamF);}`;
+  // uMatW: x rough, y metal, z detail/wet, w emissive. uKind: 0 plain, 1 field (turf detail + wet), 2 fabric normal map (tex alpha = roughness mod)
+  const FS_WORLD = `uniform sampler2D uTex;uniform sampler2D uDetail;uniform sampler2D uNrm;uniform vec4 uMatW;uniform float uKind;uniform float uWet;
+varying vec4 vC;varying vec2 vT;varying float vLit;
+#LIB#
+void main(){vec4 t=texture2D(uTex,vT);vec3 base=toLin(vC.rgb*t.rgb);
+if(uKind>8.5){gl_FragColor=vec4(vec3(shadowAt(normalize(vN),1.0)),1.0);return;}
+if(vLit<0.5){gl_FragColor=vec4(uMatW.w>0.5?base*uMatW.w*(vC.a):fogIt(base),uMatW.w>0.5?1.0:vC.a);return;}
+vec3 N=normalize(vN);float rough=uMatW.x,metal=uMatW.y,ao=1.0,cav=1.0,specOcc=1.0;
+if(uKind>0.5&&uKind<1.5){
+  // turf: blade-scale detail (colour + normal) fades with distance, mow-stripe sheen, wet puddles in rain
+  float d=distance(vW,uEye);float dk=1.0-smoothstep(12.0,70.0,d);
+  vec2 duv=vW.xz*0.9;vec4 det=texture2D(uDetail,duv);vec4 det2=texture2D(uDetail,duv*0.23+0.37);
+  float h=mix(0.5,det.a,dk)*0.6+det2.a*0.4;
+  base*=mix(1.0,0.72+0.56*det.r,dk*0.9)*(0.86+0.28*det2.r);
+  vec3 nm=vec3(det.g,det.b,1.0);N=perturb(N,vW,duv,nm,0.55*dk);
+  cav=0.75+0.5*h;rough=mix(0.9,0.55,h*0.3);
+  if(uWet>0.0){float pud=smoothstep(0.52,0.62,det2.g*0.7+det.g*0.3+0.05*sin(vW.x*0.7)*sin(vW.z*0.5))*uWet;
+    vec3 rip=vec3(sin(vW.x*31.0+uTime*3.0)*0.5+0.5,cos(vW.z*27.0-uTime*2.4)*0.5+0.5,1.0);N=normalize(mix(N,perturb(vec3(0.0,1.0,0.0),vW,duv,rip,0.08),pud));
+    rough=mix(mix(rough,0.35,uWet*0.7),0.06,pud);base*=mix(1.0,0.55,uWet*0.5+pud*0.3);metal=mix(metal,0.0,pud);specOcc=mix(1.0,2.2,pud);}
+}else if(uKind>1.5){vec3 nm=texture2D(uNrm,vT*uMatW.z).rgb;N=perturb(N,vW,vT,nm,0.6);rough=rough*(0.7+0.6*t.a);}
+vec3 col=shadePBR(base,N,rough,metal,ao,cav,0,specOcc);
+if(uMatW.w>0.0)col+=base*uMatW.w;
+gl_FragColor=vec4(fogIt(col),1.0);}`;
+  // ---- skinned athletes: two bone weights per vertex ----
+  // slots (SL): 0 jer 1 pant 2 skin 3 helm 4 trim 5 cleat 6 pad 7 mask 8 num 9 face 10 arm 11 name 12 glove 13 sock 14 sole 15 visor 16 snum 17 wht 18 eye 19 tape 20 towel 21 stripes
+  const VS_SKIN = `attribute vec3 aP;attribute vec3 aN;attribute vec2 aB;attribute float aW;attribute float aS;attribute vec2 aT;attribute float aA;
+uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uNumUV;uniform HP vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uTowel;uniform float uSway;uniform float uMouth;
+varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vS;varying float vA;varying vec3 vP;
+vec3 skinP(int b,vec4 p){return vec3(dot(uBones[b],p),dot(uBones[b+1],p),dot(uBones[b+2],p));}
+vec3 skinN(int b,vec3 n){return vec3(dot(uBones[b].xyz,n),dot(uBones[b+1].xyz,n),dot(uBones[b+2].xyz,n));}
+void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;int s=int(aS);vec3 lp=aP*uScale;
+if((s==15&&uVis<0.5)||(s==20&&uTowel<0.5)||(s==22&&uMouth<0.5))lp=vec3(0.0);
+if(s==20){float k=clamp(-aP.y*4.0,0.0,1.0);lp.z+=uSway*k*k;lp.x+=uSway*0.35*k;}
+vec4 p=vec4(lp,1.0);float w0=aW,w1=1.0-aW;
+vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 n=normalize(skinN(b0,aN)*w0+skinN(b1,aN)*w1);
+bool num=(s==8||s==16);
+vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
+vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
+  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[23];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;
+varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
+#LIB#
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
+void main(){int s=int(vS+0.5);vec3 base;float rough=0.6,metal=0.0,alpha=1.0;int mode=0;float specOcc=1.0;float ao=vA;
+vec3 N=normalize(vN);vec3 c=uCol[s];
+bool kit=(s==0||s==1||s==3||s==12||s==13||s==21);bool numS=(s==8||s==16);
+vec4 t=vec4(1.0);
+if(kit){t=texture2D(uKit,vT);base=toLin(t.rgb);}
+else if(s==9){t=texture2D(uTex,vT);base=toLin(t.rgb);}
+else if(numS||s==11){t=texture2D(uTex,vT);if(t.a<0.45)discard;base=toLin(c*t.rgb);}
+else base=toLin(c);
+if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11){ // fabrics: woven normal map, roughness from the kit alpha
+  float scale=(s==1?7.0:(s==13?9.0:5.0));vec3 nm=texture2D(uNrm,vT*scale).rgb;N=perturb(N,vW,vT,nm,s==1?0.35:0.55);
+  rough=(s==1?0.55:(s==13?0.85:0.72))*(0.75+0.5*t.a);
+  if(numS||s==11){rough=0.42;N=normalize(vN);}
+  if(s==10){rough=0.7;}
+  // grass and mud stains build up on players who have been tackled
+  if(uDirt>0.0&&(s==0||s==1||s==13||numS)){float n=noise(vT*18.0+uSeed)*0.6+noise(vT*47.0+uSeed*3.0)*0.4;float st=smoothstep(0.62-uDirt*0.3,0.9,n)*uDirt*(s==1?1.0:0.6)*(1.0-smoothstep(0.1,0.85,vT.y)*0.3);base=mix(base,uDirtC*(0.6+0.4*n),st);rough=mix(rough,0.95,st);}
+}
+if(s==2||s==9){mode=1;rough=mix(0.55,0.3,uSweat);specOcc=0.6+0.5*uSweat;if(s==9){ // face: photo blended into skin at the edges
+  vec2 q=(vT-uFaceUV.xy)/uFaceUV.zw;float m=1.0-smoothstep(0.44,0.8,length((q-vec2(0.5,0.5))*vec2(1.0,0.8))*2.0);base=mix(toLin(uCol[2]),base,m*t.a);}}
+if(s==18){ // eyes: sclera with an iris that looks along uGaze
+  float g=dot(N,normalize(uGaze));float ir=smoothstep(0.80,0.86,g),pu=smoothstep(0.955,0.965,g);
+  base=mix(vec3(0.78,0.72,0.68),mix(c*0.5,c*0.15,smoothstep(0.86,0.95,g)),ir);base=mix(base,vec3(0.01),pu);rough=0.08;specOcc=2.5;}
+if(s==3){mode=2;rough=0.14;}
+if(s==7){rough=0.45;metal=0.0;}
+if(s==4){rough=0.7;}
+if(s==5){rough=0.38;specOcc=1.2;}
+if(s==14){rough=0.8;}
+if(s==6){rough=0.5;}
+if(s==17||s==19){rough=0.78;}
+if(s==22){rough=0.25;specOcc=1.5;}
+if(s==15){rough=0.05;base=mix(base,vec3(0.02,0.025,0.03),0.7);alpha=uAlpha;specOcc=2.0;metal=0.3;}
+if(s==20){rough=0.9;}
+if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
+vec3 col=shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc);
+gl_FragColor=vec4(fogIt(col),alpha);}`;
+  // ---- depth-only passes (shadow cascades) ----
+  const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
+  const VS_DEPTH_S = `attribute vec3 aP;attribute vec2 aB;attribute float aW;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;uniform float uTowel;uniform float uMouth;
+void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;vec3 lp=aP*uScale;if((aS>14.5&&aS<15.5&&uVis<0.5)||(aS>19.5&&aS<20.5&&uTowel<0.5)||(aS>21.5&&aS<22.5&&uMouth<0.5))lp=vec3(0.0);vec4 p=vec4(lp,1.0);
+vec3 w=vec3(dot(uBones[b0],p),dot(uBones[b0+1],p),dot(uBones[b0+2],p))*aW+vec3(dot(uBones[b1],p),dot(uBones[b1+1],p),dot(uBones[b1+2],p))*(1.0-aW);gl_Position=uLVP*vec4(w,1.0);}`;
+  const FS_DEPTH_PACK = `precision mediump float;void main(){vec4 e=fract(gl_FragCoord.z*vec4(1.0,255.0,65025.0,16581375.0));gl_FragColor=e-e.yzww*vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);}`;
+  const FS_DEPTH_NONE = `precision mediump float;void main(){gl_FragColor=vec4(1.0);}`;
+  const VS_QUAD = `attribute vec2 aP;varying vec2 vUV;void main(){vUV=aP*0.5+0.5;gl_Position=vec4(aP,0.999,1.0);}`;
+  // ---- sky: gradient haze, light-pollution glow above the bowl, faint stars; day variant with sun and clouds ----
+  const FS_SKY = `uniform mat4 uInvVP;uniform vec3 uSun;uniform float uNight;uniform float uTime;uniform vec3 uTop;uniform vec3 uHor;uniform float uCloud;uniform float uGlow;varying vec2 vUV;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
+vec3 toLin(vec3 c){return c*(c*(c*0.305306011+0.682171111)+0.012522878);}
+void main(){vec4 a=uInvVP*vec4(vUV*2.0-1.0,1.0,1.0);vec4 b=uInvVP*vec4(vUV*2.0-1.0,-1.0,1.0);vec3 d=normalize(a.xyz/a.w-b.xyz/b.w);
+float h=clamp(d.y,0.0,1.0);vec3 col=mix(toLin(uHor),toLin(uTop),pow(h,0.5));
+if(uNight>0.5){vec2 sp=d.xz/max(d.y,0.03)*70.0;float st=step(0.992,hash(floor(sp)))*smoothstep(0.1,0.4,d.y)*(0.3+0.7*hash(floor(sp)+7.0));col+=vec3(0.7,0.78,1.0)*st*0.35;
+  col+=toLin(uHor)*uGlow*0.9*pow(1.0-h,6.0);}
+else{float s=max(dot(d,uSun),0.0);float disc=smoothstep(0.9992,0.9997,s);col+=vec3(1.0,0.95,0.85)*disc*40.0+vec3(1.0,0.8,0.5)*pow(s,12.0)*0.35+vec3(0.9,0.9,1.0)*pow(s,2.0)*0.12;}
+if(d.y>0.0&&uCloud>0.0){vec2 cp=d.xz/(d.y+0.12)*1.6+vec2(uTime*0.012,0.0);float n=noise(cp)*0.5+noise(cp*2.3+3.1)*0.26+noise(cp*4.9+9.0)*0.14+noise(cp*9.7+2.0)*0.1;
+float c=smoothstep(0.45,0.68,n)*uCloud*smoothstep(0.0,0.2,d.y);vec3 cc=uNight>0.5?toLin(uHor)*0.5:mix(vec3(0.5,0.52,0.58),vec3(1.4),smoothstep(0.5,0.85,n));col=mix(col,cc,c*0.9);}
+gl_FragColor=vec4(col,1.0);}`;
+  // ---- crowd: one quad per fan; 3 states (seated / standing / slumped) selected per fan by excitement and mood ----
+  const VS_CROWD = `attribute vec3 aP;attribute vec3 aC;attribute vec4 aM;attribute vec2 aT;uniform mat4 uVP;uniform float uTime;uniform float uExcite;uniform float uWave;uniform float uMood;uniform HP vec3 uEye;uniform HP vec3 uCamF;
+varying vec3 vC;varying vec2 vT;varying vec3 vW;varying float vVD;varying float vPh;varying float vUp;
+void main(){float ph=aM.x;float amp=aM.y;float thr=aM.z;float up=1.0-aT.y;
+float stand=step(thr,uExcite);float slump=step(0.5,-uMood)*(1.0-stand)*step(thr,0.6);
+float bob=max(0.0,sin(uTime*2.6+ph))*amp*(0.35+0.9*uExcite)*(0.5+stand);
+float wv=max(0.0,sin(uTime*1.8-aP.z*0.07+aP.x*0.02))*uWave*amp*3.0;vec3 p=aP;
+p.y+=(bob+wv)*(0.4+0.6*up)+stand*0.45*up;p.x+=sin(uTime*1.3+ph)*0.03*up*(1.0+stand);
+vC=aC;vT=vec2(aT.x+(stand*1.0+slump*2.0)/3.0,aT.y);vW=p;vPh=aM.w*step(0.35,uExcite)*step(0.5,fract(uTime*0.8+ph));vUp=up;gl_Position=uVP*vec4(p,1.0);vVD=dot(p-uEye,uCamF);}`;
+  const FS_CROWD = `uniform sampler2D uTex;uniform vec3 uFog;uniform vec3 uFogR;uniform HP vec3 uEye;uniform float uDim;uniform vec3 uTint;varying vec3 vC;varying vec2 vT;varying vec3 vW;varying float vPh;varying float vUp;
+vec3 toLin(vec3 c){return c*(c*(c*0.305306011+0.682171111)+0.012522878);}
+void main(){vec4 t=texture2D(uTex,vT);if(t.a<0.35)discard;vec3 c=toLin(t.a>0.8?t.rgb*vC:t.rgb);
+c*=uDim*uTint*(0.75+0.5*vUp);
+if(vPh>0.5&&t.a<0.8&&t.a>0.55)c+=vec3(1.2,1.2,1.4);
+float d=distance(vW,uEye);float f=clamp((d-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0);f=f*f*uFogR.z;gl_FragColor=vec4(mix(c,uFog,f),1.0);}`;
+  // ---- instanced grass blades around the camera target ----
+  const VS_GRASS = `attribute vec3 aP;attribute vec2 aT;attribute vec4 aI;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec3 uOrg;uniform float uTime;uniform vec4 uPl[12];uniform float uCell;uniform float uN;uniform float uWet;
+varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vK;varying float vFade;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+void main(){float i=aI.x;float row=floor(i/uN);float colI=i-row*uN;vec2 cell=vec2(colI,row);
+vec2 g=floor(uOrg.xz/uCell)+cell-uN*0.5;vec2 jit=vec2(hash(g),hash(g+3.7));vec2 xz=(g+jit)*uCell;
+float ang=hash(g+9.1)*6.2832;float hgt=0.035+0.045*hash(g+1.3);float lean=0.3+0.4*hash(g+5.5);
+float y=aP.y*hgt;float t=aP.y;
+vec2 dir=vec2(cos(ang),sin(ang));
+vec3 p=vec3(xz.x+aP.x*dir.y*0.011,y,xz.y-aP.x*dir.x*0.011);
+// bend: wind + lean, flattened under players' feet
+vec2 wind=vec2(sin(uTime*1.7+xz.x*0.5+xz.y*0.3),cos(uTime*1.3+xz.y*0.6))*0.03;
+vec2 bend=dir*lean*t*t*0.09+wind*t*t;
+float fl=0.0;vec2 fd=vec2(0.0);
+for(int k=0;k<12;k++){vec2 dxz=xz-uPl[k].xy;float dd=length(dxz);float f=uPl[k].z*(1.0-smoothstep(0.0,0.55,dd));if(f>fl){fl=f;fd=dxz/max(dd,0.05);}}
+bend+=fd*fl*t*0.22;p.y*=1.0-fl*0.8;
+p.xz+=bend;
+float dc=distance(p,uEye);vFade=1.0-smoothstep(6.0,10.0,dc);
+vK=0.7+0.4*hash(g+2.2);vT=aT;vW=p;vN=normalize(vec3(-bend.x*0.5,1.0,-bend.y*0.5));gl_Position=uVP*vec4(p,1.0);vVD=dot(p-uEye,uCamF);}`;
+  const FS_GRASS = `uniform sampler2D uTex;uniform vec3 uFog;uniform vec3 uFogR;uniform HP vec3 uEye;uniform vec3 uBase;uniform vec3 uAmbC;uniform vec3 uSunDir;uniform vec3 uSunCol;uniform vec4 uLP[4];uniform vec3 uLC[4];
+varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vK;varying float vFade;
+void main(){if(vFade<0.02)discard;vec3 f=texture2D(uTex,vec2(vW.x*0.5,vW.z*0.5)*0.0+vec2(0.5)).rgb;
+vec3 base=uBase*vK*(0.55+0.4*vT.y);
+vec3 N=normalize(vN);float nl=max(dot(N,uSunDir),0.0)*0.6+0.4;
+vec3 col=base*(uAmbC*0.8+uSunCol*nl*0.55);
+for(int i=0;i<4;i++){vec3 Lv=uLP[i].xyz-vW;float dist=length(Lv);float att=uLP[i].w/(dist*dist+40.0);col+=base*uLC[i]*att*0.5;}
+float d=distance(vW,uEye);float fg=clamp((d-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0);fg=fg*fg*uFogR.z;
+gl_FragColor=vec4(mix(col,uFog,fg),vFade);}`;
+  // ---- post ----
+  const FS_AO = `uniform sampler2D uDepth;uniform vec2 uPx;uniform mat4 uInvP;uniform vec4 uProj;uniform float uRad;varying vec2 vUV;
+float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(0.06711056,0.00583715))));}
+vec3 posAt(vec2 uv){float z=texture2D(uDepth,uv).r;vec4 p=uInvP*vec4(uv*2.0-1.0,z*2.0-1.0,1.0);return p.xyz/p.w;}
+void main(){vec3 P=posAt(vUV);if(-P.z>160.0){gl_FragColor=vec4(1.0);return;}
+vec3 dx=posAt(vUV+vec2(uPx.x,0.0))-P,dy=posAt(vUV+vec2(0.0,uPx.y))-P;vec3 N=normalize(cross(dx,dy));
+float r=uRad;float a=ign(gl_FragCoord.xy)*6.2832;float ca=cos(a),sa=sin(a);
+vec3 T=normalize(vec3(ca,sa,0.0)-N*dot(vec3(ca,sa,0.0),N));vec3 B=cross(N,T);
+float occ=0.0;
+#define S(kx,ky,kz) {vec3 s=P+(T*kx+B*ky+N*kz)*r;vec4 c=vec4(s.x*uProj.x,s.y*uProj.y,s.z,1.0);vec2 suv=vec2(c.x/-s.z,c.y/-s.z)*0.5+0.5;float sz=posAt(suv).z;float rc=smoothstep(0.0,1.0,r/abs(P.z-sz+1e-4));occ+=step(s.z+0.02,sz)*rc;}
+S(0.2,0.1,0.3)S(-0.3,0.2,0.5)S(0.1,-0.4,0.6)S(0.5,0.3,0.2)S(-0.1,-0.1,0.9)S(0.6,-0.5,0.4)S(-0.6,-0.2,0.7)S(0.3,0.7,0.5)S(-0.4,0.6,0.3)S(0.0,0.3,0.95)S(0.8,0.1,0.5)S(-0.7,-0.6,0.3)
+occ=1.0-occ/12.0;gl_FragColor=vec4(vec3(occ),1.0);}`;
+  const FS_BLUR4 = `uniform sampler2D uTex;uniform vec2 uPx;varying vec2 vUV;
+void main(){float s=0.0;for(int i=-2;i<2;i++)for(int j=-2;j<2;j++)s+=texture2D(uTex,vUV+vec2(float(i)+0.5,float(j)+0.5)*uPx).r;gl_FragColor=vec4(vec3(s/16.0),1.0);}`;
+  const FS_EXTRACT = `uniform sampler2D uTex;uniform vec2 uPx;uniform float uThr;varying vec2 vUV;
+void main(){vec3 c=(texture2D(uTex,vUV).rgb+texture2D(uTex,vUV+vec2(uPx.x,0.0)).rgb+texture2D(uTex,vUV+vec2(0.0,uPx.y)).rgb+texture2D(uTex,vUV+uPx).rgb)*0.25;
+float l=max(c.r,max(c.g,c.b));float k=max(l-uThr,0.0)/(l+1e-4);gl_FragColor=vec4(c*k*0.25,1.0);}`;
+  const FS_BLUR = `uniform sampler2D uTex;uniform vec2 uDir;varying vec2 vUV;
+void main(){vec3 c=texture2D(uTex,vUV).rgb*0.227;c+=(texture2D(uTex,vUV+uDir*1.385).rgb+texture2D(uTex,vUV-uDir*1.385).rgb)*0.316;c+=(texture2D(uTex,vUV+uDir*3.23).rgb+texture2D(uTex,vUV-uDir*3.23).rgb)*0.07;gl_FragColor=vec4(c,1.0);}`;
+  // depth of field + camera motion blur, HDR in / HDR out
+  const FS_DOFMB = `uniform sampler2D uTex;uniform sampler2D uDepth;uniform vec2 uPx;uniform mat4 uInvVP;uniform mat4 uPrevVP;uniform float uMB;uniform vec3 uDof;uniform vec2 uNF;varying vec2 vUV;
+float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(0.06711056,0.00583715))));}
+float linZ(float z){float zn=z*2.0-1.0;return 2.0*uNF.x*uNF.y/(uNF.y+uNF.x-zn*(uNF.y-uNF.x));}
+void main(){float z=texture2D(uDepth,vUV).r;float d=linZ(z);
+vec4 wp=uInvVP*vec4(vUV*2.0-1.0,z*2.0-1.0,1.0);wp/=wp.w;
+vec4 pp=uPrevVP*wp;vec2 puv=pp.xy/pp.w*0.5+0.5;vec2 vel=(vUV-puv)*uMB;float vl=length(vel);if(vl>0.05)vel*=0.05/vl;
+float coc=clamp((abs(d-uDof.x)-0.14*uDof.x)/max(uDof.x,1.0)*uDof.y,0.0,1.0)*step(0.01,uDof.y);
+vec2 r=coc*uPx*10.0;float a=ign(gl_FragCoord.xy)*6.2832;vec2 R=vec2(cos(a),sin(a));
+vec3 c=vec3(0.0);float n=0.0;
+#define T(o) {vec2 q=vec2(o.x*R.x-o.y*R.y,o.x*R.y+o.y*R.x);c+=texture2D(uTex,vUV+q*r).rgb;n+=1.0;}
+T(vec2(0.0,0.0))T(vec2(-0.613,0.617))T(vec2(0.170,-0.040))T(vec2(-0.299,-0.791))T(vec2(0.645,0.493))T(vec2(-0.651,-0.195))T(vec2(0.421,-0.712))T(vec2(-0.102,0.962))T(vec2(0.946,-0.152))T(vec2(0.3,0.3))T(vec2(-0.3,-0.3))T(vec2(0.0,-0.6))
+c/=n;
+if(uMB>0.0){vec3 m=vec3(0.0);for(int i=0;i<6;i++){float t=(float(i)+0.5)/6.0-0.5;m+=texture2D(uTex,vUV+vel*t).rgb;}c=mix(c,m/6.0,0.75*min(1.0,vl*60.0));}
+gl_FragColor=vec4(c,1.0);}`;
+  const FS_FINAL = `uniform sampler2D uTex;uniform sampler2D uBloom;uniform sampler2D uAO;uniform sampler2D uDepth;uniform vec2 uPx;uniform float uBloomK;uniform float uFxaa;uniform float uVig;uniform float uKick;uniform float uExp;uniform float uAOk;uniform vec4 uFl[4];uniform float uFlK;uniform float uTime;uniform float uLDR;uniform float uAsp;varying vec2 vUV;
+vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}
+vec3 tm(vec3 c){c*=uExp;return aces(c);}
+vec3 S(vec2 uv){vec3 c=texture2D(uTex,uv).rgb;return tm(c);}
+vec3 fxaa(vec2 uv){vec3 rgbNW=S(uv+vec2(-1.0,-1.0)*uPx);vec3 rgbNE=S(uv+vec2(1.0,-1.0)*uPx);vec3 rgbSW=S(uv+vec2(-1.0,1.0)*uPx);vec3 rgbSE=S(uv+vec2(1.0,1.0)*uPx);vec3 rgbM=S(uv);
+vec3 lm=vec3(0.299,0.587,0.114);float lNW=dot(rgbNW,lm),lNE=dot(rgbNE,lm),lSW=dot(rgbSW,lm),lSE=dot(rgbSE,lm),lM=dot(rgbM,lm);
+float lMin=min(lM,min(min(lNW,lNE),min(lSW,lSE)));float lMax=max(lM,max(max(lNW,lNE),max(lSW,lSE)));
+vec2 dir=vec2(-((lNW+lNE)-(lSW+lSE)),((lNW+lSW)-(lNE+lSE)));float dr=max((lNW+lNE+lSW+lSE)*0.03125,0.0078125);float rc=1.0/(min(abs(dir.x),abs(dir.y))+dr);
+dir=min(vec2(8.0),max(vec2(-8.0),dir*rc))*uPx;
+vec3 A=0.5*(S(uv+dir*(1.0/3.0-0.5))+S(uv+dir*(2.0/3.0-0.5)));vec3 B=A*0.5+0.25*(S(uv+dir*-0.5)+S(uv+dir*0.5));
+float lB=dot(B,lm);return (lB<lMin||lB>lMax)?A:B;}
+float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(0.06711056,0.00583715))));}
+void main(){vec3 c=uFxaa>0.5?fxaa(vUV):S(vUV);
+float ao=uAOk>0.0?mix(1.0,texture2D(uAO,vUV).r,uAOk):1.0;c*=ao;
+vec3 bl=texture2D(uBloom,vUV).rgb*4.0;c+=tm(bl*uBloomK*1.5)*0.6*step(0.01,uBloomK);
+// lens flare ghosts for stadium lights in frame
+if(uFlK>0.0){vec2 cen=vUV-0.5;for(int i=0;i<4;i++){vec4 L=uFl[i];if(L.z<=0.0)continue;vec2 l=L.xy-0.5;vec2 ax=vec2(1.0,1.0/uAsp);
+  float occ=L.w;vec2 dv=(cen-l)*ax;float dd=length(dv);
+  float core=exp(-dd*dd*220.0)*1.4+exp(-dd*55.0)*0.35;
+  float streak=exp(-abs(dv.y)*260.0)*exp(-abs(dv.x)*9.0)*0.5;
+  float g=0.0;for(int k=1;k<4;k++){vec2 gp=-l*(0.4*float(k)+0.2);float gd=length((cen-gp)*ax);g+=exp(-gd*gd*(400.0+200.0*float(k)))*0.18/float(k);}
+  c+=vec3(1.0,0.95,0.85)*(core+streak)*occ*uFlK*L.z+vec3(0.6,0.8,1.0)*g*occ*uFlK*L.z;}}
+vec2 q=vUV-0.5;float v=1.0-dot(q,q)*uVig;c*=v;c+=uKick*vec3(1.0,0.95,0.8)*(1.0-smoothstep(0.0,0.6,length(q)));
+c=pow(max(c,0.0),vec3(1.0/2.2));
+c+=(ign(gl_FragCoord.xy+fract(uTime)*99.0)-0.5)*0.012;
+gl_FragColor=vec4(c,1.0);}`;
 
   // =====================================================================================
   // Characters: skeleton, skinned mesh, keyframed clips, blending, arm IK and a light ragdoll
@@ -711,15 +914,50 @@ gl_FragColor=vec4(c,1.0);}`;
     return q;
   }
   const POSE_REACH = pb({ shL: [2.2, 0, -0.35], shR: [2.2, 0, 0.35], elL: [0.3], elR: [0.3], neck: [-0.5, 0, 0], head: [-0.2, 0, 0] });
+  // quarterback in the pocket: ball held at the chest with both hands, knees soft, a little bounce, eyes downfield
+  function clipPocket(t) {
+    const b = Math.sin(t * 5.2) * 0.5 + 0.5, b2 = Math.sin(t * 2.6);
+    return gfit(pb({ hipL: [0.3 + 0.04 * b, 0, -0.14], hipR: [0.28 + 0.04 * b, 0, 0.14], knL: [-0.55 - 0.08 * b], knR: [-0.5 - 0.08 * b], ftL: [0.05], ftR: [0.05],
+      shL: [0.95, 0.15, -0.35], elL: [2.1], haL: [0.3, 0, 0.3], shR: [0.85, -0.1, 0.5], elR: [2.15], haR: [0.2, 0, -0.3],
+      spine: [0.16, 0.05 * b2, 0], chest: [0.04, 0.08 * b2, 0], neck: [-0.22, 0, 0], head: [-0.05, 0, 0] }, 0.0 - 0.02 * b, 0.06, 0));
+  }
+  // bench: seated on a 0.5-yard bench, elbows on the knees
+  const POSE_SIT = pb({ hipL: [1.55, 0, -0.14], hipR: [1.55, 0, 0.14], knL: [-1.5], knR: [-1.5], ftL: [0.05], ftR: [0.05], shL: [0.9, 0, -0.15], shR: [0.9, 0, 0.15], elL: [1.3], elR: [1.3], haL: [0.2], haR: [0.2], spine: [0.3, 0, 0], neck: [-0.25, 0, 0] }, -0.58, 0.05, 0);
+  const POSE_SIT_BACK = pb({ hipL: [1.5, 0, -0.2], hipR: [1.5, 0, 0.2], knL: [-1.35], knR: [-1.35], ftL: [0.1], ftR: [0.1], shL: [0.2, 0, -0.3], shR: [0.2, 0, 0.3], elL: [0.6], elR: [0.6], spine: [-0.1, 0, 0], neck: [0.05, 0, 0] }, -0.6, -0.08, 0);
+  // officials' signals: touchdown (arms up), incomplete (arms sweep across), first down (point)
+  function clipSignal(kind, t) {
+    const u = Math.min(1, t / 0.45), s = u * u * (3 - 2 * u);
+    if (kind === 'sigtd') return gfit(lerpPose(POSE_IDLE, pb({ shL: [3.0, 0, -0.12], shR: [3.0, 0, 0.12], elL: [0.05], elR: [0.05], haL: [0.1], haR: [0.1], spine: [-0.08, 0, 0], neck: [-0.15, 0, 0], hipL: [0.05, 0, -0.1], hipR: [0.05, 0, 0.1], knL: [-0.1], knR: [-0.1] }, 0, -0.03, 0), s));
+    if (kind === 'sigfirst') return gfit(lerpPose(POSE_IDLE, pb({ shR: [1.55, 0, 0.1], elR: [0.05], haR: [0.0], shL: [0.4, 0, -0.5], elL: [1.6], spine: [0.1, 0.2, 0], chest: [0, 0.3, 0], neck: [-0.1, -0.3, 0], hipL: [0.5, 0, -0.1], hipR: [-0.2, 0, 0.1], knL: [-0.7], knR: [-0.2] }, -0.08, 0.05, 0), s));
+    const w = Math.sin(t * 6.5); // incomplete: arms sweep back and forth across the body
+    return gfit(pb({ shL: [0.75, 0, -0.45 + 0.75 * w], shR: [0.75, 0, 0.45 - 0.75 * w], elL: [0.35], elR: [0.35], spine: [0.12, 0, 0], neck: [-0.15, 0, 0], hipL: [0.1, 0, -0.14], hipR: [0.1, 0, 0.14], knL: [-0.2], knR: [-0.2] }, -0.03, 0.02, 0));
+  }
+  // two-bone leg IK: put the foot at a world target, knee bending toward `fwd`
+  function legIK(bones, side, tgt, hs, fwd, footM) {
+    const hp = side < 0 ? B.hipL : B.hipR, kn = side < 0 ? B.knL : B.knR, ft = side < 0 ? B.ftL : B.ftR;
+    const J = [bones[hp][3], bones[hp][7], bones[hp][11]], L1 = 0.5 * hs, L2 = 0.47 * hs;
+    let d = v3s(tgt, J), dl = Math.hypot(d[0], d[1], d[2]);
+    const maxR = L1 + L2 - 0.005; if (dl > maxR) { d = [d[0] / dl * maxR, d[1] / dl * maxR, d[2] / dl * maxR]; dl = maxR; }
+    if (dl < 0.1) return;
+    const T = v3a(J, d), dir = [d[0] / dl, d[1] / dl, d[2] / dl];
+    const cosA = clamp((L1 * L1 + dl * dl - L2 * L2) / (2 * L1 * dl), -1, 1), a = Math.acos(cosA);
+    let pp = v3s(fwd, [dir[0] * v3d(fwd, dir), dir[1] * v3d(fwd, dir), dir[2] * v3d(fwd, dir)]);
+    if (Math.hypot(pp[0], pp[1], pp[2]) < 1e-3) pp = [0, 0, 1];
+    pp = v3n(pp);
+    const K = v3a(v3a(J, dir, L1 * Math.cos(a)), pp, L1 * Math.sin(a));
+    bones[hp] = mFromDown(J, v3s(K, J), fwd);
+    bones[kn] = mFromDown(K, v3s(T, K), fwd);
+    bones[ft] = footM ? [footM[0], footM[1], footM[2], T[0], footM[4], footM[5], footM[6], T[1], footM[8], footM[9], footM[10], T[2]] : mFromDown(T, v3s(T, K), fwd);
+  }
 
   // ---------- forward kinematics ----------
-  function fk(q, x, y, z, heading, hs) {
-    const out = new Array(NB);
+  function fk(q, x, y, z, heading, hs, sw) {
+    const out = new Array(NB); sw = sw || 1;
     let root = mT(IDM, x, y + (HIP_H + q[PN]) * hs, z);
     root = RY(root, heading + q[PN + 3]); root = RX(root, q[PN + 1]); root = RZ(root, q[PN + 2]);
     for (let i = 0; i < NB; i++) {
-      const b = BONES[i], par = b[1];
-      let m = par < 0 ? root : mT(out[par], b[2] * hs, b[3] * hs, b[4] * hs);
+      const b = BONES[i], par = b[1], sx = (i === B.shL || i === B.shR) ? sw : 1;
+      let m = par < 0 ? root : mT(out[par], b[2] * hs * sx, b[3] * hs, b[4] * hs);
       const o = i * 3;
       m = RX(m, q[o]); m = RY(m, q[o + 1]); m = RZ(m, q[o + 2]);
       out[i] = m;
@@ -746,205 +984,16 @@ gl_FragColor=vec4(c,1.0);}`;
     bones[el] = mFromDown(E, v3s(T, E), fh);
     bones[ha] = mFromDown(T, v3s(T, E), fh);
   }
-  // flatten bone matrices to vec4 rows for the shader
-  function packBones(bones, out) {
+  // flatten bone matrices to vec4 rows for the shader, premultiplied by the inverse bind translation (mesh vertices are in body space)
+  function packBones(bones, out, bind, hs) {
     out = out || new Float32Array(NB * 12);
-    for (let i = 0; i < NB; i++) { const m = bones[i], o = i * 12; for (let k = 0; k < 12; k++) out[o + k] = m[k]; }
+    for (let i = 0; i < NB; i++) {
+      const m = bones[i], o = i * 12, bp = bind ? bind[i] : null, bx = bp ? bp[0] * hs : 0, by = bp ? bp[1] * hs : 0, bz = bp ? bp[2] * hs : 0;
+      out[o] = m[0]; out[o + 1] = m[1]; out[o + 2] = m[2]; out[o + 3] = m[3] - (m[0] * bx + m[1] * by + m[2] * bz);
+      out[o + 4] = m[4]; out[o + 5] = m[5]; out[o + 6] = m[6]; out[o + 7] = m[7] - (m[4] * bx + m[5] * by + m[6] * bz);
+      out[o + 8] = m[8]; out[o + 9] = m[9]; out[o + 10] = m[10]; out[o + 11] = m[11] - (m[8] * bx + m[9] * by + m[10] * bz);
+    }
     return out;
-  }
-
-  // ---------- mesh ----------
-  // Slots: which color / texture a vertex uses (uCol index in the shader)
-  const SL = { jer: 0, pant: 1, skin: 2, helm: 3, trim: 4, cleat: 5, pad: 6, mask: 7, num: 8, face: 9, arm: 10, name: 11, glove: 12, sock: 13, sole: 14, visor: 15, snum: 16, wht: 17 };
-  const NSL = 18;
-  // kit texture layout (fractions of the kit canvas), shared by the mesh UVs and the painter in Game
-  const KIT = { torso: [0, 0, 1, 0.34], sleeve: [0, 0.34, 0.5, 0.47], glove: [0.5, 0.34, 1, 0.47], pant: [0, 0.47, 0.5, 0.72], sock: [0.5, 0.47, 1, 0.6], helm: [0, 0.72, 1, 1] };
-  const HELM_TH = 2.62; // polar extent of the helmet shell (radians) -> v = theta / HELM_TH in the helmet region
-  // bind-pose joint positions in body space (hips at the origin, standing)
-  const BIND = (() => { const q = new Float32Array(PLEN); const m = fk(q, 0, -HIP_H, 0, 0, 1); return m.map((b) => [b[3], b[7], b[11]]); })();
-  // A player mesh is a set of smooth lofts (rings swept along an axis) plus a few decal patches. Vertex: pos3 normal3 bone slot uv2 ao.
-  function buildMesh(wide, lod) {
-    const V = [], I = [];
-    let nv = 0;
-    const Q = lod ? 0.6 : 1;
-    const SG = (n) => Math.max(6, Math.round(n * Q));
-    const push = (p, n, b, s, u, v, ao) => { V.push(p[0], p[1], p[2], n[0], n[1], n[2], b, s, u, v, ao); return nv++; };
-    const TAU = Math.PI * 2;
-    // loft: rings = [{y, rx, rz, cx, cz, v, ao, b}] in loft space (axis Y, ring in XZ, angle 0 at +X; the front (+Z) is at a quarter turn)
-    // o: { b bone, s slot, seg, m placement (loft -> body space), uv [u0,u1,v0,v1], a0/a1 arc (default full turn starting at the back),
-    //      mirrorU, capTop/capBot (close the ends), skip(i,j) -> true to leave a quad out, ao(i, ang) default multiplier, flip (inside-out) }
-    function loft(o, rings) {
-      const seg = o.seg || SG(12), m = o.m || IDM, uv = o.uv || [0, 1, 0, 1];
-      const full = o.a0 == null, a0 = full ? -Math.PI / 2 : o.a0, a1 = full ? a0 + TAU : o.a1;
-      const nR = rings.length;
-      // ring parameter v: explicit or by cumulative distance
-      let tot = 0; const tv = [0];
-      for (let i = 1; i < nR; i++) { const a = rings[i - 1], b = rings[i]; tot += Math.hypot(b.y - a.y, (b.rx - a.rx) * 0.7, (b.rz - a.rz) * 0.7); tv.push(tot); }
-      const P = [], Nn = [];
-      for (let i = 0; i < nR; i++) {
-        const r = rings[i], cx = r.cx || 0, cz = r.cz || 0, row = [];
-        for (let j = 0; j <= seg; j++) { const an = a0 + (a1 - a0) * j / seg; row.push([cx + r.rx * Math.cos(an), r.y, cz + r.rz * Math.sin(an)]); }
-        P.push(row);
-      }
-      for (let i = 0; i < nR; i++) {
-        const row = [], r = rings[i], cx = r.cx || 0, cz = r.cz || 0;
-        for (let j = 0; j <= seg; j++) {
-          const jm = full ? (j === 0 ? seg - 1 : j - 1) : Math.max(0, j - 1), jp = full ? (j === seg ? 1 : j + 1) : Math.min(seg, j + 1);
-          const dR = v3s(P[i][jp], P[i][jm]);
-          const im = Math.max(0, i - 1), ip = Math.min(nR - 1, i + 1);
-          let dL = v3s(P[ip][j], P[im][j]);
-          if (Math.hypot(dL[0], dL[1], dL[2]) < 1e-6) dL = [0, 1, 0];
-          let n = v3c(dL, dR); const l = Math.hypot(n[0], n[1], n[2]);
-          if (l < 1e-9) { const out = v3s(P[i][j], [cx, r.y, cz]); n = Math.hypot(out[0], out[1], out[2]) > 1e-6 ? v3n(out) : [0, 1, 0]; } else { n = [n[0] / l, n[1] / l, n[2] / l]; }
-          const out = v3s(P[i][j], [cx, r.y, cz]); if (v3d(n, out) < 0 && Math.hypot(out[0], out[1], out[2]) > 1e-6) n = [-n[0], -n[1], -n[2]];
-          if (o.flip) n = [-n[0], -n[1], -n[2]];
-          row.push(n);
-        }
-        Nn.push(row);
-      }
-      const base = nv, bodyP = (p) => mPt(m, p[0], p[1], p[2]), bodyN = (n) => v3n([m[0] * n[0] + m[1] * n[1] + m[2] * n[2], m[4] * n[0] + m[5] * n[1] + m[6] * n[2], m[8] * n[0] + m[9] * n[1] + m[10] * n[2]]);
-      for (let i = 0; i < nR; i++) {
-        const r = rings[i], b = r.b != null ? r.b : o.b, bp = BIND[b], vv = r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0;
-        for (let j = 0; j <= seg; j++) {
-          const an = a0 + (a1 - a0) * j / seg, p = bodyP(P[i][j]), n = bodyN(Nn[i][j]);
-          let u = j / seg; if (o.mirrorU) u = 1 - u;
-          const ao = (r.ao != null ? r.ao : 1) * (o.ao ? o.ao(i, an) : 1);
-          push([p[0] - bp[0], p[1] - bp[1], p[2] - bp[2]], n, b, o.s, uv[0] + (uv[1] - uv[0]) * u, uv[2] + (uv[3] - uv[2]) * vv, ao);
-        }
-      }
-      for (let i = 0; i < nR - 1; i++) for (let j = 0; j < seg; j++) {
-        if (o.skip && o.skip(i, j, a0 + (a1 - a0) * (j + 0.5) / seg)) continue;
-        const a = base + i * (seg + 1) + j, c = a + seg + 1;
-        if (o.flip) I.push(a, a + 1, c, a + 1, c + 1, c); else I.push(a, c, a + 1, a + 1, c, c + 1);
-      }
-      // end caps: a pole vertex at the ring centre
-      const cap = (i, dir) => {
-        const r = rings[i], b = r.b != null ? r.b : o.b, bp = BIND[b], c = bodyP([r.cx || 0, r.y + dir * Math.min(r.rx, r.rz) * 0.35, r.cz || 0]), n = bodyN([0, dir * (o.flip ? -1 : 1), 0]);
-        const pole = push([c[0] - bp[0], c[1] - bp[1], c[2] - bp[2]], n, b, o.s, uv[0] + (uv[1] - uv[0]) * 0.5, uv[2] + (uv[3] - uv[2]) * (r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0), (r.ao != null ? r.ao : 1));
-        for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j; if ((dir > 0) !== !!o.flip) I.push(pole, a, a + 1); else I.push(pole, a + 1, a); }
-      };
-      if (o.capTop) cap(0, 1); if (o.capBot) cap(nR - 1, -1);
-    }
-    // ellipsoid as a loft (polar rings), optionally partial in polar angle and azimuth
-    function ellipsoid(o, c, rx, ry, rz, th0, th1, nR) {
-      const rings = [];
-      for (let i = 0; i <= nR; i++) { const th = th0 + (th1 - th0) * i / nR, s = Math.sin(th); rings.push(Object.assign({ y: c[1] + ry * Math.cos(th), rx: Math.max(1e-4, rx * s), rz: Math.max(1e-4, rz * s), cx: c[0], cz: c[2] }, o.ring ? o.ring(th, i) : {})); }
-      loft(Object.assign({ capTop: th0 < 0.01, capBot: th1 > Math.PI - 0.01 }, o), rings);
-    }
-    // tube along a polyline (body space) with a circular section
-    function tube(o, pts, r, seg) {
-      seg = seg || SG(6); const base = nv, n = pts.length;
-      const frames = [];
-      let X = null;
-      for (let i = 0; i < n; i++) {
-        const T = v3n(v3s(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]));
-        if (!X) { X = v3c(T, Math.abs(T[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); } else { X = v3s(X, [T[0] * v3d(X, T), T[1] * v3d(X, T), T[2] * v3d(X, T)]); }
-        X = v3n(X); const Y = v3c(T, X); frames.push([X, Y]);
-      }
-      const bp = BIND[o.b];
-      for (let i = 0; i < n; i++) for (let j = 0; j <= seg; j++) {
-        const an = j / seg * TAU, [X, Y] = frames[i], nn = v3a(v3a([0, 0, 0], X, Math.cos(an)), Y, Math.sin(an)), p = v3a(pts[i], nn, r);
-        push([p[0] - bp[0], p[1] - bp[1], p[2] - bp[2]], nn, o.b, o.s, j / seg, i / (n - 1), o.ao == null ? 1 : o.ao);
-      }
-      for (let i = 0; i < n - 1; i++) for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j, c = a + seg + 1; I.push(a, c, a + 1, a + 1, c, c + 1); }
-      // closed ends
-      for (const [i, dir] of [[0, -1], [n - 1, 1]]) {
-        const T = v3n(v3s(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)])), c = pts[i], nn = [T[0] * dir, T[1] * dir, T[2] * dir];
-        const pole = push([c[0] - bp[0], c[1] - bp[1], c[2] - bp[2]], nn, o.b, o.s, 0.5, i / (n - 1), o.ao == null ? 1 : o.ao);
-        for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j; if (dir > 0) I.push(pole, a, a + 1); else I.push(pole, a + 1, a); }
-      }
-    }
-    const W = wide ? 1.2 : 1, W2 = wide ? 1.12 : 1, HPI = Math.PI / 2;
-    const uvOf = (k, u0, u1, v0, v1) => { const r = KIT[k]; return [r[0] + (r[2] - r[0]) * (u0 || 0), r[0] + (r[2] - r[0]) * (u1 == null ? 1 : u1), r[1] + (r[3] - r[1]) * (v0 || 0), r[1] + (r[3] - r[1]) * (v1 == null ? 1 : v1)]; };
-    const boneAt = (y) => (y >= 0.4 ? B.chest : y >= 0.16 ? B.spine : B.hips);
-    const R = (y, rx, rz, extra) => Object.assign({ y, rx: rx * W, rz: rz * W2 }, extra || {});
-    // ---- torso: jersey over shoulder pads, tucked at the waist ----
-    const torso = [R(0.72, 0.085, 0.075, { v: 0, ao: 0.55 }), R(0.705, 0.125, 0.105, { v: 0.03, ao: 0.75 }), R(0.69, 0.24, 0.15, { v: 0.06 }), R(0.665, 0.4, 0.19, { v: 0.13 }),
-      R(0.6, 0.395, 0.195, { v: 0.2 }), R(0.52, 0.3, 0.175, { v: 0.3, ao: 0.72 }), R(0.42, 0.255, 0.165, { v: 0.42, ao: 0.9 }), R(0.3, 0.23, 0.15 * (wide ? 1.2 : 1), { v: 0.58 }),
-      R(0.16, 0.205, 0.135 * (wide ? 1.25 : 1), { v: 0.8, ao: 0.9 }), R(0.09, 0.2, 0.135 * (wide ? 1.2 : 1), { v: 0.93, ao: 0.7 })];
-    torso.forEach((r) => { r.b = boneAt(r.y); });
-    loft({ s: SL.jer, seg: SG(20), uv: uvOf('torso'), ao: (i, an) => (i >= 3 && i <= 5 && Math.abs(Math.cos(an)) > 0.86 ? 0.72 : 1) }, torso);
-    // ---- decal patches on the jersey (atlas numbers / name) ----
-    const patch = (s, y0, y1, aC, aW, scale) => {
-      const rs = [];
-      for (let i = 0; i <= 3; i++) {
-        const y = y0 + (y1 - y0) * i / 3; let k = 1; while (k < torso.length - 1 && torso[k].y > y) k++;
-        const a = torso[k - 1], b = torso[k], t = clamp((a.y - y) / (a.y - b.y || 1e-6), 0, 1);
-        rs.push({ y, rx: lerp(a.rx, b.rx, t) * scale, rz: lerp(a.rz, b.rz, t) * scale, b: boneAt(y), v: i / 3, ao: 0.95 });
-      }
-      loft({ s, seg: SG(8), a0: aC - aW, a1: aC + aW }, rs);
-    };
-    patch(SL.num, 0.5, 0.26, HPI, 0.5, 1.012);            // front number
-    patch(SL.num, 0.55, 0.23, -HPI, 0.62, 1.012);          // back number
-    if (!lod) patch(SL.name, 0.63, 0.565, -HPI, 0.72, 1.012); // name plate
-    // ---- neck + collar roll ----
-    loft({ b: B.neck, s: SL.skin, seg: SG(10) }, [{ y: 0.68, rx: 0.064, rz: 0.06, b: B.chest, ao: 0.5 }, { y: 0.74, rx: 0.062, rz: 0.058, ao: 0.6 }, { y: 0.86, rx: 0.07, rz: 0.066, ao: 0.6 }]);
-    loft({ b: B.chest, s: SL.trim, seg: SG(12) }, [{ y: 0.715, rx: 0.095 * W, rz: 0.082 * W2, ao: 0.8 }, { y: 0.735, rx: 0.115 * W, rz: 0.1 * W2 }, { y: 0.72, rx: 0.135 * W, rz: 0.115 * W2 }]);
-    // ---- head, face, helmet ----
-    const HC = [0, 0.945, 0.005];
-    ellipsoid({ b: B.head, s: SL.skin, seg: SG(14), ring: () => ({ ao: 0.55 }) }, HC, 0.13, 0.155, 0.14, 0, Math.PI, 7);
-    ellipsoid({ b: B.head, s: SL.face, seg: SG(8), a0: HPI - 0.95, a1: HPI + 0.95, ring: (th, i) => ({ v: i / 4, ao: 0.9 }) }, HC, 0.132, 0.157, 0.142, 0.95, 2.2, 4);
-    const HEC = [0, 0.965, -0.005], HR = [0.185, 0.2, 0.212];
-    const helmSkip = (th) => (i, j, an) => { // face opening in front, neck cut at the back
-      const t = th(i + 0.5), d = Math.abs(angDiffL(an, HPI));
-      if (t > 1.05 && d < 0.32 + Math.min(1.1, (t - 1.05) * 1.9)) return true;
-      if (t > 1.3 && d < 1.2) return true;
-      if (t > 2.15 && Math.abs(angDiffL(an, -HPI)) < 0.55 + (t - 2.15) * 1.3) return true;
-      return false;
-    };
-    const angDiffL = (a, b) => { let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
-    const NHR = lod ? 8 : 12, thAt = (i) => HELM_TH * i / NHR;
-    const helmRing = (th, i) => { const flare = th > 1.9 ? 1 + 0.07 * (th - 1.9) : 1, brow = th > 1.0 && th < 1.5 ? 1.03 : 1; return { rx: Math.max(1e-4, HR[0] * Math.sin(th) * flare), rz: Math.max(1e-4, HR[2] * Math.sin(th) * brow), cz: HEC[2] + (th > 1.9 ? 0.02 * (th - 1.9) : 0), v: th / HELM_TH }; };
-    ellipsoid({ b: B.head, s: SL.helm, seg: SG(22), uv: uvOf('helm'), skip: helmSkip(thAt), ring: helmRing }, HEC, HR[0], HR[1], HR[2], 0, HELM_TH, NHR);
-    if (!lod) ellipsoid({ b: B.head, s: SL.helm, seg: SG(22), uv: uvOf('helm'), skip: helmSkip(thAt), flip: true, ring: (th, i) => Object.assign(helmRing(th, i), { ao: 0.3, rx: Math.max(1e-4, HR[0] * 0.94 * Math.sin(th)), rz: Math.max(1e-4, HR[2] * 0.94 * Math.sin(th)) }) }, HEC, HR[0] * 0.94, HR[1] * 0.94, HR[2] * 0.94, 0.3, HELM_TH, NHR);
-    // facemask: bars with real thickness
-    const arcPts = (y, r0, r2, aA, aB, n, bulge) => { const pts = []; for (let i = 0; i <= n; i++) { const an = aA + (aB - aA) * i / n, k = 1 + (bulge || 0) * Math.sin((i / n) * Math.PI); pts.push([HEC[0] + r0 * k * Math.cos(an), y, HEC[2] + r2 * k * Math.sin(an)]); } return pts; };
-    const MR = lod ? 0.014 : 0.013, MSG = lod ? 5 : 7;
-    for (const y of [0.955, 0.895, 0.835]) tube({ b: B.head, s: SL.mask }, arcPts(y, 0.2, 0.228, HPI - 1.22, HPI + 1.22, lod ? 8 : 12, 0.03), MR, MSG);
-    tube({ b: B.head, s: SL.mask }, [[0, 1.035, 0.205], [0, 0.99, 0.232], [0, 0.955, 0.238], [0, 0.895, 0.236], [0, 0.835, 0.228], [0, 0.805, 0.2]], MR, MSG);
-    if (!lod) for (const sd of [-1, 1]) tube({ b: B.head, s: SL.mask }, [[sd * 0.115, 0.985, 0.195], [sd * 0.118, 0.955, 0.2], [sd * 0.117, 0.895, 0.197], [sd * 0.112, 0.835, 0.19]], MR * 0.9, MSG);
-    // chin strap + cup
-    tube({ b: B.head, s: SL.wht, ao: 0.8 }, arcPts(0.805, 0.17, 0.165, HPI - 1.3, HPI + 1.3, 8, 0.02).map((p, i, a) => [p[0], p[1] - 0.012 * Math.sin((i / (a.length - 1)) * Math.PI), p[2]]), 0.009, 4);
-    if (!lod) ellipsoid({ b: B.head, s: SL.wht, seg: SG(8) }, [0, 0.8, 0.15], 0.045, 0.028, 0.03, 0, Math.PI, 3);
-    // visor (its own index range, drawn blended; hidden per player when not worn)
-    const vi0 = I.length;
-    if (!lod) ellipsoid({ b: B.head, s: SL.visor, seg: SG(10), a0: HPI - 1.0, a1: HPI + 1.0, ring: () => ({ ao: 1 }) }, HC, 0.166, 0.17, 0.188, 1.22, 1.68, 3);
-    const vin = I.length - vi0;
-    // ---- arms ----
-    for (const sd of [-1, 1]) {
-      const sh = sd < 0 ? B.shL : B.shR, el = sd < 0 ? B.elL : B.elR, ha = sd < 0 ? B.haL : B.haR, X = sd * 0.3, AW = wide ? 1.08 : 1;
-      const mir = sd < 0; // the left arm mirrors its texture so stripes and numbers read the right way round
-      loft({ b: sh, s: SL.jer, seg: SG(12), uv: uvOf('sleeve'), mirrorU: mir, capTop: true, ao: (i, an) => (i >= 2 && Math.cos(an) * sd < -0.5 ? 0.7 : 1) },
-        [{ y: 0.705, rx: 0.07 * AW, rz: 0.07 * AW, cx: X + sd * 0.02, ao: 0.9 }, { y: 0.675, rx: 0.12 * AW, rz: 0.115 * AW, cx: X + sd * 0.025 }, { y: 0.6, rx: 0.128 * AW, rz: 0.12 * AW, cx: X + sd * 0.02 }, { y: 0.52, rx: 0.112 * AW, rz: 0.105 * AW, cx: X + sd * 0.01, ao: 0.85 }, { y: 0.47, rx: 0.1 * AW, rz: 0.095 * AW, cx: X + sd * 0.005, ao: 0.8 }]);
-      if (!lod) { // small sleeve number
-        const rs = []; for (let i = 0; i <= 2; i++) { const y = 0.63 - 0.09 * i; rs.push({ y, rx: (0.129 - 0.012 * i) * AW, rz: (0.121 - 0.012 * i) * AW, cx: X + sd * 0.021, v: i / 2, ao: 0.95 }); }
-        loft({ b: sh, s: SL.snum, seg: SG(6), a0: (sd > 0 ? 0 : Math.PI) - 0.5, a1: (sd > 0 ? 0 : Math.PI) + 0.5 }, rs);
-      }
-      loft({ b: sh, s: SL.arm, seg: SG(10) }, [{ y: 0.475, rx: 0.088 * AW, rz: 0.085 * AW, cx: X + sd * 0.004, ao: 0.75 }, { y: 0.4, rx: 0.086 * AW, rz: 0.088 * AW, cx: X + sd * 0.002, cz: 0.004 }, { y: 0.33, rx: 0.075 * AW, rz: 0.072 * AW, cx: X }, { y: 0.27, rx: 0.068, rz: 0.066, cx: X }]);
-      loft({ b: el, s: SL.arm, seg: SG(10) }, [{ y: 0.29, rx: 0.066, rz: 0.064, cx: X }, { y: 0.21, rx: 0.07, rz: 0.07, cx: X }, { y: 0.1, rx: 0.058, rz: 0.055, cx: X }, { y: 0.005, rx: 0.049, rz: 0.044, cx: X }]);
-      if (!lod) loft({ b: el, s: SL.wht, seg: SG(8) }, [{ y: 0.01, rx: 0.052, rz: 0.047, cx: X }, { y: -0.035, rx: 0.052, rz: 0.046, cx: X }]); // wrist tape
-      // hand: a gloved mitt with a thumb
-      loft({ b: ha, s: SL.glove, seg: SG(10), uv: uvOf('glove'), capBot: true }, [{ y: -0.03, rx: 0.05, rz: 0.03, cx: X }, { y: -0.1, rx: 0.062, rz: 0.032, cx: X }, { y: -0.17, rx: 0.058, rz: 0.03, cx: X }, { y: -0.235, rx: 0.04, rz: 0.022, cx: X }, { y: -0.255, rx: 0.02, rz: 0.012, cx: X }]);
-      if (!lod) tube({ b: ha, s: SL.glove }, [[X + sd * 0.035, -0.07, 0.01], [X + sd * 0.07, -0.11, 0.03], [X + sd * 0.085, -0.15, 0.04]], 0.017, 5);
-    }
-    // ---- pelvis + legs ----
-    const pel = (y, rx, rz, e) => Object.assign({ y, rx: rx * (wide ? 1.15 : 1), rz: rz * (wide ? 1.12 : 1) }, e || {});
-    loft({ b: B.hips, s: SL.pant, seg: SG(16), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [pel(0.165, 0.205, 0.14, { v: 0 }), pel(0.1, 0.212, 0.145, { v: 0.3 }), pel(0.0, 0.228, 0.158, { v: 0.6 }), pel(-0.12, 0.2, 0.15, { v: 0.85, ao: 0.8 }), pel(-0.19, 0.15, 0.125, { v: 1, ao: 0.6 })]);
-    for (const sd of [-1, 1]) {
-      const hp = sd < 0 ? B.hipL : B.hipR, kn = sd < 0 ? B.knL : B.knR, ft = sd < 0 ? B.ftL : B.ftR, X = sd * 0.15, LW = wide ? 1.12 : 1;
-      const inner = (i, an) => (i <= 1 && Math.cos(an) * sd < -0.6 ? 0.72 : 1);
-      loft({ b: hp, s: SL.pant, seg: SG(12), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner },
-        [{ y: -0.02, rx: 0.138 * LW, rz: 0.13 * LW, cx: X, cz: 0.01, v: 0, ao: 0.8 }, { y: -0.2, rx: 0.13 * LW, rz: 0.13 * LW, cx: X, cz: 0.02, v: 0.3 }, { y: -0.38, rx: 0.11 * LW, rz: 0.11 * LW, cx: X, cz: 0.01, v: 0.6 },
-          { y: -0.53, rx: 0.095, rz: 0.095, cx: X, v: 0.82 }, { y: -0.585, rx: 0.095, rz: 0.1, cx: X, cz: 0.015, b: kn, v: 0.92 }, { y: -0.655, rx: 0.084, rz: 0.084, cx: X, b: kn, v: 1 }]);
-      loft({ b: kn, s: SL.skin, seg: SG(10) }, [{ y: -0.655, rx: 0.077, rz: 0.077, cx: X, ao: 0.72 }, { y: -0.74, rx: 0.08, rz: 0.086, cx: X, cz: -0.014 }, { y: -0.8, rx: 0.072, rz: 0.074, cx: X, cz: -0.008 }]);
-      loft({ b: kn, s: SL.sock, seg: SG(10), uv: uvOf('sock') }, [{ y: -0.8, rx: 0.075, rz: 0.077, cx: X, cz: -0.008 }, { y: -0.88, rx: 0.066, rz: 0.068, cx: X, cz: -0.004 }, { y: -0.97, rx: 0.056, rz: 0.058, cx: X }, { y: -1.02, rx: 0.052, rz: 0.054, cx: X, b: ft, ao: 0.85 }]);
-      // shoe: lofted along +Z from the heel to the toe, with a sole plate
-      const shoeM = mMul(mT(IDM, X, -1.046, -0.01), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
-      const shoe = [{ y: 0.095, rx: 0.028, rz: 0.022 }, { y: 0.07, rx: 0.044, rz: 0.03 }, { y: 0.0, rx: 0.051, rz: 0.036, cz: 0.006, ao: 0.85 }, { y: -0.08, rx: 0.053, rz: 0.03 }, { y: -0.16, rx: 0.05, rz: 0.026 }, { y: -0.215, rx: 0.03, rz: 0.012 }];
-      loft({ b: ft, s: SL.cleat, seg: SG(10), m: shoeM, capTop: true, capBot: true }, shoe);
-      loft({ b: ft, s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, -1.07, -0.01), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + 0.004, rz: 0.007, cz: 0 })));
-    }
-    return { v: new Float32Array(V), i: new Uint16Array(I), n: I.length, nv, vi0, vin };
   }
 
   // ---------- light ragdoll: 11 verlet points with distance constraints and ground contact ----------
@@ -954,7 +1003,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const P = (b, oy) => { const m = bones[b]; return oy ? mPt(m, 0, oy, 0) : [m[3], m[7], m[11]]; };
     this.pts = [P(B.hips), P(B.chest), P(B.head, 0.16 * hs), P(B.elL), P(B.haL), P(B.elR), P(B.haR), P(B.knL), P(B.ftL), P(B.knR), P(B.ftR)];
     this.prev = this.pts.map((q, i) => { const k = i === 0 || i === 1 ? 1 : i === 2 ? 0.95 : 0.75 + 0.3 * crand(); return [q[0] - vel[0] * k * dt, q[1] - vel[1] * k * dt, q[2] - vel[2] * k * dt]; });
-    this.hs = hs; this.t = 0; this.rest = false; this.h = p.h; this.floor = 0; this.dt = dt;
+    this.hs = hs; this.sw = p.lk.sw || 1; this.t = 0; this.rest = false; this.h = p.h; this.floor = 0; this.dt = dt;
     const L = (a, b, d, t) => ({ a, b, d: d * hs, t: t || 0 }); // t: 0 = equal, 1 = max, -1 = min
     this.cons = [L(0, 1, 0.4), L(1, 2, 0.54), L(0, 2, 0.94, 1), L(0, 2, 0.8, -1),
       L(1, 3, 0.48), L(3, 4, 0.32), L(1, 4, 0.78, 1), L(1, 4, 0.3, -1), L(1, 5, 0.48), L(5, 6, 0.32), L(1, 6, 0.78, 1), L(1, 6, 0.3, -1), L(3, 5, 0.5, -1), L(0, 3, 0.7, 1), L(0, 5, 0.7, 1),
@@ -1007,7 +1056,7 @@ gl_FragColor=vec4(c,1.0);}`;
     out[B.head] = mAxes(v3a(nj, up2, 0.08 * hs), X2, up2, Z2);
     const fwd = Z;
     for (const [sh, el, ha, pe, ph, sd] of [[B.shL, B.elL, B.haL, 3, 4, -1], [B.shR, B.elR, B.haR, 5, 6, 1]]) {
-      const S = mPt(out[B.chest], sd * 0.3 * hs, 0.24 * hs, 0), E = q[pe], H = q[ph];
+      const S = mPt(out[B.chest], sd * 0.3 * hs * (this.sw || 1), 0.24 * hs, 0), E = q[pe], H = q[ph];
       out[sh] = mFromDown(S, v3s(E, S), fwd); out[el] = mFromDown(E, v3s(H, E), fwd); out[ha] = mFromDown(H, v3s(H, E), fwd);
     }
     for (const [hp, kn, ft, pk, pf, sd] of [[B.hipL, B.knL, B.ftL, 7, 8, -1], [B.hipR, B.knR, B.ftR, 9, 10, 1]]) {
@@ -1016,6 +1065,298 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     return out;
   };
+
+  // =====================================================================================
+  // Athlete mesh: one smooth skinned surface per body type (two bone weights per vertex), lofted from anatomical
+  // cross-sections, with the gear modelled as geometry over the body. Vertex: pos3 nrm3 bone2 weight slot uv2 ao (13 floats)
+  // =====================================================================================
+  const SL = { jer: 0, pant: 1, skin: 2, helm: 3, trim: 4, cleat: 5, pad: 6, mask: 7, num: 8, face: 9, arm: 10, name: 11, glove: 12, sock: 13, sole: 14, visor: 15, snum: 16, wht: 17, eye: 18, tape: 19, towel: 20, stripes: 21, mouth: 22 };
+  const NSL = 23;
+  // kit texture layout (fractions of the kit canvas), shared by the mesh UVs and the painter in Game
+  const KIT = { torso: [0, 0, 1, 0.34], sleeve: [0, 0.34, 0.5, 0.47], glove: [0.5, 0.34, 1, 0.47], pant: [0, 0.47, 0.5, 0.72], sock: [0.5, 0.47, 1, 0.6], helm: [0, 0.72, 1, 1], stripes: [0.5, 0.6, 1, 0.72] };
+  const HELM_TH = 2.62; // polar extent of the helmet shell (radians) -> v = theta / HELM_TH in the helmet region
+  const VSTRIDE = 13;
+  // bind-pose joint positions in body space for a shoulder width factor
+  function bindFor(sw) { const q = new Float32Array(PLEN); const m = fk(q, 0, -HIP_H, 0, 0, 1, sw); return m.map((b) => [b[3], b[7], b[11]]); }
+  // body specs by position: height scale, girth, belly, shoulder width, leg/arm girth
+  const BODY = {
+    QB: { hs: 0.985, bulk: 1.0, belly: 0.05, sw: 1.0, legs: 1.06, arms: 1.0, neck: 1.0 },
+    RB: { hs: 0.92, bulk: 1.06, belly: 0.05, sw: 1.0, legs: 1.22, arms: 1.05, neck: 1.08 },
+    WR: { hs: 0.96, bulk: 0.9, belly: 0.0, sw: 0.95, legs: 1.0, arms: 0.9, neck: 0.95 },
+    TE: { hs: 1.0, bulk: 1.14, belly: 0.15, sw: 1.06, legs: 1.1, arms: 1.1, neck: 1.1 },
+    OL: { hs: 1.01, bulk: 1.3, belly: 0.9, sw: 1.14, legs: 1.28, arms: 1.24, neck: 1.2 },
+    DL: { hs: 1.01, bulk: 1.26, belly: 0.7, sw: 1.12, legs: 1.25, arms: 1.22, neck: 1.18 },
+    LB: { hs: 0.995, bulk: 1.12, belly: 0.1, sw: 1.05, legs: 1.1, arms: 1.1, neck: 1.1 },
+    CB: { hs: 0.955, bulk: 0.88, belly: 0.0, sw: 0.94, legs: 1.0, arms: 0.88, neck: 0.95 },
+    S: { hs: 0.965, bulk: 0.92, belly: 0.0, sw: 0.96, legs: 1.02, arms: 0.92, neck: 0.97 },
+    K: { hs: 0.95, bulk: 0.88, belly: 0.0, sw: 0.96, legs: 0.95, arms: 0.85, neck: 0.95 },
+    REF: { hs: 0.94, bulk: 0.9, belly: 0.25, sw: 0.96, legs: 0.9, arms: 0.85, neck: 0.95, cap: 1, noGear: 1 },
+    COACH: { hs: 0.95, bulk: 1.0, belly: 0.5, sw: 1.0, legs: 1.0, arms: 0.95, neck: 1.0, cap: 1, noGear: 1, headset: 1 },
+  };
+  const bodyKey = (s) => [s.bulk, s.belly, s.sw, s.legs, s.arms, s.neck, s.cap ? 1 : 0, s.noGear ? 1 : 0, s.headset ? 1 : 0].map((v) => Math.round(v * 100)).join(',');
+  function buildBody(S, lod) {
+    const V = [], I = [];
+    let nv = 0;
+    const Q = lod ? 0.62 : 1, HPI = Math.PI / 2, TAU = Math.PI * 2;
+    const SG = (n) => Math.max(5, Math.round(n * Q));
+    const BIND = bindFor(S.sw);
+    const push = (p, n, b0, b1, w0, s, u, v, ao) => { V.push(p[0], p[1], p[2], n[0], n[1], n[2], b0, b1, w0, s, u, v, ao); return nv++; };
+    const angD = (a, b) => { let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
+    // smooth two-bone weight for a ring at height y between joints j0 (bone a) and j1 (bone b); zone = half width of the blend
+    const wt = (y, y0, y1, a, b, zone) => { zone = zone || 0.07; const mid = (y0 + y1) / 2; const t = clamp((y - (y1 - zone)) / (2 * zone), 0, 1); const s = t * t * (3 - 2 * t); return y <= y1 - zone ? [a, b, 1] : y >= y1 + zone ? [b, a, 1] : [a, b, 1 - s]; };
+    // loft: rings = [{y, rx, rz, cx, cz, v, ao, w:[b0,b1,w0], f(an)->radius mult, s slot}] in loft space (axis Y, ring in XZ, angle 0 at +X; the front (+Z) at a quarter turn)
+    // o: { s slot, seg, m placement (loft -> body space), uv [u0,u1,v0,v1], a0/a1 arc, mirrorU, capTop/capBot, skip(i,j,an), ao(i,an), flip, w default weights, open (no wrap seam) }
+    function loft(o, rings) {
+      const seg = o.seg || SG(12), m = o.m || IDM, uv = o.uv || [0, 1, 0, 1];
+      const full = o.a0 == null, a0 = full ? -HPI : o.a0, a1 = full ? a0 + TAU : o.a1;
+      // duplicate rings where the slot changes so each quad strip has one material
+      const R = [];
+      for (let i = 0; i < rings.length; i++) { const r = rings[i]; if (i > 0 && r.s != null && rings[i - 1].s != null && r.s !== rings[i - 1].s) R.push(Object.assign({}, rings[i - 1], { s: r.s, dup: 1 })); R.push(r); }
+      const nR = R.length;
+      let tot = 0; const tv = [0];
+      for (let i = 1; i < nR; i++) { const a = R[i - 1], b = R[i]; tot += Math.hypot(b.y - a.y, (b.rx - a.rx) * 0.7, (b.rz - a.rz) * 0.7); tv.push(tot); }
+      const P = [], Nn = [];
+      for (let i = 0; i < nR; i++) {
+        const r = R[i], cx = r.cx || 0, cz = r.cz || 0, row = [];
+        for (let j = 0; j <= seg; j++) { const an = a0 + (a1 - a0) * j / seg, k = r.f ? r.f(an) : 1; row.push([cx + r.rx * k * Math.cos(an), r.y + (r.fy ? r.fy(an) : 0), cz + r.rz * k * Math.sin(an)]); }
+        P.push(row);
+      }
+      for (let i = 0; i < nR; i++) {
+        const row = [], r = R[i], cx = r.cx || 0, cz = r.cz || 0;
+        for (let j = 0; j <= seg; j++) {
+          const jm = full ? (j === 0 ? seg - 1 : j - 1) : Math.max(0, j - 1), jp = full ? (j === seg ? 1 : j + 1) : Math.min(seg, j + 1);
+          const dR = v3s(P[i][jp], P[i][jm]);
+          let im = i - 1, ip = i + 1; while (im > 0 && R[im].dup) im--; while (ip < nR - 1 && R[ip].dup) ip++; im = Math.max(0, im); ip = Math.min(nR - 1, ip);
+          let dL = v3s(P[ip][j], P[im][j]);
+          if (Math.hypot(dL[0], dL[1], dL[2]) < 1e-6) dL = [0, 1, 0];
+          let n = v3c(dL, dR); const l = Math.hypot(n[0], n[1], n[2]);
+          if (l < 1e-9) { const out = v3s(P[i][j], [cx, r.y, cz]); n = Math.hypot(out[0], out[1], out[2]) > 1e-6 ? v3n(out) : [0, 1, 0]; } else { n = [n[0] / l, n[1] / l, n[2] / l]; }
+          const out = v3s(P[i][j], [cx, r.y, cz]); if (v3d(n, out) < 0 && Math.hypot(out[0], out[1], out[2]) > 1e-6) n = [-n[0], -n[1], -n[2]];
+          if (o.flip) n = [-n[0], -n[1], -n[2]];
+          row.push(n);
+        }
+        Nn.push(row);
+      }
+      const base = nv, bodyP = (p) => mPt(m, p[0], p[1], p[2]), bodyN = (n) => v3n([m[0] * n[0] + m[1] * n[1] + m[2] * n[2], m[4] * n[0] + m[5] * n[1] + m[6] * n[2], m[8] * n[0] + m[9] * n[1] + m[10] * n[2]]);
+      for (let i = 0; i < nR; i++) {
+        const r = R[i], w = r.w || o.w || [0, 0, 1], s = r.s != null ? r.s : o.s, vv = r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0;
+        for (let j = 0; j <= seg; j++) {
+          const an = a0 + (a1 - a0) * j / seg, p = bodyP(P[i][j]), n = bodyN(Nn[i][j]);
+          let u = j / seg; if (o.mirrorU) u = 1 - u;
+          const ao = (r.ao != null ? r.ao : 1) * (o.ao ? o.ao(i, an) : 1);
+          push(p, n, w[0], w[1], w[2], s, uv[0] + (uv[1] - uv[0]) * u, uv[2] + (uv[3] - uv[2]) * vv, ao);
+        }
+      }
+      for (let i = 0; i < nR - 1; i++) {
+        if (R[i + 1].dup) continue;
+        for (let j = 0; j < seg; j++) {
+          if (o.skip && o.skip(i, j, a0 + (a1 - a0) * (j + 0.5) / seg)) continue;
+          const a = base + i * (seg + 1) + j, c = a + seg + 1;
+          if (o.flip) I.push(a, a + 1, c, a + 1, c + 1, c); else I.push(a, c, a + 1, a + 1, c, c + 1);
+        }
+      }
+      const cap = (i, dir) => {
+        const r = R[i], w = r.w || o.w || [0, 0, 1], s = r.s != null ? r.s : o.s, c = bodyP([r.cx || 0, r.y + dir * Math.min(r.rx, r.rz) * 0.3, r.cz || 0]), n = bodyN([0, dir * (o.flip ? -1 : 1), 0]);
+        const pole = push(c, n, w[0], w[1], w[2], s, uv[0] + (uv[1] - uv[0]) * 0.5, uv[2] + (uv[3] - uv[2]) * (r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0), (r.ao != null ? r.ao : 1));
+        for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j; if ((dir > 0) !== !!o.flip) I.push(pole, a, a + 1); else I.push(pole, a + 1, a); }
+      };
+      if (o.capTop) cap(0, 1); if (o.capBot) cap(nR - 1, -1);
+    }
+    function ellipsoid(o, c, rx, ry, rz, th0, th1, nR) {
+      const rings = [];
+      for (let i = 0; i <= nR; i++) { const th = th0 + (th1 - th0) * i / nR, s = Math.sin(th); rings.push(Object.assign({ y: c[1] + ry * Math.cos(th), rx: Math.max(1e-4, rx * s), rz: Math.max(1e-4, rz * s), cx: c[0], cz: c[2] }, o.ring ? o.ring(th, i) : {})); }
+      loft(Object.assign({ capTop: th0 < 0.01, capBot: th1 > Math.PI - 0.01 }, o), rings);
+    }
+    // tube along a polyline (body space), circular section, closed ends; w = weights
+    function tube(o, pts, r, seg, taper) {
+      seg = seg || SG(6); const base = nv, n = pts.length, w = o.w || [0, 0, 1];
+      const frames = []; let X = null;
+      for (let i = 0; i < n; i++) {
+        const T = v3n(v3s(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]));
+        if (!X) { X = v3c(T, Math.abs(T[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); } else { X = v3s(X, [T[0] * v3d(X, T), T[1] * v3d(X, T), T[2] * v3d(X, T)]); }
+        X = v3n(X); const Y = v3c(T, X); frames.push([X, Y]);
+      }
+      for (let i = 0; i < n; i++) { const rr = taper ? r * taper(i / (n - 1)) : r; for (let j = 0; j <= seg; j++) { const an = j / seg * TAU, [X, Y] = frames[i], nn = v3a(v3a([0, 0, 0], X, Math.cos(an)), Y, Math.sin(an)), p = v3a(pts[i], nn, rr); push(p, nn, w[0], w[1], w[2], o.s, j / seg, i / (n - 1), o.ao == null ? 1 : o.ao); } }
+      for (let i = 0; i < n - 1; i++) for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j, c = a + seg + 1; I.push(a, c, a + 1, a + 1, c, c + 1); }
+      for (const [i, dir] of [[0, -1], [n - 1, 1]]) {
+        const T = v3n(v3s(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)])), c = pts[i], nn = [T[0] * dir, T[1] * dir, T[2] * dir];
+        const pole = push(c, nn, w[0], w[1], w[2], o.s, 0.5, i / (n - 1), o.ao == null ? 1 : o.ao);
+        for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j; if (dir > 0) I.push(pole, a, a + 1); else I.push(pole, a + 1, a); }
+      }
+    }
+    const uvOf = (k, u0, u1, v0, v1) => { const r = KIT[k]; return [r[0] + (r[2] - r[0]) * (u0 || 0), r[0] + (r[2] - r[0]) * (u1 == null ? 1 : u1), r[1] + (r[3] - r[1]) * (v0 || 0), r[1] + (r[3] - r[1]) * (v1 == null ? 1 : v1)]; };
+    const W = S.bulk, W2 = 0.6 + 0.4 * S.bulk, BEL = S.belly, gear = !S.noGear;
+    const torsoW = (y) => { // weights along the spine: hips -> spine (0.16) -> chest (0.40) -> neck (0.70)
+      if (y < 0.16) return wt(y, 0, 0.16, B.hips, B.spine, 0.06);
+      if (y < 0.40) return wt(y, 0.16, 0.40, B.spine, B.chest, 0.07);
+      return wt(y, 0.40, 0.70, B.chest, B.neck, 0.05);
+    };
+    const bellyK = (y) => BEL * Math.max(0, Math.sin(Math.PI * clamp((y - 0.06) / 0.34, 0, 1))); // 0..1 over the abdomen
+    const T = (y, rx, rz, e) => { const bk = bellyK(y), r = Object.assign({ y, rx: rx * W * (1 + 0.1 * bk), rz: rz * W2 * (1 + 0.42 * bk), cz: 0.045 * bk, w: torsoW(y) }, e || {}); return r; };
+    // ---- torso: jersey stretched over the shoulder pads (hard shelf + rounded caps), chest plate, tucked at the belt ----
+    const shelf = gear ? 1 : 0;
+    const torso = [T(0.745, 0.08, 0.07, { v: 0, ao: 0.5 }), T(0.728, 0.12, 0.098, { v: 0.025, ao: 0.68 }), T(0.705, 0.22 + 0.03 * shelf, 0.148, { v: 0.06, ao: 0.85 }),
+      T(0.685, 0.305 + 0.05 * shelf, 0.182, { v: 0.1 }), T(0.665, 0.325 + 0.05 * shelf, 0.2, { v: 0.14 }), T(0.635, 0.32 + 0.045 * shelf, 0.208, { v: 0.19, ao: 0.92 }),
+      T(0.58, 0.295 + 0.02 * shelf, 0.208, { v: 0.27 }), T(0.5, 0.268, 0.195, { v: 0.38, ao: 0.9 }), T(0.42, 0.245, 0.176, { v: 0.48 }), T(0.33, 0.228, 0.162, { v: 0.6 }),
+      T(0.24, 0.218, 0.153, { v: 0.72 }), T(0.15, 0.212, 0.148, { v: 0.84, ao: 0.92 }), T(0.085, 0.212, 0.148, { v: 0.94, ao: 0.75 }), T(0.05, 0.205, 0.144, { v: 1, ao: 0.6 })];
+    // pectoral / lat shaping: a little fuller at the front top and at the back for the lats
+    for (const r of torso) { if (r.y > 0.45 && r.y < 0.65) r.f = (an) => 1 + 0.035 * Math.max(0, Math.sin(an)) * Math.abs(Math.cos(an)) * 2; }
+    loft({ s: S.noGear && S.cap ? SL.stripes : SL.jer, seg: SG(28), uv: uvOf('torso'), ao: (i, an) => (i >= 4 && i <= 7 && Math.abs(Math.cos(an)) > 0.9 ? 0.72 : 1) }, torso);
+    // decal patches (numbers / name plate) ride a hair above the jersey
+    const patch = (s, y0, y1, aC, aW, scale) => {
+      const rs = [];
+      for (let i = 0; i <= 3; i++) {
+        const y = y0 + (y1 - y0) * i / 3; let k = 1; while (k < torso.length - 1 && torso[k].y > y) k++;
+        const a = torso[k - 1], b = torso[k], t = clamp((a.y - y) / (a.y - b.y || 1e-6), 0, 1);
+        rs.push({ y, rx: lerp(a.rx, b.rx, t) * scale, rz: lerp(a.rz, b.rz, t) * scale, cz: lerp(a.cz, b.cz, t) * scale, w: torsoW(y), v: i / 3, ao: 0.95 });
+      }
+      loft({ s, seg: SG(8), a0: aC - aW, a1: aC + aW }, rs);
+    };
+    if (gear) {
+      patch(SL.num, 0.5, 0.26, HPI, 0.5, 1.012);            // front number
+      patch(SL.num, 0.56, 0.24, -HPI, 0.62, 1.012);          // back number
+      if (!lod) patch(SL.name, 0.645, 0.585, -HPI, 0.75, 1.012); // name plate
+    }
+    // ---- neck + collar ----
+    const NK = S.neck;
+    loft({ s: SL.skin, seg: SG(12) }, [{ y: 0.69, rx: 0.068 * NK, rz: 0.062 * NK, w: [B.chest, B.neck, 0.7], ao: 0.5, cz: -0.005 }, { y: 0.745, rx: 0.062 * NK, rz: 0.058 * NK, w: [B.neck, B.chest, 0.8], ao: 0.6, cz: -0.004 }, { y: 0.8, rx: 0.06 * NK, rz: 0.057 * NK, w: [B.neck, B.head, 0.6], ao: 0.62 }, { y: 0.85, rx: 0.062 * NK, rz: 0.06 * NK, w: [B.head, B.neck, 0.85], ao: 0.6, cz: 0.004 }]);
+    loft({ s: SL.trim, seg: SG(14) }, [{ y: 0.735, rx: 0.095 * W, rz: 0.082 * W2, w: torsoW(0.72), ao: 0.8 }, { y: 0.752, rx: 0.115 * W, rz: 0.098 * W2, w: torsoW(0.72) }, { y: 0.74, rx: 0.132 * W, rz: 0.112 * W2, w: torsoW(0.72) }]);
+    // ---- head (human scale: ~0.2 yd wide, 0.26 tall): jaw, cheekbones, brow, crown; eye sockets; nose; ears ----
+    const HW = [B.head, B.neck, 1];
+    const faceF = (y) => (an) => { // radius modulation around the ring: eye sockets, cheekbones, chin, occipital bulge
+      const f = Math.max(0, Math.sin(an));
+      let k = 1;
+      if (y > 0.935 && y < 0.985) k -= 0.06 * f * Math.max(0, 1 - Math.abs(Math.abs(angD(an, HPI)) - 0.4) * 2.6); // sockets
+      if (y > 0.9 && y < 0.95) k += 0.035 * f * Math.max(0, Math.abs(angD(an, HPI)) - 0.5); // cheekbones
+      if (y < 0.875) k += 0.07 * f * (1 - Math.min(1, Math.abs(angD(an, HPI)) * 1.5)); // chin forward
+      k += 0.025 * Math.max(0, -Math.sin(an)); // occipital bulge
+      return k;
+    };
+    const HR = [{ y: 0.828, rx: 0.04, rz: 0.044, cz: 0.034, ao: 0.6 }, { y: 0.85, rx: 0.066, rz: 0.072, cz: 0.022, ao: 0.7 }, { y: 0.878, rx: 0.083, rz: 0.09, cz: 0.011, ao: 0.78 }, { y: 0.905, rx: 0.093, rz: 0.1, cz: 0.005, ao: 0.85 }, { y: 0.932, rx: 0.099, rz: 0.104, cz: 0.002, ao: 0.88 },
+      { y: 0.957, rx: 0.101, rz: 0.106, cz: 0.0, ao: 0.9 }, { y: 0.985, rx: 0.1, rz: 0.107, cz: 0.003, ao: 0.85 }, { y: 1.013, rx: 0.096, rz: 0.1, cz: 0.0, ao: 0.75 }, { y: 1.042, rx: 0.082, rz: 0.084, cz: -0.003, ao: 0.6 }, { y: 1.066, rx: 0.05, rz: 0.051, cz: -0.005, ao: 0.5 }, { y: 1.08, rx: 0.012, rz: 0.012, cz: -0.005, ao: 0.5 }];
+    for (const r of HR) { r.w = HW; r.f = faceF(r.y); }
+    loft({ s: SL.skin, seg: SG(20), capTop: false, capBot: true }, HR.slice().reverse());
+    // face patch: the front arc of the head rings, slightly proud of the skin; photo UVs put the eyes at v ~ 0.4 and the chin at the bottom
+    {
+      const FR = [];
+      const yTop = 1.045, yBot = 0.826;
+      for (let i = HR.length - 1; i >= 0; i--) { const r = HR[i]; if (r.y > yTop + 0.02 || r.y < yBot) continue; FR.push(Object.assign({}, r, { rx: r.rx * 1.015 + 0.0015, rz: r.rz * 1.015 + 0.0015, v: clamp((yTop - r.y) / (yTop - yBot), 0, 1), ao: 0.95 })); }
+      loft({ s: SL.face, seg: SG(10), a0: HPI - 1.3, a1: HPI + 1.3, mirrorU: true }, FR);
+    }
+    if (!lod) {
+      // nose: bridge to tip
+      loft({ s: SL.face, seg: SG(6), capBot: true, w: HW, uv: [0.49, 0.51, 0.47, 0.55] }, [{ y: 0.962, rx: 0.011, rz: 0.005, cz: 0.106, w: HW, ao: 0.95 }, { y: 0.942, rx: 0.013, rz: 0.009, cz: 0.113, w: HW, ao: 0.95 }, { y: 0.922, rx: 0.017, rz: 0.012, cz: 0.12, w: HW, ao: 0.92 }, { y: 0.909, rx: 0.015, rz: 0.009, cz: 0.116, w: HW, ao: 0.85 }]);
+      // eyes: spheres in the sockets (the iris is shaded from the gaze direction)
+      for (const sd of [-1, 1]) ellipsoid({ s: SL.eye, seg: SG(10), w: HW, ring: () => ({ w: HW, ao: 1 }) }, [sd * 0.035, 0.956, 0.09], 0.0145, 0.014, 0.0145, 0, Math.PI, 5);
+      // ears
+      for (const sd of [-1, 1]) ellipsoid({ s: SL.skin, seg: SG(8), w: HW, ring: () => ({ w: HW, ao: 0.7 }) }, [sd * 0.1, 0.945, -0.01], 0.01, 0.027, 0.019, 0, Math.PI, 4);
+    }
+    // ---- helmet (or a cap for sideline staff) ----
+    const HEC = [0, 0.972, -0.01], HRR = [0.158, 0.172, 0.182];
+    if (gear) {
+      const helmSkip = (th) => (i, j, an) => { // face opening from just above the brow to the chin, widest at the cheeks, jaw flaps wrap back in; neck notch at the back
+        const t = th(i + 0.5), d = Math.abs(angD(an, HPI));
+        if (t > 1.2) { const w = t < 1.7 ? 0.45 + 0.5 * (t - 1.2) / 0.5 : t < 2.3 ? 0.95 - 0.33 * (t - 1.7) / 0.6 : 0.62 + (t - 2.3) * 2.4; if (d < w) return true; }
+        if (t > 2.42 && Math.abs(angD(an, -HPI)) < 0.3 + (t - 2.42) * 2.5) return true;
+        return false;
+      };
+      const NHR = lod ? 9 : 14, thAt = (i) => HELM_TH * i / NHR;
+      const helmRing = (th, i) => { const flare = th > 2.0 ? 1 + 0.06 * (th - 2.0) : 1, brow = th > 0.9 && th < 1.4 ? 1.03 : 1, flat = th < 0.5 ? 0.985 + 0.015 * (th / 0.5) : 1; return { rx: Math.max(1e-4, HRR[0] * Math.sin(th) * flare * flat), rz: Math.max(1e-4, HRR[2] * Math.sin(th) * brow * flat), cz: HEC[2] + (th > 1.9 ? 0.028 * (th - 1.9) : 0), v: th / HELM_TH, w: HW,
+        f: (an) => 1 + (th > 1.6 && th < 2.5 ? 0.04 * Math.pow(Math.abs(Math.cos(an)), 4) * Math.sin((th - 1.6) / 0.9 * Math.PI) : 0) }; }; // ear flap bulge
+      ellipsoid({ s: SL.helm, seg: SG(30), uv: uvOf('helm'), skip: helmSkip(thAt), ring: helmRing, capTop: true }, HEC, HRR[0], HRR[1], HRR[2], 0, HELM_TH, NHR);
+      if (!lod) ellipsoid({ s: SL.pad, seg: SG(30), uv: uvOf('helm'), skip: helmSkip(thAt), flip: true, ring: (th, i) => Object.assign(helmRing(th, i), { ao: 0.35, rx: Math.max(1e-4, HRR[0] * 0.94 * Math.sin(th)), rz: Math.max(1e-4, HRR[2] * 0.94 * Math.sin(th)) }) }, HEC, HRR[0] * 0.94, HRR[1] * 0.94, HRR[2] * 0.94, 0.35, HELM_TH, NHR);
+      // jaw pads inside the ear flaps
+      if (!lod) for (const sd of [-1, 1]) loft({ s: SL.pad, seg: SG(8), w: HW, capBot: true }, [{ y: 0.905, rx: 0.02, rz: 0.058, cx: sd * 0.118, cz: 0.025, w: HW, ao: 0.5 }, { y: 0.86, rx: 0.022, rz: 0.054, cx: sd * 0.112, cz: 0.032, w: HW, ao: 0.5 }, { y: 0.83, rx: 0.016, rz: 0.042, cx: sd * 0.1, cz: 0.036, w: HW, ao: 0.5 }]);
+      // facemask: tubular bars (open cage; linemen get the extra lower bar)
+      const arcPts = (y, r0, r2, aA, aB, n, bulge) => { const pts = []; for (let i = 0; i <= n; i++) { const an = aA + (aB - aA) * i / n, k = 1 + (bulge || 0) * Math.sin((i / n) * Math.PI); pts.push([HEC[0] + r0 * k * Math.cos(an), y, HEC[2] + r2 * k * Math.sin(an)]); } return pts; };
+      const MR = lod ? 0.0115 : 0.0105, MSG = lod ? 5 : 8, NA = lod ? 8 : 14;
+      for (const y of [0.962, 0.912, 0.862]) tube({ s: SL.mask, w: HW }, arcPts(y, 0.168, 0.196, HPI - 1.2, HPI + 1.2, NA, 0.03), MR, MSG);
+      if (S.bulk > 1.15) tube({ s: SL.mask, w: HW }, arcPts(0.826, 0.155, 0.18, HPI - 0.95, HPI + 0.95, NA, 0.03), MR, MSG);
+      tube({ s: SL.mask, w: HW }, [[0, 1.03, 0.168], [0, 0.995, 0.198], [0, 0.962, 0.206], [0, 0.912, 0.205], [0, 0.862, 0.197], [0, 0.828, 0.176]], MR, MSG);
+      if (!lod) for (const sd of [-1, 1]) tube({ s: SL.mask, w: HW }, [[sd * 0.1, 0.99, 0.17], [sd * 0.104, 0.962, 0.176], [sd * 0.102, 0.912, 0.174], [sd * 0.098, 0.862, 0.167]], MR * 0.9, MSG);
+      // chin strap with cups, snapped to the shell
+      tube({ s: SL.wht, ao: 0.8, w: HW }, arcPts(0.822, 0.15, 0.14, HPI - 1.3, HPI + 1.3, 10, 0.02).map((p, i, a) => [p[0], p[1] - 0.01 * Math.sin((i / (a.length - 1)) * Math.PI), p[2]]), 0.008, 4);
+      if (!lod) ellipsoid({ s: SL.wht, seg: SG(8), w: HW, ring: () => ({ w: HW }) }, [0, 0.818, 0.128], 0.036, 0.024, 0.024, 0, Math.PI, 3);
+      // back bumper
+      if (!lod) loft({ s: SL.trim, seg: SG(8), w: HW, capBot: true }, [{ y: 0.875, rx: 0.056, rz: 0.01, cz: -0.175, w: HW, ao: 0.8 }, { y: 0.848, rx: 0.052, rz: 0.01, cz: -0.167, w: HW, ao: 0.8 }]);
+      // mouthguard dangling from the mask (between plays, some players)
+      if (!lod) { tube({ s: SL.mouth, w: HW }, [[0.03, 0.862, 0.2], [0.035, 0.84, 0.205], [0.03, 0.815, 0.2]], 0.006, 4); loft({ s: SL.mouth, seg: SG(6), w: HW, capBot: true, m: mMul(mT(IDM, 0.03, 0.8, 0.2), mRX(IDM, 0.3)) }, [{ y: 0.012, rx: 0.028, rz: 0.012, w: HW }, { y: -0.012, rx: 0.026, rz: 0.01, w: HW }]); }
+    } else {
+      // cap: crown + bill
+      ellipsoid({ s: SL.cleat, seg: SG(16), w: HW, ring: () => ({ w: HW, ao: 0.9 }) }, [0, 0.975, -0.004], 0.108, 0.105, 0.112, 0, 1.75, 6);
+      loft({ s: SL.cleat, seg: SG(8), w: HW, a0: HPI - 1.2, a1: HPI + 1.2 }, [{ y: 0.978, rx: 0.108, rz: 0.112, cz: -0.004, w: HW }, { y: 0.973, rx: 0.13, rz: 0.155, cz: 0.015, w: HW }, { y: 0.965, rx: 0.125, rz: 0.185, cz: 0.025, w: HW }]);
+      if (S.headset && !lod) { tube({ s: SL.wht, w: HW }, arcPts2(0.995, 0.112, 0.115, 0, Math.PI, 8), 0.01, 5); tube({ s: SL.wht, w: HW }, [[-0.115, 0.94, 0.0], [-0.1, 0.925, 0.06], [-0.06, 0.9, 0.105]], 0.007, 4); }
+    }
+    function arcPts2(y, r0, r2, aA, aB, n) { const pts = []; for (let i = 0; i <= n; i++) { const an = aA + (aB - aA) * i / n; pts.push([r0 * Math.cos(an), y + 0.02 * Math.sin(an), -0.004 + r2 * Math.sin(an) * 0.1]); } return pts; }
+    // visor: its own index range, drawn blended, hidden when not worn
+    const vi0 = I.length;
+    if (!lod && gear) ellipsoid({ s: SL.visor, seg: SG(12), a0: HPI - 1.0, a1: HPI + 1.0, w: HW, ring: () => ({ ao: 1, w: HW }) }, [0, 0.958, -0.004], 0.142, 0.148, 0.162, 1.15, 1.68, 3);
+    const vin = I.length - vi0;
+    // ---- arms: deltoid -> biceps -> elbow -> forearm -> wrist as one surface ----
+    for (const sd of [-1, 1]) {
+      const sh = sd < 0 ? B.shL : B.shR, el = sd < 0 ? B.elL : B.elR, ha = sd < 0 ? B.haL : B.haR, X = BIND[sh][0], AW = S.arms, mir = sd < 0;
+      const SY = 0.64, EY = 0.28, HY = -0.04; // joint heights
+      const aw = (y) => (y > EY + 0.06 ? [sh, el, 1] : y < EY - 0.06 ? [el, sh, 1] : wt(y, SY, EY, sh, el, 0.06));
+      const sleeve = gear ? SL.jer : SL.stripes, armS = S.sleeves ? SL.arm : SL.skin;
+      const rings = [
+        { y: 0.705, rx: 0.075 * AW, rz: 0.072 * AW, cx: X + sd * 0.025, s: sleeve, ao: 0.85, w: [sh, B.chest, 0.6] }, { y: 0.675, rx: 0.118 * AW, rz: 0.11 * AW, cx: X + sd * 0.03, s: sleeve, w: [sh, B.chest, 0.8] }, { y: 0.62, rx: 0.125 * AW, rz: 0.118 * AW, cx: X + sd * 0.022, s: sleeve, w: [sh, el, 1] },
+        { y: 0.55, rx: 0.112 * AW, rz: 0.106 * AW, cx: X + sd * 0.012, s: sleeve, ao: 0.9, w: [sh, el, 1] }, { y: 0.5, rx: 0.1 * AW, rz: 0.095 * AW, cx: X + sd * 0.006, s: sleeve, ao: 0.85, w: [sh, el, 1] },
+        { y: 0.5, rx: 0.092 * AW, rz: 0.088 * AW, cx: X + sd * 0.004, s: armS, ao: 0.8, w: [sh, el, 1] }, { y: 0.44, rx: 0.088 * AW, rz: 0.09 * AW, cx: X + sd * 0.002, cz: 0.004, s: armS, w: [sh, el, 1], f: (an) => 1 + 0.06 * Math.max(0, Math.sin(an)) }, // biceps
+        { y: 0.37, rx: 0.08 * AW, rz: 0.08 * AW, cx: X, s: armS, w: [sh, el, 1] }, { y: 0.31, rx: 0.071 * AW, rz: 0.069 * AW, cx: X, s: armS, w: aw(0.31) }, { y: 0.28, rx: 0.068 * AW, rz: 0.066 * AW, cx: X, cz: -0.004, s: armS, w: aw(0.28) },
+        { y: 0.25, rx: 0.069 * AW, rz: 0.067 * AW, cx: X, s: armS, w: aw(0.25) }, { y: 0.19, rx: 0.074 * AW, rz: 0.072 * AW, cx: X, s: armS, w: [el, sh, 1] }, { y: 0.11, rx: 0.062 * AW, rz: 0.058 * AW, cx: X, s: armS, w: [el, sh, 1] },
+        { y: 0.03, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, s: armS, w: [el, ha, 1] }, { y: 0.0, rx: 0.05 * AW, rz: 0.043 * AW, cx: X, s: armS, w: [el, ha, 0.85] }];
+      loft({ s: sleeve, seg: SG(16), uv: uvOf('sleeve'), mirrorU: mir, capTop: true, ao: (i, an) => (i >= 2 && i <= 5 && Math.cos(an) * sd < -0.5 ? 0.72 : 1) }, rings);
+      if (!lod && gear) { // sleeve number
+        const rs = []; for (let i = 0; i <= 2; i++) { const y = 0.645 - 0.08 * i; rs.push({ y, rx: (0.127 - 0.011 * i) * AW, rz: (0.119 - 0.011 * i) * AW, cx: X + sd * 0.024, v: i / 2, ao: 0.95, w: [sh, el, 1] }); }
+        loft({ s: SL.snum, seg: SG(6), a0: (sd > 0 ? 0 : Math.PI) - 0.5, a1: (sd > 0 ? 0 : Math.PI) + 0.5 }, rs);
+      }
+      // wrist tape
+      if (!lod) loft({ s: SL.tape, seg: SG(10) }, [{ y: 0.015, rx: 0.054 * AW, rz: 0.048 * AW, cx: X, w: [el, ha, 0.7] }, { y: -0.02, rx: 0.054 * AW, rz: 0.047 * AW, cx: X, w: [ha, el, 0.9] }, { y: -0.045, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, w: [ha, el, 1] }]);
+      // hand: gloved palm with knuckles, four fingers and a thumb (fingers only at full detail)
+      const HWt = [ha, el, 1], GS = gear ? SL.glove : SL.skin;
+      loft({ s: GS, seg: SG(10), uv: uvOf('glove'), capBot: true, w: HWt }, [{ y: -0.035, rx: 0.048, rz: 0.03, cx: X, w: HWt }, { y: -0.09, rx: 0.06, rz: 0.032, cx: X, cz: 0.004, w: HWt }, { y: -0.14, rx: 0.062, rz: 0.03, cx: X, cz: 0.006, w: HWt }, { y: -0.175, rx: 0.058, rz: 0.028, cx: X, cz: 0.006, w: HWt, ao: 0.85 }]);
+      if (!lod) {
+        for (let f = 0; f < 4; f++) { const fx = X + sd * (-0.042 + 0.028 * f), len = [0.075, 0.085, 0.08, 0.065][f], curl = 0.35; tube({ s: GS, w: HWt }, [[fx, -0.175, 0.008], [fx, -0.175 - len * 0.5, 0.008 + curl * len * 0.3], [fx, -0.175 - len * 0.82, 0.008 + curl * len * 0.9], [fx, -0.175 - len, 0.008 + curl * len * 1.6]], 0.0125, 5, (t) => 1 - 0.25 * t); }
+        tube({ s: GS, w: HWt }, [[X + sd * 0.045, -0.07, 0.012], [X + sd * 0.072, -0.1, 0.034], [X + sd * 0.085, -0.13, 0.05]], 0.016, 5, (t) => 1 - 0.2 * t);
+      } else loft({ s: GS, seg: SG(8), w: HWt, capBot: true }, [{ y: -0.175, rx: 0.055, rz: 0.028, cx: X, cz: 0.012, w: HWt }, { y: -0.245, rx: 0.042, rz: 0.024, cx: X, cz: 0.03, w: HWt }, { y: -0.27, rx: 0.02, rz: 0.012, cx: X, cz: 0.04, w: HWt }]);
+    }
+    // ---- pelvis + legs: hip -> thigh (pads) -> knee -> calf -> ankle as one surface; socks; cleats ----
+    const pel = (y, rx, rz, e) => Object.assign({ y, rx: rx * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
+    const PS = gear ? SL.pant : SL.pant;
+    loft({ s: PS, seg: SG(24), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [pel(0.17, 0.205, 0.142, { v: 0 }), pel(0.1, 0.212, 0.148, { v: 0.3 }), pel(0.0, 0.228, 0.16, { v: 0.6, f: (an) => 1 + 0.05 * Math.max(0, -Math.sin(an)) }), pel(-0.1, 0.212, 0.155, { v: 0.85, ao: 0.82, w: [B.hips, B.hips, 1], f: (an) => 1 + 0.08 * Math.max(0, -Math.sin(an)) }), pel(-0.18, 0.165, 0.13, { v: 1, ao: 0.62, w: [B.hips, B.hips, 1] })]);
+    for (const sd of [-1, 1]) {
+      const hp = sd < 0 ? B.hipL : B.hipR, kn = sd < 0 ? B.knL : B.knR, ft = sd < 0 ? B.ftL : B.ftR, X = sd * 0.15, LW = S.legs;
+      const KY = -0.53, FY = -1.0;
+      const lw = (y) => (y > KY + 0.07 ? [hp, kn, 1] : y < KY - 0.07 ? [kn, hp, 1] : wt(y, 0, KY, hp, kn, 0.07));
+      const inner = (i, an) => (i <= 2 && Math.cos(an) * sd < -0.6 ? 0.7 : 1);
+      const legR = [
+        { y: -0.02, rx: 0.14 * LW, rz: 0.135 * LW, cx: X, cz: 0.012, v: 0, ao: 0.8, w: [hp, B.hips, 0.75], s: PS }, { y: -0.14, rx: 0.135 * LW, rz: 0.135 * LW, cx: X, cz: 0.02, v: 0.2, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.03 * Math.max(0, Math.sin(an)) },
+        { y: -0.27, rx: 0.122 * LW, rz: 0.125 * LW, cx: X, cz: 0.018, v: 0.42, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.05 * Math.max(0, Math.sin(an)) }, // thigh pad
+        { y: -0.4, rx: 0.105 * LW, rz: 0.108 * LW, cx: X, cz: 0.01, v: 0.62, w: lw(-0.4), s: PS }, { y: -0.49, rx: 0.094 * LW, rz: 0.1 * LW, cx: X, cz: 0.014, v: 0.78, w: lw(-0.49), s: PS, f: (an) => 1 + 0.06 * Math.max(0, Math.sin(an)) }, // knee pad
+        { y: -0.555, rx: 0.088 * LW, rz: 0.092 * LW, cx: X, cz: 0.01, v: 0.9, w: lw(-0.555), s: PS }, { y: -0.63, rx: 0.081 * LW, rz: 0.081 * LW, cx: X, v: 1, w: [kn, hp, 1], s: PS, ao: 0.85 },
+        { y: -0.63, rx: 0.076 * LW, rz: 0.076 * LW, cx: X, w: [kn, hp, 1], s: SL.skin, ao: 0.75 }, { y: -0.7, rx: 0.08 * LW, rz: 0.084 * LW, cx: X, cz: -0.012, w: [kn, hp, 1], s: SL.skin, f: (an) => 1 + 0.1 * Math.max(0, -Math.sin(an)) }, // calf
+        { y: -0.78, rx: 0.072 * LW, rz: 0.074 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.skin }, { y: -0.8, rx: 0.07 * LW, rz: 0.072 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.sock },
+        { y: -0.88, rx: 0.062 * LW, rz: 0.064 * LW, cx: X, cz: -0.004, w: [kn, ft, 1], s: SL.sock }, { y: -0.95, rx: 0.054 * LW, rz: 0.056 * LW, cx: X, w: [kn, ft, 0.8], s: SL.sock }, { y: -1.0, rx: 0.05 * LW, rz: 0.054 * LW, cx: X, w: [ft, kn, 0.8], s: SL.sock, ao: 0.8 }, { y: -1.04, rx: 0.046 * LW, rz: 0.05 * LW, cx: X, cz: -0.006, w: [ft, kn, 1], s: SL.sock, ao: 0.7 }];
+      // pants and socks have their own UV regions; the loft takes one uv box, so split the strip by slot
+      loft({ s: PS, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, legR.filter((r) => r.s === PS));
+      loft({ s: SL.skin, seg: SG(16) }, legR.filter((r) => r.s === SL.skin));
+      loft({ s: SL.sock, seg: SG(12), uv: uvOf('sock') }, legR.filter((r) => r.s === SL.sock));
+      // shoe: heel counter -> arch -> ball -> toe box, lofted along +Z; sole plate; studs at full detail
+      const FW = [ft, ft, 1];
+      const shoeM = mMul(mT(IDM, X, -1.05, -0.012), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
+      const shoe = [{ y: 0.1, rx: 0.03, rz: 0.024, w: FW }, { y: 0.075, rx: 0.046, rz: 0.034, w: FW }, { y: 0.02, rx: 0.052, rz: 0.04, cz: 0.008, w: FW, ao: 0.85 }, { y: -0.05, rx: 0.054, rz: 0.038, cz: 0.012, w: FW, f: (an) => 1 + 0.08 * Math.max(0, Math.sin(an)) }, { y: -0.12, rx: 0.056, rz: 0.03, cz: 0.004, w: FW }, { y: -0.18, rx: 0.05, rz: 0.024, w: FW }, { y: -0.225, rx: 0.028, rz: 0.012, w: FW }];
+      loft({ s: SL.cleat, seg: SG(12), m: shoeM, capTop: true, capBot: true }, shoe);
+      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, -1.074, -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + 0.004, rz: 0.008, cz: 0, w: FW })));
+      if (!lod) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, -1.082, sz], [X + sx, -1.1, sz]], 0.006, 4, (t) => 1 - 0.4 * t);
+    }
+    // ---- belt towel (hidden for players who do not carry one) ----
+    if (gear) {
+      const TW = [B.hips, B.hips, 1], tx = -0.13, pts = [];
+      for (let i = 0; i <= 4; i++) pts.push({ y: 0.1 - i * 0.095, rx: 0.062 - 0.005 * i, rz: 0.005, cx: tx, cz: 0.19 * (0.85 + 0.15 * S.bulk) + 0.006 * i, w: TW, v: i / 4 });
+      loft({ s: SL.towel, seg: SG(6), capBot: true, w: TW }, pts);
+    }
+    return { v: new Float32Array(V), i: new Uint16Array(I), n: I.length, nv, vi0, vin, bind: BIND, sw: S.sw };
+  }
 
   // =====================================================================================
   // Game: mounts one full game in `root`. done(result) is called once when it ends or is quit.
@@ -1112,19 +1453,47 @@ gl_FragColor=vec4(c,1.0);}`;
     wrap.append(stage, bug, tick, ctl);
     root.appendChild(wrap);
 
-    // ---------- WebGL ----------
-    let gl = null;
-    try { gl = cv.getContext('webgl', { antialias: false, alpha: false, depth: true, powerPreference: 'high-performance' }) || cv.getContext('experimental-webgl', { antialias: false, alpha: false }); } catch (e) { gl = null; }
+
+    // ---------- WebGL (2 when available, else 1 + extensions) ----------
+    let gl = null, GL2 = false;
+    try { gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: true, powerPreference: 'high-performance' }); GL2 = !!gl; } catch (e) { gl = null; }
+    if (!gl) { try { gl = cv.getContext('webgl', { antialias: false, alpha: false, depth: true, powerPreference: 'high-performance' }) || cv.getContext('experimental-webgl', { antialias: false, alpha: false }); } catch (e) { gl = null; } }
     if (!gl) {
       root.innerHTML = '<div class="bz-err"><b>NO 3D HERE</b>Sorry, your browser can\'t run 3D graphics (WebGL is turned off or blocked on this device).</div>';
       setTimeout(() => done({ homeScore: 0, awayScore: 0, quit: true, overtime: false, noGL: true, stats: {}, team: Object.assign({}, TS), highlights: [] }), 0);
       return { destroy() {} };
     }
+    // capability shim
+    const X = (() => {
+      const x = { gl2: GL2 };
+      const ext = (n) => { try { return gl.getExtension(n); } catch (e) { return null; } };
+      if (GL2) {
+        x.inst = { drawArraysInstanced: (m, f, c, n) => gl.drawArraysInstanced(m, f, c, n), drawElementsInstanced: (m, c, t, o, n) => gl.drawElementsInstanced(m, c, t, o, n), vertexAttribDivisor: (i, d) => gl.vertexAttribDivisor(i, d) };
+        x.depthTex = true; x.deriv = true; x.derivExt = '';
+        const cbf = ext('EXT_color_buffer_float'), cbh = ext('EXT_color_buffer_half_float');
+        x.half = !!(cbf || cbh); x.halfLinear = x.half; x.halfFmt = gl.RGBA16F; x.halfType = gl.HALF_FLOAT;
+      } else {
+        const ia = ext('ANGLE_instanced_arrays');
+        x.inst = ia ? { drawArraysInstanced: (m, f, c, n) => ia.drawArraysInstancedANGLE(m, f, c, n), drawElementsInstanced: (m, c, t, o, n) => ia.drawElementsInstancedANGLE(m, c, t, o, n), vertexAttribDivisor: (i, d) => ia.vertexAttribDivisorANGLE(i, d) } : null;
+        x.depthTex = !!ext('WEBGL_depth_texture') || !!ext('WEBKIT_WEBGL_depth_texture');
+        x.deriv = !!ext('OES_standard_derivatives'); x.derivExt = x.deriv ? '#extension GL_OES_standard_derivatives : enable\n' : '';
+        const th = ext('OES_texture_half_float'), cbh = ext('EXT_color_buffer_half_float');
+        x.half = !!(th && cbh); x.halfLinear = !!ext('OES_texture_half_float_linear'); x.halfFmt = gl.RGBA; x.halfType = th ? th.HALF_FLOAT_OES : 0;
+      }
+      x.aniso = ext('EXT_texture_filter_anisotropic') || ext('WEBKIT_EXT_texture_filter_anisotropic');
+      x.maxAniso = x.aniso ? gl.getParameter(x.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
+      x.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 2048;
+      x.maxVU = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) || 128;
+      let hp = false; try { const f = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT); hp = !!(f && f.precision > 0); } catch (e) { hp = false; }
+      x.hp = hp ? 'highp' : 'mediump';
+      return x;
+    })();
     let G = null, glLost = false, finished = false;
     const touchy = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window && (navigator.maxTouchPoints || 0) > 0);
-    let quality = touchy ? 1 : 2; // 0 = low (no shadows / post), 1 = medium, 2 = high
+    let quality = touchy ? 1 : 2; // 0 = low (1 cascade, no post effects), 1 = medium (2 cascades, bloom), 2 = high (3 cascades, SSAO, grass, DOF, motion blur)
     const statics = [];
-    function mkTex(src, repeat, nomip) {
+    const DRAWS = { n: 0, tris: 0 };
+    function mkTex(src, repeat, nomip, linearMip) {
       const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
       if (src.width) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
       else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, src);
@@ -1135,205 +1504,394 @@ gl_FragColor=vec4(c,1.0);}`;
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
       if (mip) {
         gl.generateMipmap(gl.TEXTURE_2D);
-        const an = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
-        if (an) gl.texParameterf(gl.TEXTURE_2D, an.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, gl.getParameter(an.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+        if (X.aniso) gl.texParameterf(gl.TEXTURE_2D, X.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(linearMip || 8, X.maxAniso));
       }
       return t;
     }
-    // sky / light / fog per weather
+    // light rig, sky and fog per weather (linear HDR values)
     const SKY = {
-      night: { top: [0.012, 0.018, 0.05], hor: [0.1, 0.13, 0.24], fog: [0.1, 0.13, 0.24], fogR: [60, 220, 0.75], amb: [0.26, 0.3, 0.42], sun: [1.05, 1.0, 0.9], L: [0.3, 0.86, -0.4], night: 1, cloud: 0.35, glow: 1, gnd: [0.1, 0.14, 0.11] },
-      clear: { top: [0.18, 0.4, 0.8], hor: [0.66, 0.78, 0.9], fog: [0.66, 0.76, 0.86], fogR: [90, 320, 0.55], amb: [0.36, 0.4, 0.5], sun: [1.15, 1.08, 0.95], L: [-0.5, 0.75, 0.42], night: 0, cloud: 0.55, glow: 0.2, gnd: [0.18, 0.26, 0.15] },
-      rain: { top: [0.1, 0.12, 0.15], hor: [0.3, 0.33, 0.37], fog: [0.3, 0.33, 0.37], fogR: [35, 160, 0.85], amb: [0.42, 0.44, 0.48], sun: [0.5, 0.5, 0.52], L: [0.2, 0.9, -0.3], night: 0, cloud: 1.4, glow: 0.8, gnd: [0.16, 0.2, 0.15] },
-      snow: { top: [0.36, 0.4, 0.47], hor: [0.74, 0.76, 0.8], fog: [0.74, 0.76, 0.8], fogR: [30, 150, 0.85], amb: [0.5, 0.52, 0.56], sun: [0.55, 0.55, 0.58], L: [0.2, 0.9, -0.3], night: 0, cloud: 1.3, glow: 0.6, gnd: [0.34, 0.36, 0.38] },
+      night: { top: [0.004, 0.006, 0.016], hor: [0.05, 0.07, 0.13], fog: [0.012, 0.016, 0.03], fogR: [50, 330, 0.55], amb: [0.07, 0.085, 0.14], gnd: [0.04, 0.055, 0.04], sun: [2.4, 2.25, 1.95], L: [0.36, 0.78, -0.34], night: 1, cloud: 0.3, glow: 1.0, tower: 1.15, exp: 0.9, soft: 1.0, env: 1.0 },
+      clear: { top: [0.1, 0.28, 0.75], hor: [0.55, 0.68, 0.85], fog: [0.5, 0.62, 0.82], fogR: [110, 520, 0.4], amb: [0.42, 0.55, 0.85], gnd: [0.22, 0.28, 0.16], sun: [2.7, 2.5, 2.2], L: [-0.48, 0.72, 0.42], night: 0, cloud: 0.5, glow: 0.0, tower: 0.0, exp: 0.52, soft: 0.7, env: 1.0 },
+      rain: { top: [0.08, 0.09, 0.11], hor: [0.26, 0.28, 0.31], fog: [0.22, 0.24, 0.27], fogR: [30, 220, 0.8], amb: [0.36, 0.38, 0.42], gnd: [0.12, 0.14, 0.12], sun: [0.75, 0.77, 0.8], L: [0.22, 0.9, -0.3], night: 0, cloud: 1.4, glow: 0.6, tower: 0.55, exp: 0.85, soft: 2.2, env: 0.8 },
+      snow: { top: [0.3, 0.33, 0.4], hor: [0.62, 0.64, 0.7], fog: [0.6, 0.62, 0.68], fogR: [28, 190, 0.85], amb: [0.6, 0.62, 0.7], gnd: [0.42, 0.42, 0.45], sun: [1.1, 1.1, 1.15], L: [0.22, 0.9, -0.3], night: 0, cloud: 1.3, glow: 0.4, tower: 0.4, exp: 0.7, soft: 2.4, env: 0.9 },
     }[WX];
     const LDIR = v3n(SKY.L);
+    // the four light banks: position + intensity, colour (slightly cool metal-halide white)
+    const TOWERS = [[-50, 36, 18], [50, 36, 18], [-50, 36, 82], [50, 36, 82]];
+    const LPOS = TOWERS.map((t) => [t[0], t[1], t[2], 1500 * SKY.tower]);
+    const LCOL = [0.98, 0.97, 1.0];
+    // the shaders are written in GLSL ES 1.00; on a WebGL2 context they are mechanically lifted to 3.00 (derivatives need it there)
+    function es3(src, isFS) {
+      src = src.replace(/#extension[^\n]*\n/g, '');
+      if (isFS) { src = src.replace(/varying /g, 'in ').replace(/texture2D\(/g, 'texture(').replace(/textureCube\(/g, 'texture(').replace(/gl_FragColor/g, 'oC'); if (src.indexOf('//OUT') >= 0) src = src.replace('//OUT', 'out vec4 oC;'); else src = src.replace(/(precision (?:highp|mediump) float;)/, '$1out vec4 oC;'); }
+      else src = src.replace(/attribute /g, 'in ').replace(/varying /g, 'out ');
+      return '#version 300 es\n' + src;
+    }
     function mkProg(vs, fs, defines) {
-      const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, (defines || '') + src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + '\n' + src.slice(0, 200)); return s; };
-      const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
+      const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + '\n' + src.slice(0, 300)); return s; };
+      const hpd = '#define HP ' + X.hp + '\n';
+      let vsrc = hpd + vs, fsrc = hpd + (defines || '') + fs;
+      if (GL2) { vsrc = es3(vsrc, false); fsrc = es3(fsrc, true); }
+      const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vsrc)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fsrc)); gl.linkProgram(pr);
       if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
       const P = { pr, a: {}, u: {} };
       const na = gl.getProgramParameter(pr, gl.ACTIVE_ATTRIBUTES); for (let i = 0; i < na; i++) { const n = gl.getActiveAttrib(pr, i).name; P.a[n] = gl.getAttribLocation(pr, n); }
       const nu = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS); for (let i = 0; i < nu; i++) { const n = gl.getActiveUniform(pr, i).name.replace(/\[0\]$/, ''); P.u[n] = gl.getUniformLocation(pr, n); }
       return P;
     }
-    function mkFBO(w, h, depth) {
+    // framebuffer: colour texture (RGBA8 or half float) + optional depth (texture when available, else renderbuffer)
+    function mkFBO(w, h, depth, hdr, depthTex) {
       const fb = gl.createFramebuffer(), tex = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      const useHalf = hdr && X.half;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      if (useHalf) gl.texImage2D(gl.TEXTURE_2D, 0, X.halfFmt, w, h, 0, gl.RGBA, X.halfType, null);
+      else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const filt = useHalf && !X.halfLinear ? gl.NEAREST : gl.LINEAR;
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-      let rb = null;
-      if (depth) { rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); }
-      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      let rb = null, dt = null;
+      if (depth) {
+        if (depthTex && X.depthTex) {
+          dt = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, dt);
+          if (GL2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, w, h, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+          else gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, w, h, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, dt, 0);
+        } else { rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); }
+      }
+      let ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      if (!ok && useHalf) { // half float colour not renderable after all: fall back to RGBA8
+        gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE; X.half = false;
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return { fb, tex, rb, w, h, ok };
+      return { fb, tex, rb, dt, w, h, ok, hdr: useHalf && ok };
     }
-    function delFBO(f) { if (!f) return; try { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.tex); if (f.rb) gl.deleteRenderbuffer(f.rb); } catch (e) {} }
-    const SHADOW_SZ = () => (quality >= 2 ? 1024 : 512);
+    // shadow atlas: n cascades side by side; a depth texture when available, else packed RGBA depth
+    function mkShadow(size, n) {
+      const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      let tex = null, rb = null, dt = null;
+      if (X.depthTex) {
+        dt = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, dt);
+        if (GL2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, size * n, size, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+        else gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, size * n, size, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, dt, 0);
+        if (!GL2) { rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, size * n, size); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb); }
+      } else {
+        tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size * n, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, size * n, size); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+      }
+      let ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return { fb, tex: dt || tex, rb, dt, w: size * n, h: size, size, n, ok, packed: !dt };
+    }
+    function delFBO(f) { if (!f) return; try { gl.deleteFramebuffer(f.fb); if (f.tex) gl.deleteTexture(f.tex); if (f.dt && f.dt !== f.tex) gl.deleteTexture(f.dt); if (f.rb) gl.deleteRenderbuffer(f.rb); } catch (e) {} }
+    const NCASC = () => (quality >= 2 ? 3 : quality === 1 ? 2 : 1);
+    const SHADOW_SZ = () => (quality >= 2 ? 2048 : quality === 1 ? 1024 : 768);
+    let shadowPacked = false;
+    // ---- body meshes per body type (two LODs) ----
+    function meshFor(spec) {
+      const key = bodyKey(spec);
+      let m = G.meshes[key];
+      if (!m) {
+        m = G.meshes[key] = [];
+        for (const lod of [0, 1]) {
+          const b = buildBody(spec, lod), vb = gl.createBuffer(), ib = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, b.v, gl.STATIC_DRAW);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, b.i, gl.STATIC_DRAW);
+          m[lod] = { vb, ib, n: b.n, vi0: b.vi0, vin: b.vin, bind: b.bind, nv: b.nv }; G.bufs.push(vb, ib);
+        }
+      }
+      return m;
+    }
     function setupGL() {
-      G = { bufs: [], texs: [], progs: [] };
-      const lit = (fs, pcf9) => fs.replace('#LIGHT#', SH_LIGHT);
-      G.world4 = mkProg(VS_WORLD, lit(FS_WORLD), 'precision mediump float;\n'); G.world9 = mkProg(VS_WORLD, lit(FS_WORLD), '#define PCF9\nprecision mediump float;\n');
-      G.skin4 = mkProg(VS_SKIN, lit(FS_SKIN), 'precision mediump float;\n'); G.skin9 = mkProg(VS_SKIN, lit(FS_SKIN), '#define PCF9\nprecision mediump float;\n');
-      G.depthW = mkProg(VS_DEPTH_W, FS_DEPTH); G.depthS = mkProg(VS_DEPTH_S, FS_DEPTH);
-      G.sky = mkProg(VS_QUAD, FS_SKY); G.crowd = mkProg(VS_CROWD, FS_CROWD);
-      G.extract = mkProg(VS_QUAD, FS_EXTRACT); G.blur = mkProg(VS_QUAD, FS_BLUR); G.final = mkProg(VS_QUAD, FS_FINAL);
-      for (const k of ['world4', 'world9', 'skin4', 'skin9', 'depthW', 'depthS', 'sky', 'crowd', 'extract', 'blur', 'final']) G.progs.push(G[k].pr);
+      G = { bufs: [], texs: [], progs: [], meshes: {} };
+      const ncasc = NCASC();
+      shadowPacked = !X.depthTex;
+      const defs = (extra) => X.derivExt + FS_PRE + (X.deriv ? '#define DERIV\n' : '') + (shadowPacked ? '#define SHADOW_PACKED\n' : '') + (extra || '');
+      const lib = (fs) => fs.replace('#LIB#', SH_LIB);
+      G.world = mkProg(VS_WORLD, lib(FS_WORLD), defs()); G.worldHi = mkProg(VS_WORLD, lib(FS_WORLD), defs('#define PCF_HI\n'));
+      G.skin = mkProg(VS_SKIN, lib(FS_SKIN), defs()); G.skinHi = mkProg(VS_SKIN, lib(FS_SKIN), defs('#define PCF_HI\n'));
+      G.depthW = mkProg(VS_DEPTH_W, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE); G.depthS = mkProg(VS_DEPTH_S, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE);
+      G.sky = mkProg(VS_QUAD, FS_SKY, FS_PRE); G.crowd = mkProg(VS_CROWD, FS_CROWD, FS_PRE);
+      G.grass = X.inst ? mkProg(VS_GRASS, FS_GRASS, FS_PRE) : null;
+      G.ao = mkProg(VS_QUAD, FS_AO, FS_PRE); G.blur4 = mkProg(VS_QUAD, FS_BLUR4, FS_PRE);
+      G.extract = mkProg(VS_QUAD, FS_EXTRACT, FS_PRE); G.blur = mkProg(VS_QUAD, FS_BLUR, FS_PRE); G.dofmb = mkProg(VS_QUAD, FS_DOFMB, FS_PRE); G.final = mkProg(VS_QUAD, FS_FINAL, FS_PRE);
+      for (const k of ['world', 'worldHi', 'skin', 'skinHi', 'depthW', 'depthS', 'sky', 'crowd', 'grass', 'ao', 'blur4', 'extract', 'blur', 'dofmb', 'final']) if (G[k]) G.progs.push(G[k].pr);
       G.white = mkTex(new Uint8Array([255, 255, 255, 255]));
-      G.field = mkTex(fieldCanvas());
+      G.black = mkTex(new Uint8Array([0, 0, 0, 255]));
+      G.flatN = mkTex(new Uint8Array([128, 128, 255, 128]));
+      G.field = mkTex(fieldCanvas(quality >= 2 ? 2 : 1), false, false, 16);
+      G.detail = mkTex(detailCanvas(), true, false, 8);
+      G.fabric = mkTex(fabricCanvas(), true, false, 4);
       G.board = mkTex(boardCanvas()); boardDirty = false;
+      G.ribbon = mkTex(ribbonCanvas(), true, false, 4);
+      G.seats = mkTex(seatCanvas(), true, false, 8);
       G.atlas = mkTex(atlas, false, true); atlasDirty = true;
-      G.texs.push(G.white, G.field, G.board, G.atlas);
+      G.texs.push(G.white, G.black, G.flatN, G.field, G.detail, G.fabric, G.board, G.ribbon, G.seats, G.atlas);
       G.dyn = gl.createBuffer(); G.tr = gl.createBuffer(); G.quad = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       G.bufs.push(G.dyn, G.tr, G.quad);
-      // character meshes
-      G.mesh = { n: [], w: [] };
-      for (const [k, wide] of [['n', false], ['w', true]]) for (const lod of [0, 1]) {
-        const m = buildMesh(wide, lod), vb = gl.createBuffer(), ib = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, m.v, gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.i, gl.STATIC_DRAW);
-        G.mesh[k][lod] = { vb, ib, n: m.n, vi0: m.vi0, vin: m.vin }; G.bufs.push(vb, ib);
-      }
-      G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr)); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr)); G.crowdT = mkTex(crowdCanvas(), false, false);
-      G.texs.push(G.kitO, G.kitD, G.crowdT);
+      for (const k in BODY) if (!BODY[k].noGear) meshFor(BODY[k]);
+      G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr, HOME.name), false, false, 8); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr, AWAY.name), false, false, 8); G.kitR = mkTex(kitCanvas(REFC, '', '', true), false, false, 8);
+      G.crowdT = mkTex(crowdCanvas(), false, false, 4);
+      G.texs.push(G.kitO, G.kitD, G.kitR, G.crowdT);
       statics.length = 0;
       const W = buildWorld();
-      for (const k of ['plain', 'field', 'glow', 'board']) {
+      for (const k of ['plain', 'seats', 'field', 'glow', 'board', 'ribbon', 'glass']) {
+        if (!W[k] || !W[k].n) continue;
         const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, W[k].f.subarray(0, W[k].n * 12), gl.STATIC_DRAW);
         G.bufs.push(b);
-        statics.push({ k, b, n: W[k].n, tex: k === 'field' ? G.field : k === 'board' ? G.board : G.white, cast: k === 'plain', spec: k === 'field' ? (WET ? 0.9 : 0.12) : k === 'plain' ? 0.08 : 0, emis: k === 'glow' ? 1 : 0 });
+        const S = { k, b, n: W[k].n, tex: k === 'field' ? G.field : k === 'board' ? G.board : k === 'ribbon' ? G.ribbon : k === 'seats' ? G.seats : G.white, cast: k === 'plain' || k === 'seats', kind: k === 'field' ? 1 : 0 };
+        S.mat = k === 'field' ? [0.85, 0, 1, 0] : k === 'plain' ? [0.7, 0, 0, 0] : k === 'seats' ? [0.75, 0, 0, 0] : k === 'glow' ? [0.5, 0, 0, 6.0 * (0.25 + 0.75 * SKY.glow)] : k === 'board' ? [0.4, 0, 0, 1.6] : k === 'ribbon' ? [0.4, 0, 0, 2.2] : [0.08, 0.6, 0, 0];
+        statics.push(S);
       }
-      G.crowdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.bufferData(gl.ARRAY_BUFFER, W.crowd.f.subarray(0, W.crowd.n * 10), gl.STATIC_DRAW); G.crowdN = W.crowd.n; G.bufs.push(G.crowdB);
-      G.shadow = null; G.scene = null; G.bloomA = null; G.bloomB = null;
+      G.crowdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.bufferData(gl.ARRAY_BUFFER, W.crowd.f.subarray(0, W.crowd.n * 12), gl.STATIC_DRAW); G.crowdN = W.crowd.n; G.bufs.push(G.crowdB);
+      // grass blade mesh + instance ids
+      if (G.grass) {
+        const bl = [], NSEG = 3; // blade: 2 strips of quads tapering to a point
+        for (let s = 0; s < NSEG; s++) { const t0 = s / NSEG, t1 = (s + 1) / NSEG, w0 = 1 - t0 * 0.8, w1 = 1 - t1 * 0.85; bl.push(-w0, t0, 0, t0, w0, t0, 1, t0, -w1, t1, 0, t1, -w1, t1, 0, t1, w0, t0, 1, t0, w1, t1, 1, t1); }
+        bl.push(-0.15, 1, 0, 1, 0.15, 1, 1, 1, 0, 1.12, 0.5, 1);
+        G.bladeB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.bladeB); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bl), gl.STATIC_DRAW); G.bladeN = bl.length / 4;
+        G.GN = 112; const ids = new Float32Array(G.GN * G.GN * 4); for (let i = 0; i < G.GN * G.GN; i++) { ids[i * 4] = i; }
+        G.instB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.instB); gl.bufferData(gl.ARRAY_BUFFER, ids, gl.STATIC_DRAW); G.bufs.push(G.bladeB, G.instB);
+      }
+      G.env = null; G.shadow = null; G.scene = null; G.scene2 = null; G.bloomA = null; G.bloomB = null; G.aoA = null; G.aoB = null; G.feed = null;
       setupTargets();
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
       gl.clearColor(SKY.hor[0], SKY.hor[1], SKY.hor[2], 0);
+      buildEnv();
     }
     function setupTargets() {
-      delFBO(G.shadow); delFBO(G.scene); delFBO(G.bloomA); delFBO(G.bloomB);
-      G.shadow = G.scene = G.bloomA = G.bloomB = null;
-      if (quality >= 1) {
-        G.shadow = mkFBO(SHADOW_SZ(), SHADOW_SZ(), true);
-        G.scene = mkFBO(cv.width, cv.height, true);
+      delFBO(G.shadow); delFBO(G.scene); delFBO(G.scene2); delFBO(G.bloomA); delFBO(G.bloomB); delFBO(G.aoA); delFBO(G.aoB);
+      G.shadow = G.scene = G.scene2 = G.bloomA = G.bloomB = G.aoA = G.aoB = null;
+      G.shadow = mkShadow(Math.min(SHADOW_SZ(), Math.floor(X.maxTex / NCASC())), NCASC());
+      if (!G.shadow.ok) { delFBO(G.shadow); G.shadow = null; }
+      G.scene = mkFBO(cv.width, cv.height, true, quality >= 1, quality >= 1);
+      if (!G.scene.ok) { delFBO(G.scene); G.scene = null; }
+      if (quality >= 1 && G.scene) {
         const bw = Math.max(64, cv.width >> 2), bh = Math.max(64, cv.height >> 2);
         G.bloomA = mkFBO(bw, bh, false); G.bloomB = mkFBO(bw, bh, false);
-        if (!G.shadow.ok || !G.scene.ok || !G.bloomA.ok) { quality = 0; delFBO(G.shadow); delFBO(G.scene); delFBO(G.bloomA); delFBO(G.bloomB); G.shadow = G.scene = G.bloomA = G.bloomB = null; }
+        if (!G.bloomA.ok || !G.bloomB.ok) { delFBO(G.bloomA); delFBO(G.bloomB); G.bloomA = G.bloomB = null; }
+      }
+      delFBO(G.feed); G.feed = null;
+      if (quality >= 2 && G.scene && G.scene.dt) {
+        G.feed = mkFBO(384, 192, true, true); if (!G.feed.ok) { delFBO(G.feed); G.feed = null; }
+        G.scene2 = mkFBO(cv.width, cv.height, false, true);
+        const aw = Math.max(64, cv.width >> 1), ah = Math.max(64, cv.height >> 1);
+        G.aoA = mkFBO(aw, ah, false); G.aoB = mkFBO(aw, ah, false);
+        if (!G.aoA.ok || !G.aoB.ok) { delFBO(G.aoA); delFBO(G.aoB); G.aoA = G.aoB = null; }
+        if (!G.scene2.ok) { delFBO(G.scene2); G.scene2 = null; }
       }
     }
 
     // ---------- textures ----------
-    const ezOwn = shade(TEAM, 0.55), ezFar = shade(DEFA, 0.6);
-    function fieldCanvas() {
+    const ezOwn = shade(TEAM, 0.5), ezFar = shade(DEFA, 0.55);
+    let fieldC = null, fieldScale = 1;
+    function fieldCanvas(k) {
       cs = 20240611;
-      const c = document.createElement('canvas'); c.width = 1024; c.height = 2048; const g = c.getContext('2d');
-      const SX = 1024 / 60, SZ = 2048 / 124, X = (x) => (x + 30) * SX, Z = (z) => (z + 12) * SZ;
+      const c = document.createElement('canvas'); const CW = 1024 * k, CH = 2048 * k; c.width = CW; c.height = CH; const g = c.getContext('2d');
+      fieldC = c; fieldScale = k;
+      const SX = CW / 60, SZ = CH / 124, X = (x) => (x + 30) * SX, Z = (z) => (z + 12) * SZ;
       const snow = WX === 'snow', wet = WX === 'rain';
-      const base = snow ? '#6b8a72' : wet ? '#1f5a2c' : '#246b33';
-      g.fillStyle = base; g.fillRect(0, 0, 1024, 2048);
-      // mow stripes
-      for (let i = -2; i < 24; i++) { g.fillStyle = i % 2 ? (snow ? '#7f9d86' : wet ? '#246438' : '#2b7a3b') : (snow ? '#8aa68f' : wet ? '#2a7040' : '#318745'); g.fillRect(X(-HW), Z(i * 5), X(HW) - X(-HW), 5 * SZ + 1); }
-      // grass blades
-      for (let i = 0; i < 26000; i++) {
-        const x = crand() * 1024, y = crand() * 2048, l = 2 + crand() * 5;
-        g.strokeStyle = crand() < 0.5 ? 'rgba(120,190,110,0.09)' : 'rgba(0,30,0,0.11)'; g.lineWidth = 1;
-        g.beginPath(); g.moveTo(x, y); g.lineTo(x + (crand() - 0.5) * 2, y - l); g.stroke();
+      // base turf tones
+      const base = snow ? '#5f7a63' : wet ? '#1d4a26' : '#265d2f';
+      g.fillStyle = base; g.fillRect(0, 0, CW, CH);
+      // mow pattern: alternating 5-yard bands with a soft edge, the far bands slightly bluer
+      for (let i = -2; i < 24; i++) {
+        const light = i % 2 === 0;
+        g.fillStyle = snow ? (light ? '#6e8a70' : '#627e68') : wet ? (light ? '#235632' : '#193f22') : (light ? '#2e7239' : '#1e4f27');
+        g.fillRect(X(-HW) - 2 * SX, Z(i * 5), (X(HW) - X(-HW)) + 4 * SX, 5 * SZ + 1);
       }
-      // worn patch down the middle
-      const wear = g.createLinearGradient(X(-8), 0, X(8), 0); wear.addColorStop(0, 'rgba(110,90,40,0)'); wear.addColorStop(0.5, 'rgba(110,90,40,0.1)'); wear.addColorStop(1, 'rgba(110,90,40,0)');
-      g.fillStyle = wear; g.fillRect(X(-8), Z(5), X(8) - X(-8), Z(95) - Z(5));
-      for (let i = 0; i < 700; i++) { g.fillStyle = 'rgba(90,70,35,' + (0.04 + crand() * 0.08) + ')'; const x = X(-6 + crand() * 12), y = Z(10 + crand() * 80); g.beginPath(); g.ellipse(x, y, 4 + crand() * 14, 2 + crand() * 6, crand() * 3, 0, 6.3); g.fill(); }
+      // large-scale patchiness
+      for (let i = 0; i < 500 * k; i++) { const x = crand() * CW, y = crand() * CH, r = (10 + crand() * 50) * k; const gr = g.createRadialGradient(x, y, 0, x, y, r); const dark = crand() < 0.5; gr.addColorStop(0, dark ? 'rgba(10,40,10,0.05)' : 'rgba(150,190,90,0.035)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+      // blade strokes
+      const nb = 42000 * k * k;
+      for (let i = 0; i < nb; i++) {
+        const x = crand() * CW, y = crand() * CH, l = (2 + crand() * 5) * k, v = crand();
+        g.strokeStyle = v < 0.35 ? 'rgba(140,200,110,0.1)' : v < 0.7 ? 'rgba(0,30,0,0.12)' : 'rgba(90,150,60,0.08)'; g.lineWidth = k;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + (crand() - 0.5) * 2 * k, y - l); g.stroke();
+      }
+      // wear between the hashes and the numbers (brown earth showing through), heavier in the middle of the field
+      for (let i = 0; i < 900 * k; i++) { const zz = 8 + crand() * 84, mid = 1 - Math.abs(zz - 50) / 50; if (crand() > 0.3 + 0.7 * mid) continue; g.fillStyle = (wet ? 'rgba(60,45,25,' : 'rgba(105,85,45,') + (0.035 + crand() * 0.06) + ')'; const x = X((crand() - 0.5) * 2 * (4 + crand() * 8)), y = Z(zz); g.beginPath(); g.ellipse(x, y, (4 + crand() * 16) * k, (2 + crand() * 7) * k, crand() * 3, 0, 6.3); g.fill(); }
+      // end zones: painted turf in team colours with a faint stripe texture and the team names
       g.fillStyle = css(ezOwn); g.fillRect(X(-HW), Z(-10), X(HW) - X(-HW), 10 * SZ);
       g.fillStyle = css(ezFar); g.fillRect(X(-HW), Z(100), X(HW) - X(-HW), 10 * SZ);
-      for (let i = 0; i < 5000; i++) { g.fillStyle = crand() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)'; const y = crand() < 0.5 ? Z(-10 + crand() * 10) : Z(100 + crand() * 10); g.fillRect(crand() * 1024, y, 1 + crand() * 2, 2 + crand() * 4); }
-      if (snow) for (let i = 0; i < 12000; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.1 + crand() * 0.3) + ')'; g.fillRect(crand() * 1024, crand() * 2048, 2 + crand() * 6, 2 + crand() * 6); }
-      // painted lines with a soft edge
-      const ln = (x0, z0, x1, z1) => { for (const [o, a] of [[1.2, 0.28], [0, 0.95]]) { g.fillStyle = `rgba(242,245,238,${a})`; g.fillRect(X(x0) - o, Z(z0) - o, X(x1) - X(x0) + o * 2, Z(z1) - Z(z0) + o * 2); } };
-      for (let z = 0; z <= 100; z += 5) { const w = z % 100 === 0 ? 0.2 : 0.12; ln(-HW, z - w, HW, z + w); }
-      ln(-HW - 1.4, -10.4, -HW, 110.4); ln(HW, -10.4, HW + 1.4, 110.4); ln(-HW - 1.4, -11.4, HW + 1.4, -10); ln(-HW - 1.4, 110, HW + 1.4, 111.4);
+      for (let i = 0; i < 9000 * k; i++) { g.fillStyle = crand() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'; const y = crand() < 0.5 ? Z(-10 + crand() * 10) : Z(100 + crand() * 10); g.fillRect(crand() * CW, y, (1 + crand() * 2) * k, (2 + crand() * 5) * k); }
+      if (snow) for (let i = 0; i < 20000 * k; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.1 + crand() * 0.3) + ')'; g.fillRect(crand() * CW, crand() * CH, (2 + crand() * 6) * k, (2 + crand() * 6) * k); }
+      // painted lines: a soft bleed halo under a crisp core, worn by noise toward the middle
+      const paint = (x0, z0, x1, z1, alpha) => { for (const [o, a] of [[1.6 * k, 0.22], [0, 0.93 * (alpha || 1)]]) { g.fillStyle = `rgba(240,243,236,${a})`; g.fillRect(X(x0) - o, Z(z0) - o, X(x1) - X(x0) + o * 2, Z(z1) - Z(z0) + o * 2); } };
+      for (let z = 0; z <= 100; z += 5) { const w = z % 100 === 0 ? 0.18 : 0.11; paint(-HW, z - w, HW, z + w); }
+      paint(-HW - 1.4, -10.4, -HW, 110.4); paint(HW, -10.4, HW + 1.4, 110.4); paint(-HW - 1.4, -11.4, HW + 1.4, -10); paint(-HW - 1.4, 110, HW + 1.4, 111.4);
       for (let z = 1; z < 100; z++) {
         if (z % 5 === 0) continue;
-        for (const hx of [-3.08, 3.08]) ln(hx - 0.35, z - 0.06, hx + 0.35, z + 0.06);
-        ln(-HW + 0.3, z - 0.06, -HW + 1.0, z + 0.06); ln(HW - 1.0, z - 0.06, HW - 0.3, z + 0.06);
+        for (const hx of [-3.08, 3.08]) paint(hx - 0.35, z - 0.055, hx + 0.35, z + 0.055);
+        paint(-HW + 0.3, z - 0.055, -HW + 1.0, z + 0.055); paint(HW - 1.0, z - 0.055, HW - 0.3, z + 0.055);
       }
-      ln(-0.5, 2.94, 0.5, 3.06); ln(-0.5, 96.94, 0.5, 97.06);
-      const txt = (s, x, z, rot, hYd, col, maxW) => {
+      paint(-0.5, 2.94, 0.5, 3.06); paint(-0.5, 96.94, 0.5, 97.06);
+      // wear on the paint
+      for (let i = 0; i < 6000 * k; i++) { const zl = Math.round(crand() * 20) * 5, x = X((crand() - 0.5) * 2 * HW), y = Z(zl) + (crand() - 0.5) * 0.3 * SZ; g.fillStyle = 'rgba(40,90,40,' + (0.1 + crand() * 0.25) + ')'; g.fillRect(x, y, (1 + crand() * 3) * k, (1 + crand() * 2) * k); }
+      const txt = (s, x, z, rot, hYd, col, maxW, weight) => {
         g.save(); g.translate(X(x), Z(z)); g.scale(1, -1); g.rotate(rot);
-        g.font = `900 ${Math.round(hYd * SZ * 1.32)}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`;
+        g.font = `${weight || 900} ${Math.round(hYd * SZ * 1.32)}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`;
         g.textAlign = 'center'; g.textBaseline = 'middle';
         if (maxW) { const w = g.measureText(s).width; if (w > maxW * SX) g.scale((maxW * SX) / w, 1); }
         g.fillStyle = col; g.fillText(s, 0, 0); g.restore();
       };
       for (let z = 10; z <= 90; z += 10) {
         const n = String(z <= 50 ? z : 100 - z);
-        txt(n, -HW + 9, z, -Math.PI / 2, 2, 'rgba(242,245,238,.9)'); txt(n, HW - 9, z, Math.PI / 2, 2, 'rgba(242,245,238,.9)');
-        if (z !== 50) { const dz = z < 50 ? -1 : 1; for (const sx of [-1, 1]) { const x = sx * (HW - 9), zz = z + dz * 2.6; g.fillStyle = 'rgba(242,245,238,.9)'; g.beginPath(); g.moveTo(X(x - 0.45), Z(zz)); g.lineTo(X(x + 0.45), Z(zz)); g.lineTo(X(x), Z(zz + dz * 0.8)); g.fill(); } }
+        txt(n, -HW + 9, z, -Math.PI / 2, 2, 'rgba(240,243,236,.88)'); txt(n, HW - 9, z, Math.PI / 2, 2, 'rgba(240,243,236,.88)');
+        if (z !== 50) { const dz = z < 50 ? -1 : 1; for (const sx of [-1, 1]) { const x = sx * (HW - 9), zz = z + dz * 2.6; g.fillStyle = 'rgba(240,243,236,.88)'; g.beginPath(); g.moveTo(X(x - 0.45), Z(zz)); g.lineTo(X(x + 0.45), Z(zz)); g.lineTo(X(x), Z(zz + dz * 0.8)); g.fill(); } }
       }
-      g.beginPath(); g.arc(X(0), Z(50), 5.4 * SX, 0, 6.2832); g.fillStyle = css(shade(TEAM, 0.9)); g.fill();
+      // midfield logo painted on the grass
+      g.globalAlpha = 0.88;
+      g.beginPath(); g.arc(X(0), Z(50), 5.4 * SX, 0, 6.2832); g.fillStyle = css(shade(TEAM, 0.85)); g.fill();
       g.lineWidth = 0.4 * SX; g.strokeStyle = '#f2f5ee'; g.stroke();
       g.beginPath(); g.arc(X(0), Z(50), 4.3 * SX, 0, 6.2832); g.lineWidth = 0.15 * SX; g.strokeStyle = css(TEAM2); g.stroke();
       txt(HOME.abbr, 0, 50, 0, 3.2, css(TEAM2), 8);
+      g.globalAlpha = 0.92;
       txt(HOME.name.toUpperCase(), 0, -5, Math.PI, 5.2, css(lum(TEAM) > 0.55 ? shade(TEAM, 1.15) : hex('#f2f5ee')), 40);
       txt(AWAY.name.toUpperCase(), 0, 105, 0, 5.4, css(O2[0] + O2[1] + O2[2] > 1.2 ? O2 : hex('#f2f5ee')), 40);
+      g.globalAlpha = 1;
+      // sideline mats and the coaches' box lines
       g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(X(-29.9), Z(30), X(-28.3) - X(-29.9), Z(70) - Z(30)); g.fillRect(X(28.3), Z(30), X(29.9) - X(28.3), Z(70) - Z(30));
+      g.fillStyle = 'rgba(70,75,85,.75)'; g.fillRect(X(-33.6), Z(-11), X(-30.5) - X(-33.6), Z(111) - Z(-11)); g.fillRect(X(30.5), Z(-11), X(33.6) - X(30.5), Z(111) - Z(-11));
+      return c;
+    }
+    // divots / scuffs appear where players go down
+    function scuff(x, z, big) {
+      if (!fieldC || !G) return;
+      const g = fieldC.getContext('2d'), k = fieldScale, SX = fieldC.width / 60, SZ = fieldC.height / 124, px = (x + 30) * SX, pz = (z + 12) * SZ;
+      if (z < -9 || z > 109 || Math.abs(x) > HW) return;
+      for (let i = 0; i < (big ? 5 : 3); i++) { g.fillStyle = (WX === 'rain' ? 'rgba(50,38,22,' : 'rgba(95,78,45,') + (0.18 + crand() * 0.2) + ')'; g.beginPath(); g.ellipse(px + (crand() - 0.5) * 14 * k, pz + (crand() - 0.5) * 14 * k, (3 + crand() * 6) * k, (1.5 + crand() * 3) * k, crand() * 3, 0, 6.3); g.fill(); }
+      scuffs.push([px, pz]); if (scuffs.length > 60) scuffs.shift();
+      fieldDirty = true;
+    }
+    const scuffs = []; let fieldDirty = false, fieldUpT = 0;
+    // tiled grass detail: r = brightness variation, gb = normal xy, a = height
+    function detailCanvas() {
+      cs = 4242;
+      const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+      const h = new Float32Array(N * N);
+      const stamp = (x, y, l, w, a, v) => { // a blade: a short line into the height field (wrapping)
+        const ca = Math.cos(a), sa = Math.sin(a);
+        for (let t = 0; t <= l; t += 0.7) { const px = x + ca * t, py = y + sa * t, k = v * (0.4 + 0.6 * t / l); for (let dx = -w; dx <= w; dx++) for (let dy = -w; dy <= w; dy++) { const ix = ((px + dx) % N + N) % N | 0, iy = ((py + dy) % N + N) % N | 0; const f = 1 - Math.hypot(dx, dy) / (w + 1); if (f > 0) h[iy * N + ix] = Math.max(h[iy * N + ix], k * f); } }
+      };
+      for (let i = 0; i < 14000; i++) stamp(crand() * N, crand() * N, 6 + crand() * 14, 1 + (crand() < 0.3 ? 1 : 0), crand() * 6.28, 0.45 + crand() * 0.55);
+      const img = g.createImageData(N, N), d = img.data;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const i = y * N + x, hx = h[y * N + ((x + 1) % N)] - h[y * N + ((x + N - 1) % N)], hy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+        const nx = -hx * 1.6, ny = -hy * 1.6, nl = Math.hypot(nx, ny, 1);
+        const o = i * 4; d[o] = 128 + (h[i] - 0.45) * 110 + (crand() - 0.5) * 30; d[o + 1] = 128 + (nx / nl) * 127; d[o + 2] = 128 + (ny / nl) * 127; d[o + 3] = clamp(h[i] * 255, 0, 255);
+      }
+      g.putImageData(img, 0, 0);
+      return c;
+    }
+    // tiled woven-fabric normal map (rgb) with a roughness variation in alpha
+    function fabricCanvas() {
+      const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+      const img = g.createImageData(N, N), d = img.data, cell = 16;
+      const hAt = (x, y) => { // mesh holes on a grid with a slight weave
+        const u = ((x % cell) + cell) % cell - cell / 2, v = ((y % cell) + cell) % cell - cell / 2, r = Math.hypot(u, v);
+        const hole = Math.max(0, 1 - r / (cell * 0.32)); const weave = 0.08 * (Math.sin(x * 0.8) + Math.sin(y * 0.8));
+        return -hole * 0.9 + weave;
+      };
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const hx = hAt(x + 1, y) - hAt(x - 1, y), hy = hAt(x, y + 1) - hAt(x, y - 1), nx = -hx * 1.5, ny = -hy * 1.5, nl = Math.hypot(nx, ny, 1), o = (y * N + x) * 4;
+        d[o] = 128 + (nx / nl) * 127; d[o + 1] = 128 + (ny / nl) * 127; d[o + 2] = 128 + (1 / nl) * 127; d[o + 3] = 110 + 60 * Math.max(0, -hAt(x, y));
+      }
+      g.putImageData(img, 0, 0);
       return c;
     }
     let boardDirty = true;
-    const boardC = document.createElement('canvas'); boardC.width = 512; boardC.height = 256;
+    const boardC = document.createElement('canvas'); boardC.width = 1024; boardC.height = 512;
     function boardCanvas() {
       const g = boardC.getContext('2d');
-      g.fillStyle = '#05070c'; g.fillRect(0, 0, 512, 256);
-      g.fillStyle = css(TEAM); g.fillRect(0, 0, 256, 54); g.fillStyle = css(DEFA); g.fillRect(256, 0, 256, 54);
-      g.font = '900 40px "Barlow Condensed", Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = css(TEAM2); g.fillText(HOME.abbr, 128, 29); g.fillStyle = css(away2 ? O1 : O2); g.fillText(AWAY.abbr, 384, 29);
-      g.fillStyle = '#ffc21a'; g.font = '900 120px "Barlow Condensed", Impact, sans-serif';
-      g.fillText(String(typeof hs === 'number' ? hs : 0), 128, 140); g.fillText(String(typeof as === 'number' ? as : 0), 384, 140);
-      g.fillStyle = '#9aa0ad'; g.font = '800 34px "Barlow Condensed", Impact, sans-serif';
-      g.fillText(typeof qtr === 'number' ? (qtr > 4 ? 'OT' : 'Q' + qtr) + '  ' + fmtClock(clock) : '', 256, 226);
+      g.fillStyle = '#05070c'; g.fillRect(0, 0, 1024, 512);
+      // LED pixel grid
+      g.fillStyle = css(TEAM); g.fillRect(0, 0, 512, 108); g.fillStyle = css(DEFA); g.fillRect(512, 0, 512, 108);
+      g.font = '900 80px "Barlow Condensed", Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = css(TEAM2); g.fillText(HOME.abbr, 256, 58); g.fillStyle = css(away2 ? O1 : O2); g.fillText(AWAY.abbr, 768, 58);
+      g.fillStyle = '#ffc21a'; g.font = '900 240px "Barlow Condensed", Impact, sans-serif';
+      g.fillText(String(typeof hs === 'number' ? hs : 0), 256, 280); g.fillText(String(typeof as === 'number' ? as : 0), 768, 280);
+      g.fillStyle = '#c9ccd4'; g.font = '800 66px "Barlow Condensed", Impact, sans-serif';
+      g.fillText(typeof qtr === 'number' ? (qtr > 4 ? 'OT' : 'Q' + qtr) + '   ' + fmtClock(clock) : '', 512, 450);
+      if (typeof down === 'number' && typeof phase === 'string' && phase !== 'splash') { g.font = '800 48px "Barlow Condensed", Impact, sans-serif'; g.fillStyle = '#9aa0ad'; g.fillText(ddTxt().toUpperCase() + '  ·  ' + ballTxt(los).toUpperCase(), 512, 395); }
+      g.fillStyle = 'rgba(0,0,0,0.35)'; for (let y = 0; y < 512; y += 4) g.fillRect(0, y, 1024, 1);
       return boardC;
     }
-    // ---------- per-team kit texture: jersey, sleeves, gloves, pants, socks and helmet painted at runtime ----------
-    function kitCanvas(C, abbr) {
-      const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
-      const S = 1024, reg = (k) => { const r = KIT[k]; return { x: r[0] * S, y: r[1] * S, w: (r[2] - r[0]) * S, h: (r[3] - r[1]) * S }; };
+    // LED ribbon: team names and the matchup, scrolls by UV offset
+    function ribbonCanvas() {
+      const c = document.createElement('canvas'); c.width = 2048; c.height = 64; const g = c.getContext('2d');
+      g.fillStyle = '#060810'; g.fillRect(0, 0, 2048, 64);
+      g.font = '900 44px "Barlow Condensed", Impact, sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left';
+      const items = [[HOME.name.toUpperCase(), HOMECSS], ['•', '#ffc21a'], [AWAY.name.toUpperCase(), OPPCSS], ['•', '#ffc21a'], ['BLITZ 3D', '#f5f6f8'], ['•', '#ffc21a'], [(opts.label || 'ARCADE FOOTBALL').toUpperCase(), '#c9ccd4'], ['•', '#ffc21a']];
+      let x = 20; for (let rep = 0; rep < 3 && x < 2048; rep++) for (const [t, col] of items) { g.fillStyle = col; g.fillText(t, x, 32); x += g.measureText(t).width + 40; }
+      g.fillStyle = 'rgba(0,0,0,0.4)'; for (let y = 0; y < 64; y += 3) g.fillRect(0, y, 2048, 1);
+      return c;
+    }
+    // seat rows texture for the tiers (a row of seats in two team colours with gaps)
+    function seatCanvas() {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
+      g.fillStyle = '#3a3d45'; g.fillRect(0, 0, 256, 64);
+      g.fillStyle = '#2b2e36'; g.fillRect(0, 44, 256, 20);
+      for (let i = 0; i < 8; i++) { const x = i * 32 + 2; g.fillStyle = css(shade(TEAM, 0.55 + 0.1 * (i % 2))); g.fillRect(x, 6, 28, 36); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, 6, 28, 5); g.fillRect(x + 12, 6, 4, 36); }
+      return c;
+    }
+    const REFC = { jer: hex('#f2f2f2'), pad: hex('#f2f2f2'), pant: hex('#f6f6f6'), helm: hex('#111111'), stripe: hex('#111111'), num: hex('#111111'), glove: hex('#111111'), sock: hex('#111111'), mask: hex('#111111') };
+    // ---------- per-team kit texture (2048): jersey, sleeves, gloves, pants, socks, helmet; alpha carries a roughness variation ----------
+    function kitCanvas(C, abbr, teamName, refs) {
+      const c = document.createElement('canvas'); c.width = c.height = 2048; const g = c.getContext('2d');
+      const S = 2048, reg = (k) => { const r = KIT[k]; return { x: r[0] * S, y: r[1] * S, w: (r[2] - r[0]) * S, h: (r[3] - r[1]) * S }; };
       const box = (r, u0, u1, v0, v1, col) => { g.fillStyle = typeof col === 'string' ? col : css(col); g.fillRect(r.x + r.w * u0, r.y + r.h * v0, r.w * (u1 - u0) + 0.6, r.h * (v1 - v0) + 0.6); };
       const white = [0.94, 0.95, 0.96, 1], dark = [0.08, 0.085, 0.1, 1];
       const contrast = (a, b) => (cdist(a, b) < 0.28 ? (lum(b) > 0.5 ? dark : white) : a);
       const stripeC = contrast(C.stripe, C.jer);
-      // fabric mesh pattern
-      const pc = document.createElement('canvas'); pc.width = pc.height = 6; const pg = pc.getContext('2d');
-      pg.fillStyle = 'rgba(0,0,0,0.07)'; pg.fillRect(0, 0, 1.5, 1.5); pg.fillRect(3, 3, 1.5, 1.5); pg.fillStyle = 'rgba(255,255,255,0.05)'; pg.fillRect(1.5, 0, 1.5, 1.5); pg.fillRect(4.5, 3, 1.5, 1.5);
-      const fabric = g.createPattern(pc, 'repeat');
+      const seam = (x0, y0, x1, y1) => { g.strokeStyle = 'rgba(0,0,0,0.22)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.08)'; g.beginPath(); g.moveTo(x0 + 2, y0); g.lineTo(x1 + 2, y1); g.stroke(); };
       // torso
       let r = reg('torso'); box(r, 0, 1, 0, 1, C.jer);
-      for (const u of [0.25, 0.75]) { const grd = g.createLinearGradient(r.x + r.w * (u - 0.07), 0, r.x + r.w * (u + 0.07), 0); const sc = css(shade(C.jer, 0.82)); grd.addColorStop(0, css(C.jer)); grd.addColorStop(0.3, sc); grd.addColorStop(0.7, sc); grd.addColorStop(1, css(C.jer)); g.fillStyle = grd; g.fillRect(r.x + r.w * (u - 0.07), r.y + r.h * 0.3, r.w * 0.14, r.h * 0.7); }
-      { const grd = g.createLinearGradient(0, r.y + r.h * 0.2, 0, r.y + r.h * 0.36); grd.addColorStop(0, 'rgba(0,0,0,0.26)'); grd.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = grd; g.fillRect(r.x, r.y + r.h * 0.2, r.w, r.h * 0.16); }
-      box(r, 0, 1, 0, 0.042, stripeC); box(r, 0, 1, 0.042, 0.052, white);
-      for (const u of [0.25, 0.75]) for (const [du, col, w] of [[-0.04, stripeC, 0.016], [0.04, stripeC, 0.016], [-0.016, white, 0.008], [0.016, white, 0.008]]) box(r, u + du - w / 2, u + du + w / 2, 0.052, 0.135, col);
-      box(r, 0, 1, 0.935, 1, shade(C.jer, 0.78));
-      g.fillStyle = fabric; g.fillRect(r.x, r.y, r.w, r.h);
+      // side mesh panels (darker inserts) with seams
+      for (const u of [0.25, 0.75]) { const grd = g.createLinearGradient(r.x + r.w * (u - 0.075), 0, r.x + r.w * (u + 0.075), 0); const sc = css(shade(C.jer, 0.8)); grd.addColorStop(0, css(C.jer)); grd.addColorStop(0.25, sc); grd.addColorStop(0.75, sc); grd.addColorStop(1, css(C.jer)); g.fillStyle = grd; g.fillRect(r.x + r.w * (u - 0.075), r.y + r.h * 0.28, r.w * 0.15, r.h * 0.72); seam(r.x + r.w * (u - 0.06), r.y + r.h * 0.3, r.x + r.w * (u - 0.06), r.y + r.h); seam(r.x + r.w * (u + 0.06), r.y + r.h * 0.3, r.x + r.w * (u + 0.06), r.y + r.h); }
+      // shadow under the pad shelf
+      { const grd = g.createLinearGradient(0, r.y + r.h * 0.17, 0, r.y + r.h * 0.34); grd.addColorStop(0, 'rgba(0,0,0,0.3)'); grd.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = grd; g.fillRect(r.x, r.y + r.h * 0.17, r.w, r.h * 0.17); }
+      // collar and shoulder stripes
+      box(r, 0, 1, 0, 0.04, stripeC); box(r, 0, 1, 0.04, 0.05, white);
+      for (const u of [0.25, 0.75]) for (const [du, col, w] of [[-0.045, stripeC, 0.018], [0.045, stripeC, 0.018], [-0.018, white, 0.008], [0.018, white, 0.008]]) box(r, u + du - w / 2, u + du + w / 2, 0.05, 0.14, col);
+      if (refs) { for (let i = 0; i < 12; i++) box(r, i / 12, i / 12 + 1 / 24, 0, 1, dark); }
+      box(r, 0, 1, 0.94, 1, shade(C.jer, 0.76));
       // cap sleeves
-      r = reg('sleeve'); box(r, 0, 1, 0, 1, C.jer); box(r, 0, 1, 0.72, 0.83, stripeC); box(r, 0, 1, 0.85, 0.9, white); box(r, 0, 1, 0.96, 1, shade(C.jer, 0.78));
-      g.fillStyle = fabric; g.fillRect(r.x, r.y, r.w, r.h);
-      // gloves: team-coloured back, white palm, dark cuff, knuckle pads
-      r = reg('glove'); box(r, 0, 1, 0, 1, C.glove); box(r, 0.27, 0.73, 0.1, 1, white); box(r, 0, 1, 0, 0.1, dark);
+      r = reg('sleeve'); box(r, 0, 1, 0, 1, C.jer); box(r, 0, 1, 0.7, 0.82, stripeC); box(r, 0, 1, 0.84, 0.9, white); box(r, 0, 1, 0.96, 1, shade(C.jer, 0.76));
+      if (refs) { for (let i = 0; i < 6; i++) box(r, i / 6, i / 6 + 1 / 12, 0, 1, dark); }
+      seam(r.x, r.y + r.h * 0.12, r.x + r.w, r.y + r.h * 0.12);
+      // gloves: team-coloured back with a textured sticky palm (white) and finger seams
+      r = reg('glove'); box(r, 0, 1, 0, 1, C.glove); box(r, 0.26, 0.74, 0.1, 1, white); box(r, 0, 1, 0, 0.1, dark);
+      g.fillStyle = 'rgba(0,0,0,0.1)'; for (let i = 0; i < 40; i++) for (let j = 0; j < 14; j++) g.fillRect(r.x + r.w * (0.27 + 0.46 * i / 40), r.y + r.h * (0.12 + 0.86 * j / 14), 3, 3);
       g.fillStyle = css(shade(C.glove, 0.55)); for (const u of [0.05, 0.12, 0.19, 0.81, 0.88, 0.95]) g.fillRect(r.x + r.w * (u - 0.025), r.y + r.h * 0.5, r.w * 0.05, r.h * 0.14);
-      g.fillStyle = 'rgba(0,0,0,0.12)'; for (const u of [0.35, 0.47, 0.59]) g.fillRect(r.x + r.w * u, r.y + r.h * 0.55, 2, r.h * 0.45); // finger seams
-      // pants: belt with buckle, side stripes
-      r = reg('pant'); box(r, 0, 1, 0, 1, C.pant); box(r, 0, 1, 0, 0.1, dark); box(r, 0.47, 0.53, 0.015, 0.09, [0.72, 0.74, 0.77, 1]);
+      g.fillStyle = 'rgba(0,0,0,0.14)'; for (const u of [0.35, 0.47, 0.59]) g.fillRect(r.x + r.w * u, r.y + r.h * 0.55, 3, r.h * 0.45);
+      // pants: belt with buckle, side stripes, hip/thigh pad outlines
+      r = reg('pant'); box(r, 0, 1, 0, 1, C.pant); box(r, 0, 1, 0, 0.09, dark); box(r, 0.47, 0.53, 0.012, 0.08, [0.72, 0.74, 0.77, 1]);
       const pstripe = contrast(C.stripe, C.pant);
-      for (const u of [0.25, 0.75]) { box(r, u - 0.028, u + 0.028, 0.1, 1, pstripe); box(r, u - 0.036, u - 0.028, 0.1, 1, white); box(r, u + 0.028, u + 0.036, 0.1, 1, white); }
-      g.fillStyle = fabric; g.fillRect(r.x, r.y, r.w, r.h);
+      for (const u of [0.25, 0.75]) { box(r, u - 0.03, u + 0.03, 0.09, 1, pstripe); box(r, u - 0.038, u - 0.03, 0.09, 1, white); box(r, u + 0.03, u + 0.038, 0.09, 1, white); }
+      g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 3; for (const u of [0.5, 1.0]) { g.beginPath(); g.ellipse(r.x + r.w * (u - 0.25), r.y + r.h * 0.52, r.w * 0.11, r.h * 0.12, 0, 0, 6.3); g.stroke(); }
+      seam(r.x, r.y + r.h * 0.38, r.x + r.w, r.y + r.h * 0.38);
       // socks
-      r = reg('sock'); box(r, 0, 1, 0, 1, C.sock); box(r, 0, 1, 0.1, 0.4, white); box(r, 0, 1, 0.21, 0.29, contrast(C.stripe, white));
-      g.fillStyle = fabric; g.fillRect(r.x, r.y, r.w, r.h);
-      // helmet: centre stripe over the crown, logo and ear hole on both sides, vents
+      r = reg('sock'); box(r, 0, 1, 0, 1, C.sock); box(r, 0, 1, 0.1, 0.42, white); box(r, 0, 1, 0.21, 0.3, contrast(C.stripe, white));
+      // officials' stripes region (plain reference)
+      r = reg('stripes'); box(r, 0, 1, 0, 1, white); for (let i = 0; i < 10; i++) box(r, i / 10, i / 10 + 0.05, 0, 1, dark);
+      // helmet: centre stripe, logo + ear hole on both sides, vents, bumper text
       r = reg('helm'); box(r, 0, 1, 0, 1, C.helm);
       const hstripe = contrast(C.stripe, C.helm), hs2 = contrast(C.pant, hstripe);
       for (let py = 0; py < r.h; py++) {
-        const th = (py / r.h) * HELM_TH, s = Math.max(0.06, Math.sin(th)), hw = Math.min(0.5, 0.012 / s), hw2 = Math.min(0.5, 0.0045 / s), y = r.y + py, front = th < 1.02;
+        const th = (py / r.h) * HELM_TH, s = Math.max(0.06, Math.sin(th)), hw = Math.min(0.5, 0.013 / s), hw2 = Math.min(0.5, 0.005 / s), y = r.y + py, front = th < 1.05;
         g.fillStyle = css(hstripe); if (front) g.fillRect(r.x + r.w * (0.5 - hw), y, r.w * hw * 2, 1); g.fillRect(r.x, y, r.w * hw, 1); g.fillRect(r.x + r.w * (1 - hw), y, r.w * hw, 1);
         g.fillStyle = css(hs2); if (front) g.fillRect(r.x + r.w * (0.5 - hw2), y, r.w * hw2 * 2, 1); g.fillRect(r.x, y, r.w * hw2, 1); g.fillRect(r.x + r.w * (1 - hw2), y, r.w * hw2, 1);
       }
@@ -1341,107 +1899,147 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const u of [0.25, 0.75]) {
         const cx = r.x + r.w * u, cy = r.y + r.h * (1.5 / HELM_TH), ex = r.w * 0.05, ey = r.h * 0.105;
         g.fillStyle = css(white); g.beginPath(); g.ellipse(cx, cy, ex, ey, 0, 0, 6.2832); g.fill();
-        g.strokeStyle = css(hstripe); g.lineWidth = 4; g.stroke();
+        g.strokeStyle = css(hstripe); g.lineWidth = 6; g.stroke();
         g.save(); g.translate(cx, cy); g.scale(ex / ey, 1); g.fillStyle = css(lum(C.helm) > 0.55 ? shade(C.helm, 0.6) : C.helm); g.font = `900 ${Math.round(ey * 1.25)}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
         const tw = g.measureText(letters).width; if (tw > ey * 1.5) g.scale((ey * 1.5) / tw, 1); g.fillText(letters, 0, ey * 0.06); g.restore();
-        // ear hole, a little behind and below the logo
         const hx = r.x + r.w * (u + (u < 0.5 ? -0.03 : 0.03)), hy = r.y + r.h * (1.98 / HELM_TH);
-        g.fillStyle = 'rgba(20,22,26,0.9)'; g.beginPath(); g.ellipse(hx, hy, r.w * 0.013, r.h * 0.03, 0, 0, 6.2832); g.fill();
-        g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 2; g.stroke();
+        g.fillStyle = 'rgba(14,15,18,0.95)'; g.beginPath(); g.ellipse(hx, hy, r.w * 0.013, r.h * 0.03, 0, 0, 6.2832); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 3; g.stroke();
       }
-      g.fillStyle = 'rgba(0,0,0,0.55)'; for (const u of [0.42, 0.58, 0.36, 0.64]) for (const th of [0.62, 0.78]) { const sinT = Math.sin(th); g.beginPath(); g.ellipse(r.x + r.w * (0.5 + (u - 0.5) * 0.45 / sinT), r.y + r.h * (th / HELM_TH), r.w * 0.004 / sinT, r.h * 0.012, 0, 0, 6.2832); g.fill(); }
-      // chin-strap snaps at the jaw
+      g.fillStyle = 'rgba(0,0,0,0.6)'; for (const u of [0.42, 0.58, 0.36, 0.64]) for (const th of [0.6, 0.78]) { const sinT = Math.sin(th); g.beginPath(); g.ellipse(r.x + r.w * (0.5 + (u - 0.5) * 0.45 / sinT), r.y + r.h * (th / HELM_TH), r.w * 0.004 / sinT, r.h * 0.012, 0, 0, 6.2832); g.fill(); }
       g.fillStyle = 'rgba(230,232,236,0.9)'; for (const u of [0.39, 0.61]) { g.beginPath(); g.ellipse(r.x + r.w * u, r.y + r.h * (2.35 / HELM_TH), r.w * 0.006, r.h * 0.014, 0, 0, 6.2832); g.fill(); }
+      // roughness variation in alpha: fabric 0.5, side panels shinier, stripes matte
+      try {
+        const img = g.getImageData(0, 0, S, S), d = img.data;
+        const setA = (rr, u0, u1, v0, v1, a) => { const x0 = Math.round(rr.x + rr.w * u0), x1 = Math.round(rr.x + rr.w * u1), y0 = Math.round(rr.y + rr.h * v0), y1 = Math.round(rr.y + rr.h * v1); for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) d[(y * S + x) * 4 + 3] = a; };
+        setA(reg('torso'), 0, 1, 0, 1, 128); for (const u of [0.25, 0.75]) setA(reg('torso'), u - 0.06, u + 0.06, 0.3, 1, 70);
+        setA(reg('sleeve'), 0, 1, 0, 1, 128); setA(reg('pant'), 0, 1, 0, 1, 90); setA(reg('sock'), 0, 1, 0, 1, 160); setA(reg('glove'), 0, 1, 0, 1, 110); setA(reg('stripes'), 0, 1, 0, 1, 150);
+        g.putImageData(img, 0, 0);
+      } catch (e) {}
       return c;
     }
-    // crowd sprite sheet: 8 seated / standing fans; alpha 1 areas take the seat's tint, alpha 0.6 areas keep their own colour
+    // crowd sprite sheet: 16 fans x 3 states (seated / standing / slumped). alpha 1 areas take the seat's tint, alpha 0.6 keep their own colour,
+    // alpha 0.7 marks a phone screen (lit on big plays at night)
     function crowdCanvas() {
-      const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d');
+      cs = 99;
+      const CW = 96, CH = 192, c = document.createElement('canvas'); c.width = CW * 16; c.height = CH * 3; const g = c.getContext('2d');
       const skins = ['#f1cdb0', '#d9a87f', '#b57f57', '#8b5a3c', '#5b3a24', '#e9c3a4', '#a86e4b', '#73482d'], hairs = ['#2b1d14', '#5a3b22', '#c9a15a', '#1a1a1a', '#6b6b6b', '#2b1d14', '#3d2a1b', '#d9c7a0'];
-      for (let k = 0; k < 8; k++) {
-        const x0 = k * 128, cx = x0 + 64, pose = k % 4, stand = pose === 2;
-        const own = (col) => { g.globalAlpha = 0.6; g.fillStyle = col; }, tint = () => { g.globalAlpha = 1; g.fillStyle = '#ffffff'; };
-        const bodyTop = stand ? 92 : 112, bodyBot = 256;
-        // body (tinted shirt)
-        tint(); g.beginPath(); g.moveTo(cx - 34, bodyBot); g.lineTo(cx - 36, bodyTop + 22); g.quadraticCurveTo(cx - 36, bodyTop, cx - 14, bodyTop); g.lineTo(cx + 14, bodyTop); g.quadraticCurveTo(cx + 36, bodyTop, cx + 36, bodyTop + 22); g.lineTo(cx + 34, bodyBot); g.closePath(); g.fill();
+      const own = (col, a) => { g.globalAlpha = a || 0.6; g.fillStyle = col; }, tint = () => { g.globalAlpha = 1; g.fillStyle = '#ffffff'; };
+      for (let k = 0; k < 16; k++) for (let st = 0; st < 3; st++) {
+        const x0 = k * CW, y0 = st * CH, cx = x0 + CW / 2, skin = skins[k % 8], hair = hairs[(k * 3) % 8], cap = k % 3 === 0, jacket = k % 4 === 1, scarf = k % 5 === 2, fem = k % 2 === 1;
+        const stand = st === 1, slump = st === 2;
+        const shoulder = y0 + (stand ? 70 : 100), bottom = y0 + CH, bw = fem ? 26 : 32;
+        // legs (dark own colour) for standing
+        if (stand) { own('#23262e'); g.fillRect(cx - 18, y0 + 130, 14, 60); g.fillRect(cx + 4, y0 + 130, 14, 60); }
+        // body (tinted shirt or own jacket)
+        if (jacket) own(k % 8 < 4 ? '#2f3340' : '#4a3b2e'); else tint();
+        g.beginPath(); g.moveTo(cx - bw, stand ? y0 + 135 : bottom); g.lineTo(cx - bw - 2, shoulder + 18); g.quadraticCurveTo(cx - bw - 2, shoulder, cx - 12, shoulder); g.lineTo(cx + 12, shoulder); g.quadraticCurveTo(cx + bw + 2, shoulder, cx + bw + 2, shoulder + 18); g.lineTo(cx + bw, stand ? y0 + 135 : bottom); g.closePath(); g.fill();
+        if (scarf) { own('#c23b2e'); g.fillRect(cx - 14, shoulder - 2, 28, 10); }
         // arms
-        if (pose === 1 || pose === 3) { // arms up
-          for (const s of [-1, 1]) { tint(); g.fillRect(cx + s * 30 - 8, bodyTop - 50, 16, 70); own(skins[k]); g.beginPath(); g.arc(cx + s * 30, bodyTop - 56, 10, 0, 6.3); g.fill(); }
-          if (pose === 3) { own('#f4e7b5'); g.fillRect(cx - 40, bodyTop - 92, 80, 34); own('#c23b2e'); g.fillRect(cx - 32, bodyTop - 82, 64, 14); }
-        } else { for (const s of [-1, 1]) { tint(); g.fillRect(cx + s * 36 - 8, bodyTop + 18, 16, 46); own(skins[k]); g.beginPath(); g.arc(cx + s * 36, bodyTop + 70, 10, 0, 6.3); g.fill(); } }
-        // head + hair / cap
-        own(skins[k]); g.beginPath(); g.ellipse(cx, bodyTop - 26, 20, 24, 0, 0, 6.3); g.fill();
-        if (k % 3 === 0) { tint(); g.beginPath(); g.ellipse(cx, bodyTop - 36, 22, 14, 0, Math.PI, 0); g.fill(); g.fillRect(cx - 24, bodyTop - 38, 48, 6); }
-        else { own(hairs[k]); g.beginPath(); g.ellipse(cx, bodyTop - 34, 21, 15, 0, Math.PI, 0); g.fill(); }
-        own('rgba(0,0,0,0.35)'); g.fillRect(cx - 8, bodyTop - 22, 4, 4); g.fillRect(cx + 4, bodyTop - 22, 4, 4);
+        const armsUp = stand && (k % 3 !== 1);
+        if (armsUp) { for (const s of [-1, 1]) { if (jacket) own('#2f3340'); else tint(); g.fillRect(cx + s * 28 - 7, shoulder - 58, 14, 74); own(skin); g.beginPath(); g.arc(cx + s * 28, shoulder - 62, 9, 0, 6.3); g.fill(); } if (k % 4 === 2) { own('#ffffff', 0.7); g.fillRect(cx + 22, shoulder - 76, 12, 20); } }
+        else if (slump) { for (const s of [-1, 1]) { if (jacket) own('#2f3340'); else tint(); g.fillRect(cx + s * 24 - 7, shoulder + 10, 14, 50); own(skin); g.beginPath(); g.arc(cx + s * 16, shoulder + 24, 9, 0, 6.3); g.fill(); } }
+        else { for (const s of [-1, 1]) { if (jacket) own('#2f3340'); else tint(); g.fillRect(cx + s * (bw + 4) - 7, shoulder + 14, 14, 44); own(skin); g.beginPath(); g.arc(cx + s * (bw + 4), shoulder + 62, 9, 0, 6.3); g.fill(); } }
+        // head, hair / cap, face shadow
+        const hy = shoulder - (slump ? 10 : 26);
+        own(skin); g.beginPath(); g.ellipse(cx, hy, 18, 22, 0, 0, 6.3); g.fill();
+        if (cap) { tint(); g.beginPath(); g.ellipse(cx, hy - 10, 20, 13, 0, Math.PI, 0); g.fill(); g.fillRect(cx - 24, hy - 12, 46, 6); }
+        else { own(hair); g.beginPath(); g.ellipse(cx, hy - 8, 19, fem ? 20 : 14, 0, Math.PI, 0); g.fill(); if (fem) { g.fillRect(cx - 19, hy - 8, 8, 30); g.fillRect(cx + 11, hy - 8, 8, 30); } }
+        own('rgba(0,0,0,0.3)'); g.fillRect(cx - 7, hy - 2, 4, 3); g.fillRect(cx + 3, hy - 2, 4, 3);
         g.globalAlpha = 1;
       }
       return c;
     }
+    // ---------- stadium ----------
     function buildWorld() {
       cs = 777;
-      const W = { plain: new Batch(9000), field: new Batch(12), glow: new Batch(900), board: new Batch(12), crowd: null };
+      const W = { plain: new Batch(14000), seats: new Batch(3000), field: new Batch(12), glow: new Batch(1200), board: new Batch(12), ribbon: new Batch(60), glass: new Batch(60), crowd: null };
       const up = [0, 1, 0];
       W.field.quad([-30, 0, -12], [30, 0, -12], [30, 0, 112], [-30, 0, 112], up, [1, 1, 1, 1], [0, 0, 1, 0, 1, 1, 0, 1]);
-      const turf = WX === 'snow' ? [0.55, 0.6, 0.58, 1] : [0.1, 0.27, 0.14, 1], wall = [0.09, 0.1, 0.13, 1], dark = [0.05, 0.055, 0.07, 1], band = TEAM, concrete = [0.16, 0.17, 0.2, 1];
-      W.plain.quad([-90, -0.02, -70], [90, -0.02, -70], [90, -0.02, 180], [-90, -0.02, 180], up, turf);
-      // crowd: seated figures as layered quads (body + head) in rows, per stand
+      const turf = WX === 'snow' ? [0.5, 0.52, 0.5, 1] : [0.1, 0.24, 0.12, 1], wall = [0.12, 0.13, 0.16, 1], dark = [0.05, 0.055, 0.07, 1], concrete = [0.3, 0.3, 0.32, 1], steel = [0.26, 0.27, 0.3, 1], rail = [0.6, 0.62, 0.65, 1];
+      W.plain.quad([-120, -0.02, -90], [120, -0.02, -90], [120, -0.02, 200], [-120, -0.02, 200], up, turf);
+      // ---- crowd ----
       const CR = [];
-      const pal = [TEAM, TEAM, TEAM2, DEFA, [0.93, 0.94, 0.96, 1], [0.22, 0.25, 0.32, 1], [0.45, 0.47, 0.52, 1], [0.16, 0.23, 0.42, 1], shade(TEAM, 0.6), [0.7, 0.2, 0.2, 1]];
-      const seat = (x, y, z, fx, fz, amp) => { // one sprite quad per fan, facing (fx,fz) toward the field
-        const rx = -fz, rz = fx, k = (crand() * 8) | 0, stand = (k % 4) === 2, w = 0.36, h = stand ? 1.75 : 1.45, c = pal[(crand() * pal.length) | 0], ph = crand() * 6.28;
-        const u0 = k / 8, u1 = (k + 1) / 8, lift = stand ? 0 : 0.05;
-        const a = [x - rx * w, y + h + lift, z - rz * w], b = [x + rx * w, y + h + lift, z + rz * w], c2 = [x + rx * w, y + lift, z + rz * w], d = [x - rx * w, y + lift, z - rz * w];
-        for (const [v, u, t] of [[a, u0, 0], [b, u1, 0], [c2, u1, 1], [a, u0, 0], [c2, u1, 1], [d, u0, 1]]) CR.push(v[0], v[1], v[2], c[0], c[1], c[2], ph, amp * (stand ? 1.6 : 1), u, t);
+      const pal = [TEAM, TEAM, shade(TEAM, 0.7), TEAM2, DEFA, [0.8, 0.8, 0.82, 1], [0.2, 0.22, 0.28, 1], [0.35, 0.36, 0.4, 1], [0.16, 0.23, 0.42, 1], shade(TEAM, 0.5), [0.5, 0.14, 0.14, 1], [0.1, 0.1, 0.12, 1], [0.12, 0.12, 0.14, 1], [0.18, 0.16, 0.14, 1], [0.25, 0.3, 0.28, 1]];
+      const secPal = (sec) => { const h = Math.abs(Math.sin(sec * 12.9898) * 43758.5453) % 1; return h < 0.22 ? 0 : h < 0.4 ? 3 : h < 0.5 ? 4 : h < 0.62 ? 6 : h < 0.74 ? 11 : h < 0.84 ? 13 : h < 0.92 ? 7 : 5; };
+      const seat = (x, y, z, fx, fz, amp, sec) => { // one sprite quad per fan facing (fx,fz); aM: phase, amp, stand threshold, phone flag
+        const rx = -fz, rz = fx, k = (crand() * 16) | 0, w = 0.4, h = 1.6, ph = crand() * 6.28, thr = 0.25 + crand() * 0.75, phone = SKY.night && crand() < 0.18 ? 1 : 0;
+        const c0 = pal[crand() < 0.25 ? (crand() * pal.length) | 0 : secPal(sec || 0)], c = shade(c0, 0.6 + crand() * 0.45);
+        const u0 = k / 48, u1 = (k + 1) / 48;
+        const a = [x - rx * w, y + h, z - rz * w], b = [x + rx * w, y + h, z + rz * w], c2 = [x + rx * w, y, z + rz * w], d = [x - rx * w, y, z - rz * w];
+        for (const [v, u, t] of [[a, u0, 0], [b, u1, 0], [c2, u1, 1], [a, u0, 0], [c2, u1, 1], [d, u0, 1]]) CR.push(v[0], v[1], v[2], c[0], c[1], c[2], ph, amp, thr, phone, u, t);
       };
-      const stand = (x0, z0, x1, z1, fx, fz, rows, rise, dy0) => {
+      // a tiered stand: rows of treads/risers with aisles; fx,fz face the field
+      const stand = (x0, z0, x1, z1, fx, fz, rows, rise, y0, depth, aisleEvery, dense) => {
         const len = Math.hypot(x1 - x0, z1 - z0), ux = (x1 - x0) / len, uz = (z1 - z0) / len;
         for (let r = 0; r < rows; r++) {
-          const y = (dy0 || 1.9) + r * rise, back = r * 0.95;
-          for (let d = 0.4 + crand() * 0.5; d < len; d += 0.95 + crand() * 0.35) {
-            if (crand() < 0.1) continue;
-            seat(x0 + ux * d - fx * back, y, z0 + uz * d - fz * back, fx, fz, 0.04 + crand() * 0.08);
+          const y = y0 + r * rise, back = r * depth;
+          const A = [x0 + ux * 0 - fx * back, y, z0 + uz * 0 - fz * back], Bp = [x0 + ux * len - fx * back, y, z0 + uz * len - fz * back];
+          const A2 = [A[0] - fx * depth, y, A[2] - fz * depth], B2 = [Bp[0] - fx * depth, y, Bp[2] - fz * depth];
+          W.seats.quad(A, Bp, B2, A2, up, [1, 1, 1, 1], [0, 0, len / 1.5, 0, len / 1.5, 1, 0, 1]);
+          W.plain.quad(A2, B2, [B2[0], y + rise, B2[2]], [A2[0], y + rise, A2[2]], [fx, 0, fz], concrete);
+          for (let d = 0.55 + crand() * 0.3; d < len; d += dense ? 0.85 + crand() * 0.25 : 1.0 + crand() * 0.5) {
+            if (((d / aisleEvery) % 1) < 0.08) continue; // aisle
+            if (crand() < (dense ? 0.06 : 0.14)) continue;
+            seat(x0 + ux * d - fx * (back + depth * 0.55), y + 0.02, z0 + uz * d - fz * (back + depth * 0.55), fx, fz, 0.04 + crand() * 0.08, Math.floor(d / aisleEvery) * 7 + Math.floor(r / 6) * 31 + Math.round(x0 * 3 + z0));
           }
         }
+        // front railing
+        const ry = y0 + 0.9; W.plain.wbox(Math.min(x0, x1) - (fx ? 0.05 : 0), ry, Math.min(z0, z1) - (fz ? 0.05 : 0), Math.max(x0, x1) + (fx ? 0.05 : 0), ry + 0.06, Math.max(z0, z1) + (fz ? 0.05 : 0), rail);
+        for (let d = 0; d < len; d += 3) W.plain.wbox(x0 + ux * d - 0.03, y0, z0 + uz * d - 0.03, x0 + ux * d + 0.03, ry, z0 + uz * d + 0.03, rail);
       };
       for (const s of [-1, 1]) {
+        // field wall with padded team-colour panels
         W.plain.wbox(s * 34, 0, -24, s * 34.7, 1.9, 124, wall);
-        for (let z = -22; z < 122; z += 12) W.plain.wbox(s * 33.97, 0.5, z, s * 34.05, 1.75, z + 11.2, (Math.round(z / 12) & 1) ? band : shade(DEFA, 0.9));
-        // stand slabs (cast shadows, sit under the crowd)
-        W.plain.quad([s * 34.7, 1.6, -24], [s * 34.7, 1.6, 124], [s * 60, 20.5, 124], [s * 60, 20.5, -24], [-s * 0.6, 0.8, 0], concrete);
-        stand(s * 35.2, -22, s * 35.2, 122, -s, 0, 20, 0.95);
-        W.plain.wbox(s * 47, 10.5, -24, s * 47.6, 11.4, 124, [0.1, 0.11, 0.14, 1]);
-        W.glow.wbox(s * 46.95, 10.6, -24, s * 47.0, 11.3, 124, mixc(TEAM, [1, 1, 1, 1], 0.25));
-        W.plain.wbox(s * 60, 0, -50, s * 62, 26, 124, dark);
-        W.plain.wbox(s * 40, 23, -50, s * 62, 24, 124, [0.1, 0.11, 0.14, 1]);
-        for (let z = -40; z <= 120; z += 20) W.plain.wbox(s * 41, 21, z - 0.4, s * 41.8, 23, z + 0.4, [0.12, 0.13, 0.16, 1]);
-        W.glow.wbox(s * 40.2, 22.6, -50, s * 41, 23, 124, [1, 0.95, 0.75, 1].map((v, i) => (i < 3 ? v * (0.4 + 0.6 * SKY.glow) : 1)));
-        W.plain.wbox(s * 31, 0, 32, s * 32.2, 0.55, 68, [0.15, 0.16, 0.2, 1]);
-        for (let z = 30; z <= 70; z += 1.3) {
-          if (crand() < 0.3) continue;
-          const x = s * (29.6 + crand() * 2.6), h = 1.7 + crand() * 0.4, cc = s < 0 ? shade(TEAM, 0.7 + crand() * 0.3) : shade(DEFA, 0.7 + crand() * 0.3);
-          W.plain.wbox(x - 0.25, 0, z - 0.2, x + 0.25, h, z + 0.2, cc);
-          W.plain.wbox(x - 0.18, h, z - 0.18, x + 0.18, h + 0.34, z + 0.18, s < 0 ? TEAM2 : DEFC.helm);
-        }
+        for (let z = -22; z < 122; z += 12) W.plain.wbox(s * 33.97, 0.45, z, s * 34.05, 1.75, z + 11.2, (Math.round(z / 12) & 1) ? TEAM : shade(DEFA, 0.9));
+        // lower bowl: 24 rows
+        stand(s * 35.2, -22, s * 35.2, 122, -s, 0, 24, 0.82, 1.95, 0.95, 14, true);
+        // tunnels in the lower bowl wall
+        for (const z of [-10, 50, 110]) W.plain.wbox(s * 34.1, 0, z - 2.2, s * 36, 2.3, z + 2.2, [0.01, 0.01, 0.015, 1]);
+        // fascia with the ribbon board, then the upper deck
+        W.plain.wbox(s * 58.5, 21.6, -24, s * 59.4, 23.6, 124, [0.08, 0.09, 0.11, 1]);
+        W.ribbon.quad([s * 58.45, 21.8, -24], [s * 58.45, 21.8, 124], [s * 58.45, 23.3, 124], [s * 58.45, 23.3, -24], [0, 0, 0], [1, 1, 1, 1], [0, 1, 9, 1, 9, 0, 0, 0]);
+        stand(s * 59.5, -22, s * 59.5, 122, -s, 0, 20, 0.95, 23.8, 1.0, 14, false);
+        // press box / suites on the home side, glass front
+        W.plain.wbox(s * 60, 43, -22, s * 82, 48, 122, [0.07, 0.075, 0.09, 1]);
+        W.glass.quad([s * 60.05, 43.2, -22], [s * 60.05, 43.2, 122], [s * 60.05, 47.6, 122], [s * 60.05, 47.6, -22], [-s, 0, 0], [0.3, 0.4, 0.55, 1]);
+        for (let z = -20; z <= 120; z += 10) W.plain.wbox(s * 59.9, 43, z - 0.15, s * 60.3, 48, z + 0.15, steel);
+        // back wall
+        W.plain.wbox(s * 80, 0, -50, s * 83, 50, 124, dark);
+        // bench area: bench, backrest, coolers, kicking net frame
+        const bx = s * 30.6;
+        W.plain.wbox(bx - 0.65, 0.42, 34, bx + 0.65, 0.5, 66, [0.72, 0.72, 0.74, 1]);
+        for (let z = 35; z <= 65; z += 6) W.plain.wbox(bx - 0.5, 0, z - 0.06, bx + 0.5, 0.42, z + 0.06, steel);
+        W.plain.wbox(bx + s * 0.6, 0.5, 34, bx + s * 0.7, 1.0, 66, [0.72, 0.72, 0.74, 1]);
+        for (const z of [31, 32.2]) { W.plain.wbox(bx - 0.3, 0, z - 0.3, bx + 0.3, 0.75, z + 0.3, [0.95, 0.4, 0.05, 1]); W.plain.wbox(bx - 0.32, 0.75, z - 0.32, bx + 0.32, 0.8, z + 0.32, [0.95, 0.95, 0.95, 1]); }
+        W.plain.wbox(bx - 0.1, 0, 71.5, bx + 0.1, 3.0, 71.6, steel); W.plain.wbox(bx - 0.1, 0, 74.4, bx + 0.1, 3.0, 74.5, steel); W.plain.wbox(bx - 0.1, 2.95, 71.5, bx + 0.1, 3.05, 74.5, steel);
+        // end-zone cameras on tripods
+        for (const z of [-7, 107]) { W.plain.wbox(s * 20 - 0.08, 0, z - 0.08, s * 20 + 0.08, 1.4, z + 0.08, steel); W.plain.wbox(s * 20 - 0.25, 1.4, z - 0.35, s * 20 + 0.25, 1.75, z + 0.35, [0.1, 0.1, 0.12, 1]); }
       }
+      // end stands + corners
       for (const [zw, dir] of [[123, 1], [-24.7, -1]]) {
         W.plain.wbox(-34.7, 0, zw, 34.7, 1.9, zw + 0.7, wall);
-        W.plain.wbox(-34.7, 0.5, dir > 0 ? zw - 0.03 : zw + 0.73, 34.7, 1.75, dir > 0 ? zw + 0.05 : zw + 0.65, band);
-        const z0 = dir > 0 ? zw + 0.7 : zw, z1 = z0 + dir * 24;
-        W.plain.quad([-62, 1.6, z0], [62, 1.6, z0], [62, 20.5, z1], [-62, 20.5, z1], [0, 0.8, -0.6 * dir], concrete);
-        stand(-60, z0 + dir * 0.5, 60, z0 + dir * 0.5, 0, -dir, 20, 0.95);
-        W.plain.wbox(-62, 0, z1, 62, 26, z1 + dir * 2, dark);
+        W.plain.wbox(-34.7, 0.45, dir > 0 ? zw - 0.03 : zw + 0.73, 34.7, 1.75, dir > 0 ? zw + 0.05 : zw + 0.65, TEAM);
+        const z0 = dir > 0 ? zw + 0.7 : zw;
+        stand(-58, z0 + dir * 0.5, 58, z0 + dir * 0.5, 0, -dir, 24, 0.82, 1.95, 0.95, 16, true);
+        W.plain.wbox(-60, 0, z0 + dir * 24, 60, 24, z0 + dir * 27, dark);
+        for (const z of [z0 + dir * 1]) W.plain.wbox(-2.2, 0, Math.min(z, z + dir * 1.9), 2.2, 2.3, Math.max(z, z + dir * 1.9), [0.01, 0.01, 0.015, 1]);
       }
-      W.plain.wbox(-15, 21, 140, 15, 35, 142, [0.06, 0.065, 0.08, 1]);
-      W.board.quad([14, 22.2, 139.9], [-14, 22.2, 139.9], [-14, 33.8, 139.9], [14, 33.8, 139.9], [0, 0, 0], [1, 1, 1, 1], [1, 1, 0, 1, 0, 0, 1, 0]);
-      for (let i = 0; i < 4; i++) W.plain.wbox(-6 + i * 4, 0, 141, -5 + i * 4, 21, 142, dark);
-      for (const [x, z] of [[-48, -6], [48, -6], [-48, 60], [48, 60], [-48, 116], [48, 116]]) {
-        W.plain.wbox(x - 0.5, 0, z - 0.5, x + 0.5, 34, z + 0.5, [0.18, 0.19, 0.22, 1]);
-        const sx = x < 0 ? 1 : -1;
-        W.plain.wbox(x - 3, 33, z - 3.5, x + 3, 38, z + 3.5, [0.12, 0.13, 0.15, 1]);
-        const lc = [1, 0.97, 0.86, 1].map((v, i) => (i < 3 ? v * (0.35 + 0.65 * SKY.glow) : 1));
-        for (let r = 0; r < 3; r++) for (let q = 0; q < 4; q++) W.glow.wbox(x + sx * 3.02, 33.5 + r * 1.4, z - 3.1 + q * 1.6, x + sx * 3.1, 34.6 + r * 1.4, z - 1.8 + q * 1.6, lc);
+      // jumbotron behind the far end zone: housing, screen, support
+      W.plain.wbox(-16, 26, 151, 16, 41, 153.5, [0.06, 0.065, 0.08, 1]);
+      W.plain.wbox(-16.4, 25.6, 150.8, 16.4, 26.0, 153.6, steel); W.plain.wbox(-16.4, 41, 150.8, 16.4, 41.4, 153.6, steel);
+      W.board.quad([15.4, 26.6, 150.75], [-15.4, 26.6, 150.75], [-15.4, 40.4, 150.75], [15.4, 40.4, 150.75], [0, 0, 0], [1, 1, 1, 1], [1, 1, 0, 1, 0, 0, 1, 0]);
+      for (let i = 0; i < 3; i++) W.plain.wbox(-8 + i * 8 - 0.6, 24, 151.5, -8 + i * 8 + 0.6, 26, 153, dark);
+      // light towers: lattice masts with banks of lamps facing the field
+      for (const t of TOWERS) {
+        const [x, , z] = t, sx = x < 0 ? 1 : -1, H = t[1] + 3;
+        W.plain.wbox(x - 0.45, 0, z - 0.45, x + 0.45, H, z + 0.45, steel);
+        for (let y = 4; y < H; y += 6) { W.plain.wbox(x - 1.2, y, z - 0.08, x + 1.2, y + 0.16, z + 0.08, steel); W.plain.wbox(x - 0.08, y, z - 1.2, x + 0.08, y + 0.16, z + 1.2, steel); }
+        W.plain.wbox(x - 3.4, H - 5.5, z - 4.2, x + 3.4, H - 0.4, z + 4.2, [0.14, 0.15, 0.17, 1]);
+        const lc = [1, 0.97, 0.9, 1];
+        for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) { const yy = H - 5.1 + r * 1.2, zz = z - 3.7 + q * 1.35; W.glow.wbox(x + sx * 3.42, yy, zz, x + sx * 3.5, yy + 0.95, zz + 1.05, lc); }
       }
+      // goal posts with pads, nets behind them
       const gp = [1, 0.84, 0.1, 1];
       for (const [zl, dir] of [[110, 1], [-10, -1]]) {
         const zb = zl + dir * 1.2;
@@ -1449,11 +2047,49 @@ gl_FragColor=vec4(c,1.0);}`;
         W.plain.wbox(-0.12, 3.2, Math.min(zb, zl) - 0.1, 0.12, 3.4, Math.max(zb, zl) + 0.1, gp);
         W.plain.wbox(-3.1, 3.25, zl - 0.1, 3.1, 3.45, zl + 0.1, gp);
         for (const s of [-1, 1]) { W.plain.wbox(s * 3.08 - 0.08, 3.25, zl - 0.08, s * 3.08 + 0.08, 11, zl + 0.08, gp); W.plain.wbox(s * 3.08 - 0.05, 11, zl - 0.05, s * 3.08 + 0.05, 11.6, zl + 0.05, [1, 0.3, 0.2, 1]); }
-        W.plain.wbox(-0.4, 0, zb - 0.4, 0.4, 0.9, zb + 0.4, [0.12, 0.13, 0.16, 1]);
+        W.plain.wbox(-0.42, 0, zb - 0.42, 0.42, 1.9, zb + 0.42, shade(TEAM, 0.8));
+        // field-goal net frame
+        const zn = zl + dir * 9; for (const s of [-1, 1]) W.plain.wbox(s * 8 - 0.1, 0, zn - 0.1, s * 8 + 0.1, 14, zn + 0.1, steel); W.plain.wbox(-8, 13.9, zn - 0.1, 8, 14.1, zn + 0.1, steel);
       }
       for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) W.plain.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
-      W.crowd = { f: new Float32Array(CR), n: CR.length / 10 };
+      W.crowd = { f: new Float32Array(CR), n: CR.length / 12 };
       return W;
+    }
+    // ---------- environment cubemap: the lit stadium from the middle of the field, for reflections ----------
+    function buildEnv() {
+      if (!G) return;
+      const S = 64, tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex);
+      for (let f = 0; f < 6; f++) gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const fb = gl.createFramebuffer(), rb = gl.createRenderbuffer();
+      gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, S, S);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+      const eye = [0, 2.0, 50];
+      const dirs = [[[1, 0, 0], [0, -1, 0]], [[-1, 0, 0], [0, -1, 0]], [[0, 1, 0], [0, 0, 1]], [[0, -1, 0], [0, 0, -1]], [[0, 0, 1], [0, -1, 0]], [[0, 0, -1], [0, -1, 0]]];
+      const Pm = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -(420 + 0.5) / (420 - 0.5), -1, 0, 0, -(2 * 420 * 0.5) / (420 - 0.5), 0]);
+      const saveVP = VP.slice(), saveE = cam.e.slice(), saveQ = quality;
+      G.envPass = true;
+      for (let f = 0; f < 6; f++) {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, tex, 0);
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) continue;
+        gl.viewport(0, 0, S, S); gl.clearColor(SKY.hor[0], SKY.hor[1], SKY.hor[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        const [d, u] = dirs[f];
+        const Vm = m4LookAt(eye, [eye[0] + d[0], eye[1] + d[1], eye[2] + d[2]], u);
+        // the renderer mirrors X (see updateCam): apply the same flip so the cube matches world handedness
+        const flip = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+        const vp = m4Mul(m4Mul(Pm, Vm), flip);
+        for (let i = 0; i < 16; i++) VP[i] = vp[i];
+        cam.e[0] = eye[0]; cam.e[1] = eye[1]; cam.e[2] = eye[2];
+        drawScenePass(true, { forEnv: true, skyOnly: false });
+      }
+      G.envPass = false;
+      for (let i = 0; i < 16; i++) VP[i] = saveVP[i]; cam.e[0] = saveE[0]; cam.e[1] = saveE[1]; cam.e[2] = saveE[2]; quality = saveQ;
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex); gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); gl.deleteRenderbuffer(rb);
+      if (G.env) gl.deleteTexture(G.env);
+      G.env = tex; G.texs.push(tex);
     }
 
     // ---------- atlas: player photos (256px cells) + numbers and generic faces (128px cells) ----------
@@ -1470,13 +2106,14 @@ gl_FragColor=vec4(c,1.0);}`;
       const x = (k % 8) * 128, y = 512 + Math.floor(k / 8) * 128;
       ag.clearRect(x, y, 128, 128);
       ag.font = '900 100px "Barlow Condensed", Impact, "Arial Narrow", sans-serif'; ag.textAlign = 'center'; ag.textBaseline = 'middle';
-      ag.lineWidth = 9; ag.lineJoin = 'round'; ag.strokeStyle = '#6a6a6a'; ag.strokeText(String(n), x + 64, y + 70, 112); // outline (tinted darker in the shader)
+      ag.lineWidth = 10; ag.lineJoin = 'round'; ag.strokeStyle = '#6a6a6a'; ag.strokeText(String(n), x + 64, y + 70, 112); // stitched outline (tinted darker)
       ag.fillStyle = '#ffffff'; ag.fillText(String(n), x + 64, y + 70, 112);
+      ag.lineWidth = 2; ag.strokeStyle = 'rgba(0,0,0,0.25)'; ag.setLineDash([3, 3]); ag.strokeText(String(n), x + 64, y + 70, 112); ag.setLineDash([]);
       atlasDirty = true;
       return (numMap[key] = 100 + k);
     }
     let nameN = 0;
-    function nameCell(name) { // name plate above the back number; cells live in the unused photo area (cell 207 stays blank)
+    function nameCell(name) {
       const key = 'nm' + name;
       if (numMap[key] != null) return numMap[key];
       if (nameN >= 7) return -1;
@@ -1487,18 +2124,26 @@ gl_FragColor=vec4(c,1.0);}`;
       atlasDirty = true;
       return (numMap[key] = 200 + k);
     }
-    function faceCell(skin) { // a drawn generic face for players without a photo
+    function faceCell(skin) { // a drawn generic face for players without a photo: brow, eye shadow, nose shading, lips, stubble
       const key = 'f' + skin;
       if (numMap[key] != null) return numMap[key];
       const k = smallCell(); if (k < 0) return -1;
       const x = (k % 8) * 128, y = 512 + Math.floor(k / 8) * 128, sc = SKIN[skin];
       ag.fillStyle = css(sc); ag.fillRect(x, y, 128, 128);
-      ag.fillStyle = css(shade(sc, 0.75)); ag.beginPath(); ag.ellipse(x + 64, y + 52, 46, 36, 0, Math.PI, 0); ag.fill(); // brow shadow
-      ag.fillStyle = css(sc); ag.beginPath(); ag.ellipse(x + 64, y + 60, 48, 42, 0, 0, 6.3); ag.fill();
-      ag.fillStyle = '#f7f3ea'; for (const ex of [40, 88]) { ag.beginPath(); ag.ellipse(x + ex, y + 58, 12, 7, 0, 0, 6.3); ag.fill(); }
-      ag.fillStyle = '#231b17'; for (const ex of [40, 88]) { ag.beginPath(); ag.arc(x + ex, y + 58, 4.5, 0, 6.3); ag.fill(); }
-      ag.strokeStyle = css(shade(sc, 0.55)); ag.lineWidth = 4; for (const ex of [40, 88]) { ag.beginPath(); ag.moveTo(x + ex - 13, y + 44); ag.lineTo(x + ex + 13, y + 46); ag.stroke(); }
-      ag.strokeStyle = css(shade(sc, 0.6)); ag.lineWidth = 3; ag.beginPath(); ag.moveTo(x + 50, y + 92); ag.quadraticCurveTo(x + 64, y + 100, x + 78, y + 92); ag.stroke();
+      const sh = (kk, a) => `rgba(${Math.round(sc[0] * 255 * kk)},${Math.round(sc[1] * 255 * kk)},${Math.round(sc[2] * 255 * kk)},${a})`;
+      // brow ridge shadow and eye sockets
+      ag.fillStyle = sh(0.78, 0.8); for (const ex of [42, 86]) { ag.beginPath(); ag.ellipse(x + ex, y + 58, 17, 10, 0, 0, 6.3); ag.fill(); }
+      ag.strokeStyle = sh(0.45, 0.9); ag.lineWidth = 5; ag.lineCap = 'round'; for (const ex of [42, 86]) { ag.beginPath(); ag.moveTo(x + ex - 14, y + 46); ag.quadraticCurveTo(x + ex, y + 41, x + ex + 14, y + 45); ag.stroke(); }
+      // nose: shaded sides, lit bridge
+      ag.fillStyle = sh(0.82, 0.7); ag.beginPath(); ag.moveTo(x + 58, y + 62); ag.lineTo(x + 52, y + 92); ag.lineTo(x + 64, y + 96); ag.closePath(); ag.fill();
+      ag.fillStyle = sh(1.1, 0.5); ag.beginPath(); ag.moveTo(x + 64, y + 60); ag.lineTo(x + 61, y + 92); ag.lineTo(x + 68, y + 92); ag.closePath(); ag.fill();
+      ag.fillStyle = sh(0.6, 0.6); for (const nx of [57, 71]) { ag.beginPath(); ag.ellipse(x + nx, y + 95, 4, 2.5, 0, 0, 6.3); ag.fill(); }
+      ag.fillStyle = sh(0.9, 0.5); for (const ex of [42, 86]) { ag.beginPath(); ag.ellipse(x + ex, y + 58, 14, 8, 0, 0, 6.3); ag.fill(); } // sockets stay soft: the eyes are geometry
+      // mouth
+      ag.strokeStyle = sh(0.5, 0.9); ag.lineWidth = 3; ag.beginPath(); ag.moveTo(x + 50, y + 110); ag.quadraticCurveTo(x + 64, y + 116, x + 78, y + 110); ag.stroke();
+      ag.fillStyle = sh(0.72, 0.45); ag.beginPath(); ag.ellipse(x + 64, y + 115, 13, 4, 0, 0, Math.PI); ag.fill();
+      // cheek shading
+      const grd = ag.createRadialGradient(x + 64, y + 70, 30, x + 64, y + 70, 70); grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(0,0,0,0.35)'); ag.fillStyle = grd; ag.fillRect(x, y, 128, 128);
       atlasDirty = true;
       return (numMap[key] = 100 + k);
     }
@@ -1514,11 +2159,29 @@ gl_FragColor=vec4(c,1.0);}`;
       img.onload = () => {
         if (finished) return;
         try {
-          const w = img.naturalWidth, h = img.naturalHeight, sz = Math.min(w, h) * 0.44, cx = (q.idx % 4) * 256, cy = Math.floor(q.idx / 4) * 256;
-          ag.fillStyle = css(SKIN[q.look.skin]); ag.fillRect(cx, cy, 256, 256);
-          ag.drawImage(img, w * 0.5 - sz / 2, h * 0.42 - sz / 2, sz, sz, cx, cy, 256, 256);
+          const w = img.naturalWidth, h = img.naturalHeight, sz = Math.min(w, h) * 0.46, cx = (q.idx % 4) * 256, cy = Math.floor(q.idx / 4) * 256;
+          // sample the photo's skin tone from the cheeks and forehead so neck and arms match the face
+          const tmp = document.createElement('canvas'); tmp.width = tmp.height = 32; const tg = tmp.getContext('2d');
+          tg.drawImage(img, w * 0.5 - sz / 2, h * 0.42 - sz / 2, sz, sz, 0, 0, 32, 32);
+          let tone = null;
+          try {
+            const d = tg.getImageData(0, 0, 32, 32).data; let r = 0, g2 = 0, b = 0, n = 0;
+            for (const [px, py] of [[10, 18], [22, 18], [16, 9], [12, 20], [20, 20], [16, 12]]) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const o = ((py + dy) * 32 + px + dx) * 4; r += d[o]; g2 += d[o + 1]; b += d[o + 2]; n++; }
+            r /= n * 255; g2 /= n * 255; b /= n * 255;
+            if (r > 0.12 && r >= g2 && g2 >= b * 0.9) tone = [r, g2, b, 1];
+          } catch (e) { tone = null; }
+          if (tone) q.look.tone = tone;
+          const base = tone || SKIN[q.look.skin];
+          // feather the photo into the skin tone on a scratch canvas so it reads as a face rather than a sticker
+          const fc = document.createElement('canvas'); fc.width = fc.height = 256; const fg = fc.getContext('2d');
+          fg.drawImage(img, w * 0.5 - sz / 2, h * 0.42 - sz / 2, sz, sz, 0, 0, 256, 256);
+          fg.globalCompositeOperation = 'destination-in';
+          const m = fg.createRadialGradient(128, 128, 48, 128, 132, 112); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.45, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+          fg.fillStyle = m; fg.fillRect(0, 0, 256, 256);
+          ag.fillStyle = css(base); ag.fillRect(cx, cy, 256, 256);
+          ag.drawImage(fc, cx, cy);
           q.cell = q.idx; atlasDirty = true;
-          for (const p of everyone) if (p.sq === q) { p.face = q.cell; }
+          for (const p of everyone) if (p.sq === q) { p.face = q.cell; if (tone) p.lk.tone = tone; }
         } catch (e) { noPhoto(q); }
       };
       img.onerror = () => noPhoto(q);
@@ -1530,7 +2193,6 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const p of everyone) if (p.sq === q) p.face = -1;
     }
     const faceHTML = (q) => (q && q.photo ? `<s class="bz-face" data-pf="${q.key}" style="background-image:url('${q.photo}')"></s>` : q ? `<s class="bz-face bz-nof">${q.num}</s>` : '');
-
     // ---------- layout ----------
     let cssW = 360, cssH = 270, rscale = 1, por = 0, lnd = 0;
     const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
@@ -1595,7 +2257,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let ball = null, ctrl = null, carrier = null, mode = 'none', passer = null, target = null, thrown = false, handed = false, runSeen = -1, crossed = false;
     let aim = null, arc = 1, pend = null, deadT = 0, deadTot = 0, closeP = null, intro = 0, introCut = false, kick = null, cpuD = null, brk = null;
     let pr = null;
-    let excite = 0, parts = [], wxp = [], driveStart = 25, drivePlays = 0, replayBuf = [], replay = null, recT = 0, lastBig = null, pile = [];
+    let excite = 0, parts = [], wxp = [], driveStart = 25, drivePlays = 0, replayBuf = [], replay = null, recT = 0, lastBig = null, pile = [], playRes = '';
     const cam = { e: [0, 15, 6], c: [0, 0, 34], fov: 1, shake: 0, kick: 0, sx: 0, sy: 0 };
     const input = { l: 0, r: 0, u: 0, d: 0, stick: null, sprint: false };
     const GRAV = 12;
@@ -1609,6 +2271,13 @@ gl_FragColor=vec4(c,1.0);}`;
         w: 1, armT: 0, cel: 0, celType: 0, reach: null, pose: 'stance', poseT: 0, lk: normLook(null, (crand() * 5) | 0), num: 0, face: -1, ncell: -1, fcell: -1, sq: null, v: 7, acc: 9, str: 60, agi: 60, cat: 50, spd: 60,
         jumpY: 0, jumpV: 0, jumpT: 0, jumpDelay: 0, jumpPow: 0, diveT: 0, ddx: 0, ddz: 1, mvT: 0, mv: null, mvCd: { juke: 0, spin: 0, stiff: 0 }, spin: 0, wrapT: 0, wrapBy: null, tried: 0, hold: false, face2: null, R: null, ass: null, tgt: null, blk: null, lastTackle: -9,
         sta: 1, sprint: false, rad: 0.42, carrySide: 1, carryT: 0, an: { clip: 'idle', t: 0, from: null, blendT: 0, blendDur: 0 }, bones: null, rag: null, look: null, lean: 0, leanF: 0, ax: 0, az: 0, pvx: 0, pvz: 0, stumbleT: 0, plant: 0, hitT: 0, downAt: 0, handsT: null, throwT: -1 }, o || {});
+      const bd = BODY[role] || BODY.WR;
+      p.body = bd; p.lk = Object.assign({}, p.lk, { hs: p.lk.hs * bd.hs, sw: bd.sw });
+      if (!(o && o.lk)) { p.lk.visor = crand() < 0.2; p.lk.sleeves = crand() < 0.25; p.lk.cleat = crand() < 0.5 ? CLEATS.black : crand() < 0.5 ? CLEATS.white : (side ? DEFC.helm : TEAM); }
+      p.w = bd.bulk;
+      p.dirt = DIRT[side + ':' + key] || 0;
+      p.towel = (role === 'QB' || role === 'RB' || role === 'WR') && ((p.num || key.length) % 3) !== 0;
+      p.mouth = role !== 'QB' && ((p.num || key.length) % 4) === 1;
       p.fcell = faceCell(p.lk.skin);
       return p;
     }
@@ -1673,7 +2342,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function setupPlay() {
       clearPlayers();
-      tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = false; runSeen = -1; crossed = false; aim = null; target = null; passer = null;
+      tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = false; runSeen = -1; crossed = false; aim = null; target = null; passer = null; playRes = '';
       parts = parts.filter((q) => q.life > 0); recT = 0; replayBuf = [];
       const F = FORMS[play.form], fx = flip ? -1 : 1, zc = (z) => clamp(z, -8, 108);
       for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y']) {
@@ -1733,13 +2402,15 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- animation runtime: semantic pose -> clip, blending, procedural layers, ragdoll ----------
     const ONE_SHOT = { throw: 0.42, jump: 1.05, dive: 0.75, juke: 0.36, spin: 0.5, stiff: 0.6, tackle: 0.45, getup: 0.9, kick: 0.8, stumble: 0.5 };
-    const BLEND = { run: 0.14, idle: 0.2, backpedal: 0.16, throw: 0.07, jump: 0.08, dive: 0.07, juke: 0.06, spin: 0.08, stiff: 0.08, tackle: 0.08, getup: 0.3, block: 0.12, rush: 0.12, stance2: 0.3, stance3: 0.3, qbstance: 0.3, kneel: 0.3, kick: 0.1, slide: 0.08, celebrate: 0.15, hold: 0.3, stumble: 0.08, rag: 0.1, reach: 0.12 };
+    const BLEND = { run: 0.14, idle: 0.2, backpedal: 0.16, throw: 0.07, jump: 0.08, dive: 0.07, juke: 0.06, spin: 0.08, stiff: 0.08, tackle: 0.08, getup: 0.3, block: 0.12, rush: 0.12, stance2: 0.3, stance3: 0.3, qbstance: 0.3, kneel: 0.3, kick: 0.1, slide: 0.08, celebrate: 0.15, hold: 0.3, stumble: 0.08, rag: 0.1, reach: 0.12, sit: 0.3, sigtd: 0.2, siginc: 0.2, sigfirst: 0.2, pocket: 0.22 };
+    const DIRT = {};
     function setPose(p, pose, keep) {
       if (p.pose === pose && keep) return;
       p.pose = pose; p.poseT = 0;
     }
     function pickClip(p) {
       if (p.rag) return 'rag';
+      if (p.extra) { if (p.pose === 'sit' || p.pose === 'sigtd' || p.pose === 'siginc' || p.pose === 'sigfirst' || p.pose === 'celebrate') return p.pose; const sp = Math.hypot(p.vx, p.vz); return sp > 0.6 ? 'run' : 'idle'; }
       if (DBG && DBG.forcePose) return DBG.forcePose; // model-sheet / test hook
       if (p.rising > 0) return 'getup';
       const one = ONE_SHOT[p.pose];
@@ -1751,6 +2422,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const sp = Math.hypot(p.vx, p.vz);
       if (sp > 0.9) { const back = (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; return back ? 'backpedal' : (p.stumbleT > 0 ? 'stumble' : 'run'); }
       if (p.pose === 'reach') return 'reach';
+      if (phase === 'live' && p.role === 'QB' && p === OK.QB && ball && ball.holder === p && (mode === 'aim' || mode === 'none')) return 'pocket';
       return 'idle';
     }
     function animUpdate(p, dt) {
@@ -1773,6 +2445,7 @@ gl_FragColor=vec4(c,1.0);}`;
           case 'backpedal': q = clipBackpedal(p.ph); break;
           case 'reach': q = lerpPose(clipRun(p.ph, k * 0.9, 0.1), POSE_REACH, 0.5); break;
           case 'idle': q = POSE_IDLE; break;
+          case 'pocket': q = clipPocket(an.t + p.ph); break;
           case 'stance2': q = POSE_STANCE2; break;
           case 'stance3': q = POSE_STANCE3; break;
           case 'qbstance': q = clipQB(an.t); break;
@@ -1791,9 +2464,11 @@ gl_FragColor=vec4(c,1.0);}`;
           case 'kick': q = clipKick(tt); break;
           case 'getup': q = clipGetup(clamp(1 - p.rising / 0.9, 0, 1)); break;
           case 'celebrate': q = clipCeleb(p.celType, p.poseT); break;
+          case 'sit': q = (p.num & 1) ? POSE_SIT_BACK : POSE_SIT; break;
+          case 'sigtd': case 'siginc': case 'sigfirst': q = clipSignal(clip, p.poseT); break;
           default: q = POSE_IDLE;
         }
-        if (q === POSE_IDLE || q === POSE_STANCE2 || q === POSE_STANCE3 || q === POSE_KNEEL || q === POSE_SLIDE || q === POSE_HOLD || q === POSE_REACH) q = lerpPose(q, q, 0); // copy before edits
+        if (q === POSE_IDLE || q === POSE_STANCE2 || q === POSE_STANCE3 || q === POSE_KNEEL || q === POSE_SLIDE || q === POSE_HOLD || q === POSE_REACH || q === POSE_SIT || q === POSE_SIT_BACK) q = lerpPose(q, q, 0); // copy before edits
         // procedural layers: lean into acceleration and cuts, breathing, head look
         q[PN + 1] += p.leanF; q[PN + 2] += p.lean;
         if (clip === 'idle' || clip === 'stance2' || clip === 'qbstance') { const br = Math.sin(an.t * 2.2 + p.ph) * 0.012; q[B.spine * 3] += br; q[PN] += br * 0.5; }
@@ -1802,12 +2477,17 @@ gl_FragColor=vec4(c,1.0);}`;
           const y1 = clamp(yaw, -1.3, 1.3), p1 = clamp(pitch, -0.7, 0.5);
           q[B.neck * 3 + 1] += y1 * 0.55; q[B.head * 3 + 1] += y1 * 0.35; q[B.neck * 3] += p1 * 0.5; q[B.head * 3] += p1 * 0.4; q[B.chest * 3 + 1] += y1 * 0.12;
         }
-        bones = fk(q, p.x, p.y + p.jumpY, p.z, p.h, hs);
+        bones = fk(q, p.x, p.y + p.jumpY, p.z, p.h, hs, p.lk.sw);
+        // eyes: toward the look target, else straight ahead
+        if (p.look) { const hm = bones[B.head], g = v3s(p.look, [hm[3], hm[7] + 0.18 * hs, hm[11]]); p.gaze = v3n(g); } else { p.gaze = [Math.sin(p.h), -0.05, Math.cos(p.h)]; }
+        // towel sway from lateral motion and stride
+        { const lat = p.vx * Math.cos(p.h) - p.vz * Math.sin(p.h), sp = Math.hypot(p.vx, p.vz); p.sway = clamp(-lat * 0.035, -0.3, 0.3) + 0.09 * Math.sin(p.ph) * Math.min(1, sp / 6); }
+        if (!one && clip !== 'jump' && clip !== 'dive' && clip !== 'slide' && clip !== 'kick' && clip !== 'getup' && p.jumpY < 0.02 && !p.extra) footLock(p, bones, dt);
         if (p.reach && (clip === 'run' || clip === 'reach' || clip === 'jump' || clip === 'dive' || clip === 'backpedal' || clip === 'idle' || clip === 'stumble')) {
           const t = p.reach, ch = bones[B.chest], rx = [ch[0], ch[4], ch[8]], sep = t[1] > 1.7 * hs ? 0.055 : t[1] < 1.0 * hs ? 0.045 : 0.1; // diamond up high, scoop down low
           armIK(bones, -1, [t[0] - rx[0] * sep, t[1], t[2] - rx[2] * sep], hs);
           armIK(bones, 1, [t[0] + rx[0] * sep, t[1], t[2] + rx[2] * sep], hs);
-        } else if (ball && ball.holder === p && clip !== 'throw' && clip !== 'stiff' && clip !== 'celebrate' && clip !== 'kick') {
+        } else if (ball && ball.holder === p && clip !== 'throw' && clip !== 'stiff' && clip !== 'celebrate' && clip !== 'kick' && clip !== 'pocket') {
           // tuck the ball high and tight in the arm away from the nearest defender; the other arm keeps pumping
           if (clip === 'run' || clip === 'stumble') carrySideStep(p, dt);
           const sd = p.carrySide || 1, ch = bones[B.chest], tgt = mPt(ch, sd * 0.22 * hs, -0.02 * hs, 0.2 * hs);
@@ -1819,6 +2499,25 @@ gl_FragColor=vec4(c,1.0);}`;
         for (let i = 0; i < NB; i++) bones[i] = mLerp(an.from[i], bones[i], s);
       }
       p.bones = bones;
+    }
+    // foot locking: a foot that is on the ground stays where it first touched down until the clip lifts it, so feet never slide
+    function footLock(p, bones, dt) {
+      const hs = p.lk.hs, fl = p.fl || (p.fl = [{ on: 0, x: 0, z: 0, m: null, fade: 0 }, { on: 0, x: 0, z: 0, m: null, fade: 0 }]);
+      const fwd = [Math.sin(p.h), 0, Math.cos(p.h)];
+      for (let i = 0; i < 2; i++) {
+        const side = i === 0 ? -1 : 1, ft = side < 0 ? B.ftL : B.ftR, m = bones[ft], L = fl[i];
+        const soleY = m[7] - 0.07 * hs, planted = soleY < 0.045 * hs;
+        if (planted) {
+          if (!L.on) { L.on = 1; L.x = m[3]; L.z = m[11]; L.m = m.slice(); L.fade = 0; const sp = Math.hypot(p.vx, p.vz); if (sp > 6 && parts.length < 90 && crand() < 0.35) for (let k = 0; k < 2; k++) parts.push({ x: m[3], y: 0.06, z: m[11], vx: -p.vx * 0.25 + (crand() - 0.5) * 1.5, vy: 1.8 + crand() * 1.6, vz: -p.vz * 0.25 + (crand() - 0.5) * 1.5, life: 0.5 + crand() * 0.3, r: crand() * 6, c: WX === 'rain' ? [0.2, 0.14, 0.08, 1] : [0.1 + crand() * 0.1, 0.25 + crand() * 0.1, 0.06, 1], sz: 0.05 }); }
+          const dx = L.x - m[3], dz = L.z - m[11], dd = Math.hypot(dx, dz);
+          if (dd > 0.42 * hs) { L.on = 0; continue; }
+          if (dd > 0.004) { const tgt = [L.x, m[7], L.z]; legIK(bones, side, tgt, hs, fwd, L.m); }
+        } else if (L.on) {
+          // just lifted: ease out of the locked position over a few frames
+          L.on = 0; L.fade = 0.08; L.lx = L.x - m[3]; L.lz = L.z - m[11];
+        }
+        if (!L.on && L.fade > 0) { L.fade -= dt; const k = Math.max(0, L.fade / 0.08); const tgt = [m[3] + L.lx * k, m[7], m[11] + L.lz * k]; legIK(bones, side, tgt, hs, fwd, null); }
+      }
     }
     function carrySideStep(p, dt) {
       p.carryT -= dt;
@@ -1838,6 +2537,7 @@ gl_FragColor=vec4(c,1.0);}`;
       ensureBones(p);
       p.rag = new Rag(p, p.bones, vel || [p.vx, 0, p.vz], 1 / 60);
       if (imp) p.rag.impulse(imp[0], imp[1], imp[2], 0.35);
+      p.dirt = Math.min(1, (p.dirt || 0) + 0.22 + crand() * 0.18); DIRT[p.side + ':' + p.key] = p.dirt; try { scuff(p.x, p.z, true); } catch (e) {}
       p.down = true; p.fall = 1; p.fallT = 1; p.getup = getup == null ? 1.3 : getup; p.rising = 0; p.reach = null; p.wrapT = 0; p.eng = null; p.jumpY = 0; p.jumpT = 0; p.diveT = 0; p.mv = null; p.mvT = 0;
       p.vx = p.vz = 0;
       pile.push(p);
@@ -3009,6 +3709,7 @@ gl_FragColor=vec4(c,1.0);}`;
       closeP = null; clockRun = true;
       const endZ = kind === 'td' || kind === 'krtd' ? 100 : spot;
       const gained = Math.round(endZ - los);
+      playRes = kind; if ((kind === 'run' || kind === 'tackle' || kind === 'oob' || kind === 'catch') && endZ >= fdz && !tryMode) playRes = 'first';
       if (ko) {
         kick = null; clockRun = false;
         const ret = Math.round(endZ - (P.start || 0));
@@ -3307,7 +4008,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- simulation step ----------
-    const POSES = ['stance2', 'stance3', 'qbstance', 'run', 'block', 'tackle', 'dive', 'kneel', 'slide', 'kick', 'throw', 'jump', 'juke', 'spin', 'stiff', 'celebrate', 'reach', 'idle', 'hold', 'stumble', 'getup', 'rush'];
+    const POSES = ['stance2', 'stance3', 'qbstance', 'run', 'block', 'tackle', 'dive', 'kneel', 'slide', 'kick', 'throw', 'jump', 'juke', 'spin', 'stiff', 'celebrate', 'reach', 'idle', 'hold', 'stumble', 'getup', 'rush', 'pocket', 'sit', 'sigtd', 'siginc', 'sigfirst'];
     function step(dt) {
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
@@ -3434,30 +4135,35 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- camera & projection ----------
-    const VP = new Float32Array(16); let INV = new Float32Array(16), LVP = new Float32Array(16);
-    let wave = 0;
+    const VP = new Float32Array(16), PREV_VP = new Float32Array(16); let INV = new Float32Array(16), PROJ = new Float32Array(16), VIEW = new Float32Array(16), INVP = new Float32Array(16);
+    const CASC = [new Float32Array(16), new Float32Array(16), new Float32Array(16)];
+    let wave = 0, camF = [0, 0, 1], expo = SKY.exp, camSpeed = 0, replayCam = 0;
+    const HFOV = 64; // horizontal field of view (degrees) at 16:9 -> about a 32 mm lens; the old framing was authored for 86, so offsets stretch by LENSK
+    const LENSK = Math.tan((86 * Math.PI) / 360) / Math.tan((HFOV * Math.PI) / 360);
+    const op = { t: 0, x: 0, y: 0 }; // operator imperfection
     function updateCam(dt) {
-      let e, c, rate = 3.2;
+      let e, c, rate = 3.2, cdk = LENSK;
       const qb = OK.QB || { x: 0, z: los - 5, lk: { hs: 1 } };
-      // follow a ball carrier: low and close so he is ~110 px tall; closer still in the open field
+      // follow a ball carrier: low and close; closer still in the open field
       const fl = (p, back) => {
         const dir = p.side === 1 ? -1 : 1, vx = p.vx || 0, vz = p.vz || 0;
         let near = 99; for (const d of (p.side ? off : def)) { if (d.rag) continue; const dd = Math.hypot(d.x - p.x, d.z - p.z); if (dd < near) near = dd; }
         const open = clamp((near - 4) / 5, 0, 1), bk = (back || 9.0) - 1.5 * open + 1.0 * por, hgt = 5.9 - 0.8 * open + 2.2 * por + 1.2 * lnd;
         return [[p.x * 0.85 + vx * 0.1, hgt, p.z - dir * bk + vz * 0.05], [p.x * 0.95 + vx * 0.2, 0.9, p.z + dir * (6 - 2 * por) + vz * 0.12]];
       };
+      replayCam = 0;
       if (phase === 'replay' && replay && ball) {
-        const a = replay.orbit + replay.t * 0.45, bx = ball.x || 0, bz = ball.z || los;
-        e = [bx + Math.sin(a) * (6.5 + 3 * por), 2.0 + 2.5 * por, bz + Math.cos(a) * (6.5 + 3 * por) - 2]; c = [bx, 1.1, bz]; rate = 5;
+        const a = replay.orbit + replay.t * 0.35, bx = ball.x || 0, bz = ball.z || los;
+        e = [bx + Math.sin(a) * (5.5 + 3 * por), 1.6 + 2.0 * por, bz + Math.cos(a) * (5.5 + 3 * por) - 1.5]; c = [bx, 1.0, bz]; rate = 5; cdk = LENSK * 0.8; replayCam = 1;
       } else if (phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'over' || phase === 'box') {
-        const t = performance.now() / 1000 * 0.1, z0 = phase === 'splash' ? los : 50;
-        e = [Math.sin(t) * 26, 15 + 8 * por, z0 - 4 - Math.cos(t) * 30]; c = [0, 0, z0 + 4];
+        const t = performance.now() / 1000 * 0.07, z0 = phase === 'splash' ? los : 50;
+        e = [Math.sin(t) * 26, 14 + 8 * por, z0 - 4 - Math.cos(t) * 30]; c = [0, 0.5, z0 + 4];
       } else if (closeP && phase === 'dead' && deadTot - deadT > 0.35) {
         const q = closeP, hh = 2.0 * q.lk.hs + (q.rag ? -0.9 : 0);
-        e = [q.x + 0.6, hh + 0.55, q.z + 3.7 + por * 1.5]; c = [q.x, hh - 0.25, q.z]; rate = 4;
+        e = [q.x + 0.6, hh + 0.55, q.z + 3.7 + por * 1.5]; c = [q.x, hh - 0.25, q.z]; rate = 4; replayCam = 0.7;
       } else if (phase === 'pre' && intro > 0 && OK.QB) {
         const hh = 2.0 * qb.lk.hs;
-        e = [0.45, hh + 0.3, qb.z + 2.75 + por]; c = [0, hh - 0.05, qb.z];
+        e = [0.45, hh + 0.3, qb.z + 2.75 + por]; c = [0, hh - 0.05, qb.z]; replayCam = 0.8;
         if (introCut) { introCut = false; dt = -1; }
       } else if (phase === 'kick' && kick) {
         if (kick.st === 'fly' && ball) { e = [ball.x * 0.5 - 9 - 3 * por, Math.max(4, ball.y * 0.6 + 3 + 3 * por), ball.z - 9 - 3 * por]; c = [ball.x * 0.7, ball.y * 0.6 + 1, ball.z + 12]; rate = 5; }
@@ -3472,7 +4178,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (phase === 'dead') { e[1] += 1; }
       } else if (phase === 'live' && ball && ball.st === 'air' && !kick) {
         const b = ball, k = Math.min(1, b.t / b.T), ez = lerp(b.fromZ || los - 6, b.tz, 0.5 * k);
-        if (target) { // settle on the catch point as the ball comes down
+        if (target) {
           const cx = lerp(target.x, b.tx, 0.55 + 0.3 * k), cz = lerp(target.z, b.tz, 0.55 + 0.3 * k) + 1.2;
           c = [cx, 0.9, cz]; e = [cx * 0.85, 6.4 + 5 * por + 1.5 * lnd, cz - 10.5 - 3 * por]; rate = 4;
         } else {
@@ -3480,20 +4186,28 @@ gl_FragColor=vec4(c,1.0);}`;
         }
       } else {
         const bootX = play.type === 'boot' && phase === 'live' ? qb.x * 0.5 : 0;
-        if (phase === 'live') { // in the pocket: low behind the quarterback, the ball always in frame, looking a little further downfield as the play develops
+        if (phase === 'live') {
           const look = Math.min(tPlay, 3) * 1.1, qx = mode === 'aim' ? qb.x * 0.6 : 0, qz = Math.min(qb.z, los - 4);
           e = [bootX + qx, 8.0 + 1.0 * por + 1.2 * lnd, qz - 7.3 - 0.6 * por - 1 * lnd]; c = [bootX + qx, 0.6, qz + 6.8 + look + 1.2 * por];
-        } else { // pre-snap: a little higher so the whole formation reads
+        } else {
           e = [bootX, 11.5 + 5 * por + 2 * lnd, los - 15 - 1.5 * por - 1.5 * lnd]; c = [bootX, 0, los + 6 + 2 * por - lnd];
         }
       }
-      if (DBG && DBG.cam) { e = DBG.cam.e; c = DBG.cam.c; dt = -1; }
+      // lens: keep the subject the same size on screen with the narrower field of view by backing the camera off
+      e = [c[0] + (e[0] - c[0]) * cdk, c[1] + (e[1] - c[1]) * cdk, c[2] + (e[2] - c[2]) * cdk];
+      let dbg = false;
+      if (DBG && DBG.cam) { e = DBG.cam.e; c = DBG.cam.c; dt = -1; dbg = true; }
       const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
+      const pe = cam.e.slice();
       for (let i = 0; i < 3; i++) { cam.e[i] += (e[i] - cam.e[i]) * k; cam.c[i] += (c[i] - cam.c[i]) * k; }
-      // shake and FOV kick
-      if (dt > 0) { cam.shake = Math.max(0, cam.shake - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 1.1); }
-      const sh = cam.shake * cam.shake * 0.35, sx = (crand() - 0.5) * sh, sy = (crand() - 0.5) * sh;
-      const asp = cv.width / cv.height, fovy = clamp(2 * Math.atan(Math.tan((86 * Math.PI) / 360) / asp), 0.8, 1.22 + 0.2 * por) * (1 + cam.kick * 0.09);
+      camSpeed = dt > 0 ? Math.hypot(cam.e[0] - pe[0], cam.e[1] - pe[1], cam.e[2] - pe[2]) / dt : 0;
+      // operator: slow drift of the framing, a little lag on fast pans, impact shake and FOV kick
+      if (dt > 0) { op.t += dt; cam.shake = Math.max(0, cam.shake - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 1.1); }
+      const opx = dbg ? 0 : (Math.sin(op.t * 0.7) * 0.6 + Math.sin(op.t * 1.9 + 1.0) * 0.3) * 0.06, opy = dbg ? 0 : (Math.sin(op.t * 0.9 + 2.0) * 0.6 + Math.sin(op.t * 2.3) * 0.25) * 0.04;
+      const sh = cam.shake * cam.shake * 0.35, sx = (crand() - 0.5) * sh + opx, sy = (crand() - 0.5) * sh + opy;
+      const asp = cv.width / cv.height;
+      const hf = dbg ? 86 : HFOV * (replayCam ? 1 - 0.25 * replayCam : 1);
+      const fovy = clamp(2 * Math.atan(Math.tan((hf * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por) * (1 + cam.kick * 0.09);
       const f = 1 / Math.tan(fovy / 2), n = 0.6, fa = 420;
       const ex = -(cam.e[0] + sx), ey = cam.e[1] + sy, ez = cam.e[2], cx = -(cam.c[0] + sx), cy = cam.c[1] + sy, cz = cam.c[2];
       let zx = ex - cx, zy = ey - cy, zz = ez - cz; let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
@@ -3501,14 +4215,29 @@ gl_FragColor=vec4(c,1.0);}`;
       const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
       const V = [xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, -(xx * ex + xy * ey + xz * ez), -(yx * ex + yy * ey + yz * ez), -(zx * ex + zy * ey + zz * ez), 1];
       V[0] = -V[0]; V[1] = -V[1]; V[2] = -V[2];
+      camF = v3n([cam.c[0] - cam.e[0], cam.c[1] - cam.e[1], cam.c[2] - cam.e[2]]);
       const Pm = [f / asp, 0, 0, 0, 0, f, 0, 0, 0, 0, (fa + n) / (n - fa), -1, 0, 0, (2 * fa * n) / (n - fa), 0];
+      for (let i = 0; i < 16; i++) { PREV_VP[i] = VP[i]; PROJ[i] = Pm[i]; VIEW[i] = V[i]; }
       for (let cI = 0; cI < 4; cI++) for (let r = 0; r < 4; r++) { let s = 0; for (let kk = 0; kk < 4; kk++) s += Pm[kk * 4 + r] * V[cI * 4 + kk]; VP[cI * 4 + r] = s; }
-      INV = m4Inv(VP);
-      // light matrix: an ortho box following the camera target
-      const lc = [cam.c[0], 0, cam.c[2]], le = [lc[0] + LDIR[0] * 90, lc[1] + LDIR[1] * 90, lc[2] + LDIR[2] * 90];
-      const lv = m4LookAt([-le[0], le[1], le[2]], [-lc[0], lc[1], lc[2]], [0, 1, 0]);
-      LVP = m4Mul(m4Ortho(-38, 38, -38, 38, 10, 200), lv);
-      LVP = m4Mul(LVP, new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
+      INV = m4Inv(VP); INVP = m4Inv(PROJ);
+      // exposure drifts down when the camera looks up into the lights
+      const et = SKY.exp * (1 - 0.35 * Math.max(0, camF[1]) * SKY.night) * (replayCam ? 1.05 : 1);
+      expo += (et - expo) * (dt < 0 ? 1 : Math.min(1, dt * 1.5));
+      // shadow cascades: three light-space boxes, the near one on the camera target, the far one over the whole bowl; texel-snapped
+      const nc = NCASC(), sz = G && G.shadow ? G.shadow.size : 1024;
+      const flipX = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+      const mid = [(cam.e[0] + cam.c[0]) * 0.5 + camF[0] * 6, 1, (cam.e[2] + cam.c[2]) * 0.5 + camF[2] * 6];
+      const spec = [[cam.c, 13 + 5 * por], [mid, 42], [[0, 0, 50], 150]];
+      for (let i = 0; i < 3; i++) {
+        const [ctr, R] = spec[i], texel = (2 * R) / sz;
+        const lv = m4LookAt([-LDIR[0] * 220, LDIR[1] * 220, LDIR[2] * 220], [0, 0, 0], [0, 1, 0]);
+        // snap the centre in light space
+        const lc = [-ctr[0], ctr[1], ctr[2]];
+        let lx = lv[0] * lc[0] + lv[4] * lc[1] + lv[8] * lc[2], ly = lv[1] * lc[0] + lv[5] * lc[1] + lv[9] * lc[2];
+        lx = Math.round(lx / texel) * texel; ly = Math.round(ly / texel) * texel;
+        const ortho = m4Ortho(lx - R, lx + R, ly - R, ly + R, 10, 420);
+        CASC[i] = m4Mul(m4Mul(ortho, lv), flipX);
+      }
     }
     function project(x, y, z) {
       const w = VP[3] * x + VP[7] * y + VP[11] * z + VP[15];
@@ -3516,12 +4245,13 @@ gl_FragColor=vec4(c,1.0);}`;
       const px = (VP[0] * x + VP[4] * y + VP[8] * z + VP[12]) / w, py = (VP[1] * x + VP[5] * y + VP[9] * z + VP[13]) / w;
       return [(px + 1) / 2 * cssW, (1 - py) / 2 * cssH];
     }
+    const projNDC = (x, y, z) => { const w = VP[3] * x + VP[7] * y + VP[11] * z + VP[15]; if (w <= 0.1) return null; return [(VP[0] * x + VP[4] * y + VP[8] * z + VP[12]) / w, (VP[1] * x + VP[5] * y + VP[9] * z + VP[13]) / w, (VP[2] * x + VP[6] * y + VP[10] * z + VP[14]) / w]; };
 
     // ---------- drawing ----------
     const dyn = new Batch(6000), tr = new Batch(6000);
-    const boneBuf = new Float32Array(NB * 12), colBuf = new Float32Array(NSL * 3);
-    Batch.prototype.ellipsoid = function (m, rx, ry, rz, c, segs) {
-      segs = segs || 8; const rows = 6; this.grow(segs * rows * 6);
+    const boneBuf = new Float32Array(NB * 12), colBuf = new Float32Array(NSL * 3), plBuf = new Float32Array(48);
+    Batch.prototype.ellipsoid = function (m, rx, ry, rz, c, segs, rows) {
+      segs = segs || 8; rows = rows || 6; this.grow(segs * rows * 6);
       const P = (i, j) => { const ph = (i / rows) * Math.PI, th = (j / segs) * 6.2832, nx = Math.sin(ph) * Math.cos(th), ny = Math.cos(ph), nz = Math.sin(ph) * Math.sin(th); const w = mPt(m, nx * rx, ny * ry, nz * rz); const n = [m[0] * nx / rx + m[1] * ny / ry + m[2] * nz / rz, m[4] * nx / rx + m[5] * ny / ry + m[6] * nz / rz, m[8] * nx / rx + m[9] * ny / ry + m[10] * nz / rz]; const nl = Math.hypot(n[0], n[1], n[2]) || 1; return [w, [n[0] / nl, n[1] / nl, n[2] / nl]]; };
       for (let i = 0; i < rows; i++) for (let j = 0; j < segs; j++) {
         const a = P(i, j), b = P(i + 1, j), cc = P(i + 1, j + 1), d = P(i, j + 1);
@@ -3531,24 +4261,36 @@ gl_FragColor=vec4(c,1.0);}`;
     function drawBall(b, x, y, z, yaw, pitch, spin, tumble) {
       let m = mT(IDM, x, y, z); m = mRY(m, yaw); m = mRX(m, pitch);
       if (tumble) m = mRX(m, spin || 0); else m = mRZ(m, spin || 0);
-      b.ellipsoid(m, 0.17, 0.17, 0.3, BALLC, 8);
-      b.box(m, 0, 0.165, 0, 0.035, 0.02, 0.14, LACE);
-      b.box(m, 0, 0, 0.0, 0.178, 0.02, 0.3, [0.95, 0.95, 0.95, 1]);
+      b.ellipsoid(m, 0.165, 0.165, 0.29, BALLC, 12, 8);
+      b.box(m, 0, 0.16, 0.01, 0.03, 0.02, 0.13, LACE);
+      for (let i = -2; i <= 2; i++) b.box(m, 0, 0.17, 0.01 + i * 0.03, 0.06, 0.012, 0.012, LACE);
+      b.box(m, 0, 0, 0.0, 0.17, 0.012, 0.3, [0.95, 0.95, 0.95, 1]);
+      b.box(m, 0, 0, 0.0, 0.012, 0.17, 0.3, [0.95, 0.95, 0.95, 1]);
     }
     const COL = { open: [0.17, 0.83, 0.42, 0.8], mid: [1, 0.76, 0.1, 0.8], cov: [1, 0.2, 0.27, 0.75] };
     const sepClass = (d) => (d >= 3 ? 'open' : d >= 1.6 ? 'mid' : 'cov');
     function sepOf(r) { let bd = 99; for (const d of def) { if (d.rag) continue; const dd = dist(d, r); if (dd < bd) bd = dd; } return bd; }
-    const WXN = WX === 'rain' ? 340 : WX === 'snow' ? 260 : 0;
-    for (let i = 0; i < WXN; i++) wxp.push({ x: (crand() - 0.5) * 50, y: crand() * 18, z: (crand() - 0.5) * 50, s: 0.6 + crand() * 0.6 });
-    const flashes = [];
-    function setLitUniforms(P, forShadow) {
+    const WXN = WX === 'rain' ? 1100 : WX === 'snow' ? 480 : 0;
+    for (let i = 0; i < WXN; i++) wxp.push({ x: (crand() - 0.5) * 30, y: crand() * 14, z: (crand() - 0.5) * 30, s: 0.6 + crand() * 0.6, w: crand() });
+    const flashes = [], breaths = [];
+    function setLitUniforms(P, env) {
       gl.useProgram(P.pr);
-      gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniformMatrix4fv(P.u.uLVP, false, LVP);
-      gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]);
-      gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]); gl.uniform3f(P.u.uL, LDIR[0], LDIR[1], LDIR[2]);
-      gl.uniform3f(P.u.uAmbC, SKY.amb[0], SKY.amb[1], SKY.amb[2]); gl.uniform3f(P.u.uSunC, SKY.sun[0], SKY.sun[1], SKY.sun[2]); gl.uniform3f(P.u.uGndC, SKY.gnd[0], SKY.gnd[1], SKY.gnd[2]);
-      gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uShadow, 1); if (P.u.uKit) gl.uniform1i(P.u.uKit, 2);
-      gl.uniform3f(P.u.uShadowP, G.shadow ? 1 : 0, G.shadow ? 1 / G.shadow.w : 0, quality >= 2 ? 1.0 : 0.5);
+      gl.uniformMatrix4fv(P.u.uVP, false, VP);
+      gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]);
+      gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]);
+      gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]); gl.uniform3f(P.u.uSunDir, LDIR[0], LDIR[1], LDIR[2]);
+      gl.uniform3f(P.u.uAmbC, SKY.amb[0], SKY.amb[1], SKY.amb[2]); gl.uniform3f(P.u.uSunCol, SKY.sun[0], SKY.sun[1], SKY.sun[2]); gl.uniform3f(P.u.uGndC, SKY.gnd[0], SKY.gnd[1], SKY.gnd[2]);
+      for (let i = 0; i < 4; i++) { plBuf[i * 4] = LPOS[i][0]; plBuf[i * 4 + 1] = LPOS[i][1]; plBuf[i * 4 + 2] = LPOS[i][2]; plBuf[i * 4 + 3] = LPOS[i][3]; }
+      gl.uniform4fv(P.u.uLP, plBuf.subarray(0, 16));
+      for (let i = 0; i < 4; i++) { plBuf[16 + i * 3] = LCOL[0]; plBuf[16 + i * 3 + 1] = LCOL[1]; plBuf[16 + i * 3 + 2] = LCOL[2]; }
+      gl.uniform3fv(P.u.uLC, plBuf.subarray(16, 28));
+      gl.uniform1f(P.u.uEnvK, env ? 0 : SKY.env); gl.uniform1f(P.u.uTime, performance.now() / 1000);
+      gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uShadow, 1); if (P.u.uKit) gl.uniform1i(P.u.uKit, 2); if (P.u.uEnv) gl.uniform1i(P.u.uEnv, 3); if (P.u.uNrm) gl.uniform1i(P.u.uNrm, 4); if (P.u.uDetail) gl.uniform1i(P.u.uDetail, 5);
+      const sh = G.shadow && !env;
+      gl.uniform4f(P.u.uShadowP, sh ? 1 : 0, sh ? 1 / G.shadow.size : 0, sh ? G.shadow.n : 0, 0.00035 * (quality >= 2 ? 0.8 : 1.2));
+      gl.uniform3f(P.u.uSplit, 0, 0, 0);
+      gl.uniformMatrix4fv(P.u.uLVP0, false, CASC[0]); gl.uniformMatrix4fv(P.u.uLVP1, false, CASC[1]); gl.uniformMatrix4fv(P.u.uLVP2, false, CASC[2]);
+      if (P.u.uWet) gl.uniform1f(P.u.uWet, WET ? 1 : 0);
     }
     function bindWorldAttribs(P, buf, data) {
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -3559,51 +4301,63 @@ gl_FragColor=vec4(c,1.0);}`;
       if (P.a.aT != null) { gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 48, 40); }
     }
     function disableAll(P) { for (const k in P.a) gl.disableVertexAttribArray(P.a[k]); }
+    const worldMat = (P, mat, kind) => { gl.uniform4f(P.u.uMatW, mat[0], mat[1], mat[2], mat[3]); gl.uniform1f(P.u.uKind, kind || 0); };
+    const DIRTC = WX === 'rain' ? [0.16, 0.12, 0.07] : WX === 'snow' ? [0.3, 0.3, 0.3] : [0.25, 0.3, 0.1];
     function playerUniforms(P, p) {
-      const C = p.side ? DEFC : OFFC, lk = p.lk, skin = SKIN[lk.skin];
-      // SL order: jer pant skin helm trim cleat pad mask num face arm name glove sock sole visor snum wht
-      const cols = [C.jer, C.pant, skin, C.helm, C.stripe, lk.cleat, C.pad, C.mask, C.num, skin, lk.sleeves ? C.jer : skin, WHITEC, C.glove, C.sock, lk.cleat === CLEATS.white ? DARKC : WHITEC, VISORC, C.num, WHITEC];
+      const C = p.side === 2 ? REFC : p.side ? DEFC : OFFC, lk = p.lk, skin = lk.tone || SKIN[lk.skin];
+      const iris = lk.skin >= 3 ? [0.22, 0.12, 0.05] : lk.skin === 2 ? [0.3, 0.18, 0.07] : lk.eyes || [0.28, 0.2, 0.1];
+      // SL order: jer pant skin helm trim cleat pad mask num face arm name glove sock sole visor snum wht eye tape towel stripes
+      const cols = [C.jer, C.pant, skin, C.helm, C.stripe, lk.cleat, C.pad, C.mask, C.num, skin, lk.sleeves ? C.jer : skin, WHITEC, C.glove, C.sock, lk.cleat === CLEATS.white ? DARKC : WHITEC, VISORC, C.num, WHITEC, iris, WHITEC, lum(C.pant) > 0.6 ? C.jer : WHITEC, WHITEC, lk.mouthC || C.jer];
       for (let i = 0; i < NSL; i++) { colBuf[i * 3] = cols[i][0]; colBuf[i * 3 + 1] = cols[i][1]; colBuf[i * 3 + 2] = cols[i][2]; }
       gl.uniform3fv(P.u.uCol, colBuf);
-      gl.uniform3f(P.u.uScale, lk.hs, lk.hs, lk.hs);
       const nu = cellUV(p.ncell >= 0 ? p.ncell : 207), fu = cellUV(p.face >= 0 ? p.face : p.fcell >= 0 ? p.fcell : 100), nm = cellUV(p.nmcell >= 0 ? p.nmcell : 207);
       gl.uniform4f(P.u.uNumUV, nu[0], nu[1], nu[2], nu[3]); gl.uniform4f(P.u.uFaceUV, fu[0], fu[1], fu[2], fu[3]); gl.uniform4f(P.u.uNameUV, nm[0], nm[1], nm[2], nm[3]);
-      gl.uniform1f(P.u.uVis, lk.visor ? 1 : 0);
-      gl.uniform4fv(P.u.uBones, packBones(p.bones, boneBuf));
+      gl.uniform1f(P.u.uDirt, p.dirt || 0); gl.uniform3f(P.u.uDirtC, DIRTC[0], DIRTC[1], DIRTC[2]);
+      gl.uniform1f(P.u.uSweat, clamp(elapsedT / 420, 0, 1) * 0.85); gl.uniform1f(P.u.uSeed, (p.num || 7) * 0.37);
+      const g = p.gaze || camF; gl.uniform3f(P.u.uGaze, g[0], g[1], g[2]);
     }
-    const LOD_D = 25; // full mesh within this many yards of the camera
-    function drawPlayers(P, depthOnly) {
+    function skinCommon(P, p, mesh) {
+      gl.uniform3f(P.u.uScale, p.lk.hs, p.lk.hs, p.lk.hs);
+      gl.uniform1f(P.u.uVis, p.lk.visor ? 1 : 0); gl.uniform1f(P.u.uTowel, p.towel ? 1 : 0); gl.uniform1f(P.u.uMouth, p.mouth && (phase === 'pre' || phase === 'dead' || phase === 'break' || phase === 'cpu' || phase === 'splash') ? 1 : 0);
+      if (P.u.uSway != null) gl.uniform1f(P.u.uSway, p.sway || 0);
+      gl.uniform4fv(P.u.uBones, packBones(p.bones, boneBuf, mesh.bind, p.lk.hs));
+    }
+    const LOD_D = 22; // full mesh within this many yards of the camera
+    function bindMesh(P, mesh) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ib);
+      const ST = VSTRIDE * 4;
+      gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, ST, 0);
+      if (P.a.aN != null) { gl.enableVertexAttribArray(P.a.aN); gl.vertexAttribPointer(P.a.aN, 3, gl.FLOAT, false, ST, 12); }
+      gl.enableVertexAttribArray(P.a.aB); gl.vertexAttribPointer(P.a.aB, 2, gl.FLOAT, false, ST, 24);
+      gl.enableVertexAttribArray(P.a.aW); gl.vertexAttribPointer(P.a.aW, 1, gl.FLOAT, false, ST, 32);
+      gl.enableVertexAttribArray(P.a.aS); gl.vertexAttribPointer(P.a.aS, 1, gl.FLOAT, false, ST, 36);
+      if (P.a.aT != null) { gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, ST, 40); }
+      if (P.a.aA != null) { gl.enableVertexAttribArray(P.a.aA); gl.vertexAttribPointer(P.a.aA, 1, gl.FLOAT, false, ST, 48); }
+    }
+    function drawPlayers(P, depthOnly, list) {
       gl.useProgram(P.pr);
       let cur = null, curSide = -1;
       if (!depthOnly) gl.uniform1f(P.u.uAlpha, 0);
-      for (const p of everyone) {
+      for (const p of list) {
         if (!p.bones) continue;
-        const d = depthOnly ? 99 : Math.hypot(p.x - cam.e[0], p.z - cam.e[2]); // shadows use the simple mesh
-        const mesh = (p.w > 1.1 ? G.mesh.w : G.mesh.n)[d < LOD_D ? 0 : 1];
-        if (mesh !== cur) {
-          cur = mesh;
-          gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ib);
-          gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 44, 0);
-          if (P.a.aN != null) { gl.enableVertexAttribArray(P.a.aN); gl.vertexAttribPointer(P.a.aN, 3, gl.FLOAT, false, 44, 12); }
-          gl.enableVertexAttribArray(P.a.aB); gl.vertexAttribPointer(P.a.aB, 1, gl.FLOAT, false, 44, 24);
-          gl.enableVertexAttribArray(P.a.aS); gl.vertexAttribPointer(P.a.aS, 1, gl.FLOAT, false, 44, 28);
-          if (P.a.aT != null) { gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 44, 32); }
-          if (P.a.aA != null) { gl.enableVertexAttribArray(P.a.aA); gl.vertexAttribPointer(P.a.aA, 1, gl.FLOAT, false, 44, 40); }
-        }
-        if (!depthOnly && p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
-        if (depthOnly) { gl.uniform3f(P.u.uScale, p.lk.hs, p.lk.hs, p.lk.hs); gl.uniform1f(P.u.uVis, 0); gl.uniform4fv(P.u.uBones, packBones(p.bones, boneBuf)); }
-        else playerUniforms(P, p);
-        if (mesh.vin) { gl.drawElements(gl.TRIANGLES, mesh.vi0, gl.UNSIGNED_SHORT, 0); gl.drawElements(gl.TRIANGLES, mesh.n - mesh.vi0 - mesh.vin, gl.UNSIGNED_SHORT, (mesh.vi0 + mesh.vin) * 2); }
-        else gl.drawElements(gl.TRIANGLES, mesh.n, gl.UNSIGNED_SHORT, 0);
+        const d = depthOnly ? 99 : Math.hypot(p.x - cam.e[0], p.z - cam.e[2]);
+        const mesh = meshFor(p.body || BODY.WR)[d < (quality === 0 ? 9 : LOD_D) && !depthOnly ? 0 : 1];
+        if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
+        if (!depthOnly && p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side === 2 ? G.kitR : p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
+        skinCommon(P, p, mesh);
+        if (!depthOnly) playerUniforms(P, p);
+        if (mesh.vin) { gl.drawElements(gl.TRIANGLES, mesh.vi0, gl.UNSIGNED_SHORT, 0); gl.drawElements(gl.TRIANGLES, mesh.n - mesh.vi0 - mesh.vin, gl.UNSIGNED_SHORT, (mesh.vi0 + mesh.vin) * 2); DRAWS.n += 2; }
+        else { gl.drawElements(gl.TRIANGLES, mesh.n, gl.UNSIGNED_SHORT, 0); DRAWS.n++; }
+        DRAWS.tris += mesh.n / 3;
         if (!depthOnly && p.lk.visor && mesh.vin && d < LOD_D) visors.push([p, mesh]);
       }
       if (!depthOnly && visors.length) { // tinted visors: blended over the face
-        gl.enable(gl.BLEND); gl.depthMask(false); gl.uniform1f(P.u.uAlpha, 0.5);
+        gl.enable(gl.BLEND); gl.depthMask(false); gl.uniform1f(P.u.uAlpha, 0.62);
         for (const [p, mesh] of visors) {
-          if (mesh !== cur) { cur = mesh; gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ib); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 44, 0); gl.vertexAttribPointer(P.a.aN, 3, gl.FLOAT, false, 44, 12); gl.vertexAttribPointer(P.a.aB, 1, gl.FLOAT, false, 44, 24); gl.vertexAttribPointer(P.a.aS, 1, gl.FLOAT, false, 44, 28); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 44, 32); gl.vertexAttribPointer(P.a.aA, 1, gl.FLOAT, false, 44, 40); }
-          if (p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
-          playerUniforms(P, p);
-          gl.drawElements(gl.TRIANGLES, mesh.vin, gl.UNSIGNED_SHORT, mesh.vi0 * 2);
+          if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
+          if (p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side === 2 ? G.kitR : p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
+          skinCommon(P, p, mesh); playerUniforms(P, p);
+          gl.drawElements(gl.TRIANGLES, mesh.vin, gl.UNSIGNED_SHORT, mesh.vi0 * 2); DRAWS.n++;
         }
         gl.uniform1f(P.u.uAlpha, 0); gl.depthMask(true); gl.disable(gl.BLEND);
       }
@@ -3611,97 +4365,181 @@ gl_FragColor=vec4(c,1.0);}`;
       disableAll(P);
     }
     const visors = [];
-    // soft contact shadows under feet and body (on top of the shadow map, which is too coarse for contact)
+    // soft contact shadows under feet and bodies (the shadow map alone never quite grounds a foot)
     function contactBlobs() {
-      const k = G.shadow ? 1 : 1.8;
+      const k = G.shadow ? 0.7 : 1.6;
       for (const p of everyone) {
         if (!p.bones) continue;
-        if (p.rag) { const q = p.rag.pts; tr.blob((q[0][0] + q[1][0]) / 2, (q[0][2] + q[1][2]) / 2, 0.75, 0.22 * k, 0.02, 10); continue; }
+        if (p.rag) { const q = p.rag.pts; tr.blob((q[0][0] + q[1][0]) / 2, (q[0][2] + q[1][2]) / 2, 0.8, 0.26 * k, 0.02, 12); continue; }
         const hs = p.lk.hs;
-        for (const b of [B.ftL, B.ftR]) { const m = p.bones[b], fy = m[7] - 0.07 * hs, h = clamp(1 - fy / 0.5, 0, 1); if (h > 0.02) tr.blob(m[3] + m[2] * 0.06, m[11] + m[10] * 0.06, (0.2 + 0.12 * (1 - h)) * hs, 0.36 * h * k, 0.02, 8); }
-        const hm = p.bones[B.hips]; tr.blob(hm[3], hm[11], 0.62 * (p.w || 1) * hs, (0.14 + (p.jumpY > 0.05 ? 0 : 0.04)) * k * clamp(1 - p.jumpY / 1.2, 0.2, 1), 0.018, 10);
+        for (const b of [B.ftL, B.ftR]) { const m = p.bones[b], fy = m[7] - 0.07 * hs, h = clamp(1 - fy / 0.45, 0, 1); if (h > 0.02) tr.blob(m[3] + m[2] * 0.07, m[11] + m[10] * 0.07, (0.16 + 0.1 * (1 - h)) * hs, 0.42 * h * k, 0.02, 10); }
+        const hm = p.bones[B.hips]; tr.blob(hm[3], hm[11], 0.6 * (p.w || 1) * hs, (0.1 + (p.jumpY > 0.05 ? 0 : 0.03)) * k * clamp(1 - p.jumpY / 1.2, 0.2, 1), 0.018, 12);
       }
     }
     let frameT = 0, perf = { sim: 0, rend: 0, n: 0 };
+    const quadDraw = (P) => { gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(P.a.aP); DRAWS.n++; };
+    // the opaque scene: sky, statics, crowd, athletes, grass, dynamic geometry; shared with the cubemap bake
+    function drawScenePass(forEnv, o) {
+      const now = performance.now() / 1000, showPlayers = phase !== 'box' && !forEnv;
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.shadow && !forEnv ? G.shadow.tex : G.white);
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_CUBE_MAP, G.env || null);
+      gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, G.fabric);
+      gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, G.detail);
+      gl.activeTexture(gl.TEXTURE0);
+      // sky
+      gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.disable(gl.BLEND);
+      { const P = G.sky; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uInvVP, false, forEnv ? m4Inv(VP) : INV); gl.uniform3f(P.u.uSun, LDIR[0], LDIR[1], LDIR[2]); gl.uniform1f(P.u.uNight, SKY.night); gl.uniform1f(P.u.uTime, now); gl.uniform3f(P.u.uTop, SKY.top[0], SKY.top[1], SKY.top[2]); gl.uniform3f(P.u.uHor, SKY.hor[0], SKY.hor[1], SKY.hor[2]); gl.uniform1f(P.u.uCloud, SKY.cloud); gl.uniform1f(P.u.uGlow, SKY.glow); quadDraw(P); }
+      gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+      // statics
+      const W = quality >= 2 && !forEnv ? G.worldHi : G.world;
+      setLitUniforms(W, forEnv); gl.uniform2f(W.u.uUV, 0, 0);
+      for (const s of statics) {
+        gl.bindTexture(gl.TEXTURE_2D, s.k === 'board' && feedOn && G.feed && !G.feedPass ? G.feed.tex : s.tex); worldMat(W, s.mat, DBG && DBG.shadowView ? 9 : s.kind);
+        const fv = s.k === 'board' && feedOn && G.feed && !G.feedPass; gl.uniform1f(W.u.uFlipV, fv ? 1 : 0); if (fv) gl.uniform4f(W.u.uMatW, 0.4, 0, 0, 1.0);
+        if (s.k === 'ribbon') gl.uniform2f(W.u.uUV, (now * 0.04) % 1, 0); else gl.uniform2f(W.u.uUV, 0, 0);
+        if (s.k === 'glass') { gl.enable(gl.BLEND); }
+        bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; DRAWS.tris += s.n / 3;
+        if (s.k === 'glass') gl.disable(gl.BLEND);
+      }
+      disableAll(W);
+      // crowd
+      { const P = G.crowd; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uExcite, excite); gl.uniform1f(P.u.uWave, wave); gl.uniform1f(P.u.uMood, crowdMood); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]);
+        const dim = SKY.night ? 0.26 : 0.72; gl.uniform1f(P.u.uDim, dim); gl.uniform3f(P.u.uTint, SKY.amb[0] * 2.2 + 0.25, SKY.amb[1] * 2.2 + 0.25, SKY.amb[2] * 2.2 + 0.25);
+        gl.uniform1i(P.u.uTex, 0); gl.bindTexture(gl.TEXTURE_2D, G.crowdT);
+        gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 48, 0); gl.enableVertexAttribArray(P.a.aC); gl.vertexAttribPointer(P.a.aC, 3, gl.FLOAT, false, 48, 12); gl.enableVertexAttribArray(P.a.aM); gl.vertexAttribPointer(P.a.aM, 4, gl.FLOAT, false, 48, 24); gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 48, 40);
+        gl.drawArrays(gl.TRIANGLES, 0, G.crowdN); DRAWS.n++; DRAWS.tris += G.crowdN / 3; disableAll(P); }
+      if (forEnv) return;
+      // athletes, sideline figures
+      if (showPlayers) { const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false, everyone); if (extras.length) drawPlayers(S, false, quality === 0 ? extras.filter((p) => p.ref || p.crew) : extras); }
+      // grass blades around the camera target (full detail only)
+      if (quality >= 2 && G.grass && showPlayers && !G.feedPass && WX !== 'snow') drawGrass(now);
+      // dynamic lit geometry (ball, chains, confetti) then transparent markers
+      setLitUniforms(W); gl.uniform2f(W.u.uUV, 0, 0); gl.uniform1f(W.u.uFlipV, 0); worldMat(W, [0.5, 0, 0, 0], 0); gl.bindTexture(gl.TEXTURE_2D, G.white);
+      if (dyn.n) { bindWorldAttribs(W, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; DRAWS.tris += dyn.n / 3; }
+      gl.enable(gl.BLEND);
+      if (tr.n) { gl.depthMask(false); worldMat(W, [0.5, 0, 0, 0], 0); bindWorldAttribs(W, G.tr, tr.f.subarray(0, tr.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, tr.n); gl.depthMask(true); DRAWS.n++; }
+      disableAll(W);
+    }
+    function drawGrass(now) {
+      const P = G.grass; gl.useProgram(P.pr);
+      gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]);
+      // the patch sits around the point on the ground the camera looks at, pulled toward the camera
+      const t = clamp(-cam.e[1] / (camF[1] || -0.1), 2, 60), gx = cam.e[0] + camF[0] * t * 0.6, gz = cam.e[2] + camF[2] * t * 0.6;
+      const cell = 0.1; gl.uniform3f(P.u.uOrg, gx, 0, gz); gl.uniform1f(P.u.uCell, cell); gl.uniform1f(P.u.uN, G.GN); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uWet, WET ? 1 : 0);
+      const near = everyone.slice().sort((a, b) => Math.hypot(a.x - gx, a.z - gz) - Math.hypot(b.x - gx, b.z - gz)).slice(0, 12);
+      for (let i = 0; i < 12; i++) { const p = near[i]; plBuf[i * 4] = p ? p.x : 999; plBuf[i * 4 + 1] = p ? p.z : 999; plBuf[i * 4 + 2] = p ? (p.rag ? 1 : p.jumpY > 0.2 ? 0 : 0.8) : 0; plBuf[i * 4 + 3] = 0; }
+      gl.uniform4fv(P.u.uPl, plBuf);
+      const turf = WX === 'snow' ? [0.42, 0.46, 0.42] : WX === 'rain' ? [0.07, 0.16, 0.07] : [0.085, 0.23, 0.08];
+      gl.uniform3f(P.u.uBase, turf[0], turf[1], turf[2]); gl.uniform3f(P.u.uAmbC, SKY.amb[0], SKY.amb[1], SKY.amb[2]); gl.uniform3f(P.u.uSunDir, LDIR[0], LDIR[1], LDIR[2]); gl.uniform3f(P.u.uSunCol, SKY.sun[0], SKY.sun[1], SKY.sun[2]);
+      gl.uniform4fv(P.u.uLP, plBuf.subarray(0, 16) && (() => { const b = new Float32Array(16); for (let i = 0; i < 4; i++) { b[i * 4] = LPOS[i][0]; b[i * 4 + 1] = LPOS[i][1]; b[i * 4 + 2] = LPOS[i][2]; b[i * 4 + 3] = LPOS[i][3]; } return b; })());
+      { const b = new Float32Array(12); for (let i = 0; i < 4; i++) { b[i * 3] = LCOL[0]; b[i * 3 + 1] = LCOL[1]; b[i * 3 + 2] = LCOL[2]; } gl.uniform3fv(P.u.uLC, b); }
+      gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform1i(P.u.uTex, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, G.bladeB); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 2, gl.FLOAT, false, 16, 0); gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 16, 8);
+      gl.bindBuffer(gl.ARRAY_BUFFER, G.instB); gl.enableVertexAttribArray(P.a.aI); gl.vertexAttribPointer(P.a.aI, 4, gl.FLOAT, false, 16, 0); X.inst.vertexAttribDivisor(P.a.aI, 1);
+      gl.enable(gl.BLEND);
+      X.inst.drawArraysInstanced(gl.TRIANGLES, 0, G.bladeN, G.GN * G.GN); DRAWS.n++; DRAWS.tris += G.bladeN / 3 * G.GN * G.GN;
+      X.inst.vertexAttribDivisor(P.a.aI, 0); disableAll(P);
+      gl.disable(gl.BLEND);
+    }
+    let crowdMood = 0, feedOn = false;
+    const flareBuf = new Float32Array(16);
     function render(dt) {
       if (glLost || !G || finished) return;
       const t0 = performance.now();
+      DRAWS.n = 0; DRAWS.tris = 0;
       updateCam(dt);
       const now = performance.now() / 1000;
-      if (wave > 0) wave = Math.max(0, wave - dt * 0.25);
+      if (wave > 0) wave = Math.max(0, wave - dt * 0.25); else if ((phase === 'cpu' || phase === 'break' || phase === 'pre') && dt > 0 && crand() < dt * 0.012) wave = 1;
+      crowdMood += ((lastBig && (lastBig.kind === 'int' || lastBig.kind === 'fum') ? -1 : 0) - crowdMood) * Math.min(1, dt * 0.8);
       // pose everyone for this frame
       for (const p of everyone) animUpdate(p, Math.max(0, dt));
-      // dynamic batches
+      extrasStep(Math.max(0, dt));
       dyn.n = 0; tr.n = 0;
       const showPlayers = phase !== 'box';
       if (ball && showPlayers) drawBallNow(now);
-      for (const q of parts) if (q.life > 0) { let m = mT(IDM, q.x, q.y, q.z); m = mRY(m, q.r); m = mRX(m, q.r * 0.7); dyn.box(m, 0, 0, 0, 0.22, 0.02, 0.14, q.c); }
+      for (const q of parts) if (q.life > 0) { let m = mT(IDM, q.x, q.y, q.z); m = mRY(m, q.r); m = mRX(m, q.r * 0.7); if (q.sz) dyn.box(m, 0, 0, 0, q.sz, q.sz * 0.6, q.sz * 1.3, q.c); else dyn.box(m, 0, 0, 0, 0.22, 0.02, 0.14, q.c); }
       drawMarks(now);
+      drawExtrasProps();
       if (showPlayers) contactBlobs();
       drawWeather(dt, now);
       if (boardDirty && ((now * 4) | 0) % 2 === 0) { boardDirty = false; try { boardCanvas(); gl.bindTexture(gl.TEXTURE_2D, G.board); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, boardC); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }
+      if (fieldDirty && now - fieldUpT > 1.5) { fieldDirty = false; fieldUpT = now; try { gl.bindTexture(gl.TEXTURE_2D, G.field); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fieldC); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }
       if (atlasDirty) {
         atlasDirty = false;
         try { gl.bindTexture(gl.TEXTURE_2D, G.atlas); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas); }
         catch (e) { SQL.forEach((q) => { if (q.photo) noPhoto(q); }); ag.clearRect(0, 0, 1024, 512); atlasDirty = true; }
       }
-      // ---- shadow pass ----
+      // ---- shadow cascades ----
       if (G.shadow) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, G.shadow.fb); gl.viewport(0, 0, G.shadow.w, G.shadow.h);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, G.shadow.fb);
         gl.clearColor(1, 1, 1, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.disable(gl.BLEND);
-        const P = G.depthW; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uLVP, false, LVP);
-        for (const s of statics) if (s.cast) { bindWorldAttribs(P, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); }
-        if (dyn.n) { bindWorldAttribs(P, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); }
-        disableAll(P);
-        const S = G.depthS; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uLVP, false, LVP);
-        if (showPlayers) drawPlayers(S, true);
+        if (!G.shadow.dt) gl.colorMask(true, true, true, true); else gl.colorMask(false, false, false, false);
+        for (let ci = 0; ci < G.shadow.n; ci++) {
+          gl.viewport(ci * G.shadow.size, 0, G.shadow.size, G.shadow.size);
+          const P = G.depthW; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uLVP, false, CASC[ci]);
+          for (const s of statics) if (s.cast && (ci > 0 || s.k === 'plain') && !(quality === 0 && s.k === 'seats')) { bindWorldAttribs(P, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; }
+          if (dyn.n) { bindWorldAttribs(P, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; }
+          disableAll(P);
+          if (ci < 2) { const S = G.depthS; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uLVP, false, CASC[ci]); if (showPlayers) { drawPlayers(S, true, everyone); if (extras.length && ci === 0) drawPlayers(S, true, extras); } }
+        }
+        gl.colorMask(true, true, true, true);
         gl.enable(gl.BLEND);
       }
-      // ---- scene pass ----
+      // ---- jumbotron feed: the current camera view at low resolution, shown on the big screen during replays and close-ups ----
+      if (quality >= 2 && G.feed && (replayCam > 0) && ((perf.n & 1) === 0)) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, G.feed.fb); gl.viewport(0, 0, G.feed.w, G.feed.h);
+        gl.clearColor(SKY.hor[0], SKY.hor[1], SKY.hor[2], 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        G.feedPass = true; drawScenePass(false); G.feedPass = false;
+        feedOn = true;
+      } else if (feedOn && replayCam <= 0) { feedOn = false; boardDirty = true; }
+      // ---- scene pass (HDR) ----
       gl.bindFramebuffer(gl.FRAMEBUFFER, G.scene ? G.scene.fb : null);
       gl.viewport(0, 0, cv.width, cv.height);
       gl.clearColor(SKY.hor[0], SKY.hor[1], SKY.hor[2], 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.shadow ? G.shadow.tex : G.white); gl.activeTexture(gl.TEXTURE0);
-      // sky
-      gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.disable(gl.BLEND);
-      { const P = G.sky; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uInvVP, false, INV); gl.uniform3f(P.u.uSun, LDIR[0], LDIR[1], LDIR[2]); gl.uniform1f(P.u.uNight, SKY.night); gl.uniform1f(P.u.uTime, now); gl.uniform3f(P.u.uTop, SKY.top[0], SKY.top[1], SKY.top[2]); gl.uniform3f(P.u.uHor, SKY.hor[0], SKY.hor[1], SKY.hor[2]); gl.uniform1f(P.u.uCloud, SKY.cloud); gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(P.a.aP); }
-      gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
-      // statics
-      const W = quality >= 2 ? G.world9 : G.world4;
-      setLitUniforms(W); gl.uniform2f(W.u.uUV, 0, 0);
-      for (const s of statics) {
-        gl.bindTexture(gl.TEXTURE_2D, s.tex); gl.uniform1f(W.u.uSpec, s.spec); gl.uniform1f(W.u.uEmis, s.emis);
-        bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n);
-      }
-      disableAll(W);
-      // crowd
-      { const P = G.crowd; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uExcite, excite); gl.uniform1f(P.u.uWave, wave); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]); gl.uniform1f(P.u.uDim, SKY.night ? 0.62 : 0.9);
-        gl.uniform1i(P.u.uTex, 0); gl.bindTexture(gl.TEXTURE_2D, G.crowdT);
-        gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 40, 0); gl.enableVertexAttribArray(P.a.aC); gl.vertexAttribPointer(P.a.aC, 3, gl.FLOAT, false, 40, 12); gl.enableVertexAttribArray(P.a.aM); gl.vertexAttribPointer(P.a.aM, 2, gl.FLOAT, false, 40, 24); gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 40, 32);
-        gl.drawArrays(gl.TRIANGLES, 0, G.crowdN); disableAll(P); }
-      // players
-      if (showPlayers) { const S = quality >= 2 ? G.skin9 : G.skin4; setLitUniforms(S); gl.uniform1f(S.u.uWet, WET ? 1 : 0); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false); }
-      // dynamic lit geometry (ball, chains, confetti) then transparent markers
-      setLitUniforms(W); gl.uniform2f(W.u.uUV, 0, 0); gl.uniform1f(W.u.uSpec, 0.3); gl.uniform1f(W.u.uEmis, 0); gl.bindTexture(gl.TEXTURE_2D, G.white);
-      if (dyn.n) { bindWorldAttribs(W, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); }
-      gl.enable(gl.BLEND);
-      if (tr.n) { gl.depthMask(false); bindWorldAttribs(W, G.tr, tr.f.subarray(0, tr.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, tr.n); gl.depthMask(true); }
-      disableAll(W);
+      drawScenePass(false);
       // ---- post ----
       if (G.scene) {
         gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
-        const quad = (P) => { gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(P.a.aP); };
-        if (quality >= 2 && G.bloomA) {
-          let P = G.extract; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomA.fb); gl.viewport(0, 0, G.bloomA.w, G.bloomA.h); gl.bindTexture(gl.TEXTURE_2D, G.scene.tex); gl.uniform1i(P.u.uTex, 0); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height); quad(P);
-          P = G.blur; gl.useProgram(P.pr); gl.uniform1i(P.u.uTex, 0);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomB.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomA.tex); gl.uniform2f(P.u.uDir, 1 / G.bloomA.w, 0); quad(P);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomA.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomB.tex); gl.uniform2f(P.u.uDir, 0, 1 / G.bloomA.h); quad(P);
+        let src = G.scene;
+        // ambient occlusion from depth (half res) + blur
+        let aoTex = null;
+        if (quality >= 2 && G.aoA && G.scene.dt) {
+          let P = G.ao; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.aoA.fb); gl.viewport(0, 0, G.aoA.w, G.aoA.h);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.scene.dt); gl.uniform1i(P.u.uDepth, 0); gl.uniform2f(P.u.uPx, 1 / G.aoA.w, 1 / G.aoA.h); gl.uniformMatrix4fv(P.u.uInvP, false, INVP); gl.uniform4f(P.u.uProj, PROJ[0], PROJ[5], 0, 0); gl.uniform1f(P.u.uRad, 0.55 + 0.4 * replayCam); quadDraw(P);
+          P = G.blur4; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.aoB.fb); gl.bindTexture(gl.TEXTURE_2D, G.aoA.tex); gl.uniform1i(P.u.uTex, 0); gl.uniform2f(P.u.uPx, 1 / G.aoA.w, 1 / G.aoA.h); quadDraw(P);
+          aoTex = G.aoB.tex;
         }
+        // depth of field (replays / close-ups) and camera motion blur
+        const dofK = replayCam > 0 ? 0.9 * replayCam : 0, mbK = quality >= 2 && camSpeed > 3 && phase === 'live' ? clamp((camSpeed - 3) / 12, 0, 1) * 0.8 : 0;
+        if (G.scene2 && G.scene.dt && (dofK > 0 || mbK > 0)) {
+          const P = G.dofmb; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.scene2.fb); gl.viewport(0, 0, cv.width, cv.height);
+          gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.scene.dt); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.scene.tex);
+          gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uDepth, 1); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height); gl.uniformMatrix4fv(P.u.uInvVP, false, INV); gl.uniformMatrix4fv(P.u.uPrevVP, false, PREV_VP);
+          gl.uniform1f(P.u.uMB, mbK); const fd = Math.hypot(cam.c[0] - cam.e[0], cam.c[1] - cam.e[1], cam.c[2] - cam.e[2]); gl.uniform3f(P.u.uDof, fd, dofK, 0); gl.uniform2f(P.u.uNF, 0.6, 420);
+          quadDraw(P); src = G.scene2;
+        }
+        // bloom
+        if (quality >= 1 && G.bloomA) {
+          let P = G.extract; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomA.fb); gl.viewport(0, 0, G.bloomA.w, G.bloomA.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.tex); gl.uniform1i(P.u.uTex, 0); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height); gl.uniform1f(P.u.uThr, 1.0 / expo); quadDraw(P);
+          P = G.blur; gl.useProgram(P.pr); gl.uniform1i(P.u.uTex, 0);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomB.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomA.tex); gl.uniform2f(P.u.uDir, 1 / G.bloomA.w, 0); quadDraw(P);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomA.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomB.tex); gl.uniform2f(P.u.uDir, 0, 1 / G.bloomA.h); quadDraw(P);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomB.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomA.tex); gl.uniform2f(P.u.uDir, 2 / G.bloomA.w, 0); quadDraw(P);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, G.bloomA.fb); gl.bindTexture(gl.TEXTURE_2D, G.bloomB.tex); gl.uniform2f(P.u.uDir, 0, 2 / G.bloomA.h); quadDraw(P);
+        }
+        // lens flares: towers in frame, occlusion tested against the depth buffer in the shader
+        let nfl = 0;
+        if (SKY.night && G.scene.dt) for (let i = 0; i < 4; i++) { const t = TOWERS[i], s = projNDC(t[0] + (t[0] < 0 ? 3.5 : -3.5), t[1] - 2.5, t[2]); if (s && Math.abs(s[0]) < 1.3 && Math.abs(s[1]) < 1.3) { flareBuf[i * 4] = s[0] * 0.5 + 0.5; flareBuf[i * 4 + 1] = s[1] * 0.5 + 0.5; flareBuf[i * 4 + 2] = 0.35; flareBuf[i * 4 + 3] = s[2] * 0.5 + 0.5; nfl++; } else { flareBuf[i * 4 + 2] = 0; } }
         const P = G.final; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, cv.width, cv.height);
-        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, quality >= 2 && G.bloomA ? G.bloomA.tex : G.white); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.scene.tex);
-        gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uBloom, 1); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height); gl.uniform1f(P.u.uBloomK, quality >= 2 ? (SKY.night ? 0.9 : 0.55) : 0); gl.uniform1f(P.u.uFxaa, 1); gl.uniform1f(P.u.uVig, 0.55); gl.uniform1f(P.u.uKick, cam.kick * 0.12);
-        quad(P);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, quality >= 1 && G.bloomA ? G.bloomA.tex : G.black);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, aoTex || G.white);
+        gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, G.scene.dt || G.white);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uBloom, 1); gl.uniform1i(P.u.uAO, 2); gl.uniform1i(P.u.uDepth, 3); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height);
+        gl.uniform1f(P.u.uBloomK, quality >= 1 && G.bloomA ? (SKY.night ? 0.55 : 0.3) : 0); gl.uniform1f(P.u.uFxaa, 1); gl.uniform1f(P.u.uVig, 0.42); gl.uniform1f(P.u.uKick, cam.kick * 0.12);
+        gl.uniform1f(P.u.uExp, expo); gl.uniform1f(P.u.uAOk, aoTex ? 0.85 : 0); gl.uniform4fv(P.u.uFl, flareBuf); gl.uniform1f(P.u.uFlK, nfl ? 0.9 : 0); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uLDR, G.scene.hdr ? 0 : 1); gl.uniform1f(P.u.uAsp, cv.width / cv.height);
+        quadDraw(P);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
       }
       updTags();
@@ -3711,16 +4549,16 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = ball.holder;
       if (h) {
         if (h.bones) {
-          const m = h.bones[B.haR], hs = h.lk.hs, hx = Math.sin(h.h), hz = Math.cos(h.h);
-          if (h.role === 'QB' && (mode === 'aim' || h.throwT >= 0) && h === OK.QB) { const hp = mPt(m, 0, -0.06 * hs, 0.04); drawBall(dyn, hp[0], hp[1], hp[2], h.h, -0.5, 0, false); }
-          else if (h.rag || h.pose === 'celebrate' || h.pose === 'kneel') { const hp = mPt(m, 0.05, -0.12 * hs, 0.08); drawBall(dyn, hp[0], hp[1], hp[2], h.h + 0.6, 0.3, 0, false); }
-          else { const sd = h.carrySide || 1, ch = h.bones[B.chest], hp = mPt(ch, sd * 0.24 * hs, -0.05 * hs, 0.17 * hs); drawBall(dyn, hp[0], hp[1], hp[2], h.h + (sd < 0 ? 0.15 : -0.15), 0.35, 0, false); }
+          const m = h.bones[B.haR], hs = h.lk.hs;
+          if (h.role === 'QB' && (mode === 'aim' || h.throwT >= 0) && h === OK.QB) { const hp = mPt(m, 0, -0.07 * hs, 0.05); drawBall(dyn, hp[0], hp[1], hp[2], h.h, -0.5, 0, false); }
+          else if (h.rag || h.pose === 'celebrate' || h.pose === 'kneel') { const hp = mPt(m, 0.05, -0.13 * hs, 0.08); drawBall(dyn, hp[0], hp[1], hp[2], h.h + 0.6, 0.3, 0, false); }
+          else { const sd = h.carrySide || 1, ch = h.bones[B.chest], hp = mPt(ch, sd * 0.25 * hs, -0.04 * hs, 0.18 * hs); drawBall(dyn, hp[0], hp[1], hp[2], h.h + (sd < 0 ? 0.15 : -0.15), 0.35, 0, false); }
         } else drawBall(dyn, h.x + Math.sin(h.h) * 0.3, 1.3, h.z + Math.cos(h.h) * 0.3, h.h, 0.3, 0, false);
       } else if (ball.st === 'air' || ball.st === 'kick' || ball.st === 'pitch') {
         const b = ball, spin = b.spin || now * 12;
         if (ball.st === 'kick' || b.tipped) drawBall(dyn, b.x, b.y, b.z, Math.atan2(b.vx || 0, b.vz || 1), 0, spin, true);
         else { const wob = b.wobA ? Math.sin(now * 9 + b.wob) * b.wobA : 0; drawBall(dyn, b.x, b.y, b.z, Math.atan2(b.vx || 0, b.vz || 1) + wob, -Math.atan2(b.vy || 0, Math.hypot(b.vx || 0, b.vz || 0) || 1) + wob * 0.5, spin, false); }
-        tr.disc(b.x, b.z, 0.26, [0, 0, 0, 0.3], 0.035, 8);
+        tr.blob(b.x, b.z, 0.3, 0.35, 0.03, 10);
         if (ball.st === 'air' && b.cp && !b.replay) { const pul = 0.9 + Math.sin(now * 11) * 0.12; tr.ring(b.cp.x, b.cp.z, 0.85 * pul, 1.12 * pul, [1, 1, 1, 0.7], 0.05, 20); }
       } else if (ball.st === 'spot' || ball.st === 'snap') drawBall(dyn, ball.x, Math.max(0.17, ball.y), ball.z, 0, ball.st === 'spot' ? 1.57 : 0.3, 0, false);
       else drawBall(dyn, ball.x, Math.max(0.15, ball.y), ball.z, 0.6, ball.rolling ? 1.57 : 0.9, ball.spin || 0, true);
@@ -3729,13 +4567,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat';
       const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat';
       if (scrim && !tryMode) {
-        tr.seg(-HW, los, HW, los, 0.3, [0.25, 0.55, 1, 0.85], 0.03);
-        if (fdz < 100) tr.seg(-HW, fdz, HW, fdz, 0.3, [1, 0.86, 0.1, 0.92], 0.03);
-      }
-      if (scrim && phase !== 'splash') {
-        const sx = HW + 2.6, orange = [1, 0.45, 0.1, 1];
-        dyn.box(IDM, sx, 1.1, los, 0.12, 2.2, 0.12, orange); dyn.box(IDM, sx, 2.35, los, 0.45, 0.45, 0.08, orange);
-        if (fdz < 100) { dyn.box(IDM, sx, 1.1, fdz - 10, 0.12, 2.2, 0.12, orange); dyn.box(IDM, sx, 1.1, fdz, 0.12, 2.2, 0.12, orange); tr.seg(sx, fdz - 10, sx, fdz, 0.06, [0.85, 0.85, 0.85, 0.9], 0.6); }
+        tr.seg(-HW, los, HW, los, 0.26, [0.25, 0.55, 1, 0.7], 0.03);
+        if (fdz < 100) tr.seg(-HW, fdz, HW, fdz, 0.26, [1, 0.86, 0.1, 0.8], 0.03);
       }
       if (phase === 'pre' || phase === 'splash') {
         const fx = flip ? -1 : 1;
@@ -3777,19 +4610,25 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'live' && mode === 'aim' && !aim) for (const r of off) if (isRec(r) && r.R && !(r.blk === 'chip' && tPlay < r.R.blk)) { const c = COL[sepClass(sepOf(r))], pul = 1 + Math.sin(now * 8) * 0.08; tr.ring(r.x, r.z, 0.95 * pul, 1.25 * pul, c, 0.05, 16); }
       if (phase === 'live' && ctrl && mode === 'catch') tr.ring(ctrl.x, ctrl.z, 0.9, 1.2, [0.17, 0.83, 0.42, 0.9], 0.05, 18);
       if ((phase === 'live' || phase === 'dead') && carrier && mode === 'run') tr.ring(carrier.x, carrier.z, 0.9, 1.2, [1, 0.76, 0.1, 0.85], 0.05, 18);
-      if (excite > 0.3 && flashes.length < 40 && crand() < excite * 0.5) { const s = crand() < 0.5 ? -1 : 1; flashes.push({ x: s * (36 + crand() * 22), y: 3 + crand() * 15, z: -20 + crand() * 140, life: 0.08 }); }
-      for (let i = flashes.length - 1; i >= 0; i--) { const q = flashes[i]; q.life -= 1 / 60; if (q.life <= 0) { flashes.splice(i, 1); continue; } tr.quad([q.x, q.y - 0.3, q.z - 0.3], [q.x, q.y - 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z - 0.3], [0, 0, 0], [1, 1, 1, 0.9]); }
+      if (excite > 0.3 && flashes.length < 60 && crand() < excite * 0.7) { const s = crand() < 0.5 ? -1 : 1; flashes.push({ x: s * (37 + crand() * 22), y: 3 + crand() * 18, z: -20 + crand() * 140, life: 0.08 }); }
+      for (let i = flashes.length - 1; i >= 0; i--) { const q = flashes[i]; q.life -= 1 / 60; if (q.life <= 0) { flashes.splice(i, 1); continue; } tr.quad([q.x, q.y - 0.3, q.z - 0.3], [q.x, q.y - 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z - 0.3], [0, 0, 0], [3, 3, 3, 0.9]); }
     }
     function drawWeather(dt, now) {
+      // breath in the cold: small puffs at the facemask every few seconds
+      if (WX === 'snow' && phase !== 'box') {
+        for (const p of everyone) { if (!p.bones || p.rag) continue; if (crand() < dt * 0.35) { const m = p.bones[B.head], hp = mPt(m, 0, 0.12 * p.lk.hs, 0.22 * p.lk.hs); breaths.push({ x: hp[0], y: hp[1], z: hp[2], vx: Math.sin(p.h) * 0.6, vz: Math.cos(p.h) * 0.6, t: 0 }); } }
+        for (let i = breaths.length - 1; i >= 0; i--) { const q = breaths[i]; q.t += dt; if (q.t > 1.2) { breaths.splice(i, 1); continue; } q.x += q.vx * dt; q.z += q.vz * dt; q.y += 0.25 * dt; const r = 0.08 + q.t * 0.22, a = 0.28 * (1 - q.t / 1.2); tr.quad([q.x - r, q.y - r, q.z], [q.x + r, q.y - r, q.z], [q.x + r, q.y + r, q.z], [q.x - r, q.y + r, q.z], [0, 0, 0], [0.9, 0.92, 0.95, a]); }
+      }
       if (!WXN) return;
       const cx = cam.c[0] * 0.5 + cam.e[0] * 0.5, cz = cam.c[2] * 0.5 + cam.e[2] * 0.5, rain = WX === 'rain', d = Math.min(dt, 0.05);
       for (const q of wxp) {
-        q.y -= (rain ? 26 : 2.2) * q.s * d; q.x += (rain ? 1.5 : Math.sin(now + q.s * 9) * 0.8) * d;
-        if (q.y < 0) { q.y += 18; q.x = (crand() - 0.5) * 50; q.z = (crand() - 0.5) * 50; }
+        q.y -= (rain ? 22 : 2.0) * q.s * d; q.x += (rain ? 1.6 : Math.sin(now + q.s * 9) * 0.9) * d; if (!rain) q.z += Math.cos(now * 0.7 + q.w * 7) * 0.4 * d;
+        if (q.y < 0) { q.y += 14; q.x = (crand() - 0.5) * 30; q.z = (crand() - 0.5) * 30; }
         const x = cx + q.x, z = cz + q.z;
-        if (rain) tr.streak(x, q.y, z, 1.3, 0.045, [0.8, 0.85, 0.95, 0.5]);
-        else tr.quad([x - 0.07, q.y - 0.07, z], [x + 0.07, q.y - 0.07, z], [x + 0.07, q.y + 0.07, z], [x - 0.07, q.y + 0.07, z], [0, 0, 0], [1, 1, 1, 0.85]);
+        if (rain) tr.streak(x, q.y, z, 0.32 * q.s, 0.011, [0.7, 0.75, 0.85, 0.22 + 0.2 * q.w]);
+        else { const r = 0.05 + 0.04 * q.w; tr.quad([x - r, q.y - r, z], [x + r, q.y - r, z], [x + r, q.y + r, z], [x - r, q.y + r, z], [0, 0, 0], [1.2, 1.2, 1.25, 0.85]); }
       }
+      if (rain && phase !== 'box') for (let i = 0; i < 24; i++) { const x = cam.c[0] + (crand() - 0.5) * 24, z = cam.c[2] + (crand() - 0.5) * 24; tr.ring(x, z, 0.04 + crand() * 0.1, 0.1 + crand() * 0.12, [0.8, 0.85, 0.95, 0.25], 0.03, 8); }
     }
 
     // ---------- floating name tags ----------
@@ -3807,11 +4646,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const hw = (t.offsetWidth || 60) / 2 + 4;
       t.style.left = clamp(s[0], hw, cssW - hw).toFixed(1) + 'px'; t.style.top = s[1].toFixed(1) + 'px';
     }
-    // Pre-snap tags of bunched receivers would sit on top of each other: stack them upward instead.
     function unstackTags() {
       const r = tagKeys.map((k) => tags[k]).filter((t) => !t.classList.contains('hide')).map((t) => ({ t, x: parseFloat(t.style.left) || 0, y: parseFloat(t.style.top) || 0, w: t.offsetWidth || 60, h: t.offsetHeight || 26 }));
       if (r.length < 2) return;
-      r.sort((a, b) => b.y - a.y); // lowest on screen first; later (higher) tags get pushed up past it
+      r.sort((a, b) => b.y - a.y);
       for (let pass = 0; pass < 3; pass++) for (let i = 1; i < r.length; i++) for (let j = 0; j < i; j++) {
         const a = r[j], b = r[i];
         if (Math.abs(a.x - b.x) < (a.w + b.w) / 2 + 2 && b.y > a.y - a.h - 3 && b.y - b.h < a.y + 3) { b.y = a.y - a.h - 3; b.t.style.top = b.y.toFixed(1) + 'px'; }
@@ -3837,6 +4675,95 @@ gl_FragColor=vec4(c,1.0);}`;
       setTag(carTag, showC && carrier.sq ? project(carrier.x, 2.7 * carrier.lk.hs + carrier.jumpY, carrier.z) : null, showC && !!carrier.sq);
       if (mvBtns && ctrl) for (const k in mvBtns) { const cd = ctrl.mvCd[k] || 0, tot = moveCd(ctrl, k) || 1; mvBtns[k].classList.toggle('cool', cd > 0); mvBtns[k].style.setProperty('--cd', ((1 - Math.max(0, cd) / tot) * 100).toFixed(0) + '%'); }
       updSprint();
+    }
+
+    // ---------- sideline life: officials who signal, the chain crew on the real spots, benches, coaches ----------
+    const extras = [];
+    const chain = { los: 25, fd: 35, down: 1 };
+    const ORANGE = [1, 0.45, 0.08, 1], POLE = [0.95, 0.5, 0.1, 1];
+    function mkExtra(side, role, x, z, o) {
+      const p = mkP(side, role, 'X' + extras.length, x, z, Object.assign({ v: 3, spd: 40 }, o || {}));
+      p.extra = true; p.pose = o && o.pose || 'idle'; p.h = o && o.h != null ? o.h : (x < 0 ? Math.PI / 2 : -Math.PI / 2);
+      p.lk = Object.assign({}, p.lk, { cleat: side === 2 ? CLEATS.black : TEAM2, visor: false, sleeves: false, tone: null });
+      if (side === 2) p.lk.cleat = hex('#111111');
+      p.towel = false; p.face = -1; p.ncell = -1; p.nmcell = -1; p.num = 0;
+      extras.push(p);
+      return p;
+    }
+    function setupExtras() {
+      if (extras.length || quality < 1) return;
+      // officials (white hat referee behind the offense, umpire, two wings)
+      mkExtra(2, 'REF', 4, 15, { key: 'R', pose: 'idle' }).ref = 'R';
+      mkExtra(2, 'REF', -3, 32, { key: 'U', pose: 'idle' }).ref = 'U';
+      mkExtra(2, 'REF', -HW - 0.8, 25, { key: 'HL', pose: 'idle' }).ref = 'HL';
+      mkExtra(2, 'REF', HW + 0.8, 25, { key: 'LJ', pose: 'idle' }).ref = 'LJ';
+      // chain crew on the far sideline
+      for (const k of ['box', 'c0', 'c1']) mkExtra(2, 'REF', HW + 2.9, 25, { key: k, pose: 'idle' }).crew = k;
+      // benches: seated and standing players, coaches with headsets
+      for (const s of [-1, 1]) {
+        const side = s < 0 ? 0 : 1, bx = s * 30.6;
+        for (let i = 0; i < 7; i++) { const role = ['OL', 'WR', 'LB', 'DL', 'RB', 'TE', 'CB'][i]; const p = mkExtra(side, role, bx, 36 + i * 4.1 + crand() * 0.8, { pose: 'sit', h: s < 0 ? Math.PI / 2 : -Math.PI / 2 }); p.num = 10 + ((i * 17 + (side ? 3 : 0)) % 80); p.ncell = numCell(p.num); }
+        for (let i = 0; i < 4; i++) { const role = ['WR', 'DL', 'QB', 'S'][i]; const p = mkExtra(side, role, s * (29.2 + crand() * 0.8), 40 + i * 6.5 + crand() * 2, { pose: 'idle', h: s < 0 ? Math.PI / 2 : -Math.PI / 2 }); p.num = 2 + ((i * 23 + (side ? 5 : 0)) % 90); p.ncell = numCell(p.num); if (i === 1) p.towel = true; }
+        for (let i = 0; i < 2; i++) mkExtra(side, 'COACH', s * 28.4, 44 + i * 12, { pose: 'idle', h: s < 0 ? Math.PI / 2 : -Math.PI / 2 }).coach = true;
+      }
+      for (const p of extras) { p.ph = crand() * 6; p.body = BODY[p.role] || BODY.WR; }
+    }
+    function steerExtra(p, tx, tz, v, dt, faceTo) {
+      const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      if (d > 0.3) { const sp = Math.min(v, d * 2.5); p.vx = dx / d * sp; p.vz = dz / d * sp; p.h = Math.atan2(dx, dz); }
+      else { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); if (faceTo) p.h += angDiff(faceTo, p.h) * Math.min(1, dt * 4); }
+      p.x += p.vx * dt; p.z += p.vz * dt;
+    }
+    function extrasStep(dt) {
+      if (!extras.length) return;
+      // the chains walk to the new spots between plays
+      const k = Math.min(1, dt * 1.4);
+      const tl = los, tf = fdz < 100 ? fdz : los + 10;
+      chain.los += (tl - chain.los) * k; chain.fd += (tf - chain.fd) * k;
+      const pre = phase === 'pre' || phase === 'break' || phase === 'cpu' || phase === 'splash';
+      const bx = ball ? ball.x : 0, bz = ball ? ball.z : los;
+      for (const p of extras) {
+        if (p.ref) {
+          let tx = p.x, tz = p.z, face = null;
+          if (p.ref === 'R') { tx = pre || phase === 'live' ? 5.5 : bx + 3; tz = pre ? los - 13 : phase === 'live' ? Math.min(p.z, (OK.QB ? OK.QB.z : los) - 6) : bz - 4; face = 0; }
+          else if (p.ref === 'U') { tx = -2.5; tz = pre ? los + 5.5 : phase === 'live' ? Math.max(p.z, bz + 3) : bz + 2; face = Math.PI; }
+          else if (p.ref === 'HL') { tx = -HW - 0.9; tz = pre ? los : phase === 'live' ? bz : bz; face = Math.PI / 2; }
+          else { tx = HW + 0.9; tz = pre ? los : bz; face = -Math.PI / 2; }
+          if (phase === 'dead' && (p.ref === 'R' || p.ref === 'HL' || p.ref === 'LJ')) {
+            const sig = playRes === 'td' || playRes === 'krtd' || playRes === 'pick6' ? 'sigtd' : playRes === 'inc' ? 'siginc' : (playRes === 'first' ? 'sigfirst' : null);
+            if (sig && deadTot - deadT > 0.45) { if (p.pose !== sig) setPose(p, sig); p.vx = p.vz = 0; p.h += angDiff(p.ref === 'R' ? Math.PI : (p.ref === 'HL' ? Math.PI / 2 : -Math.PI / 2), p.h) * Math.min(1, dt * 5); continue; }
+          } else if (p.pose !== 'idle') setPose(p, 'idle');
+          steerExtra(p, tx, tz, 4.2, dt, face);
+          p.look = ball ? [bx, Math.max(0.5, ball.y || 1), bz] : null;
+        } else if (p.crew) {
+          const zx = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - 10 : chain.fd;
+          steerExtra(p, HW + 2.9, zx + 0.45, 3.5, dt, -Math.PI / 2);
+          if (p.pose !== 'idle') setPose(p, 'idle');
+          p.look = [bx, 1, bz];
+        } else {
+          // bench: coaches and standing players watch the ball; a few stand up on big plays
+          p.look = [bx, 1.2, bz];
+          if (p.pose === 'idle' && excite > 0.85 && p.celType == null) { p.celType = (crand() * 4) | 0; p.celAt2 = 2.5; setPose(p, 'celebrate'); }
+          if (p.celAt2 > 0) { p.celAt2 -= dt; if (p.celAt2 <= 0) { p.celType = null; setPose(p, 'idle'); } }
+        }
+      }
+      for (const p of extras) animUpdate(p, dt);
+    }
+    // down marker and chains as geometry held by the crew
+    function drawExtrasProps() {
+      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat';
+      const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && !tryMode;
+      if (!scrim) return;
+      const sx = HW + 2.9;
+      const pole = (z, hgt, top) => { dyn.box(IDM, sx, hgt / 2, z, 0.07, hgt, 0.07, POLE); if (top) dyn.box(IDM, sx, hgt + 0.22, z, 0.42, 0.44, 0.07, ORANGE); else dyn.box(IDM, sx, hgt + 0.1, z, 0.22, 0.2, 0.22, ORANGE); };
+      pole(chain.los, 2.1, true);
+      if (fdz < 100) { pole(chain.fd - 10, 2.0, false); pole(chain.fd, 2.0, false); tr.seg(sx + 0.05, chain.fd - 10, sx + 0.05, chain.fd, 0.035, [0.8, 0.8, 0.82, 0.95], 0.75); }
+      // the crew's hands on the poles
+      for (const p of extras) {
+        if (!p.crew || !p.bones) continue;
+        const z = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - 10 : chain.fd;
+        p.reach = [sx, 1.35 * p.lk.hs, z];
+      }
     }
 
     // ---------- scorebug ----------
@@ -4141,7 +5068,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let boxT = 0;
 
     // ---------- loop ----------
-    let raf = 0, last = 0, running = false, ftAvg = 1 / 60, ftT = 0;
+    let raf = 0, last = 0, running = false, ftAvg = 1 / 60, ftT = 0, qDropped = 0;
     function frame(now) {
       raf = requestAnimationFrame(frame);
       const el2 = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
@@ -4156,12 +5083,13 @@ gl_FragColor=vec4(c,1.0);}`;
       updBug();
       if (((now / 250) | 0) !== (((now - el2 * 1000) / 250) | 0)) { sfx.crowd(phase === 'splash' || phase === 'box' ? 0.05 : 0.12 + excite * 0.6); setControls(false); }
       if (el2 > 0 && el2 < 0.25) {
-        ftAvg += (el2 - ftAvg) * 0.05; ftT += el2;
+        ftAvg += (el2 - ftAvg) * 0.08; ftT += el2;
         if (DBG && DBG.lockQ) ftT = 0;
-        else if (ftT > 1.5 && ftAvg > 0.04 && quality > 0 && rscale <= 0.7) { setQuality(quality - 1); showQuality(); ftT = 0; }
-        else if (ftT > 1.5 && ftAvg > 0.036 && rscale > 0.55) { rscale = Math.max(0.55, rscale - 0.15); ftT = 0; sizeBuffer(); }
-        else if (ftT > 5 && ftAvg < 0.02 && rscale < 1) { rscale = Math.min(1, rscale + 0.1); ftT = 0; sizeBuffer(); }
-        else if (ftT > 5) ftT = 0;
+        else if (ftT > 1.2 && ftAvg > 0.04 && quality > 0 && rscale <= 0.75) { setQuality(quality - 1); showQuality(); qDropped++; ftT = 0; }
+        else if (ftT > 1.0 && ftAvg > 0.034 && rscale > 0.55) { rscale = Math.max(0.55, rscale - 0.15); ftT = 0; sizeBuffer(); }
+        else if (ftT > 4 && ftAvg < 0.02 && rscale < 1) { rscale = Math.min(1, rscale + 0.1); ftT = 0; sizeBuffer(); }
+        else if (ftT > 8 && ftAvg < 0.0125 && qDropped > 0 && rscale >= 1 && quality < 2) { setQuality(quality + 1); showQuality(); qDropped--; ftT = 0; }
+        else if (ftT > 8) ftT = 0;
       }
     }
     function startLoop() { if (running || finished) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
@@ -4284,7 +5212,7 @@ gl_FragColor=vec4(c,1.0);}`;
       try { if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
       sfx.close();
       try {
-        if (G) { for (const b of G.bufs) gl.deleteBuffer(b); for (const t of G.texs) gl.deleteTexture(t); for (const pr of G.progs) gl.deleteProgram(pr); delFBO(G.shadow); delFBO(G.scene); delFBO(G.bloomA); delFBO(G.bloomB); }
+        if (G) { for (const b of G.bufs) gl.deleteBuffer(b); for (const t of G.texs) gl.deleteTexture(t); for (const pr of G.progs) gl.deleteProgram(pr); delFBO(G.shadow); delFBO(G.scene); delFBO(G.scene2); delFBO(G.bloomA); delFBO(G.bloomB); delFBO(G.aoA); delFBO(G.aoB); delFBO(G.feed); }
         const lc = gl.getExtension('WEBGL_lose_context'); if (lc) lc.loseContext();
       } catch (e) {}
       G = null;
@@ -4349,7 +5277,7 @@ gl_FragColor=vec4(c,1.0);}`;
         closeSheet(); clearBanner(); hideTags(); clearPlayers();
         phase = 'live'; tPlay = 0; thrown = false; handed = true; runSeen = 0; crossed = true; aim = null; target = null; passer = null; kick = null; lastBig = null; replayBuf = []; recT = 0; carrier = null;
         los = o.los || 50; down = 1; fdz = los + 10; poss = 'home';
-        const c = addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
+        const c = o.role ? (o.side ? addDef(mkP(1, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 24 })) : addOff(mkP(0, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 72 }))) : addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
         (o.def || []).forEach((d, i) => addDef(mkP(1, d.role || 'LB', 'T' + i, d.x, d.z, { v: d.v || 7.6, str: d.str || 70, agi: 60, tackle: d.tackle || 70, spd: 70, num: 40 + i })));
         finalizePlayers();
         for (const p of everyone) setPose(p, 'run');
@@ -4361,7 +5289,7 @@ gl_FragColor=vec4(c,1.0);}`;
         } else { ball = { st: 'held', holder: c, x: c.x, y: 1.3, z: c.z, vx: 0, vy: 0, vz: 0 }; carrier = c; ctrl = c; mode = 'run'; c.vx = o.vx || 0; c.vz = o.vz == null ? 6 : o.vz; }
         setControls(true);
       },
-      get pr() { return pr; }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
+      get pr() { return pr; }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
       swipe(ux, uz, k) { if (mode !== 'aim') return false; const D = Math.max(3, Math.min(1, k || 1) * maxDist()); return throwBall({ x: OK.QB.x + ux * D, z: OK.QB.z + uz * D, D }, arc); },
       kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } },
       fumble() { if (phase === 'live' && carrier && ball && ball.holder === carrier) { fumble(carrier); return true; } return false; },
@@ -4395,12 +5323,13 @@ gl_FragColor=vec4(c,1.0);}`;
       return { destroy() {} };
     }
     setupPlay();
+    try { setupExtras(); } catch (e) { console.error(e); }
     updateCam(-1); updBug(); setControls(true);
     startLoop();
     try {
       if (document.fonts && document.fonts.load) document.fonts.load('900 40px "Barlow Condensed"').then(() => {
         if (!G || glLost || finished) return;
-        gl.deleteTexture(G.field); G.field = mkTex(fieldCanvas()); G.texs.push(G.field); statics.forEach((s) => { if (s.k === 'field') s.tex = G.field; });
+        gl.deleteTexture(G.field); G.field = mkTex(fieldCanvas(quality >= 2 ? 2 : 1), false, false, 16); G.texs.push(G.field); statics.forEach((s) => { if (s.k === 'field') s.tex = G.field; });
         for (const k in numMap) delete numMap[k]; numN = 0; nameN = 0; for (const p of everyone) { p.ncell = p.num ? numCell(p.num) : -1; p.nmcell = p.sq && p.sq.name ? nameCell(shortName(p.sq.name)) : -1; }
         boardDirty = true;
       }).catch(() => {});
