@@ -2057,7 +2057,8 @@ gl_FragColor=vec4(c,1.0);}`;
     // swipe -> field vector: screen axes of the field at the QB's feet, solved for the swipe direction
     function aimSpot() {
       if (!aim) return null;
-      const dx = aim.px - aim.ax, dy = aim.py - aim.ay, len = Math.hypot(dx, dy);
+      // pull back to aim: the throw goes the opposite way from the drag, like a slingshot
+      const dx = aim.ax - aim.px, dy = aim.ay - aim.py, len = Math.hypot(dx, dy);
       if (len < 14) return null;
       const qb = OK.QB, o = project(qb.x, 0, qb.z), ex = project(qb.x + 1, 0, qb.z), ez = project(qb.x, 0, qb.z + 1);
       if (!o || !ex || !ez) return null;
@@ -3598,7 +3599,7 @@ gl_FragColor=vec4(c,1.0);}`;
         btn('bz-y', `Kick XP<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => chooseTry(false));
         btn('', `Go for 2<small>one play from the 2</small>${K('2')}`, () => chooseTry(true));
       } else if (phase === 'live' && mode === 'aim') {
-        msg(touchy ? '<span><b>Swipe</b> where to throw · swipe <b>back</b> to run</span>' : '<span><b>Drag</b> toward the throw &amp; release · drag <b>back</b> to run · arrows move the QB</span>');
+        msg(touchy ? '<span><b>Pull back</b> to aim, let go to throw · aim <b>behind</b> the QB to run</span>' : '<span><b>Pull back</b> to aim &amp; release · aim <b>behind</b> the QB to run · arrows move the QB</span>');
         const seg = el('div', 'bz-arc');
         ['Bullet', 'Touch', 'Lob'].forEach((n, i) => { const b = el('button', i === arc ? 'sel' : '', n); b.type = 'button'; b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); setArc(i); }); seg.appendChild(b); });
         ctl.appendChild(seg);
@@ -3746,13 +3747,13 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function hideMeter() { if (meter) { meter.remove(); meter = null; } }
     // ---------- aim + stick indicators ----------
-    const aimLn = el('div', 'bz-aimln'), aimRun = el('div', 'bz-aimrun', 'RUN'), stickEl = el('div', 'bz-stick', '<b></b>');
+    const aimLn = el('div', 'bz-aimln'), aimRun = el('div', 'bz-aimrun', 'Release to run'), stickEl = el('div', 'bz-stick', '<b></b>');
     aimLn.style.display = aimRun.style.display = stickEl.style.display = 'none';
     stage.append(aimLn, aimRun, stickEl);
     function showAim() {
       if (!aim || !OK.QB) return;
       const o = project(OK.QB.x, 1.0, OK.QB.z); if (!o) return;
-      const dx = aim.px - aim.ax, dy = aim.py - aim.ay, l = Math.hypot(dx, dy);
+      const dx = aim.ax - aim.px, dy = aim.ay - aim.py, l = Math.hypot(dx, dy);
       if (l < 14) { aimLn.style.display = 'none'; aimRun.style.display = 'none'; return; }
       const s = aimSpot();
       if (s && s.back) { aimLn.style.display = 'none'; aimRun.style.display = 'block'; aimRun.style.left = o[0] + 'px'; aimRun.style.top = (o[1] - 40) + 'px'; return; }
@@ -3911,13 +3912,6 @@ gl_FragColor=vec4(c,1.0);}`;
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       if (ptype === 'aim' && aim) {
         aim.px = x; aim.py = y; showAim();
-        const s = aimSpot();
-        if (s && s.back && Math.hypot(x - aim.ax, y - aim.ay) > 34 && tPlay > 0.3) {
-          // swiped backwards: the QB tucks it and runs; the same touch keeps steering him
-          scramble(); hideAim(); aim = null;
-          ptype = 'stick'; origin = [aim ? aim.ax : x, y]; origin = [x - (x - origin[0]) * 0, y]; input.stick = [s.ux, s.uz];
-          stickEl.style.display = 'block'; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.firstChild.style.transform = ''; origin = [x, y];
-        }
         return;
       }
       if (ptype === 'stick' && origin) {
@@ -3930,7 +3924,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (pid !== e.pointerId) return;
       if (ptype === 'aim' && aim) {
         const s = phase === 'live' && mode === 'aim' ? aimSpot() : null, l = Math.hypot(aim.px - aim.ax, aim.py - aim.ay), tap = l < 16 || performance.now() - ptT < 90;
-        if (s && !s.back && !tap && e.type === 'pointerup') throwBall(s, arc);
+        if (s && !tap && e.type === 'pointerup') { if (s.back) { if (tPlay > 0.3) scramble(); } else throwBall(s, arc); } // aimed behind the QB: he tucks it and runs
         aim = null; hideAim();
       }
       pid = null; origin = null; input.stick = null; ptype = ''; hideStick();
@@ -3976,8 +3970,8 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       <ul class="bz-how">
         <li><i>1</i><span><b>Call a play</b> from the playbook (runs, quick passes, deep shots, trick plays) and <b>SNAP</b>${touchy ? '' : ' (Space)'}. Tap a receiver's tag before the snap for a hot route.</span></li>
-        <li><i>2</i><span><b>Throw</b>: ${touchy ? 'swipe anywhere on the field' : 'drag the mouse'} in the direction you want it to go; the line and arc come out of the QB and the ring is where it lands. Longer swipe = farther. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming)' : ' (Q)'}. Lead your receiver!</span></li>
-        <li><i>3</i><span><b>Scramble</b>: swipe <b>backwards</b> (toward your own end zone) and the QB tucks it and runs, steering from the same ${touchy ? 'touch' : 'drag'}.</span></li>
+        <li><i>2</i><span><b>Throw</b>: ${touchy ? 'touch anywhere and pull back' : 'drag the mouse back'}, like a slingshot; the line and arc come out of the QB the opposite way and the ring is where it lands. Pull farther = throw farther. Let go to throw. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming)' : ' (Q)'}. Lead your receiver!</span></li>
+        <li><i>3</i><span><b>Scramble</b>: aim <b>behind</b> the QB (${touchy ? 'drag forward so the line points back' : 'drag forward so the line points back'}) and let go: he tucks it and runs. Then ${touchy ? 'drag on the field' : 'use the arrows'} to steer him.</span></li>
         <li><i>4</i><span><b>Catch</b>: your receiver tracks the ball on his own; steer to adjust, then <b>JUMP</b> for high balls or <b>DIVE</b> for low ones. Defenders go for it too.</span></li>
         <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Dive</b>${touchy ? '' : ' (J K L Space)'}. Tacklers hit with momentum: break them or fall forward.</span></li>
         <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. The clock keeps running between plays.</span></li>
