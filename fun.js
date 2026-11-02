@@ -1,4 +1,4 @@
-// Pages for the fun stuff: MFL Cards (collection, packs, Starting 8) and Survivor.
+// Pages for the fun stuff: MFL Cards (collection, packs, Lineup) and Survivor.
 // `h` is the bag of helpers from server.js (layout, auth, storage, formatting).
 const cards = require('./cards');
 const sv = require('./survivor');
@@ -7,7 +7,10 @@ const crypto = require('crypto');
 module.exports = function fun(app, h) {
   const { esc, icon, logo, avatar, coins, layout, pickHead, pickNav, pk, TZ } = h;
   const R = cards.RARITIES;
-  const POS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL', 'UTIL'];
+  const POS = cards.LINEUP_POS;
+  // Which auto-pick column each position uses: 0 QB, 1 RB, 2 WR, 3 TE, 4 UTIL, 5 OL.
+  const POS_COL = POS.map((p) => ({ QB: 0, RB: 1, TE: 3 })[p] ?? (/^WR/.test(p) ? 2 : /^UTIL/.test(p) ? 4 : 5));
+  const POS_GROUP = (p) => (/^UTIL/.test(p) ? 'util' : /^OL/.test(p) ? 'ol' : 'skill');
 
   // ---------- card artwork ----------
   // How each card type shows the player photo.
@@ -43,12 +46,12 @@ module.exports = function fun(app, h) {
 
   const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null, /^\/pickem\/(cards|packs)/.test(req.path) ? 'cards' : '') + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
   const flash = (req) => {
-    const m = { lineup: 'Starting 8 saved ✓', sold: 'Card sold ✓', poor: 'Not enough coins for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
+    const m = { lineup: 'Lineup saved ✓', sold: 'Card sold ✓', poor: 'Not enough coins for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
     return m ? `<div class="toast ${/Not|Already|off|locked/.test(m) ? 'bad' : ''}">${m}</div>` : '';
   };
   const freshUser = async (name) => h.getDoc(h.userKey(name), { fresh: true });
 
-  // ---------- My Cards + Starting 8 ----------
+  // ---------- My Cards + Lineup ----------
   app.get('/pickem/cards', async (req, res, next) => {
     try {
       const db = h.load();
@@ -60,12 +63,26 @@ module.exports = function fun(app, h) {
       const view = req.query.view === 'all' ? 'all' : 'mine';
       const g = pk.nextGame(db, TZ);
       const latest = (user.lineups || []).at(-1);
-      // Lineup slots are positions: QB, RB, WR1, WR2, WR3, TE, UTIL, UTIL ('' = empty).
+      // Lineup slots are positions: cards.LINEUP_POS, QB first ('' = empty). Older 8-card lineups keep their first 8.
       const lineup = Array.from({ length: cards.LINEUP_SIZE }, (_, i) => { const id = (latest?.cards || [])[i]; return id && own[id] ? id : ''; });
       const et = pk.effTend(db);
-      // How well a card fits each position (used by auto-pick).
-      const fit = (c) => { const r = h.ratingOf(db, c.t, c.p), td = et.player(c.t, c.p, 'td'), ps = et.player(c.t, c.p, 'pass'), m = c.mult;
-        return [ps * 0.75 + r * 0.25, td * 0.6 + r * 0.4, td * 0.5 + r * 0.5, r * 0.6 + td * 0.4, r].map((v) => Math.round(v * m)).join(','); };
+      // Real player attributes when the Arcade provides them (optional).
+      const arc = require('./arcade');
+      const attrsOf = (c) => { try { const a = typeof arc.playerAttrs === 'function' && arc.playerAttrs(db, c.t, c.p); return a && Number.isFinite(a.str) ? a : null; } catch { return null; } };
+      // How well a card fits each position column (QB, RB, WR, TE, UTIL, OL), used by auto-pick.
+      // The card's own effects count too: a Pizza Friday card blocks better and catches worse.
+      const fit = (c) => {
+        const r = h.ratingOf(db, c.t, c.p), td = et.player(c.t, c.p, 'td'), ps = et.player(c.t, c.p, 'pass'), m = c.mult;
+        const d = cards.cardEffects(c).attr, b = attrsOf(c);
+        let f = [ps * 0.75 + r * 0.25 + (d.thr + d.acc) / 2, td * 0.6 + r * 0.4 + (d.spd + d.agi) / 2, td * 0.5 + r * 0.5 + (d.spd + d.cat) / 2,
+          r * 0.6 + td * 0.4 + (d.cat + d.str) / 2, r + (d.str + d.kick + d.def) / 3, r * 0.8 + (d.str + d.def) / 2 + d.wgt / 5];
+        if (b) {
+          const v = (k) => (b[k] || 0) + d[k], heft = Math.max(0, Math.min(99, ((b.wgt || 120) + d.wgt - 70) / 1.8));
+          const g = [(v('thr') + v('acc')) / 2, (v('spd') + v('agi')) / 2, (v('spd') + v('cat')) / 2, (v('cat') + v('str')) / 2, (v('str') + v('kick') + v('def')) / 3, v('str') * 0.6 + v('def') * 0.1 + heft * 0.3];
+          f = f.map((x, i) => (x + g[i]) / 2);
+        }
+        return f.map((x) => Math.round(x * m)).join(',');
+      };
       const fan = acct.points.fan;
       const last = fan.results.at(-1);
       const sortKey = (c) => -cards.RARITY_ORDER.indexOf(c.rarity) * 1000 - h.ratingOf(db, c.t, c.p);
@@ -73,15 +90,16 @@ module.exports = function fun(app, h) {
       const uniq = mine.length, total = Object.values(own).reduce((s, n) => s + n, 0);
       const slot = (id) => { const c = id && cards.cardInfo(db, id); return c ? cardArt(db, c, { small: true }) : '<div class="slot-empty">+</div>'; };
       const body = `
-        <div class="stats-row">${[['Coins', coins(acct.balance)], ['Cards', `${total}`], ['Collected', `${uniq} / ${all.length}`], ['Won by Starting 8', coins(acct.points.fantasy)]].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
-        ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>8 cards: a full Starting 8 that earns coins every game.</span></div>${icon('arrow')}</a>`}
+        <div class="stats-row">${[['Coins', coins(acct.balance)], ['Cards', `${total}`], ['Collected', `${uniq} / ${all.length}`], ['Won by Lineup', coins(acct.points.fantasy)]].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
+        ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>${cards.LINEUP_SIZE} cards: a full Lineup that earns coins every game.</span></div>${icon('arrow')}</a>`}
         <section class="card lineup-card">
-          <div class="card-h"><h2>Starting 8</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
-          <p class="muted sm">Pick 8 cards of different players, one per position. Positions matter in Modern Bowl (your QB throws, your WRs and TE catch, UTIL blocks and kicks). Every game they play, your cards score fantasy points × their multiplier, and you get that many coins (the same coins as Pick'em). Your lineup carries over to the next game until you change it. Tap a card below to add or remove it.</p>
+          <div class="card-h"><h2>Lineup</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
+          <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card changes its player's ratings (some up, some down). Your Lineup carries over until you change it. Tap a position, then a card below.</p>
           <form method="post" action="/pickem/lineup" id="lineupForm"><input type="hidden" name="cards" id="lineupInput" value="${esc(lineup.join(','))}">
-            <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot" data-i="${i}"><span class="slot-pos">${POS[i]}</span><div class="slot-c">${slot(lineup[i])}</div></div>`).join('')}</div>
-            <div class="lineup-bar"><span id="lineupMsg" class="muted sm">${lineup.filter(Boolean).length}/${cards.LINEUP_SIZE} picked</span><button type="button" class="btn ghost sm" id="autoBtn">Auto-pick best</button><button class="btn sm">Save Starting 8</button></div>
+            <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot g-${POS_GROUP(POS[i])}" data-i="${i}"><span class="slot-pos">${POS[i]}</span><div class="slot-c">${slot(lineup[i])}</div></div>`).join('')}</div>
+            <div class="lineup-bar"><span id="lineupMsg" class="muted sm">${lineup.filter(Boolean).length}/${cards.LINEUP_SIZE} picked</span><button type="button" class="btn ghost sm" id="autoBtn">Auto-pick best</button><button class="btn sm" id="saveLineup">Save Lineup</button></div>
           </form>
+          <div class="lineup-pick" id="lineupPick" hidden><span>Pick a card for <b id="lineupPickPos"></b></span><button type="button" class="btn ghost sm" id="lineupPickDone">Back to Lineup</button></div>
         </section>
         ${last ? `<section class="card"><div class="card-h"><h2>Last game: +${last.total} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
           <div class="fan-rows">${last.cards.sort((a, b) => b.pts - a.pts).map((x) => `<div class="fan-row"><span class="th">${avatar(x.c.t, x.c.p, 30)} <b>${esc(x.c.p.name)}</b> <small class="muted">${esc(x.c.label)} · ${x.c.mult}×</small></span><span class="muted sm">${x.played ? x.parts.map((q) => `${q.n} ${cards.SCORING_LABEL[q.k].toLowerCase()}${q.n > 1 ? 's' : ''}`).join(', ') || 'no stats' : 'did not play'}</span><b class="${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : ''}${x.pts}</b></div>`).join('')}</div>
@@ -99,20 +117,26 @@ module.exports = function fun(app, h) {
         </section>
         <script>(()=>{
           const max=${cards.LINEUP_SIZE},inp=document.getElementById('lineupInput'),slots=document.getElementById('slots'),msg=document.getElementById('lineupMsg');
-          let ids=inp.value.split(',');while(ids.length<max)ids.push('');ids=ids.slice(0,max);let sel=-1;
-          const POS=${JSON.stringify(['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL', 'UTIL'])};
-          const art=(id)=>{const el=document.querySelector('#coll .mcard[data-id="'+id+'"]');return el?el.outerHTML:'';};
+          let ids=inp.value.split(',');while(ids.length<max)ids.push('');ids=ids.slice(0,max);let sel=-1,jumped=false;
+          const POS=${JSON.stringify(POS)},COL=${JSON.stringify(POS_COL)};
+          const coll=document.getElementById('coll'),pick=document.getElementById('lineupPick'),pickPos=document.getElementById('lineupPickPos');
+          // Card art for a slot: from the collection grid, or the art the slot was drawn with (cards hidden by a filter).
+          const known={};slots.querySelectorAll('.mcard').forEach(el=>{known[el.dataset.id]=el.outerHTML;});
+          const art=(id)=>{const el=coll.querySelector('.mcard[data-id="'+id+'"]');return el?el.outerHTML:known[id]||'';};
           const pidOf=(id)=>id.split(':')[0];
+          const back=()=>{if(jumped)slots.scrollIntoView({behavior:'smooth',block:'center'});jumped=false;};
           const draw=()=>{inp.value=ids.join(',');[...slots.children].forEach((s,i)=>{s.querySelector('.slot-c').innerHTML=ids[i]?art(ids[i]):'<div class="slot-empty">+</div>';s.classList.toggle('sel',i===sel);});msg.textContent=(sel>=0?'Pick a card for '+POS[sel]+' · ':'')+ids.filter(Boolean).length+'/'+max+' picked';
-            document.querySelectorAll('#coll .mcard.pickable').forEach(c=>c.classList.toggle('in',ids.includes(c.dataset.id)));};
-          document.getElementById('coll').addEventListener('click',e=>{const c=e.target.closest('.mcard.pickable');if(!c)return;const id=c.dataset.id;
-            if(ids.includes(id)){ids=ids.map(x=>x===id?'':x);}
-            else{ids=ids.map(x=>x&&pidOf(x)===c.dataset.pid?'':x);let i=sel>=0?sel:ids.indexOf('');if(i<0){msg.textContent='Your Starting 8 is full. Tap a position to swap it.';return;}ids[i]=id;sel=-1;}draw();});
+            pick.hidden=sel<0;if(sel>=0)pickPos.textContent=POS[sel];
+            coll.querySelectorAll('.mcard.pickable').forEach(c=>c.classList.toggle('in',ids.includes(c.dataset.id)));};
+          coll.addEventListener('click',e=>{const c=e.target.closest('.mcard.pickable');if(!c)return;const id=c.dataset.id;
+            if(ids.includes(id)&&!(sel>=0&&ids[sel]!==id)){ids=ids.map(x=>x===id?'':x);sel=-1;}
+            else{ids=ids.map(x=>x&&pidOf(x)===c.dataset.pid?'':x);let i=sel>=0?sel:ids.indexOf('');if(i<0){msg.textContent='Your Lineup is full. Tap a position to swap it.';return;}ids[i]=id;sel=-1;back();}draw();});
           // Tap a position to choose it; tap it again to empty it.
-          slots.addEventListener('click',e=>{const s=e.target.closest('.slot');if(!s)return;const i=+s.dataset.i;if(sel===i&&ids[i]){ids[i]='';sel=-1;}else sel=sel===i?-1:i;draw();if(sel>=0)document.getElementById('coll').scrollIntoView({behavior:'smooth',block:'start'});});
+          slots.addEventListener('click',e=>{const s=e.target.closest('.slot');if(!s)return;const i=+s.dataset.i;if(sel===i&&ids[i]){ids[i]='';sel=-1;}else sel=sel===i?-1:i;draw();if(sel>=0&&coll.querySelector('.mcard.pickable')){jumped=true;coll.scrollIntoView({behavior:'smooth',block:'start'});}});
+          document.getElementById('lineupPickDone').onclick=()=>{sel=-1;draw();jumped=true;back();};
           // Auto-pick: fill each position with the best unused player for it.
-          document.getElementById('autoBtn').onclick=()=>{const all=[...document.querySelectorAll('#coll .mcard.pickable')].map(c=>({id:c.dataset.id,pid:c.dataset.pid,f:(c.dataset.fit||'0,0,0,0,0').split(',').map(Number)}));
-            const used=new Set(),col=[0,1,2,2,2,3,4,4];ids=col.map(k=>{const b=all.filter(x=>!used.has(x.pid)).sort((a,b)=>b.f[k]-a.f[k])[0];if(!b)return'';used.add(b.pid);return b.id;});sel=-1;draw();};
+          document.getElementById('autoBtn').onclick=()=>{const all=[...coll.querySelectorAll('.mcard.pickable')].map(c=>({id:c.dataset.id,pid:c.dataset.pid,f:(c.dataset.fit||'').split(',').map(Number)}));
+            const used=new Set();ids=COL.map(k=>{const b=all.filter(x=>!used.has(x.pid)).sort((a,b)=>(b.f[k]||0)-(a.f[k]||0))[0];if(!b)return'';used.add(b.pid);return b.id;});sel=-1;draw();};
           draw();})();</script>`;
       res.send(layout(req, 'My Cards', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${body}</div>`));
     } catch (e) { next(e); }
@@ -124,7 +148,7 @@ module.exports = function fun(app, h) {
     const db = h.load();
     const user = await freshUser(name);
     const own = cards.collection(user);
-    // One card per position (QB, RB, WR1, WR2, WR3, TE, UTIL, UTIL); '' = empty slot.
+    // One card per position (cards.LINEUP_POS: QB, RB, WR1-3, TE, UTIL1-2, OL1-3); '' = empty slot.
     const ids = String(req.body.cards || '').split(',').slice(0, cards.LINEUP_SIZE).map((x) => x.trim());
     while (ids.length < cards.LINEUP_SIZE) ids.push('');
     const pids = new Set();
@@ -194,10 +218,10 @@ module.exports = function fun(app, h) {
     const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US'), sg = (n) => (n >= 0 ? '+' : '−') + f(Math.abs(n));
     const picks = acct.balance - P.net;
     return `<div class="card pts-break"><div class="card-h"><h2>${icon('coin')} Your coins</h2><b class="big">${f(acct.balance)}</b></div>
-      <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Starting 8 and spent on packs.</p>
+      <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Lineup and spent on packs.</p>
       <div class="pb-rows">
         <div><span>From Pick'em (start + picks)</span><b class="${picks >= 0 ? 'up' : 'down'}">${sg(picks)}</b></div>
-        <div><span>Starting 8</span><b class="up">+${f(P.fantasy)}</b></div>
+        <div><span>Lineup</span><b class="up">+${f(P.fantasy)}</b></div>
         <div><span>Survivor</span><b class="up">+${f(P.survivor)}</b></div>
         <div><span>Card sales &amp; rewards</span><b class="up">+${f(P.bonus)}</b></div>
         <div><span>Spent on packs</span><b class="down">−${f(P.spent)}</b></div>
@@ -270,8 +294,8 @@ module.exports = function fun(app, h) {
     }
     const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, currency: 'coins', at: new Date().toISOString(), local: pk.nowLocal(TZ), cards: cards.openPack(db, type, await takenOnes(db)), ...(key ? { key } : {}), ...(type === 'prize' ? { week: key } : {}) };
     packs.push(pack);
-    // A first pack also sets a Starting 8 if there isn't one yet.
-    if (type === 'starter' && !(user.lineups || []).length) (user.lineups = []).push({ at: pack.at, local: pack.local, cards: pack.cards.slice(0, cards.LINEUP_SIZE) });
+    // A first pack also sets a full Lineup (one card per player) if there isn't one yet.
+    if (type === 'starter' && !(user.lineups || []).length) (user.lineups = []).push({ at: pack.at, local: pack.local, cards: pack.cards.slice(0, cards.LINEUP_SIZE).map((id, i, a) => (a.findIndex((x) => x.split(':')[0] === id.split(':')[0]) === i ? id : '')) });
     await h.putDoc(h.userKey(name), user);
     res.redirect(`/pickem/packs/${pack.id}`);
   });
