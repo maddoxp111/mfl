@@ -97,7 +97,9 @@
       form.closest('.arc-setup').hidden = true;
       stage.innerHTML = '<div class="arc-root"></div>';
       const root = stage.querySelector('.arc-root');
-      window.scrollTo({ top: stage.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+      // bring the game into view right away (a smooth scroll gets cancelled on phones when the game resizes the page), then once more after it has sized itself
+      const toGame = () => { try { window.scrollTo(0, Math.max(0, stage.getBoundingClientRect().top + window.scrollY - 70)); } catch (e) {} };
+      toGame(); setTimeout(toGame, 60); setTimeout(toGame, 400);
       let done = false;
       const ctx = {
         root, game: cfg.game, level, levelName: start.levelName, seed: start.seed, rng: rng(start.seed), data: start.data || {},

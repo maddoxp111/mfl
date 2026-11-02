@@ -2326,6 +2326,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (fsEl()) return;
       try { const t = wrap.getBoundingClientRect().top + window.scrollY - headerH() - 2; window.scrollTo(0, Math.max(0, t)); } catch (e) {}
     }
+    // is the game lined up under the site header? On a phone the page can get scrolled away from it.
+    function aligned() { try { if (fsEl()) return true; const r = wrap.getBoundingClientRect(); return r.top <= headerH() + 28 && r.bottom >= Math.min(cssH || 300, window.innerHeight || 700) * 0.6; } catch (e) { return true; } }
     function toggleFS() {
       try {
         if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
@@ -5279,16 +5281,23 @@ gl_FragColor=vec4(c,1.0);}`;
     function stopLoop() { running = false; cancelAnimationFrame(raf); }
     const onVis = () => { if (document.hidden) stopLoop(); else startLoop(); };
     let rzT = 0;
-    const onResize = () => { clearTimeout(rzT); rzT = setTimeout(() => { if (!finished) { fit(); bugCache = ''; } }, 80); };
+    const onResize = () => { clearTimeout(rzT); const was = touchy && phase !== 'splash' && aligned(); rzT = setTimeout(() => { if (!finished) { fit(); bugCache = ''; if (was && !aligned()) scrollIn(); } }, 80); };
     const onOrient = () => { onResize(); setTimeout(() => { if (!finished && phase !== 'splash') { fit(); scrollIn(); } }, 350); };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onOrient);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
     document.addEventListener('fullscreenchange', onResize); document.addEventListener('webkitfullscreenchange', onResize);
-    const noScroll = (e) => { if (!finished && !(e.target && e.target.closest && e.target.closest('.bz-splash,.bz-cards,.bz-box'))) e.preventDefault(); };
+    const noScroll = (e) => {
+      if (finished) return;
+      if (e.target && e.target.closest && e.target.closest('.bz-splash,.bz-cards,.bz-box')) return;
+      if (e.type === 'touchmove' && !aligned()) return; // the page got scrolled away from the game: let the swipe scroll it back
+      e.preventDefault();
+    };
     wrap.addEventListener('touchmove', noScroll, { passive: false });
     wrap.addEventListener('gesturestart', noScroll, { passive: false });
+    // any first touch on the game while it is scrolled out of view snaps it back under the header (the tap still lands)
+    wrap.addEventListener('touchstart', (e) => { if (touchy && !finished && !aligned() && !(e.target && e.target.closest && e.target.closest('.bz-splash,.bz-cards,.bz-box'))) scrollIn(); }, { passive: true });
     wrap.addEventListener('dblclick', (e) => e.preventDefault());
     wrap.addEventListener('contextmenu', (e) => { if (!finished) e.preventDefault(); });
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glLost = true; });
@@ -5345,6 +5354,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let pid = null, origin = null, ptype = '', ptT = 0;
     stage.addEventListener('pointerdown', (e) => {
       if (finished) return;
+      if (touchy && !aligned()) { scrollIn(); e.preventDefault(); return; } // first touch while the game is scrolled out of view: bring it back, nothing else
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       if (phase === 'kick') { kickTap(); e.preventDefault(); return; }
       if (phase === 'replay') { endReplay(); return; }
