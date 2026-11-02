@@ -26,7 +26,7 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
-  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Franchise mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000], daily: 5, minSec: 150, maxScore: 90, isNew: true },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Career mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000], daily: 5, minSec: 150, maxScore: 90, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
@@ -263,15 +263,16 @@ module.exports = function arcade(app, h) {
       const G = !HIDDEN.has(req.body.game) && GAMES[req.body.game];
       if (!G) return json(res, { ok: false, error: 'Unknown game.' });
       const level = Math.max(0, Math.min(3, Math.floor(Number(req.body.level) || 0)));
-      const practice = req.body.mode === 'practice';
-      const risk = !practice && (req.body.risk === '1' || req.body.risk === true || req.body.risk === 'on');
+      const career = ['bowl', 'blitz3d'].includes(req.body.game) && [true, '1', 'true'].includes(req.body.career); // career games: plain prize, no Risk, no Lineup check
+      const practice = !career && req.body.mode === 'practice';
+      const risk = !practice && !career && (req.body.risk === '1' || req.body.risk === true || req.body.risk === 'on');
       const name = currentUser(req);
       if (!practice && !name) return json(res, { ok: false, error: 'Log in to play for coins (or pick Practice).' });
       const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
       const seed = crypto.randomBytes(8).toString('hex');
       const rng = rngFrom(seed);
       let data = {}, secret = null;
-      if (req.body.game === 'bowl') {
+      if (req.body.game === 'bowl' && !career) {
         const mine = practice ? String(req.body.team || 'mine') : 'mine';
         const home = bowlTeam(db, user, mine);
         if (!home) return json(res, { ok: false, error: mine === 'mine' ? 'Set a full Starting 8 (all 8 positions) on the Cards page first, or play Practice as a real team.' : 'Pick a team.' });
@@ -302,10 +303,11 @@ module.exports = function arcade(app, h) {
       }
       const m = { id: crypto.randomBytes(6).toString('hex'), game: req.body.game, level, risk, stake, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0 };
       if (secret) m.secret = secret;
+      if (career) m.career = true;
       user.arcade.push(m);
       if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
       await putDoc(userKey(name), user);
-      json(res, { ok: true, id: m.id, seed, level, levelName: LEVELS[level], risk, stake, data });
+      json(res, { ok: true, id: m.id, seed, level, levelName: LEVELS[level], risk, stake, data, ...(career ? { career: true, prize: G.prizes[level], lineup: !!(typeof bowlTeam === 'function' && bowlTeam(db, user, 'mine')) } : {}) });
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not start the game.' }); }
   });
 
@@ -336,6 +338,7 @@ module.exports = function arcade(app, h) {
         const v = await verifyBoard(G.verify, Array.isArray(r.moves) ? r.moves.slice(0, 600).map(String) : [], m.level, m.seed);
         if (v.result !== 'win') { won = false; note = v.result === 'invalid' ? 'That game could not be verified.' : ''; console.warn('arcade verify', name, m.game, v); }
       }
+      if (won && m.career && h.careerResult) { const c = await h.careerResult(name, m); if (c && !c.won) { won = false; note = c.note || note; } }
       // Re-read in case another tab changed the user meanwhile.
       const fresh = await getDoc(userKey(name), { fresh: true });
       const fm = (fresh.arcade || []).find((x) => x.id === m.id);
@@ -410,13 +413,17 @@ module.exports = function arcade(app, h) {
     } catch (e) { next(e); }
   });
 
-  // ---------- 3D Blitz franchise mode ----------
-  // Saves live in docs "blitzfranchise/<user>": { slots: { 1: { meta, data, updated } } }. Franchise
-  // games pay no coins, so the client owns the save; the server only stores it (size-capped).
+  // ---------- 3D Blitz career mode (formerly "franchise": routes /api/bf/* and doc keys keep that name) ----------
+  // Saves live in docs "blitzfranchise/<user>": { slots: { 1: { meta, data, updated } } }. The client owns
+  // the save; the server only stores it (size-capped). Coins for 3D wins go through /api/m/start + /api/m/finish
+  // with the career flag, so they get the same server checks as the Arcade.
   const BF_SLOTS = ['1', '2', '3'], BF_MAX = 600 * 1024;
   const bfKey = (name) => 'blitzfranchise/' + name;
   const bfMeta = (m) => (m && typeof m === 'object' ? Object.fromEntries(Object.entries(m).slice(0, 12).map(([k, v]) => [String(k).slice(0, 24), typeof v === 'number' ? v : String(v).slice(0, 80)])) : {});
-  app.get('/arcade/blitz3d/franchise', async (req, res, next) => {
+  // The user's card Lineup for Dynamic Lineup careers (both games). Null until the Lineup is full.
+  h.careerLineup = (db, user) => (user ? bowlTeam(db, user, 'mine') : null);
+  app.get('/arcade/blitz3d/franchise', (req, res) => res.redirect(302, '/career/blitz'));
+  app.get('/career/blitz', async (req, res, next) => {
     try {
       const db = load();
       const name = currentUser(req);
@@ -424,13 +431,16 @@ module.exports = function arcade(app, h) {
       // Every real MFL player with ratings, photo and look, for building rosters.
       const players = Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ ...bowlPlayer(db, t, p, '', null), id: p.id, team: t.id, photo: p.photo ? '/media/' + p.photo : null, tag: p.tag || '' })));
       const teams = Object.values(db.teams).map((t) => ({ id: t.id, name: t.name, city: t.city, abbr: t.abbr, color: t.color, color2: t.color2 }));
-      const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS };
+      const realOf = (nm) => { for (const t of Object.values(db.teams)) { const x = t.roster.find((r) => r.name === nm); if (x) return { id: x.id, team: t.id, photo: x.photo ? '/media/' + x.photo : null }; } return {}; };
+      const mine = h.careerLineup(db, user);
+      const lineup = mine ? mine.players.filter(Boolean).map((p) => ({ ...p, ...realOf(p.name) })) : null;
+      const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS, prizes: GAMES.blitz3d.prizes, lineup };
       const script = ['arcade', 'blitz3d', 'blitzfranchise'].map((f) => `<script>${gameJs(f)}</script>`).join('');
-      res.send(layout(req, '3D Blitz Franchise', `<div class="wrap arc-page bf-page">
-        <div class="arc-head"><a href="/arcade/blitz3d" class="muted sm">${icon('arrow')} 3D Blitz</a><h1><span>🏟️</span> Franchise</h1><p class="muted">Build a program, play every game, win titles. Franchise games don't pay coins.</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
-        ${name ? '' : `<p class="muted sm"><a href="/pickem/login?next=/arcade/blitz3d/franchise">Log in</a> to save your franchise to your account (otherwise it saves on this device only).</p>`}
+      res.send(layout(req, '3D Blitz Career', `<div class="wrap arc-page bf-page">
+        <div class="arc-head"><a href="/career" class="muted sm">${icon('arrow')} Career</a><h1><span>🏟️</span> 3D Blitz Career</h1><p class="muted">Build a program, play every game, win titles. Every game you win in 3D pays ${GAMES.blitz3d.prizes.map(fmt).join(' / ')} coins (Rookie / Pro / All-Pro / Legend).</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        ${name ? '' : `<p class="muted sm"><a href="/pickem/login?next=/career/blitz">Log in</a> to save your career to your account and earn coins for wins (otherwise it saves on this device only).</p>`}
         <div id="bfRoot"></div></div>
-        <script>window.MFL_FRANCHISE=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>${script}`, { ticker: false }));
+        <script>window.MFL_BLITZ_CAREER=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>${script}`, { ticker: false }));
     } catch (e) { next(e); }
   });
   app.get('/api/bf/saves', async (req, res) => {
@@ -480,8 +490,8 @@ module.exports = function arcade(app, h) {
       const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
       res.send(layout(req, G.name, `<div class="wrap arc-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
-        ${id === 'blitz3d' ? `<a class="card bf-promo" href="/arcade/blitz3d/franchise"><span class="bf-promo-e">🏆</span><div><b>Franchise mode</b><small>Run a program for seasons: 12-team league, playoffs and the Blitz Bowl, recruiting, upgrades and records. 3 save slots.</small></div><span class="btn">Play Franchise ${icon('arrow')}</span></a>` : ''}
-        ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career">Play Franchise / Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
+        ${id === 'blitz3d' ? `<a class="card bf-promo" href="/career/blitz"><span class="bf-promo-e">🏆</span><div><b>Career mode</b><small>Run a program for seasons: 12-team league, playoffs and the Blitz Bowl, recruiting, upgrades and records. 3 save slots. Every 3D win pays coins.</small></div><span class="btn">Play Career ${icon('arrow')}</span></a>` : ''}
+        ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career/bowl">Play Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
           <div class="arc-modes">${['coins', 'practice'].map((m) => `<label class="mode"><input type="radio" name="mode" value="${m}" ${(m === 'coins' && user) || (m === 'practice' && !user) ? 'checked' : ''} ${m === 'coins' && !user ? 'disabled' : ''}><span>${m === 'coins' ? `${icon('coin')} Play for coins` : `${icon('star')} Practice${id === 'bowl' ? ' / Exhibition' : ''}`}</span></label>`).join('')}</div>
           ${!user ? `<p class="muted sm"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins. Practice is free.</p>` : ''}
