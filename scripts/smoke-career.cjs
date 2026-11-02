@@ -14,6 +14,7 @@ async function startServer() {
   server = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT: port, DATA_DIR: data, ADMIN_PASSWORD: 'test-only-admin-password', BLOB_READ_WRITE_TOKEN: '', BLOB_STORE_ID: '', ANTHROPIC_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
   server.stderr.on('data', d => process.stderr.write(d));
   for (let i = 0; i < 100; i++) {
+    if (server.exitCode !== null) throw new Error('Career test server exited before startup');
     try { if ((await fetch(base + '/career')).ok) return; } catch {}
     await new Promise(r => setTimeout(r, 100));
   }
@@ -23,124 +24,172 @@ async function stopServer() { const exited = once(server, 'exit'); server.kill('
 (async () => {
   await startServer();
   browser = await chromium.launch({ ...(fs.existsSync('/usr/bin/chromium') ? { executablePath: '/usr/bin/chromium' } : {}), args: ['--no-sandbox'] });
-  const desktop = await browser.newContext({ viewport: { width: 1360, height: 950 } }), page = await desktop.newPage();
+  const dismissNotice = ctx => ctx.addInitScript(() => { try { localStorage.setItem('mfl-notice-metcalf-1', '1'); } catch {} }); // the site-wide notice dialog would sit over every click
+  const desktop = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  await dismissNotice(desktop);
+  const page = await desktop.newPage();
   page.on('pageerror', err => errors.push(err.message));
   await page.goto(base + '/career');
   await page.getByRole('link', { name: 'Log in to save your career' }).waitFor();
   assert.equal((await desktop.request.get(base + '/api/career')).status(), 401);
-  assert.equal((await desktop.request.post(base + '/api/career/new', { data: { revision: 0, team: 'pedon', level: 0 } })).status(), 401);
-  await desktop.request.post(base + '/pickem/signup', { form: { name: 'career_test', pin: 'test-only-password', next: '/career' } });
+  await desktop.request.post(base + '/pickem/signup', { form: { name: 'career_test', pin: 'test-only-password' } });
   await page.goto(base + '/career');
-  await page.locator('[name=coach]').fill('Coach </script><script>throw 123</script>');
+  await page.getByRole('heading', { name: 'MFL SAVE SLOTS', exact: true }).waitFor();
+  assert.equal(await page.locator('.save-slot').count(), 5);
+  await page.getByRole('button', { name: 'NEW CAREER', exact: true }).first().click();
+  await page.locator('[name=saveName]').fill('Metcalf legacy');
+  await page.locator('[name=coach]').fill('Coach </script><script>throw 123');
   const created = page.waitForResponse(r => r.url().endsWith('/api/career/new'));
-  await page.getByRole('button', { name: 'Start MFL career', exact: true }).click();
-  let state = (await (await created).json()).state;
-  assert.equal(state.teams.length, 12); assert.equal(state.rounds.length, 11);
-  assert.equal(state.teams.filter(t => t.site).length, 2);
-  assert(state.teams.some(t => t.name === 'Kingsley Junior High'));
-  await page.getByRole('heading', { name: 'Your roster', exact: true }).waitFor();
-  const choice = page.waitForResponse(r => r.url().endsWith('/api/career/choice'));
-  await page.getByRole('button', { name: /Team study hall/ }).click();
-  state = (await (await choice).json()).state;
-  assert.equal(state.budget, 46);
-  const trained = page.waitForResponse(r => r.url().endsWith('/api/career/train'));
-  await page.getByRole('button', { name: 'Speed', exact: true }).click();
-  state = (await (await trained).json()).state; assert(state.trained);
-  await page.reload(); await page.getByRole('heading', { name: 'Your roster', exact: true }).waitFor();
-  assert.equal(await page.evaluate(() => window.MFL_CAREER.state.trained), true);
-  await page.screenshot({ path: path.join(data, 'career-desktop.png'), fullPage: true });
-  const selected = state.teams.find(t => t.id === state.teamId), sourceLeague = JSON.parse(fs.readFileSync(path.join(data, 'db.json')));
-  assert(selected.players.some(p => sourceLeague.teams[state.teamId].roster.some(real => real.name === p.name)));
-  const started = page.waitForResponse(r => r.url().endsWith('/api/career/play'));
-  await page.getByRole('button', { name: 'Play Week 1', exact: true }).click();
-  const response = await (await started).json(), match = response.match; state = response.state;
-  await page.locator('#career-field [role=status]').waitFor({ state: 'hidden' });
-  let frame = page.frames().find(f => f.url().endsWith('/play/football')); assert(frame);
-  const native = await frame.evaluate(() => { const m = Object.values(_si(64))[0]; return { roster: _wi(m._Ln), team: _Ai(_zi(m._Ej, 0), 'name'), condition: _Ai(_zi(m._Ln, 0), 'condition'), attitude: _Ai(_zi(m._Ln, 0), 'attitude'), difficulty: m._2t, width: _Y33, canvas: canvas.width }; });
-  assert.equal(native.roster, 8); assert.equal(native.team, selected.name); assert.equal(native.condition, 94); assert.equal(native.attitude, 75); assert.equal(native.difficulty, 2); assert.equal(native.width, native.canvas);
-  assert.equal((await desktop.request.post(base + '/api/career/train', { data: { revision: state.revision, focus: 'skills' } })).status(), 400);
-  assert.equal((await desktop.request.post(base + '/api/career/finish', { data: { revision: state.revision, id: match.id, token: 'wrong', score: 21, opp: 7 } })).status(), 400);
-  await page.getByRole('button', { name: 'Return to career', exact: true }).click();
-  assert.equal(await page.locator('iframe').count(), 0);
-  await stopServer(); await startServer();
-  await page.reload(); await page.getByRole('button', { name: 'Resume matchup', exact: true }).waitFor();
-  const resumed = page.waitForResponse(r => r.url().endsWith('/api/career/play'));
-  await page.getByRole('button', { name: 'Resume matchup', exact: true }).click();
-  const resumedBody = await (await resumed).json(); assert.deepEqual(resumedBody.match, match); state = resumedBody.state;
-  await page.locator('#career-field [role=status]').waitFor({ state: 'hidden' });
-  frame = page.frames().find(f => f.url().endsWith('/play/football'));
-  // Real mouse kickoff followed by the engine's actual end-quarter transition.
-  const canvas = page.frameLocator('iframe').locator('canvas'), box = await canvas.boundingBox();
-  await page.mouse.click(box.x + box.width * .5, box.y + box.height * .72, { delay: 120 });
-  // Commit the score but drop its response: the UI must discover the completed
-  // server save instead of leaving the player stuck on a duplicate retry.
-  let resolveFinished;
-  const finished = new Promise(resolve => { resolveFinished = resolve; });
-  await page.route('**/api/career/finish', async route => {
-    const response = await route.fetch(); const body = await response.json();
-    await route.abort('failed'); resolveFinished(body);
-  }, { times: 1 });
-  await frame.evaluate(() => { const game = Object.values(_si(71))[0]; game._Sb1[game._0z] = 28; game._Sb1[1 - game._0z] = 7; game._Wy = 5; game._Vy = 13; _Ib1(game, game); });
-  state = (await finished).state;
-  assert.equal(state.week, 1); assert.equal(state.standings.find(t => t.id === state.teamId).w, 1); assert.equal(state.pending, null);
-  await page.getByRole('button', { name: 'Play Week 2', exact: true }).waitFor(); assert.equal(await page.locator('iframe').count(), 0);
-  assert.equal((await desktop.request.post(base + '/api/career/finish', { data: { revision: state.revision, id: match.id, token: match.token, score: 28, opp: 7 } })).status(), 400);
-  const user = JSON.parse(fs.readFileSync(path.join(data, 'docs/users/career_test.json'))); assert.equal((user.arcade || []).length, 0);
-  const concurrent = await Promise.all(['speed', 'skills'].map(focus => desktop.request.post(base + '/api/career/train', { data: { revision: state.revision, focus } })));
-  assert.deepEqual(concurrent.map(r => r.status()).sort(), [200, 409]);
-  state = (await (await desktop.request.get(base + '/api/career')).json()).state;
-  // Complete the school year through the same authenticated season endpoints.
-  while (state.phase !== 'complete') {
-    const next = state.rounds[state.week].games.find(g => g.home === state.teamId || g.away === state.teamId);
-    if (next) {
-      const play = await (await desktop.request.post(base + '/api/career/play', { data: { revision: state.revision } })).json(); assert(play.ok, play.error);
-      const end = await (await desktop.request.post(base + '/api/career/finish', { data: { revision: play.state.revision, id: play.match.id, token: play.match.token, score: 42, opp: 7 } })).json(); assert(end.ok, end.error); state = end.state;
-    } else { const watch = await (await desktop.request.post(base + '/api/career/watch', { data: { revision: state.revision } })).json(); assert(watch.ok, watch.error); state = watch.state; }
+  await page.getByRole('button', { name: 'START CAREER', exact: true }).click();
+  let store = await (await created).json(), firstId = store.state.saveId;
+  const client = () => page.evaluate(() => window.MFL_CAREER.client);
+  async function freshStore() { store = await (await desktop.request.get(base + '/api/career?client=' + await client())).json(); return store; }
+  async function post(action, body = {}) {
+    const response = await desktop.request.post(base + '/api/career/' + action, { data: { revision: store.revision, save: store.state?.saveId, client: await client(), ...body } });
+    const json = await response.json(); if (json.saves) store = json;
+    return { response, json };
   }
-  assert.equal(state.champion, state.teamId); assert.equal(state.history.length, 1);
-  await page.reload(); await page.getByRole('heading', { name: '🏆 County champions!', exact: true }).waitFor();
-  const advanced = page.waitForResponse(r => r.url().endsWith('/api/career/next-season'));
-  await page.getByRole('button', { name: 'Begin next school year', exact: true }).click();
-  state = (await (await advanced).json()).state; assert.equal(state.season, 2);
-  await page.getByRole('button', { name: 'Play Week 1', exact: true }).waitFor();
-  // A final score also survives a refresh before the server accepts it.
-  const secondStart = page.waitForResponse(r => r.url().endsWith('/api/career/play'));
-  await page.getByRole('button', { name: 'Play Week 1', exact: true }).click();
-  await secondStart;
-  await page.locator('#career-field [role=status]').waitFor({ state: 'hidden' });
-  frame = page.frames().find(f => f.url().endsWith('/play/football'));
-  await page.route('**/api/career/finish', route => route.abort('failed'));
-  await frame.evaluate(() => { const game = Object.values(_si(71))[0]; game._Sb1[game._0z] = 21; game._Sb1[1 - game._0z] = 7; game._Wy = 5; game._Vy = 13; _Ib1(game, game); });
-  await page.getByRole('button', { name: 'Retry saving result', exact: true }).waitFor();
-  await page.unroute('**/api/career/finish');
-  await page.reload();
-  await page.getByRole('button', { name: 'Play Week 2', exact: true }).waitFor();
-  assert.equal(await page.evaluate(() => sessionStorage.getItem('mfl-career-result:career_test')), null);
+  async function clickAction(buttonName, action) {
+    const [reply] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith('/api/career/' + action)),
+      page.getByRole('button', { name: buttonName, exact: true }).click(),
+    ]);
+    store = await reply.json(); assert(store.ok, store.error); return store;
+  }
+  async function play() {
+    await page.getByRole('button', { name: 'CONTINUE ▸', exact: true }).click();
+    const reply = page.waitForResponse(r => r.url().endsWith('/api/career/play'));
+    await page.getByRole('button', { name: /^PLAY / }).click();
+    store = await (await reply).json(); assert(store.ok, store.error);
+    await page.locator('#career-field [role=status]').waitFor({ state: 'hidden' });
+    const runtime = page.frames().find(f => f.url().endsWith('/play/football')); assert(runtime);
+    return { runtime, match: store.match, save: store.state.saveId };
+  }
+  await page.locator('.retro-home').waitFor(); await page.evaluate(() => document.fonts.ready);
+  assert.equal(store.state.teams.length, 12); assert.equal(store.saves.length, 1);
+  assert(await page.evaluate(() => document.fonts.check('12px MFLPixel')));
+  assert.equal(await page.locator('.retro-nav button').count(), 5);
+  await page.screenshot({ path: path.join(data, 'career-desktop.png'), fullPage: true });
+  const source = JSON.parse(fs.readFileSync(path.join(data, 'db.json'))), selected = store.state.teams.find(t => t.id === store.state.teamId);
+  assert(selected.players.some(p => source.teams[store.state.teamId].roster.some(real => real.name === p.name)));
+  await page.getByRole('button', { name: 'FRONT OFFICE', exact: true }).click();
+  await clickAction('SPEED', 'train');
+  await clickAction(/Team study hall/, 'choice');
+  assert.equal(store.state.budget, 46); assert(store.state.trained);
+  await page.getByRole('button', { name: 'HOME', exact: true }).click();
+  await page.getByRole('button', { name: 'ROSTER', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your roster', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'HOME', exact: true }).click();
+  await page.getByRole('button', { name: 'HALL OF FAME', exact: true }).click();
+  await page.getByRole('heading', { name: 'Hall of Fame', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'HOME', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('heading', { name: 'Career settings', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'HOME', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE SLOTS', exact: true }).click();
+  await page.getByRole('button', { name: 'NEW CAREER', exact: true }).first().click();
+  await page.locator('[name=saveName]').fill('KTCS second save');
+  await page.locator('[name=team][value=xavier]').check();
+  await page.locator('[name=level]').selectOption('3');
+  await clickAction('START CAREER', 'new');
+  const secondId = store.state.saveId;
+  assert.equal(store.saves.length, 2); assert.equal(store.state.trained, false); assert.equal(store.state.level, 3); assert.equal(store.state.slot, 2);
+  await page.getByRole('button', { name: 'SAVE SLOTS', exact: true }).click();
+  const firstCard = page.locator('.save-slot').filter({ has: page.getByRole('heading', { name: 'Metcalf legacy', exact: true }) });
+  const loaded = page.waitForResponse(r => r.url().endsWith('/api/career/select'));
+  await firstCard.getByRole('button', { name: 'LOAD SAVE' }).click(); store = await (await loaded).json();
+  assert.equal(store.state.saveId, firstId); assert(store.state.trained); assert.equal(store.state.budget, 46);
+  await page.reload(); await page.locator('.retro-home').waitFor(); await freshStore();
+  assert.equal(store.state.week, 0); assert.equal(store.saves.length, 2);
+  // Finish an actual native match, dropping the save response to exercise recovery.
+  let run = await play();
+  const native = await run.runtime.evaluate(() => { const m = Object.values(_si(64))[0]; return { roster: _wi(m._Ln), condition: _Ai(_zi(m._Ln, 0), 'condition'), width: _Y33, canvas: canvas.width }; });
+  assert.equal(native.roster, 8); assert.equal(native.condition, 94); assert.equal(native.width, native.canvas);
+  const box = await page.frameLocator('iframe').locator('canvas').boundingBox();
+  await page.mouse.click(box.x + box.width * .5, box.y + box.height * .72, { delay: 120 });
+  let resolveFinish; const finished = new Promise(resolve => { resolveFinish = resolve; });
+  await page.route('**/api/career/finish', async route => { const res = await route.fetch(); const json = await res.json(); await route.abort('failed'); resolveFinish(json); }, { times: 1 });
+  await run.runtime.evaluate(() => { const game = Object.values(_si(71))[0]; game._Sb1[game._0z] = 28; game._Sb1[1 - game._0z] = 7; game._Wy = 5; game._Vy = 13; _Ib1(game, game); });
+  store = await finished; await page.locator('.retro-home').waitFor();
+  assert.equal(store.state.week, 1); assert.equal(store.saves.find(s => s.id === firstId).w, 1); assert.equal(store.saves.find(s => s.id === secondId).w, 0);
+  // Leading before a refresh still becomes a loss, and a delayed win cannot replace it.
+  run = await play(); const abandoned = { ...run.match, save: run.save, score: 99, opp: 0 };
+  await run.runtime.evaluate(() => { const g = Object.values(_si(71))[0]; g._Sb1[g._0z] = 42; g._Sb1[1 - g._0z] = 0; });
+  await page.reload(); await page.locator('.retro-home').waitFor(); await freshStore();
+  assert.equal(store.state.week, 2); assert.equal(store.saves.find(s => s.id === firstId).l, 1); assert.equal(store.state.pending, null);
+  assert.equal((await post('finish', abandoned)).response.status(), 400);
+  assert.equal(store.saves.find(s => s.id === firstId).l, 1);
+  // Normal navigation away triggers the same policy.
+  await play(); await page.goto(base + '/schedule'); await page.goto(base + '/career');
+  await page.locator('.retro-home').waitFor(); await freshStore(); assert.equal(store.saves.find(s => s.id === firstId).l, 2);
+  // Explicit quit also loses exactly once and releases the native runtime.
+  await play(); await clickAction('QUIT · LOSS', 'abandon');
+  await page.locator('.retro-home').waitFor(); assert.equal(await page.locator('iframe').count(), 0);
+  assert.equal(store.saves.find(s => s.id === firstId).l, 3);
+  // Crash/closed-browser fallback: start via API, restart server without sending
+  // a quit event, then visit a new document. It must forfeit, never resume.
+  await freshStore(); const crash = (await post('play')).json.match;
+  assert(crash); await stopServer(); await startServer();
+  await page.goto(base + '/career'); await page.locator('.retro-home').waitFor(); await freshStore();
+  assert.equal(store.saves.find(s => s.id === firstId).l, 4); assert.equal(store.state.pending, null);
+  const beforeDelete = structuredClone(store.state);
+  await page.getByRole('button', { name: 'SAVE SLOTS', exact: true }).click();
+  const secondCard = page.locator('.save-slot').filter({ has: page.getByRole('heading', { name: 'KTCS second save', exact: true }) });
+  page.once('dialog', dialog => dialog.dismiss()); await secondCard.getByRole('button', { name: 'DELETE' }).click();
+  assert.equal(await page.locator('.save-slot.selected').count(), 1); await freshStore(); assert.equal(store.saves.length, 2);
+  page.once('dialog', dialog => dialog.accept());
+  const deleted = page.waitForResponse(r => r.url().endsWith('/api/career/delete'));
+  await secondCard.getByRole('button', { name: 'DELETE' }).click(); store = await (await deleted).json();
+  assert.equal(store.saves.length, 1); assert.equal(store.state.saveId, firstId); assert.equal(store.state.week, beforeDelete.week);
+  for (let i = 2; i <= 5; i++) assert((await post('new', { slot: i, team: 'xavier', level: 1, saveName: 'Extra ' + i })).json.ok);
+  assert.equal((await post('new', { team: 'pedon', level: 0 })).response.status(), 400);
+  assert.equal(store.saves.length, 5);
+  const same = { revision: store.revision, save: store.state.saveId, client: await client(), focus: 'speed' };
+  const concurrent = await Promise.all(['speed', 'skills'].map(focus => desktop.request.post(base + '/api/career/train', { data: { ...same, focus } })));
+  assert.deepEqual(concurrent.map(r => r.status()).sort(), [200, 409]); await freshStore();
+  // Save ID is part of the game identity: a stale quit for a deleted slot cannot
+  // forfeit a different slot's same Week-1 fixture.
+  const newMatch = (await post('play')).json.match;
+  await post('abandon', { save: secondId, id: newMatch.id, token: newMatch.token });
+  assert.equal(store.state.pending.id, newMatch.id);
+  await post('abandon', { id: newMatch.id, token: newMatch.token });
+  await post('select', { save: firstId });
+  await page.reload(); await page.locator('.retro-home').waitFor(); await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: path.join(data, 'career-desktop.png'), fullPage: true });
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: await desktop.storageState() });
+  await dismissNotice(mobile);
+  const phone = await mobile.newPage();
+  phone.on('pageerror', err => errors.push(err.message)); await phone.goto(base + '/career');
+  await phone.locator('.retro-home').waitFor(); await phone.evaluate(() => document.fonts.ready);
+  assert(await phone.evaluate(() => innerWidth === 390 && document.documentElement.scrollWidth <= 390));
+  await phone.screenshot({ path: path.join(data, 'career-mobile.png') });
+  await phone.getByRole('button', { name: 'ROSTER', exact: true }).tap(); await phone.getByRole('heading', { name: 'Your roster', exact: true }).waitFor();
+  await phone.getByRole('button', { name: 'HOME', exact: true }).tap();
   await desktop.request.post(base + '/admin/login', { form: { password: 'test-only-admin-password' } });
   const backup = await (await desktop.request.get(base + '/admin/backup.json')).json();
-  assert.equal(backup.docs['careers/career_test'].season, 2);
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: await desktop.storageState() }), phone = await mobile.newPage();
-  phone.on('pageerror', err => errors.push(err.message)); await phone.goto(base + '/career');
-  await phone.getByRole('heading', { name: 'Your roster', exact: true }).waitFor();
-  const mobileSize = await phone.evaluate(() => ({ inner: innerWidth, client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, page: document.querySelector('.career-page').getBoundingClientRect().width }));
-  assert.equal(mobileSize.inner, 390, JSON.stringify(mobileSize));
-  assert.equal(mobileSize.client, 390, JSON.stringify(mobileSize));
-  assert(mobileSize.scroll <= 390 && mobileSize.page <= 390, JSON.stringify(mobileSize));
-  await phone.screenshot({ path: path.join(data, 'career-mobile.png') });
-  const bridged = await browser.newContext({ viewport: { width: 1100, height: 850 } }), bridgePage = await bridged.newPage();
-  bridgePage.on('pageerror', err => errors.push(err.message));
-  const parentBase = `http://localhost:${port}`;
-  await bridged.request.post(parentBase + '/pickem/login', { form: { name: 'career_test', pin: 'test-only-password' } });
-  await bridgePage.addInitScript(origin => { window.MFL_API_ORIGIN = origin; }, base);
-  await bridgePage.goto(parentBase + '/career');
-  await bridgePage.getByRole('button', { name: 'Play Week 2', exact: true }).click();
-  await bridgePage.locator('#career-field [role=status]').waitFor({ state: 'hidden' });
-  assert(bridgePage.frames().some(f => f.url() === base + '/play/football'));
-  await bridgePage.getByRole('button', { name: 'Return to career', exact: true }).click();
-  assert.equal(await bridgePage.locator('iframe').count(), 0);
-  await desktop.request.post(base + '/pickem/signup', { form: { name: 'career_other', pin: 'test-only-password' } });
-  const isolated = await (await desktop.request.get(base + '/api/career')).json(); assert.equal(isolated.state, null);
+  assert.equal(backup.docs['careers/career_test'].saves.length, 5);
+  assert.equal((JSON.parse(fs.readFileSync(path.join(data, 'docs/users/career_test.json'))).arcade || []).length, 0);
+  // Legacy single-career migration preserves roster, facilities and history,
+  // while an old pending game is settled as a loss under the new rule.
+  const other = await browser.newContext();
+  await dismissNotice(other);
+  const otherPage = await other.newPage();
+  await other.request.post(base + '/pickem/signup', { form: { name: 'career_other', pin: 'test-only-password' } });
+  assert.equal((await (await other.request.get(base + '/api/career')).json()).saves.length, 0);
+  const legacy = structuredClone(beforeDelete); legacy.version = 1; legacy.owner = 'career_other'; delete legacy.saveId; delete legacy.saveName; delete legacy.slot;
+  const C = require('../career-engine'); C.play(legacy);
+  fs.writeFileSync(path.join(data, 'docs/careers/career_other.json'), JSON.stringify(legacy));
+  await otherPage.goto(base + '/career'); await otherPage.locator('.retro-home').waitFor();
+  const migrated = await (await other.request.get(base + '/api/career')).json();
+  assert.equal(migrated.saves.length, 1); assert.equal(migrated.state.slot, 1); assert.equal(migrated.state.week, beforeDelete.week + 1);
+  assert.equal(migrated.state.teams[0].players[0].name, beforeDelete.teams[0].players[0].name);
+  assert.deepEqual(migrated.state.facilities, beforeDelete.facilities);
+  const erased = await (await other.request.post(base + '/api/career/delete', { data: { revision: migrated.revision, save: migrated.state.saveId, client: await otherPage.evaluate(() => window.MFL_CAREER.client) } })).json();
+  assert(erased.ok); assert.equal(erased.state, null); assert.equal(erased.saves.length, 0);
+  await otherPage.reload(); await otherPage.getByRole('heading', { name: 'MFL SAVE SLOTS', exact: true }).waitFor();
+  assert.equal(await otherPage.getByRole('button', { name: 'NEW CAREER', exact: true }).count(), 5);
+  assert.equal((await (await desktop.request.get(base + '/api/career')).json()).saves.length, 5);
   assert.deepEqual(errors, []);
-  console.log('PASS: logged-in career UI, real site players, school league, training/story persistence, actual native match input and finish, pending fixture across server restart, token/duplicate/stale-tab protection, lost save response and refresh recovery, coin isolation, season/playoffs/graduation, backups, account isolation, different frame origin and 390px layout');
+  console.log('PASS: five independent fixed save slots, create/load/delete/cancel/capacity, legacy migration, desktop pixel home and working menus, native match finish, lost save response recovery, leading refresh loss, navigation/quit/crash losses, rejected late win, slot token isolation, concurrent revisions, account isolation, backups and mobile navigation');
   console.log('Screenshots: ' + data);
 })().catch(err => { console.error(err); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); if (server) server.kill('SIGTERM'); });

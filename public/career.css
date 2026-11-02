@@ -1,231 +1,621 @@
+@font-face {
+  font-family: MFLPixel;
+  src: url(MFL_PIXEL_FONT) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 .career-page {
-  padding-bottom: 40px;
-  max-width: 1250px;
+  max-width: 1160px;
+  padding-bottom: 28px;
 }
 .career-heading {
-  padding: 28px 0 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #afbbd0;
 }
-.career-heading h1 {
-  font-size: clamp(30px, 5vw, 52px);
-  margin: 8px 0;
+.career-heading a {
+  color: #fff;
 }
-.career-heading .kicker {
+.career-heading span {
+  text-align: right;
+}
+#career-status {
+  min-height: 20px;
+  margin: 0 0 8px;
+  color: #bfd1f4;
+  font-size: 12px;
+}
+#career-error:empty {
+  display: none;
+}
+.career-note {
+  font-size: 11px;
+  color: #aab6cd;
+  line-height: 1.7;
   margin-top: 20px;
-  color: var(--accent, #ffc21a);
 }
-.career-heading p {
-  color: var(--ink2);
+.retro-home,
+.career-panel,
+.career-login {
+  font-family: MFLPixel, monospace;
+  background: #2867ff;
+  color: white;
+  border: 3px solid #07174a;
+  box-shadow:
+    0 0 0 2px #cedcff,
+    0 9px 0 #030d2b;
+  image-rendering: pixelated;
 }
-.career-page h2 {
-  font-size: 20px;
-  margin: 0 0 14px;
+.retro-home {
+  container-type: inline-size;
+  overflow: hidden;
+  text-shadow: 2px 2px #143b8c;
 }
-.career-page h3 {
-  font-size: 16px;
+.retro-head {
+  height: 8cqw;
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2cqw;
+  padding: 0 2cqw;
 }
-.career-page .card {
-  padding: 22px;
-  margin-bottom: 18px;
-}
-.career-page button,
-.career-page select,
-.career-page input {
+.retro-head h1 {
   font: inherit;
+  font-size: 3.4cqw;
+  text-align: center;
+  margin: 0;
+  white-space: nowrap;
 }
-.career-page select,
-.career-page input {
-  width: 100%;
-  background: var(--card2);
-  color: var(--ink);
-  padding: 10px;
-  border: 1px solid var(--line2);
-  border-radius: 8px;
+.retro-head h1 span {
+  font-family: monospace;
+  font-size: 3.4cqw;
+  letter-spacing: -0.5cqw;
+  color: #b6d4ff;
+  text-shadow:
+    2px 2px #164a91,
+    -3px 0 #cf263d;
+}
+.retro-badge {
+  border: 2px solid #fff;
+  box-shadow:
+    inset 2px 2px #72a3ff,
+    2px 2px #173a94;
+  border-radius: 3px;
+  font-size: 1.6cqw;
+  padding: 0.8cqw 1.6cqw;
+  white-space: nowrap;
+}
+.retro-timeline {
+  height: 16cqw;
+  min-height: 83px;
+  background: #d2d312;
+  color: white;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: relative;
+  text-align: center;
+  text-shadow: 2px 2px #737313;
+}
+.retro-timeline:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 64%;
+  height: 3px;
+  background: #646c15;
+  box-shadow: 0 2px #fff4a8;
+}
+.timeline-stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqw;
+  padding: 1.3cqw 0.7cqw 0;
+  font-size: 1.7cqw;
   min-width: 0;
 }
-.career-page label {
+.timeline-stop b {
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+.timeline-stop span {
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.timeline-stop strong {
+  position: absolute;
+  top: 78%;
+  left: 0;
+  width: 100%;
+  font-size: 1.6cqw;
+  font-weight: 400;
+  margin: 0;
+  white-space: nowrap;
+}
+.timeline-stop i {
+  position: absolute;
+  top: calc(64% - 0.85cqw);
+  left: calc(50% - 2.5cqw);
+  width: 5cqw;
+  height: 1.7cqw;
+  min-height: 8px;
+  background: #c3c5a1;
+  border-radius: 50%;
+  border-bottom: 2px solid #6c7423;
+}
+.timeline-stop.current i {
+  background: #fff;
+}
+.timeline-stop.won i {
+  background: #09dd16;
+}
+.timeline-stop.lost i {
+  background: #e94430;
+}
+.retro-summary {
   display: grid;
-  gap: 7px;
-  color: var(--ink2);
+  grid-template-columns: 1fr 1.15fr;
+  gap: 4cqw;
+  padding: 3cqw 5cqw 2.2cqw;
+  min-height: 150px;
+  height: 24cqw;
+}
+.retro-summary fieldset {
+  border: 2px solid #fff;
+  border-radius: 3px;
+  box-shadow:
+    2px 2px #132d7b,
+    inset 2px 2px #173794;
+  min-width: 0;
+  margin: 0;
+  padding: 1cqw;
+}
+.retro-summary legend {
+  font-size: 1.65cqw;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 0.6cqw;
+}
+.retro-standings {
+  position: relative;
+  padding-bottom: 2cqw !important;
+}
+.retro-standings legend {
+  display: none;
+}
+.retro-standings .career-scroll {
+  overflow: hidden;
+}
+.retro-home table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 1.65cqw;
+  text-transform: uppercase;
+}
+.retro-home th {
+  font-weight: 400;
+  text-align: right;
+}
+.retro-home th:first-child {
+  width: 72%;
+  text-align: left;
+  color: #fff;
+}
+.retro-home th:not(:first-child) {
+  width: 9.33%;
+}
+.retro-home td {
+  padding: 0.45cqw 0;
+  text-align: right;
+  white-space: nowrap;
+}
+.retro-home td:first-child {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.5cqw;
+}
+.retro-home tr.ours {
+  color: #fff528;
+}
+.retro-home .all-standings {
+  font: inherit;
+  font-size: 1.15cqw;
+  color: #fff;
+  background: none;
+  border: 0;
+  position: absolute;
+  bottom: 0.5cqw;
+  left: 1cqw;
+  padding: 0;
+  cursor: pointer;
+  text-shadow: 1px 1px #123880;
+}
+.retro-team-stats {
+  display: grid;
+  grid-template-rows: 8cqw 7.6cqw auto;
+  gap: 1.1cqw;
+  min-width: 0;
+}
+.retro-fans legend {
+  text-align: center;
+}
+.retro-fans {
+  padding: 0.5cqw 1cqw 1cqw !important;
+}
+.fans-meter {
+  display: flex;
+  align-items: center;
+  background: #05051a;
+  border: 2px solid #fff;
+  height: 3.5cqw;
+  min-height: 15px;
+  position: relative;
+  overflow: hidden;
+}
+.fans-meter span {
+  font-family: monospace;
+  position: absolute;
+  z-index: 1;
+  left: 0.5cqw;
+  color: #d86324;
+  text-shadow: 1px 1px white;
+  font-size: 2.4cqw;
+}
+.fans-meter i {
+  display: block;
+  background: #d7dc00;
+  border-top: 2px solid #eeef52;
+  border-bottom: 2px solid #9b9e00;
+  height: 90%;
+  margin-left: 3cqw;
+  max-width: calc(100% - 3cqw);
+}
+.retro-ratings {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1cqw;
+  min-width: 0;
+}
+.retro-ratings fieldset {
+  padding: 0.8cqw 0.5cqw;
+  text-align: center;
+}
+.retro-ratings b {
+  font-size: 1.7cqw;
+  white-space: nowrap;
+  font-weight: 400;
+}
+.retro-ratings b span {
+  color: #f4e12c;
+  font-family: monospace;
+  font-size: 2cqw;
+}
+.rating-stars {
+  display: flex;
+  gap: 0.3cqw;
+  justify-content: center;
+  padding-top: 0.4cqw;
+}
+.rating-stars i {
+  width: 1.6cqw;
+  height: 1.8cqw;
+  background: #0d318c;
+  clip-path: polygon(
+    50% 0,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 93%,
+    50% 72%,
+    21% 93%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+.rating-stars i.filled {
+  background: #f0e344;
+}
+.retro-team-label {
+  font-size: 1.3cqw;
+  line-height: 1.5;
+  text-transform: uppercase;
+  text-align: center;
+  color: #d8e8ff;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.retro-nav {
+  display: grid;
+  grid-template-columns: 0.45fr 1.18fr 1.02fr 1.18fr 1.18fr;
+  gap: 1.7cqw;
+  padding: 1.7cqw 1.7cqw 1.5cqw;
+  align-items: stretch;
+  min-height: 54px;
+  height: 9cqw;
+}
+.pixel-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  background: #2867ff;
+  border: 2px solid white;
+  border-radius: 3px;
+  box-shadow:
+    inset 2px 2px #79b2ff,
+    inset -2px -2px #1b378a,
+    2px 3px #122859;
+  color: white;
+  font-family: MFLPixel, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 12px 15px;
+  cursor: pointer;
+  text-align: center;
+  text-shadow: 2px 2px #173b8c;
+  text-decoration: none;
+}
+.pixel-button:hover {
+  background: #4682ff;
+}
+.pixel-button:focus-visible {
+  outline: 3px solid #fff22b;
+  outline-offset: 4px;
+}
+.pixel-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.retro-nav .pixel-button {
+  font-size: 2cqw;
+  padding: 0.3cqw;
+  gap: 0;
+  line-height: 1.4;
+  min-width: 0;
+}
+.retro-nav .settings-button {
+  padding: 0.6cqw;
+}
+.settings-button svg {
+  width: 3cqw;
+  height: 3cqw;
+  min-width: 20px;
+  min-height: 20px;
+  fill: #fff;
+  stroke: #173b8c;
+  stroke-width: 1;
+}
+.continue-button {
+  white-space: nowrap;
+}
+.career-save-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: #b9c7de;
+}
+.career-save-strip span {
+  overflow-wrap: anywhere;
+}
+.career-save-strip .pixel-button {
+  flex-shrink: 0;
+  font-size: 9px;
+}
+.career-panel,
+.career-login {
+  padding: 24px;
+  line-height: 1.9;
+  font-size: 11px;
+}
+.career-panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 2px solid #aecbff;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
   font-size: 13px;
 }
-.career-page .btn {
-  margin: 3px 4px 3px 0;
+.career-panel h1,
+.career-login h1 {
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 0;
 }
-.career-page button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.career-panel h2 {
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 16px 0;
+}
+.career-panel h3 {
+  font-size: 12px;
+  margin: 24px 0 12px;
+}
+.career-panel p,
+.career-login p {
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #e1ebff;
+}
+.career-panel small {
+  display: block;
+  font:
+    12px/1.5 system-ui,
+    sans-serif;
+}
+.career-panel .pixel-button {
+  margin: 5px 5px 5px 0;
+}
+.career-panel .career-scroll {
+  overflow: auto;
+}
+.career-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font:
+    13px/1.6 system-ui,
+    sans-serif;
+}
+.career-panel th {
+  font-weight: 700;
+  text-align: left;
+  color: #d4e5ff;
+  padding: 9px;
+  white-space: nowrap;
+}
+.career-panel td {
+  padding: 11px 9px;
+  border-bottom: 1px solid #8bb4ff;
+  white-space: nowrap;
+}
+.career-panel tr.ours {
+  color: #fff22b;
+  font-weight: 700;
 }
 .career-start {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
 }
 .career-start .wide {
   grid-column: 1/-1;
 }
+.career-page label {
+  display: grid;
+  gap: 10px;
+}
+.career-page input,
+.career-page select {
+  font:
+    16px system-ui,
+    sans-serif;
+  background: #1741b3;
+  border: 2px solid #bed7ff;
+  border-radius: 0;
+  color: white;
+  padding: 10px;
+  width: 100%;
+  min-width: 0;
+}
 .career-teams {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 .career-team {
+  border: 2px solid #aecbff;
+  border-top: 7px solid var(--team);
+  padding: 20px;
   display: flex !important;
   align-items: center;
-  padding: 20px;
-  border: 2px solid var(--line2);
-  border-top: 5px solid var(--team);
-  border-radius: 12px;
   cursor: pointer;
-  color: var(--ink) !important;
-  font-weight: 700;
+  line-height: 1.7;
 }
 .career-team:has(input:checked) {
-  background: var(--card2);
-  border-color: var(--team);
+  background: #1941ad;
 }
 .career-team input {
   width: auto;
+  flex-shrink: 0;
 }
-.career-summary {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  border-left: 5px solid var(--team);
-}
-.career-summary h2 {
-  margin: 0;
-}
-.career-summary p {
-  margin: 6px 0 0;
-  color: var(--ink2);
-}
-.career-stats {
-  display: flex;
-  gap: 25px;
-}
-.career-stats b {
-  display: block;
-  font-size: 24px;
-}
-.career-stats small {
-  color: var(--ink2);
-}
-.career-layout {
+.save-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
-.career-match {
-  background: linear-gradient(135deg, var(--card), var(--card2));
-  border-top: 3px solid var(--team);
+.save-slot {
+  border: 2px solid #b6d1ff;
+  padding: 18px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  background: #2456d7;
 }
-.career-matchup {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 18px 0;
-  font-size: 22px;
-  font-weight: 800;
+.save-slot.selected {
+  border-color: #fff532;
+  box-shadow: inset 0 0 0 2px #fff532;
 }
-.career-matchup span {
-  flex: 1;
+.slot-number {
+  color: #fff532;
+  font-size: 10px;
 }
-.career-matchup span:last-child {
-  text-align: right;
-}
-.career-matchup small {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink2);
-}
-.career-page .career-scroll {
-  overflow-x: auto;
-}
-.career-page table {
-  border-collapse: collapse;
-  width: 100%;
+.save-slot h2 {
   font-size: 13px;
 }
-.career-page th,
-.career-page td {
-  padding: 11px 8px;
-  border-bottom: 1px solid var(--line2);
-  text-align: left;
-  white-space: nowrap;
+.save-slot .pixel-button {
+  font-size: 9px;
 }
-.career-page th {
+.slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.office-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 30px;
+}
+.panel-item {
+  padding: 15px 0;
+  border-bottom: 1px solid #8cb5ff;
+}
+.panel-item > b {
   font-size: 11px;
-  color: var(--ink2);
-  text-transform: uppercase;
-}
-.career-page tr.ours {
-  background: var(--card2);
-  font-weight: bold;
-}
-.career-page details {
-  margin-top: 14px;
-}
-.career-page summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.career-choice {
-  display: block !important;
-  width: 100%;
-  text-align: left;
-  margin: 8px 0 !important;
-  white-space: normal;
-}
-.career-choice small {
-  display: block;
-  font-weight: 400;
-  opacity: 0.7;
-  margin-top: 5px;
-}
-.career-story p {
-  line-height: 1.7;
-  color: var(--ink2);
+  line-height: 1.8;
 }
 .career-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
-.career-page .career-news {
-  list-style: none;
-  padding: 0;
+.career-panel summary {
+  cursor: pointer;
+  padding: 10px 0;
 }
-.career-news li {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line2);
+.next-match {
+  text-align: center;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 20px;
 }
-.career-news b,
-.career-news small {
-  display: block;
+.next-match h2 {
+  font-size: clamp(16px, 3vw, 28px);
+  line-height: 1.8;
 }
-.career-news p {
-  margin: 6px 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--ink2);
+.next-match h2 small {
+  font-family: MFLPixel, monospace;
+  font-size: 14px;
+  color: #fff537;
+  margin: 10px;
 }
-.career-news small {
-  color: var(--ink2);
-  font-size: 11px;
+.quit-rule {
+  border: 2px solid #fff23a;
+  background: #163eb3;
+  padding: 15px;
 }
-.career-note {
-  line-height: 1.6;
-  margin-top: 22px;
-}
-.career-login p {
-  max-width: 650px;
-  line-height: 1.7;
-}
-.career-game canvas {
-  touch-action: none;
+.career-game {
+  background: #050813;
+  color: white;
 }
 .career-game iframe {
   display: block;
@@ -233,85 +623,148 @@
   height: auto;
   aspect-ratio: 16/9;
   border: 0;
-  background: #000;
-}
-.career-game {
-  background: #070908;
-  border-radius: 12px;
-  overflow: hidden;
+  background: black;
 }
 .career-game-toolbar {
-  padding: 12px;
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
 }
 .career-game-toolbar p {
   font-size: 12px;
-  color: #aaa;
-  margin: 5px;
 }
-.career-result {
-  text-align: center;
-  padding: 32px !important;
+.career-login .pixel-button {
+  margin: 10px 10px 0 0;
 }
-.career-grade {
-  color: var(--ink2);
-  font-size: 11px;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
-.career-program {
-  display: grid;
-  gap: 12px;
-}
-.career-program p {
-  font-size: 13px;
-  color: var(--ink2);
-  line-height: 1.6;
-}
-.career-program h3 {
-  margin: 10px 0 0;
-}
-.career-empty {
-  padding: 40px;
-  text-align: center;
-}
-@media (max-width: 760px) {
-  .career-layout {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 650px) {
+  .career-page {
+    padding: 0 10px 25px;
   }
-  .career-start {
-    grid-template-columns: minmax(0, 1fr);
+  .career-heading {
+    padding: 14px 0;
+    font-size: 8px;
   }
+  .career-heading span {
+    max-width: 220px;
+  }
+  .retro-head h1 {
+    font-size: 3.4cqw;
+  }
+  .retro-head h1 span {
+    font-size: 2.8cqw;
+  }
+  .retro-badge {
+    font-size: 2cqw;
+  }
+  .retro-summary {
+    gap: 3cqw;
+    padding: 3cqw;
+  }
+  .retro-summary legend {
+    font-size: 2cqw;
+  }
+  .retro-home table {
+    font-size: 1.9cqw;
+  }
+  .retro-home td {
+    padding: 1cqw 0;
+  }
+  .retro-team-stats {
+    grid-template-rows: 10cqw 11cqw auto;
+    gap: 3cqw;
+  }
+  .retro-ratings {
+    gap: 0.7cqw;
+  }
+  .retro-ratings legend {
+    font-size: 1.7cqw;
+    padding: 0 0.2cqw;
+  }
+  .retro-ratings b {
+    font-size: 2cqw;
+  }
+  .retro-ratings fieldset {
+    padding-top: 2cqw;
+  }
+  .retro-team-label {
+    font-size: 1.7cqw;
+    white-space: normal;
+  }
+  .fans-meter {
+    height: 5cqw;
+  }
+  .rating-stars i {
+    width: 1.7cqw;
+    height: 2.2cqw;
+  }
+  .retro-home .all-standings {
+    font-size: 1.5cqw;
+    bottom: 2cqw;
+    left: 1.5cqw;
+  }
+  .retro-nav {
+    gap: 1.3cqw;
+    padding: 1.5cqw;
+  }
+  .retro-nav .pixel-button {
+    font-size: 1.9cqw;
+  }
+  .timeline-stop {
+    font-size: 2cqw;
+  }
+  .timeline-stop strong {
+    font-size: 1.8cqw;
+  }
+  .career-panel,
+  .career-login {
+    padding: 15px;
+    font-size: 10px;
+  }
+  .career-panel > header {
+    font-size: 10px;
+  }
+  .career-panel h1,
+  .career-login h1 {
+    font-size: 14px;
+  }
+  .career-panel h2 {
+    font-size: 12px;
+  }
+  .career-panel .pixel-button {
+    font-size: 9px;
+  }
+  .save-grid,
+  .office-grid,
+  .career-start,
   .career-teams {
     grid-template-columns: minmax(0, 1fr);
   }
-  .career-summary {
-    gap: 16px;
+  .career-start .wide {
+    grid-column: auto;
   }
-  .career-stats {
-    gap: 20px;
+  .career-save-strip {
+    align-items: flex-start;
+    font-size: 11px;
   }
-  .career-page .card {
-    padding: 16px;
+  .next-match {
+    padding: 5px;
   }
-  .career-matchup {
-    font-size: 18px;
-    gap: 10px;
-  }
-  .career-page {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-  .career-game {
-    margin: 0 -10px;
-    border-radius: 0;
-  }
-  .career-page th,
-  .career-page td {
-    padding: 10px 7px;
-  }
-  .career-heading h1 {
-    font-size: 34px;
+  .career-game-toolbar .pixel-button {
+    font-size: 8px;
+    padding: 10px;
   }
 }
