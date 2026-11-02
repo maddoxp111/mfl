@@ -17,7 +17,7 @@ const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
 
 // prizes: coins for a win at each level (every win pays, no daily cap). minSec: fastest believable game.
 const GAMES = {
-  bowl: { name: 'Modern Bowl', emoji: '🏈', tag: 'Retro football with YOUR Starting 8.', prizes: [200, 450, 900, 1600], daily: 5, minSec: 50, maxScore: 250, practice: true },
+  bowl: { name: 'Modern Bowl', emoji: '🏈', tag: 'Retro football with YOUR Lineup.', prizes: [200, 450, 900, 1600], daily: 5, minSec: 50, maxScore: 250, practice: true },
   chess: { name: 'Chess', emoji: '♟️', tag: 'Checkmate the computer.', prizes: [80, 200, 450, 900], daily: 4, minSec: 15, verify: 'chess' },
   pool: { name: '8-Ball Pool', emoji: '🎱', tag: 'Sink your group, then the 8.', prizes: [60, 150, 300, 550], daily: 5, minSec: 10, maxScore: 7 },
   checkers: { name: 'Checkers', emoji: '🔴', tag: 'Jump every piece on the board.', prizes: [60, 150, 300, 550], daily: 4, minSec: 15, verify: 'checkers' },
@@ -38,8 +38,82 @@ const CPU_TEAMS = [
   { name: 'Detention Kings', abbr: 'DTK', color: '#b91c1c', color2: '#111111' },
   { name: 'The Faculty', abbr: 'FAC', color: '#0f172a', color2: '#facc15' },
 ];
-const POSITIONS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL1', 'UTIL2'];
-const POS_LABEL = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL', 'UTIL'];
+// The 11-player Lineup. Modern Bowl's runtime knows the first 8 spots (BOWL_SIZE); 3D Blitz uses
+// all 11: WR3 is the slot, and UTIL1, UTIL2, OL1, OL2, OL3 are the five linemen (left to right).
+const POSITIONS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL1', 'UTIL2', 'OL1', 'OL2', 'OL3'];
+const POS_LABEL = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL', 'UTIL', 'OL', 'OL', 'OL'];
+const BOWL_SIZE = 8;
+
+// ---------- player attributes ----------
+// Base attributes for every real player: p.attr (set in /admin/ratings) when present, otherwise
+// derived from the site rating and the Pick'em tendencies. Skills are 0-99, hgt is inches (54-78)
+// and wgt pounds (70-250): these are middle-schoolers. Cards add their deltas on top (bowlPlayer).
+const pickem = require('./pickem');
+const ATTR_KEYS = ['thr', 'acc', 'spd', 'agi', 'sta', 'str', 'cat', 'def', 'kick', 'hgt', 'wgt'];
+const SKILL_KEYS = ATTR_KEYS.slice(0, 9);
+const ATTR_RANGE = { hgt: [54, 78], wgt: [70, 250] }; // everything else 0-99
+const ATTR_LABEL = { thr: 'Throw power', acc: 'Accuracy', spd: 'Speed', agi: 'Agility', sta: 'Stamina', str: 'Strength', cat: 'Catching', def: 'Defense', kick: 'Kicking', hgt: 'Height', wgt: 'Weight' };
+// Body types for 3D Blitz (stored as p.look.build; card effects can override).
+const BUILDS = [['slim', 'Slim', 'thin and light'], ['lanky', 'Lanky', 'tall and thin, long arms and legs'], ['normal', 'Normal', 'average frame'], ['stocky', 'Stocky', 'compact and solid'], ['tank', 'Tank', 'big and strong all over'], ['fat', 'Fat', 'wide and heavy around the middle'], ['stubby', 'Stubby', 'short and thick'], ['tall', 'Tall', 'taller than most, normal frame'], ['short', 'Short', 'shorter than most, normal frame']];
+const BUILD_IDS = BUILDS.map((b) => b[0]);
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const clampAttr = (k, v, lo = 0) => (ATTR_RANGE[k] ? clampN(v, ATTR_RANGE[k][0], ATTR_RANGE[k][1]) : clampN(v, lo, 99));
+let rateFn = null; // the site's player rating (server.js ratingOf), set when the routes load
+function scoutOvr(et, t, p) { // same as server.js scoutRating, for scripts that load this file alone
+  if (Number.isFinite(+p.tend?.ovr)) return clampN(Math.round(+p.tend.ovr), 40, 99);
+  const v = ['td', 'pass', 'int'].map((k) => et.player(t, p, k)).sort((a, b) => b - a);
+  return Math.round(clampN(40 + 0.45 * v[0] + 0.15 * v[1], 40, 95));
+}
+const etMemo = new WeakMap(); // effTend replays every game, so share it for a moment
+function tendOf(db) {
+  const m = etMemo.get(db);
+  if (m && Date.now() - m.at < 3000) return m.et;
+  const et = pickem.effTend(db);
+  etMemo.set(db, { at: Date.now(), et });
+  return et;
+}
+// Default height/weight from position, how they joined, their look and a steady per-player spread.
+const POS_BODY = [[/QB|QUARTER/, 1, 0], [/RB|RUNNING|HALF/, -1, 8], [/WR|RECEIVER|WIDE/, 1, -6], [/\bTE\b|TIGHT/, 2, 22], [/OL|LINEMAN|CENTER/, 1, 40], [/DL|DEF.*LINE/, 1, 35], [/LB|LINEBACK/, 1, 15], [/DB|CB|CORNER|SAFETY/, 0, -4], [/\bK\b|KICK/, -1, -8]];
+const TAG_BODY = { C: [1.5, 10], TR: [0.5, 4], 'Rd 1': [1, 6], 'Rd 2': [0.5, 3], 'Rd 4': [-0.5, -3] };
+const BUILD_BODY = { slim: [0, -15], lanky: [2, -12], stocky: [-1, 18], tank: [1, 45], fat: [0, 50], stubby: [-3, 20], tall: [4, 8], short: [-4, -8] };
+function bodyOf(t, p) {
+  const pos = String(p.position || '').toUpperCase(), L = p.look || {};
+  const [, ph, pw] = POS_BODY.find(([re]) => re.test(pos)) || [0, 0, 0];
+  const [th, tw] = TAG_BODY[p.tag] || [0, 0];
+  const [bh, bw] = BUILD_BODY[L.build] || [0, 0];
+  const lh = L.height === 'short' ? -3 : L.height === 'tall' ? 3 : 0;
+  const r = hashNum('mfl-body:' + (t ? t.id : '') + ':' + p.id);
+  const hgt = clampAttr('hgt', Math.round(61 + ph + th + bh + lh + ((r % 7) - 3)));
+  const wgt = clampAttr('wgt', Math.round(105 + pw + tw + bw + (hgt - 61) * 4 + (((r >>> 4) % 31) - 15)));
+  return { hgt, wgt };
+}
+// What a player's attributes are with no admin edits (the Modern Bowl formulas, before card boosts).
+function derivedAttrs(db, t, p) {
+  const et = tendOf(db);
+  const ovr = rateFn ? rateFn(db, t, p) : scoutOvr(et, t, p);
+  const td = et.player(t, p, 'td'), pass = et.player(t, p, 'pass'), int = et.player(t, p, 'int');
+  const c = (v) => Math.round(clampN(v, 30, 99));
+  return { thr: c(ovr * 0.55 + pass * 0.45), acc: c(ovr * 0.6 + pass * 0.4), spd: c(ovr * 0.7 + td * 0.3), agi: c(ovr * 0.75 + td * 0.25), sta: c(ovr * 0.8 + 12),
+    str: c(ovr * 0.9 + 4), cat: c(ovr * 0.6 + td * 0.4), def: c(ovr * 0.6 + int * 0.4), kick: c(ovr * 0.8 + 8), ...bodyOf(t, p), ovr: c(ovr) };
+}
+// Overall for edited attributes: the derived overall moved by the average skill change.
+function attrOvr(base, a) {
+  const d = SKILL_KEYS.reduce((s, k) => s + (a[k] - base[k]), 0) / SKILL_KEYS.length;
+  return clampN(Math.round(base.ovr + d), 0, 99);
+}
+// playerAttrs(db, team, player) -> { thr, acc, spd, agi, sta, str, cat, def, kick, hgt, wgt, ovr }
+function playerAttrs(db, team, player) {
+  const t = typeof team === 'string' ? db.teams[team] : team;
+  const p = typeof player === 'string' ? t && t.roster.find((x) => x.id === player) : player;
+  if (!t || !p) return null;
+  const base = derivedAttrs(db, t, p), a = p.attr && typeof p.attr === 'object' ? p.attr : null;
+  if (!a) return base;
+  const has = (k) => a[k] != null && a[k] !== '' && Number.isFinite(+a[k]);
+  const out = {};
+  for (const k of ATTR_KEYS) out[k] = has(k) ? clampAttr(k, Math.round(+a[k])) : base[k];
+  out.ovr = has('ovr') ? clampN(Math.round(+a.ovr), 0, 99) : attrOvr(base, out);
+  return out;
+}
 
 // ---------- coins ----------
 // Same seeded generator as public/arcade/arcade.js and engines.js.
@@ -66,7 +140,7 @@ function matchNet(m) {
 const CHALLENGES = [
   { id: 'picks2', text: 'Make 2 picks', reward: 75, easy: true, need: 2, count: (d) => d.bets },
   { id: 'arcade3', text: 'Play 3 Arcade games', reward: 100, easy: true, need: 3, count: (d) => d.played },
-  { id: 'lineup', text: 'Save your Starting 8', reward: 60, easy: true, need: 1, count: (d) => d.lineups },
+  { id: 'lineup', text: 'Save your Lineup', reward: 60, easy: true, need: 1, count: (d) => d.lineups },
   { id: 'pack', text: 'Open a pack', reward: 60, easy: true, need: 1, count: (d) => d.packs },
   { id: 'win1', text: 'Win an Arcade game', reward: 120, need: 1, count: (d) => d.wins },
   { id: 'win3', text: 'Win 3 Arcade games', reward: 220, need: 3, count: (d) => d.wins },
@@ -134,42 +208,67 @@ module.exports = function arcade(app, h) {
   }
   h.arcadeCoins = arcadeCoins;
 
-  // ---------- Modern Bowl rosters ----------
+  // ---------- Modern Bowl / 3D Blitz rosters ----------
+  rateFn = ratingOf;
+  // A player in a game: base attributes (playerAttrs) plus the card's deltas, clamped to game ranges.
   function bowlPlayer(db, t, p, pos, card) {
-    const et = pk.effTend(db);
-    const ovr = ratingOf(db, t, p);
-    const boost = card ? (card.mult - 1) * 14 + (card.variant === 'pixel' ? 6 : 0) : 0;
-    const td = et.player(t, p, 'td'), pass = et.player(t, p, 'pass'), int = et.player(t, p, 'int');
-    const c = (v) => Math.round(Math.max(30, Math.min(99, v + boost)));
-    return { pos, name: p.name, num: p.number || '', ovr: c(ovr), spd: c(ovr * 0.7 + td * 0.3), thr: c(ovr * 0.55 + pass * 0.45), acc: c(ovr * 0.6 + pass * 0.4), cat: c(ovr * 0.6 + td * 0.4), str: c(ovr * 0.9 + 4), kick: c(ovr * 0.8 + 8), def: c(ovr * 0.6 + int * 0.4), stars: Math.max(1, Math.min(5, Math.round((ovr + boost) / 20))), card: card ? card.label : null, look: p.look || null };
+    const base = playerAttrs(db, t, p);
+    const eff = card && typeof cards.cardEffects === 'function' ? cards.cardEffects(card) : null;
+    const g = (k, v) => clampAttr(k, Math.round(v), 30);
+    const r = {};
+    if (eff) {
+      const d = eff.attr || {}, dv = (k) => Math.round(+d[k]) || 0;
+      for (const k of ATTR_KEYS) r[k] = g(k, base[k] + dv(k));
+      // The overall moves by the average skill change (each change kept within 0-99).
+      r.ovr = g('ovr', base.ovr + SKILL_KEYS.reduce((s, k) => s + clampN(base[k] + dv(k), 0, 99) - base[k], 0) / SKILL_KEYS.length);
+    } else { // no card effects available: the flat boost by card multiplier
+      const boost = card ? (card.mult - 1) * 14 + (card.variant === 'pixel' ? 6 : 0) : 0;
+      for (const k of ATTR_KEYS) r[k] = g(k, base[k] + (ATTR_RANGE[k] ? 0 : boost));
+      r.ovr = g('ovr', base.ovr + boost);
+    }
+    const build = (eff && BUILD_IDS.includes(eff.build) && eff.build) || (p.look && BUILD_IDS.includes(p.look.build) && p.look.build) || null;
+    return { pos, id: p.id, name: p.name, num: p.number || '', ...r, stars: clampN(Math.round(r.ovr / 20), 1, 5), card: card ? card.label : null, look: p.look || null, photo: p.photo ? '/media/' + p.photo : null, build, fx: (eff && eff.fx) || null };
   }
-  // A real team's best 8, placed by what they're good at.
+  // A real team's best 11 (fewer if the roster is smaller), placed by what they're good at.
+  const FIT = {
+    QB: (a) => a.thr * 0.5 + a.acc * 0.4 + a.agi * 0.1, RB: (a) => a.spd * 0.4 + a.agi * 0.35 + a.str * 0.15 + a.cat * 0.1,
+    WR: (a) => a.cat * 0.45 + a.spd * 0.35 + a.agi * 0.2, TE: (a) => a.cat * 0.5 + a.str * 0.5,
+    UTIL1: (a) => a.ovr * 0.6 + a.str * 0.4, UTIL2: (a) => a.ovr * 0.6 + a.kick * 0.4, OL: (a) => a.str * 0.6 + ((a.wgt - 70) / 180) * 99 * 0.4,
+  };
   function realLineup(db, t) {
-    const et = pk.effTend(db);
-    const left = [...t.roster];
-    const take = (score) => { left.sort((a, b) => score(b) - score(a)); return left.shift(); };
+    const left = t.roster.map((p) => ({ p, a: playerAttrs(db, t, p) }));
     const out = [];
-    const QB = take((p) => et.player(t, p, 'pass')); if (QB) out.push(['QB', QB]);
-    const RB = take((p) => et.player(t, p, 'td') + ratingOf(db, t, p) * 0.3); if (RB) out.push(['RB', RB]);
-    for (const pos of ['WR1', 'WR2', 'WR3', 'TE', 'UTIL1', 'UTIL2']) { const p = take((x) => ratingOf(db, t, x) + et.player(t, x, 'td') * 0.3); if (p) out.push([pos, p]); }
-    return out.map(([pos, p]) => bowlPlayer(db, t, p, pos, null));
+    for (const pos of POSITIONS) {
+      const fit = FIT[pos] || FIT[pos.replace(/\d$/, '')];
+      left.sort((x, y) => fit(y.a) - fit(x.a));
+      const x = left.shift();
+      if (x) out.push(bowlPlayer(db, t, x.p, pos, null));
+    }
+    return out;
   }
   function myLineup(db, user) {
     const own = cards.collection(user);
     const ids = ((user.lineups || []).at(-1)?.cards || []);
-    return ids.map((id, i) => { const c = own[id] ? cards.cardInfo(db, id) : null; return c ? bowlPlayer(db, c.t, c.p, POSITIONS[i], c) : null; });
+    return POSITIONS.map((pos, i) => { const c = ids[i] && own[ids[i]] ? cards.cardInfo(db, ids[i]) : null; return c ? bowlPlayer(db, c.t, c.p, pos, c) : null; });
   }
   function bowlTeam(db, user, which) {
     if (which === 'mine') {
       const ps = user ? myLineup(db, user) : [];
-      if (ps.filter(Boolean).length < 8) return null;
-      return { name: `${user.name}'s 8`.slice(0, 18), abbr: user.name.slice(0, 3).toUpperCase(), color: '#ffc21a', color2: '#151515', players: ps };
+      if (ps.filter(Boolean).length < POSITIONS.length) return null;
+      const nm = `${user.name}'s Lineup`;
+      return { name: nm.length <= 18 ? nm : user.name.slice(0, 18), abbr: user.name.slice(0, 3).toUpperCase(), color: '#ffc21a', color2: '#151515', players: ps };
     }
     const t = db.teams[which];
     if (t) return { name: t.name, abbr: t.abbr, color: t.color, color2: t.color2, players: realLineup(db, t) };
     const cpu = CPU_TEAMS[Number(String(which).replace('cpu', ''))];
     return cpu ? { ...cpu, players: [] } : null;
   }
+  // Modern Bowl's runtime takes the first 8 Lineup spots (QB..UTIL2).
+  const bowl8 = (team) => (team && team.players ? { ...team, players: team.players.slice(0, BOWL_SIZE) } : team);
+  // One 3D Blitz roster entry (the shared game-roster shape).
+  const R_KEYS = ['spd', 'str', 'agi', 'cat', 'thr', 'acc', 'sta', 'kick', 'def', 'hgt', 'wgt', 'ovr'];
+  const rosterEntry = (team, p) => ({ id: p.id, name: p.name, pos: p.pos, team: team.name, color: team.color, color2: team.color2, number: p.num || '', photo: p.photo || null,
+    look: { ...(p.look || {}), build: p.build || null }, r: Object.fromEntries(R_KEYS.map((k) => [k, p[k]])), fx: p.fx || null });
   const teamOvr = (team) => (team.players || []).filter(Boolean).reduce((s, p, _, a) => s + p.ovr / a.length, 0) || 60;
 
   // ---------- trivia ----------
@@ -274,20 +373,19 @@ module.exports = function arcade(app, h) {
       if (req.body.game === 'bowl') {
         const mine = practice ? String(req.body.team || 'mine') : 'mine';
         const home = bowlTeam(db, user, mine);
-        if (!home) return json(res, { ok: false, error: mine === 'mine' ? 'Set a full Starting 8 (all 8 positions) on the Cards page first, or play Practice as a real team.' : 'Pick a team.' });
+        if (!home) return json(res, { ok: false, error: mine === 'mine' ? 'Set a full Lineup (all 11 positions) on the Cards page first, or play Practice as a real team.' : 'Pick a team.' });
         let away = practice ? bowlTeam(db, user, String(req.body.opp || 'cpu' + level)) : bowlTeam(db, user, 'cpu' + level);
         if (!away || away.name === home.name) away = bowlTeam(db, user, 'cpu' + level);
-        away = { ...away, boost: practice && away.players?.length ? (teamOvr(away) - 60) / 250 : 0 };
-        data = { mode: practice ? 'practice' : 'coins', home, away };
+        away = { ...bowl8(away), boost: practice && away.players?.length ? (teamOvr(bowl8(away)) - 60) / 250 : 0 };
+        data = { mode: practice ? 'practice' : 'coins', home: bowl8(home), away };
       } else if (req.body.game === 'trivia') {
         const quiz = triviaQuiz(db, rng, TRIVIA.n[level]);
         secret = quiz.map((q) => q.a);
         data = { questions: quiz.map(({ q, opts }) => ({ q, opts })), secs: TRIVIA.secs[level], need: TRIVIA.need[level], ...(practice ? { answers: secret } : {}) };
       } else if (req.body.game === 'blitz3d') {
-        // Your Starting 8 if you have one (QB first), otherwise a real team's lineup.
+        // Your Lineup if you have one (all 11, QB first), otherwise a real team's lineup.
         const team = bowlTeam(db, user, 'mine') || bowlTeam(db, user, Object.keys(db.teams)[0]);
-        const photoOf = (nm) => { for (const t of Object.values(db.teams)) { const x = t.roster.find((r) => r.name === nm); if (x) return x.photo ? '/media/' + x.photo : null; } return null; };
-        data = { players: (team.players || []).filter(Boolean).map((p) => ({ name: p.name, pos: p.pos, team: team.name, color: team.color, color2: team.color2, number: p.num || '', photo: photoOf(p.name), look: p.look || null })) };
+        data = { players: (team.players || []).filter(Boolean).map((p) => rosterEntry(team, p)) };
       } else if (req.body.game === 'memory') {
         data = { players: Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ name: p.name, team: t.name, color: t.color, color2: t.color2, photo: p.photo ? '/media/' + p.photo : null, number: p.number || '' }))) };
       }
@@ -376,7 +474,7 @@ module.exports = function arcade(app, h) {
     ['📍', 'Game-day check-in', `+${CHECKIN} for showing up on game days.`],
     ['🏆', 'Achievements', '+150 for every achievement you unlock.'],
     ['🎯', "Pick'em", 'Win picks on the next MFL game.'],
-    ['🃏', 'Starting 8', 'Your cards earn coins every game.'],
+    ['🃏', 'Lineup', 'Your cards earn coins every game.'],
     ['🏝️', 'Survivor', 'Last one standing wins 250.'],
     ['📅', 'Daily bonus', 'Log in every day, streaks pay more.'],
     ['💰', 'Sell cards', 'Extra copies sell for coins.'],
@@ -392,7 +490,7 @@ module.exports = function arcade(app, h) {
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
-              <p>${ORDER.length} games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Starting 8 on the field.</p>
+              <p>${ORDER.length} games, 4 levels each, and Risk mode for up to 5× the coins. Modern Bowl puts YOUR Lineup on the field.</p>
               <div class="arc-cta"><a class="btn" href="/arcade/bowl">${icon('fire')} Play Modern Bowl</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
@@ -472,9 +570,10 @@ module.exports = function arcade(app, h) {
       const db = load();
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
-      const lineupOk = id !== 'bowl' || (user && myLineup(db, user).filter(Boolean).length === 8);
+      const fullLineup = !!user && myLineup(db, user).filter(Boolean).length === POSITIONS.length;
+      const lineupOk = id !== 'bowl' || fullLineup;
       const levels = LEVELS.map((n, i) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${n}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: put up ${fmt(G.prizes[i])} → win ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em></span></label>`).join('');
-      const teamOpts = (sel) => [user ? ['mine', 'My Starting 8'] : null, ...Object.values(db.teams).map((t) => [t.id, t.name]), ...CPU_TEAMS.map((c, i) => ['cpu' + i, c.name + ' (CPU)'])].filter(Boolean).map(([v, n]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
+      const teamOpts = (sel) => [user ? ['mine', 'My Lineup'] : null, ...Object.values(db.teams).map((t) => [t.id, t.name]), ...CPU_TEAMS.map((c, i) => ['cpu' + i, c.name + ' (CPU)'])].filter(Boolean).map(([v, n]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
       const teamsIds = Object.keys(db.teams);
       // Game code is inlined into the page: school web filters often block script URLs with words like "arcade" or "games".
       const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
@@ -487,7 +586,8 @@ module.exports = function arcade(app, h) {
           ${!user ? `<p class="muted sm"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins. Practice is free.</p>` : ''}
           <div class="lvls">${levels}</div>
           ${id === 'bowl' ? `<div class="bowl-teams" data-practice><label>Your team<select name="team">${teamOpts(user ? 'mine' : teamsIds[0])}</select></label><label>Opponent<select name="opp">${teamOpts(user ? teamsIds[0] : teamsIds[1])}</select></label></div>
-            ${user && !lineupOk ? `<p class="muted sm">To play for coins you need a full Starting 8. <a href="/pickem/cards">Set it up →</a></p>` : ''}` : ''}
+            ${user && !lineupOk ? `<p class="muted sm">To play for coins you need a full Lineup (all 11 positions). <a href="/pickem/cards">Set it up →</a></p>` : ''}` : ''}
+          ${id === 'blitz3d' ? `<p class="muted sm">${fullLineup ? 'Your Lineup takes the field: all 11 (QB, RB, three WRs, TE and five linemen).' : `Set a full Lineup (all 11 positions) to play with your own cards. <a href="/pickem/cards">Set it up →</a> Until then you play as the ${esc(db.teams[teamsIds[0]]?.name || 'MFL')}.`}</p>` : ''}
           <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for ${RISK_MULT[0]}× to ${RISK_MULT[3]}× back when you win. Lose it all when you don't.</small></span></label>
           ${user ? `<p class="muted sm" data-coins>Every win pays. Leaving mid-game counts as a loss.</p>` : ''}
           <button type="submit" class="btn arc-go">${icon('fire')} Play</button><p id="arcMsg" class="err"></p>
@@ -509,38 +609,126 @@ module.exports = function arcade(app, h) {
       ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${m.score ?? ''}</td><td>${m.status === 'void' ? 'void' : '+' + fmt(m.payout - m.stake)}</td>
         <td>${m.status === 'won' ? `<form method="post" action="/admin/arcade/void"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">Void</button></form>` : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No wins yet.</td></tr>'}</tbody></table></div></div>`));
   });
-  // ---------- admin: how each real player looks in Modern Bowl ----------
+  // ---------- admin: how each real player looks (Modern Bowl and 3D Blitz) and their 3D build ----------
   const LOOK_OPTS = { skin: [0, 1, 2, 3, 4], height: ['short', 'normal', 'tall'], cleats: ['black', 'white', 'team', 'gold', 'red'] };
+  const BUILD_SHAPE = { slim: [0.8, 1], lanky: [0.78, 1.1], normal: [1, 1], stocky: [1.18, 0.94], tank: [1.32, 1.05], fat: [1.38, 1], stubby: [1.22, 0.86], tall: [1, 1.12], short: [1, 0.88] };
   app.get('/admin/looks', h.requireAdmin, (req, res) => {
     const db = load();
     const sel = (name, vals, cur, labels) => `<select name="${name}">${vals.map((v, i) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(labels ? labels[i] : v)}</option>`).join('')}</select>`;
+    const buildDesc = (b) => { const x = BUILDS.find((y) => y[0] === b); return x ? `${x[1]}: ${x[2]}` : 'Default: set by height'; };
     const rows = Object.values(db.teams).map((t) => `<section class="card"><div class="card-h"><h2>${esc(t.name)}</h2></div><div class="looks">
-      ${t.roster.map((p) => { const L = p.look || {}; return `<form method="post" action="/admin/looks/${esc(t.id)}/${esc(p.id)}" class="look" data-color="${esc(t.color)}" data-color2="${esc(t.color2)}">
-        <canvas width="10" height="25"></canvas><b>${esc(p.name)}</b>
+      ${t.roster.map((p) => { const L = p.look || {}; return `<form method="post" action="/admin/looks/${esc(t.id)}/${esc(p.id)}" class="look" id="${esc(p.id)}" data-color="${esc(t.color)}" data-color2="${esc(t.color2)}">
+        <div class="look-art"><canvas width="10" height="25"></canvas><svg class="bsil" viewBox="0 0 40 60" aria-hidden="true"><g><circle cx="20" cy="10" r="6"/><rect x="12" y="17" width="16" height="20" rx="5"/><rect x="13" y="36" width="6" height="21" rx="3"/><rect x="21" y="36" width="6" height="21" rx="3"/><rect x="6" y="18" width="5" height="16" rx="2.5"/><rect x="29" y="18" width="5" height="16" rx="2.5"/></g></svg></div><b>${esc(p.name)}</b>
         <label>Skin ${sel('skin', LOOK_OPTS.skin, L.skin ?? 0, ['Light', 'Fair', 'Tan', 'Brown', 'Dark'])}</label>
         <label>Height ${sel('height', LOOK_OPTS.height, L.height || 'normal', ['Short', 'Normal', 'Tall'])}</label>
         <label>Cleats ${sel('cleats', LOOK_OPTS.cleats, L.cleats || 'black', ['Black', 'White', 'Team color', 'Gold', 'Red'])}</label>
+        <label>Build ${sel('build', ['', ...BUILD_IDS], L.build || '', ['Default', ...BUILDS.map((x) => x[1])])}</label>
+        <small class="bdesc">${esc(buildDesc(L.build))}</small>
         <label class="chk"><input type="checkbox" name="visor" value="1" ${L.visor ? 'checked' : ''}> Tinted visor</label>
         <label class="chk"><input type="checkbox" name="sleeves" value="1" ${L.sleeves ? 'checked' : ''}> Long sleeves</label>
         <button class="btn sm">Save</button></form>`; }).join('')}</div></section>`).join('');
-    res.send(layout(req, 'Game looks', h.pageHead('Admin', 'Modern Bowl looks') + `<div class="wrap">${h.adminNav('/admin/looks')}${req.query.saved ? '<div class="toast">Saved ✓</div>' : ''}
-      <p class="muted">Set each player's appearance in Modern Bowl. Changes apply to new games. <a href="/admin/teams">Edit team colors →</a></p>${rows}</div>
-      <style>.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.look{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;align-items:center;padding:12px;border-radius:14px;background:var(--card2)}
-      .look canvas{grid-row:span 6;width:60px;height:auto;image-rendering:pixelated;background:#4a8f3c;border-radius:10px}.look b{font-size:14px}.look label{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2)}.look select{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:3px}.look .btn{justify-self:start}</style>
+    res.send(layout(req, 'Looks & builds', h.pageHead('Admin', 'Looks & builds') + `<div class="wrap">${h.adminNav('/admin/looks')}${req.query.saved ? '<div class="toast">Saved ✓</div>' : ''}
+      <p class="muted">Set each player's appearance. Skin, height, cleats, visor and sleeves show in Modern Bowl and 3D Blitz; <b>Build</b> shapes the body in 3D Blitz (some cards change it in game). Changes apply to new games. <a href="/admin/ratings">Ratings →</a> <a href="/admin/teams">Team colors →</a></p>${rows}</div>
+      <style>.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.look{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;align-items:center;padding:12px;border-radius:14px;background:var(--card2)}
+      .look-art{grid-row:span 9;display:flex;flex-direction:column;align-items:center;gap:8px;align-self:start}.look canvas{width:60px;height:auto;image-rendering:pixelated;background:#4a8f3c;border-radius:10px}.look .bsil{width:46px;height:69px;background:var(--card);border-radius:10px}.look .bsil g{transition:transform .15s}
+      .look b{font-size:14px}.look label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}.look select{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:3px;max-width:120px}.look .bdesc{font-size:11px;color:var(--muted);line-height:1.3;margin-top:-3px}.look .btn{justify-self:start}</style>
       <script>${require('fs').readFileSync(path.join(__dirname, 'public/football/appearance.js'), 'utf8').replace(/<\/script/gi, '<\\/script')}</script>
-      <script>document.querySelectorAll('.look').forEach((f)=>{const c=f.querySelector('canvas'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
+      <script>(function(){const BD=${JSON.stringify(Object.fromEntries(BUILDS.map((x) => [x[0], x[1] + ': ' + x[2]])))},BS=${JSON.stringify(BUILD_SHAPE)};
+      document.querySelectorAll('.look').forEach((f)=>{const c=f.querySelector('canvas'),x=c.getContext('2d'),g=f.querySelector('.bsil g');x.imageSmoothingEnabled=false;g.style.fill=f.dataset.color;
         const draw=()=>{const look={skin:+f.skin.value,height:f.height.value,cleats:f.cleats.value,visor:f.visor.checked,sleeves:f.sleeves.checked};
-          const img=MFLFootballLooks.preview({color:f.dataset.color,color2:f.dataset.color2},look);c.width=img.width;c.height=img.height+1;x.imageSmoothingEnabled=false;x.drawImage(img,0,1);};
-        f.addEventListener('change',draw);draw();});</script>`));
+          const img=MFLFootballLooks.preview({color:f.dataset.color,color2:f.dataset.color2},look);c.width=img.width;c.height=img.height+1;x.imageSmoothingEnabled=false;x.drawImage(img,0,1);
+          const b=f.build.value,s=BS[b]||[1,look.height==='short'?0.9:look.height==='tall'?1.1:1];g.setAttribute('transform','translate(20 58) scale('+s[0]+' '+s[1]+') translate(-20 -58)');
+          f.querySelector('.bdesc').textContent=BD[b]||'Default: set by height';};
+        f.addEventListener('change',draw);draw();});})();</script>`));
   });
   app.post('/admin/looks/:team/:pid', h.requireAdmin, async (req, res) => {
     const db = load(), t = db.teams[req.params.team], p = t && t.roster.find((x) => x.id === req.params.pid);
     if (p) {
       const b = req.body, pick = (v, opts, d) => (opts.map(String).includes(String(v)) ? v : d);
-      p.look = { skin: Number(pick(b.skin, LOOK_OPTS.skin, 0)), height: pick(b.height, LOOK_OPTS.height, 'normal'), cleats: pick(b.cleats, LOOK_OPTS.cleats, 'black'), visor: !!b.visor, sleeves: !!b.sleeves };
+      p.look = { skin: Number(pick(b.skin, LOOK_OPTS.skin, 0)), height: pick(b.height, LOOK_OPTS.height, 'normal'), cleats: pick(b.cleats, LOOK_OPTS.cleats, 'black'), visor: !!b.visor, sleeves: !!b.sleeves, build: pick(b.build, BUILD_IDS, null) };
       await h.save();
     }
     res.redirect('/admin/looks?saved=1#' + encodeURIComponent(req.params.pid));
+  });
+
+  // ---------- admin: base ratings (attributes) for every player ----------
+  const wantsJson = (req) => req.is('application/json') || /application\/json/.test(req.get('accept') || '');
+  const attrText = (k, v) => (k === 'hgt' ? `${Math.floor(v / 12)}'${v % 12}"` : k === 'wgt' ? `${v} lb` : String(v));
+  const TAG_NAME = { C: 'Captain', TR: 'Team rep', FA: 'Free agent' };
+  app.get('/admin/ratings', h.requireAdmin, (req, res) => {
+    const db = load(), teams = Object.values(db.teams);
+    const row = (t, p) => {
+      const d = derivedAttrs(db, t, p), a = playerAttrs(db, t, p), custom = !!(p.attr && typeof p.attr === 'object');
+      const tag = TAG_NAME[p.tag] || (String(p.tag || '').startsWith('Rd') ? 'Round ' + String(p.tag).replace(/\D/g, '') : '');
+      const pic = p.photo ? `<img src="/media/${esc(p.photo)}" alt="" loading="lazy">` : `<span style="background:${esc(t.color)}">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>`;
+      return `<form method="post" action="/admin/ratings/${esc(t.id)}/${esc(p.id)}" class="rp${custom ? ' custom' : ''}" id="r-${esc(p.id)}" data-name="${esc(p.name.toLowerCase())}" data-derived="${esc(JSON.stringify(d))}">
+        <div class="rp-h"><div class="rp-pic">${pic}</div><div class="rp-n"><b>${esc(p.name)}</b><small>${[p.number ? '#' + esc(p.number) : '', esc(tag)].filter(Boolean).join(' · ')}<span class="rp-st">${custom ? 'Custom' : 'Derived'}</span></small></div>
+          <div class="rp-ovr" title="Overall: the derived overall moved by the average skill change"><output>${a.ovr}</output><small>OVR</small></div></div>
+        <div class="rp-g">${ATTR_KEYS.map((k) => { const [lo, hi] = ATTR_RANGE[k] || [0, 99]; return `<label class="rs${a[k] !== d[k] ? ' chg' : ''}"><span>${ATTR_LABEL[k]}<output>${attrText(k, a[k])}</output></span><input type="range" name="${k}" min="${lo}" max="${hi}" step="1" value="${a[k]}"></label>`; }).join('')}</div>
+        <div class="rp-f"><button class="btn sm rp-save" name="save" value="1">Save</button><button class="btn ghost sm" name="reset" value="1">Reset to derived</button><span class="rp-ok" role="status"></span></div>
+      </form>`;
+    };
+    res.send(layout(req, 'Player ratings', h.pageHead('Admin', 'Player ratings', 'Base attributes every game uses (Modern Bowl and 3D Blitz). Cards add their boosts on top.') + `<div class="wrap rt-page">${h.adminNav('/admin/ratings')}${req.query.saved ? '<div class="toast">Saved ✓</div>' : ''}
+      <div class="rt-top"><input type="search" id="rtFind" placeholder="Find a player" autocomplete="off" aria-label="Find a player"><div class="rt-jump">${teams.map((t) => `<a class="chip" href="#rt-${esc(t.id)}"><i style="background:${esc(t.color)}"></i>${esc(t.name)}</a>`).join('')}</div></div>
+      <p class="muted sm rt-note">Players start <b>Derived</b>: worked out from their overall (set on <a href="/admin/tendencies">Tendencies</a>) and game results. Move a slider to make them <b>Custom</b>, then Save (or <kbd>Ctrl</kbd>+<kbd>S</kbd> to save every changed player). Skills are 0 to 99; height is in feet and inches, weight in pounds. Builds and looks are on <a href="/admin/looks">Looks &amp; builds</a>.</p>
+      ${teams.map((t) => `<section class="card rt-team" id="rt-${esc(t.id)}"><div class="card-h"><h2>${esc(t.name)}</h2><span class="muted sm">${t.roster.length} players</span></div><div class="rt-list">${t.roster.map((p) => row(t, p)).join('')}</div></section>`).join('')}
+      <div class="savebar rt-bar" id="rtBar" hidden><span id="rtCount"></span><button type="button" class="btn" id="rtAll">Save all</button></div></div>
+      <style>.rt-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}.rt-top input{flex:1 1 220px;min-width:0;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:999px;padding:10px 16px;font:inherit}
+      .rt-jump{display:flex;flex-wrap:wrap;gap:6px}.rt-jump .chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--card2);border:1px solid var(--line2);font-size:13px;font-weight:600}.rt-jump .chip i{width:10px;height:10px;border-radius:50%}
+      .rt-team{scroll-margin-top:80px}.rt-list{display:grid;gap:12px}.rp{background:var(--card2);border:1px solid transparent;border-radius:14px;padding:14px;scroll-margin-top:80px}.rp.dirty{border-color:var(--amber)}
+      .rp-h{display:flex;align-items:center;gap:12px;margin-bottom:10px}.rp-pic img,.rp-pic span{width:42px;height:42px;border-radius:50%;object-fit:cover;display:grid;place-items:center;font:800 14px var(--disp);color:#fff}
+      .rp-n{flex:1;min-width:0}.rp-n b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rp-n small{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .rp-st{font:700 10px Inter;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--card);color:var(--muted)}.rp.custom .rp-st{background:rgba(245,179,1,.14);color:var(--amber)}
+      .rp-ovr{display:grid;justify-items:center;line-height:1;min-width:52px}.rp-ovr output{font:900 26px var(--disp)}.rp-ovr small{font:700 10px Inter;letter-spacing:.08em;color:var(--muted);margin-top:3px}
+      .rp-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 16px}.rs{display:grid;gap:2px;font-size:12px;color:var(--ink2)}.rs span{display:flex;justify-content:space-between;gap:6px}.rs output{font:800 13px var(--disp);color:var(--ink)}
+      .rs.chg output{color:var(--amber)}
+      .rs input{width:100%;margin:0;height:26px;accent-color:var(--red);padding:0;border:0;background:none}
+      .rp-f{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}.rp-save:disabled{opacity:.45;cursor:default}.rp-ok{font-size:13px;font-weight:600;color:var(--green)}.rp-ok.err{color:var(--red2)}
+      .rt-bar[hidden],.rp[hidden],.rt-team[hidden]{display:none}.rt-bar span{align-self:center;padding-left:10px;font-weight:600}.rt-note a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}kbd{font:600 11px Inter;background:var(--card2);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
+      @media (max-width:520px){.rp{padding:12px}.rp-g{grid-template-columns:1fr 1fr;gap:6px 12px}.rt-bar{border-radius:16px}}</style>
+      <script>(function(){
+        const KEYS=${JSON.stringify(ATTR_KEYS)},SK=${JSON.stringify(SKILL_KEYS)};
+        const fmt=(k,v)=>k==='hgt'?Math.floor(v/12)+"'"+(v%12)+'"':k==='wgt'?v+' lb':String(v);
+        const forms=[...document.querySelectorAll('.rp')],dirty=new Set(),bar=document.getElementById('rtBar'),cnt=document.getElementById('rtCount');
+        const vals=(f)=>Object.fromEntries(KEYS.map((k)=>[k,+f.elements[k].value]));
+        const bump=()=>{bar.hidden=!dirty.size;cnt.textContent=dirty.size+(dirty.size===1?' player':' players')+' changed';};
+        function update(f){const d=JSON.parse(f.dataset.derived),v=vals(f);let s=0;
+          for(const k of KEYS){const inp=f.elements[k],lab=inp.closest('.rs');lab.querySelector('output').textContent=fmt(k,v[k]);lab.classList.toggle('chg',v[k]!==d[k]);}
+          for(const k of SK)s+=v[k]-d[k];
+          f.querySelector('.rp-ovr output').textContent=Math.max(0,Math.min(99,Math.round(d.ovr+s/SK.length)));
+          const ch=KEYS.some((k)=>v[k]!==f._saved[k]);f.classList.toggle('dirty',ch);f.querySelector('.rp-save').disabled=!ch;ch?dirty.add(f):dirty.delete(f);bump();}
+        async function save(f,reset){const ok=f.querySelector('.rp-ok');ok.className='rp-ok';ok.textContent='Saving…';
+          try{const r=await fetch(f.getAttribute('action'),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(reset?{reset:1}:vals(f))});
+            if(!(r.headers.get('content-type')||'').includes('json'))throw new Error('Log in again to save.');
+            const j=await r.json();if(!j.ok)throw new Error(j.error||'Not saved.');
+            f.dataset.derived=JSON.stringify(j.derived);for(const k of KEYS)f.elements[k].value=j.attr[k];f._saved=vals(f);
+            f.classList.toggle('custom',!!j.custom);f.querySelector('.rp-st').textContent=j.custom?'Custom':'Derived';update(f);
+            f.querySelector('.rp-ovr output').textContent=j.attr.ovr;ok.textContent=reset?'Reset ✓':'Saved ✓';clearTimeout(f._t);f._t=setTimeout(()=>{ok.textContent='';},2500);return true;
+          }catch(e){ok.className='rp-ok err';ok.textContent=e.message||'Not saved.';return false;}}
+        forms.forEach((f)=>{f._saved=vals(f);f.addEventListener('input',()=>update(f));
+          f.addEventListener('submit',(e)=>{e.preventDefault();save(f,!!(e.submitter&&e.submitter.name==='reset'));});update(f);});
+        const saveAll=async()=>{const b=document.getElementById('rtAll');b.disabled=true;for(const f of [...dirty])await save(f,false);b.disabled=false;};
+        document.getElementById('rtAll').addEventListener('click',saveAll);
+        document.addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if(dirty.size)saveAll();}});
+        window.addEventListener('beforeunload',(e)=>{if(dirty.size){e.preventDefault();e.returnValue='';}});
+        const q=document.getElementById('rtFind');q.addEventListener('input',()=>{const s=q.value.trim().toLowerCase();
+          forms.forEach((f)=>{f.hidden=!!s&&!f.dataset.name.includes(s);});document.querySelectorAll('.rt-team').forEach((t)=>{t.hidden=![...t.querySelectorAll('.rp')].some((f)=>!f.hidden);});});
+      })();</script>`, { ticker: false }));
+  });
+  app.post('/admin/ratings/:team/:pid', h.requireAdmin, async (req, res) => {
+    const db = load(), t = db.teams[req.params.team], p = t && t.roster.find((x) => x.id === req.params.pid);
+    if (!p) return wantsJson(req) ? json(res.status(404), { ok: false, error: 'That player was not found.' }) : res.redirect('/admin/ratings');
+    const b = req.body || {}, base = derivedAttrs(db, t, p);
+    if (b.reset) delete p.attr;
+    else {
+      const cur = playerAttrs(db, t, p), a = {};
+      for (const k of ATTR_KEYS) { const v = b[k] != null && b[k] !== '' ? Number(b[k]) : NaN; a[k] = Number.isFinite(v) ? clampAttr(k, Math.round(v)) : cur[k]; }
+      if (ATTR_KEYS.every((k) => a[k] === base[k])) delete p.attr; // same as derived: keep following the ratings
+      else p.attr = { ...a, ovr: attrOvr(base, a) };
+    }
+    await h.save();
+    if (wantsJson(req)) return json(res, { ok: true, custom: !!p.attr, attr: playerAttrs(db, t, p), derived: base });
+    res.redirect('/admin/ratings?saved=1#r-' + encodeURIComponent(p.id));
   });
   app.post('/admin/arcade/void', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
@@ -550,9 +738,16 @@ module.exports = function arcade(app, h) {
     res.redirect('/admin/arcade');
   });
 
-  return { GAMES, ORDER, LEVELS, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today };
+  return { GAMES, ORDER, LEVELS, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup };
 };
 const ASSET_V = Date.now().toString(36);
 module.exports.GAMES = GAMES;
 module.exports.POSITIONS = POSITIONS;
 module.exports.POS_LABEL = POS_LABEL;
+module.exports.LINEUP_POS = POSITIONS;
+module.exports.BOWL_SIZE = BOWL_SIZE;
+module.exports.ATTR_KEYS = ATTR_KEYS;
+module.exports.ATTR_RANGE = ATTR_RANGE;
+module.exports.BUILDS = BUILDS;
+module.exports.playerAttrs = playerAttrs;
+module.exports.derivedAttrs = derivedAttrs;
