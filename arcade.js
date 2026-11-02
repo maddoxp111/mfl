@@ -17,7 +17,7 @@ const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
 
 // prizes: coins for a win at each level. daily: paid wins per day. minSec: fastest believable game.
 const GAMES = {
-  bowl: { name: 'Modern Bowl', emoji: '🏈', tag: 'Retro football with YOUR Starting 8. The biggest payouts in the Arcade.', prizes: [200, 450, 900, 1600], daily: 5, minSec: 50, maxScore: 250, practice: true },
+  bowl: { name: 'Modern Bowl', emoji: '🏈', tag: 'Retro football with YOUR Starting 8.', prizes: [200, 450, 900, 1600], daily: 5, minSec: 50, maxScore: 250, practice: true },
   chess: { name: 'Chess', emoji: '♟️', tag: 'Checkmate the computer.', prizes: [80, 200, 450, 900], daily: 4, minSec: 15, verify: 'chess' },
   pool: { name: '8-Ball Pool', emoji: '🎱', tag: 'Sink your group, then the 8.', prizes: [60, 150, 300, 550], daily: 5, minSec: 10, maxScore: 7 },
   checkers: { name: 'Checkers', emoji: '🔴', tag: 'Jump every piece on the board.', prizes: [60, 150, 300, 550], daily: 4, minSec: 15, verify: 'checkers' },
@@ -26,7 +26,7 @@ const GAMES = {
   fieldgoal: { name: 'Field Goal Frenzy', emoji: '🥅', tag: 'Ten kicks. Wind. Pressure.', prizes: [40, 90, 180, 320], daily: 5, minSec: 25, maxScore: 10, need: [5, 6, 7, 8] },
   bullseye: { name: 'QB Bullseye', emoji: '🎯', tag: 'Hit moving targets downfield.', prizes: [40, 90, 180, 320], daily: 5, minSec: 12, maxScore: 100, need: [8, 13, 18, 24] },
   flagpull: { name: 'Flag Pull', emoji: '🚩', tag: 'Pull flags. Don\'t touch your teammates.', prizes: [30, 80, 160, 300], daily: 5, minSec: 43, maxScore: 100 },
-  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches and tackles, 16-play playbook, 2-minute quarters. Plus Franchise mode.', prizes: [150, 350, 700, 1200], daily: 5, minSec: 150, maxScore: 90, isNew: true },
+  blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Franchise mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000], daily: 5, minSec: 150, maxScore: 90, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Games still being finished stay hidden (and can't be started) until their files ship.
