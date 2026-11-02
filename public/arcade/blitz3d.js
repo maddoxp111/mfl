@@ -12,6 +12,8 @@
 .bz-wrap:fullscreen{width:100vw;height:100vh;max-width:none;border-radius:0}
 .bz-wrap:-webkit-full-screen{width:100vw;height:100vh;max-width:none;border-radius:0}
 .bz-stage{position:absolute;inset:0;overflow:hidden;touch-action:none}
+.bz-wrap.bz-fixed{position:fixed;left:0;top:0;right:0;bottom:0;width:100%!important;max-width:none;margin:0!important;border-radius:0;z-index:100000}
+html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:none}
 .bz-cv{display:block;width:100%;height:100%;touch-action:none;outline:none}
 .bz-tags,.bz-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .bz-fx{z-index:4}
@@ -1575,6 +1577,10 @@ gl_FragColor=vec4(c,1.0);}`;
     })();
     let G = null, glLost = false, finished = false;
     const touchy = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window && (navigator.maxTouchPoints || 0) > 0);
+    // on a phone or tablet the game takes the whole screen until you quit or finish (iPhones have no fullscreen API for pages)
+    const fixedMode = touchy && !(opts && opts.inline);
+    const savedScroll = window.scrollY || 0;
+    if (fixedMode) { wrap.classList.add('bz-fixed'); document.documentElement.classList.add('bz-lock'); }
     let quality = touchy ? 1 : 2; // 0 = low (1 cascade, no post effects), 1 = medium (2 cascades, bloom), 2 = high (3 cascades, SSAO, grass, DOF, motion blur)
     const statics = [];
     const DRAWS = { n: 0, tris: 0 };
@@ -2297,7 +2303,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function fit() {
       const vw = document.documentElement.clientWidth || window.innerWidth || 360;
       const vh = Math.round((window.visualViewport && window.visualViewport.height) || window.innerHeight || 700);
-      const fs = fsEl() === wrap, mob = fs || touchy || vw < 700, land = vw > vh;
+      const fs = fsEl() === wrap || fixedMode, mob = fs || touchy || vw < 700, land = vw > vh;
       wrap.style.marginLeft = ''; wrap.style.width = ''; wrap.style.height = '';
       wrap.classList.toggle('bz-land', mob && land);
       wrap.classList.toggle('bz-edge', mob && land && !fs);
@@ -2323,11 +2329,11 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function setQuality(q) { quality = clamp(q, 0, 2); if (G) { setupTargets(); try { render(0); } catch (e) {} } }
     function scrollIn() {
-      if (fsEl()) return;
+      if (fsEl() || fixedMode) return;
       try { const t = wrap.getBoundingClientRect().top + window.scrollY - headerH() - 2; window.scrollTo(0, Math.max(0, t)); } catch (e) {}
     }
     // is the game lined up under the site header? On a phone the page can get scrolled away from it.
-    function aligned() { try { if (fsEl()) return true; const r = wrap.getBoundingClientRect(); return r.top <= headerH() + 28 && r.bottom >= Math.min(cssH || 300, window.innerHeight || 700) * 0.6; } catch (e) { return true; } }
+    function aligned() { try { if (fsEl() || fixedMode) return true; const r = wrap.getBoundingClientRect(); return r.top <= headerH() + 28 && r.bottom >= Math.min(cssH || 300, window.innerHeight || 700) * 0.6; } catch (e) { return true; } }
     function toggleFS() {
       try {
         if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
@@ -4900,7 +4906,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const sndBtn = mkIB(SVG_SND, 'Sound'); sndBtn.classList.add('bz-snd'); const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="bz-q">' + QN[quality] + '</span>', 'Graphics quality'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
     qBtn.addEventListener('click', () => { setQuality((quality + 1) % 3); qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; sfx.play('tap'); });
     function showQuality() { qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; }
-    if (!fsOK) fsBtn.style.display = 'none';
+    if (!fsOK || fixedMode) fsBtn.style.display = 'none';
     sndBtn.addEventListener('click', () => { sfx.mute(!sfx.muted); sndBtn.innerHTML = sfx.muted ? SVG_MUTE : SVG_SND; });
     fsBtn.addEventListener('click', toggleFS);
     let quitArm = 0;
@@ -5405,6 +5411,7 @@ gl_FragColor=vec4(c,1.0);}`;
       document.removeEventListener('fullscreenchange', onResize); document.removeEventListener('webkitfullscreenchange', onResize);
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur);
       try { if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
+      if (fixedMode) { wrap.classList.remove('bz-fixed'); document.documentElement.classList.remove('bz-lock'); try { window.scrollTo(0, savedScroll); } catch (e) {} }
       sfx.close();
       try {
         if (G) { for (const b of G.bufs) gl.deleteBuffer(b); for (const t of G.texs) gl.deleteTexture(t); for (const pr of G.progs) gl.deleteProgram(pr); delFBO(G.shadow); delFBO(G.scene); delFBO(G.scene2); delFBO(G.bloomA); delFBO(G.bloomB); delFBO(G.aoA); delFBO(G.aoB); delFBO(G.feed); }

@@ -12,7 +12,7 @@ const { Worker } = require('worker_threads');
 const cards = require('./cards');
 
 const LEVELS = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
-const RISK_MULT = [1.5, 2.5, 3.5, 5];
+const RISK_MULT = [3, 4, 5, 6];
 const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
 
 // prizes: coins for a win at each level (every win pays, no daily cap). minSec: fastest believable game.
@@ -295,7 +295,7 @@ module.exports = function arcade(app, h) {
       user.arcade = user.arcade || [];
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule).
       for (const m of user.arcade) if (m.status === 'open') { m.status = 'lost'; m.forfeit = true; }
-      const stake = risk ? Math.round(G.prizes[level] / 3) : 0;
+      const stake = risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line
       if (stake) {
         const bal = h.accountOf(db, user, await h.survivorNow(db)).balance;
         if (bal < stake) { await putDoc(userKey(name), user); return json(res, { ok: false, error: `Risk mode costs ${stake} coins up front. You have ${bal}.` }); }
@@ -403,7 +403,7 @@ module.exports = function arcade(app, h) {
             <div class="col"><section class="card"><div class="card-h"><h2>Every way to earn coins</h2></div><div class="ways">${WAYS.map(([e, t, d]) => `<div><span>${e}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div></section>
             <section class="card"><div class="card-h"><h2>How Arcade coins work</h2></div><ul class="how">
               <li>Pick a level: Rookie, Pro, All-Pro or Legend. Harder levels pay more.</li>
-              <li><b>Risk mode:</b> you put in a third of the prize up front. Win and you get the prize × ${RISK_MULT.join(' / ')} (by level). Lose and the coins you put in are gone.</li>
+              <li><b>Risk mode:</b> you put up the whole prize up front. Win and you get the prize × ${RISK_MULT.join(' / ')} (by level). Lose and every coin you put up is gone.</li>
               <li>Leaving or refreshing a game counts as a loss.</li>
               <li>Every win pays, as many as you can get. <b>Practice</b> is always free and unlimited.</li></ul></section></div></div>
         </div>`));
@@ -473,7 +473,7 @@ module.exports = function arcade(app, h) {
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
       const lineupOk = id !== 'bowl' || (user && myLineup(db, user).filter(Boolean).length === 8);
-      const levels = LEVELS.map((n, i) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${n}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: ${fmt(Math.round(G.prizes[i] / 3))} → ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em></span></label>`).join('');
+      const levels = LEVELS.map((n, i) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${n}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: put up ${fmt(G.prizes[i])} → win ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em></span></label>`).join('');
       const teamOpts = (sel) => [user ? ['mine', 'My Starting 8'] : null, ...Object.values(db.teams).map((t) => [t.id, t.name]), ...CPU_TEAMS.map((c, i) => ['cpu' + i, c.name + ' (CPU)'])].filter(Boolean).map(([v, n]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
       const teamsIds = Object.keys(db.teams);
       // Game code is inlined into the page: school web filters often block script URLs with words like "arcade" or "games".
@@ -488,7 +488,7 @@ module.exports = function arcade(app, h) {
           <div class="lvls">${levels}</div>
           ${id === 'bowl' ? `<div class="bowl-teams" data-practice><label>Your team<select name="team">${teamOpts(user ? 'mine' : teamsIds[0])}</select></label><label>Opponent<select name="opp">${teamOpts(user ? teamsIds[0] : teamsIds[1])}</select></label></div>
             ${user && !lineupOk ? `<p class="muted sm">To play for coins you need a full Starting 8. <a href="/pickem/cards">Set it up →</a></p>` : ''}` : ''}
-          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Pay a third of the prize up front for ${RISK_MULT[0]}× to ${RISK_MULT[3]}× the win.</small></span></label>
+          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for ${RISK_MULT[0]}× to ${RISK_MULT[3]}× back when you win. Lose it all when you don't.</small></span></label>
           ${user ? `<p class="muted sm" data-coins>Every win pays. Leaving mid-game counts as a loss.</p>` : ''}
           <button type="submit" class="btn arc-go">${icon('fire')} Play</button><p id="arcMsg" class="err"></p>
         </form></section>
