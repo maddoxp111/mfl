@@ -15,7 +15,7 @@ const LEVELS = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
 const RISK_MULT = [1.5, 2.5, 3.5, 5];
 const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
 
-// prizes: coins for a win at each level. daily: paid wins per day. minSec: fastest believable game.
+// prizes: coins for a win at each level (every win pays, no daily cap). minSec: fastest believable game.
 const GAMES = {
   bowl: { name: 'Modern Bowl', emoji: '🏈', tag: 'Retro football with YOUR Starting 8.', prizes: [200, 450, 900, 1600], daily: 5, minSec: 50, maxScore: 250, practice: true },
   chess: { name: 'Chess', emoji: '♟️', tag: 'Checkmate the computer.', prizes: [80, 200, 450, 900], daily: 4, minSec: 15, verify: 'chess' },
@@ -295,7 +295,6 @@ module.exports = function arcade(app, h) {
       user.arcade = user.arcade || [];
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule).
       for (const m of user.arcade) if (m.status === 'open') { m.status = 'lost'; m.forfeit = true; }
-      if (paidToday(user, req.body.game) >= G.daily) return json(res, { ok: false, error: `You've hit today's max of ${G.daily} paid ${G.name} wins. Play Practice, or try another game!` });
       const stake = risk ? Math.round(G.prizes[level] / 3) : 0;
       if (stake) {
         const bal = h.accountOf(db, user, await h.survivorNow(db)).balance;
@@ -341,10 +340,8 @@ module.exports = function arcade(app, h) {
       const fresh = await getDoc(userKey(name), { fresh: true });
       const fm = (fresh.arcade || []).find((x) => x.id === m.id);
       if (!fm || fm.status !== 'open') return json(res, { ok: false, error: 'That game already ended.' });
-      const capped = won && paidToday(fresh, m.game) >= G.daily;
       fm.status = won ? 'won' : 'lost';
-      fm.payout = won && !capped ? Math.round(G.prizes[m.level] * (m.risk ? RISK_MULT[m.level] : 1)) : 0;
-      if (capped) { fm.payout = m.stake; note = "Today's paid-win max was already reached."; } // risk stake returned
+      fm.payout = won ? Math.round(G.prizes[m.level] * (m.risk ? RISK_MULT[m.level] : 1)) : 0; // every win pays: no daily cap
       fm.score = m.score ?? score;
       fm.stats = r.stats && typeof r.stats === 'object' ? { td: Math.min(30, +r.stats.td || 0) } : undefined;
       fm.secs = Math.round(secs);
@@ -389,8 +386,8 @@ module.exports = function arcade(app, h) {
       const db = load();
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
-      const tile = (id) => { const G = GAMES[id]; const left = user ? G.daily - paidToday(user, id) : G.daily;
-        return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(G.prizes[3] * RISK_MULT[3])}</span>${user ? `<span class="arc-left">${Math.max(0, left)} paid wins left today</span>` : ''}</a>`; };
+      const tile = (id) => { const G = GAMES[id];
+        return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(G.prizes[3] * RISK_MULT[3])}</span>${user ? `<span class="arc-left">${paidToday(user, id)} paid ${paidToday(user, id) === 1 ? 'win' : 'wins'} today</span>` : ''}</a>`; };
       const recent = user ? (user.arcade || []).filter((m) => m.status !== 'open').slice(-6).reverse() : [];
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
@@ -408,7 +405,7 @@ module.exports = function arcade(app, h) {
               <li>Pick a level: Rookie, Pro, All-Pro or Legend. Harder levels pay more.</li>
               <li><b>Risk mode:</b> you put in a third of the prize up front. Win and you get the prize × ${RISK_MULT.join(' / ')} (by level). Lose and the coins you put in are gone.</li>
               <li>Leaving or refreshing a game counts as a loss.</li>
-              <li>Each game pays out a limited number of wins per day. <b>Practice</b> is always free and unlimited.</li></ul></section></div></div>
+              <li>Every win pays, as many as you can get. <b>Practice</b> is always free and unlimited.</li></ul></section></div></div>
         </div>`));
     } catch (e) { next(e); }
   });
@@ -475,7 +472,6 @@ module.exports = function arcade(app, h) {
       const db = load();
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
-      const left = user ? G.daily - paidToday(user, id) : G.daily;
       const lineupOk = id !== 'bowl' || (user && myLineup(db, user).filter(Boolean).length === 8);
       const levels = LEVELS.map((n, i) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${n}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: ${fmt(Math.round(G.prizes[i] / 3))} → ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em></span></label>`).join('');
       const teamOpts = (sel) => [user ? ['mine', 'My Starting 8'] : null, ...Object.values(db.teams).map((t) => [t.id, t.name]), ...CPU_TEAMS.map((c, i) => ['cpu' + i, c.name + ' (CPU)'])].filter(Boolean).map(([v, n]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
@@ -493,7 +489,7 @@ module.exports = function arcade(app, h) {
           ${id === 'bowl' ? `<div class="bowl-teams" data-practice><label>Your team<select name="team">${teamOpts(user ? 'mine' : teamsIds[0])}</select></label><label>Opponent<select name="opp">${teamOpts(user ? teamsIds[0] : teamsIds[1])}</select></label></div>
             ${user && !lineupOk ? `<p class="muted sm">To play for coins you need a full Starting 8. <a href="/pickem/cards">Set it up →</a></p>` : ''}` : ''}
           <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Pay a third of the prize up front for ${RISK_MULT[0]}× to ${RISK_MULT[3]}× the win.</small></span></label>
-          ${user ? `<p class="muted sm" data-coins>${left > 0 ? `${left} paid ${left === 1 ? 'win' : 'wins'} left today.` : 'No paid wins left today: Practice is still open.'} Leaving mid-game counts as a loss.</p>` : ''}
+          ${user ? `<p class="muted sm" data-coins>Every win pays. Leaving mid-game counts as a loss.</p>` : ''}
           <button type="submit" class="btn arc-go">${icon('fire')} Play</button><p id="arcMsg" class="err"></p>
         </form></section>
         <section id="arcStage" class="arc-stage" hidden></section>
