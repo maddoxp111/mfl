@@ -84,9 +84,33 @@ function story(state) {
   return { title: record.w > record.l ? 'Word is getting around the county' : 'The next practice matters',
     text: `${ours.name} are ${record.w}-${record.l}${record.t ? '-' + record.t : ''}. This week brings ${other.name} from ${other.city}. ${record.w > record.l ? 'Keep the momentum without forgetting the fundamentals.' : 'A tough week does not decide a school year. Bring the group together and get ready for the next kickoff.'}`, choices };
 }
-function start(siteTeams, teamId, level, coach, owner) {
+// Dynamic Lineup careers: the user's roster is always their current card Lineup.
+// The runtime takes the first eight Lineup spots (QB, RB, WR1-3, TE, UTIL1-2);
+// training is kept per position so it survives Lineup changes.
+const LINEUP_STATS = ['spd', 'thr', 'acc', 'cat', 'str', 'kick', 'def'];
+function lineupPlayers(lineup) {
+  const byPos = new Map((Array.isArray(lineup) ? lineup : []).filter(p => p && p.pos && p.name).map(p => [p.pos, p]));
+  return POSITIONS.every(pos => byPos.has(pos)) ? POSITIONS.map(pos => byPos.get(pos)) : null;
+}
+function syncLineup(state, lineup) {
+  if (!state.dynamic) return false;
+  const cards = lineupPlayers(lineup);
+  requireThat(cards, 'Dynamic Lineup careers need a full Lineup. Set it on the Cards page.');
+  const ours = team(state), before = JSON.stringify(ours.players);
+  ours.players = cards.map((card, i) => {
+    const prev = ours.players.find(p => p.pos === card.pos) || {}, boost = state.boosts?.[card.pos] || {};
+    const p = { id: 'lineup-' + card.pos + '-' + String(card.name).toLowerCase().replace(/[^a-z0-9]+/g, '-'), pos: card.pos, name: String(card.name), num: String(card.num ?? card.number ?? ''),
+      look: card.look ? structuredClone(card.look) : null, card: card.card || null, grade: prev.grade || 6 + i % 3, condition: prev.condition ?? 100, morale: prev.morale ?? 75, lineup: true };
+    for (const stat of LINEUP_STATS) p[stat] = clamp(Math.round(Number(card[stat]) || Number(card.ovr) || 60) + (boost[stat] || 0), 30, 99);
+    p.ovr = clamp(Math.round(Number(card.ovr) || 60) + (boost.ovr || 0), 30, 99);
+    return p;
+  });
+  return JSON.stringify(ours.players) !== before;
+}
+function start(siteTeams, teamId, level, coach, owner, lineup = null) {
   requireThat(siteTeams.some(t => t.id === teamId), 'Choose one of the two MFL teams.');
   requireThat(Number.isInteger(level) && level >= 0 && level <= 3, 'Choose a difficulty.');
+  requireThat(!lineup || lineupPlayers(lineup), 'Dynamic Lineup careers need a full Lineup. Set it on the Cards page.');
   const seed = crypto.randomBytes(8).toString('hex');
   const teams = siteTeams.map(t => ({ ...structuredClone(t), site: true, reserves: [], city: 'Thomas Metcalf School',
     players: POSITIONS.map((pos, i) => {
@@ -97,6 +121,7 @@ function start(siteTeams, teamId, level, coach, owner) {
   const state = { version: 1, owner, revision: 0, seed, teamId, coach: String(coach || 'Coach').trim().slice(0, 32) || 'Coach', level,
     season: 1, week: 0, phase: 'season', titles: 0, fans: 50, budget: 40, facilities: { training: 0, recovery: 0 },
     trained: false, choice: null, recruited: false, teams, rounds: schedule(teams, 1), pending: null, history: [], news: [] };
+  if (lineup) { state.dynamic = true; state.boosts = {}; syncLineup(state, lineup); }
   log(state, 'A new MFL chapter', `${state.coach} takes charge of ${team(state).name}. The road from Thomas Metcalf to the McLean County Cup starts here.`);
   return state;
 }
@@ -110,8 +135,9 @@ function manage(state, action, body) {
       if (body.focus === 'recovery') p.condition = clamp(p.condition + 20 + state.facilities.recovery * 5, 0, 100);
       else {
         const stats = body.focus === 'speed' ? ['spd'] : p.pos === 'QB' ? ['thr', 'acc'] : p.pos === 'UTIL2' ? ['kick'] : ['cat', 'str'];
-        for (const stat of stats) p[stat] = clamp(p[stat] + 1 + state.facilities.training, 30, 99);
-        p.ovr = clamp(p.ovr + 1, 30, 99); p.condition = clamp(p.condition - 6, 30, 100);
+        const boost = state.dynamic ? ((state.boosts ||= {})[p.pos] ||= {}) : {};
+        for (const stat of stats) { p[stat] = clamp(p[stat] + 1 + state.facilities.training, 30, 99); boost[stat] = (boost[stat] || 0) + 1 + state.facilities.training; }
+        p.ovr = clamp(p.ovr + 1, 30, 99); boost.ovr = (boost.ovr || 0) + 1; p.condition = clamp(p.condition - 6, 30, 100);
       }
     }
     state.trained = true;
@@ -129,6 +155,7 @@ function manage(state, action, body) {
     state.budget -= cost; state.facilities[body.facility]++;
     log(state, 'Building the program', `${body.facility === 'training' ? 'Practice equipment' : 'Recovery space'} improved to level ${state.facilities[body.facility]}.`);
   } else if (action === 'recruit') {
+    requireThat(!state.dynamic, 'Your card Lineup sets this roster. Change players on the Cards page.');
     requireThat(currentGame(state) && !state.recruited, 'You can welcome one tryout player per matchup.');
     const p = candidates(state).find(p => p.id === body.player);
     requireThat(p && state.budget >= 12, 'A tryout player needs 12 program credits.');
@@ -137,6 +164,7 @@ function manage(state, action, body) {
     ours.players[index] = p; state.budget -= 12; state.recruited = true;
     log(state, 'A new face at practice', `${p.name} joins the ${p.pos} spot. ${previous.name} moves to the practice squad for this career.`);
   } else if (action === 'activate') {
+    requireThat(!state.dynamic, 'Your card Lineup sets this roster. Change players on the Cards page.');
     const ours = team(state), reserves = ours.reserves || [];
     const i = reserves.findIndex(p => p.id === body.player);
     requireThat(i >= 0, 'Choose a player from your practice squad.');
@@ -148,14 +176,15 @@ function manage(state, action, body) {
     requireThat(Number.isInteger(level) && level >= 0 && level <= 3, 'Choose a difficulty.'); state.level = level;
   } else if (action === 'next-season') {
     requireThat(state.phase === 'complete', 'Finish the current school year first.');
-    const graduates = [...team(state).players, ...(team(state).reserves || [])].filter(p => p.grade === 8).map(p => p.name);
+    const graduates = state.dynamic ? [] : [...team(state).players, ...(team(state).reserves || [])].filter(p => p.grade === 8).map(p => p.name);
     state.season++; state.week = 0; state.phase = 'season'; state.champion = null;
     for (const t of state.teams) {
+      if (state.dynamic && t.id === state.teamId) { t.players = t.players.map(p => ({ ...p, condition: 100, morale: 80 })); continue; }
       t.players = t.players.map(p => p.grade === 8 ? recruit(`${state.seed}-s${state.season}-${t.id}-${p.pos}`, p.pos) : { ...p, grade: p.grade + 1, condition: 100, morale: 80 });
       t.reserves = (t.reserves || []).filter(p => p.grade !== 8).map(p => ({ ...p, grade: p.grade + 1, condition: 100, morale: 80 }));
     }
     state.rounds = schedule(state.teams, state.season); state.budget += 25; state.trained = false; state.choice = null; state.recruited = false;
-    log(state, 'Welcome the next class', `${graduates.join(', ')} graduate from this career roster. New sixth graders join the program, while returning students carry the story forward.`);
+    log(state, 'Welcome the next class', graduates.length ? `${graduates.join(', ')} graduate from this career roster. New sixth graders join the program, while returning students carry the story forward.` : 'Your card Lineup carries into the new school year. Around the county, eighth graders graduate and new sixth graders join.');
   } else throw new Error('Unknown career action.');
 }
 function play(state) {
@@ -211,6 +240,7 @@ function finish(state, body) {
   requireThat([score, opp].every(n => Number.isInteger(n) && n >= 0 && n <= 150), 'The final score is invalid.');
   const g = currentGame(state), home = g.home === state.teamId;
   g.score = home ? score : opp; g.opp = home ? opp : score;
+  if (state.pending.arcade) g.arcade = state.pending.arcade;
   g.stats = { td: clamp(Math.floor(Number(body.stats?.td) || 0), 0, 30), pass: clamp(Math.floor(Number(body.stats?.pass) || 0), 0, 2000), rush: clamp(Math.floor(Number(body.stats?.rush) || 0), 0, 2000) };
   const ours = team(state), other = opponent(state), result = score > opp ? 'win' : score < opp ? 'loss' : 'tie';
   state.budget += result === 'win' ? 12 : 7;
@@ -241,4 +271,4 @@ function view(state) {
   delete copy.seed; delete copy.owner;
   return { ...copy, standings: standings(state), story: story(state), candidates: candidates(state), levelName: LEVELS[state.level] };
 }
-module.exports = { LEVELS, SCHOOLS, POSITIONS, start, manage, play, finish, forfeit, watch, view, standings, currentGame, team, opponent };
+module.exports = { LEVELS, SCHOOLS, POSITIONS, start, manage, play, finish, forfeit, watch, view, standings, currentGame, team, opponent, lineupPlayers, syncLineup };

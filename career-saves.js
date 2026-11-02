@@ -27,14 +27,16 @@ function snapshot(doc) {
       const record = career.standings(s).find(t => t.id === s.teamId);
       return { id: s.saveId, slot: s.slot, name: s.saveName, team: career.team(s).name, coach: s.coach, season: s.season,
         week: s.week + 1, complete: s.phase === 'complete', level: career.LEVELS[s.level], titles: s.titles || 0,
-        w: record.w, l: record.l, t: record.t };
+        w: record.w, l: record.l, t: record.t, dynamic: !!s.dynamic };
     }), state: state ? { ...career.view(state), revision: doc.revision } : null };
 }
-function create(doc, teams, body) {
+function create(doc, teams, body, lineup = null) {
   if (doc.saves.length >= MAX_SAVES) throw new Error('All five save slots are full. Delete a save to start another.');
   const slot = body.slot ? Number(body.slot) : Array.from({ length: MAX_SAVES }, (_, i) => i + 1).find(n => !doc.saves.some(s => s.slot === n));
   if (!Number.isInteger(slot) || slot < 1 || slot > MAX_SAVES || doc.saves.some(s => s.slot === slot)) throw new Error('That save slot is not empty.');
-  const state = career.start(teams, String(body.team), Number(body.level), body.coach, doc.owner);
+  const dynamic = body.dynamic === true || body.dynamic === 'on' || body.dynamic === '1';
+  if (dynamic && !career.lineupPlayers(lineup)) throw new Error('Dynamic Lineup needs a full Lineup. Set it on the Cards page first.');
+  const state = career.start(teams, String(body.team), Number(body.level), body.coach, doc.owner, dynamic ? lineup : null);
   state.saveId = crypto.randomUUID();
   state.slot = slot;
   state.saveName = String(body.saveName || career.team(state).name + ' career').trim().slice(0, 40) || 'MFL career';

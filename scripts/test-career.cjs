@@ -98,3 +98,39 @@ assert(!S.settle(doc, 'live-page'));
 assert(S.settle(doc, 'refreshed-page'));
 assert.throws(() => C.finish(replacement, { ...liveMatch, score: 99, opp: 0 }));
 console.log('PASS: legacy save migration, independent fixed slots, capacity, deletion/recreation IDs, page ownership, irreversible refresh loss, no forfeit credit farming');
+// Dynamic Lineup careers: the user's roster is the card Lineup at every kickoff (first 8 of an
+// 11-spot Lineup), training survives Lineup changes, tryouts are closed and the Lineup never graduates.
+const LINEUP11 = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL1', 'UTIL2', 'OL1', 'OL2', 'OL3'];
+const card = (pos, i, name = `Card Player ${i}`) => ({ pos, name, num: String(i + 1), ovr: 80, spd: 81, thr: 82, acc: 83, cat: 84, str: 85, kick: 86, def: 87, look: { skin: 1 }, card: 'Gold' });
+const lineup = LINEUP11.map((pos, i) => card(pos, i));
+assert.equal(C.lineupPlayers(lineup.slice(0, 7)), null);
+assert.equal(C.lineupPlayers(lineup).length, 8);
+assert.throws(() => S.create({ version: 2, owner: 'x', revision: 0, selected: null, saves: [] }, teams, { team: teams[0].id, level: 2, dynamic: 'on' }, lineup.slice(0, 5)), /full Lineup/);
+const dynDoc = { version: 2, owner: 'career_test', revision: 0, selected: null, saves: [] };
+const dyn = S.create(dynDoc, teams, { team: teams[0].id, level: 2, dynamic: 'on' }, lineup);
+assert(dyn.dynamic); assert.equal(S.snapshot(dynDoc).saves[0].dynamic, true);
+assert.deepEqual(C.team(dyn).players.map(p => p.pos), C.POSITIONS);
+assert.equal(C.team(dyn).players[0].name, 'Card Player 0'); assert.equal(C.team(dyn).players[0].spd, 81);
+assert(!C.team(dyn).players.some(p => /OL/.test(p.pos)));
+C.manage(dyn, 'train', { focus: 'speed' });
+assert.equal(C.team(dyn).players[0].spd, 82);
+assert.throws(() => C.manage(dyn, 'recruit', { player: C.view(dyn).candidates[0].id }), /Lineup/);
+const swapped = lineup.map((p, i) => (i === 0 ? card('QB', 0, 'New Quarterback') : p));
+assert(C.syncLineup(dyn, swapped));
+assert.equal(C.team(dyn).players[0].name, 'New Quarterback'); assert.equal(C.team(dyn).players[0].spd, 82); // training kept by position
+assert(!C.syncLineup(dyn, swapped));
+assert.throws(() => C.syncLineup(dyn, swapped.slice(1)), /full Lineup/);
+const fixed = S.create(dynDoc, teams, { team: teams[0].id, level: 0 }, lineup);
+assert(!fixed.dynamic); assert(!C.syncLineup(fixed, swapped)); assert.equal(C.team(fixed).players[0].name, teams[0].players[0].name);
+const dynMatch = C.play(dyn); dynMatch.arcade = 'arcade-1';
+assert.equal(dynMatch.data.home.players[0].name, 'New Quarterback');
+C.finish(dyn, { ...dynMatch, score: 21, opp: 7 });
+assert.equal(dyn.rounds[0].games.find(g => g.id === dynMatch.id).arcade, 'arcade-1');
+const lost = C.play(dyn); lost.arcade = 'arcade-2'; C.forfeit(dyn);
+assert.equal(dyn.rounds[1].games.find(g => g.id === lost.id).arcade, 'arcade-2');
+while (dyn.phase !== 'complete') { if (C.currentGame(dyn)) { const m = C.play(dyn); C.finish(dyn, { ...m, score: 28, opp: 0 }); } else C.watch(dyn); }
+const dynNames = C.team(dyn).players.map(p => p.name);
+C.manage(dyn, 'next-season', {});
+assert.deepEqual(C.team(dyn).players.map(p => p.name), dynNames);
+assert(C.team(dyn).players.every(p => p.condition === 100));
+console.log('PASS: Dynamic Lineup careers (first 8 of an 11-spot Lineup, live Lineup sync, training kept per position, closed tryouts, no Lineup graduation), arcade match link on finished and forfeited games');

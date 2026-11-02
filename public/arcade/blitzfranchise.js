@@ -1,8 +1,9 @@
-// 3D Blitz Franchise mode: build a middle-school program, play every game in 3D Blitz (or sim it),
+// 3D Blitz Career mode: build a middle-school program, play every game in 3D Blitz (or sim it),
 // win titles, recruit, and keep your history across seasons. Plain JS, no libraries.
 //
-// Talks to: window.MFL_FRANCHISE (boot data), window.MFLBlitz.play(root, opts) (the 3D engine, optional),
-// and the save API /api/bf/* (logged in) or localStorage mfl-bf-slot-<n> (logged out).
+// Talks to: window.MFL_BLITZ_CAREER (boot data), window.MFLBlitz.play(root, opts) (the 3D engine, optional),
+// the save API /api/bf/* (logged in) or localStorage mfl-bf-slot-<n> (logged out), and the Arcade match
+// API /api/m/start + /api/m/finish (career flag): a 3D win pays the Arcade prize for the career's difficulty.
 // Everything renders inside #bfRoot; all CSS classes are prefixed bf-.
 (function () {
   'use strict';
@@ -89,7 +90,7 @@
 
   // ---------- boot data ----------
   const BOOT = (function () {
-    const b = window.MFL_FRANCHISE && typeof window.MFL_FRANCHISE === 'object' ? window.MFL_FRANCHISE : {};
+    const b = window.MFL_BLITZ_CAREER && typeof window.MFL_BLITZ_CAREER === 'object' ? window.MFL_BLITZ_CAREER : {};
     const players = (Array.isArray(b.players) ? b.players : []).filter((p) => p && p.name && p.id).map((p) => ({
       id: String(p.id).slice(0, 60), team: String(p.team || ''), name: String(p.name).slice(0, 40), num: /^\d{1,2}$/.test(String(p.num == null ? '' : p.num).trim()) ? +p.num : null,
       photo: typeof p.photo === 'string' && /^\/[A-Za-z0-9_\-./%]+$/.test(p.photo) && p.photo.indexOf('..') < 0 ? p.photo : null,
@@ -102,7 +103,9 @@
       color: hexOk(t.color) ? t.color : '#ffc21a', color2: hexOk(t.color2) ? t.color2 : '#111111',
     }));
     const cpuTeams = (Array.isArray(b.cpuTeams) ? b.cpuTeams : []).filter((t) => t && t.name);
-    return { user: b.user ? String(b.user) : null, players, teams, cpuTeams, slots: Array.isArray(b.slots) && b.slots.length ? b.slots.map(String).slice(0, 3) : ['1', '2', '3'] };
+    const prizes = Array.isArray(b.prizes) ? b.prizes.slice(0, 4).map((x) => Math.max(0, Math.round(num(x, 0)))) : [];
+    const lineup = Array.isArray(b.lineup) ? b.lineup.filter((p) => p && p.name) : [];
+    return { user: b.user ? String(b.user) : null, players, teams, cpuTeams, slots: Array.isArray(b.slots) && b.slots.length ? b.slots.map(String).slice(0, 3) : ['1', '2', '3'], prizes, lineup: lineup.length ? lineup : null };
   })();
 
   // ---------- football data ----------
@@ -224,7 +227,7 @@
   const STAFF_COST = [0, 0, 60, 130, 220, 340];
   const OFFER_COST = [0, 0, 5, 15, 30, 50];
 
-  // ---------- the franchise state ----------
+  // ---------- the career state ----------
   let S = null; // current save (plain JSON-able object)
   let RC = null; // roster cache: teamId -> [players]
   const invalidate = () => { RC = null; };
@@ -312,7 +315,7 @@
   }
   function addPlayer(p) { S.players[p.id] = p; invalidate(); return p; }
 
-  // Real MFL kid -> franchise player, at a position that fits.
+  // Real MFL kid -> career player, at a position that fits.
   function realRatings(bp, rng) {
     const j = () => gauss(rng) * 5;
     return fixRatings({ spd: bp.spd + j(), agi: (bp.spd + bp.ovr) / 2 + j(), str: bp.str + j() * 0.6, thr: bp.thr + j(), acc: bp.acc + j(), cat: bp.cat + j(), blk: bp.str * 0.86 + j(), tck: bp.def + j(), cov: bp.def + j(), kick: bp.kick + j() * 0.6 });
@@ -348,6 +351,77 @@
     return { pos: opts.slice().sort((a, b) => posOvr(b, r) - posOvr(a, r))[0], r };
   }
 
+  // ---------- Dynamic Lineup careers: your card Lineup is always your offense ----------
+  // Lineup spots (QB, RB, WR1-3, TE, UTIL1-2, OL1-3) -> career positions. An 8-spot Lineup (no OL
+  // spots) keeps its UTIL players as receivers, the way the 3D engine reads them.
+  function lineupPos(key, eleven) {
+    const k = String(key || '').toUpperCase();
+    if (k === 'QB' || k === 'RB' || k === 'TE') return k;
+    if (/^WR/.test(k)) return 'WR';
+    if (/^OL/.test(k)) return 'OL';
+    if (/^UTIL/.test(k)) return eleven ? 'OL' : 'WR';
+    return null;
+  }
+  // Ratings from a card: a roster entry's `r` block or the flat Arcade ratings. Null when it has none.
+  function cardRatings(e) {
+    if (!e || typeof e !== 'object') return null;
+    const src = e.r && typeof e.r === 'object' ? Object.assign({}, e, e.r) : e;
+    const has = (k) => isFinite(+src[k]) && +src[k] > 0, v = (k, d) => (has(k) ? +src[k] : d);
+    if (!['spd', 'thr', 'acc', 'cat', 'str'].some(has)) return null;
+    const o = v('ovr', 62), d = v('def', o);
+    return fixRatings({ spd: v('spd', o), agi: v('agi', (v('spd', o) + o) / 2), str: v('str', o), thr: v('thr', o), acc: v('acc', o), cat: v('cat', o), blk: v('blk', v('str', o) * 0.86), tck: v('tck', d), cov: v('cov', d), kick: v('kick', 50) });
+  }
+  const slugId = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'player';
+  const LU_RAW = {}; // career player id -> the server's roster entry from the last sync (look, card fx, ratings)
+  // Put the current Lineup on the user's team: lineup kids join (from another team if needed),
+  // start at their Lineup spot, and their ratings never drop below their card. Kids who left the
+  // Lineup stay on the bench. Returns false when there is nothing to apply.
+  function syncLineup(list) {
+    if (!S || !S.cfg || !S.cfg.dyn) return false;
+    const raw = (Array.isArray(list) ? list : []).filter((e) => e && e.name);
+    const eleven = raw.some((e) => /^OL/i.test(String(e.pos || '')));
+    const ents = raw.map((e) => ({ e, key: String(e.pos || ''), pos: lineupPos(e.pos, eleven) })).filter((x) => x.pos);
+    if (!ents.length) return false;
+    const ut = userTeam(), rng = rngFrom(S.seed + ':lineup:' + S.season + ':' + S.week), keep = new Set(), moved = [];
+    ents.forEach((x, i) => {
+      const e = x.e, bp = BOOT.players.find((q) => e.id != null && q.id === String(e.id)) || BOOT.players.find((q) => q.name === e.name) || null;
+      const extra = (BOOT.lineup || []).find((q) => q.name === e.name) || null;
+      const card = cardRatings(e) || cardRatings(extra);
+      const target = clamp(num((e.r && e.r.ovr) || e.ovr || (extra && extra.ovr), bp ? bp.ovr : 62), 30, 99);
+      const id = bp ? 'm-' + bp.id : 'lu-' + slugId(e.name);
+      let pl = PL(id);
+      if (!pl) {
+        const base = bp || { id: id.slice(3), name: String(e.name).slice(0, 40), photo: typeof e.photo === 'string' ? e.photo : null, look: e.look || null, tag: '', ovr: target, spd: target, str: target, thr: target, acc: target, cat: target, def: target, kick: 50 };
+        pl = realPlayer(Object.assign({}, base, { ovr: target }), x.pos, ut.id, rng, card ? Object.assign({}, card) : null);
+        pl.id = id; pl.num = bp && bp.num && !roster(ut.id).some((q) => q.num === bp.num) ? bp.num : pickNum(rng, ut.id, x.pos);
+        addPlayer(pl);
+        if (S.season > 1 || S.week > 0) moved.push(pl.n);
+      } else if (pl.t !== ut.id) {
+        const from = TM(pl.t);
+        pl.t = ut.id; pl.num = roster(ut.id).some((q) => q !== pl && q.num === pl.num) ? pickNum(rng, ut.id, x.pos) : pl.num; invalidate();
+        if (from) { fixDepth(from); fillRoster(from, rng, num(from.tier, 62), usedNames(), true); fixDepth(from, from.auto !== false); }
+        moved.push(pl.n);
+      }
+      pl.pos = x.pos; pl.lu = i + 1; pl.luk = x.key;
+      if (card) { const want = aimRatings(Object.assign({}, card), x.pos, target); for (const k of RK) pl.r[k] = Math.max(num(pl.r[k], 30), want[k]); }
+      if (!pl.ph && typeof e.photo === 'string' && /^\/[A-Za-z0-9_\-./%]+$/.test(e.photo)) pl.ph = e.photo;
+      if (!pl.lk && e.look) pl.lk = cleanLook(e.look);
+      keep.add(pl.id); LU_RAW[pl.id] = e;
+    });
+    for (const q of roster(ut.id)) if (q.lu && !keep.has(q.id)) { delete q.lu; delete q.luk; }
+    // Keep the roster a normal size: release the lowest-rated generated kids first.
+    for (let guard = 0; roster(ut.id).length > ROSTER_MAX && guard < 20; guard++) {
+      const cut = roster(ut.id).filter((q) => !q.lu && !q.mfl).sort((a, b) => ovr(a) - ovr(b))[0];
+      if (!cut) break;
+      delete S.players[cut.id]; invalidate();
+    }
+    fixDepth(ut);
+    for (const pos of POS) { const a = ut.depth[pos] || []; ut.depth[pos] = a.filter((id) => PL(id) && PL(id).lu).sort((a1, b1) => PL(a1).lu - PL(b1).lu).concat(a.filter((id) => !(PL(id) && PL(id).lu))); }
+    invalidate();
+    if (moved.length) news(`From your card Lineup: ${moved.slice(0, 4).join(', ')}${moved.length > 4 ? ' and more' : ''} joined ${ut.name}.`, 'off', ut.id);
+    return true;
+  }
+
   // Fill a team up to its target roster with generated kids around `tier`.
   function fillRoster(t, rng, tier, used, minOnly) {
     const ps = roster(t.id);
@@ -366,6 +440,7 @@
   }
 
   // ---------- depth chart & lineups ----------
+  const luRank = (p) => (p && p.lu && S.cfg && S.cfg.dyn && p.t === S.user ? p.lu : 99);
   function fixDepth(t, resort) {
     const ps = roster(t.id);
     const d = t.depth && typeof t.depth === 'object' ? t.depth : {};
@@ -378,7 +453,7 @@
       list = list.filter((id, i) => list.indexOf(id) === i);
       const extra = mine.filter((p) => !seen.has(p.id)).sort(by(ovr));
       list = list.concat(extra.map((p) => p.id));
-      if (resort) list.sort((a, b) => ovr(PL(b)) - ovr(PL(a)));
+      if (resort) list.sort((a, b) => luRank(PL(a)) - luRank(PL(b)) || ovr(PL(b)) - ovr(PL(a)));
       out[pos] = list;
     }
     t.depth = out;
@@ -454,11 +529,11 @@
   function createLeague(cfg) {
     const seed = cfg.seed || uid();
     S = {
-      v: SAVE_VERSION, id: uid(), seed, name: cfg.name || 'My Franchise', created: new Date().toISOString(), coach: cfg.coach || 'Coach', diff: clamp(cfg.diff | 0, 0, 3), qmin: [2, 3, 4].includes(cfg.qmin) ? cfg.qmin : 2, poSize: cfg.po === 8 ? 8 : 4,
+      v: SAVE_VERSION, id: uid(), seed, name: cfg.name || 'My Career', created: new Date().toISOString(), coach: cfg.coach || 'Coach', diff: clamp(cfg.diff | 0, 0, 3), qmin: [2, 3, 4].includes(cfg.qmin) ? cfg.qmin : 2, poSize: cfg.po === 8 ? 8 : 4,
       season: 1, year: new Date().getFullYear(), phase: 'regular', week: 0, user: null, teams: {}, order: [], players: {}, nid: 1, sched: [], po: null, news: [],
       pts: 150, fac: { train: 1, film: 1, locker: 1, stadium: 1, medical: 1 }, staff: {}, hire: null, train: { f: 'passing', i: 1 },
       hist: { seasons: [], hof: [], rec: { L: { g: {}, s: {}, c: {} }, U: { g: {}, s: {}, c: {} }, T: {} }, titles: {} },
-      box: {}, last: null, off: null, goal: null, cr: { w: 0, l: 0, t: 0, titles: 0, coy: 0, po: 0 }, cfg: { mode: cfg.mode, realId: cfg.realId || null, custom: cfg.custom || null, picks: cfg.picks || [] },
+      box: {}, last: null, off: null, goal: null, cr: { w: 0, l: 0, t: 0, titles: 0, coy: 0, po: 0 }, cfg: { mode: cfg.mode, realId: cfg.realId || null, custom: cfg.custom || null, picks: cfg.picks || [], dyn: !!cfg.dyn },
     };
     invalidate();
     const rng = rngFrom(seed + ':league');
@@ -502,6 +577,7 @@
       t.chem = rint(rng, 48, 62);
       t.prest = clamp(Math.round((t.tier - 50) * 2.2 + (t.kind === 'real' ? 10 : 0)), 12, 70);
     }
+    if (S.cfg.dyn) syncLineup(BOOT.lineup);
     if (TM(S.user).kind === 'custom') TM(S.user).prest = 25;
     S.staff = { oc: genStaff(rng, 1), dc: genStaff(rng, 1), tr: genStaff(rng, 1) };
     S.hire = genHires(rng);
@@ -1251,7 +1327,7 @@
     return order.filter((k) => cnt[k]).map((k) => (cnt[k] > 1 ? cnt[k] + 'x ' : '') + (k === 'champ' ? CHAMP + ' champ' : AWARD_NAMES[k]));
   }
   function doGraduation() {
-    const grads = Object.values(S.players).filter((p) => p.g >= 8);
+    const grads = Object.values(S.players).filter((p) => p.g >= 8 && !(p.lu && S.cfg && S.cfg.dyn && p.t === S.user));
     const mine = [], hof = [];
     const scored = grads.map((p) => ({ p, v: hofScore(p) })).sort((a, b) => b.v - a.v);
     scored.forEach(({ p, v }, i) => {
@@ -1477,7 +1553,7 @@
     d.order = d.order.filter((id) => d.teams[id]);
     if (!d.teams[d.user]) throw new Error('This save is missing your team.');
     if (!d.players || typeof d.players !== 'object') throw new Error('This save is missing its players.');
-    d.seed = String(d.seed || uid()); d.id = d.id || uid(); d.name = String(d.name || 'My Franchise').slice(0, 40); d.coach = String(d.coach || 'Coach').slice(0, 30);
+    d.seed = String(d.seed || uid()); d.id = d.id || uid(); d.name = String(d.name || 'My Career').slice(0, 40); d.coach = String(d.coach || 'Coach').slice(0, 30);
     d.diff = clamp(num(d.diff, 1) | 0, 0, 3); d.qmin = [2, 3, 4].includes(d.qmin) ? d.qmin : 2; d.poSize = d.poSize === 8 ? 8 : 4;
     d.season = Math.max(1, num(d.season, 1) | 0); d.year = num(d.year, new Date().getFullYear()) | 0; d.week = Math.max(0, num(d.week, 0) | 0);
     if (!['regular', 'playoffs', 'offseason'].includes(d.phase)) d.phase = 'regular';
@@ -1857,6 +1933,7 @@
 .bf-final{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:10px 0 6px}
 .bf-final .bf-big{font:900 54px/1 var(--disp);letter-spacing:-.01em}
 .bf-final .bf-big.bf-lose{color:var(--mu2)}
+.bf-coinwin{display:inline-block;margin-left:8px;font:900 13px/1 var(--disp);letter-spacing:.08em;padding:6px 12px;border-radius:999px;background:var(--gold);color:#111;text-transform:uppercase}
 .bf-result{display:inline-block;font:900 13px/1 var(--disp);letter-spacing:.14em;padding:6px 12px;border-radius:999px;text-transform:uppercase}
 .bf-result.bf-W{background:var(--green);color:#03250f}.bf-result.bf-L{background:var(--red);color:#fff}.bf-result.bf-T{background:var(--s4);color:var(--tx)}
 .bf-keys{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -2012,6 +2089,7 @@
     exit: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
     bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.5 0-2.6.8-2.6 2s1.1 1.6 2.6 2 2.6.8 2.6 2-1.1 2-2.6 2c-1.1 0-2-.4-2.5-1.2M12 6.5v11"/>',
   };
   const ic = (n, cls) => `<svg class="bf-ic${cls ? ' bf-' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
   const tierOf = (v) => (v >= 85 ? 'ov5' : v >= 75 ? 'ov4' : v >= 65 ? 'ov3' : v >= 55 ? 'ov2' : 'ov1');
@@ -2071,11 +2149,11 @@
     const t = userTeam();
     return `<div class="bf-top">${sh(t)}<div class="bf-sp"><div class="bf-tn bf-trunc">${esc(t.name)}</div><div class="bf-tsub bf-row" style="gap:6px"><span class="bf-trunc">${recStr(t)} · S${S.season} · ${esc(phaseLabel())}</span>${saveInd()}</div></div>
       <button class="bf-pts" data-a="tab" data-tab="prog" title="Program points: spend them on facilities, staff and recruits">${fmt(S.pts)}<small>PTS</small></button>
-      <button class="bf-btn bf-icon bf-sm bf-ghost" data-a="menu" aria-label="Franchise menu">${ic('dots')}</button></div>`;
+      <button class="bf-btn bf-icon bf-sm bf-ghost" data-a="menu" aria-label="Career menu">${ic('dots')}</button></div>`;
   }
   function tabBar() {
     const alert = { hub: S.phase === 'offseason' || !!userGameNow(), roster: roster(S.user).some((p) => p.inj && p.inj.w > 0 && (userTeam().depth[p.pos] || []).indexOf(p.id) < STARTERS[p.pos]) };
-    return `<nav class="bf-tabs" aria-label="Franchise sections">${TABS.map(([k, l]) => `<button class="bf-tab ${UI.tab === k ? 'bf-on' : ''}" data-a="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${l}</span>${k === 'roster' && alert.roster ? '<i class="bf-dot" title="An injured starter"></i>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="bf-tabs" aria-label="Career sections">${TABS.map(([k, l]) => `<button class="bf-tab ${UI.tab === k ? 'bf-on' : ''}" data-a="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${l}</span>${k === 'roster' && alert.roster ? '<i class="bf-dot" title="An injured starter"></i>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Hub ----------
@@ -2188,7 +2266,7 @@
   }
   function playerRow(p, extra) {
     const t = TM(p.t);
-    return `<button class="bf-prow" data-a="player" data-id="${p.id}">${av(p, '', t)}<div style="min-width:0"><div class="bf-pn bf-trunc">${esc(p.n)}${p.mfl ? ' <span class="bf-chip bf-gold" title="Real MFL player">MFL</span>' : ''}</div><div class="bf-ps">${posTag(p.pos)}<span>#${p.num}</span><span>${ord(p.g)}</span>${p.inj ? `<span class="bf-inj">${ic('medical')} ${esc(p.inj.d)} (${p.inj.w}w)</span>` : `<span>${esc(PERS[p.pers].n)}</span>`}${extra || ''}</div></div>${ovrB(ovr(p))}</button>`;
+    return `<button class="bf-prow" data-a="player" data-id="${p.id}">${av(p, '', t)}<div style="min-width:0"><div class="bf-pn bf-trunc">${esc(p.n)}${p.mfl ? ' <span class="bf-chip bf-gold" title="Real MFL player">MFL</span>' : ''}${p.lu && S.cfg && S.cfg.dyn && p.t === S.user ? ' <span class="bf-chip bf-gold" title="In your card Lineup">LINEUP</span>' : ''}</div><div class="bf-ps">${posTag(p.pos)}<span>#${p.num}</span><span>${ord(p.g)}</span>${p.inj ? `<span class="bf-inj">${ic('medical')} ${esc(p.inj.d)} (${p.inj.w}w)</span>` : `<span>${esc(PERS[p.pers].n)}</span>`}${extra || ''}</div></div>${ovrB(ovr(p))}</button>`;
   }
   function viewPlayers() {
     const f = UI.filter.pos || 'all';
@@ -2206,7 +2284,7 @@
     const L = lineup(t);
     const rec = [...L.WR, ...L.TE].filter(Boolean).slice(0, 4);
     const fill = L._fill || {};
-    const preview = `<div class="bf-note">${ic('info')}<div><b>On the field in 3D Blitz:</b> QB ${L.QB[0] ? esc(L.QB[0].n) : '?'} · Receivers ${rec.map((p) => esc(lastName(p.n))).join(', ') || '?'} · RB ${L.RB[0] ? esc(lastName(L.RB[0].n)) : '?'}. Injured kids sit automatically and the next one up plays.</div></div>`;
+    const preview = (S.cfg && S.cfg.dyn ? `<div class="bf-note">${ic('info')}<div><b>Dynamic Lineup:</b> your card Lineup starts every 3D game in its Lineup spots. Change it on the <a href="/pickem/cards" style="text-decoration:underline">Cards page</a>. Simulated games use this depth chart, with your Lineup kids on top.</div></div>` : '') + `<div class="bf-note">${ic('info')}<div><b>On the field in 3D Blitz:</b> QB ${L.QB[0] ? esc(L.QB[0].n) : '?'} · Receivers ${rec.map((p) => esc(lastName(p.n))).join(', ') || '?'} · RB ${L.RB[0] ? esc(lastName(L.RB[0].n)) : '?'}. Injured kids sit automatically and the next one up plays.</div></div>`;
     const groups = POS.map((pos) => {
       const ids = t.depth[pos] || [];
       const items = ids.map((id, i) => {
@@ -2372,20 +2450,30 @@
   }
   function enginePlayer(p, slot) {
     const pos = slot || p.pos;
-    return { id: p.id, name: p.n, pos, num: p.num, photo: p.ph || null, look: p.lk || null, ovr: posOvr(pos, p.r), spd: p.r.spd, thr: p.r.thr, acc: p.r.acc, cat: p.r.cat, str: p.r.str, agi: p.r.agi, kick: p.r.kick };
+    return { id: p.id, name: p.n, pos, num: p.num, photo: p.ph || null, look: p.lk || null, ovr: posOvr(POS.includes(pos) ? pos : p.pos, p.r), spd: p.r.spd, thr: p.r.thr, acc: p.r.acc, cat: p.r.cat, str: p.r.str, agi: p.r.agi, kick: p.r.kick };
+  }
+  // A Lineup kid for the engine: career ratings, plus the card's look, effects and extra ratings from the server.
+  function lineupEngine(p, slot) {
+    const e = LU_RAW[p.id] || {}, base = enginePlayer(p, slot);
+    if (e.look && typeof e.look === 'object') base.look = Object.assign({}, e.look);
+    if (e.fx && typeof e.fx === 'object') base.fx = Object.assign({}, e.fx);
+    base.r = Object.assign({}, e.r && typeof e.r === 'object' ? e.r : {}, { spd: p.r.spd, agi: p.r.agi, str: p.r.str, cat: p.r.cat, thr: p.r.thr, acc: p.r.acc, kick: p.r.kick, ovr: base.ovr });
+    return base;
   }
   // Starters in the order the engine reads them: QB, receivers (WR, TE), RB, then the rest, then the bench.
   function engineTeam(t) {
     const L = lineup(t), R = teamRatings(t, L), fill = L._fill || {};
     const order = [];
     const push = (p, pos) => { if (p && !order.some((x) => x.p === p)) order.push({ p, pos }); };
+    const dynLineup = t.id === S.user && S.cfg && S.cfg.dyn;
+    if (dynLineup) for (const p of roster(t.id).filter((q) => q.lu).sort((a, b) => a.lu - b.lu)) push(p, p.luk || p.pos);
     push(L.QB[0], 'QB'); for (const p of L.WR) push(p, 'WR'); for (const p of L.TE) push(p, 'TE'); push(L.RB[0], 'RB');
     for (const pos of ['OL', 'DL', 'LB', 'DB', 'K']) for (const p of L[pos]) push(p, pos);
     const seen = new Set(order.map((x) => x.p.id));
     const bench = roster(t.id).filter((p) => healthy(p) && !seen.has(p.id)).sort((a, b) => POS.indexOf(a.pos) - POS.indexOf(b.pos) || ovr(b) - ovr(a));
     return {
       name: t.name, abbr: t.abbr, color: t.color, color2: t.color2, ovrOff: clamp(R.off, 30, 99), ovrDef: clamp(R.def, 30, 99),
-      players: order.map((x) => enginePlayer(x.p, fill[x.p.id] ? x.pos : x.p.pos === x.pos ? x.pos : x.pos)).concat(bench.map((p) => enginePlayer(p))),
+      players: order.map((x) => (dynLineup && x.p.lu ? lineupEngine(x.p, x.pos) : enginePlayer(x.p, x.pos))).concat(bench.map((p) => enginePlayer(p))),
     };
   }
   function engineOpts(ctx) {
@@ -2441,16 +2529,45 @@
     Saver.mark();
     render(); scrollTop();
   }
+  // ---------- coins: a 3D win pays the Arcade prize for the career's difficulty ----------
+  // Each 3D game is an Arcade match started with the career flag, and finished like the Arcade
+  // finishes one, so the server checks it the same way (time, score) and pays exactly the prize.
+  const prizeFor = (lvl) => num(BOOT.prizes[clamp(lvl | 0, 0, 3)], 0);
+  async function coinStart() {
+    try { const j = await api('/api/m/start', { game: 'blitz3d', level: S.diff, career: true }); return j && j.ok && j.id ? j : null; } catch (e) { return null; }
+  }
+  async function coinFinish(id, r) {
+    const done = !r.quit && !r.error && !r.noGL;
+    let tds = 0; for (const k in r.stats || {}) tds += num(r.stats[k] && r.stats[k].rushTD) + num(r.stats[k] && r.stats[k].recTD);
+    try {
+      const j = await api('/api/m/finish', { id, result: { won: done && num(r.homeScore) > num(r.awayScore), tie: done && num(r.homeScore) === num(r.awayScore), score: num(r.homeScore), stats: { td: tds, opp: num(r.awayScore), overtime: !!r.overtime } } });
+      if (j && j.ok && j.balance != null) document.querySelectorAll('[data-balance]').forEach((n) => { n.textContent = fmt(j.balance); });
+      return j;
+    } catch (e) { return { ok: false, error: (e && e.message) || 'Could not reach the server.' }; }
+  }
   async function playEngine() {
     const g = userGameNow(); if (!g) return;
     const ctx = gameCtx(g);
     if (!engineReady()) { finishUserGame(ctx, quickResult(ctx, 'quick')); return; }
+    const dyn = !!(S.cfg && S.cfg.dyn);
+    if (dyn && !BOOT.lineup) { toast('Set a full Lineup on the Cards page to play a Dynamic Lineup game.'); return; }
+    if (UI.starting) return;
+    UI.starting = true; render();
+    const coin = ACCOUNT ? await coinStart() : null;
+    UI.starting = false;
+    if (!S || userGameNow() !== g) return;
+    // Dynamic Lineup: the coin game's roster is your Lineup right now (all of it, in Lineup order).
+    if (dyn) syncLineup(coin && coin.lineup && coin.data && Array.isArray(coin.data.players) ? coin.data.players : BOOT.lineup);
     const opts = engineOpts(ctx);
+    UI.coin = coin ? { id: coin.id, prize: num(coin.prize, prizeFor(S.diff)) } : null; UI.coinRes = null;
     UI.screen = 'engine'; UI.ctx = ctx; render(); scrollTop();
     const mount = document.getElementById('bf-engine-mount');
     let result = null, err = null;
-    try { result = await window.MFLBlitz.play(mount, opts); } catch (e) { err = e; console.warn('[franchise] engine error', e); }
+    try { result = await window.MFLBlitz.play(mount, opts); } catch (e) { err = e; console.warn('[career] engine error', e); }
     try { if (mount) mount.innerHTML = ''; } catch (e) {}
+    const coinGame = UI.coin; UI.coin = null;
+    // Anything but a finished game closes the coin game as a loss (no coins, nothing at stake).
+    if (coinGame && (err || !result || typeof result !== 'object' || result.noGL || result.error || result.quit)) coinFinish(coinGame.id, { quit: true });
     if (!S) return;
     if (err || !result || typeof result !== 'object' || result.noGL || result.error) {
       UI.screen = 'pregame'; render();
@@ -2458,7 +2575,13 @@
       return;
     }
     if (result.quit) { UI.screen = 'pregame'; UI.quitRes = result; render(); openSheet('quit', { us: num(result.homeScore), them: num(result.awayScore) }); return; }
-    finishUserGame(ctx, fromEngine(ctx, result));
+    const res = fromEngine(ctx, result);
+    if (coinGame) {
+      const paid = await coinFinish(coinGame.id, result);
+      UI.coinRes = paid && paid.ok ? { net: num(paid.net), won: !!paid.won, msg: paid.message || '' } : { net: 0, err: (paid && paid.error) || 'Coins could not be saved.' };
+      if (!S) return;
+    }
+    finishUserGame(ctx, res);
   }
   function simUserGame() {
     const g = userGameNow(); if (!g) return;
@@ -2491,12 +2614,13 @@
       ${card('Keys to the game', `<ol class="bf-keys">${gameKeys(ctx).map((k, i) => `<li><b class="bf-n">${i + 1}</b><span>${esc(k)}</span></li>`).join('')}</ol>`)}
       ${card('Your starters', `<div class="bf-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${starters.map(([pos, p]) => `<button class="bf-lk" data-a="player" data-id="${p.id}" style="padding:6px;border-radius:12px;background:var(--s2);border:1px solid var(--line)">${av(p, 's')}<span style="min-width:0"><span class="bf-pos">${pos}</span> <span class="bf-u bf-sm">${esc(lastName(p.n))}</span></span><span class="bf-sp"></span>${ovrB(posOvr(pos, p.r))}</button>`).join('')}</div>${hurt.length ? `<div class="bf-xs bf-inj" style="margin-top:8px">Out: ${hurt.map((p) => esc(p.n) + ' (' + esc(p.inj.d.toLowerCase()) + ')').join(', ')}</div>` : ''}`, `<button class="bf-btn bf-xs bf-ghost" data-a="sub" data-tab="roster" data-k="roster" data-v="depth">Depth chart ${ic('right')}</button>`)}
       ${card('Game settings', `<div class="bf-row bf-sb bf-wrap"><span class="bf-sm">${esc(DIFFS[S.diff].name)} · ${S.qmin}-minute quarters · Practice: ${esc(FOCUS[S.train.f].n)}</span><button class="bf-btn bf-sm" data-a="settings">${ic('gear')} Change</button></div>`)}
+      <div class="bf-note">${ic('coin')}<div>${ACCOUNT ? `Win this game in 3D to earn <b>${fmt(prizeFor(S.diff))} coins</b> (${esc(DIFFS[S.diff].name)}). Simulated games don't pay coins.` : 'Log in to earn coins for every game you win in 3D.'}${S.cfg && S.cfg.dyn ? ' Dynamic Lineup: your card Lineup takes the field at kickoff.' : ''}</div></div>
       ${engineReady() ? '' : `<div class="bf-note bf-warn">${ic('info')}<div>The 3D game is getting an upgrade right now, so <b>Play</b> will quick-sim this game for you. You still get the full box score, XP and stats.</div></div>`}
-      <div class="bf-btns"><button class="bf-btn bf-pri bf-big" data-a="play">${ic('play', 'fill')} ${engineReady() ? 'Play in 3D Blitz' : 'Play (quick sim)'}</button><button class="bf-btn bf-big" data-a="simGame">${ic('ff')} Sim game</button></div></div>`;
+      <div class="bf-btns"><button class="bf-btn bf-pri bf-big" data-a="play" ${UI.starting ? 'disabled' : ''}>${ic('play', 'fill')} ${UI.starting ? 'Starting…' : engineReady() ? 'Play in 3D Blitz' : 'Play (quick sim)'}</button><button class="bf-btn bf-big" data-a="simGame">${ic('ff')} Sim game</button></div></div>`;
   }
   function viewEngine() {
     const c = UI.ctx;
-    return `<div class="bf-flow"><div class="bf-row bf-sb"><span class="bf-k">${esc(c ? c.label : '')}</span><span class="bf-xs bf-mu">Franchise game · no coins</span></div><div class="bf-engine" id="bf-engine-mount"></div></div>`;
+    return `<div class="bf-flow"><div class="bf-row bf-sb"><span class="bf-k">${esc(c ? c.label : '')}</span><span class="bf-xs bf-mu">${UI.coin ? `Career game · a win pays ${fmt(UI.coin.prize)} coins` : 'Career game'}</span></div><div class="bf-engine" id="bf-engine-mount"></div></div>`;
   }
   function fmtTop(s) { s = Math.round(num(s)); return s ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : '-'; }
   function boxTables(lines, tid) {
@@ -2525,6 +2649,7 @@
     const xp = Object.keys(Object.assign({}, rep.gxp, rep.txp)).map((id) => ({ id, x: num(rep.gxp[id]) + num(rep.txp[id]) })).sort((a, b) => b.x - a.x);
     const ups = {}; for (const [id, k] of rep.lvl) (ups[id] || (ups[id] = [])).push(RSHORT[k]);
     const upIds = Object.keys(ups);
+    const coinRes = res.mode === 'engine' ? UI.coinRes : null;
     const modeNote = res.mode === 'quick' ? 'Quick-simmed (3D engine not available)' : res.mode === 'sim' ? 'Simulated' : res.quit ? 'Left early: counted as a loss' : 'Played in 3D Blitz';
     const champ = rep.champ;
     const ptsTotal = sum(rep.pts, (x) => x[1]);
@@ -2532,7 +2657,7 @@
     return `<div class="bf-flow bf-in">
       <section class="bf-banner" style="--c1:${ut.color};--c2:${opp.color}"><div class="bf-k">${esc(gameLabel(g))} · Final${g.ot ? ' / OT' : ''}</div>
         <div class="bf-final"><div class="bf-side">${sh(ut, 'l')}<div class="bf-nm">${esc(ut.name)}</div></div><div><span class="bf-big ${r === 'L' ? 'bf-lose' : ''}">${us}</span><span class="bf-big bf-mu2" style="font-size:32px;margin:0 6px">–</span><span class="bf-big ${r === 'W' ? 'bf-lose' : ''}">${them}</span></div><div class="bf-side">${sh(opp, 'l')}<div class="bf-nm">${esc(opp.name)}</div></div></div>
-        <span class="bf-result bf-${r}">${r === 'W' ? (champ === S.user ? 'Champions!' : 'Victory') : r === 'L' ? 'Defeat' : 'Tie'}</span><div class="bf-xs bf-mu" style="margin-top:8px">${esc(modeNote)}</div></section>
+        <span class="bf-result bf-${r}">${r === 'W' ? (champ === S.user ? 'Champions!' : 'Victory') : r === 'L' ? 'Defeat' : 'Tie'}</span>${coinRes && coinRes.net > 0 ? `<span class="bf-coinwin">+${fmt(coinRes.net)} coins</span>` : ''}<div class="bf-xs bf-mu" style="margin-top:8px">${esc(modeNote)}${coinRes && !(coinRes.net > 0) && (coinRes.msg || coinRes.err) ? ' · ' + esc(coinRes.msg || coinRes.err) : ''}</div></section>
       ${champ === S.user ? `<button class="bf-btn bf-pri bf-big bf-block" data-a="trophy">${ic('hist')} Lift the ${TROPHY} again</button>` : ''}
       ${pog ? `<div class="bf-pog">${av(pog, 'l')}<div style="min-width:0"><div class="bf-k" style="color:var(--gold)">Player of the game</div><div style="font:800 22px/1.05 var(--disp);text-transform:uppercase">${pLink(pog)}</div><div class="bf-sm bf-mu">${esc(pog.pos)} · ${esc(TM(pog.t).name)} · ${esc(statSummary(res.lines[pog.id], pog))}</div></div></div>` : ''}
       <div class="bf-two">${res.hl && res.hl.length ? card('Highlights', `<ul class="bf-hl">${res.hl.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>`) : ''}
@@ -2726,8 +2851,8 @@
   }
   function sheetMenu() {
     return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">${esc(S.name)}</h3><span class="bf-sp"></span>${closeBtn()}</div>
-      <p class="bf-sm bf-mu" style="margin:-4px 0 12px">Slot ${esc(Saver.slot)} · ${ACCOUNT ? 'saved to your account' : 'saved on this device'} · ${esc(DIFFS[S.diff].name)} · ${S.qmin}-min quarters</p>
-      <div class="bf-col" style="gap:8px"><button class="bf-btn bf-block" data-a="settings">${ic('gear')} Game settings</button><button class="bf-btn bf-block" data-a="rename">${ic('pen')} Rename franchise</button><button class="bf-btn bf-block" data-a="help">${ic('info')} How Franchise works</button><button class="bf-btn bf-block" data-a="exitSlots">${ic('exit')} Switch franchise</button><button class="bf-btn bf-block bf-danger" data-a="restart">${ic('restart')} Restart this franchise</button></div>`;
+      <p class="bf-sm bf-mu" style="margin:-4px 0 12px">Slot ${esc(Saver.slot)} · ${ACCOUNT ? 'saved to your account' : 'saved on this device'} · ${esc(DIFFS[S.diff].name)} · ${S.qmin}-min quarters${S.cfg && S.cfg.dyn ? ' · Dynamic Lineup' : ''}</p>
+      <div class="bf-col" style="gap:8px"><button class="bf-btn bf-block" data-a="settings">${ic('gear')} Game settings</button><button class="bf-btn bf-block" data-a="rename">${ic('pen')} Rename career</button><button class="bf-btn bf-block" data-a="help">${ic('info')} How Career works</button><button class="bf-btn bf-block" data-a="exitSlots">${ic('exit')} Switch career</button><button class="bf-btn bf-block bf-danger" data-a="restart">${ic('restart')} Restart this career</button></div>`;
   }
   function sheetSettings() {
     return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">Game settings</h3><span class="bf-sp"></span>${closeBtn()}</div>
@@ -2736,20 +2861,22 @@
   }
   function sheetHelp() {
     const li = (t, d) => `<li style="margin-bottom:8px"><b>${t}</b><br><span class="bf-mu">${d}</span></li>`;
-    return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">How Franchise works</h3><span class="bf-sp"></span>${closeBtn()}</div><ul class="bf-sm" style="padding-left:18px;margin:0">
+    return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">How Career works</h3><span class="bf-sp"></span>${closeBtn()}</div><ul class="bf-sm" style="padding-left:18px;margin:0">
       ${li('Play or sim every game', 'Play your games in 3D Blitz, or sim them. Every other game in the league is simulated from team ratings.')}
       ${li('11 weeks, then playoffs', `Every team plays every other team once. Division winners plus the best records make the top ${S.poSize}. The final is the ${CHAMP}.`)}
       ${li('Grow your players', 'Stats and practice give XP. Every 100 XP is a chance at a rating boost. Potential decides how high a kid can climb.')}
       ${li('Keep the team happy', 'Wins, playing time and Team Bonding lift morale. Chemistry grows every week. Both help in close games.')}
       ${li('Spend program points', 'Earn points from games, playoff runs and awards. Spend them on facilities, staff, recruiting and new players.')}
       ${li('Offseason', '8th graders graduate, everyone else grows, and you recruit a new class of 6th graders. Then a new season starts, and your history keeps adding up.')}
+      ${li('Coins', ACCOUNT ? `Every game you win in 3D pays ${fmt(prizeFor(S.diff))} coins at ${esc(DIFFS[S.diff].name)} (${BOOT.prizes.map(fmt).join(' / ')} from Rookie to Legend), the same as Play for coins. Simulated games and quits don't pay.` : 'Log in to earn coins for every game you win in 3D.')}
+      ${S.cfg && S.cfg.dyn ? li('Dynamic Lineup', 'Your card Lineup is always your offense. Every 3D game pulls the players in your Lineup at kickoff; swap cards on the Cards page and they join your team.') : ''}
       ${li('Saving', ACCOUNT ? 'Everything saves to your account automatically.' : 'Everything saves on this device automatically. Log in to save to your account instead.')}</ul>`;
   }
   function sheetConfirm(d) {
     return `<div class="bf-sheet-h"><h3 class="bf-h">${esc(d.title)}</h3><span class="bf-sp"></span>${closeBtn()}</div><p class="bf-mu" style="margin:0 0 16px">${d.html || esc(d.msg)}</p><div class="bf-btns"><button class="bf-btn" data-a="close">Cancel</button><button class="bf-btn ${d.danger ? 'bf-danger' : 'bf-pri'}" data-a="confirmYes">${esc(d.yes || 'OK')}</button></div>`;
   }
   function sheetRename(d) {
-    return `<div class="bf-sheet-h"><h3 class="bf-h">Rename franchise</h3><span class="bf-sp"></span>${closeBtn()}</div><div class="bf-in-f"><label for="bf-rn">Franchise name</label><input id="bf-rn" class="bf-inp" maxlength="32" value="${esc(d.name || '')}" autocomplete="off"></div><div class="bf-btns"><button class="bf-btn" data-a="close">Cancel</button><button class="bf-btn bf-pri" data-a="renameSave">Save name</button></div>`;
+    return `<div class="bf-sheet-h"><h3 class="bf-h">Rename career</h3><span class="bf-sp"></span>${closeBtn()}</div><div class="bf-in-f"><label for="bf-rn">Career name</label><input id="bf-rn" class="bf-inp" maxlength="32" value="${esc(d.name || '')}" autocomplete="off"></div><div class="bf-btns"><button class="bf-btn" data-a="close">Cancel</button><button class="bf-btn bf-pri" data-a="renameSave">Save name</button></div>`;
   }
   function sheetQuit(d) {
     return `<div class="bf-sheet-h"><h3 class="bf-h">You left the game</h3></div><p class="bf-mu" style="margin:0 0 6px">The score was <b style="color:var(--tx)">${d.us}-${d.them}</b> when you left.</p><p class="bf-mu" style="margin:0 0 16px">Count it as a loss and move on, or replay the game from the start?</p><div class="bf-col" style="gap:8px"><button class="bf-btn bf-pri bf-block" data-a="quitReplay">${ic('restart')} Replay the game</button><button class="bf-btn bf-block" data-a="quitSim">${ic('ff')} Sim it instead</button><button class="bf-btn bf-danger bf-block" data-a="quitLoss">Count it as a loss</button></div>`;
@@ -2769,7 +2896,7 @@
     body = kind === 'player' ? sheetPlayer(data.id) : kind === 'team' ? sheetTeam(data.id) : kind === 'box' ? sheetBox(data.id) : kind === 'matchup' ? sheetMatchup(data.id)
       : kind === 'menu' ? sheetMenu() : kind === 'settings' ? sheetSettings() : kind === 'help' ? sheetHelp() : kind === 'confirm' ? sheetConfirm(data) : kind === 'rename' ? sheetRename(data)
       : kind === 'quit' ? sheetQuit(data) : kind === 'engineErr' ? sheetEngineErr(data) : '';
-    } catch (e) { console.error('[franchise]', e); body = `<div class="bf-sheet-h"><span class="bf-sp"></span>${closeBtn()}</div>${errorCard(e)}`; }
+    } catch (e) { console.error('[career]', e); body = `<div class="bf-sheet-h"><span class="bf-sp"></span>${closeBtn()}</div>${errorCard(e)}`; }
     const small = ['confirm', 'rename', 'quit', 'engineErr', 'menu'].includes(kind);
     const keep = kind === 'quit';
     L.innerHTML = `<div class="bf-ov" data-ov="${keep ? 'keep' : 'close'}"><div class="bf-sheet ${small ? 'bf-sm' : ''}" role="dialog" aria-modal="true" tabindex="-1">${body}</div></div>`;
@@ -2786,7 +2913,7 @@
   function confirmBox(title, msg, yes, fn, danger) { UI.confirmFn = fn; openSheet('confirm', { title, msg, yes, danger }); }
 
   // ---------- save slots ----------
-  const UI = { screen: 'slots', tab: 'hub', sub: {}, filter: {}, sheet: null, slots: null, slotErr: null, loading: null, week: null, post: null, trophy: false, attempt: {}, anim: true, confirmFn: null, quitRes: null, ctx: null, renameSlot: null };
+  const UI = { coin: null, coinRes: null, starting: false, screen: 'slots', tab: 'hub', sub: {}, filter: {}, sheet: null, slots: null, slotErr: null, loading: null, week: null, post: null, trophy: false, attempt: {}, anim: true, confirmFn: null, quitRes: null, ctx: null, renameSlot: null };
   async function showSlots() {
     if (S && Saver.slot) { try { await Saver.flush(); } catch (e) {} }
     S = null; invalidate(); Saver.slot = null; Saver.status = 'idle'; Saver.pending = false;
@@ -2797,12 +2924,12 @@
   }
   function slotCard(s) {
     if (UI.loading === s.slot) return `<div class="bf-slot"><div class="bf-slotn">Slot ${esc(s.slot)}</div><div class="bf-load"><div><div class="bf-spin"></div>Opening…</div></div></div>`;
-    if (s.empty) return `<div class="bf-slot"><div class="bf-slotn">Slot ${esc(s.slot)}</div>${empty('plus', 'Empty slot', 'Start a new program here.', `<button class="bf-btn bf-pri" data-a="slotNew" data-slot="${esc(s.slot)}">${ic('plus')} New franchise</button>`)}</div>`;
+    if (s.empty) return `<div class="bf-slot"><div class="bf-slotn">Slot ${esc(s.slot)}</div>${empty('plus', 'Empty slot', 'Start a new program here.', `<button class="bf-btn bf-pri" data-a="slotNew" data-slot="${esc(s.slot)}">${ic('plus')} New career</button>`)}</div>`;
     if (s.broken) return `<div class="bf-slot"><div class="bf-slotn">Slot ${esc(s.slot)}</div>${empty('info', 'Damaged save', 'This save could not be read.', `<button class="bf-btn bf-danger" data-a="slotDelete" data-slot="${esc(s.slot)}">${ic('trash')} Delete it</button>`)}</div>`;
     const m = s.meta || {};
     const t = { color: hexOk(m.color) ? m.color : '#666666', color2: hexOk(m.color2) ? m.color2 : '#ffffff', abbr: String(m.abbr || '?').slice(0, 4) };
     return `<div class="bf-slot bf-full" style="--c1:${t.color}"><div class="bf-row bf-sb"><span class="bf-slotn">Slot ${esc(s.slot)}</span><span class="bf-xs bf-mu">${s.updated ? 'Played ' + esc(timeAgo(s.updated)) : ''}</span></div>
-      <div class="bf-row" style="margin:12px 0">${sh(t, 'l')}<div style="min-width:0"><div class="bf-h2 bf-trunc" style="font-size:21px">${esc(m.name || m.team || 'Franchise')}</div><div class="bf-sm bf-mu bf-trunc">${esc(m.team || '')} · ${esc(m.coach || '')}</div></div></div>
+      <div class="bf-row" style="margin:12px 0">${sh(t, 'l')}<div style="min-width:0"><div class="bf-h2 bf-trunc" style="font-size:21px">${esc(m.name || m.team || 'Career')}</div><div class="bf-sm bf-mu bf-trunc">${esc(m.team || '')} · ${esc(m.coach || '')}</div></div></div>
       <div class="bf-kv"><div><span>Season</span><b>${esc(m.season || 1)}</b></div><div><span>Record</span><b>${esc(m.record || '0-0')}</b></div><div><span>Titles</span><b>${esc(m.titles || 0)}</b></div></div>
       <div class="bf-xs bf-mu" style="margin-top:8px">${esc(m.when || '')}${m.diff ? ' · ' + esc(m.diff) : ''}</div>
       <button class="bf-btn bf-pri bf-block" style="margin-top:12px" data-a="slotOpen" data-slot="${esc(s.slot)}">${ic('play', 'fill')} Continue</button>
@@ -2814,8 +2941,8 @@
     if (UI.slotErr) body = `<div class="bf-note bf-err">${ic('info')}<div>${esc(UI.slotErr)}<div style="margin-top:8px"><button class="bf-btn bf-sm" data-a="reloadSlots">${ic('restart')} Try again</button></div></div></div>`;
     else if (!UI.slots) body = `<div class="bf-load"><div><div class="bf-spin"></div>Loading your saves…</div></div>`;
     else body = `<div class="bf-slots">${UI.slots.map(slotCard).join('')}</div>`;
-    return `<div class="bf-col ${UI.anim ? 'bf-in' : ''}"><div><h2 class="bf-h">Your franchises</h2><div class="bf-sm bf-mu" style="margin-top:4px">${note}</div></div>${body}
-      <div class="bf-card bf-flat"><div class="bf-row bf-at">${ic('info')}<div class="bf-sm bf-mu">Run a middle-school program for as many seasons as you like: play every game in 3D Blitz (or sim it), set your depth chart, train your players, upgrade facilities, recruit 6th graders and chase the ${CHAMP}. Up to three franchises at once.</div></div></div></div>`;
+    return `<div class="bf-col ${UI.anim ? 'bf-in' : ''}"><div><h2 class="bf-h">Your careers</h2><div class="bf-sm bf-mu" style="margin-top:4px">${note}</div></div>${body}
+      <div class="bf-card bf-flat"><div class="bf-row bf-at">${ic('info')}<div class="bf-sm bf-mu">Run a middle-school program for as many seasons as you like: play every game in 3D Blitz (or sim it), set your depth chart, train your players, upgrade facilities, recruit 6th graders and chase the ${CHAMP}. Every 3D win pays coins. Up to three careers at once.</div></div></div></div>`;
   }
   async function openSlot(slot) {
     UI.loading = slot; render();
@@ -2823,6 +2950,7 @@
       const x = await Store.load(slot);
       loadState(x.data);
       Saver.slot = slot; Saver.status = 'saved'; Saver.fails = 0; Saver.err = '';
+      if (S.cfg && S.cfg.dyn && BOOT.lineup && syncLineup(BOOT.lineup)) Saver.mark();
       Object.assign(UI, { loading: null, screen: 'app', tab: 'hub', sub: {}, filter: {}, week: null, post: null, attempt: {}, anim: true });
       render(); scrollTop();
     } catch (e) {
@@ -2830,18 +2958,18 @@
       toast((e && e.message) || 'Could not open that save.');
     }
   }
-  function restartFranchise() {
-    const cfg = { mode: S.cfg.mode, realId: S.cfg.realId, custom: S.cfg.custom, picks: S.cfg.picks, coach: S.coach, diff: S.diff, qmin: S.qmin, po: S.poSize, name: S.name };
+  function restartCareer() {
+    const cfg = { mode: S.cfg.mode, realId: S.cfg.realId, custom: S.cfg.custom, picks: S.cfg.picks, dyn: !!S.cfg.dyn && !!BOOT.lineup, coach: S.coach, diff: S.diff, qmin: S.qmin, po: S.poSize, name: S.name };
     createLeague(cfg);
     Object.assign(UI, { screen: 'app', tab: 'hub', sub: {}, filter: {}, week: null, post: null, attempt: {}, anim: true });
     Saver.mark(); render(); scrollTop();
     toast('Fresh start! Season 1 begins.');
   }
 
-  // ---------- new franchise wizard ----------
+  // ---------- new career wizard ----------
   let W = null;
   function startWizard(slot) {
-    W = { step: 0, slot, mode: BOOT.teams.length ? null : 'custom', realId: null, custom: { name: '', abbr: '', color: COLOR_PRESETS[0][0], color2: COLOR_PRESETS[0][1], abbrTouched: false }, picks: [], coach: BOOT.user ? BOOT.user : '', name: '', nameTouched: false, diff: 1, qmin: 2, po: 4, seed: uid() };
+    W = { step: 0, slot, dyn: false, mode: BOOT.teams.length ? null : 'custom', realId: null, custom: { name: '', abbr: '', color: COLOR_PRESETS[0][0], color2: COLOR_PRESETS[0][1], abbrTouched: false }, picks: [], coach: BOOT.user ? BOOT.user : '', name: '', nameTouched: false, diff: 1, qmin: 2, po: 4, seed: uid() };
     UI.screen = 'wizard'; UI.anim = true; render(); scrollTop();
   }
   function wzTeam() {
@@ -2857,7 +2985,7 @@
   function bootAv(bp, size, t) { return av({ n: bp.name, ph: bp.photo }, size, t || BOOT.teams.find((x) => x.id === bp.team) || { color: '#444', color2: '#fff' }); }
   function viewWizard() {
     const steps = `<div class="bf-steps">${[0, 1, 2, 3].map((i) => `<i class="${i <= W.step ? 'bf-on' : ''}"></i>`).join('')}</div>`;
-    const head = `<div class="bf-fhead" style="margin-bottom:10px"><button class="bf-btn bf-sm bf-ghost" data-a="wzBack">${ic('back')} ${W.step ? 'Back' : 'Saves'}</button><span class="bf-k">New franchise · Slot ${esc(W.slot)}</span></div>${steps}`;
+    const head = `<div class="bf-fhead" style="margin-bottom:10px"><button class="bf-btn bf-sm bf-ghost" data-a="wzBack">${ic('back')} ${W.step ? 'Back' : 'Saves'}</button><span class="bf-k">New career · Slot ${esc(W.slot)}</span></div>${steps}`;
     let body = '', can = true, nextLbl = 'Next';
     if (W.step === 0) {
       const cards = BOOT.teams.slice(0, 2).map((t) => {
@@ -2888,8 +3016,12 @@
       if (!W.nameTouched) W.name = `${t.name} Dynasty`;
       body = `<h2 class="bf-h">Coach & rules</h2>
         <div class="bf-in-f" style="margin-top:12px"><label for="bf-wz-coach">Your coach name</label><input id="bf-wz-coach" class="bf-inp" maxlength="24" placeholder="Your name" value="${esc(W.coach)}" autocomplete="off"></div>
-        <div class="bf-in-f"><label for="bf-wz-fname">Franchise name</label><input id="bf-wz-fname" class="bf-inp" maxlength="32" value="${esc(W.name)}" autocomplete="off"></div>
-        <div class="bf-k" style="margin:4px 0 6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFFS.map((d, i) => `<button class="bf-pick ${W.diff === i ? 'bf-on' : ''}" data-a="wzSet" data-k="diff" data-v="${i}" aria-pressed="${W.diff === i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}</small></button>`).join('')}</div>
+        <div class="bf-in-f"><label for="bf-wz-fname">Career name</label><input id="bf-wz-fname" class="bf-inp" maxlength="32" value="${esc(W.name)}" autocomplete="off"></div>
+        <div class="bf-k" style="margin:4px 0 6px">Your offense</div><div class="bf-opts" style="margin-bottom:6px">
+          <button class="bf-pick ${!W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="0" aria-pressed="${!W.dyn}"><span class="bf-ck">${ic('check')}</span><b>Program roster</b><small>Your school's own players. Recruit them, develop them, watch them graduate.</small></button>
+          <button class="bf-pick ${W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="1" aria-pressed="${!!W.dyn}" ${BOOT.lineup ? '' : 'disabled'}><span class="bf-ck">${ic('check')}</span><b>Dynamic Lineup</b><small>Your offense is always your current card Lineup: every 3D game pulls its players at kickoff.</small></button></div>
+        <p class="bf-xs bf-mu" style="margin:0 0 14px">${BOOT.lineup ? 'Dynamic Lineup follows your Lineup on the Cards page all career long.' : BOOT.user ? 'Set a full Lineup on the <a href="/pickem/cards" style="text-decoration:underline">Cards page</a> to use Dynamic Lineup.' : 'Log in and set a Lineup on the Cards page to use Dynamic Lineup.'}</p>
+        <div class="bf-k" style="margin:4px 0 6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFFS.map((d, i) => `<button class="bf-pick ${W.diff === i ? 'bf-on' : ''}" data-a="wzSet" data-k="diff" data-v="${i}" aria-pressed="${W.diff === i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}${BOOT.prizes[i] ? ` Wins pay ${fmt(BOOT.prizes[i])} coins.` : ''}</small></button>`).join('')}</div>
         <div class="bf-k" style="margin-bottom:6px">Quarter length</div><div class="bf-opts bf-three" style="margin-bottom:14px">${[2, 3, 4].map((q) => `<button class="bf-pick ${W.qmin === q ? 'bf-on' : ''}" data-a="wzSet" data-k="qmin" data-v="${q}" aria-pressed="${W.qmin === q}"><span class="bf-ck">${ic('check')}</span><b>${q} min</b><small>${q === 2 ? 'Quick' : q === 3 ? 'Longer' : 'Full'}</small></button>`).join('')}</div>
         <div class="bf-k" style="margin-bottom:6px">Playoffs</div><div class="bf-opts">${[4, 8].map((n) => `<button class="bf-pick ${W.po === n ? 'bf-on' : ''}" data-a="wzSet" data-k="po" data-v="${n}" aria-pressed="${W.po === n}"><span class="bf-ck">${ic('check')}</span><b>Top ${n}</b><small>${n === 4 ? 'Semifinals, then the ' + CHAMP : 'Quarterfinals, semis and the ' + CHAMP}</small></button>`).join('')}</div>`;
       can = true;
@@ -2899,8 +3031,9 @@
       body = `<h2 class="bf-h">Ready to kick off?</h2>
         <section class="bf-banner" style="--c1:${t.color};--c2:${t.color2};margin-top:12px"><div style="display:flex;justify-content:center">${sh(t, 'xl')}</div><h3 class="bf-h" style="margin-top:10px">${esc(t.name)}</h3><div class="bf-sm bf-mu">${esc(cleanCoach(W.coach))} · ${esc(W.name)}</div></section>
         <div class="bf-kv"><div><span>Difficulty</span><b style="font-size:16px">${DIFFS[W.diff].name}</b></div><div><span>Quarters</span><b>${W.qmin} min</b></div><div><span>Playoffs</span><b>Top ${W.po}</b></div></div>
+        <div class="bf-sm bf-mu">Offense: ${W.dyn && BOOT.lineup ? 'Dynamic Lineup (your card Lineup)' : 'Program roster'}${BOOT.user && BOOT.prizes[W.diff] ? ` · 3D wins pay ${fmt(BOOT.prizes[W.diff])} coins` : ''}</div>
         ${picks.length ? `<div class="bf-sm bf-mu">Bringing: ${picks.map((p) => esc(p.name)).join(', ')}</div>` : ''}
-        <div class="bf-note">${ic('info')}<div>A 12-team league in two divisions, 11 weeks, then the playoffs. Every season ends with the ${CHAMP}. Your franchise saves automatically.</div></div>`;
+        <div class="bf-note">${ic('info')}<div>A 12-team league in two divisions, 11 weeks, then the playoffs. Every season ends with the ${CHAMP}. Your career saves automatically.</div></div>`;
       nextLbl = 'Kick off Season 1';
     }
     return `<div class="bf-col ${UI.anim ? 'bf-in' : ''}">${head}${body}<button class="bf-btn bf-pri bf-big bf-block" data-a="${W.step === 3 ? 'wzCreate' : 'wzNext'}" ${can ? '' : 'disabled'}>${nextLbl} ${ic('right')}</button></div>`;
@@ -2918,7 +3051,7 @@
   function viewApp() {
     const v = { hub: viewHub, sched: viewSchedule, roster: viewRoster, stand: viewStandings, league: viewLeague, prog: viewProgram, hist: viewHistory }[UI.tab] || viewHub;
     let main;
-    try { main = v(); } catch (e) { console.error('[franchise]', e); main = errorCard(e); }
+    try { main = v(); } catch (e) { console.error('[career]', e); main = errorCard(e); }
     return `<div class="bf-app">${topBar()}${tabBar()}<main class="bf-main ${UI.anim ? 'bf-in' : ''}" id="bf-main">${main}</main></div>`;
   }
   function render() {
@@ -2932,7 +3065,7 @@
       else if (UI.screen === 'engine') html = viewEngine();
       else if (UI.screen === 'postgame') html = viewPostgame();
       else { UI.screen = 'app'; html = viewApp(); }
-    } catch (e) { console.error('[franchise]', e); html = errorCard(e); }
+    } catch (e) { console.error('[career]', e); html = errorCard(e); }
     document.body.classList.toggle('bf-navpad', !!S && UI.screen === 'app');
     if (UI.screen === 'engine' && document.getElementById('bf-engine-mount')) return; // never wipe a running game
     app.innerHTML = html;
@@ -2972,7 +3105,7 @@
     play() { closeSheet(); playEngine(); },
     simGame() { closeSheet(); simUserGame(); },
     closeFlow() { UI.screen = 'app'; UI.anim = true; render(); },
-    postDone() { hideTrophy(); UI.post = null; UI.screen = 'app'; UI.tab = 'hub'; UI.anim = true; render(); scrollTop(); },
+    postDone() { hideTrophy(); UI.post = null; UI.coinRes = null; UI.screen = 'app'; UI.tab = 'hub'; UI.anim = true; render(); scrollTop(); },
     trophy: () => showTrophy(),
     trophyClose: () => hideTrophy(),
     simToEnd() {
@@ -3066,7 +3199,7 @@
     },
     help: () => openSheet('help'),
     exitSlots() { closeSheet(); showSlots(); },
-    restart() { confirmBox('Restart this franchise?', 'Same team, coach and settings, but everything else starts over at Season 1: records, players, history. This cannot be undone.', 'Restart', () => restartFranchise(), true); },
+    restart() { confirmBox('Restart this career?', 'Same team, coach and settings, but everything else starts over at Season 1: records, players, history. This cannot be undone.', 'Restart', () => restartCareer(), true); },
     confirmYes() { const fn = UI.confirmFn; UI.confirmFn = null; closeSheet(); if (fn) fn(); },
     quitLoss() {
       closeSheet();
@@ -3083,13 +3216,13 @@
     slotRename(b) { const s = (UI.slots || []).find((x) => x.slot === b.dataset.slot); UI.renameSlot = b.dataset.slot; openSheet('rename', { name: (s && s.meta && s.meta.name) || '' }); },
     slotRestart(b) {
       const slot = b.dataset.slot;
-      confirmBox('Restart this franchise?', 'Same team, coach and settings, but everything starts over at Season 1. This cannot be undone.', 'Restart', async () => {
-        try { const x = await Store.load(slot); loadState(x.data); Saver.slot = slot; restartFranchise(); } catch (e) { S = null; toast((e && e.message) || 'Could not restart.'); }
+      confirmBox('Restart this career?', 'Same team, coach and settings, but everything starts over at Season 1. This cannot be undone.', 'Restart', async () => {
+        try { const x = await Store.load(slot); loadState(x.data); Saver.slot = slot; restartCareer(); } catch (e) { S = null; toast((e && e.message) || 'Could not restart.'); }
       }, true);
     },
     slotDelete(b) {
       const slot = b.dataset.slot;
-      confirmBox(`Delete slot ${slot}?`, 'This franchise and all of its history will be gone for good.', 'Delete', async () => {
+      confirmBox(`Delete slot ${slot}?`, 'This career and all of its history will be gone for good.', 'Delete', async () => {
         try { await Store.remove(slot); toast('Deleted.'); } catch (e) { toast((e && e.message) || 'Could not delete.'); }
         showSlots();
       }, true);
@@ -3100,12 +3233,12 @@
     wzCustom() { W.mode = 'custom'; render(); },
     wzPreset(b) { const p = COLOR_PRESETS[+b.dataset.i]; if (!p) return; W.custom.color = p[0]; W.custom.color2 = p[1]; render(); },
     wzPick(b) { const id = b.dataset.id, i = W.picks.indexOf(id); if (i >= 0) W.picks.splice(i, 1); else if (W.picks.length < 3) W.picks.push(id); else return toast('You can bring up to 3 MFL players.'); render(); },
-    wzSet(b) { const k = b.dataset.k, v = +b.dataset.v; if (k === 'diff') W.diff = clamp(v, 0, 3); if (k === 'qmin' && [2, 3, 4].includes(v)) W.qmin = v; if (k === 'po') W.po = v === 8 ? 8 : 4; render(); },
+    wzSet(b) { const k = b.dataset.k, v = +b.dataset.v; if (k === 'diff') W.diff = clamp(v, 0, 3); if (k === 'qmin' && [2, 3, 4].includes(v)) W.qmin = v; if (k === 'po') W.po = v === 8 ? 8 : 4; if (k === 'dyn') W.dyn = v === 1 && !!BOOT.lineup; render(); },
     wzCreate() {
       if (!W) return;
       const t = wzTeam();
-      const cfg = { mode: W.mode, realId: W.realId, custom: W.mode === 'custom' ? { name: t.name, abbr: t.abbr, color: t.color, color2: t.color2 } : null, picks: W.mode === 'custom' ? W.picks.slice() : [], coach: cleanCoach(W.coach), diff: W.diff, qmin: W.qmin, po: W.po, name: (W.name || '').trim().slice(0, 32) || `${t.name} Dynasty`, seed: W.seed };
-      try { createLeague(cfg); } catch (e) { console.error('[franchise]', e); S = null; return toast('Could not create the franchise. Try again.'); }
+      const cfg = { mode: W.mode, realId: W.realId, custom: W.mode === 'custom' ? { name: t.name, abbr: t.abbr, color: t.color, color2: t.color2 } : null, picks: W.mode === 'custom' ? W.picks.slice() : [], dyn: !!W.dyn && !!BOOT.lineup, coach: cleanCoach(W.coach), diff: W.diff, qmin: W.qmin, po: W.po, name: (W.name || '').trim().slice(0, 32) || `${t.name} Dynasty`, seed: W.seed };
+      try { createLeague(cfg); } catch (e) { console.error('[career]', e); S = null; return toast('Could not create the career. Try again.'); }
       Saver.slot = W.slot; W = null;
       Object.assign(UI, { screen: 'app', tab: 'hub', sub: {}, filter: {}, week: null, post: null, attempt: {}, anim: true });
       Saver.mark(); render(); scrollTop();
@@ -3120,7 +3253,7 @@
     const fn = ACT[b.dataset.a];
     if (!fn) return;
     e.preventDefault();
-    try { const r = fn(b, e); if (r && typeof r.catch === 'function') r.catch((err) => { console.error('[franchise]', err); toast('Something went wrong. Your last save is safe.'); }); } catch (err) { console.error('[franchise]', err); toast('Something went wrong. Your last save is safe.'); }
+    try { const r = fn(b, e); if (r && typeof r.catch === 'function') r.catch((err) => { console.error('[career]', err); toast('Something went wrong. Your last save is safe.'); }); } catch (err) { console.error('[career]', err); toast('Something went wrong. Your last save is safe.'); }
   }
   function onChange(e) {
     const el = e.target;

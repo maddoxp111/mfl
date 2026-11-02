@@ -768,3 +768,47 @@
     padding: 10px;
   }
 }
+/* Coins for career wins and the Dynamic Lineup option */
+.career-coins {
+  display: block;
+  margin-top: 4px;
+  color: #ffd35c;
+  font-weight: 700;
+}
+#career-status .career-coins {
+  display: inline;
+  font-size: 14px;
+}
+.career-prize {
+  color: #fff532;
+}
+.career-dynamic {
+  border: 2px solid #aecbff;
+  padding: 14px 16px;
+  background: #1f4fd0;
+}
+.career-dynamic label {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.career-dynamic input {
+  width: auto !important;
+  flex-shrink: 0;
+}
+.career-dynamic label:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.career-dynamic p {
+  margin: 8px 0 0;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #dce7ff;
+}
+.career-dynamic a,
+.career-panel p a {
+  color: #fff532;
+}

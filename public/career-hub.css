@@ -1,0 +1,127 @@
+/* /career: the hub with one tile per career */
+.ch-page {
+  padding-top: 26px;
+  padding-bottom: 40px;
+}
+.ch-head h1 {
+  font: 800 clamp(34px, 5vw, 54px)/1 var(--disp);
+  text-transform: uppercase;
+  margin: 10px 0 8px;
+}
+.ch-head p {
+  max-width: 760px;
+  margin: 0 0 22px;
+}
+.ch-head a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.ch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.ch-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 24px;
+  overflow: hidden;
+  color: #fff;
+  text-decoration: none;
+  isolation: isolate;
+  transition: transform 0.14s, box-shadow 0.14s;
+}
+.ch-tile:hover,
+.ch-tile:focus-visible {
+  transform: translateY(-3px);
+}
+.ch-tile:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+.ch-art {
+  font-size: clamp(56px, 8vw, 84px);
+  line-height: 1;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
+}
+.ch-name {
+  font: 900 clamp(28px, 3.6vw, 44px)/1 'Barlow Condensed', Inter, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.ch-pitch {
+  font-size: 15px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.86);
+  max-width: 460px;
+}
+.ch-prog {
+  margin: 0;
+  padding: 12px 14px;
+  list-style: none;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.24);
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  overflow-wrap: anywhere;
+}
+.ch-prog b {
+  color: #fff;
+}
+.ch-coins {
+  color: #ffd35c;
+  font-weight: 700;
+}
+.ch-foot {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ch-pay {
+  font: 700 13px Inter, sans-serif;
+  color: #ffd35c;
+}
+/* Modern Bowl: the career's blue pixel look */
+.ch-bowl {
+  background-color: #2867ff;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #3374ff, #1a47c9);
+  border: 3px solid #07174a;
+  box-shadow: 0 0 0 2px #cedcff, 0 9px 0 #030d2b;
+}
+.ch-bowl .ch-name {
+  font: 400 clamp(20px, 2.6vw, 30px)/1.25 'Press Start 2P', monospace;
+  text-shadow: 3px 3px #143b8c;
+}
+.ch-bowl .ch-prog {
+  border-radius: 0;
+  border: 2px solid #b6d1ff;
+  background: #2456d7;
+}
+/* 3D Blitz: night stadium */
+.ch-blitz {
+  background:
+    radial-gradient(110% 70% at 50% -10%, rgba(255, 194, 26, 0.34), transparent 62%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 56px) bottom / 100% 34% no-repeat,
+    linear-gradient(180deg, #121520 0%, #0f1a14 62%, #0f3d1f 100%);
+  border: 1px solid rgba(255, 194, 26, 0.5);
+  box-shadow: 0 18px 40px -18px rgba(255, 194, 26, 0.45);
+}
+@media (max-width: 720px) {
+  .ch-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .ch-tile {
+    padding: 22px;
+  }
+}
