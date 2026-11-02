@@ -1948,7 +1948,8 @@ body.arc-playing .ticker{display:none}
 }
 @media(max-width:940px) and (min-width:761px){.acct>b,.acct>.ic{display:none}.nav-career{display:none}}
 /* Career is back in the top bar: from 761px to 1500px the signed-in header has no room for its label (or Log out, which stays on the account page). */
-@media(max-width:1500px) and (min-width:761px){.nav-career{padding:7px 11px}.nav-career .nav-career-t{display:none}.acct-out{display:none}}
+@media(max-width:1500px) and (min-width:761px){.nav-career{padding:7px 11px}.acct-out{display:none}}
+@media(max-width:1099px) and (min-width:761px){.nav-career .nav-career-t{display:none}}
 @media(max-width:1100px) and (min-width:761px){.nav-main{gap:3px}}
 @media(max-width:760px){
   .hdr-in{gap:8px;padding:0 12px 0 16px}

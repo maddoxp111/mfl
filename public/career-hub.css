@@ -123,5 +123,7 @@
   }
   .ch-tile {
     padding: 22px;
+    aspect-ratio: auto; /* stacked on a phone: let the tile grow with its text instead of clipping the bottom row */
+    min-height: 0;
   }
 }
