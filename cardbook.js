@@ -6,6 +6,7 @@ module.exports = function cardbook(app, h) {
 
   // Can this pack drop this card? Mirrors cards.openPack: the pack's pool, rarity boosts and the starter rule.
   function canDrop(P, type, c) {
+    if (cards.packInfo.canDrop) return cards.packInfo.canDrop(h.load(), type, c, P);
     if (type === 'starter') return c.variant === 'base';
     if (!!P.sets !== !!c.set) return false; // set cards only come from set packs
     if (P.pool && !P.pool(c)) return false;

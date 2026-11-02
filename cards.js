@@ -423,11 +423,110 @@ Object.assign(PACKS, {
   'set-black': { name: 'Black Label', cards: 1, cost: 3200, group: 'sets', sets: true, pool: (c) => c.par === 'black', colors: ['#18181b', '#000000'], desc: 'One guaranteed Black parallel from any set.' },
 });
 
+// ---------- more packs ----------
+// Extra pack features, handled by packInfo and openPack:
+//   floor: every card is at least this rarity      mixed: classic and set cards can both drop
+//   choose: show this many cards, the opener keeps `cards` of them
+//   pairs: this many pairs, each one player in two different versions
+//   bundle: [[type, count], ...] several packs in one (cards and list price are added up below)
+//   rotate: on sale only some weekdays ({ days }), months ({ months }) or weeks ({ weeks, phase })
+//   flash: today's deal on another pack, cheaper every few hours; limit: 'day' = one per day
+//   live(db, ctx, P): fields worked out when shown or opened (rival team, last game's scorers...)
+//   art: { c: [color1, color2], e: emoji, pat: pattern, foil } draws the pack in the shop
+//   inside: what the pool holds, for the shop's "what's inside" panel
+const NEW_PACK = '2026-11-02';
+const inVariants = (...ids) => (c) => ids.includes(c.variant);
+const inSets = (...ids) => (c) => ids.includes(c.set);
+const inSeries = (...ids) => (c) => ids.includes(SET_MAP.get(c.set)?.series);
+const atPos = (pos) => (db) => ({ pool: (c) => rolePos(db, c.t, c.p) === pos });
+const rotating = (db, ctx, P) => rotation(P.rotate, nowOf(ctx));
+const PATTERNS = ['stripes', 'dots', 'grid', 'zig', 'check', 'rays', 'stars', 'waves', 'diamond', 'confetti'];
+Object.assign(PACKS, {
+  // Core
+  rookie: { name: 'Rookie Rack', cards: 1, cost: 25, group: 'core', added: NEW_PACK, art: { c: ['#64748b', '#0f172a'], e: '🧢', pat: 'dots' }, desc: 'One card, any rarity. The cheapest pack in the shop.' },
+  'silver-stack': { name: 'Silver Stack', cards: 5, cost: 450, group: 'core', floor: 'rare', added: NEW_PACK, art: { c: ['#cbd5e1', '#1e293b'], e: '🥈', pat: 'stripes', foil: 'silver' }, desc: '5 cards and every one is Silver or better.' },
+  'mystery-mega': { name: 'Mystery Mega', cards: 12, cost: 950, group: 'core', mixed: true, mystery: [5, 20], added: NEW_PACK, art: { c: ['#7c3aed', '#14052b'], e: '🎁', pat: 'confetti', foil: 'holo' }, desc: 'Somewhere between 5 and 20 cards, classic and set cards mixed together.' },
+  // Themes: positions, the other team, last game's scorers
+  'pos-qb': { name: 'QB Room', cards: 3, cost: 150, group: 'theme', added: NEW_PACK, live: atPos('QB'), inside: 'Quarterbacks: a saved QB position, or each team\'s top passer.', art: { c: ['#b91c1c', '#1f0505'], e: '🎯', pat: 'rays' }, desc: '3 quarterback cards. Your QB throws in the games.' },
+  'pos-rb': { name: 'Backfield Pack', cards: 3, cost: 150, group: 'theme', added: NEW_PACK, live: atPos('RB'), inside: 'Running backs: a saved RB position, or each team\'s top scorer after the QB.', art: { c: ['#ea580c', '#260c02'], e: '💨', pat: 'zig' }, desc: '3 running back cards. Speed and strength up the middle.' },
+  'pos-wr': { name: 'Wideout Pack', cards: 3, cost: 150, group: 'theme', added: NEW_PACK, live: atPos('WR'), inside: 'Wide receivers: a saved WR position, or each team\'s next three scorers.', art: { c: ['#0284c7', '#03192b'], e: '🙌', pat: 'waves' }, desc: '3 wide receiver cards. Hands, speed and big plays.' },
+  'pos-te': { name: 'Tight End Pack', cards: 2, cost: 110, group: 'theme', added: NEW_PACK, live: atPos('TE'), inside: 'Tight ends: a saved TE position, or one more pass catcher per team.', art: { c: ['#0d9488', '#03201d'], e: '🧤', pat: 'grid' }, desc: '2 tight end cards. Half blocker, half receiver.' },
+  'pos-line': { name: 'Trenches Pack', cards: 3, cost: 130, group: 'theme', added: NEW_PACK, live: atPos('OL'), inside: 'Linemen and utility players: everyone who is not a QB, RB, WR or TE.', art: { c: ['#57534e', '#0c0a09'], e: '🛡️', pat: 'check' }, desc: '3 linemen and utility players. They block for everyone else.' },
+  rival: { name: 'Rival Pack', cards: 3, cost: 140, group: 'theme', added: NEW_PACK, live: (db, ctx) => rivalPack(db, ctx), art: { c: ['#dc2626', '#1e1b4b'], e: '⚔️', pat: 'diamond' }, desc: '3 cards from the other MFL team: the one your collection is up against.' },
+  'hot-hand': { name: 'Hot Hand', cards: 3, cost: 220, group: 'theme', added: NEW_PACK, live: (db) => hotHandPack(db), art: { c: ['#f97316', '#3b0a02'], e: '🔥', pat: 'rays', foil: 'gold' }, desc: '3 cards of players who scored in the latest final game.' },
+  // Body Shop: the body-type card variants (skinny, heavy, tall, short, beanpole, stout, giant, pocket)
+  'body-skinny': { name: 'Noodle Pack', cards: 3, cost: 170, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'pocket', 'beanpole'), inside: 'Skinny, Pocket and Beanpole cards: slim builds.', art: { c: ['#facc15', '#422006'], e: '🍜', pat: 'waves' }, desc: 'Slim builds only: Skinny, Pocket and Beanpole cards.' },
+  'body-beanpole': { name: 'Beanpole Box', cards: 2, cost: 160, group: 'body', added: NEW_PACK, pool: inVariants('beanpole'), inside: 'Beanpole cards only: tall and slim.', art: { c: ['#4ade80', '#052e16'], e: '🌱', pat: 'stripes' }, desc: '2 Beanpole cards: tall and slim.' },
+  'body-big': { name: 'Big Boy Pack', cards: 3, cost: 200, group: 'body', added: NEW_PACK, pool: inVariants('heavy', 'stout', 'giant'), inside: 'Heavy, Stout and Giant cards: the big builds.', art: { c: ['#b45309', '#1c0a00'], e: '🍔', pat: 'check' }, desc: 'Heavy, Stout and Giant cards. Hard to move.' },
+  'body-short': { name: 'Short Stack', cards: 3, cost: 180, group: 'body', added: NEW_PACK, pool: inVariants('short', 'stout', 'pocket'), inside: 'Short, Stout and Pocket cards: low to the ground.', art: { c: ['#f59e0b', '#451a03'], e: '🥞', pat: 'dots' }, desc: 'Short, Stout and Pocket cards. Low to the ground.' },
+  'body-tall': { name: 'Tall Order', cards: 3, cost: 180, group: 'body', added: NEW_PACK, pool: inVariants('tall', 'beanpole', 'giant'), inside: 'Tall, Beanpole and Giant cards: the tall builds.', art: { c: ['#38bdf8', '#082f49'], e: '🦒', pat: 'stripes' }, desc: 'Tall, Beanpole and Giant cards. Over the top of everyone.' },
+  'body-giant': { name: 'Giant Box', cards: 1, cost: 240, group: 'body', added: NEW_PACK, pool: inVariants('giant'), inside: 'Giant cards only: tall and built like a tank.', art: { c: ['#a8a29e', '#1c1917'], e: '🗿', pat: 'grid', foil: 'silver' }, desc: 'One Giant card: tall and built like a tank.' },
+  'body-mega': { name: 'Body Shop Mega', cards: 8, cost: 620, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'heavy', 'tall', 'short', 'beanpole', 'stout', 'giant', 'pocket'), inside: 'Every body type: Skinny, Heavy, Tall, Short, Beanpole, Stout, Giant and Pocket.', art: { c: ['#ec4899', '#2e0a1f'], e: '🏋️', pat: 'confetti', foil: 'holo' }, desc: '8 cards of every body type in one big pack.' },
+  // Sets: one-set minis are generated below
+  'snack-single': { name: 'Snack Attack Single', cards: 1, cost: 50, group: 'sets', sets: true, added: NEW_PACK, pool: inSeries('snacks'), inside: 'The Snack Attack series: Cereal Box, Nacho Day, Donut Run, Hot Sauce, Popcorn and Smoothie.', art: { c: ['#ef4444', '#2a0606'], e: '🍿', pat: 'dots' }, desc: 'One Snack Attack set card. A cheap snack.' },
+  'double-feature': { name: 'Double Feature', cards: 4, cost: 360, group: 'sets', sets: true, pairs: 2, added: NEW_PACK, art: { c: ['#e11d48', '#1c1917'], e: '🎞️', pat: 'grid' }, desc: '2 pairs of set cards: each pair is the same player in two versions.' },
+  // Fun
+  'pick-one': { name: 'Pick One', cards: 1, choose: 3, floor: 'rare', cost: 180, group: 'fun', added: NEW_PACK, art: { c: ['#06b6d4', '#082f49'], e: '👆', pat: 'dots' }, desc: 'See 3 Silver-or-better cards and keep the one you want.' },
+  'draft-day': { name: 'Draft Day', cards: 2, choose: 5, min: 'epic', cost: 400, group: 'fun', added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '📝', pat: 'grid' }, desc: 'See 5 cards (one Gold or better) and draft the 2 you like best.' },
+  doubles: { name: 'Doubles', cards: 6, pairs: 3, cost: 300, group: 'fun', added: NEW_PACK, art: { c: ['#a855f7', '#1e0b3a'], e: '👯', pat: 'diamond' }, desc: '3 pairs: each pair is one player in two different cards.' },
+  'coin-flip': { name: 'Coin Flip', cards: 1, cost: 150, group: 'fun', boost: { rare: 0, epic: 6.2, legendary: 6.2, mythic: 6.2, dark: 6.2 }, added: NEW_PACK, art: { c: ['#eab308', '#1f1503'], e: '🪙', pat: 'rays', foil: 'gold' }, desc: 'One card. Heads it\'s a Base card, tails it\'s Gold or better. 50/50.' },
+  sparkle: { name: 'Sparkle Pack', cards: 3, cost: 320, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['holo', 'action', 'allstar'].includes(c.variant) || ['hologram', 'rainbow', 'stained-glass'].includes(c.set) || c.par === 'prism', inside: 'Holo, Action Shot and All-Star cards, the Hologram, Rainbow and Stained Glass sets, and Prism parallels of any set.', art: { c: ['#f0abfc', '#3b0764'], e: '✨', pat: 'stars', foil: 'holo' }, desc: 'Only the shiny ones: Holo, Prism, Hologram and friends.' },
+  'fire-ice': { name: 'Fire & Ice', cards: 4, cost: 280, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => c.variant === 'snow' || ['volcano', 'hot-sauce', 'desert', 'sunshine', 'arctic', 'blizzard'].includes(c.set), inside: 'Fire: Volcano, Hot Sauce, Desert Storm and Sunshine. Ice: Arctic, Blizzard and Snow Day.', art: { c: ['#f97316', '#0ea5e9'], e: '🔥🧊', pat: 'zig' }, desc: 'Hot and cold cards in one pack: Volcano, Hot Sauce, Arctic, Blizzard, Snow Day.' },
+  galaxy: { name: 'Galaxy Pack', cards: 3, cost: 300, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['allstar', 'icon', 'dark'].includes(c.variant) || ['galaxy', 'neon', 'new-year'].includes(c.set), inside: 'All-Star, Icon and Dark Matter cards plus the Galaxy, Neon Nights and New Year\'s Bowl sets.', art: { c: ['#4338ca', '#020617'], e: '🌌', pat: 'stars' }, desc: 'Starry cards from deep space, with a tiny shot at Dark Matter.' },
+  retro: { name: 'Retro Arcade', cards: 3, cost: 260, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant) || ['pixel-plus', 'high-score', 'vhs', 'circuit'].includes(c.set), inside: '8-Bit, Throwback and Glitch cards plus the Pixel Pro, High Score, VHS Tape and Circuit Board sets.', art: { c: ['#22c55e', '#020617'], e: '🕹️', pat: 'grid' }, desc: 'Pixels, VHS tapes and glitches. Press start.' },
+  // Chase
+  'gold-rush': { name: 'Gold Rush', cards: 3, cost: 1200, group: 'chase', floor: 'epic', added: NEW_PACK, art: { c: ['#facc15', '#3f2a05'], e: '💰', pat: 'rays', foil: 'gold' }, desc: '3 cards and every one is Gold or better.' },
+  vault: { name: 'The Vault', cards: 3, cost: 7500, group: 'chase', floor: 'legendary', boost: { mythic: 3, dark: 3 }, added: NEW_PACK, art: { c: ['#94a3b8', '#020617'], e: '🔐', pat: 'grid', foil: 'silver' }, desc: '3 cards, every one Legend or better, with triple the Mythic and Dark Matter odds.' },
+  'black-box': { name: 'Black Label Box', cards: 3, cost: 8500, group: 'chase', sets: true, pool: (c) => c.par === 'black', added: NEW_PACK, art: { c: ['#27272a', '#000000'], e: '🎩', pat: 'diamond', foil: 'black' }, desc: '3 Black parallels from any set.' },
+  // Bundles (cards and list price are added up below)
+  'bundle-locker': { name: 'Locker Room', cost: 430, group: 'bundle', bundle: [['premium', 1], ['standard', 1], ['lunch', 1]], added: NEW_PACK, art: { c: ['#16a34a', '#052e16'], e: '🎒', pat: 'check' }, desc: 'A Premium, a Standard and a Lunch Money pack: 10 cards for less.' },
+  'bundle-season': { name: 'Season Ticket', cost: 990, group: 'bundle', bundle: [['mega', 1], ['premium', 1], ['standard', 1]], added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '🎟️', pat: 'stripes', foil: 'gold' }, desc: 'A Mega, a Premium and a Standard pack: 20 cards for the whole season.' },
+  'bundle-sets': { name: 'Set Collector', cost: 1080, group: 'bundle', bundle: [['set-hunter', 1], ['set-gold', 1], ['series-bowls', 1]], added: NEW_PACK, art: { c: ['#0e7490', '#05161c'], e: '🗂️', pat: 'diamond' }, desc: 'Set Hunter, Golden Ticket and Bowl Season packs: 13 set cards.' },
+  'bundle-body': { name: 'Body Shop Bundle', cost: 470, group: 'bundle', bundle: [['body-big', 1], ['body-short', 1], ['body-tall', 1]], added: NEW_PACK, art: { c: ['#ec4899', '#2e0a1f'], e: '💪', pat: 'zig' }, desc: 'Big Boy, Short Stack and Tall Order packs: 9 body-type cards.' },
+  // Limited: rotating packs and the daily Flash Sale
+  flash: { name: 'Flash Sale', cards: 5, cost: 450, group: 'limited', limit: 'day', flash: { from: ['premium', 'shine', 'specialist', 'silver-stack', 'set-gold', 'sparkle', 'elite'], drop: 0.1, every: 4, steps: 5 }, live: (db, ctx, P) => flashDeal(db, ctx, P), added: NEW_PACK, art: { c: ['#fde047', '#7c2d12'], e: '⚡', pat: 'rays', foil: 'gold' }, desc: 'A different pack on sale every day. 10% off at midnight, 10% more every 4 hours.' },
+  fnl: { name: 'Friday Night Lights', cards: 4, cost: 260, group: 'limited', min: 'epic', rotate: { days: [5, 6] }, live: rotating, added: NEW_PACK, art: { c: ['#1e3a8a', '#020617'], e: '🏟️', pat: 'rays' }, desc: '4 cards with a Gold or better guaranteed. Fridays and Saturdays only.' },
+  weekend: { name: 'Weekend Warrior', cards: 6, cost: 200, group: 'limited', rotate: { days: [6, 0] }, live: rotating, added: NEW_PACK, art: { c: ['#16a34a', '#022c22'], e: '🛹', pat: 'zig' }, desc: '6 cards for 200 coins. Saturdays and Sundays only.' },
+  monday: { name: 'Monday Blues', cards: 3, cost: 70, group: 'limited', min: 'rare', rotate: { days: [1] }, live: rotating, added: NEW_PACK, art: { c: ['#3b82f6', '#0b1437'], e: '😴', pat: 'waves' }, desc: '3 cards with a Silver or better, cheap. Mondays only.' },
+  humpday: { name: 'Hump Day Holo', cards: 2, cost: 220, group: 'limited', rotate: { days: [3] }, live: rotating, pool: inVariants('holo', 'action', 'allstar', 'icon'), inside: 'Holo, Action Shot, All-Star and Icon cards.', added: NEW_PACK, art: { c: ['#f472b6', '#4c0519'], e: '🐫', pat: 'stars', foil: 'holo' }, desc: '2 shiny cards: Holo, Action Shot, All-Star or Icon. Wednesdays only.' },
+  'throwback-week': { name: 'Throwback Week', cards: 3, cost: 230, group: 'limited', mixed: true, rotate: { weeks: 2, phase: 0 }, live: rotating, pool: (c) => ['throwback', 'pixel', 'cutout'].includes(c.variant) || ['vhs', 'chalkboard', 'film-room'].includes(c.set), inside: 'Throwback, 8-Bit and Cardboard Cutout cards plus the VHS Tape, Chalkboard and Film Room sets.', added: NEW_PACK, art: { c: ['#a16207', '#1c1917'], e: '📼', pat: 'stripes' }, desc: 'Old-school cards. On sale every other week.' },
+  'turkey-feast': { name: 'Turkey Bowl Feast', cards: 4, cost: 240, group: 'limited', sets: true, rotate: { months: [11] }, live: rotating, pool: (c) => c.set === 'turkey' || SET_MAP.get(c.set)?.series === 'snacks', inside: 'The Turkey Bowl set plus the whole Snack Attack series.', added: NEW_PACK, art: { c: ['#d97706', '#431407'], e: '🦃', pat: 'check' }, desc: '4 Turkey Bowl and Snack Attack set cards. November only.' },
+  'trick-treat': { name: 'Trick or Treat', cards: 3, cost: 240, group: 'limited', mixed: true, rotate: { months: [10] }, live: rotating, pool: (c) => c.variant === 'spooky' || c.set === 'halloween', inside: 'Spooky cards and the Halloween Bowl set.', added: NEW_PACK, art: { c: ['#fb923c', '#1c1917'], e: '🎃', pat: 'zig' }, desc: 'Spooky cards and Halloween Bowl set cards. October only.' },
+  frosty: { name: 'Frosty Pack', cards: 3, cost: 240, group: 'limited', mixed: true, rotate: { months: [12, 1, 2] }, live: rotating, pool: (c) => c.variant === 'snow' || ['arctic', 'blizzard', 'christmas', 'new-year'].includes(c.set), inside: 'Snow Day cards plus the Arctic, Blizzard, Christmas Bowl and New Year\'s Bowl sets.', added: NEW_PACK, art: { c: ['#e0f2fe', '#1e40af'], e: '⛄', pat: 'dots' }, desc: 'Snow Day, Arctic, Blizzard and holiday bowl cards. December to February.' },
+});
+// One-set mini packs for the most popular sets.
+for (const id of ['halloween', 'super', 'galaxy', 'comic', 'pixel-plus', 'hot-sauce', 'all-mfl', 'rainbow']) {
+  const st = SET_MAP.get(id);
+  PACKS['mini-' + id] = { name: `${st.name} Mini`, cards: 2, cost: 120, group: 'sets', sets: true, pool: inSets(id), added: NEW_PACK, art: { c: [st.c1, st.c2], e: st.emoji, pat: PATTERNS[st.pat] }, desc: `2 cards from the ${st.name} set only. “${st.quote}”` };
+}
+for (const P of Object.values(PACKS)) if (P.bundle) {
+  P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
+  P.list = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cost * n, 0);
+}
+// Shop art for the original packs: [colors, emoji, pattern, foil].
+const PACK_ART = {
+  starter: [['#16a34a', '#0b1f14'], '🏈', 'stripes'], daily: [['#1e3a5f', '#0c1626'], '📅', 'dots'], gameday: [['#0f766e', '#062420'], '🏟️', 'rays'], weekly: [['#1d4ed8', '#0a1533'], '🗓️', 'grid'],
+  prize: [['#be123c', '#2a0710'], '🏆', 'rays', 'gold'], arcade: [['#7c3aed', '#1e0b3a'], '🕹️', 'grid'], milestone: [['#0891b2', '#04222b'], '📚', 'diamond'],
+  standard: [['#6d28d9', '#1a0f29'], '🏈', 'stripes'], value: [['#4d7c0f', '#141f04'], '💵', 'check'], premium: [['#ca8a04', '#2a1702'], '⭐', 'rays', 'gold'], mega: [['#ea580c', '#2a0e02'], '💥', 'confetti'],
+  lunch: [['#65a30d', '#1a2e05'], '🍱', 'dots'], mystery: [['#6d28d9', '#12051f'], '❓', 'confetti'],
+  offense: [['#dc2626', '#2a0505'], '🏃', 'zig'], defense: [['#2563eb', '#050f2a'], '🛡️', 'check'], specialist: [['#0d9488', '#03201d'], '🎯', 'diamond'], shine: [['#db2777', '#3b0764'], '💎', 'stars', 'holo'],
+  leaders: [['#ca8a04', '#1f1503'], '🎖️', 'stripes'], draft: [['#475569', '#0f141b'], '📋', 'grid'], sleeper: [['#334155', '#020617'], '💤', 'waves'],
+  meme: [['#f59e0b', '#3b1d02'], '🦆', 'confetti'], bitpack: [['#16a34a', '#052e16'], '👾', 'grid'], spooky: [['#ea580c', '#1c0a00'], '👻', 'zig'], cafeteria: [['#f97316', '#3b1505'], '🍕', 'check'],
+  bobble: [['#0ea5e9', '#082f49'], '🤪', 'dots'], snowday: [['#7dd3fc', '#1e3a8a'], '❄️', 'dots'],
+  goat: [['#fde68a', '#422006'], '🐐', 'rays', 'gold'], elite: [['#7e22ce', '#12021f'], '💠', 'diamond', 'holo'], hunt: [['#be123c', '#1a0208'], '🔮', 'stars'], void: [['#2e1065', '#000000'], '🕳️', 'stars', 'black'],
+  'set-hunter': [['#0e7490', '#05161c'], '🧭', 'diamond'], 'set-gold': [['#ca8a04', '#1f1503'], '🎫', 'rays', 'gold'], 'set-prism': [['#db2777', '#1e1b4b'], '🔷', 'stars', 'holo'], 'set-black': [['#27272a', '#000000'], '🎱', 'diamond', 'black'],
+};
+for (const [k, [c, e, pat, foil]] of Object.entries(PACK_ART)) if (PACKS[k] && !PACKS[k].art) PACKS[k].art = { c, e, pat, foil };
+for (const [series, , sets] of SERIES) if (PACKS['series-' + series] && !PACKS['series-' + series].art) PACKS['series-' + series].art = { c: SET_COLORS[series], e: sets[0][2], pat: 'diamond' };
+
 // One pack per team: only that team's cards.
 const TEAM_PACK = { cards: 3, cost: 140, group: 'team' };
 const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
-function packInfo(db, type) {
-  if (PACKS[type]) return PACKS[type];
+// `ctx` (optional): { now: 'YYYY-MM-DD HH:MM' league time, own: collection, lineup: card ids }.
+// Packs with `live` get their per-request fields (price, pool, on-sale state) merged in.
+function packInfo(db, type, ctx = {}) {
+  const P = PACKS[type];
+  if (P) return P.live ? { ...P, ...P.live(db, ctx || {}, P) } : P;
   const m = /^team-(.+)$/.exec(type || '');
   const t = m && db.teams[m[1]];
   return t ? { ...TEAM_PACK, name: `${`${t.city} ${t.name}`.trim()} Pack`, team: t.id, pool: (c) => c.t.id === t.id, desc: `3 cards, all ${t.name} players.` } : null;
@@ -435,6 +534,140 @@ function packInfo(db, type) {
 function packTypes(db) {
   return [...Object.keys(PACKS), ...Object.keys(db.teams).map((id) => 'team-' + id)];
 }
+const nowOf = (ctx) => (ctx && ctx.now) || pk.nowLocal(process.env.TZ_LEAGUE || 'America/Chicago');
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// Rotating packs: { off: true, back: 'Friday' } when not on sale, else { off: false, until }.
+function rotation(R, now) {
+  if (!R) return { off: false };
+  const d = new Date(now.slice(0, 10) + 'T12:00:00Z'), dow = d.getUTCDay(), mon = d.getUTCMonth();
+  if (R.days) {
+    if (R.days.includes(dow)) { let k = 0; while (k < 6 && R.days.includes((dow + k + 1) % 7)) k++; return { off: false, until: k ? DAY_NAMES[(dow + k) % 7] : 'tonight' }; }
+    let k = 1; while (k < 7 && !R.days.includes((dow + k) % 7)) k++;
+    return { off: true, back: k === 1 ? 'tomorrow' : DAY_NAMES[(dow + k) % 7] };
+  }
+  if (R.months) {
+    const has = (m) => R.months.includes((m % 12) + 1);
+    if (has(mon)) { let k = 0; while (k < 11 && has(mon + k + 1)) k++; return { off: false, until: `the end of ${MONTH_NAMES[(mon + k) % 12]}` }; }
+    let k = 1; while (k < 12 && !has(mon + k)) k++;
+    return { off: true, back: `in ${MONTH_NAMES[(mon + k) % 12]}` };
+  }
+  if (R.weeks) {
+    const wk = Math.floor((d - Date.UTC(2026, 0, 5)) / (7 * 864e5)), at = ((wk % R.weeks) + R.weeks) % R.weeks;
+    const k = ((R.phase || 0) - at + R.weeks) % R.weeks;
+    return k ? { off: true, back: k === 1 ? 'Monday' : `in ${k} weeks` } : { off: false, until: 'Sunday' };
+  }
+  return { off: false };
+}
+// Flash Sale: one pack a day (picked from `flash.from` by the date), cheaper every few hours.
+const dayHash = (s) => parseInt(crypto.createHash('sha1').update(String(s)).digest('hex').slice(0, 8), 16);
+function flashDeal(db, ctx, P) {
+  const F = P.flash, now = nowOf(ctx), hr = Number(now.slice(11, 13)) || 0;
+  const base = F.from[dayHash('flash:' + now.slice(0, 10)) % F.from.length], B = packInfo(db, base, ctx);
+  const step = Math.min(F.steps, 1 + Math.floor(hr / F.every)), discount = Math.round(step * F.drop * 100) / 100;
+  return { base, cards: B.cards, pool: B.pool, min: B.min, mins: B.mins, boost: B.boost, sets: B.sets, mixed: B.mixed, floor: B.floor, mystery: B.mystery, inside: B.inside,
+    list: B.cost, cost: Math.max(5, Math.round((B.cost * (1 - discount)) / 5) * 5), discount, nextDrop: step < F.steps ? step * F.every : null,
+    name: `Flash Sale: ${B.name}`, desc: `Today's deal is the ${B.name} (${B.desc.replace(/\.$/, '')}). ${Math.round(discount * 100)}% off right now.` };
+}
+// Rival Pack: the team the user's collection is NOT built around (their next opponent, or
+// the team they own the fewest cards of). Without a user it can be any team.
+function rivalPack(db, ctx) {
+  const n = {};
+  for (const [id, k] of Object.entries(ctx.own || {})) { const c = cardInfo(db, id); if (c) n[c.t.id] = (n[c.t.id] || 0) + k; }
+  for (const id of ctx.lineup || []) { const c = id && cardInfo(db, id); if (c) n[c.t.id] = (n[c.t.id] || 0) + 5; }
+  const home = Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!home || !db.teams[home] || Object.keys(db.teams).length < 2) return {};
+  const g = db.games.filter((x) => x.status === 'scheduled' && (x.home === home || x.away === home)).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
+  const rid = g ? (g.home === home ? g.away : g.home) : Object.keys(db.teams).filter((x) => x !== home).sort((a, b) => (n[a] || 0) - (n[b] || 0))[0];
+  const R = db.teams[rid], H = db.teams[home];
+  if (!R) return {};
+  return { name: `Rival Pack: ${R.name}`, team: R.id, pool: (c) => c.t.id === R.id, desc: `3 ${R.name} cards. Your collection is mostly ${H.name}, so these are the other side.`, inside: `Only ${R.city ? R.city + ' ' : ''}${R.name} players.` };
+}
+// Hot Hand: everyone who scored or threw a TD in the latest final game (the winners if
+// that game has no play-by-play).
+function hotHandPack(db) {
+  const g = db.games.filter(isFinal).sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))[0];
+  if (!g) return {};
+  const ids = new Map();
+  for (const e of g.events || []) if (e.type === 'TD') for (const who of [e.player, e.passer]) {
+    const p = db.teams[e.team]?.roster.find((x) => x.name.toLowerCase() === String(who || '').toLowerCase());
+    if (p) ids.set(p.id, p.name);
+  }
+  const win = g.homeScore > g.awayScore ? g.home : g.awayScore > g.homeScore ? g.away : null;
+  if (!ids.size) for (const p of (win && db.teams[win]?.roster) || []) ids.set(p.id, p.name);
+  if (!ids.size) return {};
+  return { pool: (c) => ids.has(c.pid), inside: `From the ${g.date} game (${db.teams[g.home]?.abbr || g.home} ${g.homeScore}, ${db.teams[g.away]?.abbr || g.away} ${g.awayScore}): ${[...ids.values()].join(', ')}.` };
+}
+// Position for position packs: a saved position when it names one, otherwise a depth chart
+// from tendencies (best passer QB, best scorer RB, next three WR, next TE, the rest linemen).
+let roleKey = null, roleMap = new Map();
+function rolePos(db, t, p) {
+  catalog(db);
+  if (roleKey !== catKey) {
+    roleMap = new Map();
+    const et = pk.effTend(db);
+    const named = (s) => (/\bQB\b|QUARTER/.test(s) ? 'QB' : /\b(RB|HB|FB)\b|RUNNING/.test(s) ? 'RB' : /\bWR\b|RECEIV|WIDE|SLOT/.test(s) ? 'WR' : /\bTE\b|TIGHT/.test(s) ? 'TE' : /\b(OL|DL|DE|C|G|T)\b|LINE|CENTER|GUARD|TACKLE|UTIL|RUSH/.test(s) ? 'OL' : null);
+    for (const tm of Object.values(db.teams)) {
+      const left = [];
+      for (const pl of tm.roster) { const r = named(String(pl.position || '').toUpperCase()); if (r) roleMap.set(pl.id, r); else left.push(pl); }
+      const count = (r) => tm.roster.filter((pl) => roleMap.get(pl.id) === r).length;
+      const take = (r, want, score) => { left.sort((a, b) => score(b) - score(a)); for (const pl of left.splice(0, Math.max(0, want - count(r)))) roleMap.set(pl.id, r); };
+      take('QB', 1, (pl) => et.player(tm, pl, 'pass'));
+      take('RB', 1, (pl) => et.player(tm, pl, 'td'));
+      take('WR', 3, (pl) => et.player(tm, pl, 'td'));
+      take('TE', 1, (pl) => et.player(tm, pl, 'td') + et.player(tm, pl, 'pass') * 0.2);
+      for (const pl of left) roleMap.set(pl.id, 'OL');
+    }
+    roleKey = catKey;
+  }
+  return roleMap.get(p.id) || 'OL';
+}
+// The cards a pack draws from. `ok` is false when its own pool is empty right now
+// (openPack then falls back to every card, and the shop shows the pack as restocking).
+function packPool(db, P, taken = new Set()) {
+  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)));
+  if (!P.pool) return { pool: base, base, ok: true };
+  const f = base.filter(P.pool);
+  return f.length ? { pool: f, base, ok: true } : { pool: base, base, ok: false };
+}
+// What's inside a pack, for the shop: pool size, per-card rarity odds (RARITIES weights ×
+// boosts, at or above the floor), and the Big Doh Mi chance. Cached per catalog version.
+const oddsCache = new Map();
+function packOdds(db, type, ctx = {}) {
+  const P = packInfo(db, type, ctx);
+  if (!P) return null;
+  if (P.bundle) {
+    const subs = P.bundle.map(([t, n]) => ({ type: t, n, odds: packOdds(db, t, ctx) }));
+    return { ok: subs.every((s) => s.odds && s.odds.ok), subs, size: Math.max(...subs.map((s) => s.odds?.size || 0)), players: Math.max(...subs.map((s) => s.odds?.players || 0)), odds: [], doh: subs.some((s) => s.odds?.doh) };
+  }
+  catalog(db);
+  const key = [catKey, type, P.name, P.base || '', P.team || '', P.inside || ''].join('|');
+  if (oddsCache.has(key)) return oddsCache.get(key);
+  const { pool, ok } = type === 'starter' ? { pool: catalog(db).filter((c) => c.variant === 'base'), ok: true } : packPool(db, P);
+  const have = new Set(pool.map((c) => c.rarity));
+  const rs = RARITY_ORDER.filter((r) => r !== 'doh' && have.has(r) && RARITY_ORDER.indexOf(r) >= RARITY_ORDER.indexOf(P.floor || 'common'));
+  let w = (r) => RARITIES[r].weight * (P.boost?.[r] ?? 1);
+  if (!rs.reduce((s, r) => s + w(r), 0)) w = (r) => RARITIES[r].weight; // same fallback as rollCard
+  const total = rs.reduce((s, r) => s + w(r), 0) || 1;
+  const res = { ok, size: pool.length, players: new Set(pool.map((c) => c.pid)).size, sets: new Set(pool.map((c) => c.set).filter(Boolean)).size,
+    odds: type === 'starter' ? [{ r: 'common', pct: 100 }] : rs.map((r) => ({ r, pct: (w(r) / total) * 100 })).filter((x) => x.pct > 0), doh: type !== 'starter' && have.has('doh') };
+  if (oddsCache.size > 400) oddsCache.clear();
+  oddsCache.set(key, res);
+  return res;
+}
+// Can this pack drop this card? Mirrors openPack (pool, set rule, boosts, floor, bundles).
+function packCanDrop(db, type, c, P = packInfo(db, type)) {
+  if (!P) return false;
+  if (P.bundle) return P.bundle.some(([t]) => packCanDrop(db, t, c));
+  if (type === 'starter') return c.variant === 'base';
+  if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
+  if (P.pool && !P.pool(c)) return false;
+  if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
+  if (P.floor && c.rarity !== 'doh' && RARITY_ORDER.indexOf(c.rarity) < RARITY_ORDER.indexOf(P.floor)) return false;
+  return true;
+}
+// Shop helpers ride on packInfo so the export list stays as it is.
+Object.assign(packInfo, { odds: packOdds, canDrop: packCanDrop, role: rolePos, rotation, NEW: NEW_PACK });
 
 // Which specialty a player's Signature card gets: their strongest tendency,
 // or Pass Rusher / Playmaker for players without a scoring/passing/pick strength.
@@ -494,12 +727,19 @@ function rollCard(pool, P, minRarity) {
   if (doh && rint(DOH_ODDS) === 0) return doh.id;
   const r = rollRarity(pool, P, minRarity) || rollRarity(pool, {}, minRarity) || rollRarity(pool, {});
   const options = pool.filter((c) => c.rarity === r);
-  return options[rint(options.length)].id;
+  return (options.length ? options : pool)[rint(options.length || pool.length)].id;
 }
 // `taken`: ids of 1/1 cards someone already owns (they can't drop again).
-function openPack(db, type, taken = new Set()) {
-  const P = packInfo(db, type);
+// `ctx`: see packInfo. Choose packs return the cards to choose from (P.choose of them).
+function openPack(db, type, taken = new Set(), ctx = {}) {
+  const P = packInfo(db, type, ctx);
   if (!P) throw new Error('Unknown pack');
+  // Bundles open every pack inside; a 1/1 pulled in one can't drop again in the next.
+  if (P.bundle) {
+    const out = [], seen = new Set(taken);
+    for (const [t, k] of P.bundle) for (let i = 0; i < k; i++) for (const id of openPack(db, t, seen, ctx)) { out.push(id); if (cardInfo(db, id)?.one) seen.add(id); }
+    return out;
+  }
   if (type === 'starter') {
     // A full Lineup of Base cards, all different players. A league smaller than that fills up with repeats.
     const players = Object.values(db.teams).flatMap((t) => t.roster.map((p) => p.id));
@@ -508,18 +748,31 @@ function openPack(db, type, taken = new Set()) {
     while (players.length && out.length < P.cards) out.push(players[rint(players.length)]);
     return out.map((pid) => `${pid}:base`);
   }
-  let pool = catalog(db).filter((c) => !taken.has(c.id) && (P.sets ? c.set : !c.set));
-  if (P.pool) { const f = pool.filter(P.pool); if (f.length) pool = f; }
+  let { pool, base } = packPool(db, P, taken);
   const out = [];
-  const n = P.mystery ? P.mystery[0] + rint(P.mystery[1] - P.mystery[0] + 1) : P.cards;
-  const pick = (min) => { const id = rollCard(pool, P, min); if (cardInfo(db, id).one) pool = pool.filter((c) => c.id !== id); return id; };
-  for (let i = 0; i < n; i++) out.push(pick());
+  const n = P.choose || (P.mystery ? P.mystery[0] + rint(P.mystery[1] - P.mystery[0] + 1) : P.cards);
+  const drop = (id) => { if (cardInfo(db, id).one) pool = pool.filter((c) => c.id !== id); return id; };
+  // A pool can run dry when it was only 1/1s: refill it with everything that isn't one.
+  const pick = (min) => { if (!pool.length) pool = base.filter((c) => !c.one); return drop(rollCard(pool, P, min)); };
+  if (P.pairs) {
+    // Each pair: a card, then another version of the same player (from the pack's pool if it has one).
+    for (let i = 0; i < P.pairs; i++) {
+      const a = pick(P.floor), pid = cardInfo(db, a).pid;
+      const mates = pool.filter((c) => c.pid === pid && c.id !== a);
+      const alt = mates.length ? mates : base.filter((c) => c.pid === pid && c.id !== a && !c.one);
+      out.push(a, alt.length ? drop(rollCard(alt, P, P.floor)) : pick(P.floor));
+    }
+    return out;
+  }
+  // Choose packs show different cards; everything else can repeat.
+  for (let i = 0, tries = 0; i < n; tries++) { const id = pick(P.floor); if (P.choose && out.includes(id) && tries < n * 25) continue; out.push(id); i++; }
   // Guarantees: swap random slots for cards of at least `min` rarity.
   if (P.min && pool.some((c) => RARITY_ORDER.indexOf(c.rarity) >= RARITY_ORDER.indexOf(P.min))) {
     const ok = (id) => RARITY_ORDER.indexOf(cardInfo(db, id).rarity) >= RARITY_ORDER.indexOf(P.min);
     const need = Math.min(P.mins || 1, n);
     const low = out.map((id, i) => (ok(id) ? -1 : i)).filter((i) => i >= 0);
-    for (let k = out.filter(ok).length; k < need && low.length; k++) out[low.splice(rint(low.length), 1)[0]] = pick(P.min);
+    const pickNew = (min) => { let id = pick(min); for (let t = 0; P.choose && out.includes(id) && t < 25; t++) id = pick(min); return id; };
+    for (let k = out.filter(ok).length; k < need && low.length; k++) out[low.splice(rint(low.length), 1)[0]] = pickNew(P.min);
   }
   return out;
 }
