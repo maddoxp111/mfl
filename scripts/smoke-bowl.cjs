@@ -185,7 +185,7 @@ async function end(runtime, score, opp) {
   await phone.getByRole('heading', { name: 'Game over', exact: true }).waitFor();
   console.log('PASS: 390px mobile layout, Legend difficulty, loss result');
 
-  // Create a real local account and Starting 8 for the coin settlement check.
+  // Create a real local account and Lineup for the coin settlement check.
   const signup = await desktop.request.post(base + '/pickem/signup', { form: { name: 'bowl_test', pin: 'test-only-password' } });
   assert(signup.ok());
   const userFile = path.join(data, 'docs/users/bowl_test.json');
@@ -210,7 +210,7 @@ async function end(runtime, score, opp) {
   assert.equal(saved.status, 'won'); assert.equal(saved.stats.td, 3);
   const duplicate = await desktop.request.post(base + '/api/m/finish', { data: { id: run.match.id, result: { won: true, score: 21 } } });
   assert.equal((await duplicate.json()).ok, false);
-  console.log('PASS: Starting 8, Risk mode, server coin settlement, TD challenge stats, duplicate rejection');
+  console.log('PASS: Lineup, Risk mode, server coin settlement, TD challenge stats, duplicate rejection');
   const bridgeContext = await browser.newContext({ viewport: { width: 1000, height: 700 } });
   const bridged = await bridgeContext.newPage();
   await bridged.addInitScript(origin => { window.MFL_API_ORIGIN = origin; }, base);
