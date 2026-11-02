@@ -318,7 +318,7 @@ function betResult(db, bet) {
   const odds = live.length === bet.legs.length ? bet.odds : live.reduce((x, l) => x * l.odds, 1);
   return { status: 'won', payout: Math.floor(bet.stake * odds), res };
 }
-// `extra`: coins from outside Pick'em (Starting 8, Survivor, card sales, minus packs).
+// `extra`: coins from outside Pick'em (Lineup, Survivor, card sales, minus packs).
 function account(db, user, extra = 0) {
   let bal = START_COINS + extra + (user.bonuses || []).reduce((s, b) => s + b.amount, 0);
   let won = 0, lost = 0, pending = 0, profit = 0;

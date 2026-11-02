@@ -1090,7 +1090,7 @@ const pts = (n) => `<span class="bpts">${icon('star')}${Number(n).toLocaleString
 function pickHead(user, acct, mode) {
   const cardsMode = mode === 'cards';
   return `<section class="ph pick-ph ${cardsMode ? 'cards-ph' : ''}"><div class="wrap pick-top">
-    ${cardsMode ? `<div><div class="kicker">${icon('star')} Collect · trade · play</div><h1>MFL Cards</h1><p>Open packs, set your Starting 8 and trade cards with other collectors.</p></div>`
+    ${cardsMode ? `<div><div class="kicker">${icon('star')} Collect · trade · play</div><h1>MFL Cards</h1><p>Open packs, set your Lineup and trade cards with other collectors.</p></div>`
       : `<div><div class="kicker">${icon('coin')} Prediction game · MFL coins</div><h1>Pick'em</h1><p>Predict what happens in every MFL game with MFL coins: winners, player picks and combos.</p></div>`}
     ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${cardsMode ? `${Object.keys(cards.collection(user)).length} different cards` : `${acct.won}W · ${acct.lost}L · ${acct.pending} open `}</span></div>`
       : `<div class="wallet cta"><b>Start with ${pk.START_COINS.toLocaleString()} coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}

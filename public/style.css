@@ -1215,16 +1215,22 @@ h1,h2,h3{text-wrap:balance}
 .mcard.pickable{cursor:pointer}
 .mcard.pickable:hover{transform:translateY(-4px)}
 .mcard.in{outline:3px solid #4ade80;outline-offset:3px}
-.mcard.in::after{content:'✓ In lineup';position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06140b;font:800 10px Inter;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+.mcard.in::after{content:'✓ In Lineup';position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06140b;font:800 10px Inter;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
 .sell .btn{font-size:11.5px;padding:5px 10px}
 .lineup-card{background:var(--glass),linear-gradient(120deg,rgba(74,222,128,.06),transparent 60%),var(--card)}
-.slots{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin:14px 0}
-.slot{display:flex;justify-content:center;min-height:200px}
+/* Lineup: 11 slots. 6 per row on wide screens (QB-TE, then UTIL and OL), 4 per row on phones. */
+.slots{--cols:6;--gap:10px;display:flex;flex-wrap:wrap;justify-content:center;gap:12px var(--gap);margin:14px 0}
+.slot{display:flex;justify-content:center;flex:0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));min-width:0;min-height:0}
 .slot .mcard{width:100%;max-width:150px;cursor:pointer;transform:scale(.96)}
 .slot .mcard:hover{transform:scale(.96) translateY(-3px)}
-.slot .mcard::after{content:'Tap to remove';position:absolute;bottom:34px;left:50%;transform:translateX(-50%);opacity:0;background:rgba(0,0,0,.8);font:700 10px Inter;padding:3px 8px;border-radius:999px;transition:.15s;white-space:nowrap}
+.slot .mcard::after{content:'Tap to change';position:absolute;bottom:34px;left:50%;transform:translateX(-50%);opacity:0;background:rgba(0,0,0,.8);font:700 10px Inter;padding:3px 8px;border-radius:999px;transition:.15s;white-space:nowrap}
 .slot .mcard:hover::after{opacity:1}
-.slot-empty{display:grid;place-items:center;width:100%;max-width:150px;min-height:200px;border-radius:16px;border:2px dashed var(--line2);color:var(--muted);font:800 28px var(--disp)}
+.slot-empty{display:grid;place-items:center;width:100%;max-width:150px;aspect-ratio:5/8;min-height:0;box-sizing:border-box;border-radius:16px;border:2px dashed var(--line2);color:var(--muted);font:800 28px var(--disp)}
+/* "Pick a card for WR3" bar while a position is selected (the collection is further down on phones) */
+.lineup-pick{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);box-sizing:border-box;padding:8px 8px 8px 16px;border-radius:999px;background:#ffc21a;color:#1a1300;font:700 14px Inter;white-space:nowrap;box-shadow:0 12px 30px -8px rgba(0,0,0,.7)}
+.lineup-pick[hidden]{display:none}
+#coll{scroll-margin-top:124px}
+.lineup-pick .btn{background:#1a1300;color:#ffc21a;border-color:transparent}
 .lineup-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lineup-bar span{margin-right:auto}
 .fan-rows{display:flex;flex-direction:column}
@@ -1345,12 +1351,10 @@ h1,h2,h3{text-wrap:balance}
 .ans-q{color:var(--muted);font-style:italic;margin:0 0 10px}
 .ans-a{font-size:17px;line-height:1.7;color:#e6e8ee;margin:0}
 
-@media(max-width:960px){.slots{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:760px){
   .mcard{width:150px}
   .mgrid{grid-template-columns:repeat(2,1fr)}
   .mgrid .mcard{width:100%;max-width:168px}
-  .slots{grid-template-columns:repeat(2,1fr)}
   .fan-row{grid-template-columns:1fr auto}.fan-row>span.muted{grid-column:1/-1;grid-row:2}
   .flip{width:150px;height:240px}.flip-front .mcard{width:150px;height:240px}
   .scout-cols{grid-template-columns:1fr}
@@ -1721,13 +1725,16 @@ body.arc-playing .ticker{display:none}
 .arc-coins{font:800 34px var(--disp)}.arc-coins.up{color:#4ade80}.arc-coins.down{color:#ff6b7a}
 .arc-over-b{display:flex;gap:8px;justify-content:center;margin-top:16px}
 
-/* Starting 8 positions */
+/* Lineup positions: skill players gold, UTIL teal, OL blue */
 .slot{position:relative;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
-.slot-pos{font:800 11px 'Press Start 2P',monospace;letter-spacing:.04em;color:#ffc21a;padding:3px 7px;border-radius:6px;background:rgba(255,194,26,.12)}
+.slot-pos{font:800 11px 'Press Start 2P',monospace;letter-spacing:.04em;color:#ffc21a;padding:3px 7px;border-radius:6px;background:rgba(255,194,26,.12);white-space:nowrap}
+.slot.g-util .slot-pos{color:#5eead4;background:rgba(94,234,212,.12)}
+.slot.g-ol .slot-pos{color:#93c5fd;background:rgba(147,197,253,.12)}
 .slot-c{width:100%;display:flex;justify-content:center}
 .slot.sel .slot-pos{background:#ffc21a;color:#1a1300}
 .slot.sel .slot-empty,.slot.sel .mcard{box-shadow:0 0 0 3px #ffc21a}
-@media(max-width:760px){.slots{grid-template-columns:repeat(4,1fr);gap:8px}.slot{min-height:0}.slot .mcard,.slot-empty{min-height:150px}.slot-pos{font-size:9px}}
+@media(max-width:760px){.slots{--cols:4;--gap:8px}.slot-pos{font-size:9px;padding:3px 5px}.lineup-bar .btn{flex:1 1 auto}}
+@media(max-width:350px){.slot-pos{font-size:8px;padding:2px 3px}}
 
 /* fun cards */
 .mc-q{font-style:italic;color:#d9dde5}
@@ -1766,7 +1773,7 @@ body.arc-playing .ticker{display:none}
 .pk-arcade .pack-art{--p1:#7c3aed;--p2:#ff3344}
 @media(max-width:760px){
   .arc-head p{flex-basis:100%;font-size:14px}
-  .slots{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:8px!important;overflow:visible!important}
+  .slots{--cols:4;--gap:8px;gap:10px var(--gap)!important;overflow:visible!important}
   .slot{min-width:0}
   .slot .mcard{width:100%!important;max-width:none;min-height:0!important;padding:6px 4px 7px;gap:2px;transform:none!important;border-radius:12px}
   .slot .mcard:hover{transform:none}
@@ -1962,6 +1969,19 @@ body.arc-playing .ticker{display:none}
 .mcard.v-bench{background:linear-gradient(180deg,transparent 62%,#78350f 62% 66%,transparent 66% 72%,#78350f 72% 76%,transparent 76%),linear-gradient(170deg,#1f2937,#111827)}
 .mcard.v-bobble{--rc:#fda4af;background:radial-gradient(circle at 50% 34%,rgba(253,164,175,.35),transparent 50%),linear-gradient(170deg,#4c0519,#1c0710)}
 .mcard.v-upside{--rc:#a3e635;background:repeating-linear-gradient(var(--ang),rgba(163,230,53,.12) 0 6px,transparent 6px 14px),linear-gradient(170deg,#1a2e05,#0b1402)}
+/* body-type cards: a height chart down the side and the photo stretched or squashed to match */
+.mcard.v-skinny{--bt:#a3e635}.mcard.v-heavy{--bt:#f97316}.mcard.v-tall{--bt:#38bdf8}.mcard.v-short{--bt:#f472b6}
+.mcard.v-beanpole{--bt:#84cc16}.mcard.v-stout{--bt:#ea580c}.mcard.v-giant{--bt:#818cf8}.mcard.v-pocket{--bt:#fb7185}
+.mcard:is(.v-skinny,.v-heavy,.v-tall,.v-short,.v-beanpole,.v-stout,.v-giant,.v-pocket){--rc:var(--bt);background:repeating-linear-gradient(180deg,rgba(255,255,255,.5) 0 1px,transparent 1px 9px) 5px 0/7px 100% no-repeat,radial-gradient(ellipse at 50% 30%,color-mix(in srgb,var(--bt) 38%,transparent),transparent 60%),linear-gradient(170deg,color-mix(in srgb,var(--bt) 32%,#0b0d12),#0b0d12 78%)}
+.mcard.v-skinny .mc-photo .av{transform:scaleX(.8)}
+.mcard.v-heavy .mc-photo .av{transform:scaleX(1.2)}
+.mcard.v-tall .mc-photo .av{transform:scaleY(1.12)}
+.mcard.v-short .mc-photo .av{transform:scaleY(.84)}
+.mcard.v-beanpole .mc-photo .av{transform:scale(.8,1.14)}
+.mcard.v-stout .mc-photo .av{transform:scale(1.2,.86)}
+.mcard.v-giant .mc-photo .av{transform:scale(1.14)}
+.mcard.v-pocket .mc-photo .av{transform:scale(.84,.84)}
+.pk-bodyshop .pack-art{--p1:#38bdf8;--p2:#9a3412}
 .mc-pat{-webkit-mask-image:linear-gradient(#000 0 42%,rgba(0,0,0,.3) 62%,rgba(0,0,0,.2));mask-image:linear-gradient(#000 0 42%,rgba(0,0,0,.3) 62%,rgba(0,0,0,.2))}
 .pat-3 .mc-pat,.pat-5 .mc-pat{opacity:.15}.pat-7 .mc-pat{opacity:.24}.pat-0 .mc-pat{opacity:.17}
 .mcard.v-spec .mc-pat{opacity:.05}

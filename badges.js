@@ -52,7 +52,7 @@ const USER_BADGES = [
   ['comboking', '🧩', 'Combo King', 'Won a 4+ pick combo'],
   ['hot', '🔥', 'Hot Streak', '5 winning picks in a row'],
   ['botw', '⭐', 'Picker of the Week', 'Best profit of a week'],
-  ['fantasy', '📈', 'Fantasy Star', '100+ points from a Starting 8 in one game'],
+  ['fantasy', '📈', 'Fantasy Star', '100+ points from a Lineup in one game'],
   ['collector', '🗂️', 'Collector', '25 different cards'],
   ['fullsquad', '🧑‍🤝‍🧑', 'Full Squad', 'A card of every player in the league'],
   ['legend', '🌟', 'Legendary Pull', 'Owns a Legend, All-Star or Clutch card'],

@@ -1,5 +1,6 @@
-// MFL Cards: collectible player cards, packs and the "Starting 8" fantasy game.
-// Starting 8 fantasy points pay out as Pick'em coins, and coins buy packs.
+// MFL Cards: collectible player cards, packs and the Lineup fantasy game.
+// Lineup fantasy points pay out as Pick'em coins, and coins buy packs.
+// Every card also shifts its player's game attributes (see cardEffects): some up, some down.
 const crypto = require('crypto');
 const pk = require('./pickem');
 
@@ -159,17 +160,226 @@ for (const st of SETS) for (const par of PARALLELS) {
 }
 const isSetCard = (c) => !!c.set;
 
+// Body-type cards: they make the player taller, shorter, heavier or lighter in the Arcade games.
+// Added after the set cards so every older card keeps its artwork (the art is keyed to list order).
+const BODY_VARIANTS = [
+  { id: 'skinny', rarity: 'rare', label: 'Skinny', mult: 1.2, quote: 'Turns sideways and disappears.' },
+  { id: 'heavy', rarity: 'rare', label: 'Heavyweight', mult: 1.2, quote: 'Hard to move. Harder to tackle.' },
+  { id: 'tall', rarity: 'rare', label: 'Tall Order', mult: 1.2, quote: "Catches what you can't reach." },
+  { id: 'short', rarity: 'rare', label: 'Short King', mult: 1.2, quote: 'Low center of gravity.' },
+  { id: 'beanpole', rarity: 'epic', label: 'Beanpole', mult: 1.45, quote: 'All arms and legs.' },
+  { id: 'stout', rarity: 'epic', label: 'Stout', mult: 1.45, quote: 'Built like a fire hydrant.' },
+  { id: 'giant', rarity: 'epic', label: 'Giant', mult: 1.5, quote: 'Blocks out the sun.' },
+  { id: 'pocket', rarity: 'epic', label: 'Pocket Rocket', mult: 1.5, quote: 'Small. Fast. Gone.' },
+];
+const BODY_TYPES = BODY_VARIANTS.map((v) => v.id);
+VARIANTS.push(...BODY_VARIANTS);
+const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
+
+// ---------- card effects ----------
+// Every card changes its player's game attributes: some go up, some go down. All of it comes
+// from the tables below (never random). Skill attributes are on the 0-99 scale, height is in
+// inches and weight in pounds. Only the 1 of 1 cards are all upside.
+const ATTR_KEYS = ['thr', 'acc', 'spd', 'agi', 'sta', 'str', 'cat', 'def', 'kick', 'hgt', 'wgt'];
+const ATTR_LABELS = { thr: 'Throw power', acc: 'Accuracy', spd: 'Speed', agi: 'Agility', sta: 'Stamina', str: 'Strength', cat: 'Catching', def: 'Defense', kick: 'Kicking', hgt: 'Height', wgt: 'Weight' };
+const ATTR_SHORT = { thr: 'THR', acc: 'ACC', spd: 'SPD', agi: 'AGI', sta: 'STA', str: 'STR', cat: 'CAT', def: 'DEF', kick: 'KICK', hgt: 'HGT', wgt: 'WGT' };
+const BUILD_LABELS = { slim: 'Slim', lanky: 'Lanky', normal: 'Normal', stocky: 'Stocky', tank: 'Tank', fat: 'Fat', stubby: 'Stubby', tall: 'Tall', short: 'Short' };
+// Largest delta allowed: ±12 for skills, ±4 in of height, ±25 lb of weight.
+const FX_CAP = { hgt: 4, wgt: 25 }, FX_CAP_SKILL = 12;
+
+// Specialist cards boost what they score on. Signature cards use the same table, scaled up.
+const SPEC_FX = {
+  td: { spd: 4, str: 3, thr: -2, def: -2 },
+  pass: { thr: 5, acc: 3, spd: -2, def: -2 },
+  int: { def: 5, cat: 3, thr: -2, kick: -2 },
+  def: { def: 4, spd: 3, str: 2, cat: -3 },
+  play: { cat: 4, agi: 4, str: -2, def: -2 },
+};
+// One entry per classic card type. `spec` = use SPEC_FX for the card's specialty, scaled [up, down].
+const VARIANT_FX = {
+  // Common: small swings both ways.
+  base: { a: { sta: 2, cat: 1, kick: -2 } }, // fundamentals, no flash
+  team: { a: { def: 3, sta: 2, kick: -1, acc: -1 } }, // plays for the crest
+  bench: { a: { sta: 4, spd: -2, acc: -2, agi: -1, wgt: 5 } }, // fresh legs, rusty hands, bench snacks
+  trophy: { a: { thr: 1, acc: 1, spd: 1, agi: 1, sta: 1, str: 1, cat: 1, def: 1, kick: -4 } }, // everybody gets +1 (except the kicker)
+  pizza: { a: { str: 4, sta: 3, spd: -3, agi: -2, wgt: 15 }, build: 'fat' }, // fueled by cafeteria pizza
+  cutout: { a: { def: 3, str: 2, agi: -4, spd: -2, wgt: -10 }, build: 'slim' }, // flat, stiff and surprisingly solid
+  // Rare.
+  silver: { a: { acc: 3, cat: 3, agi: 2, str: -2 } },
+  action: { a: { spd: 5, agi: 3, sta: -3, acc: -1 } }, // caught mid-sprint
+  'spec-td': { spec: [1, 1] }, 'spec-pass': { spec: [1, 1] }, 'spec-int': { spec: [1, 1] }, 'spec-def': { spec: [1, 1] }, 'spec-play': { spec: [1, 1] },
+  bobble: { a: { cat: 5, sta: 2, acc: -3, agi: -2 }, build: 'stubby' }, // big head sees the ball, wobbles on the throw
+  pixel: { a: { spd: 5, kick: 4, agi: -3, cat: -2 } }, // runs in straight lines, very fast
+  snow: { a: { agi: 4, cat: 3, sta: 2, thr: -3, spd: -1 } }, // light feet, cold hands
+  upside: { a: { kick: 6, agi: 3, acc: -3, thr: -2, hgt: -1 } }, // feet in the air
+  // Epic.
+  gold: { a: { thr: 4, acc: 4, cat: 4, str: 3, spd: -2, wgt: 5 } }, // gold is heavy
+  holo: { a: { agi: 6, spd: 5, cat: 3, str: -2, def: -1 } },
+  spec: { spec: [1.6, 0.7] }, // Signature
+  duck: { a: { agi: 6, sta: 5, cat: 3, str: -3, wgt: -10 } }, // floats, bounces, squeaks
+  built: { a: { str: 8, def: 5, sta: 3, agi: -3, kick: -2, hgt: 1, wgt: 15 }, build: 'tank' },
+  throwback: { a: { str: 5, def: 5, sta: 4, thr: -3, acc: -2 } }, // leather-helmet ground game
+  spooky: { a: { def: 6, agi: 5, spd: 3, cat: -2, acc: -2 } }, // ghostly jukes, butterfingers
+  // Legendary.
+  legend: { a: { thr: 6, acc: 6, cat: 5, sta: 5, def: 4, spd: -2 } }, // a step slower, a lot smarter
+  allstar: { a: { spd: 8, agi: 6, cat: 6, thr: 4, def: -2 } }, // showtime, skips defense
+  clutch: { a: { acc: 8, cat: 6, kick: 6, sta: 3, agi: -2 } },
+  glitch: { a: { spd: 10, agi: 9, kick: 6, acc: -4, hgt: 3, wgt: -10 } }, // stretched player model
+  // Mythic.
+  icon: { a: { thr: 9, acc: 9, cat: 8, spd: 7, def: 6, sta: 6, kick: -2 } },
+  // 1 of 1: all upside.
+  goat: { a: { thr: 12, acc: 12, spd: 11, agi: 11, cat: 11, sta: 9, str: 7, def: 9, kick: 6 } },
+  mythic: { a: { thr: 10, acc: 10, spd: 10, agi: 10, cat: 10, def: 10, sta: 8, str: 8, kick: 8 } },
+  dark: { a: { spd: 12, agi: 12, str: 11, def: 11, sta: 10, cat: 9, thr: 9, acc: 9, kick: 7, wgt: 10 } }, // dense
+  doh: { a: { thr: 12, acc: 12, spd: 12, agi: 12, sta: 12, str: 12, cat: 12, def: 12, kick: 12, hgt: 2, wgt: 15 } },
+  // Body types.
+  skinny: { a: { spd: 4, agi: 4, str: -4, def: -2, wgt: -15 }, build: 'slim' },
+  heavy: { a: { str: 5, def: 3, spd: -4, sta: -2, wgt: 20 }, build: 'fat' },
+  tall: { a: { cat: 5, def: 2, agi: -3, spd: -1, hgt: 3, wgt: 5 }, build: 'tall' },
+  short: { a: { agi: 5, spd: 3, cat: -3, thr: -1, hgt: -3, wgt: -5 }, build: 'short' },
+  beanpole: { a: { cat: 7, spd: 4, str: -4, def: -1, hgt: 4, wgt: -15 }, build: 'lanky' },
+  stout: { a: { str: 7, def: 5, sta: 2, spd: -3, agi: -2, hgt: -2, wgt: 20 }, build: 'stubby' },
+  giant: { a: { str: 8, def: 6, cat: 3, spd: -4, agi: -3, hgt: 4, wgt: 25 }, build: 'tank' },
+  pocket: { a: { agi: 8, spd: 6, cat: 2, str: -4, hgt: -3, wgt: -15 }, build: 'short' },
+};
+// Card types without an entry above fall back to their rarity.
+const RARITY_FX = {
+  common: { sta: 1, cat: 1, kick: -1 }, rare: { cat: 2, spd: 2, str: -1 }, epic: { cat: 3, spd: 3, acc: 2, str: -2 },
+  legendary: { cat: 5, spd: 5, acc: 4, str: -2 }, mythic: { cat: 7, spd: 7, acc: 6, thr: 4, str: -1 },
+  dark: { cat: 10, spd: 10, acc: 10, thr: 10, str: 10 }, doh: { cat: 12, spd: 12, acc: 12, thr: 12, str: 12 },
+};
+// Card sets: one small table per set (Base parallel numbers). The parallel scales them:
+// [upside ×, downside ×, height/weight ×]. Rarer parallels get much more upside and less downside.
+const PARALLEL_FX = { base: [1, 1, 1], silver: [1.6, 0.9, 1.25], gold: [2.2, 0.75, 1.5], prism: [2.9, 0.6, 1.75], black: [3.6, 0.45, 2] };
+const SET_FX = {
+  // School Days
+  'picture-day': { a: { acc: 3, cat: 1, agi: -2 } }, // held still for the photo
+  'hall-pass': { a: { spd: 3, agi: 1, def: -2 } },
+  'gym-class': { a: { agi: 3, thr: 2, sta: 1, kick: -2 } }, // dodgeball champion
+  'science-fair': { a: { acc: 3, kick: 2, str: -2 } },
+  library: { a: { def: 2, acc: 2, spd: -2, sta: -1 } },
+  'bus-ride': { a: { sta: 3, cat: 1, spd: -2 } }, // napped the whole ride
+  // Spirit Week
+  'pajama-day': { a: { sta: 3, agi: 1, spd: -3 } }, // slippers
+  'crazy-hair': { a: { agi: 2, spd: 2, acc: -2, hgt: 2 } }, // the hair counts
+  'twin-day': { a: { cat: 2, def: 2, agi: -2 } }, // trips over his twin
+  'pep-rally': { a: { str: 2, sta: 2, spd: 1, acc: -2 } },
+  homecoming: { a: { thr: 2, cat: 2, sta: -1, def: -1 } }, // up late at the dance
+  'color-war': { a: { def: 3, str: 1, cat: -2 } },
+  // Bowl Season
+  halloween: { a: { agi: 3, def: 2, cat: -2 } },
+  turkey: { a: { str: 3, sta: 1, spd: -2, wgt: 10 }, build: 'stocky' }, // seconds on everything
+  christmas: { a: { cat: 3, sta: 1, agi: -2 } }, // great at catching presents
+  spring: { a: { spd: 2, sta: 2, str: -2 } },
+  super: { a: { thr: 2, acc: 2, cat: 2, sta: -2 } }, // big-game nerves
+  'new-year': { a: { kick: 3, acc: 1, sta: -2 } }, // fireworks off the tee, stayed up till midnight
+  // Wild World
+  galaxy: { a: { thr: 3, kick: 2, acc: -2 } },
+  ocean: { a: { sta: 3, agi: 1, spd: -2 } },
+  jungle: { a: { str: 3, agi: 1, acc: -2 } },
+  volcano: { a: { str: 2, spd: 2, sta: -3 } }, // erupts, then cools off
+  arctic: { a: { acc: 3, def: 1, spd: -2 } }, // ice in his veins, and his legs
+  desert: { a: { cat: 3, spd: 1, sta: -2, wgt: -5 } },
+  // Art Class
+  chalkboard: { a: { def: 2, acc: 2, spd: -2 } },
+  blueprint: { a: { str: 2, def: 2, agi: -2, hgt: 1 } },
+  comic: { a: { str: 3, spd: 1, acc: -2 } }, // KA-POW
+  graffiti: { a: { agi: 3, spd: 1, def: -2 } },
+  'stained-glass': { a: { acc: 3, cat: 1, str: -2 } }, // pretty, fragile
+  origami: { a: { agi: 3, kick: 1, str: -2, wgt: -5 }, build: 'slim' }, // paper light
+  // Arcade
+  neon: { a: { spd: 3, cat: 1, sta: -2 } },
+  'pixel-plus': { a: { spd: 2, kick: 2, agi: -2 } },
+  'high-score': { a: { thr: 2, kick: 2, def: -2 } },
+  circuit: { a: { acc: 2, agi: 2, sta: -2 } }, // battery drain
+  hologram: { a: { agi: 3, def: 1, str: -2, wgt: -5 } }, // see-through
+  vhs: { a: { def: 3, sta: 1, spd: -2 } }, // slow-motion replay
+  // Weather Report
+  thunder: { a: { spd: 3, agi: 1, cat: -2 } },
+  'rainy-day': { a: { str: 3, def: 1, cat: -2, agi: -1 } }, // mud game, wet ball
+  sunshine: { a: { sta: 2, spd: 2, cat: -2 } }, // sun in his eyes
+  tornado: { a: { agi: 3, spd: 1, acc: -2 } }, // dizzy
+  rainbow: { a: { thr: 2, kick: 2, str: -2 } }, // big arcs
+  blizzard: { a: { str: 2, sta: 2, thr: -2 } }, // cold hands
+  // Snack Attack
+  cereal: { a: { sta: 3, str: 1, kick: -2 } }, // part of a winning breakfast
+  nachos: { a: { cat: 3, str: 1, spd: -2, wgt: 10 } }, // cheesy, sticky fingers
+  donut: { a: { agi: 3, cat: 1, sta: -2, wgt: 10 }, build: 'fat' }, // sugar rush, sugar crash
+  'hot-sauce': { a: { spd: 3, str: 1, acc: -2 } }, // watery eyes
+  popcorn: { a: { agi: 3, cat: 1, def: -2 } },
+  smoothie: { a: { sta: 2, agi: 1, acc: 1, str: -2 } },
+  // MFL Legends
+  highlight: { a: { spd: 2, cat: 2, def: -2 } },
+  'film-room': { a: { def: 3, acc: 1, spd: -2 } },
+  playbook: { a: { acc: 2, thr: 2, agi: -2 } },
+  captains: { a: { sta: 3, def: 1, kick: -2 } },
+  'all-mfl': { a: { thr: 1, acc: 1, spd: 1, cat: 1, def: 1, kick: -2 } },
+  'hall-of-fame': { a: { thr: 2, acc: 2, cat: 1, spd: -2, wgt: 5 } },
+};
+const isBodyAttr = (k) => k === 'hgt' || k === 'wgt';
+function scaleFx(a, up, down, body = 1) {
+  const out = {};
+  for (const [k, v] of Object.entries(a)) {
+    if (isBodyAttr(k)) out[k] = Math.sign(v) * Math.max(k === 'wgt' ? 5 : 1, Math.round(Math.abs(v) * body));
+    else out[k] = v > 0 ? Math.max(1, Math.round(v * up)) : Math.min(-1, Math.round(v * down));
+  }
+  return out;
+}
+// What a card does to its player in the games:
+// { attr: { thr, acc, spd, agi, sta, str, cat, def, kick, hgt, wgt }, build, fx: { variant, set, par, rarity, spec } }.
+// Takes a card from cardInfo (or a VARIANTS entry, or a card / variant id).
+function cardEffects(card) {
+  const attr = Object.fromEntries(ATTR_KEYS.map((k) => [k, 0]));
+  if (typeof card === 'string') card = { variant: card.includes(':') ? card.slice(card.indexOf(':') + 1) : card };
+  if (!card) return { attr, build: null, fx: null };
+  const variant = card.variant || card.id || '';
+  const v = VARIANT_MAP.get(variant) || {};
+  const set = card.set || v.set || null, par = card.par || v.par || null, rarity = card.rarity || v.rarity || 'common';
+  const spec = card.spec || (v.spec && v.spec !== 'own' ? v.spec : null);
+  const one = !!(card.one ?? v.one) || rarity === 'doh';
+  let a, build = null;
+  if (set && SET_FX[set]) {
+    const [up, down, body] = PARALLEL_FX[par] || PARALLEL_FX.base;
+    a = scaleFx(SET_FX[set].a, up, down, body);
+    build = SET_FX[set].build || null;
+  } else if (VARIANT_FX[variant]) {
+    const T = VARIANT_FX[variant];
+    a = T.spec ? scaleFx(SPEC_FX[spec] || SPEC_FX.play, T.spec[0], T.spec[1]) : T.a;
+    build = T.build || null;
+  } else a = RARITY_FX[rarity] || RARITY_FX.common;
+  for (const [k, n] of Object.entries(a)) {
+    const cap = FX_CAP[k] || FX_CAP_SKILL;
+    attr[k] = Math.max(-cap, Math.min(cap, Math.round(n)));
+  }
+  // Only 1 of 1 cards may be all upside.
+  if (!one && !ATTR_KEYS.some((k) => !isBodyAttr(k) && attr[k] < 0)) attr.kick -= 1;
+  return { attr, build, fx: { variant, set, par, rarity, spec } };
+}
+// Short summary for the back of a card: "+4 STR, +3 STA, −3 SPD, −2 AGI, +15 lb · Fat build".
+// Skills first (ups, then downs, biggest first), then height and weight.
+function effectText(card) {
+  const e = card && card.attr && 'build' in card ? card : cardEffects(card);
+  const parts = ATTR_KEYS.filter((k) => e.attr[k]).map((k) => ({ k, v: e.attr[k] }))
+    .sort((x, y) => isBodyAttr(x.k) - isBodyAttr(y.k) || (isBodyAttr(x.k) ? 0 : (y.v > 0) - (x.v > 0) || Math.abs(y.v) - Math.abs(x.v)));
+  const txt = parts.map(({ k, v }) => `${v > 0 ? '+' : '−'}${Math.abs(v)} ${k === 'hgt' ? 'in' : k === 'wgt' ? 'lb' : ATTR_SHORT[k]}`).join(', ');
+  const b = e.build ? `${BUILD_LABELS[e.build] || e.build} build` : '';
+  return [txt, b].filter(Boolean).join(' · ');
+}
+
 // Fantasy points for one player in one game.
 const SCORING = { td: 10, pass: 7, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -5, mvp: 3, win: 2 };
 const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown catch or run', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
 const STAT_CAT = { TD: 'td', INT: 'int', CATCH: 'catch', SACK: 'sack', PBU: 'pbu', FLAG: 'flag', PLAY: 'big' };
 
-const LINEUP_SIZE = 8;
+// The Lineup: 11 cards of different players, one per position. Modern Bowl uses the first 8;
+// 3D Blitz uses all 11 (UTIL1, UTIL2 and OL1-3 are its five offensive linemen).
+const LINEUP_POS = ['QB', 'RB', 'WR1', 'WR2', 'WR3', 'TE', 'UTIL1', 'UTIL2', 'OL1', 'OL2', 'OL3'];
+const LINEUP_SIZE = LINEUP_POS.length;
 const isSpec = (...ks) => (c) => !!c.spec && ks.includes(c.spec);
 // Pack types. `pool` limits which cards can drop, `min` guarantees one card of at
 // least that rarity, `boost` multiplies rarity weights, `free` packs are claimed.
 const PACKS = {
-  starter: { name: 'Starter Pack', cards: 8, cost: 0, free: 'once', group: 'free', desc: '8 Base cards of different players: a full Starting 8. Free, once.' },
+  starter: { name: 'Starter Pack', cards: LINEUP_SIZE, cost: 0, free: 'once', group: 'free', desc: `${LINEUP_SIZE} Base cards of different players: a full Lineup. Free, once.` },
   daily: { name: 'Daily Pack', cards: 1, cost: 0, free: 'daily', group: 'free', desc: 'One free card every day.' },
   gameday: { name: 'Game Day Pack', cards: 2, cost: 0, free: 'gameday', group: 'free', desc: 'Free on every day there\'s an MFL game.' },
   weekly: { name: 'Weekly Pack', cards: 3, cost: 0, free: 'weekly', group: 'free', min: 'rare', desc: '3 cards free every week, Silver or better guaranteed.' },
@@ -195,6 +405,7 @@ const PACKS = {
   cafeteria: { name: 'Cafeteria Pack', cards: 4, cost: 120, group: 'fun', pool: (c) => ['pizza', 'trophy', 'bench', 'cutout', 'base', 'team'].includes(c.variant), desc: 'Pizza Friday and friends. Cheap and cheerful.' },
   bobble: { name: 'Bobblehead Box', cards: 2, cost: 200, group: 'fun', pool: (c) => c.variant === 'bobble', desc: 'Two bobbleheads. Nod nod.' },
   snowday: { name: 'Snow Day Pack', cards: 3, cost: 200, group: 'fun', pool: (c) => ['snow', 'upside', 'throwback'].includes(c.variant), desc: 'Snow Day, Upside Down and Throwback cards.' },
+  bodyshop: { name: 'Body Shop Pack', cards: 3, cost: 220, group: 'fun', pool: (c) => BODY_TYPES.includes(c.variant), desc: 'Body-type cards: Skinny, Heavyweight, Tall Order, Short King, Beanpole, Stout, Giant and Pocket Rocket. They change how tall and heavy your players are in the Arcade.' },
   goat: { name: 'GOAT Hunt', cards: 1, cost: 2500, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 2 }, pool: (c) => ['goat', 'glitch', 'icon', 'mythic', 'allstar', 'legend'].includes(c.variant), desc: 'One Legend-or-better card with a real shot at The GOAT 1/1.' },
   elite: { name: 'Elite Pack', cards: 3, cost: 1500, group: 'chase', min: 'legendary', desc: '3 cards with a Legend or better guaranteed.' },
   hunt: { name: 'Mythic Hunt', cards: 1, cost: 900, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the usual Mythic and Dark Matter drop rate.' },
@@ -290,9 +501,12 @@ function openPack(db, type, taken = new Set()) {
   const P = packInfo(db, type);
   if (!P) throw new Error('Unknown pack');
   if (type === 'starter') {
+    // A full Lineup of Base cards, all different players. A league smaller than that fills up with repeats.
     const players = Object.values(db.teams).flatMap((t) => t.roster.map((p) => p.id));
     for (let i = players.length - 1; i > 0; i--) { const j = rint(i + 1); [players[i], players[j]] = [players[j], players[i]]; }
-    return players.slice(0, P.cards).map((pid) => `${pid}:base`);
+    const out = players.slice(0, P.cards);
+    while (players.length && out.length < P.cards) out.push(players[rint(players.length)]);
+    return out.map((pid) => `${pid}:base`);
   }
   let pool = catalog(db).filter((c) => !taken.has(c.id) && (P.sets ? c.set : !c.set));
   if (P.pool) { const f = pool.filter(P.pool); if (f.length) pool = f; }
@@ -385,4 +599,5 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer };
+module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText };

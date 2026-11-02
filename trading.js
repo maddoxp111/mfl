@@ -31,7 +31,7 @@ module.exports = function trading(app, h) {
   const rank = (c) => cards.RARITY_ORDER.indexOf(c.rarity) * 1000 + h.ratingOf(h.load(), c.t, c.p);
   const sorted = (db, own) => Object.keys(own).map((id) => cards.cardInfo(db, id)).filter(Boolean).sort((a, b) => rank(b) - rank(a));
 
-  // Drop cards the user no longer owns from their current Starting 8.
+  // Drop cards the user no longer owns from their current Lineup.
   function fixLineup(user) {
     const own = cards.collection(user), last = (user.lineups || []).at(-1);
     if (!last || last.cards.every((id) => !id || own[id])) return;
@@ -68,7 +68,7 @@ module.exports = function trading(app, h) {
       res.send(layout(req, `@${name}'s cards`, pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/collection', me)}
         <div class="card coll-head"><div><div class="kicker">${icon('star')} Collection</div><h2>@${esc(name)}</h2><p class="muted">${list.length} different cards · score ${score(db, own).toLocaleString('en-US')}</p></div>
           ${me && me !== name ? `<a class="btn" href="/pickem/trade/${esc(name)}">${icon('swap')} Offer a trade</a>` : me === name ? '<a class="btn ghost" href="/pickem/cards">My cards</a>' : `<a class="btn" href="/pickem/login?next=/pickem/collection/${esc(name)}">Log in to trade</a>`}</div>
-        ${lineup.size ? `<div class="card"><div class="card-h"><h2>Starting 8</h2></div><div class="mgrid">${[...lineup].map((id) => `<div class="mcell">${cardArt(db, cards.cardInfo(db, id), { small: true })}</div>`).join('')}</div></div>` : ''}
+        ${lineup.size ? `<div class="card"><div class="card-h"><h2>Lineup</h2></div><div class="mgrid">${[...lineup].map((id) => `<div class="mcell">${cardArt(db, cards.cardInfo(db, id), { small: true })}</div>`).join('')}</div></div>` : ''}
         <div class="card"><div class="card-h"><h2>All cards</h2></div><div class="mgrid">${list.map((c) => `<div class="mcell">${cardArt(db, c, { small: true, count: own[c.id] })}</div>`).join('') || '<p class="muted">No cards yet.</p>'}</div></div>
       </div>`));
     } catch (e) { next(e); }
@@ -90,7 +90,7 @@ module.exports = function trading(app, h) {
         <form method="post" action="/pickem/trade/${esc(name)}" class="trade-form">
           <div class="card"><div class="card-h"><h2>You give</h2><span class="muted sm" data-cnt="give">0 picked</span></div>${picker(db, cards.collection(user), 'give', `Pick up to ${MAX_CARDS} of your cards.`)}</div>
           <div class="card"><div class="card-h"><h2>You get from @${esc(name)}</h2><span class="muted sm" data-cnt="get">0 picked</span></div>${picker(db, cards.collection(them), 'get', `Pick up to ${MAX_CARDS} of their cards.`)}</div>
-          <div class="card trade-send"><label>Message (optional)<input name="note" maxlength="140" placeholder="e.g. Need him for my Starting 8"></label><button class="btn">${icon('swap')} Send offer</button></div>
+          <div class="card trade-send"><label>Message (optional)<input name="note" maxlength="140" placeholder="e.g. Need him for my Lineup"></label><button class="btn">${icon('swap')} Send offer</button></div>
         </form>
         <script>document.querySelectorAll('.tpick input').forEach(i=>i.addEventListener('change',()=>{const f=i.name,n=document.querySelectorAll('.tpick input[name='+f+']:checked').length;if(n>${MAX_CARDS}){i.checked=false;return}document.querySelector('[data-cnt='+f+']').textContent=n+' picked'}))</script>
       </div>`));
