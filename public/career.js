@@ -5,88 +5,141 @@
   const error = document.getElementById('career-error'), status = document.getElementById('career-status');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const levels = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
-  let state = config.state, busy = false, release = null;
-  const resultKey = 'mfl-career-result:' + config.account;
-  function rememberResult(result) {
-    try { if (result) sessionStorage.setItem(resultKey, JSON.stringify(result)); else sessionStorage.removeItem(resultKey); } catch {}
-  }
-  const ourTeam = () => state.teams.find(t => t.id === state.teamId);
-  const gameNow = () => state.rounds[state.week]?.games.find(g => g.home === state.teamId || g.away === state.teamId);
+  let store = config, state = store.state, panel = state ? 'home' : 'saves', busy = false, release = null, live = null, newSlot = 1;
   const findTeam = id => state.teams.find(t => t.id === id);
-  const button = (label, action, extra = '', disabled = false) => `<button type="button" class="btn ghost sm" data-action="${action}" ${extra} ${disabled ? 'disabled' : ''}>${label}</button>`;
-  async function request(action, data = {}) {
-    const response = await fetch('/api/career/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, revision: state?.revision || 0 }) });
-    const body = await response.json();
-    if (body.state) state = body.state;
-    if (!body.ok) throw new Error(body.error || 'Career could not be saved. Try again.');
+  const shortName = team => team.name.replace(/\s+(Junior High|Middle School)\b/g, '');
+  const ours = () => findTeam(state.teamId);
+  const gameNow = () => state.rounds[state.week]?.games.find(g => g.home === state.teamId || g.away === state.teamId);
+  const button = (label, action, data = '', disabled = false) => `<button type="button" class="pixel-button" data-action="${action}" ${data} ${disabled ? 'disabled' : ''}>${label}</button>`;
+  const tab = (label, name, extra = '') => `<button type="button" class="pixel-button ${extra}" data-panel="${name}">${label}</button>`;
+  const scrollTable = (headers, rows) => `<div class="career-scroll"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  function absorb(body) { if ('saves' in body) { store = { ...store, ...body }; state = store.state; } }
+  async function request(action, data = {}, keepalive = false) {
+    const response = await fetch('/api/career/' + action, { method: 'POST', keepalive, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: store.revision, save: state?.saveId, client: config.client, ...data }) });
+    const body = await response.json(); absorb(body);
+    if (!body.ok) throw new Error(body.error || 'Could not save your career. Try again.');
     return body;
   }
   async function commitResult(result) {
-    try { const body = await request('finish', result); rememberResult(null); return body; }
+    try { return await request('finish', result); }
     catch (err) {
-      // A save may succeed even when its response is lost. Recover the server
-      // state before retrying, so a completed matchup cannot trap the result UI.
+      // Recover a committed result whose response was lost, without refreshing
+      // the document or granting permission to replay an unfinished matchup.
       try {
-        const latest = await (await fetch('/api/career')).json();
-        if (latest.ok && latest.state) {
-          state = latest.state;
-          const played = state.rounds.flatMap(r => r.games).find(g => g.id === result.id);
-          if (played && played.score !== null) { rememberResult(null); return latest; }
+        const latest = await (await fetch('/api/career?client=' + encodeURIComponent(config.client))).json();
+        if (latest.ok) {
+          absorb(latest);
+          const game = state?.saveId === result.save && state.rounds.flatMap(r => r.games).find(g => g.id === result.id);
+          if (game && game.score !== null) return latest;
         }
       } catch {}
       throw err;
     }
   }
-  function render() {
-    if (!state) {
-      hub.innerHTML = `<section class="card"><h2>Your first season starts at Metcalf</h2><p class="muted">Lead one of the site’s two teams. Your roster starts with its real MFL players, ratings, appearances and team colors.</p>
-        <form id="career-new" class="career-start"><div class="wide career-teams">${config.teams.map((t, i) => `<label class="career-team" style="--team:${esc(t.color)}"><input type="radio" name="team" value="${esc(t.id)}" ${!i ? 'checked' : ''}>${esc(t.name)}</label>`).join('')}</div>
-        <label>Coach name<input name="coach" maxlength="32" value="Coach" required></label><label>Difficulty<select name="level">${levels.map((l, i) => `<option value="${i}">${l}</option>`).join('')}</select></label>
-        <div class="wide"><p class="muted sm">A full county schedule, a four-team playoff, and a new class every school year. Your career saves to your account.</p><button class="btn" type="submit">Start MFL career</button></div></form></section>`;
-      return;
+  function standings(full = false) {
+    let rows = state.standings;
+    if (!full) {
+      rows = rows.slice(0, 4);
+      if (!rows.some(t => t.id === state.teamId)) rows[3] = state.standings.find(t => t.id === state.teamId);
     }
-    const ours = ourTeam(), record = state.standings.find(t => t.id === state.teamId), round = state.rounds[state.week];
-    const next = gameNow(), other = next ? findTeam(next.home === state.teamId ? next.away : next.home) : null;
-    const locked = !!state.pending, complete = state.phase === 'complete', story = state.story;
-    const roster = ours.players.map(p => `<tr><td><b>${esc(p.name)}</b><br><span class="career-grade">Grade ${p.grade}${p.fictional ? ' · Generated player' : ' · MFL roster'}</span></td><td>${esc(p.pos)}</td><td>${p.ovr}</td><td>${p.spd}</td><td>${p.pos === 'QB' ? p.acc : p.pos === 'UTIL2' ? p.kick : p.cat}</td><td>${p.condition}%</td><td>${p.morale}%</td></tr>`).join('');
-    hub.innerHTML = `<section class="card career-summary" style="--team:${esc(ours.color)}"><div><div class="kicker">School year ${state.season} · ${esc(state.coach)}</div><h2>${esc(ours.name)}</h2><p>Thomas Metcalf School · ${esc(state.levelName)}</p></div><div class="career-stats"><div><b>${record.w}–${record.l}${record.t ? '–' + record.t : ''}</b><small>Season record</small></div><div><b>${state.budget}</b><small>Program credits</small></div><div><b>${state.titles || 0}</b><small>County Cups</small></div></div></section>
-      <div class="career-layout"><div>
-        <section class="card career-match" style="--team:${esc(ours.color)}"><div class="kicker">${complete ? 'School year complete' : esc(round.label)}</div>
-          ${complete ? `<h2>${state.champion === state.teamId ? '🏆 County champions!' : esc(findTeam(state.champion).name) + ' won the County Cup'}</h2><p class="muted">Celebrate the eighth graders and welcome your new sixth-grade class. Facilities and program credits carry into the next school year.</p>${button('Begin next school year', 'next-season')}` : other ? `<div class="career-matchup"><span>${esc(ours.name)}</span><small>vs</small><span>${esc(other.name)}</span></div><p class="muted sm">${next.home === state.teamId ? 'Home at Thomas Metcalf' : 'Away at ' + esc(other.name)} · ${esc(other.city)}</p>
-            <button class="btn" type="button" data-action="play">${locked ? 'Resume matchup' : 'Play ' + esc(round.label)}</button>${locked ? button('Forfeit matchup (0–21)', 'forfeit') + '<p class="muted sm">Saved matchup ready. Resuming starts the game again from kickoff.</p>' : ''}` : `<h2>Your season on the field is complete</h2><p class="muted">Follow the remaining county playoff games to the championship.</p>${button('Simulate ' + esc(round.label), 'watch')}`}
-        </section>
-        <section class="card career-story"><div class="kicker">The Metcalf story</div><h2>${esc(story.title)}</h2><p>${esc(story.text)}</p>${state.choice ? '<p class="muted sm">Your team activity is complete for this matchup.</p>' : story.choices.map(c => `<button type="button" class="btn ghost sm career-choice" data-action="choice" data-choice="${c.id}" ${locked ? 'disabled' : ''}>${esc(c.label)}<small>${esc(c.detail)}</small></button>`).join('')}</section>
-        <section class="card"><h2>Your roster</h2><p class="muted sm">Condition and morale affect game-day attributes. Career grades advance each school year; eighth graders graduate.</p><div class="career-scroll"><table><thead><tr><th>Player</th><th>Position</th><th>OVR</th><th>Speed</th><th>Skill</th><th>Condition</th><th>Morale</th></tr></thead><tbody>${roster}</tbody></table></div>${ours.reserves?.length ? `<details><summary>Practice squad · ${ours.reserves.length}</summary><p class="muted sm">Move a player back into their starting position. Your current starter joins the practice squad.</p>${ours.reserves.map(p => `<p><b>${esc(p.name)}</b> · ${esc(p.pos)} · Grade ${p.grade} · ${p.ovr} OVR<br>${button('Start ' + esc(p.name), 'activate', `data-player="${esc(p.id)}"`, locked || complete)}</p>`).join('')}</details>` : ''}</section>
-        <section class="card"><h2>County schedule &amp; playoffs</h2><p class="muted sm">Top four by wins (ties count half), then point difference and points scored.</p><div class="career-scroll"><table><thead><tr><th>Round</th><th>Home</th><th>Score</th><th>Away</th></tr></thead><tbody>${state.rounds.map(r => r.games.filter(g => g.home === state.teamId || g.away === state.teamId || r.kind !== 'regular').map(g => `<tr class="${g.id === next?.id ? 'ours' : ''}"><td>${esc(r.label)}</td><td>${esc(findTeam(g.home).abbr)}</td><td>${g.score === null ? 'vs' : `${g.score}–${g.opp}${g.overtime ? ' OT' : ''}`}</td><td>${esc(findTeam(g.away).abbr)}</td></tr>`).join('')).join('')}</tbody></table></div><details><summary>All county results</summary><div class="career-scroll"><table><tbody>${state.rounds.flatMap(r => r.games.map(g => `<tr><td>${esc(r.label)}</td><td>${esc(findTeam(g.home).name)}</td><td>${g.score === null ? 'vs' : g.score + '–' + g.opp}</td><td>${esc(findTeam(g.away).name)}</td></tr>`)).join('')}</tbody></table></div></details></section>
-      </div><aside>
-        <section class="card career-program"><h2>Manage the program</h2><label>Game difficulty<select id="career-level" ${locked ? 'disabled' : ''}>${levels.map((l, i) => `<option value="${i}" ${state.level === i ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-          <h3>After-school practice</h3><p>${state.trained ? 'Practice is complete for this matchup.' : 'Choose one session before the next matchup. Skills and speed improve ratings; recovery restores condition.'}</p><div class="career-actions">${['speed', 'skills', 'recovery'].map(f => button(f[0].toUpperCase() + f.slice(1), 'train', `data-focus="${f}"`, locked || state.trained || complete || !next)).join('')}</div>
-          <h3>School facilities</h3>${['training', 'recovery'].map(f => { const n = state.facilities[f], cost = 25 + n * 15; return `<div><b>${f === 'training' ? 'Practice equipment' : 'Recovery space'} · ${n}/3</b><p>${f === 'training' ? 'Each level adds +1 to attribute gains in practice.' : 'Each level adds +5 to recovery practice and +3 condition after matches.'}</p>${button(n === 3 ? 'Fully upgraded' : `Upgrade · ${cost} credits`, 'facility', `data-facility="${f}"`, locked || complete || n === 3 || state.budget < cost)}</div>`; }).join('')}
-          <details><summary>Open tryouts</summary><p>Welcome one sixth grader per matchup for 12 credits. They replace your current starter at the listed position in this career.</p>${state.candidates.map(p => `<div><b>${esc(p.name)}</b><p>${p.pos} · Grade 6 · ${p.ovr} OVR · ${p.spd} speed</p>${button('Welcome ' + esc(p.pos), 'recruit', `data-player="${esc(p.id)}"`, locked || complete || !next || state.recruited || state.budget < 12)}</div>`).join('')}</details>
-        </section>
-        <section class="card"><h2>McLean County standings</h2><div class="career-scroll"><table><thead><tr><th>School / team</th><th>W</th><th>L</th><th>T</th></tr></thead><tbody>${state.standings.map((t, i) => `<tr class="${t.id === state.teamId ? 'ours' : ''}"><td>${i + 1}. ${esc(t.name)}</td><td>${t.w}</td><td>${t.l}</td><td>${t.t}</td></tr>`).join('')}</tbody></table></div></section>
-        <section class="card"><h2>School paper</h2><ul class="career-news">${state.news.slice(0, 8).map(n => `<li><small>School year ${n.season} · ${n.week < 11 ? 'Week ' + (n.week + 1) : 'County playoffs'}</small><b>${esc(n.title)}</b><p>${esc(n.text)}</p></li>`).join('')}</ul></section>
-        ${state.history.length ? `<section class="card"><h2>Program history</h2>${state.history.map(h => `<p><b>Year ${h.season}: ${h.w}–${h.l}${h.t ? '–' + h.t : ''}${h.title ? ' 🏆' : ''}</b><br><small class="muted">County champions: ${esc(h.champion)}</small></p>`).join('')}</section>` : ''}
-      </aside></div>`;
+    return scrollTable([full ? 'School / team' : 'McLean County', 'W', 'L', 'T'], rows.map(t => `<tr class="${t.id === state.teamId ? 'ours' : ''}"><td>${esc(full ? t.name : shortName(t))}</td><td>${t.w}</td><td>${t.l}</td><td>${t.t}</td></tr>`).join(''));
+  }
+  function timeline() {
+    return [state.week - 1, state.week, state.week + 1].map((index, i) => {
+      const round = state.rounds[index], game = round?.games.find(g => g.home === state.teamId || g.away === state.teamId);
+      const opponent = game ? findTeam(game.home === state.teamId ? game.away : game.home) : null;
+      const label = round?.label || (index < 0 ? 'Season kickoff' : state.phase === 'complete' ? 'Next school year' : 'County playoffs');
+      const played = game && game.score !== null;
+      const score = game && (game.home === state.teamId ? game.score : game.opp), opp = game && (game.home === state.teamId ? game.opp : game.score);
+      return `<div class="timeline-stop ${i === 1 ? 'current' : ''} ${played ? score > opp ? 'won' : 'lost' : ''}"><b>${esc(label)}</b><span>${opponent ? (game.home === state.teamId ? 'vs ' : 'at ') + esc(shortName(opponent)) : 'Thomas Metcalf'}</span><i aria-hidden="true"></i><strong>${played ? `${score > opp ? 'W' : score < opp ? 'L' : 'T'} ${score}–${opp}${game.forfeit ? ' · FF' : ''}` : i === 1 ? 'UP NEXT' : 'MFL'}</strong></div>`;
+    }).join('');
+  }
+  function stars(rating) {
+    const n = Math.max(0, Math.min(5, Math.round(rating / 20)));
+    return `<span class="rating-stars" role="img" aria-label="${n} out of 5 stars">${Array.from({ length: 5 }, (_, i) => `<i class="${i < n ? 'filled' : ''}"></i>`).join('')}</span>`;
+  }
+  function home() {
+    const team = ours(), morale = Math.round(team.players.reduce((n, p) => n + p.morale, 0) / team.players.length);
+    const offense = team.players.reduce((n, p) => n + p.ovr, 0) / team.players.length, defense = team.players.reduce((n, p) => n + p.def, 0) / team.players.length;
+    return `<section class="retro-home" aria-label="MFL career home">
+      <header class="retro-head"><span class="retro-badge" title="Program credits">${state.budget} C</span><h1><span aria-hidden="true">★✦★</span> MFL FOOTBALL <span aria-hidden="true">★✦★</span></h1><span class="retro-badge">Y${state.season}</span></header>
+      <div class="retro-timeline">${timeline()}</div>
+      <div class="retro-summary"><fieldset class="retro-standings"><legend>McLean County</legend>${standings()}<button class="all-standings" data-panel="schedule">Full standings ▸</button></fieldset>
+        <div class="retro-team-stats"><fieldset class="retro-fans"><legend>Fans ${state.fans ?? 50}%</legend><div class="fans-meter" role="progressbar" aria-label="Fans" aria-valuenow="${state.fans ?? 50}" aria-valuemin="0" aria-valuemax="100"><span aria-hidden="true">♟</span><i style="width:${state.fans ?? 50}%"></i></div></fieldset>
+        <div class="retro-ratings"><fieldset><legend>Morale</legend><b>${morale}% <span aria-hidden="true">☻</span></b></fieldset><fieldset><legend>Offense</legend>${stars(offense)}</fieldset><fieldset><legend>Defense</legend>${stars(defense)}</fieldset></div><div class="retro-team-label">${esc(team.name)} · ${esc(state.levelName)}</div></div>
+      </div>
+      <nav class="retro-nav" aria-label="Career menu">${tab('<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5a5 5 0 0 0-6 6L2 17l5 5 6-6a5 5 0 0 0 6-6l-4 4-4-4 4-4z"/></svg><span class="sr-only">Settings</span>', 'settings', 'settings-button')}${tab('FRONT<br>OFFICE', 'office')}${tab('ROSTER', 'roster')}${tab('HALL OF<br>FAME', 'history')}${tab('CONTINUE ▸', 'continue', 'continue-button')}</nav>
+    </section><div class="career-save-strip"><span>${esc(state.saveName)} · ${esc(state.coach)}</span>${tab('SAVE SLOTS', 'saves')}</div>`;
+  }
+  function saveScreen() {
+    const slots = Array.from({ length: store.maxSaves || 5 }, (_, i) => {
+      const save = store.saves.find(s => s.slot === i + 1);
+      return `<article class="save-slot ${save?.id === store.selected ? 'selected' : ''}"><span class="slot-number">SAVE ${i + 1}</span>${save ? `<h2>${esc(save.name)}</h2><p>${esc(save.team)} · ${esc(save.coach)}</p><p>Year ${save.season} · ${save.complete ? 'Season complete' : 'Week ' + save.week} · ${save.w}–${save.l}${save.t ? '–' + save.t : ''}</p><p>${esc(save.level)} · ${save.titles} County Cups</p><div class="slot-actions">${button('LOAD SAVE', 'select', `data-save="${save.id}"`)}${button('DELETE', 'delete', `data-save="${save.id}"`)}</div>` : `<h2>EMPTY SLOT</h2><p>A new Metcalf story starts here.</p><button class="pixel-button" data-panel="new" data-slot="${i + 1}">NEW CAREER</button>`}</article>`;
+    }).join('');
+    return `<section class="career-panel"><header><h1>MFL SAVE SLOTS</h1>${state ? tab('BACK', 'home') : ''}</header><p>Five independent careers. Deleting a save permanently removes that career.</p><div class="save-grid">${slots}</div></section>`;
+  }
+  function newScreen() {
+    return `<section class="career-panel"><header><h1>NEW MFL CAREER</h1>${tab('BACK', 'saves')}</header><form id="career-new" class="career-start"><input type="hidden" name="slot" value="${newSlot}">
+      <label class="wide">Save name<input name="saveName" maxlength="40" value="My MFL career" required></label><div class="career-teams wide">${config.teams.map((t, i) => `<label class="career-team" style="--team:${esc(t.color)}"><input type="radio" name="team" value="${esc(t.id)}" ${!i ? 'checked' : ''}>${esc(t.name)}</label>`).join('')}</div>
+      <label>Coach name<input name="coach" maxlength="32" value="Coach" required></label><label>Difficulty<select name="level">${levels.map((l, i) => `<option value="${i}">${l}</option>`).join('')}</select></label><p class="wide">Real MFL players and looks. A full county season. Leaving or refreshing a live game always counts as a loss.</p><button type="submit" class="pixel-button">START CAREER</button></form></section>`;
+  }
+  function roster() {
+    const rows = ours().players.map(p => `<tr><td><b>${esc(p.name)}</b><small>Career grade ${p.grade}</small></td><td>${esc(p.pos)}</td><td>${p.ovr}</td><td>${p.spd}</td><td>${p.pos === 'QB' ? p.acc : p.pos === 'UTIL2' ? p.kick : p.cat}</td><td>${p.condition}%</td><td>${p.morale}%</td></tr>`).join('');
+    return `<h2>Your roster</h2><p>Condition and morale affect game-day attributes. Eighth graders graduate each school year.</p>${scrollTable(['Player', 'Pos', 'OVR', 'Speed', 'Skill', 'Condition', 'Morale'], rows)}${ours().reserves?.length ? `<h2>Practice squad</h2>${ours().reserves.map(p => `<div class="panel-item"><b>${esc(p.name)}</b><p>${p.pos} · Grade ${p.grade} · ${p.ovr} OVR</p>${button('START PLAYER', 'activate', `data-player="${esc(p.id)}"`, state.phase === 'complete')}</div>`).join('')}` : ''}`;
+  }
+  function office() {
+    const complete = state.phase === 'complete', next = gameNow();
+    return `<h2>Front office</h2><p>${state.budget} program credits · Thomas Metcalf School</p><div class="office-grid"><section><h3>After-school practice</h3><p>${state.trained ? 'Practice is complete for this matchup.' : 'One session per matchup. Speed and skills improve ratings; recovery restores condition.'}</p><div class="career-actions">${['speed', 'skills', 'recovery'].map(f => button(f.toUpperCase(), 'train', `data-focus="${f}"`, complete || state.trained || !next)).join('')}</div>
+      <h3>Facilities</h3>${['training', 'recovery'].map(f => { const n = state.facilities[f], cost = 25 + n * 15; return `<div class="panel-item"><b>${f === 'training' ? 'Practice equipment' : 'Recovery space'} · ${n}/3</b><p>${f === 'training' ? 'Each level adds +1 to attribute gains in practice.' : 'Each level improves recovery and post-game condition.'}</p>${button(n === 3 ? 'MAX LEVEL' : 'UPGRADE · ' + cost + ' C', 'facility', `data-facility="${f}"`, complete || n === 3 || state.budget < cost)}</div>`; }).join('')}</section>
+      <section><h3>The Metcalf story</h3><h2>${esc(state.story.title)}</h2><p>${esc(state.story.text)}</p>${state.choice ? '<p>Team activity complete.</p>' : state.story.choices.map(c => button(`${esc(c.label)}<small>${esc(c.detail)}</small>`, 'choice', `data-choice="${c.id}"`)).join('')}<h3>Open tryouts</h3><p>12 credits. One sixth grader per matchup. Your current starter joins the practice squad.</p><details><summary>View tryout players</summary>${state.candidates.map(p => `<div class="panel-item"><b>${esc(p.name)}</b><p>${p.pos} · Grade 6 · ${p.ovr} OVR · ${p.spd} speed</p>${button('WELCOME ' + p.pos, 'recruit', `data-player="${esc(p.id)}"`, complete || !next || state.recruited || state.budget < 12)}</div>`).join('')}</details></section></div><h3>School paper</h3>${state.news.slice(0, 6).map(n => `<article class="panel-item"><b>${esc(n.title)}</b><p>${esc(n.text)}</p></article>`).join('')}`;
+  }
+  function schedule() {
+    return `<h2>County standings</h2><p>Top four advance. Tiebreakers: point difference, then points scored.</p>${standings(true)}<h2>County schedule &amp; playoffs</h2>${scrollTable(['Round', 'Home', 'Score', 'Away'], state.rounds.flatMap(r => r.games.filter(g => g.home === state.teamId || g.away === state.teamId || r.kind !== 'regular').map(g => `<tr><td>${esc(r.label)}</td><td>${esc(findTeam(g.home).name)}</td><td>${g.score === null ? 'vs' : g.score + '–' + g.opp + (g.forfeit ? ' FF' : g.overtime ? ' OT' : '')}</td><td>${esc(findTeam(g.away).name)}</td></tr>`)).join(''))}`;
+  }
+  function continueScreen() {
+    const next = gameNow(), round = state.rounds[state.week];
+    if (state.phase === 'complete') return `<h2>${state.champion === state.teamId ? 'COUNTY CHAMPIONS!' : esc(findTeam(state.champion).name) + ' won the County Cup'}</h2><p>${esc(state.story.text)}</p>${button('BEGIN NEXT SCHOOL YEAR', 'next-season')}`;
+    if (!next) return `<h2>${esc(round.label)}</h2><p>Your team has finished playing this school year. Follow the rest of the county bracket.</p>${button('SIMULATE ROUND', 'watch')}`;
+    const other = findTeam(next.home === state.teamId ? next.away : next.home);
+    return `<div class="next-match"><span>${esc(round.label)}</span><h2>${esc(ours().name)}<br><small>VS</small><br>${esc(other.name)}</h2><p>${next.home === state.teamId ? 'Home at Thomas Metcalf' : 'Away at ' + esc(other.name)} · ${esc(state.levelName)}</p><p class="quit-rule">Leaving, closing, or refreshing during this game is an automatic 0–21 loss. Games cannot be resumed.</p>${button('PLAY ' + esc(round.label).toUpperCase(), 'play')}</div>`;
+  }
+  function render() {
+    if (!state && !['saves', 'new'].includes(panel)) panel = 'saves';
+    if (panel === 'saves') hub.innerHTML = saveScreen();
+    else if (panel === 'new') hub.innerHTML = newScreen();
+    else if (panel === 'home') hub.innerHTML = home();
+    else {
+      let content = '';
+      if (panel === 'roster') content = roster();
+      else if (panel === 'office') content = office();
+      else if (panel === 'schedule') content = schedule();
+      else if (panel === 'history') content = `<h2>Hall of Fame</h2><p>${state.titles || 0} County Cups · ${esc(ours().name)}</p>${state.history.length ? state.history.map(h => `<article class="panel-item"><h3>Year ${h.season} · ${h.w}–${h.l}${h.t ? '–' + h.t : ''}${h.title ? ' · CHAMPIONS' : ''}</h3><p>County champions: ${esc(h.champion)}</p></article>`).join('') : '<p>Your legacy starts this season. Complete a school year to add its record here.</p>'}`;
+      else if (panel === 'settings') content = `<h2>Career settings</h2><label>Difficulty<select id="career-level">${levels.map((l, i) => `<option value="${i}" ${state.level === i ? 'selected' : ''}>${l}</option>`).join('')}</select></label><p>Leaving or refreshing mid-game always counts as a loss.</p>${tab('MANAGE SAVE SLOTS', 'saves')}${tab('COUNTY SCHEDULE', 'schedule')}`;
+      else content = continueScreen();
+      hub.innerHTML = `<section class="career-panel"><header><span>MFL FOOTBALL · Y${state.season}</span>${tab('HOME', 'home')}</header>${content}</section>`;
+    }
   }
   async function action(name, data = {}) {
     if (busy) return;
-    busy = true; error.textContent = ''; status.textContent = 'Saving career…';
+    busy = true; error.textContent = ''; status.textContent = 'Saving…';
     hub.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try {
-      const body = name === 'finish' ? await commitResult(data) : await request(name, data);
-      render(); status.textContent = 'Career saved to your account.';
+      const body = await request(name, data);
+      if (name === 'new' || name === 'select' || name === 'next-season') panel = 'home';
+      if (name === 'delete') panel = 'saves';
+      render(); status.textContent = 'Saved.';
       if (body.match) mount(body.match);
     } catch (err) { error.textContent = err.message; status.textContent = ''; render(); }
     finally { busy = false; }
   }
   function unmount() {
-    if (release) release();
-    release = null; field.replaceChildren(); field.hidden = true; hub.hidden = false;
+    if (release) release(); release = null;
+    field.replaceChildren(); field.hidden = true; hub.hidden = false;
   }
   function mount(match) {
     unmount(); hub.hidden = true; field.hidden = false;
-    field.innerHTML = `<div class="career-game"><p role="status">Loading MFL football…</p><iframe title="MFL career football game" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="career-game-toolbar"><button type="button" class="btn ghost sm" data-fullscreen>Full screen</button><button type="button" class="btn ghost sm" data-return>Return to career</button><p>Your matchup is saved. Returning lets you restart it from kickoff.</p></div></div>`;
+    live = { save: state.saveId, id: match.id, token: match.token };
+    field.innerHTML = `<div class="career-game"><p role="status">Loading MFL football…</p><iframe title="MFL career football game" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="career-game-toolbar"><button class="pixel-button" data-fullscreen>FULL SCREEN</button><button class="pixel-button" data-quit>QUIT · LOSS</button><p>Leaving or refreshing is an automatic loss.</p></div></div>`;
     const frame = field.querySelector('iframe'), loading = field.querySelector('[role=status]');
     const origin = new URL(window.MFL_API_ORIGIN || location.origin).origin, token = crypto.randomUUID();
     let finished = false;
@@ -95,16 +148,15 @@
       const msg = e.data || {};
       if (msg.type === 'mfl-football-ready') frame.contentWindow.postMessage({ type: 'mfl-football-start', token, data: match.data, level: match.level, seed: match.seed }, origin);
       else if (msg.token === token && msg.type === 'mfl-football-playing') { loading.hidden = true; frame.focus(); }
-      else if (msg.token === token && msg.type === 'mfl-football-error') { loading.hidden = false; loading.textContent = 'Football could not load. Return to career and try again.'; }
+      else if (msg.token === token && msg.type === 'mfl-football-error') { loading.hidden = false; loading.textContent = 'Football could not load. Quitting or refreshing counts as a loss.'; }
       else if (msg.token === token && msg.type === 'mfl-football-finish' && !finished) {
         finished = true;
-        const result = { id: match.id, token: match.token, score: msg.result.score, opp: msg.result.opp, stats: msg.result.stats };
-        rememberResult(result);
+        const result = { ...live, score: msg.result.score, opp: msg.result.opp, stats: msg.result.stats };
         unmount(); hub.hidden = true; field.hidden = false;
-        field.innerHTML = `<section class="card career-result"><h2>${esc(match.data.home.abbr)} ${result.score} – ${result.opp} ${esc(match.data.away.abbr)}</h2><p role="status">Saving your result…</p><button class="btn" type="button" hidden>Retry saving result</button></section>`;
+        field.innerHTML = `<section class="career-panel next-match"><h2>${esc(match.data.home.abbr)} ${result.score} – ${result.opp} ${esc(match.data.away.abbr)}</h2><p role="status">Saving result…</p><button class="pixel-button" hidden>RETRY SAVE</button></section>`;
         const save = async () => {
           const retry = field.querySelector('button'), message = field.querySelector('[role=status]'); retry.hidden = true;
-          try { await commitResult(result); unmount(); render(); status.textContent = 'Final score saved. Your county season has advanced.'; }
+          try { await commitResult(result); live = null; unmount(); panel = 'home'; render(); status.textContent = 'Final score saved.'; }
           catch (err) { message.textContent = err.message; retry.hidden = false; }
         };
         field.querySelector('button').addEventListener('click', save); await save();
@@ -114,25 +166,35 @@
     release = () => { window.removeEventListener('message', receive); frame.remove(); };
     frame.src = origin + '/play/football';
     field.querySelector('[data-fullscreen]').addEventListener('click', () => { const request = frame.requestFullscreen || frame.webkitRequestFullscreen; if (request) Promise.resolve(request.call(frame)).catch(() => {}); });
-    field.querySelector('[data-return]').addEventListener('click', () => { unmount(); render(); status.textContent = 'Matchup saved. Resume to restart from kickoff.'; });
+    field.querySelector('[data-quit]').addEventListener('click', async e => {
+      e.target.disabled = true;
+      try { await request('abandon', live); live = null; unmount(); panel = 'home'; render(); status.textContent = 'Game forfeited. Recorded as a 0–21 loss.'; }
+      catch (err) { error.textContent = err.message; e.target.disabled = false; }
+    });
     field.scrollIntoView({ block: 'start' });
   }
   hub.addEventListener('click', e => {
-    const b = e.target.closest('[data-action]'); if (!b || b.disabled) return;
-    const { action: name, ...data } = b.dataset;
-    if (name === 'forfeit') {
-      if (!window.confirm('Forfeit this matchup 0–21 and advance the county season?')) return;
-      data.id = state.pending.id;
+    const b = e.target.closest('button'); if (!b || b.disabled || busy) return;
+    if (b.dataset.panel) { panel = b.dataset.panel; if (b.dataset.slot) newSlot = Number(b.dataset.slot); error.textContent = ''; render(); return; }
+    const { action: name, ...data } = b.dataset; if (!name) return;
+    if (name === 'delete') {
+      const slot = store.saves.find(s => s.id === data.save);
+      if (!window.confirm(`Permanently delete "${slot.name}"? This career cannot be recovered.`)) return;
     }
     action(name, data);
   });
   hub.addEventListener('submit', e => { if (e.target.id !== 'career-new') return; e.preventDefault(); action('new', Object.fromEntries(new FormData(e.target))); });
   hub.addEventListener('change', e => { if (e.target.id === 'career-level') action('difficulty', { level: Number(e.target.value) }); });
-  window.addEventListener('pagehide', () => { if (release) release(); });
+  window.addEventListener('pagehide', () => {
+    if (live) {
+      // fetch uses the site's authenticated Pages bridge as well as direct
+      // cookies. The next server read also settles the loss if this is dropped.
+      fetch('/api/career/abandon', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...live, client: config.client }) }).catch(() => {});
+    }
+    if (release) release();
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+  // Older versions retained resumable final results. They cannot restore a game
+  // under the new quit policy, and are intentionally never submitted here.
   render();
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(resultKey));
-    if (saved && state?.pending?.id === saved.id) action('finish', saved);
-    else if (saved) rememberResult(null);
-  } catch {}
 })();

@@ -95,7 +95,7 @@ function start(siteTeams, teamId, level, coach, owner) {
     }) }));
   for (const school of SCHOOLS) teams.push({ ...school, players: POSITIONS.map((pos, i) => recruit(`${seed}-${school.id}-${pos}`, pos, 6 + i % 3)) });
   const state = { version: 1, owner, revision: 0, seed, teamId, coach: String(coach || 'Coach').trim().slice(0, 32) || 'Coach', level,
-    season: 1, week: 0, phase: 'season', titles: 0, budget: 40, facilities: { training: 0, recovery: 0 },
+    season: 1, week: 0, phase: 'season', titles: 0, fans: 50, budget: 40, facilities: { training: 0, recovery: 0 },
     trained: false, choice: null, recruited: false, teams, rounds: schedule(teams, 1), pending: null, history: [], news: [] };
   log(state, 'A new MFL chapter', `${state.coach} takes charge of ${team(state).name}. The road from Thomas Metcalf to the McLean County Cup starts here.`);
   return state;
@@ -160,6 +160,7 @@ function manage(state, action, body) {
 }
 function play(state) {
   requireThat(state.phase !== 'complete' && currentGame(state), 'There is no matchup to play.');
+  requireThat(!state.pending, 'This matchup is already in progress. Leaving or refreshing counts as a loss.');
   if (!state.pending) {
     const fit = p => { const copy = structuredClone(p), factor = (.85 + p.condition * .0015) * (.95 + p.morale * .0005); for (const stat of ['spd', 'thr', 'acc', 'cat', 'str', 'kick', 'def']) copy[stat] = Math.round(p[stat] * factor); return copy; };
     state.pending = { id: currentGame(state).id, token: crypto.randomBytes(16).toString('hex'), level: state.level,
@@ -213,12 +214,21 @@ function finish(state, body) {
   g.stats = { td: clamp(Math.floor(Number(body.stats?.td) || 0), 0, 30), pass: clamp(Math.floor(Number(body.stats?.pass) || 0), 0, 2000), rush: clamp(Math.floor(Number(body.stats?.rush) || 0), 0, 2000) };
   const ours = team(state), other = opponent(state), result = score > opp ? 'win' : score < opp ? 'loss' : 'tie';
   state.budget += result === 'win' ? 12 : 7;
+  state.fans = clamp((state.fans ?? 50) + (result === 'win' ? 6 : result === 'loss' ? -4 : 1), 0, 100);
   for (const p of ours.players) {
     p.condition = clamp(p.condition - 12 + 7 + state.facilities.recovery * 3, 30, 100);
     p.morale = clamp(p.morale + (result === 'win' ? 5 : result === 'loss' ? -3 : 1), 20, 100);
   }
   log(state, `${ours.abbr} ${score} – ${opp} ${other.abbr}`, `${state.rounds[state.week].label}: ${result === 'win' ? 'A win for' : result === 'loss' ? 'A tough loss for' : 'A tied game for'} ${ours.name}. Back to class, then back to practice.`);
   advance(state);
+}
+function forfeit(state) {
+  requireThat(state.pending, 'There is no game in progress.');
+  const game = currentGame(state), budget = state.budget;
+  game.forfeit = true;
+  finish(state, { id: state.pending.id, token: state.pending.token, score: 0, opp: 21 });
+  state.budget = budget; // Abandoned games never earn program credits.
+  log(state, 'Game forfeited · 0–21 loss', 'You left or refreshed during a game. The matchup counts as a loss and cannot be resumed.');
 }
 function watch(state) {
   requireThat(!state.pending && state.phase !== 'complete' && !currentGame(state), 'Play your own matchup before advancing the week.');
@@ -231,4 +241,4 @@ function view(state) {
   delete copy.seed; delete copy.owner;
   return { ...copy, standings: standings(state), story: story(state), candidates: candidates(state), levelName: LEVELS[state.level] };
 }
-module.exports = { LEVELS, SCHOOLS, POSITIONS, start, manage, play, finish, watch, view, standings, currentGame, team, opponent };
+module.exports = { LEVELS, SCHOOLS, POSITIONS, start, manage, play, finish, forfeit, watch, view, standings, currentGame, team, opponent };
