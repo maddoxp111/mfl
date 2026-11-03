@@ -14,8 +14,12 @@ const DEFAULT_MODEL = 'eleven_flash_v2_5'; // fast: a new line is ready in about
 const DEFAULT_BASE = 'https://api.elevenlabs.io';
 // Steady delivery: short clips are rendered one at a time, so high stability, little style exaggeration and the same
 // lead-in context for every clip keep the tone level from one phrase to the next.
-const VOICE_SETTINGS = { stability: 0.8, similarity_boost: 0.9, style: 0.15, use_speaker_boost: true };
+const VOICE_SETTINGS = { stability: 0.95, similarity_boost: 0.9, style: 0, use_speaker_boost: true };
 const LEAD_IN = 'And here we go. ';
+// what follows a clip: a continuing phrase gets a mid-sentence read, a closing one a sentence end
+const nextText = (text) => (/[.!?]$/.test(text.trim()) ? 'What a night.' : 'and the crowd is loving it.');
+// bump when the settings or context change so every clip is made again the same way, instead of mixing takes
+const SETTINGS_V = 2;
 // The voices the admin can pick from (ids only; useless without the key). The first is the current default.
 const DEFAULT_VOICES = [{ id: '5e7CHmBxorsZJP4N1Vbi', label: 'Voice 2' }, { id: 'keCu5L7yj9nJhFRsvWmk', label: 'Voice 1' }];
 const OUTPUT_FORMAT = 'mp3_22050_32';
@@ -132,7 +136,7 @@ function parse(q) {
   return { seg, name, value };
 }
 const renderSeg = (seg, name, value) => (name ? seg.replace(`{${name}}`, value) : seg);
-const cacheKey = (c, text) => crypto.createHash('sha1').update(`${c.model}|${c.voice}|${text}`).digest('hex');
+const cacheKey = (c, text) => crypto.createHash('sha1').update(`${c.model}|${c.voice}|v${SETTINGS_V}|${text}`).digest('hex');
 const clipPath = (key) => path.join(CACHE_DIR, key + '.mp3');
 
 // ---------- generation ----------
@@ -160,7 +164,7 @@ async function callUpstream(c, text) {
     r = await fetch(url, {
       method: 'POST',
       headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS, previous_text: LEAD_IN }),
+      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS, previous_text: LEAD_IN, next_text: nextText(text) }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
     });
   } catch (e) {
