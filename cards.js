@@ -12,10 +12,12 @@ const RARITIES = {
   legendary: { name: 'Legend', mult: 2, weight: 90, sell: 150 },
   mythic: { name: 'Mythic', mult: 3, weight: 8, sell: 500 },
   dark: { name: 'Dark Matter', mult: 4, weight: 2, sell: 1500 },
-  // Never rolled by weight: see DOH_ODDS.
-  doh: { name: 'Big Doh Mi', mult: 101, weight: 0, sell: 10000 },
+  // Never rolled by weight: see DOH_ODDS. Hidden: never listed anywhere until someone pulls it.
+  doh: { name: 'Big Doh Mi', mult: 101, weight: 0, sell: 10000, hidden: true },
 };
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'dark', 'doh'];
+// The rarities pages list (odds, filters, help). Hidden ones stay out of every list.
+const SHOWN_RARITIES = RARITY_ORDER.filter((r) => !RARITIES[r].hidden);
 // Big Doh Mi: a 1 in 100,000 (0.001%) shot on every card pulled.
 const DOH_ODDS = 100000;
 
@@ -63,8 +65,8 @@ const VARIANTS = [
   { id: 'goat', rarity: 'mythic', label: 'The GOAT 1/1', mult: 3.5, one: true, quote: 'Greatest of all time.' },
   { id: 'mythic', rarity: 'mythic', label: 'Mythic 1/1', one: true },
   { id: 'dark', rarity: 'dark', label: 'Dark Matter 1/1', one: true },
-  // Dom only. 101x = every point he scores comes with 100 extra.
-  { id: 'doh', rarity: 'doh', label: 'Big Doh Mi', mult: 101, rating: 99, only: 'dom-chiodo', quote: 'Every point he scores: +100 more.' },
+  // Dom only. 101x = every point he scores comes with 100 extra. A hidden card: it is in no list or index until pulled.
+  { id: 'doh', rarity: 'doh', label: 'Big Doh Mi', mult: 101, rating: 99, only: 'dom-chiodo', hidden: true, quote: 'Every point he scores: +100 more.' },
 ];
 
 // ---------- card sets ----------
@@ -690,7 +692,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, rating: v.rating || null, set: v.set || null, par: v.par || null, t, p };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, t, p };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -852,5 +854,5 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText };

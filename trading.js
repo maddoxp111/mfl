@@ -48,7 +48,7 @@ module.exports = function trading(app, h) {
       const total = cards.catalog(db).length;
       res.send(layout(req, 'Top Collectors', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/collectors', me)}
         <div class="card"><div class="card-h"><h2>${icon('trophy')} Top Collectors</h2><span class="muted sm">Collection score</span></div>
-          <p class="muted sm">Score counts each different card you own: Base 1, Silver 3, Gold 10, Legend 40, Mythic 150, Dark Matter 400, Big Doh Mi 10,000. Tap anyone to see their cards and offer a trade.</p>
+          <p class="muted sm">Score counts each different card you own: Base 1, Silver 3, Gold 10, Legend 40, Mythic 150, Dark Matter 400. Tap anyone to see their cards and offer a trade.</p>
           <ol class="col-lb">${rows.map((r, i) => { const best = sorted(db, r.own).slice(0, 3);
             return `<li class="${r.name === me ? 'me' : ''}"><a href="/pickem/collection/${esc(r.name)}"><span class="col-rk">${i + 1}</span><div class="col-who"><b>@${esc(r.name)}</b><small>${r.n} of ${total} cards · ${best.length ? esc(best[0].rarityName) + ' ' + esc(best[0].p.name) : ''}</small></div>
               <div class="col-best">${best.map((c) => `<span class="col-mini r-${c.rarity}" style="--c:${esc(c.t.color)}" title="${esc(c.p.name + ' · ' + c.label)}">${esc(c.p.name.split(' ').map((x) => x[0]).join(''))}</span>`).join('')}</div><span class="col-sc">${r.score.toLocaleString('en-US')}</span></a></li>`; }).join('') || '<p class="muted">Nobody has cards yet.</p>'}</ol></div>

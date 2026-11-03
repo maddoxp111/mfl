@@ -152,7 +152,8 @@ module.exports = function fun(app, h) {
       if (!name) return needLogin(req, res, 'Cards', 'collect MFL Cards');
       const { user, acct } = await h.loadAccount(db, name);
       const own = cards.collection(user);
-      const all = cards.catalog(db);
+      // Hidden cards (Big Doh Mi) are not in the index until you pull one.
+      const all = cards.catalog(db).filter((c) => !c.hidden || own[c.id]);
       const view = req.query.view === 'all' ? 'all' : 'mine';
       const g = pk.nextGame(db, TZ);
       const latest = (user.lineups || []).at(-1);
@@ -201,7 +202,7 @@ module.exports = function fun(app, h) {
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
           <p class="muted sm"><a href="/pickem/cards/book">${icon('star')} Open the Card Book</a> to see every card, which ones you're missing and which packs drop them.</p>${view === 'all' ? `<p class="muted sm">Showing the ${all.filter((c) => !c.set).length} classic cards. The ${all.filter((c) => c.set).length.toLocaleString('en-US')} card-set cards are in the <a href="/pickem/cards/book?tab=sets">Card Book</a>.</p>` : ''}
-          <div class="seg mini rfilter">${['all', ...cards.RARITY_ORDER].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
+          <div class="seg mini rfilter">${['all', ...cards.SHOWN_RARITIES].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
           <div class="mgrid" id="coll">${(view === 'all' ? all.filter((c) => !c.set).sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
             const n = own[c.id] || 0;
             const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} coins</button></form>` : '';
@@ -350,7 +351,7 @@ module.exports = function fun(app, h) {
     if (P.flash) L.push(`${Math.round(P.discount * 100)}% off the ${fmtN(P.list)} coin price right now. ${P.nextDrop != null ? `Drops another 10% at ${h.time12(String(P.nextDrop).padStart(2, '0') + ':00')}.` : "That's as low as it goes today."} One per day, and a new pack tomorrow.`);
     if (P.free) L.push('Free. It refills on its own schedule.');
     if (P.mixed) L.push('Classic cards and set cards both drop.'); else if (P.sets && !P.bundle) L.push('Set cards only.');
-    const bars = odds && odds.odds.length ? `<small class="po-k">Odds for each card${P.min && !P.floor ? ' (before the guarantee)' : ''}</small><div class="po-bars">${odds.odds.map((x) => `<div class="po-r r-${x.r}"><span>${esc(R[x.r].name)}</span><i><u style="width:${Math.max(2, x.pct).toFixed(1)}%"></u></i><b>${pct(x.pct)}</b></div>`).join('')}${odds.doh ? `<div class="po-r r-doh"><span>Big Doh Mi</span><i><u style="width:2%"></u></i><b>1 in ${cards.DOH_ODDS >= 1000 ? fmtN(cards.DOH_ODDS / 1000) + 'k' : fmtN(cards.DOH_ODDS)}</b></div>` : ''}</div>` : '';
+    const bars = odds && odds.odds.length ? `<small class="po-k">Odds for each card${P.min && !P.floor ? ' (before the guarantee)' : ''}</small><div class="po-bars">${odds.odds.map((x) => `<div class="po-r r-${x.r}"><span>${esc(R[x.r].name)}</span><i><u style="width:${Math.max(2, x.pct).toFixed(1)}%"></u></i><b>${pct(x.pct)}</b></div>`).join('')}</div>` : '';
     const pool = !odds ? '' : !odds.ok ? 'None of these cards are out yet. Restocking soon.' : `${P.bundle ? 'Drops from up to' : 'Drops from'} ${fmtN(odds.size)} different cards of ${odds.players} player${odds.players === 1 ? '' : 's'}${odds.sets ? ` in ${odds.sets} set${odds.sets > 1 ? 's' : ''}` : ''}.`;
     return `<details class="po"><summary>What's inside</summary><div class="po-in">${L.length ? `<ul>${L.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}${bars}<p class="po-pool">${pool}${P.inside ? ` ${esc(P.inside)}` : ''}</p></div></details>`;
   }
@@ -447,8 +448,8 @@ module.exports = function fun(app, h) {
         <p class="pnone" id="pnone" hidden>No packs match. <button type="button" class="btn ghost sm">Show all packs</button></p>
         ${sections}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
-          <li>${cards.RARITY_ORDER.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${r === 'doh' ? (100 / cards.DOH_ODDS) : (R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
-          <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
+          <li>${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
+          <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
           <li>Card sets: ${cards.SETS.length} themed sets with 5 versions of every player each (Base ${cards.PARALLELS[0].mult}×, Silver ${cards.PARALLELS[1].mult}×, Gold ${cards.PARALLELS[2].mult}×, Prism ${cards.PARALLELS[3].mult}×, Black ${cards.PARALLELS[4].mult}×). They only come from set packs.</li>
           <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>

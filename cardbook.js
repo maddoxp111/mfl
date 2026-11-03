@@ -19,7 +19,8 @@ module.exports = function cardbook(app, h) {
       const db = h.load(), name = h.currentUser(req);
       const { user, acct } = await h.loadAccount(db, name);
       const own = user ? cards.collection(user) : {};
-      const all = cards.catalog(db);
+      // Hidden cards (Big Doh Mi) are not in the book until you pull one.
+      const all = cards.catalog(db).filter((c) => !c.hidden || own[c.id]);
       const types = cards.packTypes(db).map((t) => ({ t, P: cards.packInfo(db, t) }));
       const teams = Object.values(db.teams);
       const q = req.query, show = ['owned', 'missing'].includes(q.show) ? q.show : 'all', team = db.teams[q.team] ? q.team : '';
@@ -54,7 +55,7 @@ module.exports = function cardbook(app, h) {
           <div class="cb-packs"><small>Found in</small>${everyone.map((x) => `<a class="cb-pk ${x.P.free ? 'free' : ''}" href="/pickem/packs">${esc(packName(x))}</a>`).join('') || '<span class="muted sm">No pack drops these right now.</span>'}
             ${some.length ? `<span class="muted sm cb-some">Some players also in: ${some.map((x) => esc(x.P.name)).join(', ')}</span>` : ''}
             ${v.one ? `<span class="muted sm cb-some">1 of 1: once someone pulls one, nobody else can.</span>` : ''}
-            ${c0.rarity === 'doh' ? `<span class="muted sm cb-some">A 1 in ${cards.DOH_ODDS.toLocaleString('en-US')} shot on every card pulled.</span>` : ''}</div>
+            ${c0.hidden ? `<span class="muted sm cb-some">A hidden card. You found it.</span>` : ''}</div>
           <div class="mgrid">${shown.map((c) => {
             const extra = some.filter((x) => canDrop(x.P, x.t, c)).map((x) => x.P.name);
             const gone = c.one && taken.has(c.id) && !own[c.id];
