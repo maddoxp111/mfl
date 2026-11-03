@@ -173,7 +173,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-narrow .bz-dd{font-size:12.5px;padding:3px 7px}.bz-narrow .bz-btn{font-size:15px}.bz-narrow .bz-banner b{font-size:15px}.bz-narrow .bz-banner i{font-size:8px}.bz-narrow .bz-title{font-size:19px}
 .bz-narrow .bz-ctl{flex-wrap:wrap}.bz-narrow .bz-msg{flex:1 1 100%;order:-1;align-self:stretch;min-height:30px;padding:5px 10px;font-size:11.5px}
 .bz-narrow .bz-arc button{padding:0 7px;font-size:12px}.bz-narrow .bz-sprint{width:60px;height:60px;min-height:60px;flex-basis:60px;font-size:12px}.bz-tiny .bz-arc button{padding:0 5px;font-size:11px}
-.bz-tiny .bz-snd{display:none}.bz-narrow .bz-sta{min-width:46px;padding:0 5px}.bz-narrow .bz-tag{font-size:11px}.bz-narrow .bz-ib{min-width:32px;height:32px;padding:0 6px}.bz-narrow .bz-bug{gap:4px 4px;padding-left:6px;padding-right:6px}.bz-narrow .bz-tm{padding:3px 6px 3px 5px;gap:4px}.bz-narrow .bz-cards{grid-template-columns:1fr 1fr}.bz-narrow .bz-card span{display:none}.bz-narrow .bz-pc{display:none}
+.bz-tiny .bz-snd{display:none}.bz-tiny .bz-vc{display:none}.bz-vtog{display:flex;align-items:center;gap:8px;font:600 13px Inter,sans-serif;color:#c9ccd4;cursor:pointer}.bz-vtog input{width:18px;height:18px;accent-color:#ffc21a}.bz-narrow .bz-sta{min-width:46px;padding:0 5px}.bz-narrow .bz-tag{font-size:11px}.bz-narrow .bz-ib{min-width:32px;height:32px;padding:0 6px}.bz-narrow .bz-bug{gap:4px 4px;padding-left:6px;padding-right:6px}.bz-narrow .bz-tm{padding:3px 6px 3px 5px;gap:4px}.bz-narrow .bz-cards{grid-template-columns:1fr 1fr}.bz-narrow .bz-card span{display:none}.bz-narrow .bz-pc{display:none}
 @keyframes bz-rise{0%{opacity:0;transform:translate(-50%,-20%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-240%) scale(1)}}
 @keyframes bz-zoom{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}60%{opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes bz-pulse{50%{transform:scale(1.06)}}
@@ -380,6 +380,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       crowd(v) { lvl = v; if (ac && crowdG && !muted) try { crowdG.gain.setTargetAtTime(Math.max(0.0001, v * 0.5), ac.currentTime, 0.25); } catch (e) {} },
       mute(m) { muted = m; if (crowdG) try { crowdG.gain.setTargetAtTime(m ? 0.0001 : lvl * 0.5, ac.currentTime, 0.05); } catch (e) {} },
       get muted() { return muted; },
+      ctx() { return init(); }, get out() { return out; },
       close() { try { if (crowdN) crowdN.stop(); if (ac) ac.close(); } catch (e) {} ac = null; },
     };
   }
@@ -511,6 +512,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       blitz: L(0.06, 0.32), disguise: L(0, 0.7), pursuit: L(6.4, 8.35), stun: L(1.1, 0.5),
     };
   }
+    // ---------- voice commentary events (generated from commentary-lines.json by build.sh: vars and variant counts) ----------
+    const VOICE_LINES = {"events":{"intro":{"vars":["home","away","level"],"n":8},"kickoff_cpu":{"vars":["away"],"n":6},"kr_return":{"vars":["carrier","yards"],"n":7},"kr_touchback":{"vars":[],"n":5},"kr_td":{"vars":["carrier"],"n":6},"drive_start":{"vars":["home","spot"],"n":7},"cpu_drive_start":{"vars":["away","spot"],"n":6},"cpu_td":{"vars":["away"],"n":9},"cpu_fg":{"vars":["away"],"n":6},"cpu_punt":{"vars":["away"],"n":6},"cpu_int":{"vars":["away"],"n":7},"cpu_fumble":{"vars":["away"],"n":6},"cpu_downs":{"vars":["away"],"n":6},"cpu_miss_fg":{"vars":["away"],"n":6},"cpu_clock":{"vars":[],"n":4},"two_minute":{"vars":[],"n":6},"end_q1":{"vars":["score"],"n":6},"halftime":{"vars":["score"],"n":7},"end_q3":{"vars":["score"],"n":6},"final_win":{"vars":["score","away"],"n":9},"final_loss":{"vars":["score","away"],"n":7},"overtime":{"vars":[],"n":5},"timeout":{"vars":["team"],"n":5},"delay_of_game":{"vars":[],"n":4},"play_call":{"vars":["play"],"n":6},"complete":{"vars":["passer","rec","yards"],"n":12},"complete_big":{"vars":["passer","rec","yards"],"n":10},"first_down":{"vars":["player"],"n":10},"td_pass":{"vars":["passer","rec","yards"],"n":12},"td_run":{"vars":["carrier","yards"],"n":12},"td_short":{"vars":["carrier"],"n":6},"incomplete":{"vars":["passer","rec"],"n":9},"drop":{"vars":["rec"],"n":7},"batted":{"vars":[],"n":6},"throwaway":{"vars":["passer"],"n":5},"oob_catch":{"vars":["rec"],"n":5},"interception":{"vars":["passer","away"],"n":9},"pick_six":{"vars":["away"],"n":7},"fumble":{"vars":["carrier"],"n":7},"fumble_lost":{"vars":["away"],"n":6},"fumble_kept":{"vars":["home"],"n":5},"fumble_six":{"vars":["away"],"n":5},"run":{"vars":["carrier","yards"],"n":13},"run_big":{"vars":["carrier","yards"],"n":10},"run_loss":{"vars":["carrier"],"n":6},"no_gain":{"vars":["carrier"],"n":5},"sack":{"vars":["passer"],"n":8},"scramble":{"vars":["passer","yards"],"n":7},"slide":{"vars":["passer"],"n":4},"catch_wild":{"vars":["rec"],"n":10},"catch_diving":{"vars":["rec"],"n":7},"toe_tap":{"vars":["rec"],"n":6},"off_helmet":{"vars":["rec"],"n":6},"one_hand":{"vars":["rec"],"n":5},"juke":{"vars":["carrier"],"n":7},"spin":{"vars":["carrier"],"n":6},"stiff_arm":{"vars":["carrier"],"n":6},"hurdle":{"vars":["carrier"],"n":7},"truck":{"vars":["carrier"],"n":7},"decleat":{"vars":["carrier"],"n":7},"whiff":{"vars":[],"n":7},"ankles":{"vars":["carrier"],"n":7},"broken_tackle":{"vars":["carrier"],"n":6},"big_hit":{"vars":["carrier"],"n":6},"third_down":{"vars":["dist"],"n":6},"fourth_go":{"vars":[],"n":6},"turnover_downs":{"vars":[],"n":6},"punt":{"vars":["yards"],"n":6},"punt_shank":{"vars":[],"n":5},"safety":{"vars":[],"n":6},"fg_good":{"vars":["kicker","dist"],"n":8},"fg_miss":{"vars":["kicker","dist"],"n":7},"doink":{"vars":[],"n":6},"doink_in":{"vars":[],"n":5},"xp_good":{"vars":[],"n":6},"xp_miss":{"vars":[],"n":5},"two_good":{"vars":[],"n":7},"two_fail":{"vars":[],"n":6},"two_choice":{"vars":[],"n":4},"onside_choice":{"vars":[],"n":5},"onside_won":{"vars":["home"],"n":8},"onside_lost":{"vars":["away"],"n":6},"cpu_onside":{"vars":["away"],"n":6},"cpu_onside_won":{"vars":["away"],"n":5},"cpu_onside_lost":{"vars":["home"],"n":6},"friendly_fire":{"vars":[],"n":7},"ref_down":{"vars":[],"n":6},"houdini":{"vars":["passer"],"n":6},"pile_up":{"vars":[],"n":5},"big_man_td":{"vars":["carrier"],"n":6},"scoop_score":{"vars":["carrier"],"n":5},"bench_party":{"vars":["away"],"n":5},"spike":{"vars":["player"],"n":5},"dance":{"vars":["player"],"n":5},"leap":{"vars":["player"],"n":5},"perk":{"vars":["player","perk"],"n":10},"lead_change":{"vars":["team"],"n":6},"blowout":{"vars":[],"n":5},"comeback":{"vars":["home"],"n":5},"close_game":{"vars":[],"n":5}}};
 
   // =====================================================================================
   // Shaders (GLSL ES 1.00 so the same source runs on WebGL1 and WebGL2 contexts)
@@ -3709,6 +3712,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.helmet) { FUN.victim.away++; FUN.blooper.away++; bigPop(r, 'AND HE CAUGHT IT!', '#2bd46b'); }
       else if (wild && (funGate() > 0.25 || funForced('catch'))) moment('catch', r, notes[0], { a: r, victim: 'away', col: '#2bd46b', snd: 'good' });
       else popAt(r, notes[0] || 'CATCH!', wild ? '#ffc21a' : '#2bd46b');
+      if (!wild) { if (notes[0] === 'TOE TAP!') voice.say('toe_tap', { rec: nm(r) }, 2); else if (diving) voice.say('catch_diving', { rec: nm(r) }, 2, 0.7); }
       perkHook('catch', r);
       sfx.play('catch'); excite = Math.min(1, excite + (wild ? 0.6 : 0.25));
       for (const d of def) if (!d.rag && dist(d, r) < 3.2) { d.stun = Math.max(d.stun, 0.2 + 0.35 * (1 - KDEF)); d.stumbleT = Math.max(d.stumbleT, 0.3); }
@@ -3814,7 +3818,7 @@ gl_FragColor=vec4(c,1.0);}`;
         perkHook('juke', c);
         // broke his ankles: the man he fooled goes down on his own
         if (fd && fdd < 2.9 && funRoll('ankles', 0.35)) { knockDown(fd, [-side * 1.8, 0, fd.vz * 0.3], [-side * 1.4, 0.5, 0], 1.3); fd.tried = 1; moment('ankles', fd, fooled > 1 ? 'DOUBLE ANKLES!' : 'ANKLES!', { a: c, b: fd, victim: 'away', snd: 'good' }); }
-        else if (fooled) popAt(c, fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b');
+        else if (fooled) { popAt(c, fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b'); voice.say('juke', { carrier: nm(c) }, 1, 0.35); }
       } else if (m === 'spin') { c.mvT = 0.5; setPose(c, 'spin'); sfx.play('tap'); perkHook('spin', c); }
       else if (m === 'stiff') { c.mvT = 0.6; setPose(c, 'stiff'); sfx.play('tap'); }
     }
@@ -3854,7 +3858,7 @@ gl_FragColor=vec4(c,1.0);}`;
         }
         if (c.wrapT <= 0) {
           const pB = clamp(0.06 + (c.str - DP.tackle) / 260, 0.02, 0.3);
-          if (rng() < pB && d) { knockDown(d, [c.vx * 0.5, 0, c.vz * 0.5], [-(c.x - d.x) * 1.5, 0.6, -(c.z - d.z) * 1.5], 1.1); popAt(c, 'SHED THE TACKLE!', '#2bd46b'); c.wrapBy = null; c.stumbleT = 0.35; }
+          if (rng() < pB && d) { knockDown(d, [c.vx * 0.5, 0, c.vz * 0.5], [-(c.x - d.x) * 1.5, 0.6, -(c.z - d.z) * 1.5], 1.1); popAt(c, 'SHED THE TACKLE!', '#2bd46b'); voice.say('broken_tackle', { carrier: nm(c) }, 1, 0.4); c.wrapBy = null; c.stumbleT = 0.35; }
           else { finishTackle(c, d, 'wrap'); return; }
         }
       }
@@ -3915,8 +3919,8 @@ gl_FragColor=vec4(c,1.0);}`;
         d.tried = 1;
         if (fun === 'trucked') moment('trucked', d, 'TRUCKED!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', shake: 0.6 });
         else if (fun === 'plant') moment('plant', d, 'TRUCK STICK!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', sub: 'planted in the turf' });
-        else if (stiffing) popAt(c, 'STIFF ARM!', '#2bd46b');
-        else popAt(c, c.mv === 'spin' && c.mvT > 0 ? 'SPIN MOVE!' : 'BROKE A TACKLE!', '#2bd46b');
+        else if (stiffing) { popAt(c, 'STIFF ARM!', '#2bd46b'); voice.say('stiff_arm', { carrier: nm(c) }, 1, 0.4); }
+        else { const sp = c.mv === 'spin' && c.mvT > 0; popAt(c, sp ? 'SPIN MOVE!' : 'BROKE A TACKLE!', '#2bd46b'); voice.say(sp ? 'spin' : 'broken_tackle', { carrier: nm(c) }, 1, 0.4); }
         perkHook('broke', c, d);
         c.stumbleT = 0.42; c.vx *= 0.75; c.vz *= 0.75; c.vx += nx * 1.5; c.vz += nz * 1.5;
         sfx.play('tackle'); sfx.play('good'); excite = Math.min(1, excite + 0.12);
@@ -4138,17 +4142,20 @@ gl_FragColor=vec4(c,1.0);}`;
         const cpuStart = clamp(Math.round(100 - land + ret), 1, 99);
         say(`<b>${esc(KR.name)}</b> punts ${Math.round(Math.min(land, 100) - los)} yards, ${how}. Net ${net}.`);
         banner('PUNT', `${how === 'touchback' ? 'Touchback' : 'Net ' + net + ' yards'}`, '#c9ccd4');
+        if (!k.shank) voice.say('punt', { yards: yb(Math.max(2, net)) }, 2, 0.5);
         pend = { next: ['cpu', cpuStart] }; finishSpecial(2.6, 'punt');
         return;
       }
       const d = Math.round(110 - k.kz), st = stat(KR.pid);
       if (k.type === 'xp') {
+        voice.say(k.good ? 'xp_good' : 'xp_miss', {}, 2, 0.7);
         if (k.good) { addPts('home', 1); banner('EXTRA POINT GOOD', `${HOME.abbr} ${hs} – ${as} ${AWAY.abbr}`, '#2bd46b'); sfx.play('good'); say('The extra point is <b>good</b>.'); }
         else { banner('NO GOOD', 'Extra point missed', '#ff3344'); sfx.play('bad'); say('The extra point is <b>no good</b>.'); }
         pend = { next: ['cpu', 25, 'ko'] }; finishSpecial(2.4, 'xp');
         return;
       }
       if (st) { st.fgAtt++; if (k.good) st.fgMade++; }
+      voice.say(k.good ? (k.doink ? 'doink_in' : 'fg_good') : (k.doink ? 'doink' : 'fg_miss'), { kicker: shortName(KR.name), dist: String(d) }, 3);
       if (k.good) {
         addPts('home', 3); banner('IT\'S GOOD!', `${d}-yard field goal`, '#2bd46b'); sfx.play('good'); sfx.play('cheer'); excite = 0.8; confetti(0, 110); cam.kick = 0.6;
         say(`<b>${esc(KR.name)}</b> drills it from ${d} yards.`); addHL(`${shortName(KR.name)} ${d}-yd FG`);
@@ -4191,7 +4198,7 @@ gl_FragColor=vec4(c,1.0);}`;
       pr = { type: 'ko', start: 0, kind: 'ret', notes: [] };
       phase = 'live'; mode = 'none'; poss = 'home';
       setControls(true); hideTags();
-      banner('KICKOFF', `${esc(AWAY.name)} kick to ${esc(HOME.name)}`, '#ffc21a');
+      banner('KICKOFF', `${esc(AWAY.name)} kick to ${esc(HOME.name)}`, '#ffc21a'); voice.say('kickoff_cpu', { away: AWAY.name }, 1, 0.45);
       say(`<b>${esc(SQ[rk].name)}</b> deep to receive.`);
     }
     function kickoffStep(dt) {
@@ -4260,6 +4267,7 @@ gl_FragColor=vec4(c,1.0);}`;
       banner('ONSIDE KICK', homeKick ? `${esc(HOME.name)} go for it` : `${esc(AWAY.name)} try an onside kick!`, '#ffc21a'); sfx.play(homeKick ? 'tap' : 'ooh');
       say(homeKick ? `<b>${esc(KR.name)}</b> lines up an onside kick. It has to go 10 yards.` : `<b>${esc(AWAY.name)}</b> line up for an onside kick. Hands team!`);
       FUN.counts.onside = (FUN.counts.onside || 0) + 1;
+      if (!homeKick) voice.say('cpu_onside', { away: AWAY.name }, 3);
     }
     function onsideStep(dt) {
       const k = kick, hk = k.home, kickers = hk ? off : def, hands = hk ? def : off;
@@ -4298,10 +4306,12 @@ gl_FragColor=vec4(c,1.0);}`;
         banner(hk ? 'ONSIDE KICK RECOVERED!' : 'YOU RECOVER!', how || `${esc(HOME.name)} ball at the ${at}`, '#2bd46b'); sfx.play('cheer'); excite = Math.max(excite, hk ? 1 : 0.7); cam.kick = Math.max(cam.kick, 0.8);
         say(hk ? `<b>${esc(HOME.name)}</b> fall on the onside kick! Ball at the ${at}.` : `<b>${esc(HOME.name)}</b> hands team comes up with it at the ${at}.`);
         if (hk) { addHL('Onside kick recovered'); markBig('big'); }
+        voice.say(hk ? 'onside_won' : 'cpu_onside_lost', { home: HOME.name }, 3);
         pend = { next: ['home', spot, 'same'] };
       } else {
         banner(hk ? 'THEY RECOVER' : 'ONSIDE KICK RECOVERED', how || `${esc(AWAY.name)} ball at the ${at}`, '#ff3344'); sfx.play(hk ? 'boo' : 'bad'); excite = Math.max(0, excite - 0.2);
         say(hk ? `<b>${esc(AWAY.name)}</b> fall on it. Their ball at the ${at}.` : `<b>${esc(AWAY.name)}</b> recover their own onside kick.`);
+        voice.say(hk ? 'onside_lost' : 'cpu_onside_won', { away: AWAY.name }, 3);
         pend = { next: ['cpu', clamp(100 - spot, 1, 99)] };
       }
       const key = homeBall ? 'onsideWon' : 'onsideLost'; FUN.counts[key] = (FUN.counts[key] || 0) + 1;
@@ -4310,7 +4320,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function touchback() {
       if (phase !== 'live') return;
       if (carrier) { carrier.vx = carrier.vz = 0; setPose(carrier, 'kneel'); }
-      banner('TOUCHBACK', 'Ball at your 25', '#c9ccd4'); say('Touchback. Ball at the 25.');
+      banner('TOUCHBACK', 'Ball at your 25', '#c9ccd4'); say('Touchback. Ball at the 25.'); voice.say('kr_touchback', {}, 2, 0.6);
       phase = 'dead'; deadT = 1.6; deadTot = 1.6; mode = 'none'; ctrl = null; carrier = null;
       pend = { next: ['home', 25, 'same'] }; clockRun = false; kick = null; setControls(true);
     }
@@ -4320,7 +4330,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const PCL = Math.round(25 + (1 - DIFF) * 15);
     function addPts(side, n) {
       if (side === 'home') hs += n; else as += n;
-      boardDirty = true;
+      boardDirty = true; voiceScore();
       if (side === 'home') { excite = 1; sfx.play('horn'); sfx.play('cheer'); } else sfx.play('boo');
     }
     function addHL(s) { if (HL.length < 10) HL.push(s); }
@@ -4446,6 +4456,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : 0.6; deadTot = deadT; }
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
       if (lastBig && lastBig.kind === 'td') { deadT += 0.3; deadTot = deadT; }
+      voiceResult(kind, P, gained, nx, head, extra, slid, spot);
       banner(head, sub, col);
       say(line);
       if (warnPend) { warnPend = false; twoMin(); }
@@ -4466,6 +4477,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function toPre(isNewDrive) {
       phase = 'pre'; poss = 'home'; setupPlay(); playClock = PCL;
+      if (down === 3 && !tryMode && !isNewDrive) voice.say('third_down', { dist: String(Math.max(1, Math.min(99, Math.round(fdz - los)))) }, 1, 0.3);
       sheetOpen = !(down === 4 && !tryMode) || go4;
       if (!isNewDrive) clearBanner();
       setControls(true);
@@ -4475,6 +4487,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function startDrive(yd) {
       los = clamp(Math.round(yd), 1, 99); down = 1; fdz = Math.min(los + 10, 100); tryMode = false; go4 = false;
       driveStart = los; drivePlays = 0; clockRun = false; poss = 'home'; perkHook('drive');
+      voice.say('drive_start', { home: HOME.name, spot: spotTxt(los) }, 1, 0.35);
       toPre(true);
     }
     function startIntro() {
@@ -4492,7 +4505,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function chooseKo(onside) {
       if (phase !== 'koc') return;
       clearBanner(); sfx.play('tap');
-      if (onside) startOnside(true); else goCpu(25);
+      if (onside) { voice.say('onside_choice', {}, 2); startOnside(true); } else goCpu(25);
     }
     function startPAT() {
       phase = 'pat'; poss = 'home'; tryMode = false; clockRun = false; los = 85; down = 1; fdz = 100;
@@ -4501,7 +4514,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function chooseTry(two) {
       if (phase !== 'pat') return;
-      if (two) { tryMode = true; los = 98; down = 1; fdz = 100; toPre(false); banner('TWO-POINT TRY', 'Get it in from the 2', '#ffc21a'); }
+      if (two) { voice.say('two_choice', {}, 1, 0.6); tryMode = true; los = 98; down = 1; fdz = 100; toPre(false); banner('TWO-POINT TRY', 'Get it in from the 2', '#ffc21a'); }
       else { los = 85; startKick('xp'); }
     }
     // change your mind before the ball is live: lined up for two with the ball not snapped -> kick it; kick lined up with no power set -> go for two
@@ -4517,7 +4530,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function choose4th(k) {
       if (phase !== 'pre' || down !== 4 || go4 || tryMode || finished) return;
-      if (k === 'go') { go4 = true; sfx.play('tap'); sheetOpen = true; setControls(true); openSheet(); return; }
+      if (k === 'go') { go4 = true; sfx.play('tap'); voice.say('fourth_go', {}, 1, 0.6); sheetOpen = true; setControls(true); openSheet(); return; }
       if (k === 'fg' && 117 - los > fgRange() + 3) return;
       startKick(k === 'fg' ? 'fg' : 'punt');
     }
@@ -4588,6 +4601,7 @@ gl_FragColor=vec4(c,1.0);}`;
       fx.appendChild(cpuD.el); drawCard();
       setControls(true);
       say(`<b>${esc(AWAY.name)}</b> ball at their ${start}.`);
+      voice.say('cpu_drive_start', { away: AWAY.name, spot: start === 50 ? 'midfield' : 'the ' + start }, 1, 0.3);
     }
     function drawCard() {
       const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, n = Math.max(1, Math.round(r.plays * k)), y = Math.round(r.yds * k);
@@ -4605,6 +4619,7 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') { sfx.play('good'); excite = 0.6; } else sfx.play('whistle');
         const fz = funCpu(d.r); if (fz) { moment(fz[0], null, fz[1], { victim: 'away', replay: false, snd: fz[0] === 'cpudoink' ? 'doink' : 'ooh', line: funLine(fz[0]) }); d.fl = FUN.line; FUN.line = ""; FUN.plays++; FUN.thisPlay = 0; }
         drawCard(); boardDirty = true;
+        { const R = d.r.res; voice.say(R === 'TD' ? 'cpu_td' : R === 'FG' ? 'cpu_fg' : R === 'PUNT' ? (d.r.shank ? 'punt_shank' : 'cpu_punt') : R === 'INT' ? 'cpu_int' : R === 'FUMBLE' ? 'cpu_fumble' : R === 'DOWNS' ? 'cpu_downs' : R === 'MISS' ? 'cpu_miss_fg' : 'cpu_clock', { away: AWAY.name }, R === 'TD' || R === 'INT' || R === 'FUMBLE' ? 3 : 2, R === 'PUNT' || R === 'CLOCK' ? 0.6 : 1); }
         say((d.r.res === 'TD' ? `<b>${esc(AWAY.name)}</b> score a touchdown.` : d.r.res === 'FG' ? `<b>${esc(AWAY.name)}</b> kick a field goal.` : d.r.res === 'PUNT' ? `<b>${esc(AWAY.name)}</b> punt it away.` : d.r.res === 'CLOCK' ? 'Time runs out on the drive.' : 'Your defense comes up with the ball!') + (d.fl ? ' ' + d.fl : ''));
       } else if (!d.shown && ((d.t * 8) | 0) !== ((d.t - dt) * 8 | 0)) drawCard();
       if (d.shown && d.t >= d.dur + 2.1) {
@@ -4626,7 +4641,8 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function endQuarter(cont) {
       clockRun = false; clock = 0; boardDirty = true;
-      const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`;
+      const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, vsc = `${hs} to ${as}`;
+      if (qtr >= 4 && hs === as) voice.say('overtime', {}, 3); else if (qtr === 2) voice.say('halftime', { score: vsc }, 2); else if (qtr === 1) voice.say('end_q1', { score: vsc }, 2, 0.8); else if (qtr === 3) voice.say('end_q3', { score: vsc }, 2, 0.8);
       if (qtr >= 4) {
         if (hs === as && (qtr === 4 || opts.playoff)) {
           brkTo(qtr === 4 ? 'END OF REGULATION' : `END OF OVERTIME`, `Tied ${hs}–${as} · ${qtr === 4 ? 'overtime!' : 'another period'}`, () => {
@@ -4651,16 +4667,16 @@ gl_FragColor=vec4(c,1.0);}`;
       if (wi >= 0 && !warned[wi] && before > WARN && clock <= WARN && clock > 0) { warned[wi] = true; if (phase === 'live' || phase === 'kick') warnPend = true; else twoMin(); }
       if (((before * 2) | 0) !== ((clock * 2) | 0)) boardDirty = true;
     }
-    function twoMin() { clockRun = false; banner('TWO-MINUTE WARNING', `${fmtClock(clock)} left in the ${qtr === 2 ? 'half' : 'game'} · clock stopped`, '#ffc21a'); sfx.play('whistle'); say('Two-minute warning. The clock stops.'); }
+    function twoMin() { voice.say('two_minute', {}, 2); if (qtr >= 4 && Math.abs(hs - as) <= 3) voice.say('close_game', {}, 2, 0.6); clockRun = false; banner('TWO-MINUTE WARNING', `${fmtClock(clock)} left in the ${qtr === 2 ? 'half' : 'game'} · clock stopped`, '#ffc21a'); sfx.play('whistle'); say('Two-minute warning. The clock stops.'); }
     function callTimeout() {
       if (!canTimeout() || finished) return;
-      toLeft--; clockRun = false; sfx.play('whistle'); playClock = PCL;
+      toLeft--; clockRun = false; sfx.play('whistle'); playClock = PCL; voice.say('timeout', { team: HOME.name }, 1, 0.7);
       banner('TIMEOUT', `${toLeft} left this half · clock stopped`, '#ffc21a'); say(`<b>${esc(HOME.name)}</b> call timeout.`);
       setControls(true);
     }
     const canTimeout = () => (phase === 'pre' || phase === 'dead') && clockRun && toLeft > 0 && clock > 0 && poss === 'home';
     function delayOfGame() {
-      sfx.play('whistle'); TS.penalties++;
+      sfx.play('whistle'); TS.penalties++; voice.say('delay_of_game', {}, 2);
       los = Math.max(1, los - 5); clockRun = false;
       toPre(false);
       banner('DELAY OF GAME', '5-yard penalty · replay the down', '#ff3344'); say('Flag: delay of game, offense. Five yards.');
@@ -4669,6 +4685,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'over' || phase === 'box') return;
       phase = 'over'; clockRun = false; boardDirty = true; closeSheet(); hideTags();
       const won = hs > as, tie = hs === as;
+      voice.say(won ? 'final_win' : tie ? 'close_game' : 'final_loss', { score: `${hs} to ${as}`, away: AWAY.name }, 3);
       banner(won ? 'YOU WIN!' : tie ? 'TIE GAME' : 'FINAL', `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, won ? '#2bd46b' : tie ? '#ffc21a' : '#ff3344');
       sfx.play(won ? 'win' : 'lose'); if (won) { sfx.play('cheer'); excite = 1; }
       setControls(true);
@@ -4741,6 +4758,7 @@ gl_FragColor=vec4(c,1.0);}`;
       FUN.counts[k] = (FUN.counts[k] || 0) + 1; FUN.n++; FUN.thisPlay++; FUN.last = FUN.plays;
       if (o.victim) { FUN.victim[o.victim]++; if (BLOOP[k]) FUN.blooper[o.victim]++; }
       FUN.log.push({ k, play: FUN.plays, label });
+      voiceMoment(k, p, o);
       bigPop(p, label, o.col || '#ffc21a', o.sub);
       sfx.play(o.snd || 'ooh'); if (o.cheer !== false) sfx.play(o.victim === 'home' ? 'boo' : 'cheer');
       excite = Math.min(1, excite + 0.55);
@@ -4816,6 +4834,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const nearSide = Math.abs(c.x) > HW - 9;
       let t = DBG && DBG.celType != null ? DBG.celType : (crand() * 6) | 0; if (t === 5 && !nearSide && !(DBG && DBG.celType === 5)) t = 4;
       c.celType = t === 5 ? 0 : t; c.celAt = 0.55; c.leap = t === 5 ? { t: 0, sx: Math.sign(c.x) || 1 } : null;
+      if (t === 1 || t === 4 || t === 5) voice.say(t === 1 ? 'spike' : t === 4 ? 'dance' : 'leap', { player: nm(c) }, 2, 0.8);
       const L = ['', 'THE SPIKE!', '', '', 'DANCE PARTY!', 'INTO THE STANDS!'][t];
       FUN.celebs[t] = (FUN.celebs[t] || 0) + 1;
       if (L) setTimeout(() => { if (!finished && (phase === 'dead' || phase === 'replay')) bigPop(c, L, '#2bd46b'); }, 700 / ((DBG && DBG.speed) || 1));
@@ -4846,6 +4865,147 @@ gl_FragColor=vec4(c,1.0);}`;
       if (R === 'INT') return ['cpupick', 'PICKED!'];
       if (R === 'PUNT' && rng() < 0.08 * funGate()) { r.shank = true; return ['cpushank', 'SHANKED PUNT!']; }
       return null;
+    }
+
+    // ---------- voice commentary: one spoken line per event, picked from VOICE_LINES without repeats, clips made on the server and cached ----------
+    const voice = (() => {
+      const EV = (typeof VOICE_LINES === 'object' && VOICE_LINES && VOICE_LINES.events) || {};
+      let on = true; try { on = localStorage.getItem('mfl-blitz-voice') !== '0'; } catch (e) {}
+      let avail = null, gain = null, cur = null, intro = false;
+      const recent = {}, bufs = new Map(), q = [];
+      const TTL = { 1: 4000, 2: 7500, 3: 14000 }; // how long a queued line stays worth saying
+      const cosmetic = () => (typeof crand === 'function' ? crand() : Math.random());
+      try {
+        fetch('/arcade/tts/manifest', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((m) => {
+          avail = !!(m && m.enabled);
+          if (m && m.events) for (const k in m.events) { const x = m.events[k], n = typeof x === 'number' ? x : x && x.n; if (n > 0) EV[k] = { vars: (x && x.vars) || (EV[k] && EV[k].vars) || [], n }; } // the server's file wins: variant counts and vars
+          try { updVoiceBtn(); } catch (e) {}
+        }).catch(() => { avail = false; try { updVoiceBtn(); } catch (e) {} });
+      } catch (e) { avail = false; }
+      // a variant the player has not heard lately (the last few picks of each event are kept out of the draw)
+      function pick(e) {
+        const ev = EV[e]; if (!ev || !(ev.n > 0)) return -1;
+        const n = ev.n, r = recent[e] || (recent[e] = []), c = [];
+        for (let i = 0; i < n; i++) if (r.indexOf(i) < 0) c.push(i);
+        const i = c.length ? c[(cosmetic() * c.length) | 0] : (cosmetic() * n) | 0;
+        r.push(i); const keep = Math.min(n - 1, 5); while (r.length > keep) r.shift();
+        return i;
+      }
+      const clean = (x) => String(x == null ? '' : x).replace(/<[^>]*>/g, '').replace(/[^A-Za-z0-9 .,'’-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      // say(event, vars, priority 1 flavor / 2 result / 3 big, chance 0..1)
+      function say(e, vars, pri, chance) {
+        if (!on || avail === false || finished || !EV[e]) return false;
+        if (chance != null && cosmetic() > chance) return false;
+        const p = new URLSearchParams(); p.set('e', e);
+        for (const k of EV[e].vars || []) { const x = clean(vars && vars[k]); if (!x) return false; p.set(k, x); } // a missing name skips the line before a variant is used up
+        const v = pick(e); if (v < 0) return false; p.set('v', String(v));
+        enqueue('/arcade/tts?' + p.toString(), pri || 2);
+        return true;
+      }
+      function enqueue(url, pri) {
+        if (pri < 3 && q.length >= 2) return; // flavor never piles up behind results
+        q.push({ url, pri, t: performance.now() }); q.sort((a, b) => b.pri - a.pri || a.t - b.t);
+        if (q.length > 3) q.length = 3;
+        load(url); pump();
+      }
+      function load(url) {
+        if (bufs.has(url)) return bufs.get(url);
+        const pr = fetch(url, { credentials: 'same-origin' })
+          .then((r) => { if (r.status === 204) { avail = false; try { updVoiceBtn(); } catch (e) {} throw new Error('off'); } if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+          .then((ab) => { const c = sfx.ctx(); if (!c) throw new Error('no audio'); return new Promise((res, rej) => c.decodeAudioData(ab.slice(0), res, rej)); });
+        pr.catch(() => { setTimeout(() => { if (bufs.get(url) === pr) bufs.delete(url); }, 15000); }); // a failed clip can be tried again later
+        bufs.set(url, pr); return pr;
+      }
+      function pump() {
+        if (cur || !q.length) return;
+        const it = q.shift();
+        if (performance.now() - it.t > (TTL[it.pri] || 6000)) return pump(); // the moment has passed
+        cur = it;
+        load(it.url).then((buf) => {
+          if (!on || sfx.muted || finished || !buf || performance.now() - it.t > (TTL[it.pri] || 6000) + 4000) return done();
+          const c = sfx.ctx(); if (!c) return done();
+          if (!gain) { gain = c.createGain(); gain.gain.value = 1.0; gain.connect(c.destination); }
+          if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+          const src = c.createBufferSource(); src.buffer = buf; src.connect(gain); src.onended = done; src.start();
+          VST.played++; VST.log.push(it.url);
+        }).catch(done);
+      }
+      function done() { cur = null; setTimeout(pump, 150); }
+      function start() { try { sfx.ctx(); } catch (e) {} try { updVoiceBtn(); } catch (e) {} if (intro) return; intro = true; say('intro', { home: HOME.name, away: AWAY.name, level: lvlName }, 3); }
+      const VST = { played: 0, log: [] };
+      return {
+        say, start,
+        get on() { return on; }, set on(v) { on = !!v; try { localStorage.setItem('mfl-blitz-voice', on ? '1' : '0'); } catch (e) {} if (!on) { q.length = 0; } },
+        get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get stats() { return VST; }, get recent() { return recent; },
+      };
+    })();
+    const yb = (n) => { n = Math.round(Math.abs(+n || 0)); if (n < 2) n = 2; if (n > 12) n = Math.round(n / 5) * 5; return String(n); }; // yards as the voice says them: exact when short, rounded when long
+    const spotTxt = (z) => (Math.round(z) === 50 ? 'midfield' : 'the ' + (z < 50 ? Math.round(z) : 100 - Math.round(z)));
+    let VD0 = 0, VMIN = 0, VBLOW = false, VCOME = false;
+    // the spoken call for a play that just ended
+    function voiceResult(kind, P, gained, nx, head, extra, slid, spot) {
+      const V = voice.say, away = AWAY.name, home = HOME.name;
+      const pn = nm(passer || OK.QB), rn = P.rec ? nm(P.rec) : P.tgt ? nm(P.tgt) : '', cn = nm(P.rusher || carrier);
+      if (kick && kick.type === 'ko') {
+        if (kind === 'krtd') V('kr_td', { carrier: nm(carrier) }, 3);
+        else if (kind === 'fumlost') V('fumble_lost', { away }, 3);
+        else if (head === 'TOUCHBACK') V('kr_touchback', {}, 2, 0.7);
+        else V('kr_return', { carrier: nm(carrier), yards: yb(spot - (P.start || 0)) }, 2, 0.6);
+        return;
+      }
+      if (tryMode) { V(kind === 'td' ? 'two_good' : 'two_fail', {}, 3); return; }
+      if (P.scoop && (kind === 'td' || kind === 'pick6')) return; // the moment already called it
+      switch (kind) {
+        case 'td': if (P.caught) V('td_pass', { passer: pn, rec: rn, yards: yb(gained) }, 3); else if (gained <= 3) V('td_short', { carrier: cn }, 3); else V('td_run', { carrier: cn, yards: yb(gained) }, 3); return;
+        case 'pick6': return;
+        case 'intdown': if (P.scoop || P.fumble) V('fumble_lost', { away }, 3); else V('interception', { passer: pn, away }, 3); return;
+        case 'fumlost': V('fumble_lost', { away }, 3); return;
+        case 'inc': {
+          const x = (extra || '').toLowerCase();
+          if (x.indexOf('drop') >= 0) V('drop', { rec: rn }, 2);
+          else if (x.indexOf('batt') >= 0) V('batted', {}, 2, 0.8);
+          else if (x.indexOf('foot') >= 0 || x.indexOf('bounds') >= 0) V('oob_catch', { rec: rn }, 2);
+          else if (!rn) V('throwaway', { passer: pn }, 2, 0.7);
+          else V('incomplete', { passer: pn, rec: rn }, 2, 0.8);
+          return;
+        }
+        case 'sack': if (slid) V('slide', { passer: pn }, 1, 0.5); else V('sack', { passer: pn }, 3); return;
+      }
+      if (head === 'SAFETY') { V('safety', {}, 3); return; }
+      if (head === 'TURNOVER ON DOWNS') { V('turnover_downs', {}, 3); return; }
+      if (P.regain) { V('fumble_kept', { home }, 2); return; }
+      const first = head === 'FIRST DOWN!';
+      if (P.caught) {
+        if (gained >= 20) V('complete_big', { passer: pn, rec: rn, yards: yb(gained) }, 2);
+        else if (first && cosmetic2() < 0.5) V('first_down', { player: rn }, 2);
+        else V('complete', { passer: pn, rec: rn, yards: yb(gained) }, 2, 0.85);
+      } else {
+        const qb = !!(P.rusher && P.rusher.role === 'QB');
+        if (gained >= 15) V('run_big', { carrier: cn, yards: yb(gained) }, 2);
+        else if (gained < 0) V('run_loss', { carrier: cn }, 2, 0.7);
+        else if (gained === 0) V('no_gain', { carrier: cn }, 2, 0.6);
+        else if (qb) V('scramble', { passer: cn, yards: yb(gained) }, 2, 0.8);
+        else if (first && cosmetic2() < 0.5) V('first_down', { player: cn }, 2);
+        else V('run', { carrier: cn, yards: yb(gained) }, 2, 0.75);
+      }
+    }
+    const cosmetic2 = () => (typeof crand === 'function' ? crand() : Math.random());
+    // the spoken call for a crazy moment (the kinds moment() is called with)
+    const VOICE_MOMENT = { trucked: 'truck', plant: 'stiff_arm', decleat: 'decleat', whiff: 'whiff', ankles: 'ankles', hurdle: 'hurdle', catch: 'catch_wild', helmet: 'off_helmet', friendly: 'friendly_fire', ref: 'ref_down', houdini: 'houdini', pile: 'pile_up', bigman: 'big_man_td', scoop6: 'scoop_score', scoop: 'scoop_score', pick6: 'pick_six', fumble6: 'fumble_six', fumble: 'fumble', shank: 'punt_shank', doink: 'doink', doinkin: 'doink_in', leap: 'leap', bench: 'bench_party' };
+    function voiceMoment(k, p, o) {
+      const e = VOICE_MOMENT[k]; if (!e) return;
+      const a = (o && o.a) || p, name = nm(a), big = /^(big_man_td|scoop_score|pick_six|fumble_six|houdini|doink_in|off_helmet|catch_wild|fumble)$/.test(e);
+      voice.say(e, { carrier: name, rec: name, passer: nm(OK.QB), player: name, away: AWAY.name, home: HOME.name }, big ? 3 : 2, big ? 1 : 0.7);
+    }
+    // the score just changed: lead changes, a blowout, a comeback
+    function voiceScore() {
+      const d0 = VD0, d1 = hs - as; VD0 = d1;
+      if (d0 !== 0 && d1 !== 0 && Math.sign(d1) !== Math.sign(d0)) {
+        if (d1 > 0 && VMIN <= -10 && !VCOME) { VCOME = true; voice.say('comeback', { home: HOME.name }, 2); }
+        else voice.say('lead_change', { team: d1 > 0 ? HOME.name : AWAY.name }, 2, 0.8);
+      }
+      if (Math.abs(d1) >= 21 && !VBLOW) { VBLOW = true; voice.say('blowout', {}, 1, 0.8); }
+      if (d1 < VMIN) VMIN = d1;
     }
 
     // ---------- card perks: every card type does one thing on the field ----------
@@ -4912,6 +5072,7 @@ gl_FragColor=vec4(c,1.0);}`;
       PK.fired[P.id] = (PK.fired[P.id] || 0) + 1; PK.n++; PK.log.push(P.id); if (PK.log.length > 80) PK.log.shift();
       if (o.quiet && PK.lastPop[P.id] != null && PK.t - PK.lastPop[P.id] < 25) return;
       PK.lastPop[P.id] = PK.t;
+      if (!o.quiet) { PK.vt = PK.vt || {}; if (PK.vt[P.id] == null || PK.t - PK.vt[P.id] > 90) { PK.vt[P.id] = PK.t; voice.say('perk', { player: nm(p), perk: P.name }, 1, 0.5); } }
       const s = project(p.x, 2.3 + (p.jumpY || 0), p.z), col = PKCOL[P.id] || '#7cf0ff';
       const e = el('div', 'bz-pop bz-perk', esc((o.txt || P.name).toUpperCase() + (o.txt ? '' : '!')) + `<small>${esc(P.label)}${P.lv > 1 ? ' · Lv ' + P.lv : ''}</small>`); e.style.color = col;
       e.style.left = clamp(s ? s[0] : cssW / 2, 70, cssW - 70) + 'px'; e.style.top = clamp(s ? s[1] - 50 : cssH * 0.35, 56, cssH - 50) + 'px';
@@ -6360,6 +6521,9 @@ gl_FragColor=vec4(c,1.0);}`;
     const mkIB = (html, title) => { const b = el('button', 'bz-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const SVG_X = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3l10 10M13 3L3 13"/></svg>';
     const sndBtn = mkIB(SVG_SND, 'Sound'); sndBtn.classList.add('bz-snd'); const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="bz-q">' + QN[quality] + '</span>', 'Graphics quality'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
+    const vcBtn = mkIB('<span class="bz-q">VOICE</span>', 'Voice commentary'); vcBtn.classList.add('bz-vc'); vcBtn.style.display = 'none';
+    function updVoiceBtn() { vcBtn.style.display = voice.avail ? '' : 'none'; vcBtn.style.opacity = voice.on ? '' : '0.45'; vcBtn.title = 'Voice commentary ' + (voice.on ? 'on' : 'off'); if (voice.splashToggle) { voice.splashToggle.hidden = !voice.avail; voice.splashToggle.querySelector('input').checked = voice.on; } }
+    vcBtn.addEventListener('click', () => { voice.on = !voice.on; updVoiceBtn(); sfx.play('tap'); });
     qBtn.addEventListener('click', () => { setQuality((quality + 1) % 3); qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; sfx.play('tap'); });
     function showQuality() { qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; }
     if (!fsOK || fixedMode) fsBtn.style.display = 'none';
@@ -6643,7 +6807,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function pickPlay(p) {
       if (phase !== 'pre') return;
       if (p !== play) hot = {};
-      play = p; lastCat = p.cat; sfx.play('tap'); if (intro > 0) intro = Math.min(intro, 0.3);
+      play = p; lastCat = p.cat; sfx.play('tap'); voice.say('play_call', { play: p.name }, 1, 0.08); if (intro > 0) intro = Math.min(intro, 0.3);
       setupPlay(); closeSheet();
       say(`<b>${esc(p.name)}</b> · ${esc(FORMS[p.form].name)}${flip ? ' (flipped)' : ''}${hotOK(p) ? ' · tap a receiver tag for a hot route' : ''}`);
     }
@@ -6917,13 +7081,15 @@ gl_FragColor=vec4(c,1.0);}`;
         <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Hurdle, Dive</b>${touchy ? '' : ' (J K L H Space)'}. Hurdle a diving tackler, but a defender on his feet will catch you in the air. Tacklers hit with momentum: break them or fall forward.</span></li>
         <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. In the 4th quarter you can try an <b>onside kick</b> after you score (and the other team will when it trails late). A <b>dive</b> puts the runner down where he lands. After a play that ends in bounds the clock runs 4 more seconds, then stops until the next snap; incompletions, out of bounds and scores stop it right away.</span></li>
       </ul>
+      <label class="bz-vtog" hidden><input type="checkbox"> Voice commentary</label>
       <button type="button" class="bz-go">KICK OFF</button>`);
     wrap.appendChild(splash);
+    { const tg = splash.querySelector('.bz-vtog'), cb = tg.querySelector('input'); cb.checked = voice.on; cb.addEventListener('change', () => { voice.on = cb.checked; try { updVoiceBtn(); } catch (e) {} }); voice.splashToggle = tg; }
     splash.querySelector('.bz-go').addEventListener('click', begin);
     function begin() {
       if (phase !== 'splash' || finished) return;
       sfx.init(); sfx.play('whistle');
-      splash.remove(); fit(); scrollIn(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
+      splash.remove(); fit(); scrollIn(); voice.start(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
       const youRecv = rng() < 0.5; recv2 = youRecv ? 'away' : 'home';
       say(`Coin toss: <b>${youRecv ? esc(HOME.name) : esc(AWAY.name)}</b> will receive.`);
       phase = 'break'; brk = { t: 0.01, then: () => (youRecv ? goHome(null, true) : goCpu(25)) };
@@ -6936,7 +7102,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; },
+      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
