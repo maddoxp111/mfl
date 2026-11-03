@@ -1,6 +1,6 @@
 // Voice commentary for 3D Blitz: the lines in commentary-lines.json are spoken by a
-// text-to-speech voice (ElevenLabs), generated on the server the first time a line is
-// asked for and kept in DATA_DIR/tts/ so each clip is only paid for once.
+// text-to-speech voice (ElevenLabs). Every clip is made ahead of time on the server and kept
+// in DATA_DIR/tts/ (one file per segment and value); during a game clips are only served.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -16,8 +16,7 @@ const VOICE_SETTINGS = { stability: 0.5, similarity_boost: 0.85, style: 0.5, use
 const OUTPUT_FORMAT = 'mp3_22050_32';
 const MAX_UPSTREAM = 2; // generation requests in flight at once
 const UPSTREAM_TIMEOUT = 20000;
-const BACKOFF_MS = 60000; // after 401/402/429 (bad key, out of credits, rate limited)
-const LEVELS = ['Rookie', 'Pro', 'All-Pro', 'Legend'];
+const BACKOFF_MS = +process.env.TTS_BACKOFF_MS || 60000; // after 401/402/429 (bad key, out of credits, rate limited)
 
 // ---------- config ----------
 // Environment first, then the key/voice pasted in Admin > AI (kept in DATA_DIR/secrets.json,
@@ -89,31 +88,34 @@ function savePronounce(text) {
 }
 
 // ---------- lines ----------
+// Each line is a list of segments with at most one {var} each. Every segment is its own clip,
+// rendered ahead of time for every value its var can take (see "domains" in the JSON); the game
+// plays the clips back to back.
 const NAME_RE = /^[A-Za-z0-9 .,'’-]{1,40}$/;
 const NUM_RE = /^\d{1,3}$/;
-const SCORE_RE = /^\d{1,3} to \d{1,3}$/;
 const DOWN_RE = /^(1st|2nd|3rd|4th)$/;
-// Everything else (names, perk, play, spot, level, period) uses NAME_RE.
-const VAR_RE = { yards: NUM_RE, dist: NUM_RE, n: NUM_RE, plays: NUM_RE, cmp: NUM_RE, att: NUM_RE, secs: NUM_RE, score: SCORE_RE, down: DOWN_RE };
+// Everything else (names, teams, perk, play, spot, level, period) uses NAME_RE.
+const VAR_RE = { yards: NUM_RE, dist: NUM_RE, n: NUM_RE, plays: NUM_RE, cmp: NUM_RE, att: NUM_RE, secs: NUM_RE, hs: NUM_RE, as: NUM_RE, down: DOWN_RE };
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const segVar = (seg) => (/\{([a-z]+)\}/.exec(seg) || [])[1] || null;
 
-// Checks a request's query: { e, v, ...vars }. Returns { ev, v, vars } or { error }.
+// Checks a request's query: { e, v, i, <the segment's one var> }. Returns { seg, name, value } or { error }.
 function parse(q) {
   const e = q.e;
   if (typeof e !== 'string' || !has(LINES.events, e)) return { error: 'unknown event' };
   const ev = LINES.events[e];
   if (typeof q.v !== 'string' || !/^\d{1,3}$/.test(q.v) || +q.v >= ev.lines.length) return { error: 'bad variant' };
-  const vars = {};
-  for (const k of ev.vars) {
-    const val = q[k];
-    if (val === undefined) return { error: `missing ${k}` };
-    if (typeof val !== 'string' || !(VAR_RE[k] || NAME_RE).test(val)) return { error: `bad ${k}` };
-    vars[k] = val;
-  }
-  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && !ev.vars.includes(k)) return { error: `unexpected ${k}` };
-  return { e, ev, v: +q.v, vars };
+  const line = ev.lines[+q.v];
+  if (typeof q.i !== 'string' || !/^\d{1,2}$/.test(q.i) || +q.i >= line.length) return { error: 'bad segment' };
+  const seg = line[+q.i], name = segVar(seg);
+  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && k !== 'i' && k !== name) return { error: `unexpected ${k}` };
+  if (!name) return { seg, name: null, value: null };
+  const value = q[name];
+  if (value === undefined) return { error: `missing ${name}` };
+  if (typeof value !== 'string' || !(VAR_RE[name] || NAME_RE).test(value)) return { error: `bad ${name}` };
+  return { seg, name, value };
 }
-const render = (ev, v, vars) => ev.lines[v].replace(/\{([a-z]+)\}/g, (m, k) => (has(vars, k) ? vars[k] : m));
+const renderSeg = (seg, name, value) => (name ? seg.replace(`{${name}}`, value) : seg);
 const cacheKey = (c, text) => crypto.createHash('sha1').update(`${c.model}|${c.voice}|${text}`).digest('hex');
 const clipPath = (key) => path.join(CACHE_DIR, key + '.mp3');
 
@@ -202,7 +204,62 @@ function sendClip(req, res, file, key) {
 }
 const noStore = (res) => res.set('Cache-Control', 'no-store');
 
-// ---------- cache info + warming ----------
+// ---------- domains: every value each var can take ----------
+const lastName = (s) => { const p = String(s || '').trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
+// A value with a character the request pattern refuses ("Boo!") is spoken and requested without it ("Boo").
+const clean = (s) => String(s || '').replace(/[^A-Za-z0-9 .,'’-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+const uniq = (a) => [...new Set(a.map(clean).filter((x) => NAME_RE.test(x)))];
+function playNames() {
+  try {
+    const src = fs.readFileSync(path.join(__dirname, 'public', 'arcade', 'blitz3d.js'), 'utf8');
+    const names = [...src.matchAll(/\{ id: '[a-z0-9]+', name: '([^']+)', form:/g)].map((m) => m[1]);
+    if (names.length) return uniq(names);
+  } catch {}
+  return [];
+}
+function perkNames() {
+  try {
+    const cards = require('./cards');
+    const hidden = new Set((cards.VARIANTS || []).filter((v) => v.hidden).map((v) => v.id));
+    return uniq(Object.values(cards.PERKS).filter((p) => !hidden.has(p.id)).map((p) => p.name));
+  } catch { return []; }
+}
+function domainValues(name, db, spec = LINES.domains[name]) {
+  if (!spec) return [];
+  if (spec.values) return spec.values;
+  if (spec.min !== undefined) { const out = []; for (let n = spec.min; n <= spec.max; n += spec.step || 1) out.push(String(n)); return out; }
+  const teams = Object.values(db?.teams || {});
+  if (spec.from === 'roster') return uniq(teams.flatMap((t) => (t.roster || []).map((p) => lastName(p.name))));
+  if (spec.from === 'teams') return uniq([...teams.map((t) => t.name), ...(spec.plus || [])]);
+  if (spec.from === 'perks') return perkNames();
+  if (spec.from === 'plays') return playNames();
+  return [];
+}
+
+// The whole space: every segment of every variant of every event x every value of its var.
+// Identical texts (the same name in {passer} and {rec}, say) are one clip.
+function plan(db, c = config()) {
+  const dom = {};
+  for (const k of Object.keys(LINES.domains)) dom[k] = domainValues(k, db);
+  const clips = new Map();
+  let chars = 0;
+  for (const ev of Object.values(LINES.events)) for (const line of ev.lines) for (const seg of line) {
+    const name = segVar(seg);
+    for (const value of name ? dom[name] : [null]) {
+      const text = respell(renderSeg(seg, name, value));
+      const key = cacheKey(c, text);
+      if (clips.has(key)) continue;
+      clips.set(key, text);
+      chars += text.length;
+    }
+  }
+  return { clips, chars, domains: Object.fromEntries(Object.entries(dom).map(([k, v]) => [k, v.length])) };
+}
+function coverage(p) {
+  let have = 0, missingChars = 0;
+  for (const [key, text] of p.clips) { if (fs.existsSync(clipPath(key))) have++; else missingChars += text.length; }
+  return { total: p.clips.size, have, chars: p.chars, missingChars };
+}
 function cacheStats() {
   let count = 0, bytes = 0;
   try {
@@ -215,140 +272,65 @@ function cacheStats() {
   return { count, bytes };
 }
 
-const lastName = (s) => { const p = String(s || '').trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
-function playNames() {
-  try {
-    const src = fs.readFileSync(path.join(__dirname, 'public', 'arcade', 'blitz3d.js'), 'utf8');
-    const names = [...src.matchAll(/\{ id: '[a-z0-9]+', name: '([^']+)', form:/g)].map((m) => m[1]);
-    if (names.length) return [...new Set(names)];
-  } catch {}
-  return ['Inside Zone', 'Slant Flat', 'Four Verts', 'PA Boot', 'RB Screen', 'Hail Mary'];
-}
-function perkNames() {
-  try {
-    const P = require('./cards').PERKS;
-    const names = Object.values(P).map((p) => p.name).filter((n) => NAME_RE.test(n) && !/doh/i.test(n));
-    if (names.length) return names;
-  } catch {}
-  return ['Laser Arm', 'Shiny Hands', 'Slow-Mo'];
-}
-const GENERIC = new Set(['home', 'away', 'team', 'level', 'score', 'spot', 'yards', 'dist', 'play', 'down']);
-const SAMPLES = {
-  score: ['14 to 7', '21 to 14', '7 to 7', '28 to 21'],
-  spot: ['the 25', 'midfield', 'the 30', 'the 20'],
-  yards: ['40', '35', '45', '38'],
-  dist: ['3', '7', '10', '1'],
-  fg: ['32', '25', '40', '45'],
-  down: ['1st', '2nd', '3rd', '4th'],
-};
-// Sample distances that fit the situation each event describes.
-const DIST_FOR = { situation: ['10', '7', '3', '1'], situation_long: ['8', '12', '15', '10'], situation_fourth: ['1', '2', '4', '6'], third_down: SAMPLES.dist };
-const PLAYER_EVENTS = {
-  complete: { yards: ['8', '12', '6'] }, complete_big: { yards: ['35', '42', '28'] }, first_down: {}, td_pass: { yards: ['15', '25', '8'] },
-  td_run: { yards: ['5', '12', '30'] }, run: { yards: ['4', '6', '3'] }, run_big: { yards: ['25', '30', '45'] }, incomplete: {},
-  catch_wild: {}, juke: {}, hurdle: {}, truck: {}, perk: {},
-  // Live play-by-play and color: every variant, since these are said with no time to spare.
-  snap_pass: { all: 1 }, throw_to: { all: 1 }, caught_live: { all: 1 }, run_live: { all: 1 }, open_field: { all: 1 }, return_live: { all: 1 },
-  player_hot: { all: 1 }, player_quiet: { all: 1 }, perk_note: { all: 1 },
-};
-
-// Every clip worth having before anyone plays: all team/score/etc lines, and each roster
-// player's name in the first 3 variants of the common plays (every variant of the live calls).
-// Stat lines (catches, carries, drive totals, clock) carry live numbers and are made on demand.
-function warmJobs(db) {
-  const teams = Object.values(db?.teams || {});
-  const tnames = teams.map((t) => t.name).filter((n) => NAME_RE.test(n));
-  if (!tnames.length) tnames.push('Home', 'Away');
-  const plays = playNames().filter((n) => NAME_RE.test(n)), perks = perkNames();
-  const jobs = [];
-  for (const [e, ev] of Object.entries(LINES.events)) {
-    if (!ev.vars.every((k) => GENERIC.has(k))) continue;
-    if (ev.vars.includes('play')) { // each play name once, rotating through the variants
-      plays.forEach((p, i) => jobs.push({ e, v: i % ev.lines.length, vars: { play: p } }));
-      continue;
-    }
-    const usesTeam = ev.vars.some((k) => k === 'home' || k === 'away' || k === 'team');
-    const reps = ev.vars.length === 0 ? 1 : usesTeam ? Math.max(tnames.length, 1) : 3;
-    ev.lines.forEach((line, v) => {
-      for (let i = 0; i < reps; i++) {
-        const vars = {};
-        for (const k of ev.vars) {
-          if (k === 'home' || k === 'team') vars[k] = tnames[i % tnames.length];
-          else if (k === 'away') vars[k] = tnames[(i + 1) % tnames.length];
-          else if (k === 'level') vars[k] = LEVELS[(i + v) % LEVELS.length];
-          else if (k === 'dist' && e.startsWith('fg')) vars[k] = SAMPLES.fg[(i + v) % 4];
-          else if (k === 'dist' && DIST_FOR[e]) vars[k] = DIST_FOR[e][(i + v) % 4];
-          else vars[k] = SAMPLES[k][(i + v) % 4];
-        }
-        jobs.push({ e, v, vars });
-      }
-    });
-  }
-  const players = [];
-  for (const t of teams) for (const p of t.roster || []) { const n = lastName(p.name); if (NAME_RE.test(n) && !players.includes(n)) players.push(n); }
-  players.forEach((name, pi) => {
-    for (const [e, samples] of Object.entries(PLAYER_EVENTS)) {
-      const ev = LINES.events[e];
-      for (let v = 0; v < (samples.all ? ev.lines.length : Math.min(3, ev.lines.length)); v++) {
-        const vars = {};
-        for (const k of ev.vars) {
-          if (['carrier', 'passer', 'rec', 'player', 'kicker'].includes(k)) vars[k] = name;
-          else if (k === 'perk') vars[k] = perks[(pi * 3 + v) % perks.length];
-          else if (samples[k]) vars[k] = samples[k][v % samples[k].length];
-        }
-        // A pass needs two names: throw to the next player on the list.
-        if (vars.passer && vars.rec) vars.passer = players[(pi + 1) % players.length] === name && players.length > 1 ? players[(pi + 2) % players.length] : players[(pi + 1) % players.length];
-        jobs.push({ e, v, vars });
-      }
-    }
-  });
-  return jobs;
-}
-
-const warm = { running: false, total: 0, done: 0, cached: 0, failed: 0, startedAt: 0, finishedAt: 0, stopped: null };
-function startWarm(db) {
-  if (warm.running) return { queued: warm.total - warm.done - warm.failed, running: true };
+// ---------- warming (the only place clips are made) ----------
+const warm = { running: false, total: 0, missing: 0, done: 0, failed: 0, startedAt: 0, finishedAt: 0, stopped: null, trigger: null };
+function startWarm(db, trigger = 'manual') {
+  if (warm.running) return { queued: warm.missing - warm.done - warm.failed, running: true };
   const c = config();
   if (!enabled(c)) return { queued: 0, error: 'voice not configured' };
-  const seen = new Set(), list = [];
-  for (const j of warmJobs(db)) {
-    const text = respell(render(LINES.events[j.e], j.v, j.vars)), key = cacheKey(c, text);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    list.push({ key, text });
-  }
-  Object.assign(warm, { running: true, total: list.length, done: 0, cached: 0, failed: 0, startedAt: Date.now(), finishedAt: 0, stopped: null });
-  let next = 0, quotaHits = 0;
+  const p = plan(db, c);
+  const list = [...p.clips].filter(([key]) => !fs.existsSync(clipPath(key)));
+  Object.assign(warm, { running: true, total: p.clips.size, missing: list.length, done: 0, failed: 0, startedAt: Date.now(), finishedAt: 0, stopped: null, trigger });
+  let next = 0, quotaInARow = 0;
   const worker = async () => {
     while (next < list.length && !warm.stopped) {
-      const job = list[next++];
-      if (fs.existsSync(clipPath(job.key))) { warm.done++; warm.cached++; continue; }
-      // Wait out a quota backoff rather than failing everything behind it.
-      if (backoffLeft()) {
-        if (++quotaHits > 3) { warm.stopped = 'quota'; break; }
-        await new Promise((r) => setTimeout(r, backoffLeft() + 250));
+      const [key, text] = list[next++];
+      if (backoffLeft()) await new Promise((r) => setTimeout(r, backoffLeft() + 250)); // wait out a quota pause
+      if (warm.stopped) break;
+      try {
+        await ensureClip(c, key, text);
+        warm.done++; quotaInARow = 0;
+      } catch (e) {
+        warm.failed++;
+        if ([401, 402, 429].includes(e.status)) { if (++quotaInARow >= 3) warm.stopped = 'quota'; } else quotaInARow = 0;
       }
-      try { await ensureClip(c, job.key, job.text); warm.done++; quotaHits = 0; } catch { warm.failed++; }
     }
   };
   Promise.all([worker(), worker()]).finally(() => { warm.running = false; warm.finishedAt = Date.now(); });
-  return { queued: list.length };
+  return { queued: list.length, total: p.clips.size };
+}
+// On boot and every 6 hours: new roster names, pronunciations or a model change get rendered
+// without anyone pressing the button.
+const AUTO_EVERY = 6 * 3600 * 1000;
+function startAuto(load, delay = +process.env.TTS_WARM_DELAY_MS || 20000) {
+  const run = () => {
+    const db = load();
+    if (!db) return setTimeout(run, 5000).unref(); // data not loaded yet
+    try { if (enabled()) startWarm(db, 'auto'); } catch { state.lastError = 'auto warm failed'; }
+  };
+  setTimeout(run, delay).unref();
+  setInterval(run, AUTO_EVERY).unref();
 }
 
 // ---------- admin block (Admin > AI) ----------
+const NAME_VARS = new Set(['passer', 'rec', 'carrier', 'player', 'kicker']);
+const NAME_SEGS = new Set(Object.values(LINES.events).flatMap((ev) => ev.lines.flat().filter((s) => NAME_VARS.has(segVar(s))).map((s) => s.replace(/\{[a-z]+\}/, '{name}')))).size;
 const fmtBytes = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB');
-function adminBlock(esc, req) {
-  const c = config(), st = cacheStats();
+const fmtN = (n) => n.toLocaleString('en-US');
+function adminBlock(esc, req, db) {
+  const c = config(), st = cacheStats(), p = plan(db, c), cov = coverage(p);
   const pron = Object.entries(pronounceMap()).map(([k, v]) => `${k} = ${v}`).join('\n');
   const lines = Object.values(LINES.events).reduce((n, ev) => n + ev.lines.length, 0);
   const msg = req.query.voice === 'saved' ? '<p class="muted sm"><b>Saved.</b></p>' : req.query.voice === 'bad' ? '<p class="err">That key, voice id or model doesn\'t look right. Nothing was saved.</p>' : '';
   const src = (s) => (s === 'variable' ? 'from the environment' : s === 'admin' ? 'saved here' : '');
   return `<div class="card" id="voice"><div class="card-h"><h2>Voice commentary</h2><span class="muted sm">3D Blitz</span></div>
-    <p class="muted">An announcer voice reads the 3D Blitz play-by-play (${lines} lines across ${Object.keys(LINES.events).length} events). Each clip is made once with ElevenLabs and kept on the server, so replays cost nothing. Without a key and voice the game stays silent.</p>
+    <p class="muted">An announcer voice reads the 3D Blitz play-by-play (${fmtN(lines)} lines across ${Object.keys(LINES.events).length} events). Every clip is made ahead of time with ElevenLabs, here on the server, for every name, team and number a line can use; during a game nothing is generated, the game only plays clips that are already made. The job runs when the server starts and every 6 hours (only missing clips are made), or now with the button.</p>
     ${msg}
     <p>${c.key ? `Key: <b>set</b> (${src(c.keySource)}, ends in <code>${esc(c.key.slice(-4))}</code>)` : 'Key: <b>not set</b>'} · Voice: ${c.voice ? `<code>${esc(c.voice)}</code>` : '<b>not set</b>'} · Model: <code>${esc(c.model)}</code></p>
-    <p>Cache: <b id="ttsCount">${st.count}</b> clips, <span id="ttsSize">${fmtBytes(st.bytes)}</span> <span class="muted sm" id="ttsWarm"></span></p>
-    <p><button class="btn sm" id="ttsWarmBtn" type="button" ${enabled(c) ? '' : 'disabled'}>Warm the cache</button>
+    <p>All clips: <b>${fmtN(cov.total)}</b> (about <b>${fmtN(cov.chars)}</b> characters of speech) · Made: <b id="ttsHave">${fmtN(cov.have)}</b> of ${fmtN(cov.total)} (<span id="ttsPct">${cov.total ? Math.floor((cov.have / cov.total) * 100) : 0}</span>%) · Still to make: <span id="ttsMissChars">${fmtN(cov.missingChars)}</span> characters</p>
+    <p class="muted sm">On disk: <span id="ttsCount">${fmtN(st.count)}</span> files, <span id="ttsSize">${fmtBytes(st.bytes)}</span>. Each new roster name adds ${fmtN(NAME_SEGS)} clips.</p>
+    <p class="muted sm" id="ttsWarm"></p>
+    <p><button class="btn sm" id="ttsWarmBtn" type="button" ${enabled(c) ? '' : 'disabled'}>Make missing clips now</button>
       <button class="btn sm ghost" id="ttsTestBtn" type="button" ${enabled(c) ? '' : 'disabled'}>Test a line</button> <span class="muted sm" id="ttsTestMsg"></span></p>
     <form method="post" action="/admin/tts/settings" class="form" autocomplete="off">
       ${c.keySource === 'variable' ? '' : `<label>ElevenLabs API key<input name="key" type="password" autocomplete="off" placeholder="${c.key ? 'Saved: leave blank to keep it' : 'Paste the key'}"></label>
@@ -357,17 +339,19 @@ function adminBlock(esc, req) {
       ${c.modelSource === 'variable' ? '' : `<label>Model<input name="model" value="${esc(c.modelSource === 'admin' ? c.model : '')}" placeholder="${DEFAULT_MODEL}" maxlength="64"></label>`}
       <label>Pronunciations <span class="muted sm">(one <code>Name = respelling</code> per line; used only for the voice, never shown)</span>
         <textarea name="pronounce" rows="6" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace">${esc(pron)}</textarea></label>
-      <p class="muted sm">Keys are stored only on the server, never in backups. Changing the voice, model or a pronunciation makes new clips; old ones stay cached.</p>
+      <p class="muted sm">Keys are stored only on the server, never in backups. Changing the voice, the model or a pronunciation means those clips are made again (the next run, or the button).</p>
       <button class="btn">Save voice settings</button></form>
   </div>
   <script>(function(){
-    var wb=document.getElementById('ttsWarmBtn'),tb=document.getElementById('ttsTestBtn'),wm=document.getElementById('ttsWarm'),tm=document.getElementById('ttsTestMsg'),poll=null;
-    function show(s){document.getElementById('ttsCount').textContent=s.cache.count;document.getElementById('ttsSize').textContent=s.cache.size;
-      var w=s.warm;if(w.total){wm.textContent='· warming: '+w.done+' done / '+w.failed+' failed / '+w.total+' total'+(w.running?'…':w.stopped?' (stopped: voice quota)':' ✓');}
-      if(s.backoff)wm.textContent+=' · paused '+s.backoff+'s after a quota error';
+    var wb=document.getElementById('ttsWarmBtn'),tb=document.getElementById('ttsTestBtn'),wm=document.getElementById('ttsWarm'),tm=document.getElementById('ttsTestMsg'),poll=null,$=function(i){return document.getElementById(i)};
+    function n(x){return Number(x).toLocaleString('en-US')}
+    function show(s){$('ttsCount').textContent=n(s.cache.count);$('ttsSize').textContent=s.cache.size;$('ttsHave').textContent=n(s.coverage.have);$('ttsPct').textContent=s.coverage.total?Math.floor(s.coverage.have/s.coverage.total*100):0;$('ttsMissChars').textContent=n(s.coverage.missingChars);
+      var w=s.warm,t='';if(w.missing||w.running||w.finishedAt){t=(w.running?'Making clips'+(w.trigger==='auto'?' (automatic run)':'')+': ':'Last run: ')+n(w.done)+' made / '+n(w.failed)+' failed / '+n(w.missing)+' to make'+(w.running?'…':w.stopped==='quota'?'. Stopped after 3 quota errors in a row: check the ElevenLabs credits.':' ✓');}
+      if(s.backoff)t+=' · paused '+s.backoff+'s after a quota error';wm.textContent=t;
+      if(w.running&&!poll){poll=setInterval(status,2000);wb.disabled=true;}
       if(!w.running&&poll){clearInterval(poll);poll=null;wb.disabled=false;}}
     function status(){fetch('/admin/tts/status').then(function(r){return r.json()}).then(show).catch(function(){});}
-    wb&&wb.addEventListener('click',function(){wb.disabled=true;wm.textContent='· starting…';fetch('/admin/tts/warm',{method:'POST'}).then(function(r){return r.json()}).then(function(d){wm.textContent='· queued '+d.queued;if(!poll)poll=setInterval(status,1500);status();}).catch(function(){wb.disabled=false;wm.textContent='· could not start';});});
+    wb&&wb.addEventListener('click',function(){wb.disabled=true;wm.textContent='Starting…';fetch('/admin/tts/warm',{method:'POST'}).then(function(r){return r.json()}).then(function(){status();}).catch(function(){wb.disabled=false;wm.textContent='Could not start.';});});
     tb&&tb.addEventListener('click',function(){tb.disabled=true;tm.textContent='Generating…';fetch('/admin/tts/test',{cache:'no-store'}).then(function(r){
       if(!r.ok)return r.json().then(function(d){throw new Error(d.error||'failed')});var line=decodeURIComponent(r.headers.get('X-Line')||'');
       return r.blob().then(function(b){var a=new Audio(URL.createObjectURL(b));tm.textContent='“'+line+'”';return a.play().catch(function(){tm.textContent+=' (press play was blocked by the browser)';});});
@@ -381,50 +365,53 @@ function register(app, h) {
   app.get('/arcade/tts/manifest', (req, res) => {
     const c = config();
     res.set('Cache-Control', 'private, max-age=60'); // enabled depends on who is asking: clips need a login
-    res.json({ enabled: enabled(c) && !!h.currentUser(req), model: c.model, events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => [k, { n: ev.lines.length, vars: ev.vars }])) });
+    res.json({
+      enabled: enabled(c) && !!h.currentUser(req),
+      model: c.model,
+      events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => [k, { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map((l) => l.map((s) => (segVar(s) ? [segVar(s)] : []))) }])),
+    });
   });
 
-  app.get('/arcade/tts', async (req, res) => {
+  // Serve only: a clip that was not made ahead of time is a 404, never a call to the voice service.
+  app.get('/arcade/tts', (req, res) => {
     noStore(res);
     if (!h.currentUser(req)) return res.status(401).json({ error: 'log in' });
     const r = parse(req.query);
     if (r.error) return res.status(400).json({ error: r.error });
     const c = config();
     if (!enabled(c)) return res.status(204).end();
-    const text = respell(render(r.ev, r.v, r.vars)), key = cacheKey(c, text), file = clipPath(key);
-    if (fs.existsSync(file)) return sendClip(req, res, file, key);
-    if (backoffLeft()) return res.status(503).json({ error: 'voice paused', retryAfter: Math.ceil(backoffLeft() / 1000) });
-    try {
-      await ensureClip(c, key, text);
-      sendClip(req, res, file, key);
-    } catch (e) {
-      res.status(503).json({ error: e.reason || 'voice unavailable' });
-    }
+    const key = cacheKey(c, respell(renderSeg(r.seg, r.name, r.value))), file = clipPath(key);
+    if (!fs.existsSync(file)) return res.status(404).json({ error: 'not rendered' });
+    sendClip(req, res, file, key);
   });
 
   app.get('/admin/tts/status', h.requireAdmin, (req, res) => {
-    const st = cacheStats();
-    noStore(res).json({ enabled: enabled(), cache: { count: st.count, bytes: st.bytes, size: fmtBytes(st.bytes) }, warm, backoff: Math.ceil(backoffLeft() / 1000), upstream: { calls: state.calls, ok: state.ok, failed: state.fail, lastError: state.lastError } });
+    const st = cacheStats(), cov = coverage(plan(h.load()));
+    noStore(res).json({ enabled: enabled(), cache: { count: st.count, bytes: st.bytes, size: fmtBytes(st.bytes) }, coverage: cov, warm, backoff: Math.ceil(backoffLeft() / 1000), upstream: { calls: state.calls, ok: state.ok, failed: state.fail, lastError: state.lastError } });
   });
 
   app.post('/admin/tts/warm', h.requireAdmin, (req, res) => {
-    noStore(res).json(startWarm(h.load()));
+    noStore(res).json(startWarm(h.load(), 'manual'));
   });
 
-  // One short line with a random roster name, for checking the voice from the admin page.
+  // One short line with a random roster name, made from its segment clips (missing ones are made
+  // now: this is the admin page, not a game) and played back to back.
   app.get('/admin/tts/test', h.requireAdmin, async (req, res) => {
     noStore(res);
     const c = config();
     if (!enabled(c)) return res.status(400).json({ error: 'set a key and a voice first' });
-    const names = Object.values(h.load()?.teams || {}).flatMap((t) => (t.roster || []).map((p) => lastName(p.name))).filter((n) => NAME_RE.test(n));
+    const names = domainValues('player', h.load());
     const name = names.length ? names[Math.floor(Math.random() * names.length)] : 'Pedon';
-    const pick = [['first_down', { player: name }], ['juke', { carrier: name }], ['catch_wild', { rec: name }], ['td_short', { carrier: name }]][Math.floor(Math.random() * 4)];
-    const ev = LINES.events[pick[0]], v = Math.floor(Math.random() * ev.lines.length);
-    const shown = render(ev, v, pick[1]), text = respell(shown), key = cacheKey(c, text);
+    const e = ['first_down', 'juke', 'catch_wild', 'td_short'][Math.floor(Math.random() * 4)];
+    const line = LINES.events[e].lines[Math.floor(Math.random() * LINES.events[e].lines.length)];
     try {
-      const file = await ensureClip(c, key, text);
-      res.set('X-Line', encodeURIComponent(shown));
-      res.set('Content-Type', 'audio/mpeg').end(fs.readFileSync(file));
+      const parts = [];
+      for (const seg of line) {
+        const v = segVar(seg), text = respell(renderSeg(seg, v, name)), key = cacheKey(c, text);
+        parts.push(fs.readFileSync(await ensureClip(c, key, text)));
+      }
+      res.set('X-Line', encodeURIComponent(line.map((s) => renderSeg(s, segVar(s), name)).join(' ')));
+      res.set('Content-Type', 'audio/mpeg').end(Buffer.concat(parts));
     } catch (e) {
       res.status(503).json({ error: e.reason || 'voice unavailable' });
     }
@@ -445,4 +432,4 @@ function register(app, h) {
   });
 }
 
-module.exports = { register, adminBlock, parse, render, respell, config, LINES };
+module.exports = { register, startAuto, startWarm, warm, adminBlock, parse, renderSeg, respell, config, plan, coverage, domainValues, LINES };

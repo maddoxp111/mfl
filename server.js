@@ -2592,7 +2592,7 @@ app.get('/admin/ai', requireAdmin, (req, res) => {
     ${src === 'variable' ? '' : `<div class="card"><div class="card-h"><h2>API key</h2></div>
       <form method="post" action="/admin/ai/key" class="form"><label>Anthropic API key<input name="key" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
       <p class="muted sm">Stored only on the server, never in backups. Leave it blank and save to remove it.</p><button class="btn">Save key</button></form></div>`}
-    ${tts.adminBlock(esc, req)}
+    ${tts.adminBlock(esc, req, db)}
   </div>`, { ticker: false }));
 });
 app.post('/admin/ai/key', requireAdmin, (req, res) => {
@@ -3316,6 +3316,7 @@ if (require.main === module) {
   refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db); if (a || b || c) await save(); }).catch((e) => console.error(e));
   app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
   scheduleAI(15000); // catch up on anything that changed while the server was down
+  tts.startAuto(load); // make any missing voice clips now and every 6 hours
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.
   if (process.env.RAILWAY_ENVIRONMENT && String(PORT) !== '8080') app.listen(8080, () => console.log('MFL also on :8080'));
 }
