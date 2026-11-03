@@ -4273,7 +4273,7 @@ gl_FragColor=vec4(c,1.0);}`;
           closeP = carrier; if (carrier) celebrate(carrier);
           confetti(carrier ? carrier.x : 0, 100); clockRun = false; cam.kick = 1;
         } else if (kind === 'pick6') {
-          addPts('away', 7); head = P.scoop ? 'FUMBLE SIX' : 'PICK SIX'; sub = `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = ['home', null, 'ko']; clockRun = false;
+          addPts('away', tryMode ? 2 : 7); head = tryMode ? 'RETURNED FOR TWO' : P.scoop ? 'FUMBLE SIX' : 'PICK SIX'; sub = tryMode ? `${esc(AWAY.name)} take the try back` : `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = tryMode ? ['cpu', 25, 'ko'] : ['home', null, 'ko']; clockRun = false;
           const sc = P.scoop || P.int; line = `${P.scoop ? 'Scooped' : 'Intercepted'} and returned for a touchdown by <b>${esc(AWAY.abbr)} #${sc ? sc.num : ''}</b>.`; TS.turnovers++; markBig('td');
           const bigD = P.scoop && P.scoop.role === 'DL';
           moment(bigD ? 'bigman' : P.scoop ? 'fumble6' : 'pick6', carrier || sc, bigD ? 'BIG MAN TOUCHDOWN!' : P.scoop ? 'FUMBLE SIX!' : 'PICK SIX!', { a: carrier || sc, b: carrier || sc, victim: 'home', col: '#ff3344' });
@@ -4287,7 +4287,8 @@ gl_FragColor=vec4(c,1.0);}`;
           const s = clamp(Math.round(100 - spot), 1, 99); nx.next = tryMode ? ['cpu', 25, 'ko'] : ['cpu', s]; clockRun = false;
           head = 'FUMBLE LOST'; sub = `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++; line = 'Ball comes loose and the defense falls on it.';
         } else if (kind === 'inc') {
-          head = 'INCOMPLETE'; col = '#c9ccd4'; nx.down = down + 1; sub = extra || ''; clockRun = false; sfx.play('bad');
+          head = 'INCOMPLETE'; col = '#c9ccd4'; sub = extra || ''; clockRun = false; sfx.play('bad');
+          if (tryMode) { head = 'TWO-POINT TRY FAILS'; sub = extra ? 'Incomplete · ' + extra : 'Incomplete'; col = '#ff3344'; nx.next = ['cpu', 25, 'ko']; } else nx.down = down + 1; // a try is one play: an incompletion ends it
           line = `<b>${esc(nm(passer))}</b>'s pass ${P.tgt ? 'for <b>' + esc(nm(P.tgt)) + '</b> ' : ''}falls incomplete${extra ? ' (' + extra.toLowerCase() + ')' : ''}.`;
         } else {
           const ns = Math.round(spot * 2) / 2;
@@ -4351,6 +4352,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (nx && nx.los != null) { los = nx.los; down = nx.down; fdz = nx.fdz; }
       clearBanner(); closeP = null; go4 = false; carrier = null; kick = null; lastBig = null;
       const next = nx && nx.next;
+      if (tryMode && !(next && next[0] === 'pat')) tryMode = false; // the try is over once the next thing is not the try itself
       let cont;
       if (!next) cont = () => toPre(false);
       else if (next[0] === 'pat') cont = () => startPAT();
@@ -4385,6 +4387,17 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'pat') return;
       if (two) { tryMode = true; los = 98; down = 1; fdz = 100; toPre(false); banner('TWO-POINT TRY', 'Get it in from the 2', '#ffc21a'); }
       else { los = 85; startKick('xp'); }
+    }
+    // change your mind before the ball is live: lined up for two with the ball not snapped -> kick it; kick lined up with no power set -> go for two
+    function switchTry(two) {
+      if (finished) return;
+      if (two) {
+        if (phase !== 'kick' || !kick || kick.type !== 'xp' || kick.st !== 'power') return;
+        hideMeter(); kick = null; phase = 'pat'; sfx.play('tap'); chooseTry(true);
+      } else {
+        if (phase !== 'pre' || !tryMode) return;
+        closeSheet(true); sheetOpen = false; tryMode = false; phase = 'pat'; sfx.play('tap'); chooseTry(false);
+      }
     }
     function choose4th(k) {
       if (phase !== 'pre' || down !== 4 || go4 || tryMode || finished) return;
@@ -6313,6 +6326,7 @@ gl_FragColor=vec4(c,1.0);}`;
           btn('bz-wide', `${esc(play.name)}<small>${esc(FORMS[play.form].name)}${flip ? ' · flipped' : ''} · change play</small>`, () => { sheetOpen = true; setControls(true); openSheet(); });
           const late = (qtr === 2 || qtr >= 4) && clock < 25 && fgDist() <= fgRange() && !tryMode;
           if (late) btn('', `FG<small>${fgDist()} yd</small>`, () => startKick('fg'));
+          if (tryMode) btn('', `Kick XP instead<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => switchTry(false));
           btn('bz-y bz-wide', `Snap${K('SPACE')}`, snap);
         }
         btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
@@ -6329,23 +6343,26 @@ gl_FragColor=vec4(c,1.0);}`;
         mkSprint();
       } else if (phase === 'live' && mode === 'catch') {
         msg(touchy ? '<span>He runs to the ball · steer to adjust · time your catch</span>' : '<span>Arrows adjust · SPACE jump · X dive · SHIFT sprint</span>');
-        mkSprint();
+        if (!touchy) mkSprint();
         const g = el('div', 'bz-catch'); ctl.appendChild(g);
         const d = el('button', 'bz-btn', `Dive${K('X')}`); d.type = 'button'; d.addEventListener('pointerdown', (e) => { e.preventDefault(); doDive(ctrl); }); g.appendChild(d);
         const j = el('button', 'bz-btn bz-g', `Jump${K('SPACE')}`); j.type = 'button'; j.addEventListener('pointerdown', (e) => { e.preventDefault(); doJump(ctrl); }); g.appendChild(j);
+        if (touchy) mkSprint(); // phones: the sprint pad sits at the far right, under the thumb
       } else if (phase === 'live' && mode === 'run') {
         if (kick && kick.type === 'ko' && kick.tbOK) btn('bz-y', `Take a knee<small>touchback</small>${K('T')}`, touchback, 'pointerdown');
         else msg(touchy ? '<span>Drag on the field to steer</span>' : '<span>Arrows / WASD to steer · SHIFT sprint</span>');
-        mkSprint();
+        if (!touchy) mkSprint();
         const g = el('div', 'bz-mv'); ctl.appendChild(g); mvBtns = {};
         const qbSlide = ctrl && ctrl.role === 'QB' && !qbRunPlay() && !(kick && kick.type === 'ko');
         [['juke', 'Juke', 'J', 'bz-r'], ['spin', 'Spin', 'K', ''], ['stiff', 'Stiff', 'L', ''], ['hurdle', 'Hurdle', 'H', 'bz-g'], ['dive', qbSlide ? 'Slide' : 'Dive', 'SPACE', 'bz-y']].forEach(([m, n, k, c]) => {
           const b = el('button', 'bz-btn ' + c, `${n}${K(k)}<i></i>`); b.type = 'button';
           b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); doMove(m); }); g.appendChild(b); if (m !== 'dive') mvBtns[m] = b;
         });
+        if (touchy) mkSprint();
       } else if (phase === 'live') {
         msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? '<span>Kickoff · get under it…</span>' : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
       } else if (phase === 'kick') {
+        if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the 2</small>${K('2')}`, () => switchTry(true));
         btn('bz-y bz-wide', `${kick.st === 'power' ? 'Set power' : kick.st === 'acc' ? 'Set aim' : 'Kicking…'}${K('SPACE')}`, kickTap, 'pointerdown');
       } else if (phase === 'dead') {
         msg('<span>Next play coming up…</span>');
@@ -6420,6 +6437,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const to = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>`); to.type = 'button'; to.style.minHeight = '40px'; to.style.flex = '0 0 auto'; to.style.padding = '4px 10px';
       to.addEventListener('click', () => { callTimeout(); to.classList.toggle('off', !canTimeout()); to.querySelector('small').textContent = toLeft + ' left'; });
       top.append(to, fl, same);
+      if (tryMode) { const xp = el('button', 'bz-btn', `Kick XP instead<small>+1 · ${esc(KR.name)}</small>`); xp.type = 'button'; xp.style.flex = '0 0 auto'; xp.style.minHeight = '40px'; xp.style.padding = '4px 10px'; xp.addEventListener('click', () => switchTry(false)); top.insertBefore(xp, to); }
       const tabs = el('div', 'bz-tabs');
       for (const [c, n] of CATS) { const b = el('button', c === sheetCat ? 'sel' : '', n); b.type = 'button'; b.addEventListener('click', () => { sheetCat = c; tabs.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b)); drawCards(); }); tabs.appendChild(b); }
       const cards = el('div', 'bz-cards');
@@ -6676,6 +6694,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c === 'KeyG') { choose4th('go'); return; }
       if (c === 'Digit1' && phase === 'pat') { chooseTry(false); return; }
       if (c === 'Digit2' && phase === 'pat') { chooseTry(true); return; }
+      if (c === 'Digit1' && phase === 'pre' && tryMode) { switchTry(false); return; } // lined up for two: kick instead
+      if (c === 'Digit2' && phase === 'kick' && kick && kick.type === 'xp' && kick.st === 'power') { switchTry(true); return; } // kick lined up: go for two instead
       if (c === 'Escape' && aim) { aim = null; hideAim(); return; }
     }
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
@@ -6792,7 +6812,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
       get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; },
-      input, snap, begin, choose4th, chooseTry, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
+      input, snap, begin, choose4th, chooseTry, switchTry, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
       get plays() { return PLAYS.map((p) => p.id); }, get cats() { return CATS.map((c) => c[0]); }, get sheetCat() { return sheetCat; },
