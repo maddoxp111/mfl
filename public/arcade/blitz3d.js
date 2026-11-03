@@ -4894,7 +4894,7 @@ gl_FragColor=vec4(c,1.0);}`;
       try {
         fetch('/arcade/tts/manifest', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((m) => {
           avail = !!(m && m.enabled);
-          if (m && m.events) for (const k in m.events) { const x = m.events[k]; if (x && x.n > 0 && x.segs) EV[k] = { vars: x.vars || [], n: x.n, segs: x.segs }; }
+          if (m && m.events) for (const k in m.events) { const x = m.events[k]; if (x && x.n > 0 && x.segs) EV[k] = { vars: x.vars || [], n: x.n, segs: x.segs, prev: x.prev || null }; } // prev: the earlier split of a variant, whose clips may exist before the new ones do
           try { updVoiceBtn(); } catch (e) {}
         }).catch(() => { avail = false; try { updVoiceBtn(); } catch (e) {} });
       } catch (e) { avail = false; }
@@ -4909,14 +4909,15 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const clean = (x) => String(x == null ? '' : x).replace(/<[^>]*>/g, '').replace(/[^A-Za-z0-9 .,'’-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
       // the clips of variant v for these names: one request per segment, each carrying only the var that segment uses; null when a name is missing
-      function urlsFor(e, v, vars) {
-        const ev = EV[e], segs = ev && ev.segs && ev.segs[v]; if (!segs) return null;
+      function urlsFor(e, v, vars, prev) {
+        const ev = EV[e], segs = ev && (prev ? ev.prev && ev.prev[v] : ev.segs && ev.segs[v]); if (!segs) return null;
         const out = [];
         for (let i = 0; i < segs.length; i++) {
-          const p = new URLSearchParams(); p.set('e', e); p.set('v', String(v)); p.set('i', String(i));
+          const p = new URLSearchParams(); p.set('e', e); p.set('v', String(v)); p.set('i', String(i)); if (prev) p.set('p', '1');
           for (const k of segs[i]) { const x = clean(vars && vars[k]); if (!x) return null; p.set(k, x); }
           out.push('/arcade/tts?' + p.toString());
         }
+        out.alt = !prev && ev.prev && ev.prev[v] ? () => urlsFor(e, v, vars, true) : null; // fallback: the earlier split of the same line
         return out;
       }
       const keyOf = (e, vars) => { const ev = EV[e]; if (!ev) return null; const parts = [e]; for (const k of ev.vars || []) { const x = clean(vars && vars[k]); if (!x) return null; parts.push(k + '=' + x); } return parts.join('|'); };
@@ -4945,7 +4946,7 @@ gl_FragColor=vec4(c,1.0);}`;
         return true;
       }
       function enqueue(urls, pri) {
-        const it = { urls, pri, t: performance.now() };
+        const it = { urls, pri, t: performance.now(), alt: urls.alt || null };
         if (pri === 4) { // a live call: only when nothing bigger is talking; it cuts off flavor and never waits in line
           if (cur && cur.pri >= 2) { VST.dropped++; return; }
           if (cur && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; }
@@ -4998,11 +4999,14 @@ gl_FragColor=vec4(c,1.0);}`;
             src.start(0, x.start, x.dur);
           };
           next();
-        }).catch(() => { VST.failed++; done(); });
+        }).catch(() => {
+          if (it.alt && !it.triedAlt) { const alt = it.alt(); if (alt) { it.triedAlt = true; it.urls = alt; it.alt = null; for (const u of alt) load(u); cur = null; q.unshift(it); VST.fellBack++; return pump(); } } // a clip of the new split is not made yet: say the line in its earlier split
+          VST.failed++; done();
+        });
       }
       function done() { cur = null; setTimeout(pump, 150); }
       function start() { try { sfx.ctx(); } catch (e) {} try { updVoiceBtn(); } catch (e) {} if (intro) return; intro = true; say('intro', { home: HOME.name, away: AWAY.name, level: lvlName }, 3); }
-      const VST = { played: 0, dropped: 0, failed: 0, waits: [], log: [] };
+      const VST = { played: 0, dropped: 0, failed: 0, fellBack: 0, waits: [], log: [] };
       return {
         say, prefetch, start,
         get on() { return on; }, set on(v) { on = !!v; try { localStorage.setItem('mfl-blitz-voice', on ? '1' : '0'); } catch (e) {} if (!on) { q.length = 0; } },

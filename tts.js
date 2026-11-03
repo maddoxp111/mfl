@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const { DATA_DIR } = require('./db');
 
 const LINES = require('./commentary-lines.json');
+// the previous split of the same lines: while the new split's clips are still being made, a line can be said in its earlier split
+let PREV = null; try { PREV = require('./commentary-lines.prev.json'); } catch {}
 const SECRETS_FILE = path.join(DATA_DIR, 'secrets.json');
 const PRONOUNCE_FILE = path.join(DATA_DIR, 'pronounce.json');
 const CACHE_DIR = path.join(DATA_DIR, 'tts');
@@ -121,14 +123,14 @@ const segVar = (seg) => (/\{([a-z]+)\}/.exec(seg) || [])[1] || null;
 
 // Checks a request's query: { e, v, i, <the segment's one var> }. Returns { seg, name, value } or { error }.
 function parse(q) {
-  const e = q.e;
-  if (typeof e !== 'string' || !has(LINES.events, e)) return { error: 'unknown event' };
-  const ev = LINES.events[e];
+  const e = q.e, prev = q.p === '1', src = prev ? PREV : LINES;
+  if (!src || typeof e !== 'string' || !has(src.events, e)) return { error: 'unknown event' };
+  const ev = src.events[e];
   if (typeof q.v !== 'string' || !/^\d{1,3}$/.test(q.v) || +q.v >= ev.lines.length) return { error: 'bad variant' };
   const line = ev.lines[+q.v];
   if (typeof q.i !== 'string' || !/^\d{1,2}$/.test(q.i) || +q.i >= line.length) return { error: 'bad segment' };
   const seg = line[+q.i], name = segVar(seg);
-  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && k !== 'i' && k !== name) return { error: `unexpected ${k}` };
+  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && k !== 'i' && k !== 'p' && k !== name) return { error: `unexpected ${k}` };
   if (!name) return { seg, name: null, value: null };
   const value = q[name];
   if (value === undefined) return { error: `missing ${name}` };
@@ -263,7 +265,11 @@ function plan(db, c = config()) {
   for (const k of Object.keys(LINES.domains)) dom[k] = domainValues(k, db);
   const clips = new Map();
   let chars = 0;
-  for (const ev of Object.values(LINES.events)) for (const line of ev.lines) for (const seg of line) {
+  // the new split first (that is where the budget should go), then the earlier split of the lines that changed
+  const segsToMake = [];
+  for (const ev of Object.values(LINES.events)) for (const line of ev.lines) for (const seg of line) segsToMake.push(seg);
+  if (PREV) for (const [k, ev] of Object.entries(PREV.events)) ev.lines.forEach((line, i) => { const cur = LINES.events[k] && LINES.events[k].lines[i]; if (!cur || JSON.stringify(cur) === JSON.stringify(line)) return; for (const seg of line) segsToMake.push(seg); });
+  for (const seg of segsToMake) {
     const name = segVar(seg);
     for (const value of name ? dom[name] : [null]) {
       const text = respell(renderSeg(seg, name, value));
@@ -391,7 +397,7 @@ function register(app, h) {
     res.json({
       enabled: enabled(c) && !!h.currentUser(req),
       model: c.model,
-      events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => [k, { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map((l) => l.map((s) => (segVar(s) ? [segVar(s)] : []))) }])),
+      events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => { const o = { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map((l) => l.map((s) => (segVar(s) ? [segVar(s)] : []))) }; if (PREV && PREV.events[k]) { const pv = ev.lines.map((l, i) => { const pl = PREV.events[k].lines[i]; return pl && JSON.stringify(pl) !== JSON.stringify(l) ? pl.map((s) => (segVar(s) ? [segVar(s)] : [])) : null; }); if (pv.some(Boolean)) o.prev = pv; } return [k, o]; })),
     });
   });
 
