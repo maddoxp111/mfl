@@ -608,7 +608,7 @@ varying vec4 vC;varying vec2 vT;varying float vLit;
 #LIB#
 void main(){vec4 t=texture2D(uTex,vT);vec3 base=toLin(vC.rgb*t.rgb);
 if(uKind>8.5){gl_FragColor=vec4(vec3(shadowAt(normalize(vN),1.0)),1.0);return;}
-if(vLit<0.5){gl_FragColor=vec4(uMatW.w>0.5?base*uMatW.w*(vC.a):fogIt(base),uMatW.w>0.5?1.0:vC.a);return;}
+if(vLit<0.5){float ta=uKind>7.5?t.a:1.0;gl_FragColor=vec4(uMatW.w>0.5?base*uMatW.w*(vC.a):fogIt(base),uMatW.w>0.5?1.0:vC.a*ta);return;}
 vec3 N=normalize(vN);float rough=uMatW.x,metal=uMatW.y,ao=1.0,cav=1.0,specOcc=1.0;
 if(uKind>0.5&&uKind<1.5){
   // turf: blade-scale detail (colour + normal) fades with distance, mow-stripe sheen, wet puddles in rain
@@ -628,19 +628,20 @@ gl_FragColor=vec4(fogIt(col),1.0);}`;
   // ---- skinned athletes: two bone weights per vertex ----
   // slots (SL): 0 jer 1 pant 2 skin 3 helm 4 trim 5 cleat 6 pad 7 mask 8 num 9 face 10 arm 11 name 12 glove 13 sock 14 sole 15 visor 16 snum 17 wht 18 eye 19 tape 20 towel 21 stripes
   const VS_SKIN = `attribute vec3 aP;attribute vec3 aN;attribute vec2 aB;attribute float aW;attribute float aS;attribute vec2 aT;attribute float aA;
-uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uNumUV;uniform HP vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uTowel;uniform float uSway;uniform float uMouth;
+uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uNumUV;uniform HP vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uTowel;uniform float uSway;uniform float uMouth;uniform vec4 uFxV;
 varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vS;varying float vA;varying vec3 vP;
 vec3 skinP(int b,vec4 p){return vec3(dot(uBones[b],p),dot(uBones[b+1],p),dot(uBones[b+2],p));}
 vec3 skinN(int b,vec3 n){return vec3(dot(uBones[b].xyz,n),dot(uBones[b+1].xyz,n),dot(uBones[b+2].xyz,n));}
 void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;int s=int(aS);vec3 lp=aP*uScale;
 if((s==15&&uVis<0.5)||(s==20&&uTowel<0.5)||(s==22&&uMouth<0.5))lp=vec3(0.0);
 if(s==20){float k=clamp(-aP.y*4.0,0.0,1.0);lp.z+=uSway*k*k;lp.x+=uSway*0.35*k;}
+lp+=aN*uFxV.x;
 vec4 p=vec4(lp,1.0);float w0=aW,w1=1.0-aW;
 vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 n=normalize(skinN(b0,aN)*w0+skinN(b1,aN)*w1);
 bool num=(s==8||s==16);
 vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
 vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
-  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[23];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;
+  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[23];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
 varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
 #LIB#
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -677,7 +678,35 @@ if(s==22){rough=0.25;specOcc=1.5;}
 if(s==15){rough=0.05;base=mix(base,vec3(0.02,0.025,0.03),0.7);alpha=uAlpha;specOcc=2.0;metal=0.3;}
 if(s==20){rough=0.9;}
 if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
-vec3 col=shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc);
+// card effects (uFx: mode, strength, time, seed; uFxC: colour)
+vec3 emis=vec3(0.0);float fm=uFx.x,fk=uFx.y,ft=uFx.z;
+if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18);
+ if(fm>19.5){float rim=pow(fres,1.5);gl_FragColor=vec4(uFxC*fk*(0.1+rim*1.8),clamp(rim*1.3,0.0,1.0)*min(fk,1.0));return;}
+ else if(fm<1.5){base=mix(base,vec3(0.2,0.14,0.08)+lum*vec3(1.15,0.92,0.62),0.85*fk);}
+ else if(fm<2.5){base=mix(base,vec3(0.62,0.45,0.26)*(0.6+0.6*lum),0.85*fk);rough=1.0;specOcc=0.2;
+#ifdef DERIV
+  vec3 fn=normalize(cross(dFdx(vW),dFdy(vW)));N=dot(fn,V)<0.0?-fn:fn;
+#endif
+ }
+ else if(fm<3.5){float n=noise(vT*vec2(90.0,30.0)+uSeed);base=mix(base,vec3(0.05,0.11,0.08)+lum*0.15,0.8*fk);emis+=vec3(0.8,0.9,0.85)*smoothstep(0.72,0.86,n)*0.35*fk;}
+ else if(fm<4.5){vec2 g=fract(vec2(vP.y*22.0,(vP.x+vP.z)*16.0));float ln=max(step(0.9,g.x),step(0.9,g.y));base=mix(base,vec3(0.03,0.1,0.32),0.9*fk);emis+=vec3(0.35,0.65,1.3)*ln*fk;rough=0.9;}
+ else if(fm<5.5){vec2 c=floor(vT*vec2(6.0,9.0));float h=hash(c+uSeed);vec2 e=fract(vT*vec2(6.0,9.0));float lead=step(0.9,max(e.x,e.y));vec3 pc=0.5+0.5*cos(6.2832*(h+vec3(0.0,0.33,0.67)));if(!skinS){base=mix(base,pc*0.7,0.8*fk*(1.0-lead));base*=1.0-lead*0.85;emis+=pc*0.25*fk*(1.0-lead);}}
+ else if(fm<6.5){if(!skinS){base=mix(base,uFxC,0.6*fk);metal=0.85;rough=mix(rough,0.22,fk);specOcc=1.6;}}
+ else if(fm<7.5){base=mix(base,vec3(0.15,0.75,0.95)*(0.4+lum),0.75*fk);emis+=vec3(0.2,0.9,1.2)*(0.25+0.25*sin(vW.y*90.0-ft*8.0))*fk;}
+ else if(fm<8.5){base=floor(base*5.0+0.5)/5.0;vec2 g=fract(vT*48.0);base*=1.0-0.35*step(0.86,max(g.x,g.y))*fk;}
+ else if(fm<9.5){float gl=step(0.86,fract(ft*2.3+uSeed));base=mix(base,base.gbr,gl*fk);emis+=vec3(1.0,0.1,0.9)*gl*0.5*fk*step(0.5,fract(vW.y*12.0+ft*20.0));}
+ else if(fm<10.5){vec3 rb=0.5+0.5*cos(6.2832*(fract(vP.y*1.2-ft*0.4)+vec3(0.0,0.33,0.67)));if(!skinS)base=mix(base,rb,0.6*fk);emis+=rb*0.12*fk;}
+ else if(fm<11.5){if(skinS&&s!=18)emis+=uFxC*(0.5+0.45*sin(ft*5.0))*fk;}
+ else if(fm<12.5){base*=mix(1.0,0.28,fk);emis+=uFxC*fres*1.4*fk;}
+ else if(fm<13.5){vec3 ir=0.5+0.5*cos(6.2832*(fres*1.5+vP.y*0.6+ft*0.15+vec3(0.0,0.33,0.67)));if(!skinS){base=mix(base,ir,0.45*fk);metal=0.55;rough=0.2;}emis+=ir*fres*0.5*fk;}
+ else if(fm<14.5){base=mix(base,vec3(lum),0.9*fk);}
+ else if(fm<15.5){if(!skinS)base=mix(base,vec3(0.9)-base*0.85,0.8*fk);}
+ else if(fm<16.5){if(!skinS)base*=mix(1.0,0.35,fk);if(s==4||s==21||s==8||s==16||s==3)emis+=uFxC*1.5*fk;}
+ else if(fm<17.5){float st=hash(floor(gl_FragCoord.xy*0.5)+floor(ft*24.0));base=mix(base,vec3(st),0.3*fk);}
+ else if(fm<18.5){if(!skinS){base=mix(base,vec3(0.72,0.88,1.0),0.45*fk);rough=0.12;metal=0.25;specOcc=1.8;}}
+ else{float sp=step(0.985,hash(floor(vT*120.0)+floor(ft*6.0)));emis+=uFxC*sp*2.0*fk;}
+}
+vec3 col=shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis;
 gl_FragColor=vec4(fogIt(col),alpha);}`;
   // ---- depth-only passes (shadow cascades) ----
   const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
@@ -817,6 +846,7 @@ gl_FragColor=vec4(c,1.0);}`;
   ];
   const NB = BONES.length, B = {};
   BONES.forEach((b, i) => { B[b[0]] = i; });
+  const LEGB = new Float32Array(NB); for (const k of ['knL', 'ftL', 'knR', 'ftR']) LEGB[B[k]] = 1;
   const HIP_H = 1.08; // standing hip height (unscaled)
   // ---------- poses ----------
   const PN = NB * 3, PLEN = PN + 4; // + rootY, pitch, roll, yaw
@@ -1020,9 +1050,10 @@ gl_FragColor=vec4(c,1.0);}`;
     return gfit(pb({ shL: [0.75, 0, -0.45 + 0.75 * w], shR: [0.75, 0, 0.45 - 0.75 * w], elL: [0.35], elR: [0.35], spine: [0.12, 0, 0], neck: [-0.15, 0, 0], hipL: [0.1, 0, -0.14], hipR: [0.1, 0, 0.14], knL: [-0.2], knR: [-0.2] }, -0.03, 0.02, 0));
   }
   // two-bone leg IK: put the foot at a world target, knee bending toward `fwd`
-  function legIK(bones, side, tgt, hs, fwd, footM) {
+  function legIK(bones, side, tgt, hs, fwd, footM, ll) {
     const hp = side < 0 ? B.hipL : B.hipR, kn = side < 0 ? B.knL : B.knR, ft = side < 0 ? B.ftL : B.ftR;
-    const J = [bones[hp][3], bones[hp][7], bones[hp][11]], L1 = 0.5 * hs, L2 = 0.47 * hs;
+    ll = ll || 1;
+    const J = [bones[hp][3], bones[hp][7], bones[hp][11]], L1 = 0.5 * hs * ll, L2 = 0.47 * hs * ll;
     let d = v3s(tgt, J), dl = Math.hypot(d[0], d[1], d[2]);
     const maxR = L1 + L2 - 0.005; if (dl > maxR) { d = [d[0] / dl * maxR, d[1] / dl * maxR, d[2] / dl * maxR]; dl = maxR; }
     if (dl < 0.1) return;
@@ -1038,13 +1069,14 @@ gl_FragColor=vec4(c,1.0);}`;
   }
 
   // ---------- forward kinematics ----------
-  function fk(q, x, y, z, heading, hs, sw) {
-    const out = new Array(NB); sw = sw || 1;
-    let root = mT(IDM, x, y + (HIP_H + q[PN]) * hs, z);
+  // ll: leg length factor (stubby builds): thigh and shin shorten, the hips ride lower, the foot below the ankle keeps its size
+  function fk(q, x, y, z, heading, hs, sw, ll) {
+    const out = new Array(NB); sw = sw || 1; ll = ll || 1;
+    let root = mT(IDM, x, y + ((HIP_H + q[PN]) * ll + 0.08 * (1 - ll)) * hs, z);
     root = RY(root, heading + q[PN + 3]); root = RX(root, q[PN + 1]); root = RZ(root, q[PN + 2]);
     for (let i = 0; i < NB; i++) {
       const b = BONES[i], par = b[1], sx = (i === B.shL || i === B.shR) ? sw : 1;
-      let m = par < 0 ? root : mT(out[par], b[2] * hs * sx, b[3] * hs, b[4] * hs);
+      let m = par < 0 ? root : mT(out[par], b[2] * hs * sx, b[3] * hs * (LEGB[i] ? ll : 1), b[4] * hs);
       const o = i * 3;
       m = RX(m, q[o]); m = RY(m, q[o + 1]); m = RZ(m, q[o + 2]);
       out[i] = m;
@@ -1086,12 +1118,12 @@ gl_FragColor=vec4(c,1.0);}`;
   // ---------- light ragdoll: 11 verlet points with distance constraints and ground contact ----------
   const RP = { hips: 0, chest: 1, head: 2, elL: 3, haL: 4, elR: 5, haR: 6, knL: 7, ftL: 8, knR: 9, ftR: 10 };
   function Rag(p, bones, vel, dt) {
-    const hs = p.lk.hs;
+    const hs = p.lk.hs, ll = p.lk.ll || 1;
     const P = (b, oy) => { const m = bones[b]; return oy ? mPt(m, 0, oy, 0) : [m[3], m[7], m[11]]; };
     this.pts = [P(B.hips), P(B.chest), P(B.head, 0.16 * hs), P(B.elL), P(B.haL), P(B.elR), P(B.haR), P(B.knL), P(B.ftL), P(B.knR), P(B.ftR)];
     this.prev = this.pts.map((q, i) => { const k = i === 0 || i === 1 ? 1 : i === 2 ? 0.95 : 0.75 + 0.3 * crand(); return [q[0] - vel[0] * k * dt, q[1] - vel[1] * k * dt, q[2] - vel[2] * k * dt]; });
     this.hs = hs; this.sw = p.lk.sw || 1; this.t = 0; this.rest = false; this.h = p.h; this.floor = 0; this.dt = dt;
-    const L = (a, b, d, t) => ({ a, b, d: d * hs, t: t || 0 }); // t: 0 = equal, 1 = max, -1 = min
+    const L = (a, b, d, t) => ({ a, b, d: d * hs * ((a === 0 || a === 7 || a === 9) && b >= 7 ? ll : 1), t: t || 0 }); // t: 0 = equal, 1 = max, -1 = min (leg links scale with the leg length)
     this.cons = [L(0, 1, 0.4), L(1, 2, 0.54), L(0, 2, 0.94, 1), L(0, 2, 0.8, -1),
       L(1, 3, 0.48), L(3, 4, 0.32), L(1, 4, 0.78, 1), L(1, 4, 0.3, -1), L(1, 5, 0.48), L(5, 6, 0.32), L(1, 6, 0.78, 1), L(1, 6, 0.3, -1), L(3, 5, 0.5, -1), L(0, 3, 0.7, 1), L(0, 5, 0.7, 1),
       L(0, 7, 0.52), L(7, 8, 0.47), L(0, 8, 0.98, 1), L(0, 8, 0.5, -1), L(0, 9, 0.52), L(9, 10, 0.47), L(0, 10, 0.98, 1), L(0, 10, 0.5, -1), L(7, 9, 0.26, -1), L(8, 10, 0.2, -1), L(1, 7, 0.75, -1), L(1, 9, 0.75, -1), L(2, 7, 1.0, -1), L(2, 9, 1.0, -1)];
@@ -1164,7 +1196,7 @@ gl_FragColor=vec4(c,1.0);}`;
   const HELM_TH = 2.62; // polar extent of the helmet shell (radians) -> v = theta / HELM_TH in the helmet region
   const VSTRIDE = 13;
   // bind-pose joint positions in body space for a shoulder width factor
-  function bindFor(sw) { const q = new Float32Array(PLEN); const m = fk(q, 0, -HIP_H, 0, 0, 1, sw); return m.map((b) => [b[3], b[7], b[11]]); }
+  function bindFor(sw, ll) { const q = new Float32Array(PLEN); const m = fk(q, 0, 0, 0, 0, 1, sw, ll), y0 = m[0][7]; return m.map((b) => [b[3], b[7] - y0, b[11]]); }
   // body specs by position: height scale, girth, belly, shoulder width, leg/arm girth
   const BODY = {
     QB: { hs: 0.985, bulk: 1.0, belly: 0.05, sw: 1.0, legs: 1.06, arms: 1.0, neck: 1.0 },
@@ -1180,13 +1212,45 @@ gl_FragColor=vec4(c,1.0);}`;
     REF: { hs: 0.94, bulk: 0.9, belly: 0.25, sw: 0.96, legs: 0.9, arms: 0.85, neck: 0.95, cap: 1, noGear: 1 },
     COACH: { hs: 0.95, bulk: 1.0, belly: 0.5, sw: 1.0, legs: 1.0, arms: 0.95, neck: 1.0, cap: 1, noGear: 1, headset: 1 },
   };
-  const bodyKey = (s) => [s.bulk, s.belly, s.sw, s.legs, s.arms, s.neck, s.cap ? 1 : 0, s.noGear ? 1 : 0, s.headset ? 1 : 0].map((v) => Math.round(v * 100)).join(',');
+  // body builds (look.build): multipliers on the position's body spec; hs height, ll leg length, belly -1 = flat, bellyAdd = extra belly
+  const BUILDS6 = {
+    slim: { bulk: 0.86, arms: 0.85, legs: 0.88, neck: 0.92, sw: 0.96, belly: -1 },
+    lanky: { hs: 1.06, bulk: 0.84, arms: 0.84, legs: 0.86, neck: 0.9, sw: 0.95, belly: -1, ll: 1.06 },
+    normal: {},
+    stocky: { hs: 0.96, bulk: 1.12, arms: 1.1, legs: 1.14, neck: 1.12, sw: 1.04, bellyAdd: 0.15, ll: 0.95 },
+    tank: { hs: 1.03, bulk: 1.24, arms: 1.22, legs: 1.2, neck: 1.22, sw: 1.12, bellyAdd: 0.25 },
+    fat: { bulk: 1.2, arms: 1.12, legs: 1.18, neck: 1.18, sw: 1.04, bellyAdd: 1.7 },
+    stubby: { hs: 0.92, bulk: 1.1, arms: 1.06, legs: 1.3, neck: 1.1, ll: 0.78, bellyAdd: 0.2 },
+    tall: { hs: 1.07 },
+    short: { hs: 0.93 },
+  };
+  const bodyKey = (s) => [s.bulk, s.belly, s.sw, s.legs, s.arms, s.neck, s.ll || 1, s.cap ? 1 : 0, s.noGear ? 1 : 0, s.headset ? 1 : 0].map((v) => Math.round(v * 100)).join(',');
+  // a player's body: the position spec, shaped by his build (look.build) and his weight for his height; quantized so players share meshes
+  const q20 = (v) => Math.round(v * 20) / 20;
+  function bodySpec(base, lk, wgt) {
+    const b = (lk && lk.build && BUILDS6[lk.build]) || null;
+    if (!b && !(wgt > 0)) return base;
+    const s = Object.assign({}, base);
+    if (wgt > 0) { // heavier for his height -> thicker; the position spec already makes linemen big, so this only shades it
+      const hsr = (lk && lk.hs) || 1, k = clamp(wgt / (135 * hsr * hsr * (base.bulk || 1)), 0.75, 1.5) - 1;
+      s.bulk *= 1 + k * 0.45; s.arms *= 1 + k * 0.35; s.legs *= 1 + k * 0.35; s.neck *= 1 + k * 0.3; s.belly = Math.max(s.belly, s.belly + Math.max(0, k - 0.15) * 1.3);
+    }
+    if (b) {
+      for (const k of ['bulk', 'arms', 'legs', 'neck', 'sw']) if (b[k]) s[k] *= b[k];
+      if (b.belly === -1) s.belly = Math.min(s.belly, 0.02); if (b.bellyAdd) s.belly += b.bellyAdd;
+      if (b.ll) s.ll = b.ll;
+    }
+    for (const k of ['bulk', 'arms', 'legs', 'neck', 'sw', 'belly']) s[k] = q20(s[k]);
+    return s;
+  }
   function buildBody(S, lod) {
     const V = [], I = [];
     let nv = 0;
     const Q = lod ? 0.62 : 1, HPI = Math.PI / 2, TAU = Math.PI * 2;
     const SG = (n) => Math.max(5, Math.round(n * Q));
-    const BIND = bindFor(S.sw);
+    const BIND = bindFor(S.sw, S.ll || 1), LL = S.ll || 1;
+    // leg rings are authored for the full-length leg: between the hip and the ankle they scale with the leg length, below it they just move up
+    const legY = (y) => (y >= -1.0 ? -0.03 + (y + 0.03) * LL : y + 0.97 * (1 - LL));
     const push = (p, n, b0, b1, w0, s, u, v, ao) => { V.push(p[0], p[1], p[2], n[0], n[1], n[2], b0, b1, w0, s, u, v, ao); return nv++; };
     const angD = (a, b) => { let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
     // smooth two-bone weight for a ring at height y between joints j0 (bone a) and j1 (bone b); zone = half width of the blend
@@ -1408,7 +1472,7 @@ gl_FragColor=vec4(c,1.0);}`;
       } else loft({ s: GS, seg: SG(8), w: HWt, capBot: true }, [{ y: -0.175, rx: 0.055, rz: 0.028, cx: X, cz: 0.012, w: HWt }, { y: -0.245, rx: 0.042, rz: 0.024, cx: X, cz: 0.03, w: HWt }, { y: -0.27, rx: 0.02, rz: 0.012, cx: X, cz: 0.04, w: HWt }]);
     }
     // ---- pelvis + legs: hip -> thigh (pads) -> knee -> calf -> ankle as one surface; socks; cleats ----
-    const pel = (y, rx, rz, e) => Object.assign({ y, rx: rx * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
+    const pel = (y, rx, rz, e) => Object.assign({ y: y < -0.03 ? legY(y) : y, rx: rx * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
     const PS = gear ? SL.pant : SL.pant;
     loft({ s: PS, seg: SG(24), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [pel(0.17, 0.205, 0.142, { v: 0 }), pel(0.1, 0.212, 0.148, { v: 0.3 }), pel(0.0, 0.228, 0.16, { v: 0.6, f: (an) => 1 + 0.05 * Math.max(0, -Math.sin(an)) }), pel(-0.1, 0.212, 0.155, { v: 0.85, ao: 0.82, w: [B.hips, B.hips, 1], f: (an) => 1 + 0.08 * Math.max(0, -Math.sin(an)) }), pel(-0.18, 0.165, 0.13, { v: 1, ao: 0.62, w: [B.hips, B.hips, 1] })]);
     for (const sd of [-1, 1]) {
@@ -1425,16 +1489,17 @@ gl_FragColor=vec4(c,1.0);}`;
         { y: -0.78, rx: 0.072 * LW, rz: 0.074 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.skin }, { y: -0.8, rx: 0.07 * LW, rz: 0.072 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.sock },
         { y: -0.88, rx: 0.062 * LW, rz: 0.064 * LW, cx: X, cz: -0.004, w: [kn, ft, 1], s: SL.sock }, { y: -0.95, rx: 0.054 * LW, rz: 0.056 * LW, cx: X, w: [kn, ft, 0.8], s: SL.sock }, { y: -1.0, rx: 0.05 * LW, rz: 0.054 * LW, cx: X, w: [ft, kn, 0.8], s: SL.sock, ao: 0.8 }, { y: -1.04, rx: 0.046 * LW, rz: 0.05 * LW, cx: X, cz: -0.006, w: [ft, kn, 1], s: SL.sock, ao: 0.7 }];
       // pants and socks have their own UV regions; the loft takes one uv box, so split the strip by slot
+      for (const r of legR) r.y = legY(r.y); // weights above were set on the full-length leg
       loft({ s: PS, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, legR.filter((r) => r.s === PS));
       loft({ s: SL.skin, seg: SG(16) }, legR.filter((r) => r.s === SL.skin));
       loft({ s: SL.sock, seg: SG(12), uv: uvOf('sock') }, legR.filter((r) => r.s === SL.sock));
       // shoe: heel counter -> arch -> ball -> toe box, lofted along +Z; sole plate; studs at full detail
       const FW = [ft, ft, 1];
-      const shoeM = mMul(mT(IDM, X, -1.05, -0.012), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
+      const shoeM = mMul(mT(IDM, X, legY(-1.05), -0.012), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
       const shoe = [{ y: 0.1, rx: 0.03, rz: 0.024, w: FW }, { y: 0.075, rx: 0.046, rz: 0.034, w: FW }, { y: 0.02, rx: 0.052, rz: 0.04, cz: 0.008, w: FW, ao: 0.85 }, { y: -0.05, rx: 0.054, rz: 0.038, cz: 0.012, w: FW, f: (an) => 1 + 0.08 * Math.max(0, Math.sin(an)) }, { y: -0.12, rx: 0.056, rz: 0.03, cz: 0.004, w: FW }, { y: -0.18, rx: 0.05, rz: 0.024, w: FW }, { y: -0.225, rx: 0.028, rz: 0.012, w: FW }];
       loft({ s: SL.cleat, seg: SG(12), m: shoeM, capTop: true, capBot: true }, shoe);
-      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, -1.074, -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + 0.004, rz: 0.008, cz: 0, w: FW })));
-      if (!lod) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, -1.082, sz], [X + sx, -1.1, sz]], 0.006, 4, (t) => 1 - 0.4 * t);
+      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, legY(-1.074), -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + 0.004, rz: 0.008, cz: 0, w: FW })));
+      if (!lod) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, legY(-1.082), sz], [X + sx, legY(-1.1), sz]], 0.006, 4, (t) => 1 - 0.4 * t);
     }
     // ---- belt towel (hidden for players who do not carry one) ----
     if (gear) {
@@ -1442,7 +1507,7 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let i = 0; i <= 4; i++) pts.push({ y: 0.1 - i * 0.095, rx: 0.062 - 0.005 * i, rz: 0.005, cx: tx, cz: 0.19 * (0.85 + 0.15 * S.bulk) + 0.006 * i, w: TW, v: i / 4 });
       loft({ s: SL.towel, seg: SG(6), capBot: true, w: TW }, pts);
     }
-    return { v: new Float32Array(V), i: new Uint16Array(I), n: I.length, nv, vi0, vin, bind: BIND, sw: S.sw };
+    return { v: new Float32Array(V), i: new Uint16Array(I), n: I.length, nv, vi0, vin, bind: BIND, sw: S.sw, ll: LL };
   }
 
   // =====================================================================================
@@ -1486,40 +1551,72 @@ gl_FragColor=vec4(c,1.0);}`;
     const DP = defParams(KDEF);
 
     // ---------- the user's roster ----------
+    // Two shapes arrive: the 11-player Lineup (pos QB, RB, WR1-3, TE, UTIL1-2, OL1-3 with ratings in `r`) and the older lists
+    // (pos QB/RB/WR/TE/OL/K/UTIL with flat ratings, e.g. Franchise). The Lineup maps WR1->X, WR2->Z, WR3->S, TE->Y and
+    // UTIL1, UTIL2, OL1, OL2, OL3 -> the five offensive linemen, left to right.
+    const rawPos = (p) => String(p.pos || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const normPos = (p) => { const s = String(p.pos || '').toUpperCase().replace(/[^A-Z]/g, ''); return s === 'UTIL' || s === 'FLEX' || s === 'ATH' || s === 'SLOT' ? 'WR' : s; };
-    const rat = (p, k, d) => { const v = p ? +p[k] : NaN; return clamp(isFinite(v) && v > 0 ? v : d, 25, 99); };
+    const rv = (p, k) => (p ? +(p.r && typeof p.r === 'object' && p.r[k] != null ? p.r[k] : p[k]) : NaN);
+    const rat = (p, k, d) => { const v = rv(p, k); return clamp(isFinite(v) && v > 0 ? v : d, 25, 99); };
     const safeUrl = (u) => (typeof u === 'string' && /^\/[A-Za-z0-9_\-./%]+$/.test(u) && u.indexOf('..') < 0 ? u : null);
-    const normLook = (l, dflt) => {
+    // body builds (look.build): multipliers on the position's body spec; ll = leg length, hs = height
+    const BUILDS = BUILDS6;
+    const normLook = (l, dflt, r) => {
       l = l && typeof l === 'object' ? l : {};
       const sk = Number.isInteger(l.skin) ? clamp(l.skin, 0, 4) : dflt;
-      return { skin: sk, hs: l.height === 'short' ? 0.93 : l.height === 'tall' ? 1.07 : 1, cleat: CLEATS[l.cleats] || CLEATS.black, visor: !!l.visor, sleeves: !!l.sleeves };
+      const b = BUILDS[l.build] ? l.build : null;
+      // real height in inches (54..78) sets the size; otherwise the look's short / tall
+      const hin = r ? rv(r, 'hgt') : NaN;
+      let hs = isFinite(hin) && hin > 40 ? clamp(1 + (clamp(hin, 54, 78) - 64) * 0.011, 0.88, 1.15) : l.height === 'short' ? 0.93 : l.height === 'tall' ? 1.07 : 1;
+      if (b) hs *= BUILDS[b].hs || 1;
+      return { skin: sk, hs, cleat: CLEATS[l.cleats] || CLEATS.black, visor: !!l.visor, sleeves: !!l.sleeves, build: b, ll: b ? BUILDS[b].ll || 1 : 1 };
     };
     const pool = HOME.players.slice(), used = new Set();
     const take = (pred) => { const p = pool.find((q) => !used.has(q) && pred(q)); if (p) used.add(p); return p || null; };
     const isPos = (...ps) => (q) => ps.indexOf(normPos(q)) >= 0;
-    const SK = {};
-    SK.QB = take(isPos('QB')) || take((q) => !normPos(q) || normPos(q) === 'QB') || take(() => true);
-    SK.RB = take(isPos('RB'));
-    SK.X = take(isPos('WR')); SK.Z = take(isPos('WR')); SK.S = take(isPos('WR'));
-    SK.Y = take(isPos('TE'));
-    for (const k of ['X', 'Z', 'S', 'Y', 'RB']) if (!SK[k]) SK[k] = take(isPos('WR', 'TE', 'RB')) || take((q) => ['OL', 'DL', 'LB', 'DB', 'K'].indexOf(normPos(q)) < 0);
-    const KICKER = take(isPos('K'));
-    const OLP = [take(isPos('OL')), take(isPos('OL')), take(isPos('OL')), take(isPos('OL')), take(isPos('OL'))];
+    const LSLOT = { QB: 'QB', RB: 'RB', WR1: 'X', WR2: 'Z', WR3: 'S', TE: 'Y', UTIL1: 'OL0', UTIL2: 'OL1', OL1: 'OL2', OL2: 'OL3', OL3: 'OL4' };
+    const LINEUP = pool.some((q) => /^(WR[123]|UTIL[12]|OL[123])$/.test(rawPos(q)));
+    const SK = {}, OLP = [null, null, null, null, null];
+    if (LINEUP) {
+      for (const q of pool) { const s = LSLOT[rawPos(q)]; if (!s) continue; if (s.startsWith('OL')) { const i = +s.slice(2); if (!OLP[i]) { OLP[i] = q; used.add(q); } } else if (!SK[s]) { SK[s] = q; used.add(q); } }
+      // a short Lineup: fill the empty skill spots from anyone left over, then from the utility linemen
+      for (const k of ['QB', 'X', 'Z', 'S', 'Y', 'RB']) if (!SK[k]) { SK[k] = take(() => true); if (!SK[k]) for (const i of [1, 0, 4, 3, 2]) if (OLP[i]) { SK[k] = OLP[i]; OLP[i] = null; break; } }
+    } else {
+      SK.QB = take(isPos('QB')) || take((q) => !normPos(q) || normPos(q) === 'QB') || take(() => true);
+      SK.RB = take(isPos('RB'));
+      SK.X = take(isPos('WR')); SK.Z = take(isPos('WR')); SK.S = take(isPos('WR'));
+      SK.Y = take(isPos('TE'));
+      for (const k of ['X', 'Z', 'S', 'Y', 'RB']) if (!SK[k]) SK[k] = take(isPos('WR', 'TE', 'RB')) || take((q) => ['OL', 'DL', 'LB', 'DB', 'K'].indexOf(normPos(q)) < 0);
+      for (let i = 0; i < 5; i++) OLP[i] = take(isPos('OL'));
+    }
+    // the kicker: a real K if the roster has one, otherwise whoever in the Lineup has the best leg
+    let KICKER = take(isPos('K'));
+    if (!KICKER) { let bk = 0; for (const q of HOME.players) { const k = rv(q, 'kick'); if (isFinite(k) && k > bk) { bk = k; KICKER = q; } } }
     const baseR = clamp(HOME.ovrOff, 35, 95);
     const GEN = { QB: ['QB', 7], RB: ['Runner', 22], X: ['Flash', 1], Z: ['Hands', 81], S: ['Rocket', 19], Y: ['Tank', 88] };
+    const numOf = (q) => { const s = String(q.num != null ? q.num : q.number != null ? q.number : '').trim(); return /^\d{1,2}$/.test(s) ? +s : null; };
+    const fxOf = (q) => (q && q.fx && typeof q.fx === 'object' ? { variant: String(q.fx.variant || ''), set: q.fx.set ? String(q.fx.set) : null, par: q.fx.par ? String(q.fx.par) : null, rarity: String(q.fx.rarity || 'common'), spec: q.fx.spec ? String(q.fx.spec) : null } : null);
     const SQ = {};
     let sqi = 0;
     for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y']) {
       const q = SK[k], g = GEN[k];
-      const num = q && /^\d{1,2}$/.test(String(q.num != null ? q.num : q.number != null ? q.number : '').trim()) ? +(q.num != null ? q.num : q.number) : g[1];
+      const num = q && numOf(q) != null ? numOf(q) : g[1];
       SQ[k] = {
         key: k, idx: sqi++, name: q ? String(q.name) : g[0], pid: q ? String(q.id != null ? q.id : q.name) : null, num, photo: q ? safeUrl(q.photo) : null,
-        look: normLook(q && q.look, [1, 2, 0, 3, 1, 2][sqi - 1]), cell: -1,
-        r: { spd: rat(q, 'spd', baseR), agi: rat(q, 'agi', rat(q, 'spd', baseR)), str: rat(q, 'str', baseR), cat: rat(q, 'cat', baseR), thr: rat(q, 'thr', baseR), acc: rat(q, 'acc', baseR), ovr: rat(q, 'ovr', baseR) },
+        look: normLook(q && q.look, [1, 2, 0, 3, 1, 2][sqi - 1], q), cell: -1, fx: fxOf(q),
+        r: { spd: rat(q, 'spd', baseR), agi: rat(q, 'agi', rat(q, 'spd', baseR)), str: rat(q, 'str', baseR), cat: rat(q, 'cat', baseR), thr: rat(q, 'thr', baseR), acc: rat(q, 'acc', baseR), ovr: rat(q, 'ovr', baseR), sta: rat(q, 'sta', baseR), wgt: clamp(isFinite(rv(q, 'wgt')) && rv(q, 'wgt') > 0 ? rv(q, 'wgt') : 0, 0, 260) },
+      };
+    }
+    // the offensive line: real Lineup players (name, number, face, ratings, look) or generated linemen
+    for (let i = 0; i < 5; i++) {
+      const q = OLP[i], k = 'OL' + i;
+      SQ[k] = {
+        key: k, idx: sqi++, ol: true, real: !!q, name: q ? String(q.name) : 'Lineman', pid: q ? String(q.id != null ? q.id : q.name) : null, num: q && numOf(q) != null ? numOf(q) : [72, 65, 55, 61, 77][i],
+        photo: q ? safeUrl(q.photo) : null, look: q ? normLook(q.look, (i * 2 + 1) % 5, q) : null, cell: -1, fx: fxOf(q),
+        r: { str: rat(q, 'str', clamp(HOME.ovrOff, 40, 90)), spd: rat(q, 'spd', 45), agi: rat(q, 'agi', 50), sta: rat(q, 'sta', 60), cat: rat(q, 'cat', 40), wgt: clamp(isFinite(rv(q, 'wgt')) && rv(q, 'wgt') > 0 ? rv(q, 'wgt') : 0, 0, 260) },
       };
     }
     const KR = { name: KICKER ? String(KICKER.name) : 'Kicker', pid: KICKER ? String(KICKER.id != null ? KICKER.id : KICKER.name) : null, kick: rat(KICKER, 'kick', clamp(52 + (HOME.ovrOff - 60) * 0.5, 40, 80)) };
-    const OLR = OLP.map((q, i) => ({ name: q ? String(q.name) : 'Lineman', num: q && (q.num != null ? +q.num : q.number != null ? +q.number : 0) || [72, 65, 55, 61, 77][i], str: rat(q, 'str', clamp(HOME.ovrOff, 40, 90)) }));
     const shortName = (s) => { const p = String(s).trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
 
     // ---------- stats ----------
@@ -1728,7 +1825,8 @@ gl_FragColor=vec4(c,1.0);}`;
       G.seats = mkTex(seatCanvas(), true, false, 8);
       G.atlas = mkTex(atlas, false, true); atlasDirty = true;
       G.texs.push(G.white, G.black, G.flatN, G.field, G.detail, G.fabric, G.board, G.ribbon, G.seats, G.atlas);
-      G.dyn = gl.createBuffer(); G.tr = gl.createBuffer(); G.quad = gl.createBuffer();
+      G.dyn = gl.createBuffer(); G.tr = gl.createBuffer(); G.quad = gl.createBuffer(); G.fxb = gl.createBuffer(); G.bufs.push(G.fxb);
+      G.fxTex = mkTex(spriteCanvas(), false, false, 1); G.texs.push(G.fxTex);
       gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       G.bufs.push(G.dyn, G.tr, G.quad);
       for (const k in BODY) if (!BODY[k].noGear) meshFor(BODY[k]);
@@ -2183,18 +2281,20 @@ gl_FragColor=vec4(c,1.0);}`;
       G.env = tex; G.texs.push(tex);
     }
 
-    // ---------- atlas: player photos (256px cells) + numbers and generic faces (128px cells) ----------
-    const atlas = document.createElement('canvas'); atlas.width = 1024; atlas.height = 1024;
+    // ---------- atlas (1024 x 2048): player photos (12 x 256px cells, rows 0-2), name plates (16 x 256x64 cells at y 768),
+    // numbers and generic faces (64 x 128px cells from y 1024) ----------
+    const AH = 2048, NAMEY = 768, SMALLY = 1024;
+    const atlas = document.createElement('canvas'); atlas.width = 1024; atlas.height = AH;
     const ag = atlas.getContext('2d');
     let atlasDirty = true;
     const numMap = {};
     let numN = 0;
-    function smallCell() { if (numN >= 32) return -1; const k = numN++; return k; }
+    function smallCell() { if (numN >= 64) return -1; const k = numN++; return k; }
     function numCell(n) {
       const key = 'n' + n;
       if (numMap[key] != null) return numMap[key];
       const k = smallCell(); if (k < 0) return -1;
-      const x = (k % 8) * 128, y = 512 + Math.floor(k / 8) * 128;
+      const x = (k % 8) * 128, y = SMALLY + Math.floor(k / 8) * 128;
       ag.clearRect(x, y, 128, 128);
       ag.font = '900 100px "Barlow Condensed", Impact, "Arial Narrow", sans-serif'; ag.textAlign = 'center'; ag.textBaseline = 'middle';
       ag.lineWidth = 10; ag.lineJoin = 'round'; ag.strokeStyle = '#6a6a6a'; ag.strokeText(String(n), x + 64, y + 70, 112); // stitched outline (tinted darker)
@@ -2207,8 +2307,8 @@ gl_FragColor=vec4(c,1.0);}`;
     function nameCell(name) {
       const key = 'nm' + name;
       if (numMap[key] != null) return numMap[key];
-      if (nameN >= 7) return -1;
-      const k = nameN++, x = 512 + (k % 2) * 256, y = 256 + Math.floor(k / 2) * 64;
+      if (nameN >= 16) return -1;
+      const k = nameN++, x = (k % 4) * 256, y = NAMEY + Math.floor(k / 4) * 64;
       ag.clearRect(x, y, 256, 64);
       ag.font = '800 46px "Barlow Condensed", Impact, "Arial Narrow", sans-serif'; ag.textAlign = 'center'; ag.textBaseline = 'middle';
       ag.fillStyle = '#ffffff'; ag.fillText(String(name).toUpperCase(), x + 128, y + 34, 236);
@@ -2219,7 +2319,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const key = 'f' + skin;
       if (numMap[key] != null) return numMap[key];
       const k = smallCell(); if (k < 0) return -1;
-      const x = (k % 8) * 128, y = 512 + Math.floor(k / 8) * 128, sc = SKIN[skin];
+      const x = (k % 8) * 128, y = SMALLY + Math.floor(k / 8) * 128, sc = SKIN[skin];
       ag.fillStyle = css(sc); ag.fillRect(x, y, 128, 128);
       const sh = (kk, a) => `rgba(${Math.round(sc[0] * 255 * kk)},${Math.round(sc[1] * 255 * kk)},${Math.round(sc[2] * 255 * kk)},${a})`;
       // brow ridge shadow and eye sockets
@@ -2239,9 +2339,9 @@ gl_FragColor=vec4(c,1.0);}`;
       return (numMap[key] = 100 + k);
     }
     function cellUV(c) {
-      if (c >= 200) { const k = c - 200, x = 512 + (k % 2) * 256, y = 256 + Math.floor(k / 2) * 64; return [(x + 2) / 1024, (y + 2) / 1024, 252 / 1024, 60 / 1024]; }
-      if (c >= 100) { const k = c - 100, x = (k % 8) * 128, y = 512 + Math.floor(k / 8) * 128; return [(x + 4) / 1024, (y + 4) / 1024, 120 / 1024, 120 / 1024]; }
-      const x = (c % 4) * 256, y = Math.floor(c / 4) * 256; return [(x + 6) / 1024, (y + 6) / 1024, 244 / 1024, 244 / 1024];
+      if (c >= 200) { const k = c - 200, x = (k % 4) * 256, y = NAMEY + Math.floor(k / 4) * 64; return [(x + 2) / 1024, (y + 2) / AH, 252 / 1024, 60 / AH]; }
+      if (c >= 100) { const k = c - 100, x = (k % 8) * 128, y = SMALLY + Math.floor(k / 8) * 128; return [(x + 4) / 1024, (y + 4) / AH, 120 / 1024, 120 / AH]; }
+      const x = (c % 4) * 256, y = Math.floor(c / 4) * 256; return [(x + 6) / 1024, (y + 6) / AH, 244 / 1024, 244 / AH];
     }
     const SQL = Object.values(SQ);
     SQL.forEach((q) => {
@@ -2345,6 +2445,8 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- game state ----------
     let phase = 'splash', qtr = 1, clock = QS, hs = 0, as = 0;
     let los = 25, down = 1, fdz = 35, play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
+    const RUNOFF = 4; // seconds the clock keeps running after a play that ends in bounds
+    let runoff = 0;
     let tPlay = 0, clockRun = false, toLeft = TOS, playClock = 20, warned = [false, false], recv2 = 'away', otLeft = 0, suddenDeath = false;
     let everyone = [], off = [], def = [], OK = {}, DK = {};
     let ball = null, ctrl = null, carrier = null, mode = 'none', passer = null, target = null, thrown = false, handed = false, runSeen = -1, crossed = false;
@@ -2364,27 +2466,37 @@ gl_FragColor=vec4(c,1.0);}`;
         w: 1, armT: 0, cel: 0, celType: 0, reach: null, pose: 'stance', poseT: 0, lk: normLook(null, (crand() * 5) | 0), num: 0, face: -1, ncell: -1, fcell: -1, sq: null, v: 7, acc: 9, str: 60, agi: 60, cat: 50, spd: 60,
         jumpY: 0, jumpV: 0, jumpT: 0, jumpDelay: 0, jumpPow: 0, diveT: 0, ddx: 0, ddz: 1, mvT: 0, mv: null, mvCd: { juke: 0, spin: 0, stiff: 0, hurdle: 0 }, spin: 0, wrapT: 0, wrapBy: null, tried: 0, hold: false, face2: null, R: null, ass: null, tgt: null, blk: null, lastTackle: -9,
         sta: 1, sprint: false, rad: 0.42, carrySide: 1, carryT: 0, an: { clip: 'idle', t: 0, from: null, blendT: 0, blendDur: 0 }, bones: null, rag: null, look: null, lean: 0, leanF: 0, ax: 0, az: 0, pvx: 0, pvz: 0, stumbleT: 0, plant: 0, hitT: 0, downAt: 0, handsT: null, throwT: -1 }, o || {});
-      const bd = BODY[role] || BODY.WR;
-      p.body = bd; p.lk = Object.assign({}, p.lk, { hs: p.lk.hs * bd.hs, sw: bd.sw });
+      const bd = bodySpec(BODY[role] || BODY.WR, p.lk, p.wgt);
+      p.body = bd; p.lk = Object.assign({}, p.lk, { hs: p.lk.hs * bd.hs, sw: bd.sw, ll: bd.ll || 1 });
+      // mass for collisions, blocks and tackles: real weight when we have it, else by position
+      p.mass = p.wgt > 0 ? clamp(p.wgt / 140, 0.6, 1.8) : role === 'OL' || role === 'DL' ? 1.35 : role === 'TE' || role === 'LB' ? 1.1 : role === 'QB' ? 1 : 0.95;
+      p.staK = 0.7 + clamp(p.staR || 60, 25, 99) / 99 * 0.6;
       if (!(o && o.lk)) { p.lk.visor = crand() < 0.2; p.lk.sleeves = crand() < 0.25; p.lk.cleat = crand() < 0.5 ? CLEATS.black : crand() < 0.5 ? CLEATS.white : (side ? DEFC.helm : TEAM); }
       p.w = bd.bulk;
       p.dirt = DIRT[side + ':' + key] || 0;
       p.towel = (role === 'QB' || role === 'RB' || role === 'WR') && ((p.num || key.length) % 3) !== 0;
       p.mouth = role !== 'QB' && ((p.num || key.length) % 4) === 1;
       p.fcell = faceCell(p.lk.skin);
+      fxSetup(p); // the card in this spot: helmet prop, particles, kit look
       return p;
     }
     const spdV = (s) => 6.6 + (s - 30) * 0.036;
     function offPlayer(key, x, z) {
       const q = SQ[key];
       const role = key === 'QB' ? 'QB' : key === 'RB' ? 'RB' : key === 'Y' ? 'TE' : 'WR';
-      const p = mkP(0, role, key, x, z, { lk: q.look, num: q.num, sq: q, face: q.cell, v: spdV(q.r.spd) * (key === 'Y' ? 0.96 : key === 'QB' ? 0.94 : 1) * (1 - WET * 0.03), str: q.r.str, agi: q.r.agi, cat: q.r.cat, spd: q.r.spd });
+      const p = mkP(0, role, key, x, z, { lk: q.look, num: q.num, sq: q, face: q.cell, v: spdV(q.r.spd) * (key === 'Y' ? 0.96 : key === 'QB' ? 0.94 : 1) * (1 - WET * 0.03), str: q.r.str, agi: q.r.agi, cat: q.r.cat, spd: q.r.spd, wgt: q.r.wgt, staR: q.r.sta, fx: q.fx });
       p.acc = 8 + (q.r.agi - 50) * 0.06;
       return p;
     }
+    // an offensive lineman: the real Lineup player in that spot, or a generated one with a fixed look
+    const OLLOOK = [0, 1, 2, 3, 4].map((i) => Object.assign(normLook(null, (i * 2 + 1) % 5), { visor: crand() < 0.2, sleeves: crand() < 0.25, cleat: crand() < 0.6 ? CLEATS.black : CLEATS.white }));
+    function olPlayer(i, x, z, o) {
+      const q = SQ['OL' + i], r = q.r;
+      return mkP(0, 'OL', 'OL' + i, x, z, Object.assign({ w: 1.2, rad: 0.5, num: q.num, str: r.str, agi: r.agi, cat: r.cat, spd: r.spd, v: 5.6 + (r.str - 50) * 0.01 + (r.spd - 45) * 0.012, lk: q.look || OLLOOK[i], sq: q.real ? q : null, face: q.real ? q.cell : -1, wgt: r.wgt, staR: r.sta, fx: q.fx }, o || {}));
+    }
     function buildRoute(p, r) {
       const s = p.x < -0.5 ? -1 : p.x > 0.5 ? 1 : (flip ? -1 : 1), pts = [[p.x, p.z]];
-      for (const [o, u] of r.w) pts.push([clamp(p.x + s * o, -25.5, 25.5), clamp(p.z + u, -9, 108.5)]);
+      for (const [o, u] of r.w) pts.push([clamp(p.x + s * o, -25.5, 25.5), clamp(p.z + u, -9, 108)]); // routes stay inside the end zone
       const seg = [];
       for (let i = 1; i < pts.length; i++) { const dx = pts[i][0] - pts[i - 1][0], dz = pts[i][1] - pts[i - 1][1], l = Math.hypot(dx, dz) || 0.001; seg.push({ x: pts[i - 1][0], z: pts[i - 1][1], dx: dx / l, dz: dz / l, l }); }
       return { pts, seg, sit: !!r.sit, s, d: (r.d || 0) + (r.blk || 0), blk: r.blk || 0, v: p.v * 0.97, len: seg.reduce((a, q) => a + q.l, 0) };
@@ -2401,7 +2513,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const s = R.seg[R.seg.length - 1], ex = s.x + s.dx * s.l, ez = s.z + s.dz * s.l;
       if (R.sit) return { x: ex, z: ez, vx: 0, vz: 0, seg: R.seg.length - 1, end: true };
-      const x = ex + s.dx * d, z = ez + s.dz * d, cx = clamp(x, -25.5, 25.5), cz = clamp(z, -9, 108.5);
+      const x = ex + s.dx * d, z = ez + s.dz * d, cx = clamp(x, -25.5, 25.5), cz = clamp(z, -9, 108);
       return { x: cx, z: cz, vx: cx === x ? s.dx * v : 0, vz: cz === z ? s.dz * v : 0, seg: R.seg.length - 1, end: true };
     }
 
@@ -2444,8 +2556,7 @@ gl_FragColor=vec4(c,1.0);}`;
         addOff(offPlayer(k, x, z));
       }
       for (let i = 0; i < 5; i++) {
-        const o = OLR[i];
-        addOff(mkP(0, 'OL', 'OL' + i, (i - 2) * 1.95, los - 0.9, { w: 1.2, rad: 0.5, num: o.num, str: o.str, v: 5.6 + (o.str - 50) * 0.01, spd: 45, lk: normLook(null, (crand() * 5) | 0) }));
+        addOff(olPlayer(i, (i - 2) * 1.95, los - 0.9));
       }
       const RK = play.carrier || 'RB'; // who takes the handoff on a run (jet sweeps and end arounds hand it to a receiver)
       for (const k of ['X', 'Z', 'S', 'Y', 'RB']) {
@@ -2573,7 +2684,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const y1 = clamp(yaw, -1.3, 1.3), p1 = clamp(pitch, -0.7, 0.5);
           q[B.neck * 3 + 1] += y1 * 0.55; q[B.head * 3 + 1] += y1 * 0.35; q[B.neck * 3] += p1 * 0.5; q[B.head * 3] += p1 * 0.4; q[B.chest * 3 + 1] += y1 * 0.12;
         }
-        bones = fk(q, p.x, p.y + p.jumpY, p.z, p.h, hs, p.lk.sw);
+        bones = fk(q, p.x, p.y + p.jumpY, p.z, p.h, hs, p.lk.sw, p.lk.ll);
         // eyes: toward the look target, else straight ahead
         if (p.look) { const hm = bones[B.head], g = v3s(p.look, [hm[3], hm[7] + 0.18 * hs, hm[11]]); p.gaze = v3n(g); } else { p.gaze = [Math.sin(p.h), -0.05, Math.cos(p.h)]; }
         // towel sway from lateral motion and stride
@@ -2607,12 +2718,12 @@ gl_FragColor=vec4(c,1.0);}`;
           if (!L.on) { L.on = 1; L.x = m[3]; L.z = m[11]; L.m = m.slice(); L.fade = 0; const sp = Math.hypot(p.vx, p.vz); if (sp > 6 && parts.length < 90 && crand() < 0.35) for (let k = 0; k < 2; k++) parts.push({ x: m[3], y: 0.06, z: m[11], vx: -p.vx * 0.25 + (crand() - 0.5) * 1.5, vy: 1.8 + crand() * 1.6, vz: -p.vz * 0.25 + (crand() - 0.5) * 1.5, life: 0.5 + crand() * 0.3, r: crand() * 6, c: WX === 'rain' ? [0.2, 0.14, 0.08, 1] : [0.1 + crand() * 0.1, 0.25 + crand() * 0.1, 0.06, 1], sz: 0.05 }); }
           const dx = L.x - m[3], dz = L.z - m[11], dd = Math.hypot(dx, dz);
           if (dd > 0.42 * hs) { L.on = 0; continue; }
-          if (dd > 0.004) { const tgt = [L.x, m[7], L.z]; legIK(bones, side, tgt, hs, fwd, L.m); }
+          if (dd > 0.004) { const tgt = [L.x, m[7], L.z]; legIK(bones, side, tgt, hs, fwd, L.m, p.lk.ll); }
         } else if (L.on) {
           // just lifted: ease out of the locked position over a few frames
           L.on = 0; L.fade = 0.08; L.lx = L.x - m[3]; L.lz = L.z - m[11];
         }
-        if (!L.on && L.fade > 0) { L.fade -= dt; const k = Math.max(0, L.fade / 0.08); const tgt = [m[3] + L.lx * k, m[7], m[11] + L.lz * k]; legIK(bones, side, tgt, hs, fwd, null); }
+        if (!L.on && L.fade > 0) { L.fade -= dt; const k = Math.max(0, L.fade / 0.08); const tgt = [m[3] + L.lx * k, m[7], m[11] + L.lz * k]; legIK(bones, side, tgt, hs, fwd, null, p.lk.ll); }
       }
     }
     function carrySideStep(p, dt) {
@@ -2683,8 +2794,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function staminaStep(p, dt, want) {
       p.sprint = !!want && p.sta > 0.02;
-      if (p.sprint) p.sta = Math.max(0, p.sta - dt / 1.85);
-      else p.sta = Math.min(1, p.sta + dt / (Math.hypot(p.vx, p.vz) > 4 ? 5.5 : 3.6));
+      const k = p.staK || 1; // stamina rating: how long he can sprint and how fast he gets his wind back
+      if (p.sprint) p.sta = Math.max(0, p.sta - dt / (1.85 * k));
+      else p.sta = Math.min(1, p.sta + dt * k / (Math.hypot(p.vx, p.vz) > 4 ? 5.5 : 3.6));
     }
     function integrate(p, dt) {
       if (p.rag) return;
@@ -2710,14 +2822,14 @@ gl_FragColor=vec4(c,1.0);}`;
           if (a.side !== b.side && ((a.mv === 'hurdle' && a.jumpY > 0.3) || (b.mv === 'hurdle' && b.jumpY > 0.3))) continue; // a hurdler is in the air over him
           const dx = a.x - b.x, dz = a.z - b.z, rr = (a.rad + b.rad) * (a.side === b.side ? 0.58 : a.eng === b ? 1 : 0.9), d2 = dx * dx + dz * dz;
           if (d2 >= rr * rr || d2 < 1e-6) continue;
-          const d = Math.sqrt(d2), k = (rr - d) / d, wa = a.rad / rr, wb = b.rad / rr;
+          const d = Math.sqrt(d2), k = (rr - d) / d, ma = a.mass || 1, mb = b.mass || 1, ws = (a.rad + b.rad) / rr, wa = ws * ma / (ma + mb), wb = ws * mb / (ma + mb); // the heavier body gives less ground
           const stat = (p) => (p.rising > 0 ? 0.2 : 1);
           const sa = stat(a), sb = stat(b), ssum = sa + sb || 1;
           a.x += dx * k * wb * (sa / ssum) * 2 * 0.5; a.z += dz * k * wb * (sa / ssum) * 2 * 0.5;
           b.x -= dx * k * wa * (sb / ssum) * 2 * 0.5; b.z -= dz * k * wa * (sb / ssum) * 2 * 0.5;
           if (a.eng !== b) { // bodies bump: trade a bit of momentum
             const nx = dx / d, nz = dz / d, rel = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
-            if (rel < 0) { const jx = nx * rel * 0.5, jz = nz * rel * 0.5; a.vx -= jx; a.vz -= jz; b.vx += jx; b.vz += jz; }
+            if (rel < 0) { const fa = mb / (ma + mb), fb = ma / (ma + mb); a.vx -= nx * rel * fa; a.vz -= nz * rel * fa; b.vx += nx * rel * fb; b.vz += nz * rel * fb; }
           }
         }
       }
@@ -2745,7 +2857,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // the blocker has to be between the defender and the ball
       const g = carrier || (ball && ball.holder) || OK.QB; if (g && g !== b) { const gx = g.x - d.x, gz = g.z - d.z, bx = b.x - d.x, bz = b.z - d.z, gl = Math.hypot(gx, gz) || 1, bl = Math.hypot(bx, bz) || 1; if ((gx * bx + gz * bz) / (gl * bl) < 0.25) return false; }
       b.eng = d; d.eng = b; b.engT = d.engT = 0;
-      const ratio = clamp(b.str / Math.max(25, d.str), 0.55, 1.7);
+      const ratio = clamp(b.str / Math.max(25, d.str) * Math.pow((b.mass || 1) / (d.mass || 1), 0.35), 0.55, 1.7);
       d.shed = (run ? DP.shedRun : DP.shedPass) * ratio * (0.65 + rng() * 0.7) * (d.dbl ? 1.3 : 1) * (d.ko ? 0.55 : 1);
       d.shedSide = rng() < 0.5 ? -1 : 1;
       setPose(b, 'block'); setPose(d, 'rush');
@@ -2764,7 +2876,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const g = carrier || (ball && ball.holder) || OK.QB || ball || d;
       let gx = g.x - d.x, gz = g.z - d.z; const gl2 = Math.hypot(gx, gz) || 1; gx /= gl2; gz /= gl2;
       const winning = d.engT > d.shed * 0.55;
-      const push = clamp((d.str - b.str) / 110 + (winning ? 0.5 : -0.25), -0.8, 0.9) * 1.6;
+      const push = clamp((d.str - b.str) / 110 + ((d.mass || 1) - (b.mass || 1)) * 0.25 + (winning ? 0.5 : -0.25), -0.8, 0.9) * 1.6;
       // the rusher works toward the ball; the blocker stays square and drives
       let sx = 0, sz = 0;
       if (winning) { const side = d.shedSide; sx = -gz * side * 1.2; sz = gx * side * 1.2; }
@@ -2785,6 +2897,7 @@ gl_FragColor=vec4(c,1.0);}`;
           if (p.rag || p.rising > 0 || p.eng || (p === ctrl && mode !== 'catch')) continue;
           if (p.stun > 0) { p.vx *= 0.9; p.vz *= 0.9; continue; }
           if (p === carrier) { autoRun(p, dt); continue; }
+          if (thrown && ball && ball.st === 'air' && ball.kind === 'pass' && isRec(p) && recTrack(p, dt)) continue; // test scenarios (no passer on the field)
           if (carrier && carrier.side === 0) leadBlock(p, dt);
           else if (carrier) chaseCarrier(p, dt);
           else if (ball) steer(p, ball.x, ball.z, p.v, dt, 10);
@@ -2833,29 +2946,54 @@ gl_FragColor=vec4(c,1.0);}`;
       p.look = thrown ? null : [qb.x, 1.6, qb.z];
       staminaStep(p, dt, !q.end && q.seg === p.R.seg.length - 1 && p.R.len > 25 && tPlay > 1);
     }
-    // ball in the air: receivers near the catch point break for it (the target, plus anyone who can beat him there)
+    // ball in the air: the target (and anyone who can get there) adjusts to it on the run. He times his path to meet the ball where
+    // it comes down rather than sprinting to the spot and waiting: a ball led in front keeps him at full speed, a well-placed
+    // one he catches in stride, an under-thrown one makes him throttle down and come back for it (and lets a trailing defender in).
     function recTrack(p, dt) {
       const b = ball, cp = b.cp; if (!cp) return false;
       const dd = Math.hypot(cp.x - p.x, cp.z - p.z), tl = Math.max(0.02, cp.t), mine = p === target;
-      if (!mine && (dd > 9 || dd / effV(p) > tl + 0.4)) return false;
-      if (p === ctrl && userDir()) { const d = userDir(); steerDir(p, d[0], d[1], effV(p) * (p.jumpY > 0 ? 0.3 : 1), dt, p.acc * 1.4); }
+      if (!mine && (dd > 6 || dd / effV(p) > tl + 0.6)) return false; // teammates within a few yards converge for a tip
+      const user = p === ctrl && userDir();
+      // eyes back to the ball a beat after it leaves the hand: until then he keeps running the route
+      if (!user && p.R && b.t < (p.findT || 0) && !b.tipped) { runRoute(p, dt); p.look = [b.x, b.y, b.z]; return true; }
+      if (user) { const d = userDir(); steerDir(p, d[0], d[1], effV(p) * (p.jumpY > 0 ? 0.3 : 1), dt, p.acc * 1.4); }
       else if (p.diveT <= 0 && p.jumpY <= 0 && p.jumpDelay <= 0) {
-        const need = dd / tl, [, ndd] = nearest(def, cp.x, cp.z, (d) => !d.rag && !d.eng);
-        const spd = need > effV(p) * 0.98 || ndd < 6 ? effV(p) : Math.max(need * 1.08, Math.min(effV(p), 3));
-        if (p !== ctrl) staminaStep(p, dt, need > p.v * 0.95 || ndd < 6);
-        steer(p, cp.x, cp.z, spd, dt, 13);
+        // his running and his sprinting speed (he sprints only when he would otherwise be late, so he does not flicker between them)
+        const wasSpr = p.sprint; p.sprint = false; const vRun = effV(p); p.sprint = true; const vSpr = p.sta > 0.02 ? effV(p) : vRun; p.sprint = wasSpr;
+        const sp = Math.hypot(p.vx, p.vz), hv = Math.hypot(b.vx, b.vz) || 1;
+        // stay in bounds: he works to the boundary and reaches for a ball going out rather than running out after it
+        let ax = clamp(cp.x, -HW + 0.45, HW - 0.45), az = Math.min(cp.z, 109.4);
+        if (!mine) { const ox = p.x - cp.x, oz = p.z - cp.z, ol = Math.hypot(ox, oz) || 1; ax = clamp(cp.x + ox / ol * 1.3, -HW + 0.45, HW - 0.45); az = Math.min(cp.z + oz / ol * 1.3, 109.4); }
+        // a ball coming right to him (curl, hitch, under-thrown): step back toward the passer to meet it and shield it
+        if (sp < 2.6 && dd < 1.6) { ax -= b.vx / hv * 0.55; az -= b.vz / hv * 0.55; }
+        // a defender breaking on the ball would get there first: attack it now and fight for the spot instead of timing it
+        // (he beats the defender there by a step rather than sprinting to the spot to wait)
+        let threat = false, tD = 9; if (mine) for (const d of def) { if (d.rag || d.eng || d.stun > 0 || tPlay < (d.breakAt || 0)) continue; const t = Math.hypot(cp.x - d.x, cp.z - d.z) / (effV(d) || 1); if (t < tl - 0.12 && t < tD) { threat = true; tD = t; } }
+        const tArr = Math.max(0.06, threat ? Math.min(tl - 0.05, tD - 0.12) : tl - 0.05);
+        let vx = (ax - p.x) / tArr, vz = (az - p.z) / tArr, need = Math.hypot(vx, vz);
+        const late = need > vRun * (wasSpr ? 0.9 : 0.97) || threat;
+        staminaStep(p, dt, late || (p === ctrl && input.sprint)); // hunting a ball he would be late for: full sprint
+        const top = p.sprint ? vSpr : vRun;
+        const nl = need || 1, ux = vx / nl, uz = vz / nl;
+        if (need > top) need = top;
+        if (threat) need = Math.min(need, Math.max(Math.hypot(ax - p.x, az - p.z) * 3.2 + 0.4, top * 0.6)); // fighting for the spot: get there first, still on the move (no dead stop: he has to run after the catch)
+        if (need > 0.05) steerDir(p, ux, uz, need, dt, p.acc * 1.5); else { p.vx *= 0.85; p.vz *= 0.85; }
         if (dd < 0.9 && tl < 0.45) p.face2 = Math.atan2(b.x - p.x, b.z - p.z);
       }
       // hands go to the ball on the way in
       if (tl < 0.75 && dd < 3.5) { const ahead = Math.min(tl, 0.12); p.reach = [b.x + b.vx * ahead, Math.max(0.5, b.y + b.vy * ahead - 0.5 * GRAV * ahead * ahead), b.z + b.vz * ahead]; if (p.pose !== 'jump' && p.pose !== 'dive') setPose(p, 'reach', true); }
       else p.reach = null;
       p.look = [b.x, b.y, b.z];
-      // AI receivers (and the Rookie assist) time a jump or a dive when they need one
-      if (p !== ctrl || DIFF < 0.2) {
+      // AI receivers time a jump for a high ball or lay out for one just beyond reach; for the player's receiver it is an assist
+      // that fires only if he has not jumped or dived himself by then
+      {
         if (p.jumpY <= 0 && p.jumpT <= 0 && p.jumpDelay <= 0 && p.diveT <= 0) {
-          const [tc, yc, side] = ballOver(p);
-          if (tc > 0.3 && tc < 0.56 && side < 1.3 && yc > 2.3 * p.lk.hs && yc < 3.5) doJump(p);
-          else if (tl < 0.32 && dd > 1.2 && dd < 2.9 && cp.y < 1.8) doDive(p);
+          const [tc, yc, side] = ballOver(p), top = effV(p), lp = b.lp || cp, dl = Math.hypot(lp.x - p.x, lp.z - p.z);
+          // go up when the ball will cross over his head within jumping reach, or to high-point it over a defender who is right there
+          const [, nd] = nearest(def, cp.x, cp.z, (d) => !d.rag && !d.eng), jt = Math.max(0, tc - 0.16), jy = Math.max(0, (5.6 + (p.agi - 50) * 0.02) * jt - 8.5 * jt * jt), hs = p.lk.hs;
+          if ((mine || b.tipped) && tc > 0.2 && tc < 0.55 && side < 0.9 && yc > (nd < 1.6 ? 2.15 : 2.45) * hs && yc < 2.45 * hs + jy + 0.2) doJump(p);
+          // lay out when he cannot get to it on foot, not even at the last catchable moment (waist high)
+          else if ((mine || b.tipped) && lp.t < 0.45 && dl > 0.8) { const [gt, gap, gapAny] = reachGap(p, lp, Math.max(top, p.v * 1.15)); if (gt < 0.36 && gapAny > 1.15 && gap < 2.8) doDive(p); }
         }
       }
       return true;
@@ -3031,6 +3169,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function rushQB(d, dt) {
       const qb = carrier || OK.QB, fx = d.x < 0 ? -1 : 1;
+      if (!qb) return;
       let tx = qb.x, tz = qb.z;
       const scrambling = carrier === OK.QB || (mode === 'aim' && Math.hypot(qb.vx, qb.vz) > 3);
       if (d.stunt && tPlay < 0.55) { tx = d.x + d.stunt * 3; tz = los + 0.2; }
@@ -3070,12 +3209,25 @@ gl_FragColor=vec4(c,1.0);}`;
       const arrive = dd / sp;
       staminaStep(d, dt, dd < 14);
       if (dd < 16 && arrive < tl + 0.2) {
-        steer(d, cp.x, cp.z, sp * 1.02, dt, 9);
+        // trailing the receiver to the spot: he can't go through him, so he works to the receiver's shoulder and plays the hands
+        let ax = cp.x, az = cp.z; const t = target;
+        if (t && t !== d && !t.rag) { const rx = cp.x - t.x, rz = cp.z - t.z, rl = Math.hypot(rx, rz), qx = cp.x - d.x, qz = cp.z - d.z; if (rl + 0.3 < dd && (rx * qx + rz * qz) > 0.7 * rl * dd && dist(d, t) < 3) { const px = -rz / (rl || 1), pz = rx / (rl || 1), sd = (d.x - t.x) * px + (d.z - t.z) * pz >= 0 ? 1 : -1; ax = cp.x + px * sd * 0.7 - rx / (rl || 1) * 0.3; az = cp.z + pz * sd * 0.7 - rz / (rl || 1) * 0.3; } }
+        steer(d, ax, az, sp * 1.02, dt, 9);
         if (dd < 2.6 && tl < 0.7) { const ahead = Math.min(tl, 0.1); d.reach = [b.x + b.vx * ahead, b.y + b.vy * ahead, b.z + b.vz * ahead]; if (d.pose !== 'jump') setPose(d, 'reach', true); } else d.reach = null;
-        if (d.jumpY <= 0 && d.jumpT <= 0 && d.jumpDelay <= 0) { const [tc, yc, side] = ballOver(d); if (tc > 0.3 && tc < 0.56 && side < 1.3 && yc > 2.2 && yc < 3.6) doJump(d); }
+        if (d.jumpY <= 0 && d.jumpT <= 0 && d.jumpDelay <= 0 && d.diveT <= 0) {
+          const [tc, yc, side] = ballOver(d);
+          if (tc > 0.3 && tc < 0.56 && side < 1.3 && yc > 2.2 && yc < 3.6) doJump(d);
+          // lay out for a pick (or to get a hand on it) when it is coming down just out of reach
+          else if (!d.dvTry && tl < 0.3 && dd > sp * tl + 0.4 && dd < sp * tl + 2.1 && cp.y < 1.9) { d.dvTry = 1; if (rng() < 0.4 + 0.45 * KDEF) doDive(d); }
+        }
         return true;
       }
-      if (target) { const ip = interceptPt(d, target, sp); steer(d, ip[0], ip[1], sp, dt, 8); return true; }
+      if (target) {
+        const ip = interceptPt(d, target, sp); steer(d, ip[0], ip[1], sp, dt, 8);
+        // on the receiver's hip as it arrives: play through his hands
+        if (dist(d, target) < 2.2 && tl < 0.6) { const ahead = Math.min(tl, 0.1); d.reach = [b.x + b.vx * ahead, b.y + b.vy * ahead, b.z + b.vz * ahead]; if (d.pose !== 'jump' && d.pose !== 'dive') setPose(d, 'reach', true); } else d.reach = null;
+        return true;
+      }
       return false;
     }
     function leadBlockDef(d, dt) {
@@ -3153,7 +3305,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function sigma(D, arcT) {
       const qb = OK.QB, mv = Math.hypot(qb.vx, qb.vz);
-      return D * (0.016 + (100 - QBR.acc) * 0.00068) * (1 + pressure() * 1.4) * (1 + Math.min(1, mv / 6) * 0.8) * [1.12, 1, 1.18][arcT] * (1 + WET * 0.14) + 0.15;
+      return D * (0.019 + (100 - QBR.acc) * 0.00078) * (1 + pressure() * 1.4) * (1 + Math.min(1, mv / 6) * 0.8) * [1.12, 1, 1.18][arcT] * (1 + WET * 0.14) + 0.15;
     }
     // swipe -> field vector: screen axes of the field at the QB's feet, solved for the swipe direction
     function aimSpot() {
@@ -3186,8 +3338,35 @@ gl_FragColor=vec4(c,1.0);}`;
       setControls(true);
       return true;
     }
+    // where a receiver will be after t seconds: on his route if he is running one, else carried by his velocity
+    function leadPt(r, t) {
+      if (r.R && !(r.blk === 'chip' && tPlay < r.R.blk) && !(r.R.sit && Math.hypot(r.vx, r.vz) < 1.5)) { const q = posAt(r.R, tPlay + t); return { x: q.x, z: q.z }; }
+      return { x: clamp(r.x + r.vx * t, -HW + 0.5, HW - 0.5), z: Math.min(109.5, r.z + r.vz * t) };
+    }
+    // the receiver a throw at `spot` is meant for, and his spot when the ball gets there
+    function leadFor(spot, arcT, maxd) {
+      const qb = OK.QB; let best = null, bd = maxd || 7, bl = null;
+      for (const r of off) {
+        if (!isRec(r) || r.rag || r === qb || r.blk === 'block' || (r.blk === 'chip' && tPlay < (r.R ? r.R.blk : 9))) continue;
+        let T = flightOf(Math.hypot(spot.x - qb.x, spot.z - qb.z), arcT), lp = null;
+        for (let i = 0; i < 3; i++) { lp = leadPt(r, T); T = flightOf(Math.hypot(lp.x - qb.x, lp.z - qb.z), arcT); }
+        const d = Math.hypot(lp.x - spot.x, lp.z - spot.z);
+        if (d < bd) { bd = d; best = r; bl = lp; }
+      }
+      return best ? { r: best, x: bl.x, z: bl.z, d: bd } : null;
+    }
+    // lead help: the throw's timing error along the receiver's path is pulled in (a lot at Rookie, a little at Legend);
+    // the side-to-side placement (back shoulder, away from the defender) is mostly kept
+    const LEAD_K = clamp(0.85 - DIFF * 0.6, 0.25, 0.85);
+    function assistSpot(spot, arcT) {
+      const L = leadFor(spot, arcT, 7); if (!L) return { spot, L: null };
+      const r = L.r, sp = Math.hypot(r.vx, r.vz), ux = sp > 1 ? r.vx / sp : 0, uz = sp > 1 ? r.vz / sp : 1, cx = -uz, cz = ux;
+      const ex = spot.x - L.x, ez = spot.z - L.z, al = ex * ux + ez * uz, ac = ex * cx + ez * cz, k = LEAD_K * clamp(1.4 - L.d / 7, 0, 1);
+      const nal = al * (1 - k), nac = ac * (1 - k * 0.5);
+      return { spot: { x: L.x + ux * nal + cx * nac, z: L.z + uz * nal + cz * nac }, L };
+    }
     function releaseBall() {
-      const qb = OK.QB, spot = qb.throwSpot, arcT = qb.throwArc;
+      const qb = OK.QB, arcT = qb.throwArc, as0 = assistSpot(qb.throwSpot, arcT), spot = as0.spot;
       qb.throwT = -1;
       const D0 = Math.hypot(spot.x - qb.x, spot.z - qb.z), D = Math.min(D0, maxDist());
       const ux = (spot.x - qb.x) / (D0 || 1), uz = (spot.z - qb.z) / (D0 || 1);
@@ -3200,10 +3379,12 @@ gl_FragColor=vec4(c,1.0);}`;
       ball = { st: 'air', x: hp[0], y: y0, z: hp[2], vx: (tx - hp[0]) / T * kd, vz: (tz - hp[2]) / T * kd, vy: (y1 - y0 + 0.5 * GRAV * T * T) / T, t: 0, T, tx, tz, ty: y1, arc: arcT, D: D2, played: [], fromZ: qb.z, holder: null, kind: 'pass', spin: 0, wob: rng() * 6.28, wobA: 0.05 + sg * 0.03 };
       thrown = true; passer = qb; qb.armT = 0.35;
       updateCatchPoint();
-      target = nearestRec(tx, tz, 10);
+      const L = as0.L && Math.hypot(as0.L.x - tx, as0.L.z - tz) < 9 ? as0.L : null;
+      target = hunter(ball.cp, L ? L.r : nearestRec(tx, tz, 10));
       if (target) {
-        const sp = Math.hypot(target.vx, target.vz), px = target.x + target.vx * T * 0.6, pz = target.z + target.vz * T * 0.6, dx = tx - px, dz = tz - pz, dl = Math.hypot(dx, dz) || 1;
-        ball.behind = sp > 4 && dl > 2 && (dx * target.vx + dz * target.vz) / (sp * dl) < -0.3;
+        // thrown behind him: the ball lands well back of where he is going
+        const sp = Math.hypot(target.vx, target.vz), lp = L || leadPt(target, T), dx = tx - lp.x, dz = tz - lp.z, dl = Math.hypot(dx, dz) || 1;
+        ball.behind = sp > 4 && dl > 1.8 && (dx * target.vx + dz * target.vz) / (sp * dl) < -0.5;
       }
       const st = stat(SQ.QB.pid); if (st) st.passAtt++;
       pr.kind = 'pass'; pr.passer = qb; pr.tgt = target; pr.thrown = true;
@@ -3211,11 +3392,27 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const d of def) {
         const man = d.ass && d.ass.t === 'man' && d.ass.tgt === target;
         d.breakAt = tPlay + DP.react * (0.75 + rng() * 0.5) * (man ? 0.7 : 1) - stare;
-        d.tried = 0;
+        d.tried = 0; d.dvTry = 0;
       }
-      for (const p of off) p.tried = 0;
-      if (target) { ctrl = target; mode = 'catch'; target.face2 = null; } else { ctrl = null; mode = 'none'; }
+      huntGo();
       sfx.play('throw'); setControls(true);
+    }
+    // whoever can get to where it comes down soonest hunts it (nearly always the one it was meant for, who gets a small edge):
+    // time to the spot at sprint speed, plus a beat to turn around if he is running away from it
+    function hunter(cp, aimed) {
+      let hb = null, ht = 9;
+      if (cp) for (const r of off) {
+        if (!isRec(r) || r.rag || r.eng || r.role === 'QB' || r === passer) continue;
+        const d = Math.hypot(cp.x - r.x, cp.z - r.z), sp = Math.hypot(r.vx, r.vz), back = sp > 2 && ((cp.x - r.x) * r.vx + (cp.z - r.z) * r.vz) < 0 ? 0.25 : 0;
+        const t = Math.max(0, d - 0.6) / (effV(r) * 1.08) + back - (r === aimed ? 0.35 : 0);
+        if (d < 14 && t < ht) { ht = t; hb = r; }
+      }
+      return hb || aimed || null;
+    }
+    // the hunter goes the instant it is thrown and becomes the player's man; teammates near the spot pick it up a beat later
+    function huntGo() {
+      for (const p of off) { p.tried = 0; p.findT = p === target ? 0 : 0.2; }
+      if (target) { ctrl = target; mode = 'catch'; target.face2 = null; } else { ctrl = null; mode = 'none'; }
     }
     function throwStep(dt) {
       const qb = OK.QB;
@@ -3223,23 +3420,42 @@ gl_FragColor=vec4(c,1.0);}`;
       qb.throwT += dt;
       if (qb.throwT >= 0.2) { if (ball && ball.holder === qb && !thrown) releaseBall(); else qb.throwT = -1; }
     }
-    // where a receiver should be: the point where the ball comes down to catch height
+    // where a receiver should meet the ball: the point where it comes down to hands height (chest to helmet);
+    // once it is already below that, a little further along its path
     function updateCatchPoint() {
       const b = ball; if (!b || b.st !== 'air') return;
-      const ch = 2.0, g = GRAV;
+      const g = GRAV;
+      let ch = 1.75;
+      if (b.y <= ch && b.vy <= 0) ch = Math.max(0.55, b.y - 0.35);
       let t;
       const disc = b.vy * b.vy - 2 * g * (ch - b.y);
-      if (b.y <= ch && b.vy <= 0) t = 0;
-      else if (disc < 0) t = Math.max(0, b.vy / g);
+      if (disc < 0) t = Math.max(0, b.vy / g);
       else t = (b.vy + Math.sqrt(disc)) / g;
       t = Math.max(0, t);
       const dk = 1 - AIRDRAG * t * 0.5;
-      b.cp = { x: b.x + b.vx * t * dk, z: b.z + b.vz * t * dk, t, y: Math.max(1.0, b.y + b.vy * t - 0.5 * g * t * t) };
+      b.cp = { x: b.x + b.vx * t * dk, z: b.z + b.vz * t * dk, t, y: Math.max(0.5, b.y + b.vy * t - 0.5 * g * t * t) };
+      // last catchable moment (about waist high): what a diving receiver reaches for
+      const lh = Math.min(0.8, b.y), d2 = b.vy * b.vy - 2 * g * (lh - b.y), t2 = d2 < 0 ? t : Math.max(t, (b.vy + Math.sqrt(d2)) / g), dk2 = 1 - AIRDRAG * t2 * 0.5;
+      b.lp = { x: b.x + b.vx * t2 * dk2, z: b.z + b.vz * t2 * dk2, t: t2 };
     }
+    // where the ball and this player (carried on by his run) come closest in the next ~0.8 s: [time, ball height, gap]
     function ballOver(p) {
-      const b = ball, hv = Math.hypot(b.vx, b.vz) || 1, ux = b.vx / hv, uz = b.vz / hv;
-      const along = (p.x - b.x) * ux + (p.z - b.z) * uz, tc = Math.max(0, along / hv);
-      return [tc, b.y + b.vy * tc - 0.5 * GRAV * tc * tc, Math.abs((p.x - b.x) * uz - (p.z - b.z) * ux)];
+      const b = ball; let bt = 0, by = b.y, bg = 99;
+      for (let t = 0.05; t <= 0.8; t += 0.05) { const g = Math.hypot(b.x + b.vx * t - p.x - p.vx * t, b.z + b.vz * t - p.z - p.vz * t); if (g < bg) { bg = g; bt = t; by = b.y + b.vy * t - 0.5 * GRAV * t * t; } }
+      return [bt, by, bg];
+    }
+    // can he get a hand on it on foot? Run him flat out toward where it comes down (he stops there) and find how close the ball passes
+    // while it is at a height he can catch it: [time of closest approach, gap from his body]. A gap past his reach means lay out.
+    function reachGap(p, lp, top) {
+      const b = ball, dx = lp.x - p.x, dz = lp.z - p.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, hi = 2.45 * p.lk.hs + 0.1;
+      let bt = 9, bg = 99, ba = 99;
+      for (let t = 0.03; t <= 0.7; t += 0.03) {
+        const by = b.y + b.vy * t - 0.5 * GRAV * t * t; if (by < 0.2) break;
+        const run = Math.min(top * Math.max(0, t - 0.04), dl), g = Math.hypot(b.x + b.vx * t - p.x - ux * run, b.z + b.vz * t - p.z - uz * run);
+        if (g < ba) ba = g; // over his head counts here: that ball is one to go up for, not to lay out for
+        if (by <= hi && g < bg) { bg = g; bt = t; }
+      }
+      return [bt, bg, ba];
     }
     // ---------- flight, contact and bounces ----------
     function flyStep(b, dt) {
@@ -3265,33 +3481,50 @@ gl_FragColor=vec4(c,1.0);}`;
       b.vy -= GRAV * 1.6 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.spin += dt * 10;
       if (b.y <= 0.14 && b.vy < 0) bounce(b);
     }
+    const inField = (x, z) => Math.abs(x) <= HW && z <= 110 && z >= -10;
     function airStep(dt) {
       const b = ball;
+      // placement is judged as thrown: on the first step in the air, against everyone near where it comes down
       flyStep(b, dt); updateCatchPoint();
+      if (!b.lev && b.cp && b.kind === 'pass') { b.lev = {}; for (const r of off) if (isRec(r) && Math.hypot(r.x - b.cp.x, r.z - b.cp.z) < 40) for (const d of def) if (Math.hypot(d.x - b.cp.x, d.z - b.cp.z) < 40) leverage(r, d); }
       if (target && !target.rag) target.reachT = b.T - b.t;
-      // contact: the first hand or body that gets to the ball (swept along this step's travel so fast balls can't skip a hand)
+      // contact: swept along this step's travel so fast balls can't skip a hand. The first hand to the ball touches it; if a hand
+      // from the other side gets there in the next instant too, it is a contested ball and placement decides it
       const px = b.x - b.vx * dt, py = b.y - b.vy * dt, pz = b.z - b.vz * dt;
-      let best = null, bd = 9, bestO = null, bdO = 9;
+      const LA = 0.12, fx = b.x + b.vx * LA, fy = b.y + b.vy * LA - 0.5 * GRAV * LA * LA, fz = b.z + b.vz * LA;
+      let bO = null, dO = 9, bD = null, dD = 9;
       for (const p of everyone) {
         if (p.rag || p.stun > 0 || p.eng || tPlay - (p.lastTouch || -9) < 0.22 || p === passer || p.rising > 0) continue;
-        if (Math.abs(p.x - b.x) > 2.4 || Math.abs(p.z - b.z) > 2.4 || b.y > 4.2) continue;
+        if (Math.abs(p.x - b.x) > 2.6 || Math.abs(p.z - b.z) > 2.6 || b.y > 4.2) continue;
+        if (p.side === 0 && !isRec(p)) continue;
         if (p.side === 1 && tPlay < (p.breakAt || 0) - 0.15) continue;
         const d = contactDist(p, px, py, pz);
-        if (d < bd) { bd = d; best = p; }
-        if (p.side === 0 && isRec(p) && d < bdO) { bdO = d; bestO = p; }
+        if (p.side === 0) { if (d < dO) { dO = d; bO = p; } } else if (d < dD) { dD = d; bD = p; }
       }
-      if (bestO && bdO <= catchRadius(bestO) && (!best || best.side === 0 || bd > bdO - 0.15)) { best = bestO; bd = bdO; } // the receiver boxes out a defender arriving at the same time
-      if (best) {
-        const R = catchRadius(best);
-        if (bd <= R) { if (best.side === 0 && isRec(best)) recAttempt(best); else defAttempt(best); if (ball !== b || b.st !== 'air') return; }
-        else if (bd <= R + 0.32 && !b.fingers && b.t > 0.2) {
+      const RO = bO ? catchRadius(bO) : 0, RD = bD ? catchRadius(bD) : 0;
+      if (b.killed) { bO = bD = null; }
+      else if (b.tips >= 2 && ((bO && dO <= RO) || (bD && dD <= RD))) {
+        // tipped twice already: the next hand on it bats it down (a defender might still haul it in)
+        const p = bD && dD <= RD ? bD : bO; p.lastTouch = tPlay;
+        if (p.side === 1 && facesBall(p) && rng() < 0.12 + 0.5 * DP.intSkill) { intercept(p, 'tips'); return; }
+        knockDown2('BATTED DOWN'); b.killed = true; return;
+      }
+      if ((bO && dO <= RO) || (bD && dD <= RD)) {
+        const wO = bO ? Math.min(dO, contactDist(bO, b.x, b.y, b.z, fx, fy, fz)) : 9, wD = bD ? Math.min(dD, contactDist(bD, b.x, b.y, b.z, fx, fy, fz)) : 9;
+        if (bO && bD && wO <= RO + 0.12 && wD <= RD + (dist(bD, bO) < 1.25 ? 0.58 : 0.42)) contestCatch(bO, bD, wO, wD); // a defender on his hip gets an arm in
+        else if (bO && dO <= RO) recAttempt(bO);
+        else defAttempt(bD);
+        if (ball !== b || b.st !== 'air') return;
+      } else {
+        const best = bO && (!bD || dO - RO < dD - RD) ? bO : bD, bd = best === bO ? dO : dD, R = best === bO ? RO : RD;
+        if (best && bd <= R + 0.32 && !b.fingers && b.t > 0.2) {
           // only a near miss once the ball is getting away from him
           const nd = contactDist(best, b.x, b.y, b.z, b.x + b.vx * dt, b.y + b.vy * dt, b.z + b.vz * dt);
           if (nd > bd + 0.02) { b.fingers = true; fingertips(best); if (ball !== b || b.st !== 'air') return; }
         }
       }
-      if (b.y <= 0.14) { b.st = 'dead'; bounce(b); endPlay('inc', 0, b.tipped ? 'Batted down' : b.drop ? 'Dropped' : Math.abs(b.x) > HW ? 'Out of bounds' : 'Nobody there'); return; }
-      if (Math.abs(b.x) > HW + 3 || b.z > 113 || b.z < -12) { b.st = 'dead'; endPlay('inc', 0, 'Thrown away'); }
+      if (b.y <= 0.14) { b.st = 'dead'; bounce(b); endPlay('inc', 0, b.tipped ? 'Batted down' : b.drop ? 'Dropped' : !inField(b.x, b.z) ? 'Out of bounds' : 'Nobody there'); return; }
+      if (Math.abs(b.x) > HW + 3 || b.z > 113 || b.z < -12) { b.st = 'dead'; endPlay('inc', 0, b.z > 110 ? 'Out of the back of the end zone' : 'Thrown away'); }
     }
     const catchRadius = (p) => (p.side === 0 ? 0.36 + (p.cat - 50) * 0.0014 : 0.32) * (p.diveT > 0 ? 1.25 : 1);
     // where a hand is when the player reaches for the ball: shoulder (from the body, not the last drawn skeleton) plus the arm toward the reach point
@@ -3307,80 +3540,136 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function shoulderPos(p, sd) {
       const hs = p.lk.hs, rx = Math.cos(p.h), rz = -Math.sin(p.h), fx = Math.sin(p.h), fz = Math.cos(p.h), diving = p.diveT > 0 || p.pose === 'dive';
-      return diving ? [p.x + fx * 0.45 + rx * sd * 0.25 * hs, 0.85 + (p.jumpY || 0) * 0.5, p.z + fz * 0.45 + rz * sd * 0.25 * hs] : [p.x + rx * sd * 0.3 * hs + fx * 0.05, 1.85 * hs + (p.jumpY || 0), p.z + rz * sd * 0.3 * hs + fz * 0.05];
+      return diving ? [p.x + fx * 0.45 + rx * sd * 0.25 * hs, 0.85 + (p.jumpY || 0) * 0.5, p.z + fz * 0.45 + rz * sd * 0.25 * hs] : [p.x + rx * sd * 0.3 * hs + fx * 0.05, (1.85 - 0.97 * (1 - (p.lk.ll || 1))) * hs + (p.jumpY || 0), p.z + rz * sd * 0.3 * hs + fz * 0.05];
     }
     function contestOf(r) {
       let best = null, bd = 9;
       for (const d of def) { if (d.rag || d.stun > 0 || d.eng) continue; const dd = Math.hypot(d.x - ball.x, d.z - ball.z); if (dd < bd) { bd = dd; best = d; } }
       return [best, clamp((1.35 - bd) / 1.35, 0, 1)];
     }
+    // does the defender see the ball coming (it is not arriving over his back)?
+    function facesBall(d) { const b = ball, hv = Math.hypot(b.vx, b.vz) || 1; return Math.sin(d.h) * -b.vx / hv + Math.cos(d.h) * -b.vz / hv > -0.35 || Math.hypot(d.vx, d.vz) < 1.5; }
+    // highest point a player can get a hand to right now
+    const topReach = (p) => (2.42 - 0.97 * (1 - (p.lk.ll || 1))) * p.lk.hs + (p.jumpY || 0) * 1.1;
+    // defenders around the receiver when the ball gets there (a ball thrown into a crowd)
+    function crowdAt(r) { let n = 0; for (const d of def) if (!d.rag && !d.eng && d.stun <= 0 && d.rising <= 0 && Math.hypot(d.x - r.x, d.z - r.z) < 2.3) n++; return n; }
     function fingertips(p) {
       const b = ball;
       popAt(p, p.side === 0 ? 'FINGERTIPS!' : 'JUST MISSED', '#ffc21a');
       if (rng() < 0.45) { tipBall(p, null, 0.5); }
     }
+    // the ball reaches a receiver with no defender's hand on it (a defender arriving as it does can still jar it loose)
     function recAttempt(r) {
       const b = ball;
-      r.lastTouch = tPlay;
-      const [dN, cf] = contestOf(r), dd = dN;
+      r.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'rec';
+      const [dN, cf] = contestOf(r);
       const diving = r.diveT > 0 || r.pose === 'dive', jumping = r.jumpY > 0.1;
-      let p = 0.7 + r.cat / 300;
+      let p = 0.7 + r.cat / 330;
       if (b.arc === 0 && b.D < 12) p -= 0.06;
-      if (b.arc === 2) p += 0.03;
+      if (b.arc === 2) p += 0.02;
       if (b.behind) p -= 0.1;
       if (diving) p -= 0.12;
       if (jumping && b.y < 2.1) p -= 0.08;
       if (b.tipped) p -= 0.08;
       p -= WET * 0.03;
       const hv = Math.hypot(b.vx, b.vz); if (hv > 20) p -= (hv - 20) * 0.012;
-      const recS = r.cat + (r.str - 50) * 0.3 + (r.lk.hs - 1) * 150 + (jumping && b.y > 2.2 ? 14 : 0) - (b.behind ? 12 : 0), defS = 36 + 52 * KDEF + (dd && dd.jumpY > 0.1 ? 10 : 0);
-      const win = recS / (recS + defS);
-      p *= 1 - cf * (1 - win) * 1.05;
-      p = clamp(p, 0.03, 0.985);
+      p -= cf * (0.16 + 0.12 * KDEF) * (dN && dN.jumpY > 0.1 ? 1.3 : 1);
+      const crowd = crowdAt(r); if (crowd >= 2) p *= Math.pow(0.5, crowd - 1);
+      p = clamp(p, 0.05, 0.98);
       if (rng() < p) { catchBall(r, diving, jumping); return; }
-      if (cf > 0.2 && dd) {
-        if (rng() < cf * DP.intSkill * 0.5 * (tPlay < (dd.breakAt || 0) ? 0.4 : 1)) { intercept(dd); return; }
-        if (rng() < 0.45) { tipBall(r, 'TIPPED!'); return; }
-        knockDown2(dd ? 'BROKEN UP!' : 'DROPPED');
-        return;
-      }
+      if (cf > 0.35 && dN) { if (rng() < 0.4) tipBall(r, 'JARRED LOOSE!'); else knockDown2('BROKEN UP!'); return; }
       if (rng() < 0.25) { tipBall(r, 'BOBBLED!'); return; }
       ball.drop = true; ball.vy = Math.min(ball.vy, -1.5) * 0.4; ball.vx *= 0.25; ball.vz *= 0.25;
       popAt(r, 'DROPPED', '#ff3344');
     }
+    // ball placement against a defender: where the ball comes down relative to the pair as they will be when it gets there (each carried
+    // on by his route / run). +1 = on the receiver's side of the pair (led away, back shoulder away from him), 0 = right on the receiver,
+    // -1 = on the defender's side (under-thrown into a trailing man, led into the safety over the top, thrown inside at the man inside)
+    function leverage(r, d) {
+      const b = ball, c = b.cp; if (!c) return 0;
+      const key = r.key + '|' + d.key; if (b.lev && b.lev[key] != null) return b.lev[key];
+      const t = clamp(c.t || 0, 0, 2.5), R = leadPt(r, t), dx = d.x + d.vx * t, dz = d.z + d.vz * t;
+      const ux = dx - R.x, uz = dz - R.z, L = Math.hypot(ux, uz);
+      const m = L < 0.3 ? 0 : ((c.x - R.x) * ux + (c.z - R.z) * uz) / L;
+      const v = clamp(-(m - 0.25) / 1.0, -1, 1);
+      (b.lev || (b.lev = {}))[key] = v;
+      return v;
+    }
+    // receiver and defender both get a hand to it. Placement decides: a ball on the receiver's side of the pair (led away from
+    // the defender, back shoulder, high point he can win) is his; a ball on the defender's side or short of the receiver is the
+    // defender's to break up or pick off. Hands, height, strength and the defender's skill shade it.
+    function contestCatch(r, d, wO, wD) {
+      const b = ball;
+      r.lastTouch = tPlay; d.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'contest';
+      const RO = catchRadius(r), RD = catchRadius(d);
+      const diving = r.diveT > 0 || r.pose === 'dive', jumping = r.jumpY > 0.1;
+      const qO = clamp(1 - wO / RO, 0, 1), qD = clamp(1 - wD / (RD + 0.42), 0, 1);
+      const side = clamp((Math.hypot(b.x - d.x, b.z - d.z) - Math.hypot(b.x - r.x, b.z - r.z)) / 0.9, -1, 1);
+      const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.03 : 0) : 0;
+      const sees = facesBall(d);
+      const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - (0.04 + 0.17 * KDEF);
+      const crowd = crowdAt(r);
+      const plc = leverage(r, d);
+      const W = clamp(0.4 + 0.27 * plc + 0.1 * side + 0.25 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.1 : 0) - (diving ? 0.08 : 0) - (b.tipped ? 0.06 : 0), 0.04, 0.95) * (crowd >= 2 ? Math.pow(0.45, crowd - 1) : 1);
+      b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; if (pr) pr.contest = b.contest;
+      if (rng() < W) {
+        const hv = Math.hypot(b.vx, b.vz);
+        const pc = clamp(0.9 + (r.cat - 66) / 260 - (1 - W) * 0.3 - WET * 0.04 - (hv > 20 ? (hv - 20) * 0.012 : 0), 0.35, 0.97);
+        if (rng() < pc) { catchBall(r, diving, jumping); return; }
+        if (rng() < 0.45) tipBall(r, 'KNOCKED LOOSE!'); else knockDown2('BROKEN UP!');
+        return;
+      }
+      // the defender wins it: a pick if the ball was on his side and he sees it, otherwise he breaks it up
+      const pI = clamp(DP.intSkill * 1.25 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.3 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1), 0, 0.7);
+      if (rng() < pI) { intercept(d, 'contest'); return; }
+      if (rng() < 0.38) tipBall(d, 'TIPPED!'); else knockDown2(d.jumpY > 0.15 ? 'SWATTED!' : 'BROKEN UP!');
+    }
+    // a defender gets to the ball and no receiver is there with him (undercut, jumped route, overthrow into the safety)
     function defAttempt(d) {
       const b = ball;
-      d.lastTouch = tPlay;
-      const ok = b.y < 2.3 + d.jumpY;
-      let pI = DP.intSkill * 0.85 * (b.arc === 2 ? 1.25 : b.arc === 0 ? 0.7 : 1) * (ok ? 1 : 0.4) * (1 - WET * 0.15);
-      if (target && dist(target, b) < 1.2) pI *= 0.6;
-      if (!target || dist(target, b) > 5) pI = Math.min(0.6, pI * 2 + 0.12);
-      const looking = tPlay >= (d.breakAt || 0);
+      d.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'def';
+      const ok = b.y < topReach(d) - 0.05, sees = facesBall(d), looking = tPlay >= (d.breakAt || 0);
+      let pI = DP.intSkill * 1.45 * (b.arc === 2 ? 1.25 : b.arc === 0 ? 0.75 : 1) * (ok ? 1 : 0.35) * (1 - WET * 0.15) * (sees ? 1 : 0.35);
+      if (!target || dist(target, b) > 4) pI = pI * 1.6 + 0.1;
       if (!looking) pI *= 0.3;
-      if (rng() < pI) { intercept(d); return; }
-      if (rng() < DP.deflect * (looking ? 1 : 0.5) + (d.jumpY > 0.2 ? 0.25 : 0)) { if (rng() < 0.45) tipBall(d, 'TIPPED!'); else knockDown2('SWATTED!'); return; }
+      pI = Math.min(0.75, pI);
+      if (rng() < pI) { intercept(d, 'undercut'); return; }
+      if (rng() < DP.deflect * 1.6 * (looking ? 1 : 0.5) * (sees ? 1 : 0.6) + (d.jumpY > 0.2 ? 0.2 : 0)) { if (rng() < 0.4) tipBall(d, 'TIPPED!'); else knockDown2('SWATTED!'); return; }
     }
     function tipBall(p, msg, k) {
-      const b = ball; b.tipped = true; k = k || 1;
+      const b = ball;
+      if ((b.tips || 0) >= 2) { knockDown2(msg || 'BATTED DOWN'); b.killed = true; return; } // tipped twice already: this touch kills it
+      b.tips = (b.tips || 0) + 1; if (pr) pr.tipsMax = Math.max(pr.tipsMax || 0, b.tips);
+      b.tipped = true; b.lev = null; k = k || 1; // a tipped ball is anybody's: placement is judged again from where it now comes down
       b.vy = (3 + rng() * 2.5) * k; b.vx = (rng() - 0.5) * 3 * k + b.vx * 0.2; b.vz = (rng() - 0.2) * 3 * k + b.vz * 0.15;
       b.y = Math.max(b.y, 1.0); updateCatchPoint(); if (msg) popAt(p, msg, '#ffc21a'); sfx.play('catch');
       if (target) { ctrl = target; }
     }
-    function knockDown2(msg) {
-      const b = ball; b.tipped = true; b.vy = -3; b.vx *= -0.25; b.vz *= -0.2;
+    function knockDown2(msg) { // broken up / batted down: the ball is dead, nobody gets another hand on it
+      const b = ball; b.tipped = true; b.killed = true; b.vy = -3; b.vx *= -0.25; b.vz *= -0.2;
       popAt(target || OK.QB, msg, '#ff3344');
+    }
+    // in bounds: a foot down inside the sidelines and the end lines (airborne: where he comes down)
+    function landsIn(r) {
+      if (r.jumpY > 0.05 || r.jumpT > 0 || r.diveT > 0) {
+        const v = Math.max(0, r.jumpV || 0), tl = r.jumpY > 0.05 ? (v + Math.sqrt(v * v + 2 * 17 * r.jumpY)) / 17 : 0.12;
+        return inField(r.x + r.vx * tl, r.z + r.vz * tl);
+      }
+      // feet from the drawn pose, placed at where he is now (the skeleton is posed once per rendered frame and can trail the simulation)
+      if (r.bones) { const hm = r.bones[B.hips]; let low = 0; for (const f of [B.ftL, B.ftR]) { const m = r.bones[f]; if (m[7] < 0.35) { low++; if (inField(r.x + m[3] - hm[3], r.z + m[11] - hm[11])) return true; } } if (low) return false; }
+      return inField(r.x, r.z);
     }
     function catchBall(r, diving, jumping) {
       const b = ball;
-      if (Math.abs(r.x) > HW + 0.05) { ball.st = 'dead'; ball.vy = -1; endPlay('inc', 0, 'Out of bounds'); return; }
+      if (!landsIn(r)) { ball.st = 'dead'; ball.vy = -1; popAt(r, 'NO FOOT DOWN', '#ff9a3c'); endPlay('inc', 0, r.z > 110 || r.z < -10 ? 'Out of bounds, past the end line' : 'Out of bounds'); return; }
       ball = { st: 'held', holder: r, x: r.x, y: 1.3, z: r.z, vx: 0, vy: 0, vz: 0 };
       carrier = r; ctrl = r; mode = 'run'; target = r; r.reach = null; r.pose = r.pose === 'reach' ? 'run' : r.pose;
-      pr.rec = r; pr.catchZ = r.z; pr.caught = true;
+      pr.rec = r; pr.catchZ = r.z; pr.caught = true; pr.tips = b.tips || 0;
       const notes = [];
-      if (Math.abs(r.x) > HW - 1.25) notes.push('TOE TAP!');
+      if (Math.abs(r.x) > HW - 1.25 || r.z > 108.8) notes.push('TOE TAP!');
       if (diving) notes.push('DIVING CATCH!'); else if (jumping) notes.push(b.y > 2.6 ? 'HIGH-POINTED!' : 'LEAPING GRAB!');
       const [, cf] = contestOf(r);
-      if (cf > 0.45 && !notes.length) notes.push('CONTESTED CATCH!');
+      if ((cf > 0.45 || b.contest) && !notes.length) notes.push('CONTESTED CATCH!');
       pr.notes = notes;
       popAt(r, notes[0] || 'CATCH!', '#2bd46b');
       sfx.play('catch'); excite = Math.min(1, excite + 0.25);
@@ -3391,10 +3680,11 @@ gl_FragColor=vec4(c,1.0);}`;
       if (diving) { r.diveT = Math.max(r.diveT, 0.25); r.diveCatch = 1; setTimeout(() => { if (phase === 'live' && carrier === r) { knockDown(r, [r.vx * 0.6, -1, r.vz * 0.6], null, 1.2); endPlay('tackle', r.z, 'Diving catch'); } }, 220 / ((DBG && DBG.speed) || 1)); return; }
       setControls(true);
     }
-    function intercept(d) {
+    function intercept(d, how) {
+      const tips = (ball && ball.tips) || 0;
       ball = { st: 'held', holder: d, x: d.x, y: 1.3, z: d.z, vx: 0, vy: 0, vz: 0 };
       carrier = d; ctrl = null; mode = 'none'; d.v = Math.max(d.v, 7.4); d.reach = null; setPose(d, 'run');
-      pr.int = d; pr.intZ = d.z; pr.intInfo = { role: d.role, man: !!(d.ass && d.ass.t === 'man'), dT: target ? +dist(target, ball).toFixed(1) : null, tgt: target ? target.key : null, t: +tPlay.toFixed(2), brk: +((d.breakAt || 0)).toFixed(2), D: ball.D ? Math.round(ball.D) : null, arc: ball.arc, y: +ball.y.toFixed(1) };
+      pr.int = d; pr.intZ = d.z; pr.intInfo = { how: how || '', tips, role: d.role, man: !!(d.ass && d.ass.t === 'man'), dT: target ? +dist(target, ball).toFixed(1) : null, tgt: target ? target.key : null, t: +tPlay.toFixed(2), brk: +((d.breakAt || 0)).toFixed(2), D: ball.D ? Math.round(ball.D) : null, arc: ball.arc, y: +ball.y.toFixed(1) };
       const st = stat(SQ.QB.pid); if (st) st.passInt++;
       popAt(d, 'PICKED OFF!', '#ff3344'); sfx.play('boo'); excite = Math.max(0, excite - 0.3);
       setControls(true);
@@ -3405,9 +3695,12 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function doDive(p) {
       if (!p || p.diveT > 0 || p.rag || p.jumpY > 0 || p.rising > 0) return;
-      const toBall = ball && ball.st === 'air' && ball.cp ? [ball.cp.x - p.x, ball.cp.z - p.z] : null, bd = toBall ? Math.hypot(toBall[0], toBall[1]) : 9;
-      const d = userDir() || (toBall && bd > 0.3 ? v2n(toBall) : [Math.sin(p.h), Math.cos(p.h)]);
-      const sp = userDir() ? p.v + 3.5 : clamp(bd * 4.5, 3.5, p.v + 3.5);
+      // lay out to where the ball will be at its last catchable moment (about waist high), not where it passes chest height
+      const aimP = ball && ball.st === 'air' ? (ball.lp && ball.lp.t > 0.05 ? ball.lp : ball.cp) : null;
+      const toBall = aimP ? [aimP.x - p.x, aimP.z - p.z] : null, bd = toBall ? Math.hypot(toBall[0], toBall[1]) : 9;
+      const ud = p === ctrl ? userDir() : null;
+      const d = ud || (toBall && bd > 0.3 ? v2n(toBall) : [Math.sin(p.h), Math.cos(p.h)]);
+      const sp = ud ? p.v + 3.5 : clamp(bd * 4.5, 3.5, p.v + 3.5);
       p.diveT = 0.62; p.ddx = d[0]; p.ddz = d[1]; p.vx = d[0] * sp; p.vz = d[1] * sp; setPose(p, 'dive'); p.h = Math.atan2(d[0], d[1]); p.jumpY = 0.35; p.jumpV = 1.6; p.jumpT = 0.4;
     }
     const v2n = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
@@ -3540,7 +3833,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const behindLOS = c.role === 'QB' && !crossed && !handed && !thrown;
       const vc = Math.hypot(c.vx, c.vz), closing = Math.max(0, (d.vx * nx + d.vz * nz) - (c.vx * nx + c.vz * nz));
       const fromFront = (c.vx * -nx + c.vz * -nz) > vc * 0.3, fromBehind = (c.vx * nx + c.vz * nz) > vc * 0.5;
-      const power = (d.tackle / 70) * (0.6 + d.str / 150) * (1 + closing / 12) * (d.pose === 'tackle' ? 1.15 : 0.95);
+      const power = (d.tackle / 70) * (0.6 + d.str / 150) * (1 + closing / 12) * (d.pose === 'tackle' ? 1.15 : 0.95) * Math.pow((d.mass || 1) / (c.mass || 1), 0.4); // weight matters
       let resist = (0.6 + c.str / 150) * (1 + vc / 16);
       if (c.mv === 'stiff' && c.mvT > 0 && fromFront) resist += 0.45 + (c.str - 50) / 250;
       if (c.mv === 'spin' && c.mvT > 0) resist += 0.35 + (c.agi - 50) / 300;
@@ -3634,6 +3927,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- place kicks and punts with a two-tap meter (power, then accuracy) ----------
     const KK = KR.kick;
+    const KQ = KR.pid ? Object.values(SQ).find((q) => q.pid === KR.pid && (!q.ol || q.real)) || null : null, KLOOK = normLook(null, 1);
     const fgRange = () => 36 + KK * 0.3 - WET * 3;
     const fgDist = () => Math.round(117 - los);
     function fgPct(d) { return clamp(1.08 - Math.max(0, d - 22) * (0.019 - (KK - 50) * 0.00012) - DIFF * 0.03 - WET * 0.06, 0.08, 0.98); }
@@ -3642,11 +3936,12 @@ gl_FragColor=vec4(c,1.0);}`;
       clearBanner(); closeSheet(); hideTags();
       clearPlayers();
       const kz = type === 'punt' ? los - 13 : los - 7;
-      for (let i = 0; i < 5; i++) addOff(mkP(0, 'OL', 'OL' + i, (i - 2) * 1.95, los - 0.9, { w: 1.2, rad: 0.5, num: OLR[i].num, str: OLR[i].str, v: 5.6, spd: 45 }));
-      const kq = { key: 'K', look: normLook(null, 1), num: 3, r: { spd: 50, agi: 50, str: 50, cat: 50 } };
-      const kp = addOff(mkP(0, 'K', 'K', type === 'punt' ? 0 : -1.0, type === 'punt' ? kz - 0.4 : kz - 1.4, { num: 3, lk: kq.look, v: 5, spd: 50 }));
+      for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * 1.95, los - 0.9, { v: 5.6 }));
+      // the kicker: the Lineup player with the best leg when there is one (the RB holds if he is the QB)
+      const kq = KQ || { key: 'K', look: KLOOK, num: 3 }, hq = KQ === SQ.QB ? SQ.RB : SQ.QB;
+      const kp = addOff(mkP(0, 'K', 'K', type === 'punt' ? 0 : -1.0, type === 'punt' ? kz - 0.4 : kz - 1.4, { num: kq.num, lk: kq.look || KLOOK, sq: KQ, face: KQ ? KQ.cell : -1, v: 5, spd: 50, fx: KQ ? KQ.fx : null }));
       kp.h = type === 'punt' ? 0 : 0.35;
-      if (type !== 'punt') { const h = addOff(mkP(0, 'QB', 'H', 0.3, kz - 0.1, { num: SQ.QB.num, lk: SQ.QB.look, sq: SQ.QB, face: SQ.QB.cell, spd: 50 })); h.h = 0.6; }
+      if (type !== 'punt') { const h = addOff(mkP(0, 'QB', 'H', 0.3, kz - 0.1, { num: hq.num, lk: hq.look, sq: hq, face: hq.cell, spd: 50, fx: hq.fx })); h.h = 0.6; }
       for (let i = 0; i < 4; i++) addDef(mkP(1, 'DL', 'DL' + i, (i - 1.5) * 2.2, los + 0.9, { w: 1.2, rad: 0.5, v: DP.dlV, num: 90 + i }));
       for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'LB' + i, (i - 1) * 4, los + 3.5, { v: DP.lbV, num: 50 + i }));
       if (type === 'punt') addDef(mkP(1, 'S', 'PR', 0, Math.min(108, los + 40), { v: DP.sV, num: 23 }));
@@ -3759,7 +4054,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const R = addOff(offPlayer(rk, 0, 3));
       const others = ['RB', 'X', 'Z', 'S', 'Y'].filter((k) => k !== rk);
       others.forEach((k, i) => addOff(offPlayer(k, [-12, -5, 5, 12][i], 22 + (i % 2) * 3)));
-      for (let i = 0; i < 5; i++) addOff(mkP(0, 'OL', 'OL' + i, (i - 2) * 6, 31, { w: 1.2, rad: 0.5, num: OLR[i].num, str: OLR[i].str, v: 6, spd: 45 }));
+      for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * 6, 31, { v: 6 }));
       for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), 64, { v: Math.max(7.5, DP.sV) * (1.02 + 0.03 * (i % 3)), lane: -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF, agi: 50 + 40 * KDEF, spd: 60 + 30 * KDEF, ko: 1 }));
       addDef(mkP(1, 'K', 'KK', 0, 66, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
       finalizePlayers();
@@ -3927,6 +4222,8 @@ gl_FragColor=vec4(c,1.0);}`;
         }
       }
       if (P.cov && line && !ko && kind !== 'td') line += ` <span style="color:#6f7584">vs ${esc(P.cov)}</span>`;
+      // the clock: after an in-bounds play it runs 4 more seconds of the dead ball, then stops until the snap
+      runoff = clockRun ? RUNOFF : 0;
       pend = nx; deadTot = deadT;
       if (closeP) { closeP.hold = true; deadT += 0.6; deadTot = deadT; }
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
@@ -3999,28 +4296,35 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- simulated CPU drives ----------
     const CS = clamp(0.55 + (AWAY.ovrOff - HOME.ovrDef) / 70 + (DIFF - 0.5) * 0.5, 0, 1);
-    const CD = { g: lerp(3.5, 4.75, CS), big: lerp(0.04, 0.078, CS), loss: lerp(0.24, 0.15, CS), to: lerp(0.06, 0.04, CS), fg: lerp(0.6, 0.86, CS) };
-    function simCpu(spot, clk) {
+    // per-play outcomes of a simulated drive (tuned so the CPU scores roughly 10-14 a game at Rookie up to 28-35 at Legend)
+    // (strength curved and capped so each level sits in its range: about 1.8 / 2.5 / 3.9 / 4.8 points per full drive; the CPU gets 6-9
+    // drives a game, more when the player's drives stall)
+    const CSc = Math.pow(CS, 1.8) * 0.8;
+    const CD = { g: lerp(6.0, 8.6, CSc), big: lerp(0.085, 0.19, CSc), loss: lerp(0.13, 0.055, CSc), to: lerp(0.034, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.17, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
+    function simCpu(spot, clk, log) {
       const start = spot; let dn = 1, fd = spot + 10, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
       const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t) });
       const tick = (t) => { t = Math.min(t, clk.t); used += t; clk.t -= t; };
       for (let guard = 0; guard < 60; guard++) {
         if (clk.t <= 0) return fin('CLOCK');
-        const late = endHalf && clk.t < QS * 0.33, hurry = late && (clk.q === 2 || lead <= 0 || clk.q >= 5), burn = clk.q >= 4 && lead > 0;
         const needTD = clk.q >= 4 && lead + 3 <= 0 && clk.t < QS * 0.6;
-        if (spot >= 62 && ((endHalf && clk.t < 14 && !needTD) || (dn === 4 && !needTD) || (suddenDeath && dn >= 3))) {
+        if (spot >= 63 && ((endHalf && clk.t < 14 && !needTD) || (dn === 4 && !needTD) || (suddenDeath && dn >= 3))) {
           const d = 117 - spot; tick(5); plays++;
           return fin(rng() < clamp(CD.fg * (1.25 - (d - 20) * 0.012), 0.2, 0.97) ? 'FG' : 'MISS');
         }
-        if (dn === 4 && !(fd - spot <= 2 && spot >= 40) && !(clk.q >= 4 && lead < 0 && clk.t < QS * 1.2)) { tick(6); plays++; return fin('PUNT'); }
+        if (dn === 4 && !(fd - spot <= CD.go4 && spot >= 40) && !(clk.q >= 4 && lead < 0 && clk.t < QS * 1.2)) { tick(6); plays++; return fin('PUNT'); }
         const r = rng();
-        let g;
+        let g, stop = false;
         if (r < CD.loss) g = -1 - Math.floor(rng() * 5);
         else if (r < CD.loss + CD.big) g = 15 + Math.floor(rng() * 35);
+        else if (r < CD.loss + CD.big + CD.inc) { g = 0; stop = true; } // incomplete
         else g = Math.round(CD.g * (0.2 + 1.6 * rng()));
+        if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
-        tick((hurry ? 4 + rng() * 3 : burn ? 11 + rng() * 5 : 6 + rng() * 5) * QS / 120);
+        // same clock as the user: the play itself, then 4 more seconds after an in-bounds play before it stops for the next snap
+        const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF)) * QS / 120);
+        if (log) log.push({ g, stop, secs: +(c0 - clk.t).toFixed(2) });
         if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, 99); return fin(rng() < 0.6 ? 'INT' : 'FUMBLE'); }
         spot = Math.max(1, spot + g);
         if (spot >= 100) { spot = 100; return fin('TD'); }
@@ -4152,13 +4456,13 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (phase === 'pre') {
         if (intro > 0) { intro -= dt; if (intro <= 0) clearBanner(); }
-        if (clockRun && clock > 0) { clockTick(dt); if (clock <= 0) { endQuarter(() => toPre(false)); return; } }
+        if (clockRun && clock > 0) { runoffTick(dt); if (clock <= 0) { endQuarter(() => toPre(false)); return; } }
         playClock -= dt; if (playClock <= 0 && !tryMode) { delayOfGame(); return; }
         idle(dt); return;
       }
       if (phase === 'live') { liveStep(dt); return; }
       if (phase === 'dead') {
-        if (clockRun && clock > 0) clockTick(dt);
+        if (clockRun && clock > 0) runoffTick(dt);
         for (const p of everyone) { if (p.rag) continue; if (p !== closeP && p.pose !== 'celebrate') { p.vx *= Math.pow(0.04, dt); p.vz *= Math.pow(0.04, dt); } integrate(p, dt); }
         collide();
         if (closeP && deadTot - deadT > 0.5 && closeP.celType == null) { const c = closeP; if (c.rag) riseUp(c); c.rising = 0; c.face2 = 0; setPose(c, 'celebrate', true); c.celType = 2; }
@@ -4173,6 +4477,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'break') { brk.t -= dt; idle(dt); if (brk.t <= 0) { const f = brk.then; brk = null; clearBanner(); f(); } return; }
       if (phase === 'pat' || phase === 'over' || phase === 'splash' || phase === 'box') idle(dt);
     }
+    // between plays the clock only runs out the rest of the 4-second run-off, then stops for the next snap
+    function runoffTick(dt) { const d = Math.min(dt, Math.max(0, runoff)); if (d > 0) clockTick(d); runoff -= dt; if (runoff <= 0) { clockRun = false; boardDirty = true; } }
     function idle(dt) { for (const p of everyone) { if (p.rag) continue; p.vx *= 0.8; p.vz *= 0.8; integrate(p, dt); } }
     function liveStep(dt) {
       tPlay += dt;
@@ -4193,7 +4499,7 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (!loose && mode === 'aim' && OK.QB && ctrl !== OK.QB) staminaStep(OK.QB, dt, false);
       if (carrier && carrier === ctrl && mode === 'run') carrierStep(carrier, dt);
       else if (carrier) { if (carrier.wrapT > 0) wrapStep(carrier, dt); if (carrier.downAt && tPlay >= carrier.downAt) { carrier.downAt = 0; resolveDown(carrier); } if (phase !== 'live') return; }
-      if (target && target !== carrier) receiverDiveStep(target, dt);
+      for (const p of everyone) if (p.diveT > 0 && p !== carrier && !p.rag) receiverDiveStep(p, dt); // receivers and defenders laying out for a pass
       for (const p of everyone) integrate(p, dt);
       collide();
       const h = ball.holder;
@@ -4444,12 +4750,14 @@ gl_FragColor=vec4(c,1.0);}`;
       gl.uniform1f(P.u.uDirt, p.dirt || 0); gl.uniform3f(P.u.uDirtC, DIRTC[0], DIRTC[1], DIRTC[2]);
       gl.uniform1f(P.u.uSweat, clamp(elapsedT / 420, 0, 1) * 0.85); gl.uniform1f(P.u.uSeed, (p.num || 7) * 0.37);
       const g = p.gaze || camF; gl.uniform3f(P.u.uGaze, g[0], g[1], g[2]);
+      fxUniforms(P, p, performance.now() / 1000);
     }
     function skinCommon(P, p, mesh) {
       gl.uniform3f(P.u.uScale, p.lk.hs, p.lk.hs, p.lk.hs);
       gl.uniform1f(P.u.uVis, p.lk.visor ? 1 : 0); gl.uniform1f(P.u.uTowel, p.towel ? 1 : 0); gl.uniform1f(P.u.uMouth, p.mouth && (phase === 'pre' || phase === 'dead' || phase === 'break' || phase === 'cpu' || phase === 'splash') ? 1 : 0);
       if (P.u.uSway != null) gl.uniform1f(P.u.uSway, p.sway || 0);
-      gl.uniform4fv(P.u.uBones, packBones(p.bones, boneBuf, mesh.bind, p.lk.hs));
+      packBones(p.bones, boneBuf, mesh.bind, p.lk.hs); if (p.fxr && (p.fxr.b || p.fxr.g)) fxBones(p, boneBuf, mesh.bind, performance.now() / 1000);
+      gl.uniform4fv(P.u.uBones, boneBuf);
     }
     const LOD_D = 22; // full mesh within this many yards of the camera
     function bindMesh(P, mesh) {
@@ -4539,7 +4847,7 @@ gl_FragColor=vec4(c,1.0);}`;
         gl.drawArrays(gl.TRIANGLES, 0, G.crowdN); DRAWS.n++; DRAWS.tris += G.crowdN / 3; disableAll(P); }
       if (forEnv) return;
       // athletes, sideline figures
-      if (showPlayers) { const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false, everyone); if (extras.length) drawPlayers(S, false, quality === 0 ? extras.filter((p) => p.ref || p.crew) : extras); }
+      if (showPlayers) { const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false, everyone); if (extras.length) drawPlayers(S, false, quality === 0 ? extras.filter((p) => p.ref || p.crew) : extras); drawFxShells(S, everyone, now); }
       // grass blades around the camera target (full detail only)
       if (quality >= 2 && G.grass && showPlayers && !G.feedPass && WX !== 'snow') drawGrass(now);
       // dynamic lit geometry (ball, chains, confetti) then transparent markers
@@ -4547,6 +4855,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (dyn.n) { bindWorldAttribs(W, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; DRAWS.tris += dyn.n / 3; }
       gl.enable(gl.BLEND);
       if (tr.n) { gl.depthMask(false); worldMat(W, [0.5, 0, 0, 0], 0); bindWorldAttribs(W, G.tr, tr.f.subarray(0, tr.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, tr.n); gl.depthMask(true); DRAWS.n++; }
+      if (showPlayers) drawFxParts(W);
       disableAll(W);
     }
     function drawGrass(now) {
@@ -4589,6 +4898,7 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const q of parts) if (q.life > 0) { let m = mT(IDM, q.x, q.y, q.z); m = mRY(m, q.r); m = mRX(m, q.r * 0.7); if (q.sz) dyn.box(m, 0, 0, 0, q.sz, q.sz * 0.6, q.sz * 1.3, q.c); else dyn.box(m, 0, 0, 0, 0.22, 0.02, 0.14, q.c); }
       drawMarks(now);
       drawExtrasProps();
+      try { fxStep(Math.max(0, Math.min(dt, 0.1)), now); } catch (e) { if (!stepErrLogged) { stepErrLogged = true; console.error('blitz3d: fx error', e); } }
       if (showPlayers) contactBlobs();
       drawWeather(dt, now);
       if (boardDirty && ((now * 4) | 0) % 2 === 0) { boardDirty = false; try { boardCanvas(); gl.bindTexture(gl.TEXTURE_2D, G.board); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, boardC); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }
@@ -4596,7 +4906,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (atlasDirty) {
         atlasDirty = false;
         try { gl.bindTexture(gl.TEXTURE_2D, G.atlas); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas); }
-        catch (e) { SQL.forEach((q) => { if (q.photo) noPhoto(q); }); ag.clearRect(0, 0, 1024, 512); atlasDirty = true; }
+        catch (e) { SQL.forEach((q) => { if (q.photo) noPhoto(q); }); ag.clearRect(0, 0, 1024, NAMEY); atlasDirty = true; }
       }
       // ---- shadow cascades ----
       if (G.shadow) {
@@ -4729,9 +5039,11 @@ gl_FragColor=vec4(c,1.0);}`;
           tr.disc(lx, lz, rr, [1, 1, 1, 0.16], 0.055, 24);
           tr.ring(lx, lz, rr, rr + 0.4, s.over ? [1, 0.5, 0.2, 0.95] : [1, 1, 1, 0.95], 0.06, 28);
           tr.disc(lx, lz, 0.4, [1, 0.86, 0.1, 0.95], 0.065, 12);
-          const r = nearestRec(lx, lz, 9);
+          // the receiver this throw is for, and where he will be when it gets there (lead him: a ghost ring on his path)
+          const L = leadFor({ x: lx, z: lz }, arc, 9), r = L ? L.r : nearestRec(lx, lz, 9);
           aim.tgt = r;
           if (r) tr.ring(r.x, r.z, 0.95, 1.25, [0.17, 0.83, 0.42, 0.85], 0.05, 18);
+          if (L && Math.hypot(L.x - r.x, L.z - r.z) > 1.2) { tr.seg(r.x, r.z, L.x, L.z, 0.12, [0.17, 0.83, 0.42, 0.45], 0.05); tr.ring(L.x, L.z, 0.55, 0.75, [0.17, 0.83, 0.42, 0.75], 0.055, 16); }
         } else if (s && s.back) {
           const qb = OK.QB; tr.seg(qb.x, qb.z, qb.x + s.ux * 4, qb.z + s.uz * 4, 0.3, [1, 0.25, 0.3, 0.85], 0.05);
         }
@@ -4893,6 +5205,357 @@ gl_FragColor=vec4(c,1.0);}`;
         const z = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - 10 : chain.fd;
         p.reach = [sx, 1.35 * p.lk.hs, z];
       }
+    }
+    // =====================================================================================
+    // Card effects in the game: every card variant and every set maps to a look built from a small library of primitives:
+    // helmet props (small procedural meshes, lit, cast shadows), particle emitters that follow the player (sprites from a
+    // procedural atlas), kit / material looks in the skin shader (uFx modes), glow shells and head / body tweaks.
+    // Rarer parallels (and rarer variants) get bigger, brighter versions. Budgets: per player and global, smaller at LOW.
+    // =====================================================================================
+    // shader looks (FS_SKIN uFx.x)
+    const LOOK = { sepia: 1, cardboard: 2, chalk: 3, blueprint: 4, glass: 5, metal: 6, holo: 7, pixel: 8, glitch: 9, rainbow: 10, muscle: 11, void: 12, prism: 13, gray: 14, negative: 15, neon: 16, vhs: 17, ice: 18, glint: 19 };
+    const C3 = (h) => { const c = hex(h); return [c[0], c[1], c[2]]; };
+    // recipe: p prop, e [emitter...] (kind[:rate]), l look, c look colour, o glow shell colour, b bobble, m body tweak
+    const FXV = {
+      base: { e: ['dust'] }, team: { e: ['teamspark'] }, silver: { l: 'metal', c: '#cfd6e0', e: ['sparkle:silver'] }, action: { e: ['streak'] },
+      'spec-td': { e: ['flame'], o: '#ff7a1a' }, 'spec-pass': { e: ['handspark'] }, 'spec-int': { e: ['glove'] }, 'spec-def': { e: ['steam'] }, 'spec-play': { e: ['star'] },
+      gold: { l: 'metal', c: '#ffcc33', e: ['sparkle:gold'] }, holo: { l: 'prism', e: ['sparkle:holo'] }, spec: { p: 'star', e: ['sparkle:gold'], o: '#ffd23f' },
+      legend: { p: 'halo', l: 'metal', c: '#ffcc33', e: ['sparkle:gold'] }, allstar: { p: 'star', e: ['star'] }, clutch: { e: ['snow:ice'], o: '#7fd8ff', l: 'ice' },
+      icon: { p: 'crown', e: ['sparkle:gold'], o: '#ffe680' }, bench: { e: ['zzz'] }, trophy: { p: 'trophy' }, pizza: { p: 'pizza' }, cutout: { l: 'cardboard' },
+      bobble: { b: 1 }, pixel: { l: 'pixel', e: ['pixel'] }, snow: { p: 'snowflake', e: ['snow'] }, upside: { l: 'negative', e: ['qmark'] }, duck: { p: 'duck' },
+      built: { l: 'muscle', c: '#ff5a1f', m: 'built', e: ['steam'] }, throwback: { l: 'sepia' }, spooky: { p: 'pumpkin', e: ['wisp'] }, glitch: { l: 'glitch', e: ['glitch'], g: 1 },
+      goat: { p: 'crown', l: 'metal', c: '#ffcc33', e: ['sparkle:gold', 'star'], o: '#ffd23f' }, mythic: { e: ['star:purple'], o: '#b45cff', l: 'prism' },
+      dark: { l: 'void', c: '#7b2cff', e: ['void'] }, doh: { p: 'crown', l: 'metal', c: '#ffcc33', e: ['coin', 'sparkle:gold'], o: '#ffe066', b: 1 },
+      // body-type cards (their build comes through look.build; these add a small tell)
+      skinny: { e: ['streak'] }, heavy: { e: ['thump'] }, tall: { e: ['chevron'] }, short: { e: ['sparkle:silver'] }, beanpole: { e: ['streak', 'chevron'] },
+      stout: { e: ['thump'] }, giant: { e: ['thump', 'chevron'] }, pocket: { e: ['sparkle:holo'] },
+    };
+    const FXS = {
+      'picture-day': { e: ['flash'] }, 'hall-pass': { p: 'ticket' }, 'gym-class': { p: 'dodgeball', e: ['sweat'] }, 'science-fair': { p: 'beaker', e: ['bubble:green'] },
+      library: { p: 'book', e: ['qmark'] }, 'bus-ride': { e: ['exhaust'] },
+      'pajama-day': { p: 'nightcap', e: ['zzz'] }, 'crazy-hair': { p: 'hair' }, 'twin-day': { e: ['echo'] }, 'pep-rally': { e: ['confetti', 'note'] }, homecoming: { p: 'crown', e: ['confetti'] },
+      'color-war': { e: ['splat:team'] },
+      halloween: { p: 'pumpkin', e: ['ember'] }, turkey: { p: 'turkey' }, christmas: { p: 'santa', e: ['snow'] }, spring: { e: ['petal'] }, super: { p: 'trophy', e: ['confetti:gold'] },
+      'new-year': { e: ['firework'] },
+      galaxy: { e: ['star'], l: 'void', c: '#6c5cff' }, ocean: { e: ['bubble'] }, jungle: { e: ['leaf'] }, volcano: { e: ['ember'], o: '#ff4a00' }, arctic: { e: ['snow'], l: 'ice' },
+      desert: { e: ['sand'] },
+      chalkboard: { l: 'chalk', o: '#eafff2' }, blueprint: { l: 'blueprint' }, comic: { e: ['pow', 'splat:ink'] }, graffiti: { e: ['splat:paint'] }, 'stained-glass': { l: 'glass' },
+      origami: { p: 'crane' },
+      neon: { l: 'neon', c: '#ff4fe0', o: '#ff4fe0' }, 'pixel-plus': { l: 'pixel', e: ['pixel'] }, 'high-score': { e: ['coin', 'pixel'] }, circuit: { l: 'glint', c: '#33ff99', e: ['spark:green'] },
+      hologram: { l: 'holo', o: '#55e6ff' }, vhs: { l: 'vhs', e: ['static'] },
+      thunder: { e: ['bolt'] }, 'rainy-day': { p: 'cloud', e: ['rain'] }, sunshine: { p: 'sun', e: ['sparkle:gold'] }, tornado: { e: ['swirl'] }, rainbow: { e: ['rainbow'], l: 'rainbow' },
+      blizzard: { p: 'snowflake', e: ['snow', 'snow'] },
+      cereal: { p: 'cereal' }, nachos: { p: 'nacho' }, donut: { p: 'donut' }, 'hot-sauce': { p: 'hotsauce', e: ['ember'] }, popcorn: { p: 'popcorn', e: ['kernel'] },
+      smoothie: { p: 'smoothie' },
+      highlight: { e: ['flash', 'sparkle:gold'] }, 'film-room': { l: 'gray', e: ['static'] }, playbook: { l: 'chalk', e: ['xo'] }, captains: { p: 'star', e: ['sparkle:gold'] },
+      'all-mfl': { p: 'star', e: ['star'] }, 'hall-of-fame': { p: 'halo', l: 'metal', c: '#ffcc33', o: '#ffe680' },
+    };
+    const PAR_K = { base: 0.55, silver: 0.75, gold: 0.95, prism: 1.2, black: 1.45 };
+    const RAR_K = { common: 0.55, rare: 0.75, epic: 0.95, legendary: 1.2, mythic: 1.45, dark: 1.5, doh: 1.8 };
+    // what a card does in the game
+    function fxRecipe(fx) {
+      if (!fx) return null;
+      let r = null, k = RAR_K[fx.rarity] || 0.6;
+      if (fx.set) {
+        r = Object.assign({}, FXS[fx.set] || { e: ['sparkle'] });
+        k = PAR_K[fx.par] || k;
+        // parallels: silver / gold / black chrome on the kit, prism shimmer, plus the set's own look
+        // a set with its own kit look keeps it; its silver / gold parallel adds a matching glint instead
+        if (fx.par === 'silver') { if (!r.l) { r.l = 'metal'; r.c = '#cfd6e0'; } else r.e = (r.e || []).concat(['sparkle:silver']); }
+        if (fx.par === 'gold') { if (!r.l) { r.l = 'metal'; r.c = '#ffcc33'; } else r.e = (r.e || []).concat(['sparkle:gold']); }
+        if (fx.par === 'black' && !r.l) { r.l = 'metal'; r.c = '#26222e'; }
+        if (fx.par === 'prism') { if (!r.l) r.l = 'prism'; r.e = (r.e || []).concat(['sparkle:holo']); }
+        if (fx.par === 'black') { r.e = (r.e || []).concat(['sparkle:gold']); if (!r.o) r.o = '#ffd23f'; }
+      } else {
+        const v = String(fx.variant || '');
+        r = FXV[v] || (v.indexOf('spec-') === 0 ? FXV['spec-play'] : null);
+        if (v === 'spec' && fx.spec && FXV['spec-' + fx.spec]) r = Object.assign({}, FXV['spec-' + fx.spec], { p: 'star', o: '#ffd23f' });
+        if (!r) r = { e: [k >= 1.2 ? 'star' : k >= 0.9 ? 'sparkle:gold' : 'sparkle'] }; // a card we have never heard of: a rarity-sized sparkle
+        r = Object.assign({}, r);
+      }
+      r.k = k;
+      return r;
+    }
+    // ---------- props: shapes built once in a local frame (origin on top of the helmet, y up, z forward), drawn per frame into dyn ----------
+    const PROPS = {};
+    const pb = new Batch(2000);
+    function lathe(prof, segs, c, y0, mod, ox, oz) { // revolve [[r, y], ...] around a vertical axis at (ox, oz)
+      for (let i = 0; i < prof.length - 1; i++) for (let j = 0; j < segs; j++) {
+        const a0 = j / segs * 6.2832, a1 = (j + 1) / segs * 6.2832, [r0, y0a] = prof[i], [r1, y1] = prof[i + 1];
+        const m0 = mod ? mod(a0) : 1, m1 = mod ? mod(a1) : 1, ny = -(r1 - r0), nr = y1 - y0a, nl = Math.hypot(ny, nr) || 1;
+        const P = (r, y, a, m) => [(ox || 0) + Math.cos(a) * r * m, y + (y0 || 0), (oz || 0) + Math.sin(a) * r * m], N = (a) => [Math.cos(a) * nr / nl, ny / nl, Math.sin(a) * nr / nl];
+        const A = P(r0, y0a, a0, m0), Bq = P(r0, y0a, a1, m1), Cq = P(r1, y1, a1, m1), D = P(r1, y1, a0, m0), na = N(a0), nb = N(a1);
+        for (const [v, n] of [[A, na], [D, na], [Cq, nb], [A, na], [Cq, nb], [Bq, nb]]) pb.v(v[0], v[1], v[2], n[0], n[1], n[2], c, 0.5, 0.5);
+      }
+    }
+    const ell = (x, y, z, rx, ry, rz, c, s) => pb.ellipsoid(mT(IDM, x, y, z), rx, ry, rz, c, s || 8, 6);
+    const bx = (x, y, z, sx, sy, sz, c, ry, rx, rz) => { let m = mT(IDM, x, y, z); if (ry) m = mRY(m, ry); if (rx) m = mRX(m, rx); if (rz) m = mRZ(m, rz); pb.box(m, 0, 0, 0, sx, sy, sz, c); };
+    function torus(R, r, c, y, segs) { for (let j = 0; j < segs; j++) { const a = j / segs * 6.2832; ell(Math.cos(a) * R, y, Math.sin(a) * R, r, r, r, c, 5); } }
+    function prism3(pts, h, c, y) { // a flat triangle slab (x,z points) of thickness h
+      const top = pts.map((p) => [p[0], y + h, p[1]]), bot = pts.map((p) => [p[0], y, p[1]]);
+      pb.quad(top[0], top[1], top[2], top[2], [0, 1, 0], c); pb.quad(bot[0], bot[2], bot[1], bot[1], [0, -1, 0], c);
+      for (let i = 0; i < 3; i++) { const j = (i + 1) % 3, ex = top[j][0] - top[i][0], ez = top[j][2] - top[i][2], l = Math.hypot(ex, ez) || 1; pb.quad(bot[i], bot[j], top[j], top[i], [ez / l, 0, -ex / l], c); }
+    }
+    function star5(R, r, th, c, y, upright) {
+      const pts = []; for (let i = 0; i < 10; i++) { const a = i / 10 * 6.2832 + Math.PI / 2, rr = i % 2 ? r : R; pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
+      for (let i = 0; i < 10; i++) { const p = pts[i], q = pts[(i + 1) % 10]; const T = (a) => (upright ? [a[0], y + a[1] + R, 0] : [a[0], y, a[1]]); const o = T([0, 0]), A = T(p), Bq = T(q), f = upright ? [0, 0, th] : [0, th, 0];
+        pb.quad(v3a(o, f), v3a(A, f), v3a(Bq, f), v3a(Bq, f), upright ? [0, 0, 1] : [0, 1, 0], c); pb.quad(o, Bq, A, A, upright ? [0, 0, -1] : [0, -1, 0], c); }
+    }
+    // tilt everything built since n0 about the X axis (props that should face the camera)
+    function tilt(n0, a) { const c = Math.cos(a), sn = Math.sin(a), f = pb.f; for (let i = n0; i < pb.n; i++) { const o = i * 12; for (const k of [0, 3]) { const y = f[o + k + 1], z = f[o + k + 2]; f[o + k + 1] = y * c - z * sn; f[o + k + 2] = y * sn + z * c; } f[o + 1] += 0.06; } }
+    const COLS = { gold: [1, 0.78, 0.2, 1], red: [0.85, 0.12, 0.1, 1], white: [0.95, 0.95, 0.92, 1], black: [0.06, 0.06, 0.07, 1], yellow: [1, 0.86, 0.15, 1], orange: [1, 0.48, 0.08, 1], green: [0.15, 0.6, 0.2, 1], brown: [0.45, 0.26, 0.12, 1], pink: [1, 0.55, 0.75, 1], blue: [0.2, 0.45, 0.95, 1], cream: [1, 0.93, 0.7, 1], gem: [0.2, 0.5, 1, 1] };
+    const SHAPES = {
+      pizza: () => { const n0 = pb.n; prism3([[-0.15, -0.07], [0.15, -0.07], [0, 0.24]], 0.025, COLS.yellow, 0.005); bx(0, 0.025, -0.075, 0.32, 0.045, 0.05, COLS.brown); for (const [x, z] of [[-0.03, 0.0], [0.035, 0.03], [0, 0.08]]) lathe([[0.034, 0.03], [0.034, 0.035], [0, 0.035]], 8, COLS.red, 0, null, x * 1.35, z * 1.35); tilt(n0, -1.1); }, // a slice stuck on the helmet like a fin: point up, toppings to the back (the game camera sits behind)
+      duck: () => { ell(0, 0.07, -0.01, 0.1, 0.07, 0.12, COLS.yellow); ell(0, 0.16, 0.06, 0.06, 0.06, 0.06, COLS.yellow); bx(0, 0.15, 0.13, 0.05, 0.02, 0.05, COLS.orange); for (const s of [-1, 1]) ell(s * 0.035, 0.18, 0.1, 0.012, 0.012, 0.012, COLS.black, 5); ell(0, 0.1, -0.12, 0.04, 0.03, 0.04, COLS.yellow, 6); },
+      trophy: () => { lathe([[0.05, 0], [0.05, 0.02], [0.015, 0.03], [0.015, 0.08], [0.03, 0.09], [0.08, 0.15], [0.085, 0.2], [0.07, 0.2], [0, 0.12]], 10, COLS.gold); for (const s of [-1, 1]) for (let i = 0; i < 6; i++) { const a = -1.3 + i * 0.52; ell(s * (0.085 + Math.cos(a) * 0.035), 0.15 + Math.sin(a) * 0.035, 0, 0.011, 0.011, 0.011, COLS.gold, 4); } },
+      crown: () => { lathe([[0.11, 0], [0.11, 0.06], [0.1, 0.06], [0.1, 0]], 12, COLS.gold); for (let i = 0; i < 6; i++) { const a = i / 6 * 6.2832; lathe([[0.026, 0], [0, 0.075]], 5, COLS.gold, 0.055, null, Math.cos(a) * 0.105, Math.sin(a) * 0.105); ell(Math.cos(a + 0.52) * 0.112, 0.03, Math.sin(a + 0.52) * 0.112, 0.014, 0.014, 0.014, i % 2 ? COLS.red : COLS.gem, 5); } },
+      pumpkin: () => { lathe([[0, 0], [0.09, 0.02], [0.13, 0.07], [0.12, 0.13], [0.06, 0.17], [0, 0.17]], 14, COLS.orange, 0, (a) => 1 + 0.08 * Math.cos(a * 8)); bx(0, 0.2, 0, 0.025, 0.06, 0.025, COLS.green); },
+      snowflake: () => { for (let i = 0; i < 3; i++) bx(0, 0.13, 0, 0.26, 0.022, 0.012, [0.85, 0.95, 1.2, 1], 0, 0, i * Math.PI / 3); ell(0, 0.13, 0, 0.03, 0.03, 0.015, [0.9, 1, 1.3, 1], 6); bx(0, 0.02, 0, 0.02, 0.06, 0.02, [0.8, 0.9, 1, 1]); },
+      cereal: () => { lathe([[0, 0], [0.06, 0], [0.11, 0.05], [0.12, 0.09], [0.11, 0.09], [0.05, 0.02], [0, 0.02]], 12, COLS.white); lathe([[0, 0.07], [0.105, 0.07]], 12, [0.98, 0.97, 0.92, 1]); for (let i = 0; i < 7; i++) { const a = i * 2.3; ell(Math.cos(a) * 0.06, 0.08, Math.sin(a) * 0.06, 0.018, 0.012, 0.018, [COLS.red, COLS.yellow, COLS.green, COLS.orange, COLS.pink][i % 5], 5); } },
+      nacho: () => { lathe([[0.2, 0], [0.2, 0.012], [0.08, 0.02], [0.07, 0.12], [0.03, 0.15], [0, 0.15]], 14, COLS.yellow); torus(0.2, 0.012, COLS.orange, 0.012, 12); prism3([[-0.05, 0.12], [0.05, 0.12], [0, 0.22]], 0.012, [1, 0.75, 0.25, 1], 0.03); },
+      donut: () => { torus(0.075, 0.045, [0.8, 0.55, 0.3, 1], 0.05, 12); torus(0.075, 0.04, COLS.pink, 0.065, 12); for (let i = 0; i < 8; i++) { const a = i * 0.8; bx(Math.cos(a) * 0.08, 0.1, Math.sin(a) * 0.08, 0.02, 0.008, 0.008, [COLS.yellow, COLS.blue, COLS.white, COLS.green][i % 4], a); } },
+      hotsauce: () => { lathe([[0.045, 0], [0.045, 0.14], [0.02, 0.18], [0.015, 0.22], [0, 0.22]], 10, COLS.red); lathe([[0.017, 0.22], [0.017, 0.26], [0, 0.26]], 8, COLS.white); lathe([[0.047, 0.05], [0.047, 0.1]], 10, COLS.cream); },
+      popcorn: () => { lathe([[0.05, 0], [0.085, 0.18], [0, 0.18]], 12, COLS.white, 0, (a) => 1 + 0.02 * Math.sign(Math.sin(a * 6))); lathe([[0.051, 0.0], [0.086, 0.18]], 6, COLS.red); for (let i = 0; i < 9; i++) { const a = i * 2.1, r = 0.04 + (i % 3) * 0.015; ell(Math.cos(a) * r, 0.19 + (i % 2) * 0.02, Math.sin(a) * r, 0.022, 0.02, 0.022, COLS.cream, 5); } },
+      crane: () => { prism3([[-0.16, 0], [0.16, 0], [0, 0.06]], 0.006, COLS.white, 0.1); prism3([[-0.03, -0.12], [0.03, -0.12], [0, 0.14]], 0.04, COLS.pink, 0.06); prism3([[-0.01, 0.12], [0.01, 0.12], [0, 0.22]], 0.06, COLS.pink, 0.08); },
+      turkey: () => { ell(0, 0.08, 0, 0.09, 0.075, 0.1, COLS.brown); ell(0, 0.15, 0.08, 0.035, 0.04, 0.035, [0.6, 0.35, 0.2, 1], 6); bx(0, 0.15, 0.12, 0.02, 0.015, 0.03, COLS.orange); ell(0, 0.13, 0.11, 0.012, 0.03, 0.012, COLS.red, 5); for (let i = 0; i < 7; i++) { const a = -1.2 + i * 0.4; bx(Math.sin(a) * 0.1, 0.16 + Math.cos(a) * 0.08, -0.1, 0.05, 0.16, 0.012, [COLS.red, COLS.orange, COLS.yellow, COLS.brown][i % 4], 0, 0.3); } },
+      santa: () => { lathe([[0.15, 0.0], [0.1, 0.12], [0.05, 0.22], [0.0, 0.26]], 12, COLS.red); torus(0.15, 0.03, COLS.white, 0.01, 14); ell(0.03, 0.27, -0.06, 0.035, 0.035, 0.035, COLS.white, 6); },
+      gradcap: () => { lathe([[0.1, 0], [0.1, 0.05], [0, 0.05]], 10, COLS.black); bx(0, 0.06, 0, 0.3, 0.015, 0.3, COLS.black, 0.785); bx(0.1, 0.02, 0.1, 0.01, 0.09, 0.01, COLS.yellow); },
+      star: () => { star5(0.11, 0.045, 0.03, COLS.gold, 0.03, true); bx(0, 0.02, 0, 0.02, 0.05, 0.02, COLS.gold); },
+      halo: () => { torus(0.13, 0.016, [1.3, 1.05, 0.4, 1], 0.12, 18); },
+      ticket: () => { bx(0, 0.1, 0, 0.18, 0.11, 0.01, COLS.yellow, 0.2); bx(0, 0.1, 0.007, 0.12, 0.012, 0.005, COLS.black, 0.2); },
+      dodgeball: () => { ell(0, 0.1, 0, 0.1, 0.1, 0.1, [0.85, 0.15, 0.15, 1], 10); },
+      beaker: () => { lathe([[0, 0], [0.09, 0.0], [0.09, 0.02], [0.03, 0.14], [0.03, 0.2], [0.035, 0.2], [0, 0.2]], 10, [0.75, 0.9, 1, 1]); lathe([[0, 0.02], [0.085, 0.02], [0.05, 0.08], [0, 0.08]], 10, [0.3, 1.3, 0.4, 1]); },
+      book: () => { bx(0, 0.04, 0, 0.2, 0.05, 0.15, COLS.blue, 0.3); bx(0.004, 0.04, 0, 0.19, 0.04, 0.152, COLS.cream, 0.3); },
+      nightcap: () => { lathe([[0.15, 0], [0.12, 0.1], [0.06, 0.2], [0, 0.24]], 10, [0.35, 0.45, 0.9, 1]); lathe([[0.135, 0.06], [0.11, 0.12]], 10, COLS.white); ell(0, 0.25, -0.08, 0.035, 0.035, 0.035, COLS.white, 6); },
+      hair: () => { const cs = [COLS.pink, COLS.blue, COLS.green, COLS.yellow, COLS.orange]; for (let i = 0; i < 10; i++) { const a = i * 0.63; const m = mRX(mRY(mT(IDM, Math.cos(a) * 0.07, 0.0, Math.sin(a) * 0.07), a), 0.5 * Math.cos(i)); pb.box(m, 0, 0.08, 0, 0.025, 0.17, 0.025, cs[i % 5]); } },
+      cloud: () => { for (const [x, y, r] of [[0, 0.32, 0.08], [0.08, 0.3, 0.065], [-0.08, 0.3, 0.065], [0.03, 0.37, 0.06]]) ell(x, y, 0, r, r * 0.8, r, [0.8, 0.82, 0.88, 1], 7); },
+      sun: () => { ell(0, 0.14, 0, 0.07, 0.07, 0.07, [1.6, 1.2, 0.3, 1], 8); for (let i = 0; i < 8; i++) { const a = i / 8 * 6.2832; bx(Math.cos(a) * 0.11, 0.14 + Math.sin(a) * 0.11, 0, 0.05, 0.016, 0.016, [1.6, 1.0, 0.2, 1], 0, 0, a); } },
+      smoothie: () => { lathe([[0.045, 0], [0.06, 0.16], [0, 0.16]], 10, [0.65, 0.95, 0.3, 1]); lathe([[0.062, 0.16], [0.062, 0.175], [0, 0.175]], 10, COLS.white); bx(0.02, 0.23, 0, 0.012, 0.12, 0.012, COLS.pink, 0, 0.25); },
+    };
+    function propShape(name) {
+      if (PROPS[name]) return PROPS[name];
+      pb.n = 0; try { SHAPES[name](); } catch (e) { pb.n = 0; }
+      return (PROPS[name] = pb.f.slice(0, pb.n * 12));
+    }
+    function emitProp(name, m, ox, oy, oz, sc) {
+      const f = propShape(name), n = f.length / 12; if (!n) return;
+      dyn.grow(n); const d = dyn.f;
+      for (let i = 0; i < n; i++) {
+        const o = i * 12, x = ox + f[o] * sc, y = oy + f[o + 1] * sc, z = oz + f[o + 2] * sc, nx = f[o + 3], ny = f[o + 4], nz = f[o + 5], w = dyn.n * 12;
+        d[w] = m[0] * x + m[1] * y + m[2] * z + m[3]; d[w + 1] = m[4] * x + m[5] * y + m[6] * z + m[7]; d[w + 2] = m[8] * x + m[9] * y + m[10] * z + m[11];
+        d[w + 3] = m[0] * nx + m[1] * ny + m[2] * nz; d[w + 4] = m[4] * nx + m[5] * ny + m[6] * nz; d[w + 5] = m[8] * nx + m[9] * ny + m[10] * nz;
+        d[w + 6] = f[o + 6]; d[w + 7] = f[o + 7]; d[w + 8] = f[o + 8]; d[w + 9] = 1; d[w + 10] = 0.5; d[w + 11] = 0.5; dyn.n++;
+      }
+    }
+    // ---------- particle sprites: a 4x4 atlas drawn once ----------
+    const SPR = { sparkle: 0, star: 1, heart: 2, note: 3, qmark: 4, snow: 5, leaf: 6, bubble: 7, dot: 8, square: 9, smoke: 10, splat: 11, z: 12, bolt: 13, drop: 14, petal: 15 };
+    function spriteCanvas() {
+      const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+      const cell = (k, f) => { g.save(); g.translate((k % 4) * 64 + 32, Math.floor(k / 4) * 64 + 32); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; f(); g.restore(); };
+      const starP = (n, R, r) => { g.beginPath(); for (let i = 0; i < n * 2; i++) { const a = i / (n * 2) * 6.2832 - Math.PI / 2, rr = i % 2 ? r : R; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.fill(); };
+      const soft = (r, a) => { const gr = g.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(-32, -32, 64, 64); };
+      cell(0, () => { soft(14, 0.8); starP(4, 30, 5); });
+      cell(1, () => { starP(5, 28, 12); });
+      cell(2, () => { g.beginPath(); g.moveTo(0, 24); g.bezierCurveTo(-34, 2, -18, -26, 0, -10); g.bezierCurveTo(18, -26, 34, 2, 0, 24); g.fill(); });
+      cell(3, () => { g.beginPath(); g.ellipse(-8, 16, 10, 8, -0.4, 0, 6.3); g.fill(); g.fillRect(0, -24, 5, 40); g.beginPath(); g.moveTo(5, -24); g.quadraticCurveTo(22, -16, 16, 0); g.lineTo(13, -2); g.quadraticCurveTo(16, -12, 5, -14); g.fill(); });
+      cell(4, () => { g.font = '900 52px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 0, 3); });
+      cell(5, () => { g.lineWidth = 4; g.lineCap = 'round'; for (let i = 0; i < 6; i++) { g.save(); g.rotate(i * Math.PI / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -26); g.moveTo(0, -15); g.lineTo(-8, -22); g.moveTo(0, -15); g.lineTo(8, -22); g.stroke(); g.restore(); } });
+      cell(6, () => { g.rotate(0.6); g.beginPath(); g.ellipse(0, 0, 12, 26, 0, 0, 6.3); g.fill(); g.globalCompositeOperation = 'destination-out'; g.fillRect(-1, -24, 2, 48); });
+      cell(7, () => { g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 22, 0, 6.3); g.stroke(); soft(22, 0.25); g.beginPath(); g.arc(-8, -8, 5, 0, 6.3); g.fill(); });
+      cell(8, () => { soft(30, 1); });
+      cell(9, () => { g.fillRect(-20, -20, 40, 40); });
+      cell(10, () => { const gr = g.createRadialGradient(0, 0, 4, 0, 0, 30); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(-32, -32, 64, 64); });
+      cell(11, () => { g.beginPath(); for (let i = 0; i < 14; i++) { const a = i / 14 * 6.2832, r = i % 2 ? 12 : 26 + (i % 3) * 3; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.fill(); });
+      cell(12, () => { g.font = '900 50px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Z', 0, 3); });
+      cell(13, () => { g.beginPath(); g.moveTo(6, -30); g.lineTo(-12, 4); g.lineTo(2, 4); g.lineTo(-6, 30); g.lineTo(14, -6); g.lineTo(0, -6); g.closePath(); g.fill(); });
+      cell(14, () => { g.beginPath(); g.moveTo(0, -24); g.quadraticCurveTo(16, 6, 0, 18); g.quadraticCurveTo(-16, 6, 0, -24); g.fill(); });
+      cell(15, () => { g.beginPath(); g.ellipse(0, 0, 10, 22, 0.5, 0, 6.3); g.fill(); });
+      return c;
+    }
+    // ---------- particles ----------
+    const fxParts = [], fxAdd = new Batch(3000), fxAlp = new Batch(1500);
+    const PBUD = () => (quality >= 2 ? 360 : quality === 1 ? 240 : 80);
+    // emitter kinds: sprite, colour, additive?, where (head/hands/feet/body/trail), motion
+    const EMIT = {
+      dust: { s: 'smoke', c: [0.7, 0.62, 0.5, 0.55], add: 0, at: 'feet', rate: 6, run: 1, life: 0.7, sz: 0.32, vy: 0.5, grow: 1 },
+      teamspark: { s: 'sparkle', team: 1, add: 1, at: 'body', rate: 9, life: 0.7, sz: 0.24, vy: 0.3 },
+      sparkle: { s: 'sparkle', c: [1.4, 1.4, 1.5, 1], add: 1, at: 'body', rate: 6, life: 0.6, sz: 0.2, vy: 0.4 },
+      'sparkle:silver': { s: 'sparkle', c: [1.3, 1.4, 1.6, 1], add: 1, at: 'body', rate: 6, life: 0.6, sz: 0.2, vy: 0.4 },
+      'sparkle:gold': { s: 'sparkle', c: [2.0, 1.5, 0.4, 1], add: 1, at: 'body', rate: 7, life: 0.6, sz: 0.22, vy: 0.4 },
+      'sparkle:holo': { s: 'sparkle', rainbow: 1, add: 1, at: 'body', rate: 7, life: 0.6, sz: 0.22, vy: 0.4 },
+      streak: { s: 'dot', c: [1.5, 1.5, 1.7, 0.7], add: 1, at: 'trail', rate: 18, run: 1, life: 0.3, sz: 0.14, stretch: 1 },
+      flame: { s: 'dot', c: [2.2, 0.9, 0.2, 0.8], add: 1, at: 'trail', rate: 16, run: 1, life: 0.35, sz: 0.22, vy: 0.8, shrink: 1 },
+      handspark: { s: 'sparkle', c: [1.6, 1.4, 0.6, 1], add: 1, at: 'hands', rate: 8, life: 0.4, sz: 0.12, vy: 0.2 },
+      glove: { s: 'dot', c: [0.4, 1.4, 2.0, 0.8], add: 1, at: 'hands', rate: 10, life: 0.35, sz: 0.16 },
+      steam: { s: 'smoke', c: [1, 0.9, 0.9, 0.35], add: 0, at: 'head', rate: 4, life: 0.9, sz: 0.2, vy: 0.9, grow: 1 },
+      star: { s: 'star', c: [2.0, 1.7, 0.6, 1], add: 1, at: 'body', rate: 4, life: 0.8, sz: 0.18, vy: 0.5, spin: 1 },
+      'star:purple': { s: 'star', c: [1.4, 0.6, 2.2, 1], add: 1, at: 'body', rate: 5, life: 0.8, sz: 0.18, vy: 0.5, spin: 1 },
+      snow: { s: 'snow', c: [1.3, 1.4, 1.6, 0.9], add: 1, at: 'above', rate: 6, life: 1.4, sz: 0.13, vy: -0.6, spin: 1 },
+      'snow:ice': { s: 'snow', c: [0.7, 1.4, 2.0, 0.9], add: 1, at: 'body', rate: 5, life: 1, sz: 0.13, vy: 0.1, spin: 1 },
+      zzz: { s: 'z', c: [1.2, 1.2, 1.4, 0.9], add: 0, at: 'head', rate: 1.5, life: 1.6, sz: 0.18, vy: 0.5, idle: 1 },
+      pixel: { s: 'square', pal: [[0.3, 1.6, 0.4], [1.6, 1.4, 0.2], [0.3, 0.8, 1.8], [1.8, 0.3, 0.6]], add: 1, at: 'body', rate: 9, life: 0.6, sz: 0.09, vy: 0.2 },
+      qmark: { s: 'qmark', c: [1.4, 1.3, 0.5, 1], add: 0, at: 'head', rate: 1.6, life: 1.3, sz: 0.2, vy: 0.4, idle: 1 },
+      wisp: { s: 'smoke', c: [0.4, 1.6, 0.6, 0.5], add: 1, at: 'body', rate: 5, life: 0.9, sz: 0.22, vy: 0.5, grow: 1 },
+      glitch: { s: 'square', pal: [[1.8, 0.1, 1.2], [0.1, 1.6, 1.8], [1.5, 1.5, 1.5]], add: 1, at: 'body', rate: 12, life: 0.15, sz: 0.14, jit: 1 },
+      void: { s: 'smoke', c: [0.04, 0.0, 0.08, 0.7], add: 0, at: 'body', rate: 8, life: 1, sz: 0.3, vy: 0.3, grow: 1 },
+      coin: { s: 'dot', c: [2.0, 1.5, 0.3, 1], add: 1, at: 'head', rate: 7, life: 1, sz: 0.1, vy: 2.2, grav: 1, spread: 1.2 },
+      thump: { s: 'smoke', c: [0.6, 0.55, 0.45, 0.45], add: 0, at: 'feet', rate: 5, run: 1, life: 0.5, sz: 0.3, grow: 1 },
+      chevron: { s: 'sparkle', c: [0.8, 1.6, 1.0, 0.9], add: 1, at: 'above', rate: 3, life: 0.6, sz: 0.14, vy: 1.2 },
+      flash: { s: 'sparkle', c: [3, 3, 3, 1], add: 1, at: 'around', rate: 3.5, life: 0.18, sz: 0.6 },
+      sweat: { s: 'drop', c: [0.7, 0.85, 1.2, 0.8], add: 0, at: 'head', rate: 4, run: 1, life: 0.6, sz: 0.09, vy: 1, grav: 1, spread: 1 },
+      'bubble:green': { s: 'bubble', c: [0.5, 1.6, 0.6, 0.8], add: 1, at: 'head', rate: 5, life: 1, sz: 0.12, vy: 0.7 },
+      bubble: { s: 'bubble', c: [0.6, 1.2, 1.8, 0.8], add: 1, at: 'body', rate: 7, life: 1.1, sz: 0.13, vy: 0.8, wob: 1 },
+      exhaust: { s: 'smoke', c: [0.3, 0.3, 0.33, 0.7], add: 0, at: 'feet', rate: 8, run: 1, life: 0.9, sz: 0.32, vy: 0.5, grow: 1 },
+      echo: { s: 'smoke', team: 1, add: 1, at: 'trail', rate: 10, run: 1, life: 0.35, sz: 0.45 },
+      confetti: { s: 'square', pal: [[1.6, 0.3, 0.3], [0.3, 1.4, 0.5], [0.3, 0.6, 1.8], [1.7, 1.5, 0.3], [1.5, 0.4, 1.5]], add: 0, at: 'above', rate: 9, life: 1.3, sz: 0.07, vy: -0.4, spin: 1, wob: 1 },
+      'confetti:gold': { s: 'square', pal: [[2.0, 1.5, 0.3], [1.6, 1.6, 1.7]], add: 1, at: 'above', rate: 9, life: 1.3, sz: 0.07, vy: -0.4, spin: 1, wob: 1 },
+      'splat:team': { s: 'splat', team: 1, add: 0, at: 'feet', rate: 3, run: 1, life: 1.4, sz: 0.3, flat: 1 },
+      'splat:ink': { s: 'splat', c: [0.03, 0.03, 0.05, 0.9], add: 0, at: 'feet', rate: 3, run: 1, life: 1.2, sz: 0.3, flat: 1 },
+      'splat:paint': { s: 'splat', pal: [[1.6, 0.2, 1.2], [0.2, 1.5, 1.6], [1.7, 1.5, 0.2], [0.4, 1.6, 0.3]], add: 0, at: 'feet', rate: 3, run: 1, life: 1.4, sz: 0.32, flat: 1 },
+      ember: { s: 'dot', c: [2.4, 0.8, 0.15, 1], add: 1, at: 'body', rate: 8, life: 0.8, sz: 0.08, vy: 1.2, wob: 1 },
+      petal: { s: 'petal', c: [1.6, 0.8, 1.1, 0.9], add: 0, at: 'above', rate: 5, life: 1.4, sz: 0.11, vy: -0.4, spin: 1, wob: 1 },
+      firework: { s: 'sparkle', pal: [[2, 0.4, 0.4], [0.4, 2, 0.6], [0.5, 0.7, 2.2], [2, 1.8, 0.4]], add: 1, at: 'burst', rate: 6, life: 0.7, sz: 0.17 },
+      leaf: { s: 'leaf', c: [0.35, 1.2, 0.3, 1], add: 0, at: 'above', rate: 4, life: 1.4, sz: 0.13, vy: -0.4, spin: 1, wob: 1 },
+      sand: { s: 'smoke', c: [1.0, 0.82, 0.5, 0.6], add: 0, at: 'feet', rate: 9, run: 1, life: 0.8, sz: 0.28, vy: 0.4, grow: 1 },
+      pow: { s: 'star', c: [2.0, 1.6, 0.2, 1], add: 0, at: 'around', rate: 1.2, life: 0.35, sz: 0.4, spin: 1 },
+      static: { s: 'square', pal: [[1.4, 1.4, 1.4], [0.5, 0.5, 0.5]], add: 1, at: 'body', rate: 14, life: 0.1, sz: 0.06, jit: 1 },
+      'spark:green': { s: 'sparkle', c: [0.3, 2.0, 0.8, 1], add: 1, at: 'body', rate: 6, life: 0.3, sz: 0.12 },
+      bolt: { s: 'bolt', c: [1.8, 1.8, 3.0, 1], add: 1, at: 'around', rate: 2.5, life: 0.12, sz: 0.55 },
+      rain: { s: 'drop', c: [0.6, 0.75, 1.2, 0.8], add: 0, at: 'cloud', rate: 12, life: 0.45, sz: 0.06, vy: -3.5 },
+      swirl: { s: 'smoke', c: [0.85, 0.88, 0.95, 0.65], add: 0, at: 'swirl', rate: 16, life: 0.8, sz: 0.24 },
+      rainbow: { s: 'dot', rainbow: 1, add: 1, at: 'trail', rate: 22, run: 1, life: 0.5, sz: 0.2 },
+      kernel: { s: 'dot', c: [1.4, 1.3, 1.0, 1], add: 0, at: 'head', rate: 3, life: 0.8, sz: 0.06, vy: 2, grav: 1, spread: 1 },
+      xo: { s: 'qmark', c: [1.4, 1.5, 1.4, 1], add: 0, at: 'head', rate: 0, life: 1, sz: 0.2 },
+    };
+    EMIT.note = { s: 'note', pal: [[1.8, 1.6, 0.4], [1.4, 0.6, 1.8], [0.5, 1.5, 1.8]], add: 0, at: 'head', rate: 2.5, life: 1.3, sz: 0.16, vy: 0.6, wob: 1 };
+    EMIT.xo = { s: 'square', c: [1.5, 1.6, 1.5, 0.9], add: 1, at: 'feet', rate: 7, run: 1, life: 1.2, sz: 0.17, flat: 1 }; // chalk marks left on the turf
+    const TEAMC = () => [OFFC.jer[0] * 1.3 + 0.55, OFFC.jer[1] * 1.3 + 0.55, OFFC.jer[2] * 1.3 + 0.55, 1]; // team colour, lifted so it reads against the kit
+    function fxSetup(p) { // called from mkP: resolve the card into a recipe and its strength
+      const r = fxRecipe(p.fx); p.fxr = r; p.fxAcc = null;
+      if (!r) return;
+      p.fxK = clamp(r.k, 0.4, 2);
+      if (r.m === 'built') { p.body = Object.assign({}, p.body, { arms: q20(p.body.arms * 1.22), sw: q20(p.body.sw * 1.06), bulk: q20(p.body.bulk * 1.05) }); p.lk.sw = p.body.sw; } // skeleton shoulders match the mesh
+    }
+    const hpt = (p, b, x, y, z) => mPt(p.bones[b], x * p.lk.hs, y * p.lk.hs, z * p.lk.hs);
+    function fxStep(dt, now) {
+      fxAdd.n = 0; fxAlp.n = 0;
+      if (phase === 'box') { fxParts.length = 0; return; }
+      const budget = PBUD(), live = phase !== 'splash' && phase !== 'cpu';
+      let total = fxParts.length;
+      const all = extras.length ? everyone : everyone;
+      for (const p of all) {
+        const r = p.fxr; if (!r || !p.bones) continue;
+        const hs = p.lk.hs, hm = p.bones[B.head], K = p.fxK || 0.6;
+        // helmet prop
+        if (r.p) { const bob = p.fxBob || 1; emitProp(r.p, hm, 0, (0.35 + (r.p === 'halo' ? 0.04 : 0)) * hs * bob, -0.01 * hs, hs * bob * (1.1 + 0.3 * Math.min(K, 1.4))); }
+        if (!r.e || !dt) continue;
+        const camD = Math.hypot(p.x - cam.e[0], p.z - cam.e[2]); if (camD > 45) continue;
+        const sp = Math.hypot(p.vx, p.vz);
+        const per = Math.round((quality === 0 ? 6 : 16) * Math.max(0.75, K));
+        p.fxAcc = p.fxAcc || {};
+        let mine = 0; for (const q of fxParts) if (q.o === p) mine++;
+        for (const ek of r.e) {
+          const E = EMIT[ek]; if (!E) continue;
+          if (E.run && sp < 2.5 && !(DBG && DBG.fxAll)) continue; // fxAll: proof sheets show running-only emitters on a standing player
+          let rate = E.rate * Math.max(0.8, K) * (quality === 0 ? 0.4 : 1) * (E.idle && phase === 'live' && !(DBG && DBG.fxAll) ? 0.3 : 1) * (live ? 1 : 0.6);
+          p.fxAcc[ek] = (p.fxAcc[ek] || 0) + rate * dt;
+          while (p.fxAcc[ek] >= 1) {
+            p.fxAcc[ek] -= 1;
+            if (mine >= per || total >= budget) { p.fxAcc[ek] = 0; break; }
+            mine++; total++;
+            let pos, vx = (crand() - 0.5) * 0.4, vy = (E.vy || 0) * (0.7 + crand() * 0.6), vz = (crand() - 0.5) * 0.4;
+            const at = E.at;
+            if (at === 'head') pos = hpt(p, B.head, (crand() - 0.5) * 0.2, 0.3, (crand() - 0.5) * 0.2);
+            else if (at === 'above') pos = hpt(p, B.head, (crand() - 0.5) * 0.9, 0.55 + crand() * 0.3, (crand() - 0.5) * 0.9);
+            else if (at === 'cloud') pos = hpt(p, B.head, (crand() - 0.5) * 0.2, 0.62, (crand() - 0.5) * 0.12);
+            else if (at === 'hands') pos = hpt(p, crand() < 0.5 ? B.haL : B.haR, 0, -0.05, 0);
+            else if (at === 'feet') { pos = hpt(p, crand() < 0.5 ? B.ftL : B.ftR, 0, -0.05, 0.05); pos[1] = 0.06; }
+            else if (at === 'trail') { pos = hpt(p, B.chest, (crand() - 0.5) * 0.4, (crand() - 0.6) * 0.6, -0.2); vx = -p.vx * 0.05; vz = -p.vz * 0.05; }
+            else if (at === 'around') pos = [p.x + (crand() - 0.5) * 1.2, (0.6 + crand() * 1.6) * hs, p.z + (crand() - 0.5) * 1.2];
+            else if (at === 'burst') { pos = hpt(p, B.head, 0, 0.7, 0); const a = crand() * 6.28, b = crand() * 3.14; vx = Math.cos(a) * Math.sin(b) * 1.6; vy = Math.cos(b) * 1.6; vz = Math.sin(a) * Math.sin(b) * 1.6; }
+            else if (at === 'swirl') { const a = crand() * 6.28; pos = [p.x + Math.cos(a) * 0.7, crand() * 2 * hs, p.z + Math.sin(a) * 0.7]; }
+            else pos = hpt(p, B.chest, (crand() - 0.5) * 0.7, (crand() - 0.5) * 1.1, (crand() - 0.5) * 0.5);
+            if (E.spread) { vx += (crand() - 0.5) * E.spread; vz += (crand() - 0.5) * E.spread; }
+            const col = E.team ? TEAMC() : E.rainbow ? hsvC((now * 0.3 + crand() * 0.3) % 1) : E.pal ? E.pal[(crand() * E.pal.length) | 0].concat([1]) : E.c;
+            fxParts.push({ o: p, x: pos[0], y: pos[1], z: pos[2], vx, vy, vz, t: 0, life: E.life * (0.8 + crand() * 0.4), sz: E.sz * (0.8 + 0.45 * Math.min(K, 1.6)), E, col, rot: crand() * 6.28, sw: (E.at === 'swirl' ? crand() * 6.28 : 0) });
+          }
+        }
+      }
+      // move and draw
+      const r0 = [VIEW[0], VIEW[4], VIEW[8]], u0 = [VIEW[1], VIEW[5], VIEW[9]];
+      for (let i = fxParts.length - 1; i >= 0; i--) {
+        const q = fxParts[i], E = q.E;
+        q.t += dt;
+        if (q.t >= q.life || !q.o || everyone.indexOf(q.o) < 0) { fxParts[i] = fxParts[fxParts.length - 1]; fxParts.pop(); continue; }
+        if (E.grav) q.vy -= 6 * dt;
+        if (E.wob) q.vx += Math.sin(now * 3 + q.rot * 5) * dt * 0.8;
+        if (E.at === 'swirl') { q.sw += dt * 5; const o = q.o; q.x = o.x + Math.cos(q.sw) * (0.6 + q.t); q.z = o.z + Math.sin(q.sw) * (0.6 + q.t); q.y += dt * 0.6; }
+        else { q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; }
+        if (E.jit) { q.x += (crand() - 0.5) * 0.1; q.y += (crand() - 0.5) * 0.1; }
+        if (q.y < 0.03) { q.y = 0.03; q.vy = 0; }
+        const u = q.t / q.life, fade = u < 0.15 ? u / 0.15 : 1 - Math.max(0, (u - 0.5) / 0.5);
+        let s = q.sz * (E.grow ? 0.6 + u * 1.2 : E.shrink ? 1 - u * 0.7 : 1);
+        const c = q.col, col = [c[0], c[1], c[2], (c[3] == null ? 1 : c[3]) * fade];
+        const k = SPR[E.s] || 0, uu = (k % 4) * 0.25, vv = Math.floor(k / 4) * 0.25, uv = [uu + 0.003, vv + 0.247, uu + 0.247, vv + 0.247, uu + 0.247, vv + 0.003, uu + 0.003, vv + 0.003];
+        const B2 = E.add ? fxAdd : fxAlp;
+        if (E.flat) { // lies on the turf
+          const a = q.rot, ca = Math.cos(a) * s, sa = Math.sin(a) * s, y = 0.035;
+          B2.quad([q.x - ca + sa, y, q.z - sa - ca], [q.x + ca + sa, y, q.z + sa - ca], [q.x + ca - sa, y, q.z + sa + ca], [q.x - ca - sa, y, q.z - sa + ca], [0, 0, 0], col, uv);
+          continue;
+        }
+        let rx = r0, ux = u0;
+        if (E.spin) { const a = q.rot + now * 2, ca = Math.cos(a), sa = Math.sin(a); rx = [r0[0] * ca + u0[0] * sa, r0[1] * ca + u0[1] * sa, r0[2] * ca + u0[2] * sa]; ux = [u0[0] * ca - r0[0] * sa, u0[1] * ca - r0[1] * sa, u0[2] * ca - r0[2] * sa]; }
+        if (E.stretch) s *= 1;
+        const P = (a, b) => [q.x + rx[0] * a * s + ux[0] * b * s, q.y + rx[1] * a * s + ux[1] * b * s, q.z + rx[2] * a * s + ux[2] * b * s];
+        B2.quad(P(-1, -1), P(1, -1), P(1, 1), P(-1, 1), [0, 0, 0], col, uv);
+      }
+    }
+    function hsvC(h) { const f = (n) => { const k = (n + h * 6) % 6; return 1 - Math.max(0, Math.min(k, 4 - k, 1)); }; return [f(5) * 1.8 + 0.1, f(3) * 1.8 + 0.1, f(1) * 1.8 + 0.1, 1]; }
+    // per-player shader look and glow shell
+    function fxUniforms(P, p, now) {
+      if (!P.u.uFx) return;
+      const r = p.fxr;
+      if (!r || !r.l) { gl.uniform4f(P.u.uFx, 0, 0, 0, 0); return; }
+      const c = r.c ? C3(r.c) : [1, 1, 1];
+      gl.uniform4f(P.u.uFx, LOOK[r.l] || 0, clamp(0.55 + 0.4 * (p.fxK || 0.6), 0.5, 1.3), now % 1000, (p.num || 1) * 0.13); gl.uniform3f(P.u.uFxC, c[0], c[1], c[2]);
+    }
+    // bobblehead: the head bone scaled up (about its joint) with a wobble; the depth pass uses the same bones so the shadow matches
+    function fxBones(p, out, bind, now) {
+      const r = p.fxr; if (!r || !p.bones) return;
+      // glitch: on the same beat as the kit's colour glitch the whole body skips sideways for a moment
+      if (r.g && ((now % 1000) * 2.3 + (p.num || 1) * 0.13) % 1 > 0.86) { const jx = (((now * 37) | 0) % 2 ? 1 : -1) * 0.07 * p.lk.hs, jz = (((now * 53) | 0) % 3 - 1) * 0.03; for (let i = 0; i < out.length; i += 12) { out[i + 3] += jx; out[i + 11] += jz; } }
+      if (!r.b) return;
+      const s = 1.55, i = B.head, m = p.bones[i], o = i * 12, bp = bind[i], hs = p.lk.hs, bx = bp[0] * hs, by = bp[1] * hs, bz = bp[2] * hs;
+      const w = Math.sin(now * 9 + p.ph) * 0.12 * (0.4 + Math.min(1, Math.hypot(p.vx, p.vz) / 6)), c = Math.cos(w), sn = Math.sin(w);
+      // wobble about the bone's forward axis, then scale
+      const R = [m[0] * c + m[1] * sn, m[1] * c - m[0] * sn, m[2], m[4] * c + m[5] * sn, m[5] * c - m[4] * sn, m[6], m[8] * c + m[9] * sn, m[9] * c - m[8] * sn, m[10]];
+      for (let row = 0; row < 3; row++) { const a = R[row * 3] * s, b = R[row * 3 + 1] * s, cc = R[row * 3 + 2] * s; out[o + row * 4] = a; out[o + row * 4 + 1] = b; out[o + row * 4 + 2] = cc; out[o + row * 4 + 3] = m[row * 4 + 3] - (a * bx + b * by + cc * bz); }
+      p.fxBob = s;
+    }
+    function drawFxShells(P, list, now) { // additive rim-glow shells for glow / outline cards
+      let any = false; for (const p of list) if (p.fxr && p.fxr.o && p.bones) { any = true; break; }
+      if (!any || !P.u.uFxV) return;
+      gl.useProgram(P.pr); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false);
+      let cur = null;
+      for (const p of list) {
+        const r = p.fxr; if (!r || !r.o || !p.bones) continue;
+        const d = Math.hypot(p.x - cam.e[0], p.z - cam.e[2]), mesh = meshFor(p.body || BODY.WR)[d < LOD_D ? 0 : 1];
+        if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
+        skinCommon(P, p, mesh); playerUniforms(P, p);
+        const c = C3(r.o), k = clamp(0.35 + 0.35 * (p.fxK || 0.6), 0.3, 1.0) * (0.85 + 0.15 * Math.sin(now * 4 + p.ph));
+        gl.uniform4f(P.u.uFx, 20, k, 0, 0); gl.uniform3f(P.u.uFxC, c[0], c[1], c[2]); gl.uniform4f(P.u.uFxV, 0.022, 0, 0, 0);
+        gl.drawElements(gl.TRIANGLES, mesh.vi0, gl.UNSIGNED_SHORT, 0); DRAWS.n++;
+      }
+      gl.uniform4f(P.u.uFxV, 0, 0, 0, 0); gl.uniform4f(P.u.uFx, 0, 0, 0, 0);
+      gl.depthMask(true); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.disable(gl.BLEND);
+      disableAll(P);
+    }
+    function drawFxParts(W) { // sprites: additive glows, then alpha-blended smoke / splats / glyphs
+      if (!G.fxTex || (!fxAdd.n && !fxAlp.n)) return;
+      gl.bindTexture(gl.TEXTURE_2D, G.fxTex); worldMat(W, [0.5, 0, 0, 0], 8); gl.depthMask(false); gl.enable(gl.BLEND);
+      if (fxAlp.n) { bindWorldAttribs(W, G.fxb, fxAlp.f.subarray(0, fxAlp.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, fxAlp.n); DRAWS.n++; }
+      if (fxAdd.n) { gl.blendFunc(gl.SRC_ALPHA, gl.ONE); bindWorldAttribs(W, G.fxb, fxAdd.f.subarray(0, fxAdd.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, fxAdd.n); DRAWS.n++; gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }
+      gl.depthMask(true); gl.bindTexture(gl.TEXTURE_2D, G.white);
     }
 
     // ---------- scorebug ----------
@@ -5438,15 +6101,15 @@ gl_FragColor=vec4(c,1.0);}`;
     const splash = el('div', 'bz-splash', `
       <div class="bz-title">BLITZ 3D</div>
       <div class="bz-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
-      <div class="bz-goal">${opts.label ? esc(opts.label) : lvlName} · ${wxName}<br>4 quarters × <em>${fmtClock(QS)}</em> · running clock · <em>${TOS}</em> timeouts a half</div>
+      <div class="bz-goal">${opts.label ? esc(opts.label) : lvlName} · ${wxName}<br>4 quarters × <em>${fmtClock(QS)}</em> · clock stops between plays · <em>${TOS}</em> timeouts a half</div>
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       <ul class="bz-how">
         <li><i>1</i><span><b>Call a play</b> from the 66-play playbook, or take one of the three the <b>Coach</b> tab suggests for the down, distance and clock, then <b>SNAP</b>${touchy ? '' : ' (Space)'}. Tap a receiver's tag before the snap for a hot route.</span></li>
         <li><i>2</i><span><b>Throw</b>: ${touchy ? 'touch anywhere and pull back' : 'drag the mouse back'}, like a slingshot; the line and arc come out of the QB the opposite way and the ring is where it lands. Pull farther = throw farther. Let go to throw. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming)' : ' (1 2 3, or Q to cycle)'}. Lead your receiver!</span></li>
         <li><i>3</i><span><b>Scramble</b>: aim <b>behind</b> the QB (${touchy ? 'drag forward so the line points back' : 'drag forward so the line points back'}) and let go: he tucks it and runs. Then ${touchy ? 'drag on the field' : 'use the arrows'} to steer him.</span></li>
-        <li><i>4</i><span><b>Catch</b>: your receiver tracks the ball on his own; steer to adjust, then <b>JUMP</b> for high balls or <b>DIVE</b> for low ones. Defenders go for it too.</span></li>
+        <li><i>4</i><span><b>Catch</b>: lead your man (the small ring shows where he will be when it gets there). The receiver closest to the ball hunts it on his own and goes up or lays out if you don't; steer to adjust, or hit <b>JUMP</b> for high balls and <b>DIVE</b> for ones just out of reach. A ball thrown into a crowd usually gets broken up or picked.</span></li>
         <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Hurdle, Dive</b>${touchy ? '' : ' (J K L H Space)'}. Hurdle a diving tackler, but a defender on his feet will catch you in the air. Tacklers hit with momentum: break them or fall forward.</span></li>
-        <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. The clock keeps running between plays.</span></li>
+        <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. After a play that ends in bounds the clock runs 4 more seconds, then stops until the next snap; incompletions, out of bounds and scores stop it right away.</span></li>
       </ul>
       <button type="button" class="bz-go">KICK OFF</button>`);
     wrap.appendChild(splash);
@@ -5473,6 +6136,9 @@ gl_FragColor=vec4(c,1.0);}`;
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
       get plays() { return PLAYS.map((p) => p.id); }, get cats() { return CATS.map((c) => c[0]); }, get sheetCat() { return sheetCat; },
       hurdle() { doMove('hurdle'); }, move(m) { doMove(m); },
+      // card effects: set a player's card (by key or index) and read the table
+      setBuild(k, b, wgt) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; const B6 = BUILDS6[b] || {}, base = BODY[p.role] || BODY.WR; p.lk = Object.assign({}, p.lk, { build: BUILDS6[b] ? b : null, hs: base.hs * (B6.hs || 1), ll: B6.ll || 1 }); if (wgt != null) p.wgt = wgt; p.body = bodySpec(base, p.lk, p.wgt); p.lk.sw = p.body.sw; p.rag = null; p.fl = null; return p.body; },
+      setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },
       throwAt(x, z, a) { if (mode !== 'aim') return false; if (a != null) arc = a; return throwBall({ x, z, D: Math.hypot(x - OK.QB.x, z - OK.QB.z) }, arc); },
       jump() { doJump(ctrl); }, dive() { doDive(ctrl); },
       debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(100, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
@@ -5484,19 +6150,28 @@ gl_FragColor=vec4(c,1.0);}`;
         los = o.los || 50; down = 1; fdz = los + 10; poss = 'home';
         const c = o.role ? (o.side ? addDef(mkP(1, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 24 })) : addOff(mkP(0, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 72 }))) : addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
         (o.def || []).forEach((d, i) => addDef(mkP(1, d.role || 'LB', 'T' + i, d.x, d.z, { v: d.v || 7.6, str: d.str || 70, agi: 60, tackle: d.tackle || 70, spd: 70, num: 40 + i })));
+        // more receivers on the field (hunt / converge scenarios): { key, x, z, vx, vz }
+        (o.mates || []).forEach((m) => { const q = addOff(offPlayer(m.key, m.x, m.z)); q.vx = m.vx || 0; q.vz = m.vz || 0; });
+        if (o.rv) { c.vx = o.rv[0]; c.vz = o.rv[1]; }
         finalizePlayers();
+        for (const p of off) if (Math.hypot(p.vx, p.vz) > 0.5) p.h = Math.atan2(p.vx, p.vz);
         for (const p of everyone) setPose(p, 'run');
         pr = { type: 'run', start: los, kind: 'rush', rusher: c, notes: [] };
         if (o.ball) {
           const b = o.ball, y0 = b.y || 2.2, ty = b.ty || 1.5;
           ball = { st: 'air', x: b.x, y: y0, z: b.z, vx: (b.tx - b.x) / b.T, vz: (b.tz - b.z) / b.T, vy: (ty - y0 + 0.5 * GRAV * b.T * b.T) / b.T, t: 0, T: b.T, tx: b.tx, tz: b.tz, ty, arc: b.arc || 1, D: Math.hypot(b.tx - b.x, b.tz - b.z), played: [], fromZ: b.z, holder: null, kind: 'pass', spin: 0, wob: 0, wobA: 0.03 };
           thrown = true; target = c; ctrl = c; mode = 'catch'; updateCatchPoint(); for (const d of def) d.breakAt = 0; pr.kind = 'pass'; pr.tgt = c;
-        } else { ball = { st: 'held', holder: c, x: c.x, y: 1.3, z: c.z, vx: 0, vy: 0, vz: 0 }; carrier = c; ctrl = c; mode = 'run'; c.vx = o.vx || 0; c.vz = o.vz == null ? 6 : o.vz; }
+          // o.hunt: the same pick as a real throw (c is the man it was aimed at); o.noCtrl: nobody under the player's control
+          if (o.hunt) { target = hunter(ball.cp, c); huntGo(); pr.tgt = target; }
+          if (o.noCtrl) { ctrl = null; mode = 'none'; }
+        } else { ball = { st: 'held', holder: c, x: c.x, y: 1.3, z: c.z, vx: 0, vy: 0, vz: 0 }; carrier = c; ctrl = c; mode = 'run'; c.vx = o.vx || 0; c.vz = o.vz == null ? 6 : o.vz; if (o.pocket) { handed = false; crossed = false; } }
         setControls(true);
       },
-      get pr() { return pr; }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
+      reachGap, ballOver, leverage, leadPt, get pr() { return pr; }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
       swipe(ux, uz, k) { if (mode !== 'aim') return false; const D = Math.max(3, Math.min(1, k || 1) * maxDist()); return throwBall({ x: OK.QB.x + ux * D, z: OK.QB.z + uz * D, D }, arc); },
       kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } },
+      get playClock() { return playClock; }, set playClock(v) { playClock = v; }, get cpuStats() { return CPUS; }, get cpuCS() { return CS; },
+      cpuSim(start, q, t) { const log = [], r = simCpu(start, { q: q || 1, t: t == null ? QS : t }, log); return { r, log }; },
       fumble() { if (phase === 'live' && carrier && ball && ball.holder === carrier) { fumble(carrier); return true; } return false; },
       get cssW() { return cssW; }, get cssH() { return cssH; }, project(x, y, z) { return project(x, y, z); },
     };
