@@ -3273,7 +3273,8 @@ gl_FragColor=vec4(c,1.0);}`;
       hist.push({ id: play.id, cat: play.cat, blitz: dcall ? dcall.blitz : 0 }); if (hist.length > 6) hist.shift();
       for (const p of everyone) setPose(p, 'run');
       setControls(true); drivePlays++;
-      perkHook('snap');
+      perkHook('snap'); voiceSnap();
+      if (isPassPlay(play)) voiceLive('snap_pass', { passer: nm(qb) }, 0.85); else if (play.type === 'sneak' || play.type === 'qbdraw') voiceLive('qb_keep', { passer: nm(qb) }, 0.85); else { const rb = (play.carrier && OK[play.carrier]) || OK.RB; if (rb) voiceLive('snap_run', { carrier: nm(rb) }, 0.85); }
     }
     function ballHeldByQB() {
       const qb = OK.QB;
@@ -3405,6 +3406,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const st = stat(SQ.QB.pid); if (st) st.passAtt++;
       pr.kind = 'pass'; pr.passer = qb; pr.tgt = target; pr.thrown = true;
+      if (target) voiceLive(spot.D >= 25 ? 'throw_deep' : spot.D < 7 ? 'throw_dump' : 'throw_to', { rec: nm(target) }, 0.9);
       const stare = aim && aim.dur > 0.8 && aim.tgt && aim.tgt === target ? Math.min(0.28, (aim.dur - 0.8) * 0.25) * (0.4 + DP.stare) : 0;
       for (const d of def) {
         const man = d.ass && d.ass.t === 'man' && d.ass.tgt === target;
@@ -3715,6 +3717,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!wild) { if (notes[0] === 'TOE TAP!') voice.say('toe_tap', { rec: nm(r) }, 2); else if (diving) voice.say('catch_diving', { rec: nm(r) }, 2, 0.7); }
       perkHook('catch', r);
       sfx.play('catch'); excite = Math.min(1, excite + (wild ? 0.6 : 0.25));
+      if (!wild && !diving) voiceLive('caught_live', { rec: nm(r) }, 0.7);
       for (const d of def) if (!d.rag && dist(d, r) < 3.2) { d.stun = Math.max(d.stun, 0.2 + 0.35 * (1 - KDEF)); d.stumbleT = Math.max(d.stumbleT, 0.3); }
       // posterized: the man who lost the jump ball goes down
       if (wild && jumping && !diving && b.cd && !b.cd.rag && dist(b.cd, r) < 2.4) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
@@ -4027,6 +4030,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function liveChecks() {
       const c = carrier;
       if (!c || c.rag) return;
+      voiceField();
       if (c.side === 0) {
         if (!crossed && c.z > los + 0.3) { crossed = true; if (c.role === 'QB' && mode === 'aim') { mode = 'run'; ctrl = c; carrier = c; pr.kind = 'rush'; pr.rusher = c; runSeen = tPlay; setControls(true); } }
         if (c.z >= 100) { endPlay(kick ? 'krtd' : 'td', c.z); return; }
@@ -4113,6 +4117,7 @@ gl_FragColor=vec4(c,1.0);}`;
       setControls(true);
     }
     function fireKick() {
+      voiceLive('ball_up', {}, 0.8);
       const k = kick, kp = k.kp;
       sfx.play('kick'); cam.shake = Math.max(cam.shake, 0.12);
       let wind = WET ? (rng() - 0.5) * 0.06 : 0;
@@ -4221,7 +4226,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const hL = handPos(R, -1), hR = handPos(R, 1), near = Math.min(Math.hypot(hL[0] - b.x, hL[1] - b.y, hL[2] - b.z), Math.hypot(hR[0] - b.x, hR[1] - b.y, hR[2] - b.z)) < 0.5 || (Math.hypot(R.x - b.x, R.z - b.z) < 0.6 && b.y < 1.9);
         if (near && b.vy < 0 || b.y < 0.3) {
           if (b.z < -10 || b.y < 0.3 && b.z < 0) { touchback(); return; }
-          ball = { st: 'held', holder: R, x: R.x, y: 1.3, z: R.z, vx: 0, vy: 0, vz: 0 }; carrier = R; ctrl = R; mode = 'run'; k.st = 'ret'; k.catchT = tPlay; R.reach = null; setPose(R, 'run');
+          ball = { st: 'held', holder: R, x: R.x, y: 1.3, z: R.z, vx: 0, vy: 0, vz: 0 }; carrier = R; ctrl = R; mode = 'run'; k.st = 'ret'; k.catchT = tPlay; R.reach = null; setPose(R, 'run'); voiceLive('return_live', { carrier: nm(R) }, 0.8);
           k.tbOK = R.z < 0; sfx.play('catch'); pr.start = R.z; pr.rusher = R; setControls(true); perkHook('touch', R);
         }
       } else if (k.st === 'ret') {
@@ -4285,7 +4290,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (k.t - k.kickT > k.react) for (const p of hands) steer(p, b.tx + (p.x - b.tx) * 0.2, b.tz, p.v * 0.95, dt, 8); // the hands team wakes up
         for (const p of everyone) p.look = [b.x, b.y, b.z];
         if ((b.y <= 0.3 && b.vy < 0) || b.t >= b.T) { // it hits the turf and hops: a live ball
-          k.st = 'scramble'; k.landZ = b.z;
+          k.st = 'scramble'; k.landZ = b.z; voiceLive('onside_live', {}, 0.9);
           ball = { st: 'loose', x: b.x, y: 0.3, z: b.z, vx: b.vx * 0.3 + (rng() - 0.5) * 2.5, vy: 4.5 + rng() * 1.5, vz: b.vz * 0.45, holder: null, t: 0, spin: 0 };
           sfx.play('tap'); setControls(true);
         }
@@ -4872,8 +4877,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const EV = (typeof VOICE_LINES === 'object' && VOICE_LINES && VOICE_LINES.events) || {};
       let on = true; try { on = localStorage.getItem('mfl-blitz-voice') !== '0'; } catch (e) {}
       let avail = null, gain = null, cur = null, intro = false;
-      const recent = {}, bufs = new Map(), q = [];
-      const TTL = { 1: 4000, 2: 7500, 3: 14000 }; // how long a queued line stays worth saying
+      const recent = {}, bufs = new Map(), q = [], pending = {};
+      const TTL = { 1: 2500, 2: 4500, 3: 8000, 4: 1200 }; // 4 = live play-by-play: now or never // how long a queued line stays worth saying; later than that it is dropped, never played late
       const cosmetic = () => (typeof crand === 'function' ? crand() : Math.random());
       try {
         fetch('/arcade/tts/manifest', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((m) => {
@@ -4892,20 +4897,49 @@ gl_FragColor=vec4(c,1.0);}`;
         return i;
       }
       const clean = (x) => String(x == null ? '' : x).replace(/<[^>]*>/g, '').replace(/[^A-Za-z0-9 .,'’-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      // the request for an event with these names, without the variant: null when a name is missing
+      function build(e, vars) {
+        if (!EV[e]) return null;
+        const p = new URLSearchParams(); p.set('e', e);
+        for (const k of EV[e].vars || []) { const x = clean(vars && vars[k]); if (!x) return null; p.set(k, x); }
+        return { key: e + '?' + p.toString(), p };
+      }
+      // a line rendered ahead of time for these names is used first; otherwise a fresh variant is drawn
+      function urlFor(e, vars) {
+        const b = build(e, vars); if (!b) return null;
+        const pre = pending[b.key]; if (pre) { delete pending[b.key]; return pre; }
+        const v = pick(e); if (v < 0) return null;
+        b.p.set('v', String(v)); return '/arcade/tts?' + b.p.toString();
+      }
+      // render a likely line now (at the snap) so it is ready the moment the play ends
+      function prefetch(e, vars) {
+        if (!on || avail === false || finished || !EV[e]) return;
+        const b = build(e, vars); if (!b || pending[b.key]) return;
+        const v = pick(e); if (v < 0) return;
+        b.p.set('v', String(v)); const url = '/arcade/tts?' + b.p.toString();
+        pending[b.key] = url; load(url);
+        const keys = Object.keys(pending); if (keys.length > 48) delete pending[keys[0]];
+      }
       // say(event, vars, priority 1 flavor / 2 result / 3 big, chance 0..1)
       function say(e, vars, pri, chance) {
         if (!on || avail === false || finished || !EV[e]) return false;
         if (chance != null && cosmetic() > chance) return false;
-        const p = new URLSearchParams(); p.set('e', e);
-        for (const k of EV[e].vars || []) { const x = clean(vars && vars[k]); if (!x) return false; p.set(k, x); } // a missing name skips the line before a variant is used up
-        const v = pick(e); if (v < 0) return false; p.set('v', String(v));
-        enqueue('/arcade/tts?' + p.toString(), pri || 2);
+        const url = urlFor(e, vars); if (!url) return false;
+        enqueue(url, pri || 2);
         return true;
       }
       function enqueue(url, pri) {
-        if (pri < 3 && q.length >= 2) return; // flavor never piles up behind results
+        if (pri === 4) { // a live call: only when nothing bigger is talking; it cuts off flavor and never waits in line
+          if (cur && cur.pri >= 2) { VST.dropped++; return; }
+          if (cur && cur.src) { try { cur.src.stop(); } catch (e) {} }
+          q.unshift({ url, pri, t: performance.now() }); if (q.length > 3) q.length = 3; load(url); pump(); return;
+        }
+        if (q.length >= 3) { // the queue is full: the weakest line makes room, or a weaker arrival is dropped
+          let w = 0; for (let i = 1; i < q.length; i++) if (q[i].pri < q[w].pri || (q[i].pri === q[w].pri && q[i].t < q[w].t)) w = i;
+          if (q[w].pri <= pri) { q.splice(w, 1); VST.dropped++; } else { VST.dropped++; return; }
+        }
         q.push({ url, pri, t: performance.now() }); q.sort((a, b) => b.pri - a.pri || a.t - b.t);
-        if (q.length > 3) q.length = 3;
+        if (cur && cur.pri === 1 && pri === 3 && cur.src) { try { cur.src.stop(); } catch (e) {} } // a big call cuts off flavor talk
         load(url); pump();
       }
       function load(url) {
@@ -4919,29 +4953,40 @@ gl_FragColor=vec4(c,1.0);}`;
       function pump() {
         if (cur || !q.length) return;
         const it = q.shift();
-        if (performance.now() - it.t > (TTL[it.pri] || 6000)) return pump(); // the moment has passed
+        if (performance.now() - it.t > TTL[it.pri]) { VST.dropped++; return pump(); } // the moment has passed
         cur = it;
         load(it.url).then((buf) => {
-          if (!on || sfx.muted || finished || !buf || performance.now() - it.t > (TTL[it.pri] || 6000) + 4000) return done();
+          const age = performance.now() - it.t;
+          if (!on || sfx.muted || finished || !buf || age > TTL[it.pri] + 800) { if (buf) VST.dropped++; return done(); }
           const c = sfx.ctx(); if (!c) return done();
           if (!gain) { gain = c.createGain(); gain.gain.value = 1.0; gain.connect(c.destination); }
           if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
-          const src = c.createBufferSource(); src.buffer = buf; src.connect(gain); src.onended = done; src.start();
-          VST.played++; VST.log.push(it.url);
-        }).catch(done);
+          const src = c.createBufferSource(); src.buffer = buf; src.connect(gain); src.onended = done; it.src = src; src.start();
+          VST.played++; VST.waits.push(Math.round(age)); if (VST.waits.length > 300) VST.waits.shift(); VST.log.push(it.url); if (VST.log.length > 300) VST.log.shift();
+        }).catch(() => { VST.failed++; done(); });
       }
       function done() { cur = null; setTimeout(pump, 150); }
       function start() { try { sfx.ctx(); } catch (e) {} try { updVoiceBtn(); } catch (e) {} if (intro) return; intro = true; say('intro', { home: HOME.name, away: AWAY.name, level: lvlName }, 3); }
-      const VST = { played: 0, log: [] };
+      const VST = { played: 0, dropped: 0, failed: 0, waits: [], log: [] };
       return {
-        say, start,
+        say, prefetch, start,
         get on() { return on; }, set on(v) { on = !!v; try { localStorage.setItem('mfl-blitz-voice', on ? '1' : '0'); } catch (e) {} if (!on) { q.length = 0; } },
-        get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get stats() { return VST; }, get recent() { return recent; },
+        get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get busy() { return !!cur; }, get stats() { return VST; }, get recent() { return recent; }, get pending() { return Object.keys(pending).length; },
       };
     })();
     const yb = (n) => { n = Math.round(Math.abs(+n || 0)); if (n < 2) n = 2; if (n > 12) n = Math.round(n / 5) * 5; return String(n); }; // yards as the voice says them: exact when short, rounded when long
     const spotTxt = (z) => (Math.round(z) === 50 ? 'midfield' : 'the ' + (z < 50 ? Math.round(z) : 100 - Math.round(z)));
     let VD0 = 0, VMIN = 0, VBLOW = false, VCOME = false;
+    // at the snap: render the calls this play is likely to need, so they are on hand when it ends
+    function voiceSnap() {
+      if (!voice.on || voice.avail === false) return;
+      const pn = nm(OK.QB), away = AWAY.name;
+      voice.prefetch('sack', { passer: pn }); voice.prefetch('interception', { passer: pn, away });
+      const recs = ['X', 'Z', 'S', 'Y', 'RB'].filter((k) => OK[k] && OK[k].R).slice(0, 4);
+      for (const k of recs) { const r = nm(OK[k]); voice.prefetch('incomplete', { passer: pn, rec: r }); voice.prefetch('first_down', { player: r }); }
+      const rb = (play.carrier && OK[play.carrier]) || OK.RB;
+      if (rb && isRunPlay(play)) { const c = nm(rb); voice.prefetch('first_down', { player: c }); voice.prefetch('no_gain', { carrier: c }); voice.prefetch('run_loss', { carrier: c }); if (100 - los <= 6) voice.prefetch('td_short', { carrier: c }); }
+    }
     // the spoken call for a play that just ended
     function voiceResult(kind, P, gained, nx, head, extra, slid, spot) {
       const V = voice.say, away = AWAY.name, home = HOME.name;
@@ -4949,8 +4994,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (kick && kick.type === 'ko') {
         if (kind === 'krtd') V('kr_td', { carrier: nm(carrier) }, 3);
         else if (kind === 'fumlost') V('fumble_lost', { away }, 3);
-        else if (head === 'TOUCHBACK') V('kr_touchback', {}, 2, 0.7);
-        else V('kr_return', { carrier: nm(carrier), yards: yb(spot - (P.start || 0)) }, 2, 0.6);
+        else if (head === 'TOUCHBACK') V('kr_touchback', {}, 2, 0.8);
+        else V('kr_return', { carrier: nm(carrier), yards: yb(spot - (P.start || 0)) }, 2, 0.8);
         return;
       }
       if (tryMode) { V(kind === 'td' ? 'two_good' : 'two_fail', {}, 3); return; }
@@ -4963,13 +5008,13 @@ gl_FragColor=vec4(c,1.0);}`;
         case 'inc': {
           const x = (extra || '').toLowerCase();
           if (x.indexOf('drop') >= 0) V('drop', { rec: rn }, 2);
-          else if (x.indexOf('batt') >= 0) V('batted', {}, 2, 0.8);
+          else if (x.indexOf('batt') >= 0) V('batted', {}, 2);
           else if (x.indexOf('foot') >= 0 || x.indexOf('bounds') >= 0) V('oob_catch', { rec: rn }, 2);
-          else if (!rn) V('throwaway', { passer: pn }, 2, 0.7);
-          else V('incomplete', { passer: pn, rec: rn }, 2, 0.8);
+          else if (!rn) V('throwaway', { passer: pn }, 2);
+          else V('incomplete', { passer: pn, rec: rn }, 2);
           return;
         }
-        case 'sack': if (slid) V('slide', { passer: pn }, 1, 0.5); else V('sack', { passer: pn }, 3); return;
+        case 'sack': if (slid) V('slide', { passer: pn }, 1, 0.6); else V('sack', { passer: pn }, 3); return;
       }
       if (head === 'SAFETY') { V('safety', {}, 3); return; }
       if (head === 'TURNOVER ON DOWNS') { V('turnover_downs', {}, 3); return; }
@@ -4978,15 +5023,15 @@ gl_FragColor=vec4(c,1.0);}`;
       if (P.caught) {
         if (gained >= 20) V('complete_big', { passer: pn, rec: rn, yards: yb(gained) }, 2);
         else if (first && cosmetic2() < 0.5) V('first_down', { player: rn }, 2);
-        else V('complete', { passer: pn, rec: rn, yards: yb(gained) }, 2, 0.85);
+        else V('complete', { passer: pn, rec: rn, yards: yb(gained) }, 2);
       } else {
         const qb = !!(P.rusher && P.rusher.role === 'QB');
         if (gained >= 15) V('run_big', { carrier: cn, yards: yb(gained) }, 2);
-        else if (gained < 0) V('run_loss', { carrier: cn }, 2, 0.7);
-        else if (gained === 0) V('no_gain', { carrier: cn }, 2, 0.6);
-        else if (qb) V('scramble', { passer: cn, yards: yb(gained) }, 2, 0.8);
+        else if (gained < 0) V('run_loss', { carrier: cn }, 2);
+        else if (gained === 0) V('no_gain', { carrier: cn }, 2, 0.8);
+        else if (qb) V('scramble', { passer: cn, yards: yb(gained) }, 2);
         else if (first && cosmetic2() < 0.5) V('first_down', { player: cn }, 2);
-        else V('run', { carrier: cn, yards: yb(gained) }, 2, 0.75);
+        else V('run', { carrier: cn, yards: yb(gained) }, 2);
       }
     }
     const cosmetic2 = () => (typeof crand === 'function' ? crand() : Math.random());
@@ -4995,7 +5040,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function voiceMoment(k, p, o) {
       const e = VOICE_MOMENT[k]; if (!e) return;
       const a = (o && o.a) || p, name = nm(a), big = /^(big_man_td|scoop_score|pick_six|fumble_six|houdini|doink_in|off_helmet|catch_wild|fumble)$/.test(e);
-      voice.say(e, { carrier: name, rec: name, passer: nm(OK.QB), player: name, away: AWAY.name, home: HOME.name }, big ? 3 : 2, big ? 1 : 0.7);
+      voice.say(e, { carrier: name, rec: name, passer: nm(OK.QB), player: name, away: AWAY.name, home: HOME.name }, big ? 3 : 2, big ? 1 : 0.8);
     }
     // the score just changed: lead changes, a blowout, a comeback
     function voiceScore() {
@@ -5006,6 +5051,85 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (Math.abs(d1) >= 21 && !VBLOW) { VBLOW = true; voice.say('blowout', {}, 1, 0.8); }
       if (d1 < VMIN) VMIN = d1;
+    }
+
+    // ---------- live play-by-play and the between-plays booth ----------
+    function voiceLive(e, vars, chance) { return voice.say(e, vars, 4, chance); }
+    const VI = { t: 0, prev: 0, idle: 0, last: -99, lastCat: '', cd: {}, sitKey: '', cpuKey: -1 };
+    const PERIOD = () => (qtr === 1 ? 'first quarter' : qtr === 2 ? 'second quarter' : qtr === 3 ? 'third quarter' : qtr === 4 ? 'fourth quarter' : 'overtime');
+    const cool = (e, s) => { const t = VI.cd[e]; return t == null || VI.t - t > s; };
+    // the announcer fills quiet stretches between plays: situation, the drive, the clock and score, stat lines, perks, coaching talk and color
+    function voiceIdle(dt) {
+      const now = performance.now() / 1000, rdt = VI.prev ? Math.min(1, now - VI.prev) : 0; VI.prev = now; VI.t = now; // real seconds: the booth keeps its own pace whatever the frame rate
+      if (!voice.on || voice.avail === false || finished) return;
+      if (!(phase === 'pre' || phase === 'dead' || phase === 'cpu' || phase === 'pat' || phase === 'koc' || phase === 'break')) { VI.idle = 0; return; }
+      if (voice.busy || voice.queue > 0) { VI.idle = 0; return; }
+      VI.idle += rdt;
+      if (VI.idle < 1.4 || VI.t - VI.last < 4) return;
+      const pickd = voiceFiller(); if (!pickd) return;
+      if (voice.say(pickd[0], pickd[1], 1)) { VI.last = VI.t; VI.lastCat = pickd[2]; VI.cd[pickd[0]] = VI.t; VI.idle = 0; }
+    }
+    function voiceFiller() {
+      const C = [], add = (w, e, vars, cat) => { if (cat !== VI.lastCat) C.push([w, e, vars || {}, cat]); };
+      const home = HOME.name, away = AWAY.name, score = `${hs} to ${as}`, dist = Math.max(1, Math.min(99, Math.round(fdz - los)));
+      const lineup = ['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => OK[k]).filter((p) => p && p.sq);
+      if (phase === 'pre' && !tryMode) {
+        const sk = drivePlays + '|' + down + '|' + Math.round(los);
+        if (VI.sitKey !== sk) { // the down and distance, once per play, first
+          VI.sitKey = sk;
+          if (los >= 97) return ['situation_goal', {}, 'sit'];
+          if (down === 4) return ['situation_fourth', { dist: String(dist) }, 'sit'];
+          if (los >= 80 && cosmetic2() < 0.5) return ['situation_redzone', {}, 'sit'];
+          if (down === 1) return cosmetic2() < 0.6 ? ['situation_1st', { spot: spotTxt(los) }, 'sit'] : null;
+          if (down >= 3 && dist >= 7) return ['situation_long', { dist: String(dist) }, 'sit'];
+          if (down >= 3 && dist <= 2) return ['situation_short', {}, 'sit'];
+          return ['situation', { down: ORD[Math.min(down, 4)], dist: String(dist) }, 'sit'];
+        }
+        if (cool('coach_note', 40)) add(3, 'coach_note', {}, 'coach');
+        if (cool('perk_note', 60)) { const ps = lineup.filter((p) => p.pk && p.pk.name); if (ps.length) { const p = ps[(cosmetic2() * ps.length) | 0]; add(3, 'perk_note', { player: nm(p), perk: p.pk.name }, 'perk'); } }
+      }
+      if (phase === 'dead' || phase === 'pre') {
+        const dy = Math.round(los - driveStart);
+        if (drivePlays >= 3 && cool('drive_note', 45)) add(3, 'drive_note', { plays: String(drivePlays), yards: String(Math.max(0, dy)) }, 'drive');
+        if (drivePlays >= 4 && dy >= 30 && cool('drive_hot', 60)) add(3, 'drive_hot', {}, 'drive');
+        if (drivePlays >= 3 && dy <= 4 && cool('drive_stall', 60)) add(2, 'drive_stall', {}, 'drive');
+        for (const p of lineup) {
+          const s = stat(p.sq.pid); if (!s) continue;
+          if (p.role === 'QB' && s.passAtt >= 5 && cool('qb_line', 60)) add(3, 'qb_line', { passer: nm(p), cmp: String(s.passCmp), att: String(s.passAtt), yards: String(Math.max(0, s.passYds)) }, 'stat');
+          if (s.rec >= 2 && cool('player_catches', 50)) add(2, 'player_catches', { player: nm(p), n: String(s.rec), yards: String(Math.max(0, s.recYds)) }, 'stat');
+          if (s.rushAtt >= 3 && cool('player_rush', 50)) add(2, 'player_rush', { player: nm(p), n: String(s.rushAtt), yards: String(Math.max(0, s.rushYds)) }, 'stat');
+          const tds = s.recTD + s.rushTD; if (tds >= 2 && cool('player_tds', 90)) add(2, 'player_tds', { player: nm(p), n: String(tds) }, 'stat');
+          if ((s.rec >= 4 || s.recYds >= 60 || s.rushYds >= 60) && cool('player_hot', 80)) add(2, 'player_hot', { player: nm(p) }, 'stat');
+          if (p.role === 'WR' && TS.plays >= 10 && s.rec === 0 && cool('player_quiet', 90)) add(1, 'player_quiet', { player: nm(p) }, 'stat');
+        }
+      }
+      if (phase === 'cpu') {
+        if (VI.cpuKey !== CPUS.drives) { VI.cpuKey = CPUS.drives; return cosmetic2() < 0.6 ? ['cpu_offense_note', { away }, 'cpu'] : ['defense_note', { away }, 'cpu']; }
+        if (cool('defense_note', 40)) add(2, 'defense_note', { away }, 'cpu');
+      }
+      if (phase === 'pat' && cool('pat_note', 30)) add(4, 'pat_note', {}, 'sit');
+      if (phase === 'koc' && cool('koc_note', 30)) add(4, 'koc_note', {}, 'sit');
+      if (phase === 'break') { if (qtr === 2 && cool('halftime_color', 60)) add(4, 'halftime_color', {}, 'color'); }
+      // the clock and the score, now and then
+      if (clock > 0 && clock <= 45 && (qtr === 2 || qtr >= 4) && cool('clock_late', 30)) add(3, 'clock_late', {}, 'clock');
+      else if (clock > 0 && cool('clock_note', 70)) add(1, 'clock_note', { secs: String(Math.max(10, Math.round(clock / 10) * 10)), period: PERIOD() }, 'clock');
+      if (cool('score', 75) && TS.plays >= 3) { const d = hs - as; if (Math.abs(d) >= 21) add(2, 'score_blowout', {}, 'score'); else if (d > 0) add(2, 'score_lead', { home, score }, 'score'); else if (d < 0) add(2, 'score_trail', { away, score }, 'score'); else add(1, 'score_tied', { score }, 'score'); }
+      if (cool('color', 25)) add(2, 'color', {}, 'color');
+      if (!C.length) return null;
+      let tot = 0; for (const c of C) tot += c[0]; let r = cosmetic2() * tot;
+      for (const c of C) { r -= c[0]; if (r <= 0) { if (c[3] === 'score') VI.cd.score = VI.t; return [c[1], c[2], c[3]]; } }
+      return null;
+    }
+    // during a play: once-per-play live calls from the field (the 20, the 10, the 5, open field, pressure, the runner turning upfield)
+    function voiceField() {
+      const c = carrier; if (!c || c.side !== 0 || !pr) return;
+      if (mode === 'aim' && OK.QB && !pr.vPress && tPlay > 1.1) { const qb = OK.QB; for (const d of def) if (!d.rag && Math.hypot(d.x - qb.x, d.z - qb.z) < 2.0) { pr.vPress = 1; voiceLive('pressure', { passer: nm(qb) }, 0.8); break; } }
+      if (mode !== 'run') return;
+      if (!pr.vRun && crossed && c.z > los + 1 && pr.kind === 'rush' && c.role !== 'QB') { pr.vRun = 1; voiceLive('run_live', { carrier: nm(c) }, 0.7); return; }
+      if (!pr.vOpen && tPlay - (runSeen || 0) > 0.8 && c.z > los + 4 && !def.some((d) => !d.rag && Math.hypot(d.x - c.x, d.z - c.z) < 5)) { pr.vOpen = 1; voiceLive('open_field', { carrier: nm(c) }, 0.8); return; }
+      if (!pr.v20 && c.z >= 80 && los < 79) { pr.v20 = 1; voiceLive('inside_20', {}, 0.8); return; }
+      if (!pr.v10 && c.z >= 90 && los < 89) { pr.v10 = 1; voiceLive('inside_10', {}, 0.8); return; }
+      if (!pr.v5 && c.z >= 95 && los < 94) { pr.v5 = 1; voiceLive('at_the_5', {}, 0.8); }
     }
 
     // ---------- card perks: every card type does one thing on the field ----------
@@ -5384,6 +5508,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function step(dt) {
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
+      voiceIdle(dt);
       excite = Math.max(0, excite - dt * 0.09);
       for (const q of parts) { if (q.life <= 0) continue; q.life -= dt; q.vy -= 12 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < 0.05) { q.y = 0.05; q.vy *= -0.3; q.vx *= 0.6; q.vz *= 0.6; } q.r += dt * 8; }
       for (const p of everyone) {
@@ -6668,7 +6793,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'live' || mode !== 'aim' || !OK.QB || ball.holder !== OK.QB) return;
       const q = OK.QB; aim = null; hideAim();
       carrier = q; ctrl = q; mode = 'run'; pr.kind = 'rush'; pr.rusher = q; runSeen = tPlay; q.hold = false; q.face2 = null; q.look = null;
-      sfx.play('tap'); setControls(true);
+      sfx.play('tap'); setControls(true); voiceLive('scramble_live', { passer: nm(q) }, 0.9);
     }
     function cycleHot(k) {
       if (phase !== 'pre' || sheetOpen || !hotOK(play) || !OK[k] || k === 'RB') return;
@@ -7102,7 +7227,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; },
+      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
