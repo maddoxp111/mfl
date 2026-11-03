@@ -51,7 +51,7 @@ module.exports = function trading(app, h) {
           <p class="muted sm">Score counts each different card you own: Base 1, Silver 3, Gold 10, Legend 40, Mythic 150, Dark Matter 400. Tap anyone to see their cards and offer a trade.</p>
           <ol class="col-lb">${rows.map((r, i) => { const best = sorted(db, r.own).slice(0, 3);
             return `<li class="${r.name === me ? 'me' : ''}"><a href="/pickem/collection/${esc(r.name)}"><span class="col-rk">${i + 1}</span><div class="col-who"><b>@${esc(r.name)}</b><small>${r.n} of ${total} cards · ${best.length ? esc(best[0].rarityName) + ' ' + esc(best[0].p.name) : ''}</small></div>
-              <div class="col-best">${best.map((c) => `<span class="col-mini r-${c.rarity}" style="--c:${esc(c.t.color)}" title="${esc(c.p.name + ' · ' + c.label)}">${esc(c.p.name.split(' ').map((x) => x[0]).join(''))}</span>`).join('')}</div><span class="col-sc">${r.score.toLocaleString('en-US')}</span></a></li>`; }).join('') || '<p class="muted">Nobody has cards yet.</p>'}</ol></div>
+              <div class="col-best">${best.map((c) => `<span class="col-mini r-${c.rarity}" style="--c:${esc(c.t.color)}" title="${esc(c.p.name + ' · ' + c.label + (c.perk ? ' · Perk: ' + c.perk.name : ''))}">${esc(c.p.name.split(' ').map((x) => x[0]).join(''))}</span>`).join('')}</div><span class="col-sc">${r.score.toLocaleString('en-US')}</span></a></li>`; }).join('') || '<p class="muted">Nobody has cards yet.</p>'}</ol></div>
       </div>`));
     } catch (e) { next(e); }
   });
@@ -68,7 +68,7 @@ module.exports = function trading(app, h) {
       res.send(layout(req, `@${name}'s cards`, pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/collection', me)}
         <div class="card coll-head"><div><div class="kicker">${icon('star')} Collection</div><h2>@${esc(name)}</h2><p class="muted">${list.length} different cards · score ${score(db, own).toLocaleString('en-US')}</p></div>
           ${me && me !== name ? `<a class="btn" href="/pickem/trade/${esc(name)}">${icon('swap')} Offer a trade</a>` : me === name ? '<a class="btn ghost" href="/pickem/cards">My cards</a>' : `<a class="btn" href="/pickem/login?next=/pickem/collection/${esc(name)}">Log in to trade</a>`}</div>
-        ${lineup.size ? `<div class="card"><div class="card-h"><h2>Lineup</h2></div><div class="mgrid">${[...lineup].map((id) => `<div class="mcell">${cardArt(db, cards.cardInfo(db, id), { small: true })}</div>`).join('')}</div></div>` : ''}
+        ${lineup.size ? `<div class="card"><div class="card-h"><h2>Lineup</h2></div><div class="mgrid">${[...lineup].map((id) => `<div class="mcell">${cardArt(db, cards.cardInfo(db, id), { small: true })}</div>`).join('')}</div>${h.lineupFx ? h.lineupFx(db, ((them.lineups || []).at(-1)?.cards || []).map((id) => (own[id] ? id : '')), `What @${name}'s Lineup does in game`) : ''}</div>` : ''}
         <div class="card"><div class="card-h"><h2>All cards</h2></div><div class="mgrid">${list.map((c) => `<div class="mcell">${cardArt(db, c, { small: true, count: own[c.id] })}</div>`).join('') || '<p class="muted">No cards yet.</p>'}</div></div>
       </div>`));
     } catch (e) { next(e); }

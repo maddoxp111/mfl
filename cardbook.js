@@ -38,7 +38,7 @@ module.exports = function cardbook(app, h) {
       // Set picker: every series with its sets and your progress in each.
       const setPicker = () => cards.SERIES.map(([sid, sname, list]) => `<section class="cb-series"><h3>${esc(sname)}</h3><div class="cb-sets">${list.map(([id]) => {
         const st = cards.SET_MAP.get(id), cs = all.filter((c) => c.set === id), got = cs.filter((c) => own[c.id]).length;
-        return `<a class="cb-set" href="?tab=sets&set=${esc(id)}" style="--s1:${st.c1};--s2:${st.c2}"><span class="cb-set-e">${st.emoji}</span><b>${esc(st.name)}</b><small>${got}/${cs.length}</small><span class="cb-prog"><i style="width:${cs.length ? Math.round((got / cs.length) * 100) : 0}%"></i></span></a>`;
+        return `<a class="cb-set" href="?tab=sets&set=${esc(id)}" style="--s1:${st.c1};--s2:${st.c2}"><span class="cb-set-e">${st.emoji}</span><b>${esc(st.name)}</b><small>${got}/${cs.length}</small>${cards.PERKS && cards.PERKS[id] ? `<small class="cb-set-perk">⚡ ${esc(cards.PERKS[id].name)}</small>` : ''}<span class="cb-prog"><i style="width:${cs.length ? Math.round((got / cs.length) * 100) : 0}%"></i></span></a>`;
       }).join('')}</div></section>`).join('');
 
       const body = tab === 'sets' && !set ? setPicker() : groups.map(({ v, list }) => {
@@ -48,10 +48,13 @@ module.exports = function cardbook(app, h) {
         const some = types.filter((x) => !everyone.includes(x) && list.some((c) => canDrop(x.P, x.t, c)));
         const shown = list.filter((c) => (!team || c.t.id === team) && (show === 'all' || (show === 'owned') === !!own[c.id]));
         if (!shown.length) return '';
-        const c0 = list[0], R = cards.RARITIES[c0.rarity];
+        const c0 = list[0], R = cards.RARITIES[c0.rarity], P = cards.perkOf ? cards.perkOf(c0) : null, T = cards.tierOf ? cards.tierOf(c0.rarity) : null;
+        // What every card of this type does, owned or not: perk, rating changes, rarity tier.
+        const does = `<p class="cb-perk">${P ? `<b>⚡ ${esc(P.name)}</b>: ${esc(P.text)} <span class="muted">(${esc(P.when)})</span><br>` : ''}${cards.effectText ? `<span class="cb-fx">In game: ${esc(cards.effectText(c0))}</span>` : ''}${T ? `<br><span class="muted sm">${esc(R.name)} tier, ${esc(T.name)}: ${esc(T.text)}</span>` : ''}</p>`;
         return `<details class="card cb-group" ${got || set || q.type === v.id ? 'open' : ''} id="t-${esc(v.id)}">
-          <summary><span class="rar-tag r-${c0.rarity}">${esc(R.name)}</span><b>${esc(v.spec === 'own' ? 'Signature' : v.label)}</b><span class="cb-mult">${c0.mult}×</span>
+          <summary><span class="rar-tag r-${c0.rarity}">${esc(R.name)}</span><b>${esc(v.spec === 'own' ? 'Signature' : v.label)}</b><span class="cb-mult">${c0.mult}×</span>${P ? `<span class="cb-sum-perk">⚡ ${esc(P.name)}</span>` : ''}
             <span class="cb-prog"><i style="width:${Math.round((got / list.length) * 100)}%"></i></span><span class="muted sm">${got}/${list.length}</span>${icon('chev')}</summary>
+          ${does}
           <div class="cb-packs"><small>Found in</small>${everyone.map((x) => `<a class="cb-pk ${x.P.free ? 'free' : ''}" href="/pickem/packs">${esc(packName(x))}</a>`).join('') || '<span class="muted sm">No pack drops these right now.</span>'}
             ${some.length ? `<span class="muted sm cb-some">Some players also in: ${some.map((x) => esc(x.P.name)).join(', ')}</span>` : ''}
             ${v.one ? `<span class="muted sm cb-some">1 of 1: once someone pulls one, nobody else can.</span>` : ''}
@@ -69,7 +72,9 @@ module.exports = function cardbook(app, h) {
           <p class="muted">${all.length.toLocaleString('en-US')} cards: ${all.filter((c) => !c.set).length} classic cards and ${all.filter((c) => c.set).length.toLocaleString('en-US')} in ${cards.SETS.length} card sets. ${user ? `You have <b>${totalOwned.toLocaleString('en-US')}</b> of them.` : '<a href="/pickem/login?next=/pickem/cards/book">Log in</a> to see which ones you have.'} Each section lists the packs that can drop it.</p>
           ${user ? `<div class="cb-prog big"><i style="width:${((totalOwned / all.length) * 100).toFixed(1)}%"></i></div>` : ''}</div></div>
         <div class="seg cb-tabs"><a class="${tab === 'classic' ? 'on' : ''}" href="?">Classic cards</a><a class="${tab === 'sets' ? 'on' : ''}" href="?tab=sets">Card sets (${cards.SETS.length})</a></div>
-        ${set ? `<div class="card cb-sethead" style="--s1:${set.c1};--s2:${set.c2}"><a class="muted sm" href="?tab=sets">${icon('arrow')} All sets</a><h2>${set.emoji} ${esc(set.name)}</h2><p class="muted">${esc(set.seriesName)} series · “${esc(set.quote)}” · 5 versions of every player: Base, Silver, Gold, Prism and Black.</p></div>` : ''}
+        ${set ? `<div class="card cb-sethead" style="--s1:${set.c1};--s2:${set.c2}"><a class="muted sm" href="?tab=sets">${icon('arrow')} All sets</a><h2>${set.emoji} ${esc(set.name)}</h2><p class="muted">${esc(set.seriesName)} series · “${esc(set.quote)}” · 5 versions of every player: Base, Silver, Gold, Prism and Black.</p>
+          ${cards.PERKS && cards.PERKS[set.id] ? `<p class="cb-perk"><b>⚡ ${esc(cards.PERKS[set.id].name)}</b>: ${esc(cards.PERKS[set.id].text)} <span class="muted">(${esc(cards.PERKS[set.id].when)})</span>. Rarer parallels make it stronger.</p>` : ''}
+          ${cards.effectText ? `<ul class="perk-list">${cards.PARALLELS.map((x) => { const v = `set-${set.id}-${x.id}`; const T = cards.tierOf ? cards.tierOf(x.rarity) : null; return `<li><b>${esc(x.label || 'Base')}</b> <span class="muted sm">${[cards.RARITIES[x.rarity].name !== (x.label || 'Base') ? esc(cards.RARITIES[x.rarity].name) : '', T ? esc(T.name) + ' tier' : ''].filter(Boolean).join(' · ')}</span><small>${esc(cards.effectText(v))}</small></li>`; }).join('')}</ul>` : ''}</div>` : ''}
         ${tab === 'classic' || set ? `<div class="cb-filters">
           <div class="seg mini">${[['all', 'All'], ['owned', 'Have'], ['missing', 'Need']].map(([k, n]) => `<a class="${show === k ? 'on' : ''}" href="${qs({ show: k })}">${n}</a>`).join('')}</div>
           <div class="seg mini"><a class="${team ? '' : 'on'}" href="${qs({ team: '' })}">Both teams</a>${teams.map((t) => `<a class="${team === t.id ? 'on' : ''}" href="${qs({ team: t.id })}">${esc(t.name)}</a>`).join('')}</div>

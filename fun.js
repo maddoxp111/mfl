@@ -38,12 +38,49 @@ module.exports = function fun(app, h) {
       <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
-      ${spec ? `<div class="mc-spec">${esc(spec.desc)}</div>` : c.quote ? `<div class="mc-spec mc-q">“${esc(c.quote)}”${c.flat ? ` +${c.flat}/game` : ''}</div>` : ''}
-      <div class="mc-foot"><span class="mc-rar">${esc(c.rarityName)}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
+      ${cardPerkFront(c, spec)}
+      <div class="mc-foot"><span class="mc-rar" title="${esc(tierWords(c))}">${esc(c.rarityName)}${c.rarity === 'common' ? '' : ` · ${esc(tierOfCard(c).name)}`}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
     </div>`;
   }
   h.cardArt = cardArt;
+  // Every card does something: its perk (an on-field quirk), its rating changes and its rarity tier.
+  // The front shows the perk name and the biggest changes; the back and the Card Book say it all.
+  const perkOfCard = (c) => (cards.perkOf ? attempt(() => cards.perkOf(c)) : null);
+  const tierOfCard = (c) => (cards.tierOf ? cards.tierOf(c.rarity) : { name: c.rarityName, text: '' });
+  const tierWords = (c) => { const t = tierOfCard(c); return `${t.rarity || c.rarityName} tier, ${t.name}: ${t.text}`; };
+  // "+6 AGI +5 STA −3 STR": the top two ups and the biggest down, short enough for the card front.
+  function fxShort(c) {
+    const e = cards.cardEffects ? attempt(() => cards.cardEffects(c)) : null;
+    if (!e) return '';
+    const sk = Object.entries(e.attr).filter(([k, v]) => v && k !== 'hgt' && k !== 'wgt');
+    const ups = sk.filter(([, v]) => v > 0).sort((x, y) => y[1] - x[1]), downs = sk.filter(([, v]) => v < 0).sort((x, y) => x[1] - y[1]);
+    const lab = (k) => (cards.ATTR_SHORT && cards.ATTR_SHORT[k]) || k.toUpperCase();
+    const bit = ([k, v]) => `<i class="${v > 0 ? 'up' : 'down'}">${v > 0 ? '+' : '−'}${Math.abs(v)} ${lab(k)}</i>`;
+    return [...ups.slice(0, downs.length ? 2 : 3), ...downs.slice(0, 1)].map(bit).join(' ');
+  }
+  function cardPerkFront(c, spec) {
+    const P = perkOfCard(c);
+    const sub = spec ? esc(spec.desc) : c.flat ? `+${c.flat} pts every game` : '';
+    return `<div class="mc-fxs">${fxShort(c)}</div>${P ? `<div class="mc-perk" title="${esc(`${P.name}: ${P.text} (${P.when}).`)}"><span aria-hidden="true">⚡</span> ${esc(P.name)}</div>` : ''}${sub ? `<div class="mc-spec">${sub}</div>` : ''}`;
+  }
+  // The Lineup's cards together: total rating ups and downs, and every perk with its position.
+  function lineupFx(db, ids, title = 'What your saved Lineup does in game') {
+    const cs = ids.map((id, i) => ({ c: id && cards.cardInfo(db, id), pos: POS[i] })).filter((x) => x.c);
+    if (!cs.length || !cards.cardEffects) return '';
+    const tot = {};
+    for (const { c } of cs) { const e = attempt(() => cards.cardEffects(c)); if (e) for (const [k, v] of Object.entries(e.attr)) tot[k] = (tot[k] || 0) + v; }
+    const lab = (k) => (k === 'hgt' ? 'in' : k === 'wgt' ? 'lb' : (cards.ATTR_SHORT && cards.ATTR_SHORT[k]) || k);
+    const bits = Object.entries(tot).filter(([, v]) => v).sort((x, y) => y[1] - x[1]).map(([k, v]) => `<i class="${v > 0 ? 'up' : 'down'}" title="${esc(attrName(k))}">${v > 0 ? '+' : '−'}${Math.abs(v)} ${lab(k)}</i>`);
+    const perks = cs.map(({ c, pos }) => { const P = perkOfCard(c); return P ? `<li><b>${esc(pos)} · ${esc(P.name)}</b>${P.lv > 1 ? ` <span class="muted sm">level ${P.lv}</span>` : ''} <span class="muted sm">${esc(c.p.name)}, ${esc(c.label)}</span><small>${esc(P.text)} (${esc(P.when)}).</small></li>` : ''; }).join('');
+    return `<details class="lineup-fx" open><summary><b>${esc(title)}</b></summary>
+      <p class="muted sm">All ${cs.length} cards added up (ratings change in the Arcade):</p><div class="fx-tot">${bits.join(' ') || '<span class="muted">No changes</span>'}</div>
+      <ul class="perk-list">${perks}</ul></details>`;
+  }
+  h.lineupFx = lineupFx;
+  h.cardPerk = perkOfCard;
+  h.tierWords = tierWords;
+  h.fxShort = fxShort;
 
   // ---------- card backs ----------
   // Every card flips (CARD_FLIP below) to a back with the full card: who, which card, base
@@ -103,8 +140,11 @@ module.exports = function fun(app, h) {
       <div class="mb-lab"><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span><span>${esc(c.label)}</span></div>
       <dl class="mb-meta">${meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
       <div class="mb-attrs"><div class="mb-a mb-ah"><span>${est ? 'Ratings (est.)' : 'Ratings'}</span><i>Base</i><em>Card</em><b>Now</b></div>${rows}</div>
+      ${(() => { const P = perkOfCard(c); return P ? `<p class="mb-perk"><b>Perk · ${esc(P.name)}${P.lv > 1 ? ` · level ${P.lv}` : ''}</b>${esc(P.text)}. <span class="muted">When: ${esc(P.when)}.</span></p>` : ''; })()}
       <p class="mb-fx"><b>In game</b> ${effectWords(c, fx)}</p>
-      <p class="mb-fan"><b>Fantasy</b> ${c.mult}× points${c.flat ? ` · +${c.flat} every game` : ''}${c.spec ? ` · ${esc(cards.SPECIALTIES[c.spec].desc)}` : ''}</p></div>`;
+      <p class="mb-tier"><b>${esc(tierOfCard(c).rarity || c.rarityName)} tier · ${esc(tierOfCard(c).name)}</b>${esc(tierOfCard(c).text)}</p>
+      <p class="mb-fan"><b>Fantasy</b> ${c.mult}× points${c.flat ? ` · +${c.flat} every game` : ''}${c.spec ? ` · ${esc(cards.SPECIALTIES[c.spec].desc)}` : ''}</p>
+      ${c.quote ? `<p class="mb-q">“${esc(c.quote)}”</p>` : ''}</div>`;
   }
   h.cardBack = cardBack;
   app.get('/pickem/cards/back', (req, res) => {
@@ -193,6 +233,7 @@ module.exports = function fun(app, h) {
             <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot g-${POS_GROUP(POS[i])}" data-i="${i}"><span class="slot-pos">${POS[i]}</span><div class="slot-c">${slot(lineup[i])}</div></div>`).join('')}</div>
             <div class="lineup-bar"><span id="lineupMsg" class="muted sm">${lineup.filter(Boolean).length}/${cards.LINEUP_SIZE} picked</span><button type="button" class="btn ghost sm" id="autoBtn">Auto-pick best</button><button class="btn sm" id="saveLineup">Save Lineup</button></div>
           </form>
+          ${lineupFx(db, lineup)}
           <div class="lineup-pick" id="lineupPick" hidden><span>Pick a card for <b id="lineupPickPos"></b></span><button type="button" class="btn ghost sm" id="lineupPickDone">Back to Lineup</button></div>
         </section>
         ${last ? `<section class="card"><div class="card-h"><h2>Last game: +${last.total} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
@@ -450,6 +491,7 @@ module.exports = function fun(app, h) {
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
+          ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
           <li>Card sets: ${cards.SETS.length} themed sets with 5 versions of every player each (Base ${cards.PARALLELS[0].mult}×, Silver ${cards.PARALLELS[1].mult}×, Gold ${cards.PARALLELS[2].mult}×, Prism ${cards.PARALLELS[3].mult}×, Black ${cards.PARALLELS[4].mult}×). They only come from set packs.</li>
           <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
@@ -559,7 +601,7 @@ module.exports = function fun(app, h) {
         <div class="reveal-go" hidden>${pending ? '' : `<a class="btn" href="/pickem/cards">Go to my cards</a>${again}<a class="btn ghost" href="/pickem/packs#pk-${esc(pack.type)}">Back to the shop</a>`}</div>
         <p class="muted sm center rv-tip">Tap a card (or its ↻ button) to flip it over and read the back.</p>
         <script>(()=>{const rv=document.querySelector('.reveal'),fl=[...rv.querySelectorAll('.flip')],go=document.querySelector('.reveal-go'),all=document.getElementById('flipAll'),choose=rv.classList.contains('choose');
-          const ORDER=${JSON.stringify(cards.RARITY_ORDER)},tier=(f)=>ORDER.findIndex((r)=>f.classList.contains('r-'+r)),calm=matchMedia('(prefers-reduced-motion: reduce)').matches,key='mfl-rv-${esc(pack.id)}';
+          const ORDER=${JSON.stringify(cs.some((c) => c.hidden) ? cards.RARITY_ORDER : cards.SHOWN_RARITIES)},tier=(f)=>ORDER.findIndex((r)=>f.classList.contains('r-'+r)),calm=matchMedia('(prefers-reduced-motion: reduce)').matches,key='mfl-rv-${esc(pack.id)}';
           let seen=${req.query.m === 'kept' ? 'true' : 'false'},timer=0;try{seen=seen||!!sessionStorage.getItem(key);}catch(e){}
           const done=()=>{if(!fl.every((f)=>f.classList.contains('on')))return;go.hidden=false;all.hidden=true;rv.classList.add('all-on');try{sessionStorage.setItem(key,'1');}catch(e){}};
           const open=(f)=>{if(f.classList.contains('on'))return;f.classList.remove('tease');f.classList.add('on');done();};

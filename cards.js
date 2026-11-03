@@ -318,6 +318,135 @@ const SET_FX = {
   'all-mfl': { a: { thr: 1, acc: 1, spd: 1, cat: 1, def: 1, kick: -2 } },
   'hall-of-fame': { a: { thr: 2, acc: 2, cat: 1, spd: -2, wgt: 5 } },
 };
+
+// ---------- perks ----------
+// Every card type has a perk: one on-field quirk the games act out. Keyed by variant id, and by
+// set id for set cards (all five parallels share the set's perk; the parallel makes it stronger).
+// [id, name, what happens on the field, when it triggers]
+const PERK_ROWS = [
+  ['base', 'Try Hard', 'After a mistake he hustles to make up for it: a short burst of speed with a little dust cloud', 'the play after he drops a pass or misses a tackle'],
+  ['team', 'Team Spirit', 'Sparks in his team colors jump to the nearest teammate, who gets a quick speed boost', 'every time he makes a catch or a block'],
+  ['silver', 'Shiny Hands', 'His gloves glint and the ball sticks: that catch cannot be dropped', 'the first pass thrown his way on each drive'],
+  ['action', 'Motion Blur', 'He leaves a speed streak and shoots forward in a quick burst', 'his first cut on each play'],
+  ['spec-td', 'End Zone Magnet', 'He gets pulled toward the goal line: extra speed while running at the end zone', 'carrying the ball inside the 20-yard line'],
+  ['spec-pass', 'Laser Arm', 'His throws fly flat and fast with no wobble and are harder to pick off', 'every pass longer than 15 yards'],
+  ['spec-int', 'Sticky Gloves', 'He jumps the route and lunges at the ball, with a better chance to intercept', 'a pass thrown within 3 yards of him on defense'],
+  ['spec-def', 'Steam Engine', 'He puffs steam and his first step off the line is extra quick', 'every snap on defense'],
+  ['spec-play', 'Highlight Hunter', 'A star pops over his head and his diving catch range grows', 'contested and diving catches'],
+  ['gold', 'Golden Spiral', 'His next throw or catch leaves a gold trail and lands right on target', 'the play after a completion he was part of'],
+  ['holo', 'Afterimage', 'He leaves a shimmering copy of himself behind, and the nearest defender chases the copy for half a second', 'every juke'],
+  ['spec', 'Signature Move', 'He does his own little spin and his specialty move works no matter what', 'the first time his specialty comes up each game'],
+  ['legend', 'Old Pro', 'He reads the play early and drifts toward where the ball is going before it is thrown', 'every pass play while he is on defense'],
+  ['allstar', 'Showtime', 'He high-steps into open space and gets a big speed boost while nobody is near him', 'when no defender is within 5 yards of him'],
+  ['clutch', 'Ice Cold', 'He gets a frosty blue glow and a boost to speed and accuracy', 'the last 2 minutes of a half, or when his team is behind'],
+  ['icon', 'Spotlight', 'A spotlight follows him and the first defender who tries to tackle him freezes for a beat, starstruck', 'the first tackle attempt on him each play'],
+  ['bench', 'Nap Time', 'He dozes off for a beat (Zzz bubble) after a long play, then pops up with fresh legs', 'after any play of 20 yards or more'],
+  ['trophy', 'Everybody Wins', 'Confetti bursts and the whole team gets a small speed boost on the next play', 'every first down his team gains'],
+  ['pizza', 'Extra Cheese', 'One tackler is not enough: it takes two defenders to bring him down', 'every time a single defender tries to tackle him'],
+  ['cutout', 'Flat Out', 'A big hit folds him flat like cardboard, then he pops back up with a boing', 'every time he is hit while blocking'],
+  ['bobble', 'Wobble Head', 'His big head spots lobs early (bigger catch window), but after a hit he wobbles, dizzy, for a beat', 'lob passes his way, and after he is hit'],
+  ['pixel', '8-Bit Runner', 'He runs in blocky 8-direction moves, and straight-line runs get extra fast', 'after carrying the ball in a straight line for 1 second'],
+  ['snow', 'Snow Day', 'Snow puffs off his cleats and defenders near him slip', 'when he cuts with a defender within 2 yards'],
+  ['upside', 'Topsy-Turvy', 'He cartwheels upside down right over a defender diving at his legs', 'when a defender dives at him low'],
+  ['duck', 'Squeaky', 'He squeaks and bounces off the first tackle like a rubber toy', 'the first tackle attempt on him each play'],
+  ['built', 'Bulldozer', 'Defenders he blocks get shoved back 2 yards and fall over', 'every block he makes'],
+  ['throwback', 'Leather Helmet', 'Old-school style: he lowers his shoulder and always falls forward for an extra yard', 'every time he is tackled with the ball'],
+  ['spooky', 'Boo!', 'He turns see-through for a moment and the closest defender jumps back, scared', 'once a play, when a defender gets within 2 yards'],
+  ['glitch', 'Lag Spike', 'He teleports a yard sideways in a burst of glitchy pixels', 'every juke (once every few seconds)'],
+  ['goat', 'GOAT Aura', 'A golden aura (and a little bleat) lifts every teammate within 5 yards by +2 in all skills', 'always, while he is on the field'],
+  ['mythic', 'Slow-Mo', 'Time slows down for a beat so he can pick the perfect lane', 'his first cut on each drive'],
+  ['dark', 'Gravity Well', 'Passes thrown near him bend toward him, and defenders right next to him move in slow motion', 'any pass within 5 yards, and always within 2 yards'],
+  ['doh', 'Big Doh Mi', 'Coins rain down and the scoreboard flashes +100', 'every time he touches the ball'],
+  ['skinny', 'Sideways', 'He turns sideways and slips through gaps too small for anyone else', 'running between two players who are close together'],
+  ['heavy', 'Earthquake', 'The ground shakes when he lands a hit and nearby players stumble', 'every tackle or block he makes'],
+  ['tall', 'Sky Grab', 'He reaches over defenders to snag high passes no one else can get', 'passes thrown above head height'],
+  ['short', 'Duck Under', 'High tackles sail right over his head', 'a defender tackles high at him'],
+  ['beanpole', 'Noodle Arms', 'His arms stretch like noodles and his diving catch reaches an extra yard', 'every diving catch'],
+  ['stout', 'Fire Hydrant', 'He cannot be pushed off his spot while blocking', 'when a defender bull-rushes him'],
+  ['giant', 'Eclipse', 'His huge shadow blocks the view: passes thrown over him get batted down more often', 'a pass thrown within 3 yards of him'],
+  ['pocket', 'Launch Pad', 'A little rocket puff and he goes from standing still to full speed instantly', 'his first step after stopping or cutting'],
+  // Sets
+  ['picture-day', 'Say Cheese', 'A camera flash pops and blinds the closest defender for half a second', 'every catch he makes'],
+  ['hall-pass', 'Hall Pass', 'He flashes a hall pass and walks right through a tackle', 'the first tackle on him each game'],
+  ['gym-class', 'Dodgeball', 'He automatically sidesteps a diving tackle', 'the first diving tackle at him each drive'],
+  ['science-fair', 'Calculated', 'A dotted arc shows his throw or kick, and it lands exactly on target', 'his first throw or kick each half'],
+  ['library', 'Quiet Feet', 'His footsteps make no sound: defenders do not turn to chase him until he is 2 yards past', 'running past a defender'],
+  ['bus-ride', 'Late Bus', 'He is a beat late out of the huddle, but after a rest one defender cannot tackle him', 'the first play after he sits out or after a timeout'],
+  ['pajama-day', 'Sleepwalker', 'He yawns at the snap (a slow start), then glides in fuzzy slippers that never slip', 'every snap'],
+  ['crazy-hair', 'Hair Tangle', 'Whoever tackles him gets tangled in his wild hair and is slow to get up', 'after every tackle on him'],
+  ['twin-day', 'Seeing Double', 'A twin copy runs a mirror route and the defense has to guess which one is real', 'the first 2 seconds of each pass play'],
+  ['pep-rally', 'Megaphone', 'He yells the snap count and his line gets a jump off the snap', 'every 3rd and 4th down'],
+  ['homecoming', 'Slow Dance', 'He moves in slow motion, but every catch he makes is perfect', 'the first drive of the second half'],
+  ['color-war', 'Paint Splat', 'Each tackle leaves a paint splat, and the next runner over that spot slips', 'every tackle he makes'],
+  ['halloween', 'Trick or Treat', 'A coin flip: treat, he slips out of the tackle; trick, he trips over his own cape', 'the first tackle attempt on him each drive'],
+  ['turkey', 'Drumstick Stiff-Arm', 'His stiff-arm (drumstick in hand) shoves a tackler 2 yards away', 'one defender squares up in front of him'],
+  ['christmas', 'Present Drop', 'A gift box pops out when he goes down, and the next pass to him gets a bigger catch window', 'every time he is tackled'],
+  ['spring', 'Spring Step', 'He boings over players lying on the ground instead of tripping', 'running over a fallen player'],
+  ['super', 'Big Game', 'His jersey sparkles and all his ups count double', 'the second half of a game within 7 points'],
+  ['new-year', 'Countdown', 'Fireworks go off behind him and he gets a burst of speed', 'the last 10 seconds of each half'],
+  ['galaxy', 'Zero Gravity', 'His jumps go higher and he floats a moment longer, like on the moon', 'every jump or leaping catch'],
+  ['ocean', 'Riptide', 'Teammates running right behind him get pulled along in his wake', 'a teammate within 2 yards behind him'],
+  ['jungle', 'Vine Swing', 'He swings on a vine back in bounds instead of stepping out', 'a catch or run right at the sideline'],
+  ['volcano', 'Eruption', 'He explodes off the snap with a huge burst, then cools off and slows down', 'every snap'],
+  ['arctic', 'Ice Trail', 'He leaves an icy trail, and anyone chasing right behind him slides', 'when a defender chases him from behind'],
+  ['desert', 'Sandstorm', 'A dust cloud kicks up when he cuts, and the defender behind him loses sight of him for a beat', 'every hard cut'],
+  ['chalkboard', 'Draw It Up', 'A chalk line draws his route, and the throw to him on that route is perfect', 'the first pass play of each drive'],
+  ['blueprint', 'By The Plans', 'He and the closest lineman lock into a double-team block', 'every run play'],
+  ['comic', 'KA-POW', 'A comic word bubble pops and the ball carrier is knocked back a yard', 'every tackle he makes'],
+  ['graffiti', 'Tagged', 'He tags the defender who missed him with paint, and that defender is slower for the rest of the play', 'a defender misses a tackle on him'],
+  ['stained-glass', 'Glass Act', 'He shines in open space (bigger catch window), but a big hit cracks him and he is slow the next play', 'in open space, and after a big hit'],
+  ['origami', 'Paper Airplane', 'He folds into a paper plane and glides an extra yard on dives', 'every dive'],
+  ['neon', 'Glow Up', 'A neon trail lights him up and the quarterback looks his way first', 'when he is open on a pass play'],
+  ['pixel-plus', 'Extra Life', 'A 1UP pops and the fumble or drop is erased', 'the first fumble or drop each game'],
+  ['high-score', 'Combo Meter', 'A combo counter climbs with each catch; at 3x he gets a speed boost', 'catches in a row on the same drive'],
+  ['circuit', 'Short Circuit', 'Sparks fly: the tackler gets zapped back a step, but he freezes for a beat too', 'every big hit on him'],
+  ['hologram', 'Flicker', 'He flickers out of sight at the snap and his defender loses him', 'the snap of every pass play'],
+  ['vhs', 'Rewind', 'The tape rewinds and he ends up back at the line of scrimmage instead of losing yards', 'the first time each game he is tackled behind the line'],
+  ['thunder', 'Thunderclap', 'Lightning strikes with a boom and defenders within 3 yards flinch', 'when he reaches top speed'],
+  ['rainy-day', 'Mudder', 'He never slows down in the mud and shoves the pile forward a yard', 'short-yardage and goal-line runs'],
+  ['sunshine', 'Solar Power', 'He soaks up sunshine and gets his energy back twice as fast', 'plays he is not part of'],
+  ['tornado', 'Spin Cycle', 'His spin move carries him farther and knocks a nearby defender off balance', 'every spin move'],
+  ['rainbow', 'Rainbow Arc', 'His lobs and kicks fly in a rainbow arc and drop right over defenders', 'every lob pass and kick'],
+  ['blizzard', 'Whiteout', 'A snow flurry swirls around him and passes thrown into his area wobble', 'passes thrown near him while he is on defense'],
+  ['cereal', 'Breakfast Boost', 'Fueled by breakfast: extra speed and energy', 'the first quarter only'],
+  ['nachos', 'Cheesy Grip', 'The ball sticks to his cheesy fingers and never drops, but he is slow to hand it off', 'every pass he gets his hands on'],
+  ['donut', 'Sugar Rush', 'Sprinkles fly and he gets a big speed burst', 'every third time he touches the ball'],
+  ['hot-sauce', 'Hot Feet', 'His feet heat up and he runs faster the longer he carries the ball', 'after 3 seconds with the ball'],
+  ['popcorn', 'Kernel Pop', 'He pops straight up and lands a yard to the side, sometimes away from the tackle', 'one in three hits on him'],
+  ['smoothie', 'Smooth Moves', 'He glides through cuts without losing any speed', 'every change of direction'],
+  ['highlight', 'Instant Replay', 'A slow-motion replay frame plays and he gains +1 agility for the rest of the game (up to +3)', 'every play of 15 yards or more'],
+  ['film-room', 'Studied Tape', 'He has seen this one before and jumps the play', 'when the other team runs the same play twice in a row'],
+  ['playbook', 'Audible', 'He shifts to the most open spot before the snap', 'once each drive, before the snap'],
+  ['captains', "Captain's Call", 'He rallies the team and everyone gets their energy back', 'right after his team loses the ball'],
+  ['all-mfl', 'Swiss Army', 'A role badge shows over him and he gets +2 to the main skill of whatever spot he lines up at', 'every play'],
+  ['hall-of-fame', 'Bronze Statue', 'He freezes in a bronze statue pose and his teammates get +1 to everything next drive', 'right after he scores'],
+];
+const PERKS = Object.fromEntries(PERK_ROWS.map(([id, name, text, when]) => [id, { id, name, text, when }]));
+
+// ---------- rarity tiers ----------
+// Each rarity adds its own boost on top of the card's own effect, and sets the perk level
+// (higher level = the perk is stronger or happens more often). `top` = bonus to the card's best
+// skills in order; `rest` = bonus to every other skill; `shrink` = how many downsides get 1 smaller
+// (never smaller than −1, so a card with a downside keeps it).
+const TIERS = {
+  common: { name: 'Rookie', lv: 1, top: [], rest: 0, shrink: 0, text: 'No extra boost. Perk at level 1.' },
+  rare: { name: 'Polished', lv: 2, top: [1], rest: 0, shrink: 0, text: '+1 to the best skill. Perk level 2 (25% stronger or more often).' },
+  epic: { name: 'Golden', lv: 3, top: [2, 1], rest: 0, shrink: 0, text: '+2 to the best skill, +1 to the next. Perk level 3 (50% stronger or more often).' },
+  legendary: { name: 'Legendary', lv: 4, top: [3, 2, 1], rest: 0, shrink: 1, text: '+3 / +2 / +1 to the top three skills, the biggest downside shrinks by 1. Perk level 4 (75% stronger).' },
+  mythic: { name: 'Mythical', lv: 5, top: [4, 3, 2], rest: 0, shrink: 99, text: '+4 / +3 / +2 to the top three skills, every downside shrinks by 1. Perk level 5 (twice as strong).' },
+  dark: { name: 'Event Horizon', lv: 6, top: [5, 4, 3], rest: 1, shrink: 99, text: '+5 / +4 / +3 to the top three skills, +1 to every other skill. Perk level 6: always on, no cooldowns.' },
+  doh: { name: '101×', lv: 7, top: [], rest: 0, shrink: 0, text: 'Every point he scores comes with 100 more (101× scoring). Perk level 7: maxed out.' },
+};
+const tierOf = (rarity) => ({ id: rarity, rarity: (RARITIES[rarity] || RARITIES.common).name, ...(TIERS[rarity] || TIERS.common) });
+// A card's perk: { id, name, text, when, lv }. Set cards use their set's perk.
+function perkOf(card) {
+  if (typeof card === 'string') card = { variant: card.includes(':') ? card.slice(card.indexOf(':') + 1) : card };
+  if (!card) return null;
+  const v = VARIANT_MAP.get(card.variant || card.id || '') || {};
+  const set = card.set || v.set || null, rarity = card.rarity || v.rarity || 'common';
+  const P = PERKS[set || card.variant || v.id];
+  return P ? { ...P, lv: (TIERS[rarity] || TIERS.common).lv } : null;
+}
 const isBodyAttr = (k) => k === 'hgt' || k === 'wgt';
 function scaleFx(a, up, down, body = 1) {
   const out = {};
@@ -349,23 +478,43 @@ function cardEffects(card) {
     a = T.spec ? scaleFx(SPEC_FX[spec] || SPEC_FX.play, T.spec[0], T.spec[1]) : T.a;
     build = T.build || null;
   } else a = RARITY_FX[rarity] || RARITY_FX.common;
-  for (const [k, n] of Object.entries(a)) {
+  for (const [k, n] of Object.entries(a)) attr[k] = Math.round(n);
+  // The rarity tier's own boost, on top of the card's effect.
+  const T = TIERS[rarity] || TIERS.common;
+  const skills = ATTR_KEYS.filter((k) => !isBodyAttr(k));
+  const ranked = skills.slice().sort((x, y) => attr[y] - attr[x] || skills.indexOf(x) - skills.indexOf(y));
+  T.top.forEach((n, i) => { attr[ranked[i]] += n; });
+  if (T.rest) for (const k of ranked.slice(T.top.length)) attr[k] += T.rest;
+  if (T.shrink) {
+    const downs = skills.filter((k) => attr[k] < -1).sort((x, y) => attr[x] - attr[y]).slice(0, T.shrink);
+    for (const k of downs) attr[k] += 1;
+  }
+  for (const k of ATTR_KEYS) {
     const cap = FX_CAP[k] || FX_CAP_SKILL;
-    attr[k] = Math.max(-cap, Math.min(cap, Math.round(n)));
+    attr[k] = Math.max(-cap, Math.min(cap, attr[k]));
   }
   // Only 1 of 1 cards may be all upside.
-  if (!one && !ATTR_KEYS.some((k) => !isBodyAttr(k) && attr[k] < 0)) attr.kick -= 1;
-  return { attr, build, fx: { variant, set, par, rarity, spec } };
+  if (!one && !skills.some((k) => attr[k] < 0)) attr.kick -= 1;
+  const perk = perkOf({ variant, set, rarity });
+  return { attr, build, fx: { variant, set, par, rarity, spec, perk: perk ? perk.id : null, perkLv: T.lv } };
 }
 // Short summary for the back of a card: "+4 STR, +3 STA, −3 SPD, −2 AGI, +15 lb · Fat build".
 // Skills first (ups, then downs, biggest first), then height and weight.
-function effectText(card) {
+function effectText(card, opts = {}) {
   const e = card && card.attr && 'build' in card ? card : cardEffects(card);
   const parts = ATTR_KEYS.filter((k) => e.attr[k]).map((k) => ({ k, v: e.attr[k] }))
     .sort((x, y) => isBodyAttr(x.k) - isBodyAttr(y.k) || (isBodyAttr(x.k) ? 0 : (y.v > 0) - (x.v > 0) || Math.abs(y.v) - Math.abs(x.v)));
   const txt = parts.map(({ k, v }) => `${v > 0 ? '+' : '−'}${Math.abs(v)} ${k === 'hgt' ? 'in' : k === 'wgt' ? 'lb' : ATTR_SHORT[k]}`).join(', ');
   const b = e.build ? `${BUILD_LABELS[e.build] || e.build} build` : '';
-  return [txt, b].filter(Boolean).join(' · ');
+  const out = [txt, b];
+  // { perk: true } adds the perk and the rarity tier: "… · Perk: Squeaky · Golden tier".
+  if (opts.perk && card) {
+    const P = perkOf(e.fx ? { variant: e.fx.variant, set: e.fx.set, rarity: e.fx.rarity } : card);
+    if (P) out.push(`Perk: ${P.name}`);
+    const r = e.fx ? e.fx.rarity : card.rarity;
+    if (r) out.push(`${tierOf(r).name} tier`);
+  }
+  return out.filter(Boolean).join(' · ');
 }
 
 // Fantasy points for one player in one game.
@@ -692,7 +841,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, t, p };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -855,4 +1004,4 @@ function fantasy(db, user, mvpOf) {
 }
 
 module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
-  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText };
+  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf };
