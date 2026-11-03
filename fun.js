@@ -11,6 +11,9 @@ module.exports = function fun(app, h) {
   // Which auto-pick column each position uses: 0 QB, 1 RB, 2 WR, 3 TE, 4 UTIL, 5 OL.
   const POS_COL = POS.map((p) => ({ QB: 0, RB: 1, TE: 3 })[p] ?? (/^WR/.test(p) ? 2 : /^UTIL/.test(p) ? 4 : 5));
   const POS_GROUP = (p) => (/^UTIL/.test(p) ? 'util' : /^OL/.test(p) ? 'ol' : 'skill');
+  // The Lineup groups (the same order as POS_COL) and the ones a player likes, set in admin as p.pref.
+  const LU_GROUPS = ['QB', 'RB', 'WR', 'TE', 'UTIL', 'OL'];
+  const prefOf = (p) => (Array.isArray(p && p.pref) ? LU_GROUPS.filter((k) => p.pref.includes(k)) : []);
 
   // ---------- card artwork ----------
   // How each card type shows the player photo.
@@ -177,6 +180,31 @@ module.exports = function fun(app, h) {
     next();
   });
 
+  // ---------- last game: what each Lineup card scored, as words and math ----------
+  // "10 TD passes × 35 × 1.25 = 438 · win +10". Every Lineup player gets a row, even with 0 points.
+  const STAT_WORDS = { td: ['TD', 'TDs'], pass: ['TD pass', 'TD passes'], int: ['interception', 'interceptions'], catch: ['notable catch', 'notable catches'], sack: ['sack', 'sacks'], pbu: ['pass breakup', 'pass breakups'], flag: ['flag pull', 'flag pulls'], big: ['notable play', 'notable plays'], picked: ['INT thrown', 'INTs thrown'], mvp: ['game MVP', 'game MVPs'], win: ['win', 'wins'] };
+  const pts = (v) => Math.round(v).toLocaleString('en-US');
+  const minus = (v) => '−' + pts(Math.abs(v));
+  function partMath(c, q) {
+    if (q.k === 'flat') return `card bonus +${pts(q.pts)}`;
+    const w = STAT_WORDS[q.k] || [q.k, q.k], word = q.n === 1 ? w[0] : w[1], base = cards.SCORING[q.k];
+    if (base < 0) return q.n === 1 ? `${word} ${minus(q.pts)}` : `${q.n} ${word} × ${minus(base)} = ${minus(q.pts)}`;
+    const boost = !!c.spec && cards.SPECIALTIES[c.spec].cats.includes(q.k);
+    const f = [base, ...(c.mult !== 1 ? [c.mult] : []), ...(boost ? [cards.SPECIAL_BOOST] : [])];
+    if (q.n === 1 && f.length === 1) return `${word} +${pts(q.pts)}`;
+    return `${q.n} ${word} × ${f.join(' × ')} = ${pts(q.pts)}`;
+  }
+  function lastGame(db, last, fan) {
+    const rows = [...last.cards].sort((a, b) => b.pts - a.pts || (a.pos || '').localeCompare(b.pos || ''));
+    return `<section class="card last-game"><div class="card-h"><h2>Last game: +${pts(last.total)} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
+      <p class="muted sm">What each card in your Lineup scored. Points = stat × points per stat × the card's multiplier (mistakes are never multiplied). 1 point = 1 coin.</p>
+      <div class="fan-rows">${rows.map((x) => {
+        const line = !x.played ? ['Did not play · 0 pts'] : x.parts.length ? x.parts.map((q) => partMath(x.c, q)) : ['Played, no stats · 0 pts'];
+        return `<div class="fan-row${x.pts ? '' : ' zero'}"><span class="fan-av">${avatar(x.c.t, x.c.p, 40)}</span><span class="fan-main"><b>${esc(x.c.p.name)}</b><small>${x.pos ? `<i class="fan-pos">${esc(x.pos)}</i> ` : ''}<span class="rar-tag r-${x.c.rarity}">${esc(x.c.rarityName)}</span> ${esc(x.c.label)} · ${x.c.mult}×</small><span class="fan-math">${line.map((t) => `<span>${esc(t)}</span>`).join(' · ')}</span></span><b class="fan-pts ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : x.pts < 0 ? '−' : ''}${pts(Math.abs(x.pts))}</b></div>`;
+      }).join('')}</div>
+      ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} +${pts(r.total)}`).join(' · ')}</p>` : ''}</section>`;
+  }
+
   const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null, /^\/pickem\/(cards|packs)/.test(req.path) ? 'cards' : '') + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
   const flash = (req) => {
     const m = { lineup: 'Lineup saved ✓', sold: 'Card sold ✓', poor: 'Not enough coins for that.', used: 'Already claimed.', bad: 'Something was off with that request.', joined: "You're in! Make your pick.", picked: 'Pick saved ✓', locked: 'Picks are locked for this game.' }[req.query.m];
@@ -205,7 +233,7 @@ module.exports = function fun(app, h) {
       const attrsOf = (c) => { try { const a = typeof arc.playerAttrs === 'function' && arc.playerAttrs(db, c.t, c.p); return a && Number.isFinite(a.str) ? a : null; } catch { return null; } };
       // How well a card fits each position column (QB, RB, WR, TE, UTIL, OL), used by auto-pick.
       // The card's own effects count too: a Pizza Friday card blocks better and catches worse.
-      const fit = (c) => {
+      const fitArr = (c) => {
         const r = h.ratingOf(db, c.t, c.p), td = et.player(c.t, c.p, 'td'), ps = et.player(c.t, c.p, 'pass'), m = c.mult;
         const d = cards.cardEffects(c).attr, b = attrsOf(c);
         let f = [ps * 0.75 + r * 0.25 + (d.thr + d.acc) / 2, td * 0.6 + r * 0.4 + (d.spd + d.agi) / 2, td * 0.5 + r * 0.5 + (d.spd + d.cat) / 2,
@@ -215,36 +243,64 @@ module.exports = function fun(app, h) {
           const g = [(v('thr') + v('acc')) / 2, (v('spd') + v('agi')) / 2, (v('spd') + v('cat')) / 2, (v('cat') + v('str')) / 2, (v('str') + v('kick') + v('def')) / 3, v('str') * 0.6 + v('def') * 0.1 + heft * 0.3];
           f = f.map((x, i) => (x + g[i]) / 2);
         }
-        return f.map((x) => Math.round(x * m)).join(',');
+        return f.map((x) => Math.round(x * m));
       };
+      const fit = (c) => fitArr(c).join(',');
       const fan = acct.points.fan;
       const last = fan.results.at(-1);
       const sortKey = (c) => -cards.RARITY_ORDER.indexOf(c.rarity) * 1000 - h.ratingOf(db, c.t, c.p);
       const mine = all.filter((c) => own[c.id]).sort((a, b) => sortKey(a) - sortKey(b));
       const uniq = mine.length, total = Object.values(own).reduce((s, n) => s + n, 0);
       const slot = (id) => { const c = id && cards.cardInfo(db, id); return c ? cardArt(db, c, { small: true }) : '<div class="slot-empty">+</div>'; };
+      // The player picker: one entry per player you own, with his cards (best first), the Lineup
+      // groups he likes (set in admin) and, when none are set, the two groups his ratings fit best.
+      const byPid = new Map();
+      for (const c of mine) {
+        let P = byPid.get(c.pid);
+        if (!P) byPid.set(c.pid, (P = { pid: c.pid, n: c.p.name, t: c.t.abbr || c.t.name, av: avatar(c.t, c.p, 44), pref: prefOf(c.p), cards: [] }));
+        P.cards.push({ id: c.id, l: c.label, r: c.rarity, rn: c.rarityName, m: c.mult, f: fitArr(c) });
+      }
+      const roster = [...byPid.values()].map((P) => ({ ...P, auto: LU_GROUPS.map((gp, k) => [gp, Math.max(...P.cards.map((x) => x.f[k]))]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([gp]) => gp) }));
+      const shown = (view === 'all' ? all.filter((c) => !c.set).sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id)));
+      // Art for owned cards the grid below does not show (a rarity filter, or set cards on "All cards"), so any pick can be drawn in its slot.
+      const inGrid = new Set(shown.map((c) => c.id));
+      const bank = mine.filter((c) => !inGrid.has(c.id)).map((c) => cardArt(db, c, { small: true })).join('');
+      const S = cards.SCORING;
+      const scoreLine = `TD ${S.td} · TD pass ${S.pass} · INT ${S.int} · sack ${S.sack} · notable catch or play ${S.catch} · breakup ${S.pbu} · flag pull ${S.flag} · MVP ${S.mvp} · win ${S.win} · thrown INT ${S.picked}`;
+      const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
       const body = `
         <div class="stats-row">${[['Coins', coins(acct.balance)], ['Cards', `${total}`], ['Collected', `${uniq} / ${all.length}`], ['Won by Lineup', coins(acct.points.fantasy)]].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
         ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>${cards.LINEUP_SIZE} cards: a full Lineup that earns coins every game.</span></div>${icon('arrow')}</a>`}
-        <section class="card lineup-card">
+        <section class="card lineup-card" id="lineupCard">
           <div class="card-h"><h2>Lineup</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
-          <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card changes its player's ratings (some up, some down). Your Lineup carries over until you change it. Tap a position, then a card below.</p>
+          <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier, paid in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card changes its player's ratings (some up, some down). Your Lineup carries over until you change it.</p>
+          <p class="lu-score sm"><b>Points</b> ${scoreLine}. A QB with 10 TD passes on a Base card earns ${10 * S.pass} coins.</p>
+          <p class="lu-how sm"><b>Tap a spot</b>, then pick a player. Tap a filled spot, then another spot to swap them (or drag on a computer). Tap a spot twice to empty it.</p>
           <form method="post" action="/pickem/lineup" id="lineupForm"><input type="hidden" name="cards" id="lineupInput" value="${esc(lineup.join(','))}">
-            <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot g-${POS_GROUP(POS[i])}" data-i="${i}"><span class="slot-pos">${POS[i]}</span><div class="slot-c">${slot(lineup[i])}</div></div>`).join('')}</div>
+            <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot g-${POS_GROUP(POS[i])}" data-i="${i}" role="button" tabindex="0" aria-label="${POS[i]}"><span class="slot-pos">${POS[i]}</span><div class="slot-c" data-cur="${esc(lineup[i])}">${slot(lineup[i])}</div></div>`).join('')}</div>
             <div class="lineup-bar"><span id="lineupMsg" class="muted sm">${lineup.filter(Boolean).length}/${cards.LINEUP_SIZE} picked</span><button type="button" class="btn ghost sm" id="autoBtn">Auto-pick best</button><button class="btn sm" id="saveLineup">Save Lineup</button></div>
           </form>
+          ${roster.length ? `<div class="lu-picker" id="luPicker">
+            <div class="lu-head">
+              <div class="lu-top"><div class="lu-target" id="luTarget">My players</div><button type="button" class="btn sm" id="luBack" hidden>Back to Lineup</button></div>
+              <div class="lu-mini" id="luMini" role="group" aria-label="Lineup spots">${POS.map((p, i) => `<button type="button" data-i="${i}" class="g-${POS_GROUP(p)}"><b>${p}</b><span></span></button>`).join('')}</div>
+              <div class="lu-filters"><div class="lu-chips" id="luChips" role="group" aria-label="Show players who like a position">${['ALL', ...LU_GROUPS].map((gp) => `<button type="button" data-g="${gp}">${gp === 'ALL' ? 'All' : gp}<i></i></button>`).join('')}</div>
+                <input type="search" id="luSearch" class="lu-search" placeholder="Search your players" aria-label="Search your players" autocomplete="off" enterkeyhint="search"></div>
+            </div>
+            <div class="lu-list" id="luList"></div>
+            <p class="lu-none muted sm" id="luNone" hidden><span id="luNoneTxt">No players match.</span> <button type="button" class="btn ghost sm" id="luAll">Show all my players</button></p>
+          </div>` : ''}
           ${lineupFx(db, lineup)}
-          <div class="lineup-pick" id="lineupPick" hidden><span>Pick a card for <b id="lineupPickPos"></b></span><button type="button" class="btn ghost sm" id="lineupPickDone">Back to Lineup</button></div>
+          <div class="lineup-pick" id="lineupPick" hidden><span id="lineupPickTxt">Pick a player for <b id="lineupPickPos"></b></span><button type="button" class="btn ghost sm" id="lineupPickChange" hidden>Change</button><button type="button" class="btn ghost sm" id="lineupPickDone">Done</button></div>
+          <template id="artBank">${bank}</template>
         </section>
-        ${last ? `<section class="card"><div class="card-h"><h2>Last game: +${last.total} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
-          <div class="fan-rows">${last.cards.sort((a, b) => b.pts - a.pts).map((x) => `<div class="fan-row"><span class="th">${avatar(x.c.t, x.c.p, 30)} <b>${esc(x.c.p.name)}</b> <small class="muted">${esc(x.c.label)} · ${x.c.mult}×</small></span><span class="muted sm">${x.played ? x.parts.map((q) => `${q.n} ${cards.SCORING_LABEL[q.k].toLowerCase()}${q.n > 1 ? 's' : ''}`).join(', ') || 'no stats' : 'did not play'}</span><b class="${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : ''}${x.pts}</b></div>`).join('')}</div>
-          ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} +${r.total}`).join(' · ')}</p>` : ''}</section>` : ''}
+        ${last ? lastGame(db, last, fan) : ''}
         ${pointsBreakdown(acct)}
         <section class="card">
           <div class="card-h"><h2>${view === 'all' ? 'Every card' : 'My collection'}</h2><div class="seg mini"><a class="${view === 'mine' ? 'on' : ''}" href="/pickem/cards">Mine</a><a class="${view === 'all' ? 'on' : ''}" href="/pickem/cards?view=all">All cards</a></div></div>
           <p class="muted sm"><a href="/pickem/cards/book">${icon('star')} Open the Card Book</a> to see every card, which ones you're missing and which packs drop them.</p>${view === 'all' ? `<p class="muted sm">Showing the ${all.filter((c) => !c.set).length} classic cards. The ${all.filter((c) => c.set).length.toLocaleString('en-US')} card-set cards are in the <a href="/pickem/cards/book?tab=sets">Card Book</a>.</p>` : ''}
           <div class="seg mini rfilter">${['all', ...cards.SHOWN_RARITIES].map((r) => `<a class="${(req.query.r || 'all') === r ? 'on' : ''}" href="/pickem/cards?${view === 'all' ? 'view=all&' : ''}r=${r}">${r === 'all' ? 'All' : esc(R[r].name)}</a>`).join('')}</div>
-          <div class="mgrid" id="coll">${(view === 'all' ? all.filter((c) => !c.set).sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id))).map((c) => {
+          <div class="mgrid" id="coll">${shown.map((c) => {
             const n = own[c.id] || 0;
             const sell = view === 'mine' && n > 1 ? `<form method="post" action="/pickem/cards/sell" class="sell"><input type="hidden" name="card" value="${esc(c.id)}"><button class="btn ghost sm" onclick="event.stopPropagation()">Sell 1 extra · +${R[c.rarity].sell} coins</button></form>` : '';
             return `<div class="mcell ${n ? 'owned' : 'missing'}">${cardArt(db, c, { small: true, count: n, cls: n ? 'pickable' : '', fit: n ? fit(c) : null })}${sell}</div>`;
@@ -252,26 +308,113 @@ module.exports = function fun(app, h) {
         </section>
         <script>(()=>{
           const max=${cards.LINEUP_SIZE},inp=document.getElementById('lineupInput'),slots=document.getElementById('slots'),msg=document.getElementById('lineupMsg');
-          let ids=inp.value.split(',');while(ids.length<max)ids.push('');ids=ids.slice(0,max);let sel=-1,jumped=false;
-          const POS=${JSON.stringify(POS)},COL=${JSON.stringify(POS_COL)};
-          const coll=document.getElementById('coll'),pick=document.getElementById('lineupPick'),pickPos=document.getElementById('lineupPickPos');
-          // Card art for a slot: from the collection grid, or the art the slot was drawn with (cards hidden by a filter).
-          const known={};slots.querySelectorAll('.mcard').forEach(el=>{known[el.dataset.id]=el.outerHTML;});
-          const art=(id)=>{const el=coll.querySelector('.mcard[data-id="'+id+'"]');return el?el.outerHTML:known[id]||'';};
+          let ids=inp.value.split(',');while(ids.length<max)ids.push('');ids=ids.slice(0,max);
+          const POS=${json(POS)},COL=${json(POS_COL)},GROUPS=${json(LU_GROUPS)},GRP=POS.map(p=>p.replace(/[0-9]+$/,''));
+          const ROSTER=${json(roster)};
+          const $=(id)=>document.getElementById(id);
+          const coll=$('coll'),picker=$('luPicker'),list=$('luList'),chips=$('luChips'),search=$('luSearch'),mini=$('luMini'),target=$('luTarget'),backBtn=$('luBack'),none=$('luNone');
+          const pill=$('lineupPick'),pillTxt=$('lineupPickTxt'),pillChange=$('lineupPickChange');
+          const phone=matchMedia('(max-width:760px)');
+          const esc=(s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
           const pidOf=(id)=>id.split(':')[0];
-          const back=()=>{if(jumped)slots.scrollIntoView({behavior:'smooth',block:'center'});jumped=false;};
-          const draw=()=>{inp.value=ids.join(',');[...slots.children].forEach((s,i)=>{s.querySelector('.slot-c').innerHTML=ids[i]?art(ids[i]):'<div class="slot-empty">+</div>';s.classList.toggle('sel',i===sel);});msg.textContent=(sel>=0?'Pick a card for '+POS[sel]+' · ':'')+ids.filter(Boolean).length+'/'+max+' picked';
-            pick.hidden=sel<0;if(sel>=0)pickPos.textContent=POS[sel];
-            coll.querySelectorAll('.mcard.pickable').forEach(c=>c.classList.toggle('in',ids.includes(c.dataset.id)));};
-          coll.addEventListener('click',e=>{const c=e.target.closest('.mcard.pickable');if(!c)return;const id=c.dataset.id;
-            if(ids.includes(id)&&!(sel>=0&&ids[sel]!==id)){ids=ids.map(x=>x===id?'':x);sel=-1;}
-            else{ids=ids.map(x=>x&&pidOf(x)===c.dataset.pid?'':x);let i=sel>=0?sel:ids.indexOf('');if(i<0){msg.textContent='Your Lineup is full. Tap a position to swap it.';return;}ids[i]=id;sel=-1;back();}draw();});
-          // Tap a position to choose it; tap it again to empty it.
-          slots.addEventListener('click',e=>{const s=e.target.closest('.slot');if(!s)return;const i=+s.dataset.i;if(sel===i&&ids[i]){ids[i]='';sel=-1;}else sel=sel===i?-1:i;draw();if(sel>=0&&coll.querySelector('.mcard.pickable')){jumped=true;coll.scrollIntoView({behavior:'smooth',block:'start'});}});
-          document.getElementById('lineupPickDone').onclick=()=>{sel=-1;draw();jumped=true;back();};
-          // Auto-pick: fill each position with the best unused player for it.
-          document.getElementById('autoBtn').onclick=()=>{const all=[...coll.querySelectorAll('.mcard.pickable')].map(c=>({id:c.dataset.id,pid:c.dataset.pid,f:(c.dataset.fit||'').split(',').map(Number)}));
-            const used=new Set();ids=COL.map(k=>{const b=all.filter(x=>!used.has(x.pid)).sort((a,b)=>(b.f[k]||0)-(a.f[k]||0))[0];if(!b)return'';used.add(b.pid);return b.id;});sel=-1;draw();};
+          const byPid={},cardOf={};ROSTER.forEach(P=>{byPid[P.pid]=P;P.cards.forEach(c=>{cardOf[c.id]=c;});});
+          // sel: the chosen spot (-1 none). sheet: the player list is open for it (full screen on phones).
+          let sel=-1,sheet=false,filt='ALL',q='',open={},flashAt=[];
+          // Card art for a slot: the collection grid, the slots as first drawn, or the bank of other owned cards.
+          const known={};const keep=(el)=>{known[el.dataset.id]=el.outerHTML;};
+          slots.querySelectorAll('.mcard').forEach(keep);const bank=$('artBank');if(bank)bank.content.querySelectorAll('.mcard').forEach(keep);
+          const art=(id)=>{const el=coll&&coll.querySelector('.mcard[data-id="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]');return el?el.outerHTML:known[id]||'';};
+          const slotOf=(pid)=>ids.findIndex(x=>x&&pidOf(x)===pid);
+          const nameOf=(id)=>{const P=id&&byPid[pidOf(id)];return P?P.n:'';};
+          const likes=(P,g)=>P.pref.length?P.pref.includes(g):P.auto.includes(g);
+          const level=(P,g)=>P.pref.includes(g)?2:!P.pref.length&&P.auto.includes(g)?1:0;
+          const best=(P,k)=>k<0?P.cards[0]:P.cards.reduce((a,c)=>(c.f[k]>a.f[k]?c:a),P.cards[0]);
+          const groupNow=()=>sel>=0?GRP[sel]:filt!=='ALL'?filt:null;
+          let said=0,sayT=0;const count=()=>ids.filter(Boolean).length+'/'+max+' picked';
+          const say=(t)=>{msg.textContent=t;said=1;clearTimeout(sayT);sayT=setTimeout(()=>{said=0;msg.textContent=count();},4000);};
+          // Put a card in spot i. If its player is already in another spot, the two players trade places.
+          const place=(id,i)=>{const j=slotOf(pidOf(id));if(j>=0&&j!==i)ids[j]=ids[i];ids[i]=id;flashAt=[i].concat(j>=0&&j!==i?[j]:[]);};
+          const pickCard=(id,fromChip)=>{const P=byPid[pidOf(id)];if(!P)return;
+            if(sel>=0){place(id,sel);say(P.n+' → '+POS[sel]);sel=-1;sheet=false;filt='ALL';}
+            else{const j=slotOf(P.pid);
+              if(j>=0&&(ids[j]===id||!fromChip)){ids[j]='';say(P.n+' taken out of '+POS[j]);}
+              else if(j>=0){ids[j]=id;flashAt=[j];say(P.n+' now uses this card');}
+              else{let i=ids.findIndex((x,k)=>!x&&likes(P,GRP[k]));if(i<0)i=ids.indexOf('');if(i<0){say('Your Lineup is full. Tap a spot first to swap someone out.');return;}place(id,i);say(P.n+' → '+POS[i]);}}
+            draw();};
+          const choose=(i,openSheet)=>{sel=i;filt=GRP[i];q='';if(search)search.value='';sheet=openSheet;draw();
+            if(sheet&&list){list.scrollTop=0;if(!phone.matches&&picker){const r=picker.getBoundingClientRect();if(r.top>innerHeight-120||r.top<0)picker.scrollIntoView({behavior:'smooth',block:'start'});}}};
+          // Tap a spot: choose it (an empty one opens the list). Tap another spot next: the two swap. Tap the same spot again: empty it.
+          const tapSlot=(i)=>{if(sel===i){if(ids[i]){say(nameOf(ids[i])+' taken out of '+POS[i]);ids[i]='';}sel=-1;sheet=false;filt='ALL';draw();return;}
+            if(sel>=0&&ids[sel]){const a=ids[sel];ids[sel]=ids[i];ids[i]=a;flashAt=[sel,i];say(ids[sel]?nameOf(a)+' ⇄ '+nameOf(ids[sel]):nameOf(a)+' moved to '+POS[i]);sel=-1;sheet=false;filt='ALL';draw();return;}
+            choose(i,!ids[i]);};
+          slots.addEventListener('click',e=>{const s=e.target.closest('.slot');if(!s||e.target.closest('.mc-flip'))return;e.preventDefault();tapSlot(+s.dataset.i);});
+          slots.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const s=e.target.closest('.slot');if(!s)return;e.preventDefault();tapSlot(+s.dataset.i);});
+          // Drag and drop between spots (and from the player list onto a spot) on a computer.
+          let drag=null;
+          const over=(s,on)=>s&&s.classList.toggle('drop',on);
+          slots.addEventListener('dragstart',e=>{const s=e.target.closest('.slot');if(!s||!ids[+s.dataset.i])return e.preventDefault();drag={slot:+s.dataset.i};e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','slot:'+s.dataset.i);}catch(x){}s.classList.add('dragging');});
+          slots.addEventListener('dragend',()=>{drag=null;slots.querySelectorAll('.dragging,.drop').forEach(s=>s.classList.remove('dragging','drop'));});
+          slots.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(!s||!drag)return;e.preventDefault();slots.querySelectorAll('.drop').forEach(x=>x!==s&&over(x,false));over(s,true);});
+          slots.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s&&!s.contains(e.relatedTarget))over(s,false);});
+          slots.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s||!drag)return;e.preventDefault();const i=+s.dataset.i;
+            if(drag.slot!=null&&drag.slot!==i){const a=ids[drag.slot];ids[drag.slot]=ids[i];ids[i]=a;flashAt=[drag.slot,i];say(ids[drag.slot]?nameOf(a)+' ⇄ '+nameOf(ids[drag.slot]):nameOf(a)+' moved to '+POS[i]);}
+            else if(drag.card){place(drag.card,i);say(nameOf(drag.card)+' → '+POS[i]);}
+            drag=null;sel=-1;sheet=false;filt='ALL';draw();});
+          // The player list.
+          const row=(P,k)=>{const g=k>=0?GROUPS[k]:null,c=best(P,k),at=slotOf(P.pid),lv=g?level(P,g):0;
+            const go=sel>=0?(ids[sel]===c.id?'In this spot':at===sel?'Use this card':at>=0?'Move here':'Pick'):(at>=0?'Remove':'Add');
+            const likesTxt=P.pref.length?'Likes '+P.pref.join(', '):'Best at '+P.auto.join(', ');
+            const more=P.cards.length>1?'<button type="button" class="lu-more" aria-expanded="'+(!!open[P.pid])+'">'+P.cards.length+' cards</button>':'';
+            return '<div class="lu-row'+(at>=0?' in':'')+(lv===2?' liked':'')+'" data-pid="'+esc(P.pid)+'" draggable="true">'
+              +'<span class="lu-av">'+P.av+'</span>'
+              +'<div class="lu-main"><b class="lu-n">'+esc(P.n)+'</b><span class="lu-meta">'+esc(P.t)+' · '+(lv===2?'<em>★ '+esc(likesTxt)+'</em>':esc(likesTxt))+'</span>'
+              +'<span class="lu-card"><span class="rar-tag r-'+esc(c.r)+'">'+esc(c.rn)+'</span> <span class="lu-cl">'+esc(c.l)+' · '+c.m+'×</span>'+more+'</span>'
+              +(at>=0?'<span class="lu-in">✓ In Lineup · '+POS[at]+'</span>':'')+'</div>'
+              +'<div class="lu-side">'+(g?'<span class="lu-fit" title="How well his best card fits '+g+'"><b>'+c.f[k]+'</b><small>fit '+g+'</small></span>':'')
+              +'<button type="button" class="btn sm lu-go'+(go==='Remove'?' ghost':'')+'" data-id="'+esc(c.id)+'"'+(go==='In this spot'?' disabled':'')+'>'+go+'</button></div>'
+              +(open[P.pid]?'<div class="lu-cards">'+P.cards.map(x=>'<button type="button" class="lu-cc'+(ids.includes(x.id)?' on':'')+'" data-id="'+esc(x.id)+'"><span class="rar-tag r-'+esc(x.r)+'">'+esc(x.rn)+'</span> '+esc(x.l)+' · '+x.m+'×'+(k>=0?' · fit '+x.f[k]:'')+'</button>').join('')+'</div>':'')
+              +'</div>';};
+          const renderList=()=>{if(!list)return;const g=groupNow(),k=g?GROUPS.indexOf(g):-1;
+            let rows=ROSTER.filter(P=>(filt==='ALL'||likes(P,filt))&&(!q||P.n.toLowerCase().includes(q)||P.t.toLowerCase().includes(q)));
+            if(k>=0)rows=rows.slice().sort((a,b)=>level(b,g)-level(a,g)||best(b,k).f[k]-best(a,k).f[k]);
+            list.innerHTML=rows.map(P=>row(P,k)).join('');none.hidden=rows.length===ROSTER.length;$('luNoneTxt').textContent=rows.length?(ROSTER.length-rows.length)+' more player'+(ROSTER.length-rows.length===1?'':'s')+' hidden by the filter.':'No players match.';
+            chips.querySelectorAll('button').forEach(b=>{const gg=b.dataset.g;b.classList.toggle('on',gg===filt);b.setAttribute('aria-pressed',gg===filt);b.querySelector('i').textContent=gg==='ALL'?ROSTER.length:ROSTER.filter(P=>likes(P,gg)).length;});};
+          const drawSlot=(s,i)=>{const c=s.querySelector('.slot-c');if(c.dataset.cur!==ids[i]){c.dataset.cur=ids[i];c.innerHTML=ids[i]?art(ids[i]):'<div class="slot-empty">+</div>';c.querySelectorAll('.mcard').forEach(m=>m.classList.remove('in','show-back','mc-flipping'));}
+            s.classList.toggle('sel',i===sel);s.classList.toggle('swap-from',sel>=0&&!!ids[sel]&&i!==sel);s.draggable=!!ids[i];s.setAttribute('aria-pressed',i===sel);
+            if(flashAt.includes(i)){s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash');}};
+          const draw=()=>{inp.value=ids.join(',');[...slots.children].forEach(drawSlot);flashAt=[];
+            if(!said)msg.textContent=count();
+            if(sel>=0){const who=nameOf(ids[sel]);pill.hidden=sheet&&phone.matches;pillTxt.innerHTML=who?'<b>'+POS[sel]+'</b> · '+esc(who)+'<small>Tap another spot to swap</small>':'Pick a player for <b>'+POS[sel]+'</b>';pillChange.hidden=!who||(sheet&&!phone.matches);}
+            else pill.hidden=true;
+            document.body.classList.toggle('lu-sheet',sheet&&sel>=0);
+            if(picker){picker.classList.toggle('filling',sel>=0);backBtn.hidden=sel<0;
+              target.innerHTML=sel>=0?'Filling <b>'+POS[sel]+'</b><small>'+(ids[sel]?'Now: '+esc(nameOf(ids[sel])):'Empty spot')+'</small>':'My players<small>'+ROSTER.length+' player'+(ROSTER.length===1?'':'s')+' · tap a spot above to fill it</small>';
+              mini.querySelectorAll('button').forEach((b,i)=>{b.classList.toggle('on',i===sel);b.classList.toggle('full',!!ids[i]);b.querySelector('span').textContent=ids[i]?nameOf(ids[i]).split(' ')[0]:'+';});}
+            if(coll)coll.querySelectorAll('.mcard.pickable').forEach(c=>c.classList.toggle('in',ids.includes(c.dataset.id)));
+            renderList();};
+          const done=()=>{sel=-1;sheet=false;filt='ALL';draw();slots.scrollIntoView({behavior:'smooth',block:'center'});};
+          $('lineupPickDone').onclick=()=>{sel=-1;sheet=false;filt='ALL';draw();};
+          pillChange.onclick=()=>{if(sel>=0)choose(sel,true);};
+          if(picker){
+            backBtn.onclick=done;$('luAll').onclick=()=>{filt='ALL';q='';search.value='';renderList();};
+            chips.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;filt=b.dataset.g;renderList();});
+            search.addEventListener('input',()=>{q=search.value.trim().toLowerCase();renderList();});
+            mini.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.i;if(i!==sel)choose(i,true);});
+            list.addEventListener('click',e=>{const m=e.target.closest('.lu-more');if(m){const r=m.closest('.lu-row');open[r.dataset.pid]=!open[r.dataset.pid];renderList();return;}
+              const b=e.target.closest('.lu-go,.lu-cc');if(b&&!b.disabled)pickCard(b.dataset.id,b.classList.contains('lu-cc'));});
+            list.addEventListener('dragstart',e=>{const r=e.target.closest('.lu-row');if(!r)return;const b=r.querySelector('.lu-go');drag={card:b.dataset.id};try{e.dataTransfer.setData('text/plain','card:'+b.dataset.id);}catch(x){}});
+            list.addEventListener('dragend',()=>{drag=null;slots.querySelectorAll('.drop').forEach(s=>s.classList.remove('drop'));});
+            document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sel>=0){sel=-1;sheet=false;filt='ALL';draw();}});
+          }
+          // Tapping a card in the collection grid still works: it fills the chosen spot, or the first open one he likes.
+          if(coll)coll.addEventListener('click',e=>{const c=e.target.closest('.mcard.pickable');if(!c||e.target.closest('.mc-flip'))return;const id=c.dataset.id;
+            if(!cardOf[id])return;if(sel<0&&ids.includes(id)){const j=ids.indexOf(id);ids[j]='';say(nameOf(id)+' taken out of '+POS[j]);draw();return;}pickCard(id,true);});
+          // Auto-pick: the best player-and-spot matches first, each player once. Spots a player likes (set by the league) count 30% more.
+          $('autoBtn').onclick=()=>{const pairs=[],used=new Set(),out=ids.map(()=>'');
+            ROSTER.forEach(P=>COL.forEach((k,i)=>{const c=best(P,k);pairs.push({i,pid:P.pid,id:c.id,v:c.f[k]*(P.pref.includes(GROUPS[k])?1.3:1)});}));
+            pairs.sort((a,b)=>b.v-a.v).forEach(x=>{if(out[x.i]||used.has(x.pid))return;out[x.i]=x.id;used.add(x.pid);});
+            ids=out;sel=-1;sheet=false;filt='ALL';flashAt=ids.map((x,i)=>i);say('Auto-picked '+ids.filter(Boolean).length+'/'+max+'. Save to keep it.');draw();};
+          addEventListener('pageshow',()=>{document.body.classList.remove('lu-sheet');});
           draw();})();</script>`;
       res.send(layout(req, 'My Cards', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${body}</div>`));
     } catch (e) { next(e); }
@@ -434,16 +577,24 @@ module.exports = function fun(app, h) {
   };
   // Where a user's coins came from: picks and the card game are one currency.
   function pointsBreakdown(acct) {
-    const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US'), sg = (n) => (n >= 0 ? '+' : '−') + f(Math.abs(n));
+    const P = acct.points, f = (n) => Math.round(n).toLocaleString('en-US'), sg = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + f(Math.abs(n));
+    // Every source of coins gets a row, so the rows add up to the balance. Pick'em is what's left: the start plus picks.
     const picks = acct.balance - P.net;
+    const won = P.arcadeWon != null ? P.arcadeWon : Math.max(0, P.arcade || 0), lost = P.arcadeLost != null ? P.arcadeLost : Math.max(0, -(P.arcade || 0));
+    const nGames = P.fan && P.fan.results ? P.fan.results.length : 0;
+    const row = (label, n, sub, cls) => `<div${cls ? ` class="${cls}"` : ''}><span>${label}${sub ? `<small>${sub}</small>` : ''}</span><b class="${n > 0 ? 'up' : n < 0 ? 'down' : 'zero'}">${sg(n)}</b></div>`;
     return `<div class="card pts-break"><div class="card-h"><h2>${icon('coin')} Your coins</h2><b class="big">${f(acct.balance)}</b></div>
-      <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Lineup and spent on packs.</p>
+      <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Lineup and the Arcade and spent on packs.</p>
       <div class="pb-rows">
-        <div><span>From Pick'em (start + picks)</span><b class="${picks >= 0 ? 'up' : 'down'}">${sg(picks)}</b></div>
-        <div><span>Lineup</span><b class="up">+${f(P.fantasy)}</b></div>
-        <div><span>Survivor</span><b class="up">+${f(P.survivor)}</b></div>
-        <div><span>Card sales &amp; rewards</span><b class="up">+${f(P.bonus)}</b></div>
-        <div><span>Spent on packs</span><b class="down">−${f(P.spent)}</b></div>
+        ${row("From Pick'em (start + picks)", picks)}
+        ${row('Lineup', P.fantasy, nGames ? `${nGames} game${nGames === 1 ? '' : 's'} scored` : '')}
+        ${row('Arcade games', P.arcade || 0, `won ${f(won)} · lost ${f(lost)}${P.arcadePlayed ? ` · ${P.arcadePlayed} game${P.arcadePlayed === 1 ? '' : 's'}` : ''}`, 'pb-arc')}
+        ${row('Daily challenges', P.challenges || 0)}
+        ${row('Game-day check-ins', P.checkins || 0)}
+        ${row('Achievements', P.achieve || 0)}
+        ${row('Survivor', P.survivor)}
+        ${row('Card sales &amp; rewards', P.bonus)}
+        ${row('Spent on packs', -P.spent)}
         <div class="tot"><span>Balance</span><b>${f(acct.balance)}</b></div>
       </div></div>`;
   }

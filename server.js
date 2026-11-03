@@ -167,6 +167,9 @@ function logo(t, size = 40, cls = '') {
 const TAG_NAMES = { C: 'Captain', TR: 'Team Rep', FA: 'Free Agent' };
 const tagName = (tag) => TAG_NAMES[tag] || (tag?.startsWith('Rd') ? 'Draft · ' + tag.replace('Rd', 'Round') : tag || '');
 const playerUrl = (tm, p) => `/players/${tm.id}/${p.id}`;
+// Lineup groups a player likes to play (set in admin): p.pref = ['QB', 'WR'].
+const PREF_POS = [['QB', 'Quarterback'], ['RB', 'Running back'], ['WR', 'Wide receiver'], ['TE', 'Tight end'], ['UTIL', 'Utility'], ['OL', 'Lineman']];
+const prefList = (p) => (Array.isArray(p && p.pref) ? PREF_POS.map(([k]) => k).filter((k) => p.pref.includes(k)) : []);
 const findPlayerByName = (tm, name) => tm?.roster.find((p) => p.name.toLowerCase() === String(name || '').toLowerCase());
 function avatar(tm, p, size = 42, cls = '') {
   const st = `width:${size}px;height:${size}px`;
@@ -883,7 +886,7 @@ app.get('/players/:team/:pid', (req, res) => {
   const rt = ratings(db).find((x) => x.t.id === tm.id && x.p.id === p.id);
   const opp = (g, t) => db.teams[g.home === t ? g.away : g.home];
   const mates = tm.roster.filter((x) => x.id !== p.id);
-  const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)]].filter(([, v]) => v);
+  const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)], ['Likes to play', prefList(p).join(' · ')]].filter(([, v]) => v);
   res.send(layout(req, p.name, `
     <section class="pp-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">
       <div class="pp-photo">${avatar(tm, p, 220, 'xl')}${p.number ? `<span class="pp-num">${esc(p.number)}</span>` : ''}</div>
@@ -1071,7 +1074,7 @@ function coinExtras(db, user, svState) {
   const badgesWon = badges.userBadges({ db, acct: pk.account(db, user), user, weeklyWins: 0, survivorWins: survivor / sv.PRIZE, fantasy: fan }).length;
   const achieve = badgesWon * ACHIEVEMENT_COINS;
   const extra = ar.arcade + ar.challenges + ar.checkins + achieve;
-  return { fantasy: fan.total, fan, survivor, bonus, spent, arcade: ar.arcade, challenges: ar.challenges, checkins: ar.checkins, achieve, net: fan.total + survivor + bonus - spent + extra };
+  return { fantasy: fan.total, fan, survivor, bonus, spent, arcade: ar.arcade, arcadeWon: ar.arcadeWon || Math.max(0, ar.arcade), arcadeLost: ar.arcadeLost || Math.max(0, -ar.arcade), arcadePlayed: ar.arcadePlayed || 0, challenges: ar.challenges, checkins: ar.checkins, achieve, net: fan.total + survivor + bonus - spent + extra };
 }
 let arcadeApi = null;
 function accountOf(db, user, svState) {
@@ -1573,12 +1576,12 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
       <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and count the rest. Results update by themselves.</p>
       <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Lineup earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra copies of cards sell for coins (${cards.SHOWN_RARITIES.map((r) => `${cards.RARITIES[r].name} ${cards.RARITIES[r].sell.toLocaleString('en-US')}`).join(', ')}). Spend them on picks or card packs.</p>
-      <h3>MFL Cards &amp; the Lineup</h3><p>Collect cards of every player: ${cards.SHOWN_RARITIES.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.filter((v) => !v.only && !v.set).length} classic cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). On top of that there are ${cards.SETS.length} card sets (${cards.SERIES.map((x) => x[1]).join(', ')}), with Base, Silver, Gold, Prism and Black versions of every player, for ${cards.catalog(load()).filter((c) => !c.hidden).length.toLocaleString('en-US')} cards in all. Set cards only come from Card Set packs. Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${pp.n} packs to buy with coins, from ${pp.lo.toLocaleString('en-US')} to ${pp.hi.toLocaleString('en-US')} coins. Prices follow the odds: everyday packs cost a few thousand, packs with a Legend or better guaranteed cost tens of thousands, and Dark Matter, 1 of 1 hunts and Prism or Black set packs cost hundreds of thousands. Set a Lineup of 11 different players; every game they score fantasy points (TD catch or run ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
+      <h3>MFL Cards &amp; the Lineup</h3><p>Collect cards of every player: ${cards.SHOWN_RARITIES.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.filter((v) => !v.only && !v.set).length} classic cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). On top of that there are ${cards.SETS.length} card sets (${cards.SERIES.map((x) => x[1]).join(', ')}), with Base, Silver, Gold, Prism and Black versions of every player, for ${cards.catalog(load()).filter((c) => !c.hidden).length.toLocaleString('en-US')} cards in all. Set cards only come from Card Set packs. Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${pp.n} packs to buy with coins, from ${pp.lo.toLocaleString('en-US')} to ${pp.hi.toLocaleString('en-US')} coins. Prices follow the odds: everyday packs cost a few thousand, packs with a Legend or better guaranteed cost tens of thousands, and Dark Matter, 1 of 1 hunts and Prism or Black set packs cost hundreds of thousands. Set a Lineup of 11 different players; every game they score fantasy points (TD catch or run ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Example: a QB who throws 10 TD passes on a Base card earns 10 × ${cards.SCORING.pass} = ${10 * cards.SCORING.pass} coins (${Math.round(10 * cards.SCORING.pass * cards.RARITIES.legendary.mult)} on a ${cards.RARITIES.legendary.name} card), plus ${cards.SCORING.win} if his team wins. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
       ${cardEffectsHelp()}
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
       <h3>MFL Arcade</h3><p>11 games (Modern Bowl, 3D Blitz, Chess, 8-Ball Pool, Trivia, Checkers, Connect Four, Field Goal Frenzy, QB Bullseye, Flag Pull and Card Memory), each with 4 levels. Winning pays coins; harder levels pay more and 3D Blitz pays the most (${arcadeApi ? arcadeApi.GAMES.blitz3d.prizes.map((n) => n.toLocaleString('en-US')).join(' / ') : ''} a win by level). <b>Risk mode</b>: put up the whole prize first; a win pays the prize × ${arcadeApi ? arcadeApi.RISK_MULT.join(' / ') : ''} (by level), a loss loses what you put up. Leaving or refreshing mid-game counts as a loss. Every win pays; Practice is always free. Chess, Checkers and Connect Four games are replayed on the server to confirm a win, and Trivia is graded by the server. <a href="/arcade">Play →</a></p>
       <h3>More ways to earn coins</h3><p>Three daily challenges every day, a game-day check-in (+150 on game days, 11:30 to 2:30), +${ACHIEVEMENT_COINS} for every achievement, a free Arcade Champ Pack for winning 3 Arcade games in a day, plus Pick'em, your Lineup, Survivor, the daily bonus and selling cards.</p>
-      <h3>Lineup positions</h3><p>Your Lineup has 11 positions: QB, RB, WR1, WR2, WR3, TE, two UTIL and three OL. They don't change fantasy points; they decide who does what in the games. Modern Bowl uses the first eight (QB throws, receivers catch, the first UTIL blocks and the second kicks and leads the defense). 3D Blitz uses all 11: WR3 lines up in the slot, and the two UTIL and three OL are your five linemen.</p>
+      <h3>Lineup positions</h3><p>Your Lineup has 11 positions: QB, RB, WR1, WR2, WR3, TE, two UTIL and three OL. They don't change fantasy points; they decide who does what in the games. On the Cards page you can filter your players by the positions they like to play, tap one spot and then another to swap two players, and auto-pick puts players at the spots they like. Modern Bowl uses the first eight (QB throws, receivers catch, the first UTIL blocks and the second kicks and leads the defense). 3D Blitz uses all 11: WR3 lines up in the slot, and the two UTIL and three OL are your five linemen.</p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
   } catch (e) { next(e); }
@@ -2880,9 +2883,9 @@ app.post('/admin/teams/:id', requireAdmin, async (req, res) => {
 
 app.get('/admin/players', requireAdmin, (req, res) => {
   const db = load();
-  res.send(layout(req, 'Players', pageHead('Admin', 'Players', 'Click a player to edit their bio, photo, number and position. Add or remove players under Teams.') + `<div class="wrap">${adminNav('/admin/players')}${savedMsg(req)}
+  res.send(layout(req, 'Players', pageHead('Admin', 'Players', 'Click a player to edit their bio, photo, number, position and the Lineup positions he likes to play. Add or remove players under Teams.') + `<div class="wrap">${adminNav('/admin/players')}${savedMsg(req)}
     ${Object.values(db.teams).map((tm) => `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 28)} ${esc(teamFull(tm))}</h2></div><div class="roster">
-      ${tm.roster.map((p) => `<a class="pl" href="/admin/players/${tm.id}/${p.id}">${avatar(tm, p, 46)}<div><b>${esc(p.name)}</b><small>${p.photo ? '' : 'No photo · '}${p.bio ? 'Has bio' : 'No bio'}</small></div></a>`).join('')}
+      ${tm.roster.map((p) => `<a class="pl" href="/admin/players/${tm.id}/${p.id}">${avatar(tm, p, 46)}<div><b>${esc(p.name)}</b><small>${p.photo ? '' : 'No photo · '}${p.bio ? 'Has bio' : 'No bio'}</small>${prefList(p).length ? `<span class="pref-tags">${prefList(p).map((x) => `<i>${x}</i>`).join('')}</span>` : '<small class="pref-none">No positions set</small>'}</div></a>`).join('')}
     </div></div>`).join('')}</div>`, { ticker: false }));
 });
 
@@ -2921,6 +2924,10 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
         <label>Status tag<input name="tag" value="${esc(p.tag || '')}" placeholder="C, TR, Rd 1, FA"></label>
         <label class="wide">Bio<textarea name="bio" rows="8" placeholder="Write something about this player…">${esc(p.bio || '')}</textarea></label>
       </div>
+      <h3 id="prefs">Positions he likes to play</h3>
+      <p class="muted sm">Tap the Lineup spots he likes. Fans can filter their cards by these when they pick a Lineup, and auto-pick puts him there first. Leave them all off to let his ratings decide.</p>
+      <input type="hidden" name="prefSet" value="1">
+      <div class="pref-chips" role="group" aria-label="Positions he likes to play">${PREF_POS.map(([k, n]) => `<label class="pref-chip"><input type="checkbox" name="pref" value="${k}" ${prefList(p).includes(k) ? 'checked' : ''}><b>${k}</b><small>${n}</small></label>`).join('')}</div>
       <div class="actions"><button class="btn">Save player</button><a class="btn ghost" href="/admin/players">Back</a></div>
     </form></div>
     <script>
@@ -3019,6 +3026,7 @@ app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   p.grade = String(b.grade || '').slice(0, 20);
   p.tag = String(b.tag || '').slice(0, 10);
   p.bio = String(b.bio || '').slice(0, 4000);
+  if (b.prefSet) { const got = [].concat(b.pref || []).map(String); p.pref = PREF_POS.map(([k]) => k).filter((k) => got.includes(k)); }
   const jpeg = (v) => {
     const m = /^data:image\/jpeg;base64,(.+)$/.exec(v || '');
     return m ? Buffer.from(m[1], 'base64') : null;
