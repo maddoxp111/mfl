@@ -49,15 +49,15 @@ const VARIANTS = [
   { id: 'clutch', rarity: 'legendary', label: 'Clutch', mult: 1.75, spec: 'clutch' },
   { id: 'icon', rarity: 'mythic', label: 'Icon', mult: 2.5 },
   // The fun ones. `flat` = bonus points every game they play (never multiplied).
-  { id: 'bench', rarity: 'common', label: 'Benchwarmer', mult: 0.8, flat: 4, quote: 'Happy to be here.' },
-  { id: 'trophy', rarity: 'common', label: 'Participation Trophy', mult: 1, flat: 3, quote: 'Everybody wins!' },
+  { id: 'bench', rarity: 'common', label: 'Benchwarmer', mult: 0.8, flat: 20, quote: 'Happy to be here.' },
+  { id: 'trophy', rarity: 'common', label: 'Participation Trophy', mult: 1, flat: 15, quote: 'Everybody wins!' },
   { id: 'pizza', rarity: 'common', label: 'Pizza Friday', mult: 1.1, quote: 'Fueled by cafeteria pizza.' },
   { id: 'cutout', rarity: 'common', label: 'Cardboard Cutout', mult: 1.05, quote: 'Surprisingly solid.' },
   { id: 'bobble', rarity: 'rare', label: 'Bobblehead', mult: 1.2, quote: 'Nods at every play.' },
   { id: 'pixel', rarity: 'rare', label: '8-Bit', mult: 1.3, quote: 'Extra good in Modern Bowl.' },
   { id: 'snow', rarity: 'rare', label: 'Snow Day', mult: 1.25, quote: 'School is cancelled. Football is not.' },
   { id: 'upside', rarity: 'rare', label: 'Upside Down', mult: 1.25, quote: 'Printed wrong. Worth more.' },
-  { id: 'duck', rarity: 'epic', label: 'Rubber Ducky', mult: 1, flat: 15, quote: 'Squeak.' },
+  { id: 'duck', rarity: 'epic', label: 'Rubber Ducky', mult: 1, flat: 75, quote: 'Squeak.' },
   { id: 'built', rarity: 'epic', label: 'Built Different', mult: 1.7, quote: 'Not like the others.' },
   { id: 'throwback', rarity: 'epic', label: 'Throwback', mult: 1.55, quote: 'Back in my day…' },
   { id: 'spooky', rarity: 'epic', label: 'Spooky', mult: 1.5, quote: 'Halloween Bowl edition.' },
@@ -518,7 +518,8 @@ function effectText(card, opts = {}) {
 }
 
 // Fantasy points for one player in one game.
-const SCORING = { td: 10, pass: 7, int: 6, catch: 3, sack: 4, pbu: 2, flag: 1, big: 3, picked: -5, mvp: 3, win: 2 };
+// 1 point = 1 coin. A QB who throws 10 TD passes on a Base card earns 350 (plus 10 for the win).
+const SCORING = { td: 50, pass: 35, int: 30, catch: 15, sack: 20, pbu: 10, flag: 5, big: 15, picked: -25, mvp: 25, win: 10 };
 const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown catch or run', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
 const STAT_CAT = { TD: 'td', INT: 'int', CATCH: 'catch', SACK: 'sack', PBU: 'pbu', FLAG: 'flag', PLAY: 'big' };
 
@@ -996,7 +997,8 @@ function fantasy(db, user, mvpOf) {
     if (!ids) continue;
     const m = mvpOf ? mvpOf(g) : null;
     const lines = gameLines(db, g, m);
-    const cards = ids.map((id) => cardInfo(db, id)).filter(Boolean).map((c) => ({ c, ...cardScore(c, lines[c.t.id + '|' + c.pid]) }));
+    // Each card keeps its Lineup position (QB, WR2...) for the breakdown.
+    const cards = ids.map((id, i) => ({ c: id && cardInfo(db, id), pos: LINEUP_POS[i] || '' })).filter((x) => x.c).map(({ c, pos }) => ({ c, pos, ...cardScore(c, lines[c.t.id + '|' + c.pid]) }));
     const total = Math.round(cards.reduce((s, x) => s + x.pts, 0));
     results.push({ g, cards, total });
   }

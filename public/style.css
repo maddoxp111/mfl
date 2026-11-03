@@ -1571,6 +1571,7 @@ h1,h2,h3{text-wrap:balance}
 .pb-rows>div:first-child{border-top:0}
 .pb-rows .tot{font-weight:800;border-top:2px solid var(--line2)}
 .pb-rows .up{color:#4ade80}.pb-rows .down{color:#ff6b7a}
+.pb-rows>div{align-items:center;gap:10px}.pb-rows>div>span{min-width:0}.pb-rows span small{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:1px}.pb-rows b{white-space:nowrap}.pb-rows .zero{color:var(--muted);font-weight:600}
 .wallet-pts{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;border-radius:999px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:#86efac;font:800 14px Inter;text-decoration:none}
 .wallet-pts .ic{width:15px;height:15px}
 .wallet>span{display:block}
@@ -2436,3 +2437,117 @@ body.arc-playing .ticker{display:none}
 .lineup-fx .fx-tot i{font-style:normal;white-space:nowrap}
 .fx-tot i{font-style:normal;white-space:nowrap}
 .cb-fx{font-weight:700;color:var(--ink)}
+
+/* ---------- Lineup editor: player picker, filters, swaps ---------- */
+.lu-score,.lu-how{margin:6px 0;color:var(--ink2);line-height:1.45}
+.lu-score b,.lu-how b{color:var(--ink)}
+.lu-how{padding:8px 12px;border-radius:12px;background:rgba(255,194,26,.07);border:1px solid rgba(255,194,26,.18)}
+.slot{border-radius:14px;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.slot:focus-visible{box-shadow:0 0 0 2px #ffc21a}
+.slot.swap-from .slot-c{opacity:.92}
+.slot.swap-from:hover .slot-empty,.slot.swap-from:hover .mcard{box-shadow:0 0 0 3px rgba(94,234,212,.7)}
+.slot.drop .slot-empty,.slot.drop .mcard{box-shadow:0 0 0 3px #5eead4;transform:scale(1)}
+.slot.dragging{opacity:.45}
+.slot.flash .slot-c{animation:luFlash .7s ease}
+@keyframes luFlash{0%{transform:scale(.9);filter:brightness(1.6)}60%{transform:scale(1.03)}100%{transform:none;filter:none}}
+@media(prefers-reduced-motion:reduce){.slot.flash .slot-c{animation:none}}
+.lineup-pick small{display:block;font:600 11px Inter;opacity:.75}
+.lineup-pick>span{overflow:hidden;text-overflow:ellipsis}
+
+.lu-picker{margin:16px 0 4px;border:1px solid var(--line2);border-radius:16px;background:var(--bg2);overflow:hidden}
+.lu-picker.filling{border-color:rgba(255,194,26,.55);box-shadow:0 0 0 1px rgba(255,194,26,.25)}
+.lu-head{padding:12px 12px 8px;border-bottom:1px solid var(--line);background:var(--card)}
+.lu-top{display:flex;align-items:center;gap:10px;min-height:44px}
+.lu-target{flex:1;min-width:0;font:800 17px var(--disp)}
+.lu-target b{color:#ffc21a}
+.lu-target small{display:block;font:500 12px Inter;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lu-top .btn{min-height:44px;flex:none}
+.lu-top .btn[hidden]{display:none}
+.lu-mini{display:none}
+.lu-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.lu-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-width:0;padding:2px}
+.lu-chips::-webkit-scrollbar{display:none}
+.lu-chips button{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);color:var(--ink2);font:800 13px Inter;cursor:pointer}
+.lu-chips button i{font:700 11px Inter;font-style:normal;color:var(--muted)}
+.lu-chips button.on{background:#ffc21a;border-color:#ffc21a;color:#1a1300}
+.lu-chips button.on i{color:#5c4400}
+.lu-search{flex:0 1 220px;min-width:0;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);font:500 14px Inter}
+.lu-search:focus{outline:2px solid #ffc21a;outline-offset:1px}
+.lu-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));max-height:560px;overflow-y:auto;overscroll-behavior:contain}
+.lu-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);min-height:68px;cursor:grab}
+.lu-row.liked{background:linear-gradient(90deg,rgba(255,194,26,.07),transparent 70%)}
+.lu-row.in .lu-n::after{content:''}
+.lu-av .av{margin:0}
+.lu-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.lu-n{font:800 15px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lu-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lu-meta em{font-style:normal;color:#ffc21a;font-weight:700}
+.lu-card{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink2)}
+.lu-card .rar-tag{font-size:9px;padding:1px 6px}
+.lu-more{border:0;background:none;color:#5eead4;font:700 12px Inter;padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.lu-in{font:800 11px Inter;color:#4ade80}
+.lu-side{display:flex;align-items:center;gap:10px}
+.lu-fit{display:flex;flex-direction:column;align-items:center;min-width:44px;line-height:1.1}
+.lu-fit b{font:800 18px var(--disp)}
+.lu-fit small{font:700 10px Inter;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.lu-go{min-height:44px;min-width:76px;justify-content:center}
+.lu-go[disabled]{opacity:.55;cursor:default}
+.lu-cards{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 4px}
+.lu-cc{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line2);background:var(--card2);color:var(--ink);font:600 12.5px Inter;cursor:pointer}
+.lu-cc.on{border-color:#4ade80;box-shadow:inset 0 0 0 1px #4ade80}
+.lu-cc .rar-tag{font-size:9px;padding:1px 6px}
+.lu-none{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;margin:0;border-top:1px solid var(--line)}.lu-none .btn{min-height:44px}
+.lu-none[hidden]{display:none}
+
+/* Phones: the list opens as a full-screen sheet for the chosen spot, with the spot bar pinned on top. */
+@media(max-width:760px){
+  .lu-list{grid-template-columns:1fr;max-height:none;overflow:visible}
+  .lu-row{gap:10px;padding:10px;cursor:default}
+  .lu-side{gap:8px}
+  .lu-go{min-width:72px;padding:0 12px}
+  .lu-fit{min-width:36px}
+  .lu-search{flex:1 1 100%}
+  body.lu-sheet{overflow:hidden}
+  body.lu-sheet .lu-picker{position:fixed;inset:0;z-index:120;margin:0;border:0;border-radius:0;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom)}
+  body.lu-sheet .lu-head{position:sticky;top:0;z-index:2;padding:10px 12px 8px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 10px 24px -12px rgba(0,0,0,.8)}
+  body.lu-sheet .lu-mini{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:8px -12px 0;padding:2px 12px}
+  .lu-mini::-webkit-scrollbar{display:none}
+  .lu-mini button{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:58px;min-height:44px;padding:4px 8px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);color:var(--ink2);cursor:pointer}
+  .lu-mini button b{font:800 10px 'Press Start 2P',monospace;color:#ffc21a}
+  .lu-mini button.g-util b{color:#5eead4}.lu-mini button.g-ol b{color:#93c5fd}
+  .lu-mini button span{font:600 11px Inter;max-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lu-mini button:not(.full) span{color:var(--muted)}
+  .lu-mini button.on{background:#ffc21a;border-color:#ffc21a;color:#1a1300}
+  .lu-mini button.on b{color:#1a1300}
+  .lineup-pick{gap:8px;padding:6px 6px 6px 14px;font-size:13px}
+  .lineup-pick .btn{min-height:40px;padding:0 12px}
+  .last-game .fan-row{grid-template-columns:auto 1fr auto}
+  .last-game .fan-row>span.fan-main{grid-column:auto;grid-row:auto}
+}
+
+/* Last game breakdown */
+.last-game .fan-row{grid-template-columns:auto 1fr auto;gap:12px;align-items:start}
+.last-game .fan-row.zero{opacity:.72}
+.fan-av .av{margin:0}
+.fan-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fan-main>b{font:800 15px Inter}
+.fan-main small{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--ink2)}
+.fan-main small .rar-tag{font-size:9px;padding:1px 6px}
+.fan-pos{font:800 9px 'Press Start 2P',monospace;font-style:normal;color:#ffc21a;background:rgba(255,194,26,.12);padding:3px 5px;border-radius:5px}
+.fan-math{font:600 13px Inter;color:var(--ink);line-height:1.45}.fan-math>span{white-space:nowrap}
+.last-game .fan-pts{font:800 20px var(--disp);white-space:nowrap;align-self:center}
+.fan-pts.up{color:#4ade80}.fan-pts.down{color:#ff6b7a}
+
+/* Admin: positions a player likes to play */
+.pref-chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.pref-chip{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:92px;min-height:56px;padding:6px 12px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);cursor:pointer;user-select:none;transition:background .15s,border-color .15s}
+.pref-chip input{position:absolute;opacity:0;pointer-events:none}
+.pref-chip b{font:800 15px var(--disp)}
+.pref-chip small{font-size:11px;color:var(--muted)}
+.pref-chip:has(input:checked){background:#ffc21a;border-color:#ffc21a;color:#1a1300}
+.pref-chip:has(input:checked) small{color:#5c4400}
+.pref-chip:has(input:focus-visible){outline:2px solid #ffc21a;outline-offset:2px}
+.pref-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.pref-tags i{font:800 10px Inter;font-style:normal;padding:1px 6px;border-radius:6px;background:rgba(255,194,26,.14);color:#ffc21a}
+.pref-none{display:block;color:var(--muted);font-size:11px;opacity:.75}
+@media(max-width:760px){.pref-chip{flex:1 1 calc(33% - 8px);min-width:0}}

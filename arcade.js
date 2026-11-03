@@ -203,8 +203,10 @@ module.exports = function arcade(app, h) {
   }
   // Coins from the Arcade, challenges and check-ins (server.js adds these to the wallet).
   function arcadeCoins(user) {
-    const arc = (user.arcade || []).reduce((s, m) => s + matchNet(m), 0);
-    return { arcade: arc, challenges: challengeCoins(user), checkins: (user.checkins || []).length * CHECKIN };
+    // won = what wins paid on top of their stakes; lost = stakes lost (Risk mode). Career games are in here too.
+    let won = 0, lost = 0, played = 0;
+    for (const m of user.arcade || []) { const n = matchNet(m); if (n > 0) won += n; else lost -= n; if (m.status === 'won' || m.status === 'lost') played++; }
+    return { arcade: won - lost, arcadeWon: won, arcadeLost: lost, arcadePlayed: played, challenges: challengeCoins(user), checkins: (user.checkins || []).length * CHECKIN };
   }
   h.arcadeCoins = arcadeCoins;
 
