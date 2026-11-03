@@ -12,7 +12,12 @@ const PRONOUNCE_FILE = path.join(DATA_DIR, 'pronounce.json');
 const CACHE_DIR = path.join(DATA_DIR, 'tts');
 const DEFAULT_MODEL = 'eleven_flash_v2_5'; // fast: a new line is ready in about a second, so the call lands with the play
 const DEFAULT_BASE = 'https://api.elevenlabs.io';
-const VOICE_SETTINGS = { stability: 0.5, similarity_boost: 0.85, style: 0.5, use_speaker_boost: true };
+// Steady delivery: short clips are rendered one at a time, so high stability, little style exaggeration and the same
+// lead-in context for every clip keep the tone level from one phrase to the next.
+const VOICE_SETTINGS = { stability: 0.8, similarity_boost: 0.9, style: 0.15, use_speaker_boost: true };
+const LEAD_IN = 'And here we go. ';
+// The voices the admin can pick from (ids only; useless without the key). The first is the current default.
+const DEFAULT_VOICES = [{ id: '5e7CHmBxorsZJP4N1Vbi', label: 'Voice 2' }, { id: 'keCu5L7yj9nJhFRsvWmk', label: 'Voice 1' }];
 const OUTPUT_FORMAT = 'mp3_22050_32';
 const MAX_UPSTREAM = 2; // generation requests in flight at once
 const UPSTREAM_TIMEOUT = 20000;
@@ -44,12 +49,23 @@ function config() {
     keySource: e.ELEVENLABS_API_KEY ? 'variable' : s.elevenKey ? 'admin' : null,
     voice: e.ELEVENLABS_VOICE_ID || s.elevenVoice || null,
     voiceSource: e.ELEVENLABS_VOICE_ID ? 'variable' : s.elevenVoice ? 'admin' : null,
+    voices: voiceList(s),
     model: e.ELEVENLABS_MODEL || s.elevenModel || DEFAULT_MODEL,
     modelSource: e.ELEVENLABS_MODEL ? 'variable' : s.elevenModel ? 'admin' : null,
     base: (e.ELEVENLABS_BASE_URL || DEFAULT_BASE).replace(/\/+$/, ''),
   };
 }
 const enabled = (c = config()) => !!(c.key && c.voice);
+// the saved list of voices plus the built-in ones, current first
+function voiceList(s) {
+  const seen = new Set(), out = [];
+  for (const v of [...(Array.isArray(s.elevenVoices) ? s.elevenVoices : []), ...DEFAULT_VOICES]) { if (!v || !v.id || seen.has(v.id)) continue; seen.add(v.id); out.push({ id: String(v.id), label: String(v.label || v.id).slice(0, 40) }); }
+  return out;
+}
+// one-time switch to the newer voice for a site that was set up on the first one; the admin can switch back
+function migrateVoice() {
+  try { const s = readSecrets(); if (s.elevenVoice === DEFAULT_VOICES[1].id && !s.voiceSwitched) writeSecrets({ elevenVoice: DEFAULT_VOICES[0].id, voiceSwitched: 1 }); } catch {}
+}
 
 // ---------- pronunciations ----------
 // JSON defaults, with the admin's list (DATA_DIR/pronounce.json) merged over them. An empty
@@ -144,7 +160,7 @@ async function callUpstream(c, text) {
     r = await fetch(url, {
       method: 'POST',
       headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS }),
+      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS, previous_text: LEAD_IN }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
     });
   } catch (e) {
@@ -335,7 +351,9 @@ function adminBlock(esc, req, db) {
     <form method="post" action="/admin/tts/settings" class="form" autocomplete="off">
       ${c.keySource === 'variable' ? '' : `<label>ElevenLabs API key<input name="key" type="password" autocomplete="off" placeholder="${c.key ? 'Saved: leave blank to keep it' : 'Paste the key'}"></label>
       ${c.keySource === 'admin' ? '<label class="sm"><input type="checkbox" name="clearKey" value="1"> Remove the saved key</label>' : ''}`}
-      ${c.voiceSource === 'variable' ? '' : `<label>Voice id<input name="voice" value="${esc(c.voiceSource === 'admin' ? c.voice : '')}" placeholder="from the ElevenLabs voice library" maxlength="64"></label>`}
+      ${c.voiceSource === 'variable' ? '' : `<fieldset style="border:0;padding:0;margin:0 0 10px"><legend class="sm" style="margin-bottom:6px">Voice <span class="muted">(switching makes that voice's clips on the next run; clips already made for a voice stay, so switching back is instant)</span></legend>
+        ${c.voices.map((v) => `<label class="sm" style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="radio" name="voicePick" value="${esc(v.id)}" ${c.voice === v.id ? 'checked' : ''}> <b>${esc(v.label)}</b> <code>${esc(v.id)}</code>${c.voice === v.id ? ' · current' : ''}</label>`).join('')}
+        <label class="sm" style="display:flex;gap:8px;align-items:center;margin:6px 0 0;flex-wrap:wrap">Add a voice <input name="newVoice" placeholder="voice id" maxlength="64" style="width:220px"> <input name="newLabel" placeholder="name it" maxlength="40" style="width:140px"></label></fieldset>`}
       ${c.modelSource === 'variable' ? '' : `<label>Model<input name="model" value="${esc(c.modelSource === 'admin' ? c.model : '')}" placeholder="${DEFAULT_MODEL}" maxlength="64"></label>`}
       <label>Pronunciations <span class="muted sm">(one <code>Name = respelling</code> per line; used only for the voice, never shown)</span>
         <textarea name="pronounce" rows="6" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace">${esc(pron)}</textarea></label>
@@ -362,6 +380,7 @@ function adminBlock(esc, req, db) {
 
 // ---------- routes ----------
 function register(app, h) {
+  migrateVoice();
   app.get('/arcade/tts/manifest', (req, res) => {
     const c = config();
     res.set('Cache-Control', 'private, max-age=60'); // enabled depends on who is asking: clips need a login
@@ -419,17 +438,27 @@ function register(app, h) {
 
   app.post('/admin/tts/settings', h.requireAdmin, (req, res) => {
     const b = req.body || {}, patch = {};
-    const key = String(b.key || '').trim(), voice = b.voice === undefined ? undefined : String(b.voice).trim(), model = b.model === undefined ? undefined : String(b.model).trim();
+    const key = String(b.key || '').trim(), model = b.model === undefined ? undefined : String(b.model).trim();
+    const newVoice = String(b.newVoice || '').trim(), newLabel = String(b.newLabel || '').trim();
+    let voice = b.voicePick === undefined ? (b.voice === undefined ? undefined : String(b.voice).trim()) : String(b.voicePick).trim();
     if (key && !/^[A-Za-z0-9_-]{16,200}$/.test(key)) return res.redirect('/admin/ai?voice=bad#voice');
+    if (newVoice && !/^[A-Za-z0-9]{6,64}$/.test(newVoice)) return res.redirect('/admin/ai?voice=bad#voice');
+    if (newVoice) { const s = readSecrets(), list = voiceList(s).filter((v) => v.id !== newVoice); patch.elevenVoices = [{ id: newVoice, label: newLabel || 'Voice ' + (list.length + 1) }, ...list]; if (voice === undefined || !voice) voice = newVoice; }
     if (voice && !/^[A-Za-z0-9]{6,64}$/.test(voice)) return res.redirect('/admin/ai?voice=bad#voice');
     if (model && !/^[a-z0-9_]{2,64}$/.test(model)) return res.redirect('/admin/ai?voice=bad#voice');
     if (key) patch.elevenKey = key; else if (b.clearKey) patch.elevenKey = null;
-    if (voice !== undefined) patch.elevenVoice = voice || null;
+    const before = config();
+    if (voice !== undefined) { patch.elevenVoice = voice || null; patch.voiceSwitched = 1; }
     if (model !== undefined) patch.elevenModel = model || null;
     if (Object.keys(patch).length) writeSecrets(patch);
     if (b.pronounce !== undefined) savePronounce(b.pronounce);
+    const after = config();
+    if ((after.voice !== before.voice || after.model !== before.model) && enabled(after)) { // a new voice or model: stop the current run and start on the new clips right away
+      if (warm.running) warm.stopped = 'settings changed';
+      setTimeout(() => { try { startWarm(h.load(), 'settings'); } catch {} }, warm.running ? 1500 : 10);
+    }
     res.redirect('/admin/ai?voice=saved#voice');
   });
 }
 
-module.exports = { register, startAuto, startWarm, warm, adminBlock, parse, renderSeg, respell, config, plan, coverage, domainValues, LINES };
+module.exports = { register, startAuto, startWarm, warm, adminBlock, parse, renderSeg, respell, config, plan, coverage, domainValues, LINES, VOICE_SETTINGS, LEAD_IN, DEFAULT_VOICES };
