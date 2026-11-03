@@ -4966,9 +4966,17 @@ gl_FragColor=vec4(c,1.0);}`;
         if (bufs.has(url)) return bufs.get(url);
         const pr = fetch(url, { credentials: 'same-origin' })
           .then((r) => { if (r.status === 204 || r.status === 401 || r.status === 403) { avail = false; q.length = 0; try { updVoiceBtn(); } catch (e) {} throw new Error('off'); } if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); }) // no voice for this visitor: stop asking
-          .then((ab) => { const c = sfx.ctx(); if (!c) throw new Error('no audio'); return new Promise((res, rej) => c.decodeAudioData(ab.slice(0), res, rej)); });
+          .then((ab) => { const c = sfx.ctx(); if (!c) throw new Error('no audio'); return new Promise((res, rej) => c.decodeAudioData(ab.slice(0), res, rej)); })
+          .then(trimmed);
         pr.catch(() => { setTimeout(() => { if (bufs.get(url) === pr) bufs.delete(url); }, 15000); }); // a clip that is not rendered yet can be tried again later
         bufs.set(url, pr); return pr;
+      }
+      // the clip without its leading and trailing silence, so phrases join without dead air
+      function trimmed(buf) {
+        const d = buf.getChannelData(0), n = d.length, sr = buf.sampleRate, th = 0.006;
+        let a = 0, b = n - 1; while (a < n && Math.abs(d[a]) < th) a++; while (b > a && Math.abs(d[b]) < th) b--;
+        const start = Math.max(0, a / sr - 0.012), end = Math.min(n / sr, b / sr + 0.04);
+        return { buf, start, dur: Math.max(0.05, end - start) };
       }
       function pump() {
         if (cur || !q.length) return;
@@ -4977,7 +4985,7 @@ gl_FragColor=vec4(c,1.0);}`;
         cur = it;
         Promise.all(it.urls.map(load)).then((bufsL) => {
           const age = performance.now() - it.t;
-          if (!on || sfx.muted || finished || performance.now() - it.t > TTL[it.pri] + 800) { VST.dropped++; return done(); }
+          if (!on || sfx.muted || finished || performance.now() - it.t > TTL[it.pri] + 800 || bufsL.some((x) => !x || !x.buf)) { VST.dropped++; return done(); }
           const c = sfx.ctx(); if (!c) return done();
           if (!gain) { gain = c.createGain(); gain.gain.value = 1.0; gain.connect(c.destination); }
           if (c.state !== 'running') { try { sfx.wake(); } catch (e) {} }
@@ -4985,9 +4993,9 @@ gl_FragColor=vec4(c,1.0);}`;
           let i = 0;
           const next = () => { // the segments of a line play back to back with a short breath between them
             if (it.cut || i >= bufsL.length) return done();
-            const src = c.createBufferSource(); src.buffer = bufsL[i++]; src.connect(gain); it.src = src;
-            src.onended = () => { if (i >= bufsL.length || it.cut) done(); else setTimeout(next, 90); };
-            src.start();
+            const x = bufsL[i++], src = c.createBufferSource(); src.buffer = x.buf; src.connect(gain); it.src = src;
+            src.onended = () => { if (i >= bufsL.length || it.cut) done(); else setTimeout(next, 30); };
+            src.start(0, x.start, x.dur);
           };
           next();
         }).catch(() => { VST.failed++; done(); });
