@@ -476,6 +476,8 @@ module.exports = function fun(app, h) {
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));
       const totalW = Object.values(R).reduce((s, x) => s + x.weight, 0);
+      const paid = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => !P.free && !P.flash).map((P) => P.cost);
+      const tierPrice = (lo, hi) => { const n = paid.filter((c) => c >= lo && c < hi); const a = Math.min(...n), b = Math.max(...n); return !n.length ? '' : a === b ? fmtN(a) : `${fmtN(a)} to ${fmtN(b)}`; };
       const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
       res.send(layout(req, 'Packs', pickHead(user, acct, 'cards') + `<div class="wrap pshop">${pickNav('/pickem/packs', name)}${packMsg(req)}
         <section class="card pshop-head"><div class="psh-bal"><small>Your coins</small><b>${icon('coin')}${fmtN(bal)}</b></div>
@@ -490,6 +492,8 @@ module.exports = function fun(app, h) {
         ${sections}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
+          <li><b>Prices follow the odds.</b> Everyday packs ${tierPrice(0, 7500)} coins · bigger packs with guarantees ${tierPrice(7500, 50000)} · Legend-or-better packs ${tierPrice(50000, 100000)} · Dark Matter, 1 of 1 hunts and Prism or Black set packs ${tierPrice(100000, Infinity)}. The best packs take a real grind.</li>
+          <li>Extra copies sell for ${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${fmtN(R[r].sell)}`).join(' · ')} coins (on <a href="/pickem/cards">My cards</a>). A pack's cards sell for far less than the pack costs.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
