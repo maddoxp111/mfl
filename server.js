@@ -4,6 +4,7 @@ const path = require('path');
 const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll } = require('./db');
 const pk = require('./pickem');
 const ai = require('./ai');
+const tts = require('./tts');
 const cards = require('./cards');
 const sv = require('./survivor');
 const badges = require('./badges');
@@ -117,7 +118,7 @@ app.use((req, res, next) => {
 
 // Any admin change can affect ratings and recaps: let the AI analyst catch up.
 app.use('/admin', (req, res, next) => {
-  if (req.method === 'POST' && !req.path.startsWith('/ai')) res.on('finish', () => scheduleAI());
+  if (req.method === 'POST' && !req.path.startsWith('/ai') && !req.path.startsWith('/tts')) res.on('finish', () => scheduleAI());
   next();
 });
 
@@ -2591,6 +2592,7 @@ app.get('/admin/ai', requireAdmin, (req, res) => {
     ${src === 'variable' ? '' : `<div class="card"><div class="card-h"><h2>API key</h2></div>
       <form method="post" action="/admin/ai/key" class="form"><label>Anthropic API key<input name="key" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
       <p class="muted sm">Stored only on the server, never in backups. Leave it blank and save to remove it.</p><button class="btn">Save key</button></form></div>`}
+    ${tts.adminBlock(esc, req)}
   </div>`, { ticker: false }));
 });
 app.post('/admin/ai/key', requireAdmin, (req, res) => {
@@ -3272,6 +3274,7 @@ function ratingOf(db, t, p) {
   require('./trading')(app, funH);
   require('./cardbook')(app, funH); }
 
+tts.register(app, { currentUser, requireAdmin, load }); // before /arcade/:game
 arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));

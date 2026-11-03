@@ -1,0 +1,860 @@
+{
+  "version": 1,
+  "vars": ["home", "away", "team", "level", "carrier", "passer", "rec", "player", "kicker", "perk", "play", "yards", "dist", "spot", "score"],
+  "pronounce": { "Pedon": "Peed-in", "Tabaka": "tuh-BAKE-uh", "Pelaez": "pell-IZE", "Xavier": "ex-AVE-yer" },
+  "events": {
+    "intro": { "vars": ["home", "away", "level"], "lines": [
+      "Welcome to the Blitz! {home} and {away}, on {level}. Let's go!",
+      "It's game day! {home} hosting {away} at the {level} level.",
+      "Lights on, crowd loud: {home} versus {away}, {level} mode!",
+      "In comes {away} to face {home}. {level} difficulty, folks.",
+      "{level} difficulty tonight. {home} against {away}. Hope you stretched!",
+      "Grab your snacks! {home} and {away} are about to throw down on {level}.",
+      "This is the one we circled: {home} hosting {away}. Level: {level}.",
+      "Good evening and welcome! {home} versus {away}, and it's {level} out here."
+    ] },
+    "kickoff_cpu": { "vars": ["away"], "lines": [
+      "{away} kicking it off. Here we go!",
+      "Ball's in the air! {away} gets us started.",
+      "And the kickoff from {away} is away!",
+      "Boot it! {away} sends it deep.",
+      "Here comes the kick from {away}. Somebody catch it!",
+      "Leather meets foot, courtesy of {away}, and we are underway!"
+    ] },
+    "kr_return": { "vars": ["carrier", "yards"], "lines": [
+      "{carrier} brings it back {yards}.",
+      "Nice return by {carrier}, {yards} on the runback.",
+      "{carrier} weaves upfield for a {yards}-yard return.",
+      "Good wheels on {carrier}! A {yards}-yard runback.",
+      "Return of {yards} from {carrier}. Solid start.",
+      "Takes it {yards} the other way, {carrier}, before going down.",
+      "Look at {carrier} go! That return covers {yards}."
+    ] },
+    "kr_touchback": { "vars": [], "lines": [
+      "Taking a knee. Touchback.",
+      "Into the end zone, and that's a touchback.",
+      "Nobody's running that one back. Touchback.",
+      "Kneel it! We'll start with a touchback.",
+      "Way too deep to bring out. Smart touchback."
+    ] },
+    "kr_td": { "vars": ["carrier"], "lines": [
+      "{carrier} takes it all the way! Kickoff return touchdown!",
+      "Gone! {carrier} goes the distance on the return!",
+      "Nobody laid a finger on {carrier}! House call!",
+      "Kick return, touchdown, {carrier}! Unbelievable!",
+      "Sound the alarm! {carrier} just went coast to coast!",
+      "They kicked it to {carrier}. Big mistake. Touchdown!"
+    ] },
+    "drive_start": { "vars": ["home", "spot"], "lines": [
+      "{home} takes over at {spot}.",
+      "Ball's at {spot}. Let's move it, {home}!",
+      "First and 10 for {home} from {spot}.",
+      "The {home} offense trots out at {spot}. Let's cook.",
+      "Here comes our offense, starting from {spot}. Go get it, {home}!",
+      "Drive time! {home} with the ball at {spot}.",
+      "Fresh set of downs for {home}, ball spotted at {spot}."
+    ] },
+    "cpu_drive_start": { "vars": ["away", "spot"], "lines": [
+      "{away} takes over at {spot}. Defense, wake up!",
+      "Here comes {away}, starting at {spot}.",
+      "Offense for {away} on the field at {spot}. Time to hold 'em.",
+      "Defense, you're up. {away} has it at {spot}.",
+      "Ball at {spot} for {away}. Let's get a stop!",
+      "First and 10, {away}, from {spot}."
+    ] },
+    "cpu_td": { "vars": ["away"], "lines": [
+      "Touchdown, {away}. Ouch.",
+      "{away} punches it in. That stings.",
+      "And {away} finds the end zone. Defense, regroup!",
+      "That's a {away} touchdown. Not what we wanted.",
+      "They got in. {away} touchdown, and the crowd goes quiet.",
+      "Defense got cooked on that one. Touchdown, {away}.",
+      "{away} into the end zone. Shake it off, we've got time.",
+      "Score for {away}. Somebody check on the secondary.",
+      "Well, {away} made that look easy. Touchdown."
+    ] },
+    "cpu_fg": { "vars": ["away"], "lines": [
+      "{away} settles for 3.",
+      "Field goal is good for {away}. Held 'em to 3, though!",
+      "Kick is up, kick is good. {away} adds 3.",
+      "Splitting the uprights, {away}. Could've been worse.",
+      "Bend, don't break! {away} only gets a field goal.",
+      "Defense holds in the red zone. {away} kicks the field goal."
+    ] },
+    "cpu_punt": { "vars": ["away"], "lines": [
+      "Stop! {away} has to punt.",
+      "Defense says no. {away} punting it away.",
+      "{away} brings out the punter. Great stand!",
+      "That's a defensive stop! Here comes the {away} punt.",
+      "No dice for {away}. They'll kick it away.",
+      "Punt team on for {away}. Love that defense!"
+    ] },
+    "cpu_int": { "vars": ["away"], "lines": [
+      "Picked off! Our defense takes it away from {away}!",
+      "Interception! {away} threw it right to us!",
+      "Who was that throw for? Picked! {away} gives it up.",
+      "Ball hawk alert! We intercept {away}!",
+      "Snagged it! {away} just handed us the ball.",
+      "Pick! Pick! Pick! {away} is going to regret that one.",
+      "Read it the whole way! Interception against {away}!"
+    ] },
+    "cpu_fumble": { "vars": ["away"], "lines": [
+      "We recover! {away} coughs it up!",
+      "Fumble! And we've got it! {away} loses the ball.",
+      "{away} puts it on the turf and we pounce!",
+      "Stripped! Takeaway against {away}!",
+      "Loose ball, our ball! {away} can't hang on.",
+      "Butterfingers! {away} fumbles and we take over."
+    ] },
+    "cpu_downs": { "vars": ["away"], "lines": [
+      "Stuffed on fourth! {away} turns it over on downs.",
+      "No! Not today, {away}! Turnover on downs!",
+      "{away} went for it and came up short. Our ball!",
+      "Defense holds on fourth down! {away} gets nothing.",
+      "Denied! {away} turns it over on downs.",
+      "That's a huge stop! {away} fails on fourth down."
+    ] },
+    "cpu_miss_fg": { "vars": ["away"], "lines": [
+      "No good! {away} misses the field goal!",
+      "It's wide! {away} comes up empty.",
+      "{away} shanks the kick! No points!",
+      "The kick is no good! Phew, {away} gets nothing.",
+      "Missed it! {away} leaves 3 on the field.",
+      "And {away} misses! Big break for us."
+    ] },
+    "cpu_clock": { "vars": [], "lines": [
+      "They're just running out the clock now.",
+      "Taking a knee. They're burning time.",
+      "The clock is ticking and they're happy to let it.",
+      "Kneel-down city. They want this one over."
+    ] },
+    "two_minute": { "vars": [], "lines": [
+      "That's the 2-minute warning. Crunch time!",
+      "Under 2 minutes now. Every snap counts.",
+      "Clock's ticking! We're at the 2-minute warning.",
+      "2 minutes to go. Time to be legendary.",
+      "Hurry-up time! The 2-minute warning is here.",
+      "Grab the edge of your seat. 2-minute warning!"
+    ] },
+    "end_q1": { "vars": ["score"], "lines": [
+      "End of the first quarter. {score}.",
+      "That's one quarter in the books. It's {score}.",
+      "After 1, we've got {score}.",
+      "First quarter's done and it's {score}. Plenty of football left.",
+      "Quarter number one is over. Scoreboard says {score}.",
+      "Switch sides! We're through the first at {score}."
+    ] },
+    "halftime": { "vars": ["score"], "lines": [
+      "That's halftime! {score} at the break.",
+      "Halftime, folks. Score is {score}.",
+      "Into the locker rooms at {score}. Grab a snack!",
+      "Halfway home. It's {score}.",
+      "Bands on the field! Halftime score: {score}.",
+      "End of the half, {score}. Coaches, make those adjustments!",
+      "We're at the half with the score {score}. What a show so far."
+    ] },
+    "end_q3": { "vars": ["score"], "lines": [
+      "End of the third, {score}. One quarter left!",
+      "Third quarter's over. {score}, and we're heading to the fourth.",
+      "Fourth quarter coming up! Score: {score}.",
+      "It's {score} after 3. Time to finish strong.",
+      "That wraps the third. {score} going into the final quarter.",
+      "One more quarter to go and it's {score}."
+    ] },
+    "final_win": { "vars": ["score", "away"], "lines": [
+      "Final score, {score}! Victory over {away}!",
+      "That's the ballgame! We beat {away}, {score}!",
+      "Game over! {away} goes home sad. {score}!",
+      "Put it in the books: a win over {away}, {score}.",
+      "Ring the bell! {score} final, and {away} never stood a chance.",
+      "What a performance! We take down {away}, {score}.",
+      "Win! Win! Win! {score} over {away}!",
+      "Somebody call the trophy guy. We beat {away} {score}!",
+      "Clock hits zero and we win it, {score}! See ya, {away}!"
+    ] },
+    "final_loss": { "vars": ["score", "away"], "lines": [
+      "That's the game. {away} wins it, {score}.",
+      "Final: {score}. Tough one against {away}.",
+      "{away} takes this one, {score}. We'll get 'em next time.",
+      "Not our day. {score}, {away} on top.",
+      "The clock runs out. {away} hangs on, {score}.",
+      "Final score {score}. Shake hands with {away} and run it back.",
+      "Heartbreaker. {away} gets the win, {score}."
+    ] },
+    "overtime": { "vars": [], "lines": [
+      "We're going to overtime!",
+      "Tied up after 4! Free football, baby!",
+      "Overtime! Nobody's leaving early tonight.",
+      "Regulation can't settle it. Bonus football!",
+      "Sudden drama! This one's headed to overtime."
+    ] },
+    "timeout": { "vars": ["team"], "lines": [
+      "Timeout, {team}.",
+      "{team} calls timeout.",
+      "{team} wants a breather. Timeout on the field.",
+      "Hold up! {team} burns a timeout.",
+      "And {team} stops the clock with a timeout."
+    ] },
+    "delay_of_game": { "vars": [], "lines": [
+      "Flag! Delay of game. Back 5.",
+      "Too slow! Delay of game, 5-yard penalty.",
+      "The play clock hit zero. Delay of game.",
+      "Tick tock! That's a delay of game penalty."
+    ] },
+    "play_call": { "vars": ["play"], "lines": [
+      "{play} is the call.",
+      "Going with {play} here.",
+      "Let's see if {play} works.",
+      "Dialing up {play}.",
+      "Coach likes {play} on this one.",
+      "Here comes {play}. Let's run it!"
+    ] },
+    "complete": { "vars": ["passer", "rec", "yards"], "lines": [
+      "{passer} to {rec}, picks up {yards}.",
+      "Complete! {rec} hauls it in for {yards}.",
+      "{passer} finds {rec}. That's a gain of {yards}.",
+      "Nice throw, nice catch. {rec} for {yards}.",
+      "{rec} grabs it from {passer}, {yards}-yard pickup.",
+      "Pitch and catch! {passer} to {rec}, {yards} more.",
+      "On target! {passer} hits {rec} for {yards}.",
+      "{rec} with the grab. {yards} on the play.",
+      "Right on the numbers. {passer} connects with {rec} for {yards}.",
+      "Easy money. {rec} snags it for {yards}.",
+      "Quick strike from {passer}. {rec} takes it {yards}.",
+      "Good read by {passer}, and {rec} picks up {yards}."
+    ] },
+    "complete_big": { "vars": ["passer", "rec", "yards"], "lines": [
+      "Bombs away! {passer} hits {rec} for {yards} yards!",
+      "Huge gain! {rec} hauls in a {yards}-yard strike from {passer}!",
+      "{passer} lets it fly... and {rec} has it! {yards} yards!",
+      "Deep shot connects! {rec} for {yards}!",
+      "Are you kidding me? {passer} to {rec}, {yards} yards!",
+      "{rec} is wide open! {passer} drops it in for {yards}!",
+      "Moonshot from {passer}! {rec} comes down with it, {yards} yards!",
+      "Big play alert! {passer} and {rec} for {yards}!",
+      "That's a chunk play! {rec} picks up {yards} from {passer}.",
+      "Air it out! {passer} finds {rec} deep for {yards}!"
+    ] },
+    "first_down": { "vars": ["player"], "lines": [
+      "First down, {player}!",
+      "{player} moves the chains!",
+      "And that's a first down. Thank you, {player}.",
+      "Chains are moving! {player} gets the first.",
+      "{player} picks up the first down.",
+      "Measure it? Nah. Easy first down for {player}.",
+      "New set of downs, courtesy of {player}.",
+      "Moving the sticks! Nice work, {player}.",
+      "{player} gets past the marker. First down!",
+      "Fresh downs! {player} did that."
+    ] },
+    "td_pass": { "vars": ["passer", "rec", "yards"], "lines": [
+      "Touchdown! {passer} to {rec} from {yards} out!",
+      "{rec} in the end zone! {passer} with the dime!",
+      "Score! {passer} hits {rec} for a {yards}-yard touchdown!",
+      "Pay dirt! {rec} hauls in the {yards}-yard score from {passer}!",
+      "{passer} throws a strike, and {rec} takes it to the house!",
+      "Touchdown {rec}! What a toss by {passer}!",
+      "Find the end zone, find {rec}! {passer} for the score!",
+      "Dot! {passer} to {rec}, {yards} yards, touchdown!",
+      "Oh, what a throw! {rec} scores from {yards} out!",
+      "Paint it on the wall! {passer} to {rec} for 6!",
+      "{rec} catches it, {rec} scores! {passer} with the touchdown pass!",
+      "Throw it up, {rec} comes down with it! Touchdown from {yards}!"
+    ] },
+    "td_run": { "vars": ["carrier", "yards"], "lines": [
+      "Touchdown, {carrier}! {yards} yards to pay dirt!",
+      "{carrier} punches it in from {yards}!",
+      "See ya! {carrier} races {yards} yards for the score!",
+      "Nobody's catching {carrier}! Touchdown!",
+      "{carrier} walks in from {yards} out!",
+      "Into the end zone goes {carrier}! A {yards}-yard touchdown run!",
+      "Run it in! {carrier} scores from {yards}!",
+      "Touchdown on the ground! {carrier} with the {yards}-yard dash!",
+      "Follow the blockers, find the end zone. {carrier}, touchdown!",
+      "Bye bye! {carrier} takes it {yards} for the score!",
+      "Put the team on your back, {carrier}! Touchdown!",
+      "Sprint, {carrier}, sprint! {yards} yards and in!"
+    ] },
+    "td_short": { "vars": ["carrier"], "lines": [
+      "{carrier} pushes it across the goal line!",
+      "Short yardage, no problem. {carrier} scores!",
+      "Plunge! {carrier} gets in!",
+      "Just enough! {carrier} breaks the plane!",
+      "Inches needed, inches gained. Touchdown {carrier}!",
+      "{carrier} sneaks in for the score!"
+    ] },
+    "incomplete": { "vars": ["passer", "rec"], "lines": [
+      "Incomplete. {passer} misses {rec}.",
+      "Off the fingertips of {rec}. Incomplete.",
+      "{passer} throws behind {rec}. No good.",
+      "Overthrown! {rec} had a step, too.",
+      "Can't connect. {passer} to {rec} falls incomplete.",
+      "Just out of reach for {rec}.",
+      "Hits the turf. {passer} and {rec} weren't on the same page.",
+      "Too high! {rec} can't get there.",
+      "Pass broken up! Nothing doing for {rec}."
+    ] },
+    "drop": { "vars": ["rec"], "lines": [
+      "Dropped! {rec} had that one!",
+      "Oh no, {rec}! Right through the hands!",
+      "Ball hits {rec} in the chest and falls. Drop.",
+      "{rec} lets it slip away. That one should've been caught.",
+      "Butter on the gloves for {rec}! Dropped.",
+      "Drop! {rec} will want that one back.",
+      "Ooh, {rec} looked upfield too soon. Dropped it."
+    ] },
+    "batted": { "vars": [], "lines": [
+      "Batted down at the line!",
+      "Swatted! That pass isn't going anywhere.",
+      "Get that weak stuff outta here! Batted!",
+      "Tipped at the line and it falls harmlessly.",
+      "Hand up, ball down. Batted pass!",
+      "Knocked down at the line of scrimmage!"
+    ] },
+    "throwaway": { "vars": ["passer"], "lines": [
+      "{passer} throws it away. Live to fight another down.",
+      "Nobody open. {passer} chucks it out of bounds.",
+      "Smart play by {passer}. Throw it away, no harm done.",
+      "Into the bleachers! {passer} tosses it away.",
+      "Sideline delivery from {passer}. Safe choice."
+    ] },
+    "oob_catch": { "vars": ["rec"], "lines": [
+      "{rec} catches it... out of bounds! No foot down.",
+      "Great grab, but {rec} was out! Incomplete.",
+      "Close! {rec} didn't get a foot in.",
+      "Ref says no! {rec} landed out of bounds.",
+      "Toes on the chalk? Nope. {rec} was out."
+    ] },
+    "interception": { "vars": ["passer", "away"], "lines": [
+      "Intercepted! {away} picks off {passer}!",
+      "Oh no! {passer} throws it right to {away}!",
+      "Picked! {away} jumped that route.",
+      "{passer} forced it, and {away} takes it away.",
+      "Interception! That one belongs to {away} now.",
+      "Bad read by {passer}. Turnover!",
+      "Ouch. {away} reads {passer} like a book. Pick!",
+      "Who was that for? {away} says thanks!",
+      "Floated it, and {away} swoops in for the interception."
+    ] },
+    "pick_six": { "vars": ["away"], "lines": [
+      "Pick 6! {away} takes it the other way for a touchdown!",
+      "Disaster! {away} intercepts and scores!",
+      "Oh no, no, no. {away} housed the interception.",
+      "Intercepted and gone! {away} with the pick 6.",
+      "That's a turnover and a touchdown for {away}. Yikes.",
+      "{away} jumps the route and runs it to the house!",
+      "Worst-case scenario. {away} returns the pick for 6."
+    ] },
+    "fumble": { "vars": ["carrier"], "lines": [
+      "Fumble! {carrier} puts it on the ground!",
+      "Ball's loose! {carrier} lost the handle!",
+      "Uh oh, {carrier} coughs it up!",
+      "Stripped! The ball pops out from {carrier}!",
+      "Loose ball! Everybody dive!",
+      "{carrier} fumbles! Scramble for it!",
+      "Ball on the turf! {carrier} couldn't hold on!"
+    ] },
+    "fumble_lost": { "vars": ["away"], "lines": [
+      "And {away} recovers. Turnover.",
+      "{away} falls on it. That's their ball.",
+      "Ugh, {away} comes up with the fumble.",
+      "Possession, {away}. That hurts.",
+      "Recovered by {away}! Big swing in this game.",
+      "Scooped up by {away}. Our defense is back on the field."
+    ] },
+    "fumble_kept": { "vars": ["home"], "lines": [
+      "Phew! {home} gets it back!",
+      "Recovered by {home}! Dodged one there.",
+      "{home} falls on it! Still our ball!",
+      "Lucky bounce! {home} keeps possession.",
+      "Heart attack averted. {home} recovers."
+    ] },
+    "fumble_six": { "vars": ["away"], "lines": [
+      "Scoop and score! {away} returns the fumble for a touchdown!",
+      "Disaster! {away} picks it up and races in!",
+      "Fumble, recovery, touchdown, {away}. Brutal.",
+      "{away} turns our fumble into 6. Ouch.",
+      "Nobody touched {away} on the way back. Fumble return touchdown."
+    ] },
+    "run": { "vars": ["carrier", "yards"], "lines": [
+      "{carrier} runs for {yards}.",
+      "{carrier} pounds ahead for {yards}.",
+      "Handoff to {carrier}, {yards} on the carry.",
+      "Good burst by {carrier}. {yards}-yard pickup.",
+      "Through a crease goes {carrier}, and that's {yards}.",
+      "Gain of {yards} on the ground for {carrier}.",
+      "Tough running from {carrier}! {yards} more.",
+      "Up the gut! {carrier} gets {yards}.",
+      "Bouncing outside, {carrier} picks up {yards}.",
+      "Churning legs, {carrier}! That's {yards} on the run.",
+      "Nice cut by {carrier} for a {yards}-yard gain.",
+      "Ground and pound! {carrier} with {yards}.",
+      "Keeps the legs moving, {carrier} grinds out {yards}."
+    ] },
+    "run_big": { "vars": ["carrier", "yards"], "lines": [
+      "Breakaway! {carrier} rips off {yards} yards!",
+      "Look at {carrier} go! {yards} yards on the run!",
+      "{carrier} hits the hole and explodes for {yards}!",
+      "Huge run! {carrier} picks up {yards} yards!",
+      "Somebody tackle {carrier}! {yards}-yard gallop!",
+      "Out of the gate like a rocket! {carrier} for {yards}!",
+      "Daylight! {carrier} takes it {yards} yards!",
+      "That's a highlight run! {carrier} for {yards}!",
+      "Big gainer! {carrier} goes {yards} before anyone catches up.",
+      "Turbo mode activated! {carrier} for {yards} yards!"
+    ] },
+    "run_loss": { "vars": ["carrier"], "lines": [
+      "{carrier} gets dropped in the backfield.",
+      "Loss on the play. {carrier} had nowhere to go.",
+      "Stuffed! {carrier} goes backwards.",
+      "Tackled for a loss! Rough one for {carrier}.",
+      "Defense was waiting for {carrier}. Lost yardage.",
+      "Wrong way, {carrier}! That's a loss."
+    ] },
+    "no_gain": { "vars": ["carrier"], "lines": [
+      "No gain on the play.",
+      "{carrier} gets stuffed at the line.",
+      "Nothing there for {carrier}.",
+      "Wall of defenders! {carrier} goes nowhere.",
+      "Stood up! No gain for {carrier}."
+    ] },
+    "sack": { "vars": ["passer"], "lines": [
+      "Sacked! {passer} goes down!",
+      "{passer} is brought down behind the line!",
+      "Sack! Nowhere to throw for {passer}.",
+      "Get {passer} on the ground! Sack!",
+      "Oh, they got {passer}! Loss on the play.",
+      "Pressure gets home! {passer} is sacked.",
+      "{passer} held it too long. Sack!",
+      "Flag pulled! {passer} sacked in the backfield."
+    ] },
+    "scramble": { "vars": ["passer", "yards"], "lines": [
+      "{passer} takes off! {yards} on the scramble!",
+      "Nobody open, so {passer} runs for {yards}.",
+      "Escape artist! {passer} scrambles for {yards}.",
+      "Legs! {passer} picks up {yards} on the keeper.",
+      "Look out, it's {passer} on the run! Gain of {yards}.",
+      "{passer} tucks it and goes. {yards}-yard scramble.",
+      "The pocket collapses and {passer} sprints for {yards}."
+    ] },
+    "slide": { "vars": ["passer"], "lines": [
+      "{passer} slides. Smart.",
+      "{passer} gets down safely. Good slide.",
+      "Slide! {passer} lives to play another down.",
+      "Nice slide from {passer}. No need for heroics."
+    ] },
+    "catch_wild": { "vars": ["rec"], "lines": [
+      "What a catch by {rec}!",
+      "Are you serious? {rec} came down with that!",
+      "Unreal grab! {rec} makes it look easy.",
+      "{rec} with the circus catch!",
+      "How did {rec} hold onto that?",
+      "Highlight reel! {rec} snatches it out of the air!",
+      "Put that on the poster! {rec} with the grab!",
+      "Somebody check {rec} for glue! Incredible catch!",
+      "That's the catch of the year from {rec}!",
+      "{rec} went up and took it! Wow!"
+    ] },
+    "catch_diving": { "vars": ["rec"], "lines": [
+      "Diving catch! {rec} lays out!",
+      "{rec} sells out and makes the grab!",
+      "Full extension! {rec} gets it!",
+      "Airborne! {rec} dives and hauls it in!",
+      "{rec} hits the turf with the ball! Diving grab!",
+      "Laid out! What effort from {rec}!",
+      "Off the ground and into the arms of {rec}! Diving catch!"
+    ] },
+    "toe_tap": { "vars": ["rec"], "lines": [
+      "Toe tap! {rec} keeps both feet in!",
+      "Just inbounds! {rec} with the tiptoe catch!",
+      "Ballerina feet from {rec}! What a sideline grab!",
+      "{rec} drags the toes! Catch!",
+      "Right on the edge! {rec} gets a foot down!",
+      "Sideline magic from {rec}! Toes in!"
+    ] },
+    "off_helmet": { "vars": ["rec"], "lines": [
+      "Off the helmet! {rec} pins it and hangs on!",
+      "{rec} traps it against the helmet! Unbelievable!",
+      "Helmet catch! {rec} somehow holds on!",
+      "No hands? No problem! {rec} catches it with the helmet!",
+      "That ball stuck to the helmet of {rec}! Are you kidding?",
+      "Headgear grab! {rec} won't let go!"
+    ] },
+    "one_hand": { "vars": ["rec"], "lines": [
+      "One hand! {rec} snags it!",
+      "One-handed grab from {rec}! Show off!",
+      "{rec} reaches out with one mitt and pulls it in!",
+      "Single paw! {rec} makes the one-hander!",
+      "Look, no other hand! {rec} with the one-handed snag!"
+    ] },
+    "juke": { "vars": ["carrier"], "lines": [
+      "Juke! {carrier} leaves the defender grasping air!",
+      "{carrier} with the juke! Wow!",
+      "Shake and bake! {carrier} sends a defender the wrong way!",
+      "Nasty move by {carrier}!",
+      "Side to side! {carrier} jukes the defender into next week!",
+      "Did you see that cut? {carrier} is slippery!",
+      "{carrier} fakes left, goes right. Gone!"
+    ] },
+    "spin": { "vars": ["carrier"], "lines": [
+      "Spin move! {carrier} twirls away!",
+      "{carrier} spins out of trouble!",
+      "Round and round! {carrier} with the spin!",
+      "Pirouette from {carrier}! Still going!",
+      "What a spin by {carrier}! Defender grabs nothing!",
+      "{carrier} spins off the tackle!"
+    ] },
+    "stiff_arm": { "vars": ["carrier"], "lines": [
+      "Stiff arm! {carrier} says get away!",
+      "{carrier} with the stiff arm! Back off!",
+      "Talk to the hand! {carrier} shoves a defender aside!",
+      "Push off! {carrier} stiff arms a defender into the turf!",
+      "Get outta here! {carrier} with a mean stiff arm!",
+      "No thank you! {carrier} straight-arms the tackler!"
+    ] },
+    "hurdle": { "vars": ["carrier"], "lines": [
+      "Hurdle! {carrier} goes right over the top!",
+      "Up and over! {carrier} hurdles the defender!",
+      "{carrier} leaps a tackler! Track star!",
+      "Airborne! {carrier} clears the defender!",
+      "Did {carrier} just jump over somebody? Yes!",
+      "Over the top! {carrier} with the hurdle!",
+      "{carrier} skies over the defender! Ridiculous!"
+    ] },
+    "truck": { "vars": ["carrier"], "lines": [
+      "Trucked! {carrier} runs right through a defender!",
+      "{carrier} lowers the shoulder and flattens a defender!",
+      "Run 'em over! {carrier} trucks the tackler!",
+      "Beep beep! {carrier} just ran somebody over!",
+      "Bulldozer mode! {carrier} goes through, not around!",
+      "Somebody get the license plate! {carrier} flattened a defender!",
+      "Pancake! {carrier} put a defender on the turf!"
+    ] },
+    "decleat": { "vars": ["carrier"], "lines": [
+      "De-cleated! {carrier} knocked a defender clean out of the shoes!",
+      "Cleats in the air! {carrier} sends a defender flying!",
+      "{carrier} with the de-cleater! Oof!",
+      "Boom! {carrier} blows a defender off the turf!",
+      "Ouch! {carrier} knocks a tackler head over heels!",
+      "That's a de-cleater, folks! {carrier} is a menace!",
+      "Somebody find that defender's shoes! {carrier} sent them flying!"
+    ] },
+    "whiff": { "vars": [], "lines": [
+      "Whiff! Missed tackle!",
+      "Grabbed nothing but air!",
+      "Swing and a miss on the tackle!",
+      "The defender dove and got nothing!",
+      "Missed completely! What a whiff!",
+      "Tackle attempt? More like a tackle suggestion.",
+      "Air ball! That tackle wasn't even close."
+    ] },
+    "ankles": { "vars": ["carrier"], "lines": [
+      "Ankles broken! {carrier} is filthy!",
+      "{carrier} just broke some ankles!",
+      "Somebody call a doctor for those ankles! {carrier}, wow!",
+      "Down goes the defender! {carrier} with the ankle breaker!",
+      "{carrier} put a defender on the ground without touching anybody!",
+      "Ankle tax! {carrier} collects!",
+      "Sit down! {carrier} made that defender fall over!"
+    ] },
+    "broken_tackle": { "vars": ["carrier"], "lines": [
+      "Broken tackle! {carrier} keeps going!",
+      "{carrier} shrugs it off!",
+      "Can't bring {carrier} down! Still running!",
+      "First tackle doesn't get it done. {carrier} bounces off!",
+      "Not enough! {carrier} breaks free!",
+      "Bounced right off! {carrier} stays upright!"
+    ] },
+    "big_hit": { "vars": ["carrier"], "lines": [
+      "Big hit on {carrier}!",
+      "Boom! {carrier} gets rocked!",
+      "Ooh, {carrier} felt that one!",
+      "Lights out! The defense lays the wood on {carrier}!",
+      "Crunch! {carrier} gets popped!",
+      "Whoa! {carrier} just got leveled!"
+    ] },
+    "third_down": { "vars": ["dist"], "lines": [
+      "Third down and {dist}.",
+      "Big third down here. {dist} to go.",
+      "Third and {dist}. Gotta have it.",
+      "Here's a third down, {dist} to go.",
+      "Need {dist} on third down. Make it happen!",
+      "Third and {dist}. Crowd's on its feet!"
+    ] },
+    "fourth_go": { "vars": [], "lines": [
+      "We're going for it on fourth down!",
+      "No punt! Offense stays on the field!",
+      "Fourth down, and we're feeling brave!",
+      "Go time! Leaving the offense out there on fourth.",
+      "Bold call! We're going for it!",
+      "Fortune favors the bold. Fourth down try!"
+    ] },
+    "turnover_downs": { "vars": [], "lines": [
+      "Stopped short! Turnover on downs.",
+      "Didn't get it. Their ball.",
+      "Came up short on fourth. Turnover on downs.",
+      "So close! Defense takes over.",
+      "That's a turnover on downs. Ouch.",
+      "Denied on fourth down. They'll take over."
+    ] },
+    "punt": { "vars": ["yards"], "lines": [
+      "Punt is away, {yards} yards.",
+      "Big boot! {yards} yards on the punt.",
+      "{yards}-yard punt flips the field.",
+      "Booming punt! That one travels {yards}.",
+      "Kicked away. {yards} yards on the punt.",
+      "Punter gets a good foot on it, {yards} yards."
+    ] },
+    "punt_shank": { "vars": [], "lines": [
+      "Shanked! That punt went nowhere.",
+      "Oof, off the side of the foot. Ugly punt.",
+      "That punt went sideways. Literally.",
+      "Yikes! The punter wants that one back.",
+      "Shank city! Barely made it past the line."
+    ] },
+    "safety": { "vars": [], "lines": [
+      "Safety! 2 points!",
+      "Tackled in the end zone! That's a safety!",
+      "Trapped in the end zone. Safety, and 2 points!",
+      "Caught in the end zone! It's a safety!",
+      "Rare play alert! A safety!",
+      "Backed up and brought down. Safety!"
+    ] },
+    "fg_good": { "vars": ["kicker", "dist"], "lines": [
+      "It's good! {kicker} from {dist}!",
+      "{kicker} drills it from {dist} yards!",
+      "Right down the middle! {dist}-yard field goal is good!",
+      "Kick is up... and it's good! {kicker} nails it from {dist}.",
+      "Money from {dist}! {kicker} delivers.",
+      "Through the uprights! {kicker} connects from {dist} yards.",
+      "Split 'em! {kicker} hits from {dist}.",
+      "Automatic! {kicker} makes the {dist}-yarder."
+    ] },
+    "fg_miss": { "vars": ["kicker", "dist"], "lines": [
+      "No good! {kicker} misses from {dist}.",
+      "It's wide! The {dist}-yard try fails.",
+      "{kicker} pushes it! No good from {dist}.",
+      "Off target! {kicker} misses the {dist}-yarder.",
+      "The kick is no good. Tough break, {kicker}.",
+      "Oh, so close! {kicker} misses from {dist} yards.",
+      "{kicker} hooks it. No points from {dist}."
+    ] },
+    "doink": { "vars": [], "lines": [
+      "Doink! Off the upright!",
+      "Clang! It hits the post and bounces out!",
+      "Off the upright! So close!",
+      "The post says no! Doink!",
+      "Ping! Iron! No good!",
+      "That sound! Right off the upright and out!"
+    ] },
+    "doink_in": { "vars": [], "lines": [
+      "Doink... and in! It counts!",
+      "Off the upright and through! We'll take it!",
+      "Clang and in! Lucky bounce!",
+      "Hit the post, still good! Ugly but effective!",
+      "The post was friendly today! It's good!"
+    ] },
+    "xp_good": { "vars": [], "lines": [
+      "Extra point is good.",
+      "PAT is good.",
+      "Point after: good.",
+      "Easy as pie. Extra point good.",
+      "Kick is good. Add 1 more.",
+      "Through the pipes for the extra point."
+    ] },
+    "xp_miss": { "vars": [], "lines": [
+      "Extra point no good!",
+      "Missed the extra point! Ouch.",
+      "Whoa, the point after is no good!",
+      "Shanked the PAT!",
+      "Doesn't get the extra point. That might matter."
+    ] },
+    "two_good": { "vars": [], "lines": [
+      "2-point try is good!",
+      "They're in! 2-point conversion successful!",
+      "Going for 2 and getting 2!",
+      "Conversion good! That's 2 more!",
+      "Got it! The 2-point play works!",
+      "Bonus points! 2-point conversion is good!",
+      "In for 2! Great call!"
+    ] },
+    "two_fail": { "vars": [], "lines": [
+      "2-point try fails.",
+      "Stopped! No conversion.",
+      "Didn't get in. The 2-point try is no good.",
+      "Denied! No extra 2 points.",
+      "So close! Conversion fails.",
+      "Short of the goal line. No good on the 2-point try."
+    ] },
+    "two_choice": { "vars": [], "lines": [
+      "Kick it or go for 2? Your call, coach.",
+      "Decision time: extra point or 2-point try?",
+      "Coach, what's it gonna be? 1 or 2?",
+      "The kicker is warming up, but going for 2 is tempting."
+    ] },
+    "onside_choice": { "vars": [], "lines": [
+      "Onside kick? Feeling sneaky, coach?",
+      "Kick it deep or try the onside?",
+      "Decision time: onside or regular kick?",
+      "Do we go for the onside here?",
+      "Big choice coming. Onside kick, anyone?"
+    ] },
+    "onside_won": { "vars": ["home"], "lines": [
+      "Onside kick recovered by {home}!",
+      "{home} gets it back! What a kick!",
+      "They did it! {home} recovers the onside!",
+      "Surprise! {home} steals the possession!",
+      "Perfect hop, and {home} has the ball!",
+      "Onside, recovered, {home}! Wild!",
+      "Nobody saw it coming! {home} keeps the ball!",
+      "Hands team who? {home} wins the onside!"
+    ] },
+    "onside_lost": { "vars": ["away"], "lines": [
+      "{away} recovers the onside kick.",
+      "Didn't work. {away} takes over.",
+      "No luck on the onside. {away} ball.",
+      "{away} was ready for it. Onside fails.",
+      "Onside attempt falls to {away}.",
+      "Ah, so close. {away} smothers the onside."
+    ] },
+    "cpu_onside": { "vars": ["away"], "lines": [
+      "Uh oh, {away} is trying an onside kick!",
+      "Onside from {away}! Hands team, get ready!",
+      "Sneaky! {away} goes onside!",
+      "Here comes the onside kick from {away}!",
+      "{away} lines up for an onside. Watch the hop!",
+      "Squib, dribble, onside! {away} wants it back!"
+    ] },
+    "cpu_onside_won": { "vars": ["away"], "lines": [
+      "{away} recovers their own onside kick!",
+      "Oh no, {away} gets it back!",
+      "Onside works for {away}. Not good.",
+      "Stolen! {away} keeps the ball.",
+      "Who's on hands team? {away} recovers!"
+    ] },
+    "cpu_onside_lost": { "vars": ["home"], "lines": [
+      "{home} secures the onside kick!",
+      "Nice try! {home} pounces on it!",
+      "Not today! {home} recovers.",
+      "Hands team comes through! Ball to {home}.",
+      "Onside fails, and {home} takes over in great field position.",
+      "Gotcha! {home} smothers the onside kick."
+    ] },
+    "friendly_fire": { "vars": [], "lines": [
+      "Wait, that's a teammate! Friendly fire!",
+      "Wrong jersey, buddy! Friendly fire!",
+      "They ran into each other! Oops!",
+      "Teammate collision! Somebody needs glasses.",
+      "Same team, guys! Same team!",
+      "Bumper cars out there! Friendly fire!",
+      "Even the ref is laughing at that one. Teammates collide!"
+    ] },
+    "ref_down": { "vars": [], "lines": [
+      "The ref got run over!",
+      "Somebody check on the referee!",
+      "Stripes down! The official took a hit!",
+      "Whoa, the ref is on the ground!",
+      "Even the ref couldn't get out of the way!",
+      "Zebra down! Zebra down!"
+    ] },
+    "houdini": { "vars": ["passer"], "lines": [
+      "{passer} escapes! How did that happen?",
+      "Can't catch a ghost! {passer} slips away!",
+      "They had {passer} dead to rights, and still nothing!",
+      "Magic act! {passer} wriggles free!",
+      "Now you see {passer}, now you don't!",
+      "Wiggle, wiggle, free! {passer} buys more time!"
+    ] },
+    "pile_up": { "vars": [], "lines": [
+      "Big pile-up out there!",
+      "Everybody's on the ground!",
+      "Bodies everywhere! What a pile!",
+      "Dog pile! Who's at the bottom?",
+      "Somebody start pulling people off that pile!"
+    ] },
+    "big_man_td": { "vars": ["carrier"], "lines": [
+      "Big man touchdown! {carrier} rumbles in!",
+      "Look at {carrier} rumble! Touchdown for the big fella!",
+      "The big guy scores! {carrier}, everybody!",
+      "Lineman glory! {carrier} lumbers into the end zone!",
+      "Make way! {carrier} finally gets a touchdown!",
+      "Heavy hitter heaven! {carrier} scores!"
+    ] },
+    "scoop_score": { "vars": ["carrier"], "lines": [
+      "Scoop and score! {carrier} takes it in!",
+      "{carrier} picks it up and runs it home!",
+      "Loose ball, and {carrier} takes it to the house!",
+      "Fumble return touchdown for {carrier}!",
+      "Right place, right time! {carrier} scoops and scores!"
+    ] },
+    "bench_party": { "vars": ["away"], "lines": [
+      "The {away} bench is partying!",
+      "Look at the {away} sideline! Dance party!",
+      "Celebration on the {away} bench!",
+      "They're going wild over on the {away} side.",
+      "Party on the {away} sideline. Enjoy it while it lasts."
+    ] },
+    "spike": { "vars": ["player"], "lines": [
+      "{player} spikes the ball!",
+      "Spike! {player} slams it down!",
+      "Spiked it! {player} is fired up!",
+      "{player} sends that ball into orbit with the spike!",
+      "Boom, spike! {player} celebrates!"
+    ] },
+    "dance": { "vars": ["player"], "lines": [
+      "{player} breaking out the dance moves!",
+      "Look at {player} dance! Somebody get a camera!",
+      "Dance party in the end zone, led by {player}!",
+      "{player} has moves! What a celebration!",
+      "Groove time! {player} gets down!"
+    ] },
+    "leap": { "vars": ["player"], "lines": [
+      "{player} leaps into the crowd!",
+      "Celebration jump from {player}!",
+      "Up in the air! {player} celebrates big!",
+      "{player} jumps for joy!",
+      "Sky high! {player} with the leap!"
+    ] },
+    "perk": { "vars": ["player", "perk"], "lines": [
+      "{perk} kicks in for {player}!",
+      "There's that {perk} perk from {player}!",
+      "{player} activates {perk}!",
+      "Card power! {perk} for {player}!",
+      "Ooh, {perk}! {player} is powered up!",
+      "Perk alert! {player} with {perk}!",
+      "{perk} just fired for {player}! Watch out!",
+      "That's the {perk} card at work for {player}.",
+      "{player} flashes {perk}. Special stuff!",
+      "Look out! {perk} is on for {player}!"
+    ] },
+    "lead_change": { "vars": ["team"], "lines": [
+      "Lead change! {team} goes on top!",
+      "And now {team} leads!",
+      "New leader! It's {team} in front!",
+      "Flip the scoreboard! {team} takes the lead!",
+      "{team} pulls ahead! Game on!",
+      "The lead belongs to {team} now!"
+    ] },
+    "blowout": { "vars": [], "lines": [
+      "This one's getting out of hand!",
+      "It's a blowout, folks!",
+      "Somebody call the mercy rule!",
+      "The rout is on! The scoreboard is lopsided.",
+      "Lots of points, and only one team is scoring them."
+    ] },
+    "comeback": { "vars": ["home"], "lines": [
+      "{home} is clawing back into this one!",
+      "Comeback alert! {home} is closing the gap!",
+      "Don't count out {home}! Here they come!",
+      "Momentum swing! {home} is charging back!",
+      "Never say die! {home} has life!"
+    ] },
+    "close_game": { "vars": [], "lines": [
+      "What a tight game!",
+      "Nail-biter, folks! Anybody's game!",
+      "This one's going down to the wire!",
+      "Too close to call!",
+      "Neither team can pull away. Edge of your seat stuff!"
+    ] }
+  }
+}
