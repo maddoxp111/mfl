@@ -4889,7 +4889,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let on = true; try { on = localStorage.getItem('mfl-blitz-voice') !== '0'; } catch (e) {}
       let avail = null, gain = null, cur = null, intro = false;
       const recent = {}, bufs = new Map(), q = [], pending = {};
-      const TTL = { 1: 3000, 2: 4500, 3: 8000, 4: 1700 }; // how long a queued line stays worth saying; later than that it is dropped, never played late
+      const TTL = { 1: 3000, 2: 3500, 3: 6000, 4: 1700 }; // how long a queued line stays worth saying; later than that it is dropped, never played late
       const cosmetic = () => (typeof crand === 'function' ? crand() : Math.random());
       try {
         fetch('/arcade/tts/manifest', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((m) => {
@@ -4951,12 +4951,15 @@ gl_FragColor=vec4(c,1.0);}`;
           if (cur && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; }
           q.unshift(it); if (q.length > 3) q.length = 3; for (const u of urls) load(u); pump(); return;
         }
+        if (pri >= 2) { // a result: filler talk waiting in line is dropped, and filler that is playing is cut off, so the call lands with the play
+          for (let i = q.length - 1; i >= 0; i--) if (q[i].pri === 1) { q.splice(i, 1); VST.dropped++; }
+          if (cur && cur.pri === 1 && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; }
+        }
         if (q.length >= 3) { // the queue is full: the weakest line makes room, or a weaker arrival is dropped
           let w = 0; for (let i = 1; i < q.length; i++) if (q[i].pri < q[w].pri || (q[i].pri === q[w].pri && q[i].t < q[w].t)) w = i;
           if (q[w].pri <= pri) { q.splice(w, 1); VST.dropped++; } else { VST.dropped++; return; }
         }
         q.push(it); q.sort((a, b) => b.pri - a.pri || a.t - b.t);
-        if (cur && cur.pri === 1 && pri === 3 && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; } // a big call cuts off flavor talk
         for (const u of urls) load(u); pump();
       }
       function load(url) {
