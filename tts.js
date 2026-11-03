@@ -92,7 +92,9 @@ function savePronounce(text) {
 const NAME_RE = /^[A-Za-z0-9 .,'’-]{1,40}$/;
 const NUM_RE = /^\d{1,3}$/;
 const SCORE_RE = /^\d{1,3} to \d{1,3}$/;
-const VAR_RE = { yards: NUM_RE, dist: NUM_RE, score: SCORE_RE };
+const DOWN_RE = /^(1st|2nd|3rd|4th)$/;
+// Everything else (names, perk, play, spot, level, period) uses NAME_RE.
+const VAR_RE = { yards: NUM_RE, dist: NUM_RE, n: NUM_RE, plays: NUM_RE, cmp: NUM_RE, att: NUM_RE, secs: NUM_RE, score: SCORE_RE, down: DOWN_RE };
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 // Checks a request's query: { e, v, ...vars }. Returns { ev, v, vars } or { error }.
@@ -230,22 +232,29 @@ function perkNames() {
   } catch {}
   return ['Laser Arm', 'Shiny Hands', 'Slow-Mo'];
 }
-const GENERIC = new Set(['home', 'away', 'team', 'level', 'score', 'spot', 'yards', 'dist', 'play']);
+const GENERIC = new Set(['home', 'away', 'team', 'level', 'score', 'spot', 'yards', 'dist', 'play', 'down']);
 const SAMPLES = {
   score: ['14 to 7', '21 to 14', '7 to 7', '28 to 21'],
   spot: ['the 25', 'midfield', 'the 30', 'the 20'],
   yards: ['40', '35', '45', '38'],
   dist: ['3', '7', '10', '1'],
   fg: ['32', '25', '40', '45'],
+  down: ['1st', '2nd', '3rd', '4th'],
 };
+// Sample distances that fit the situation each event describes.
+const DIST_FOR = { situation: ['10', '7', '3', '1'], situation_long: ['8', '12', '15', '10'], situation_fourth: ['1', '2', '4', '6'], third_down: SAMPLES.dist };
 const PLAYER_EVENTS = {
   complete: { yards: ['8', '12', '6'] }, complete_big: { yards: ['35', '42', '28'] }, first_down: {}, td_pass: { yards: ['15', '25', '8'] },
   td_run: { yards: ['5', '12', '30'] }, run: { yards: ['4', '6', '3'] }, run_big: { yards: ['25', '30', '45'] }, incomplete: {},
   catch_wild: {}, juke: {}, hurdle: {}, truck: {}, perk: {},
+  // Live play-by-play and color: every variant, since these are said with no time to spare.
+  snap_pass: { all: 1 }, throw_to: { all: 1 }, caught_live: { all: 1 }, run_live: { all: 1 }, open_field: { all: 1 }, return_live: { all: 1 },
+  player_hot: { all: 1 }, player_quiet: { all: 1 }, perk_note: { all: 1 },
 };
 
 // Every clip worth having before anyone plays: all team/score/etc lines, and each roster
-// player's name in the first 3 variants of the common plays.
+// player's name in the first 3 variants of the common plays (every variant of the live calls).
+// Stat lines (catches, carries, drive totals, clock) carry live numbers and are made on demand.
 function warmJobs(db) {
   const teams = Object.values(db?.teams || {});
   const tnames = teams.map((t) => t.name).filter((n) => NAME_RE.test(n));
@@ -268,6 +277,7 @@ function warmJobs(db) {
           else if (k === 'away') vars[k] = tnames[(i + 1) % tnames.length];
           else if (k === 'level') vars[k] = LEVELS[(i + v) % LEVELS.length];
           else if (k === 'dist' && e.startsWith('fg')) vars[k] = SAMPLES.fg[(i + v) % 4];
+          else if (k === 'dist' && DIST_FOR[e]) vars[k] = DIST_FOR[e][(i + v) % 4];
           else vars[k] = SAMPLES[k][(i + v) % 4];
         }
         jobs.push({ e, v, vars });
@@ -279,7 +289,7 @@ function warmJobs(db) {
   players.forEach((name, pi) => {
     for (const [e, samples] of Object.entries(PLAYER_EVENTS)) {
       const ev = LINES.events[e];
-      for (let v = 0; v < Math.min(3, ev.lines.length); v++) {
+      for (let v = 0; v < (samples.all ? ev.lines.length : Math.min(3, ev.lines.length)); v++) {
         const vars = {};
         for (const k of ev.vars) {
           if (['carrier', 'passer', 'rec', 'player', 'kicker'].includes(k)) vars[k] = name;
