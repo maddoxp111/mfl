@@ -4946,7 +4946,7 @@ gl_FragColor=vec4(c,1.0);}`;
       function load(url) {
         if (bufs.has(url)) return bufs.get(url);
         const pr = fetch(url, { credentials: 'same-origin' })
-          .then((r) => { if (r.status === 204) { avail = false; try { updVoiceBtn(); } catch (e) {} throw new Error('off'); } if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+          .then((r) => { if (r.status === 204 || r.status === 401 || r.status === 403) { avail = false; q.length = 0; try { updVoiceBtn(); } catch (e) {} throw new Error('off'); } if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); }) // no voice for this visitor: stop asking
           .then((ab) => { const c = sfx.ctx(); if (!c) throw new Error('no audio'); return new Promise((res, rej) => c.decodeAudioData(ab.slice(0), res, rej)); });
         pr.catch(() => { setTimeout(() => { if (bufs.get(url) === pr) bufs.delete(url); }, 15000); }); // a failed clip can be tried again later
         bufs.set(url, pr); return pr;

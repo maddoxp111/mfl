@@ -380,8 +380,8 @@ function adminBlock(esc, req) {
 function register(app, h) {
   app.get('/arcade/tts/manifest', (req, res) => {
     const c = config();
-    res.set('Cache-Control', 'public, max-age=60');
-    res.json({ enabled: enabled(c), model: c.model, events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => [k, { n: ev.lines.length, vars: ev.vars }])) });
+    res.set('Cache-Control', 'private, max-age=60'); // enabled depends on who is asking: clips need a login
+    res.json({ enabled: enabled(c) && !!h.currentUser(req), model: c.model, events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => [k, { n: ev.lines.length, vars: ev.vars }])) });
   });
 
   app.get('/arcade/tts', async (req, res) => {
