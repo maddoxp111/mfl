@@ -321,12 +321,20 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 
   // ---------- small WebAudio helper (both Arcade and Franchise) ----------
   function Sfx() {
-    let ac = null, out = null, noise = null, crowdG = null, crowdN = null, muted = false, lvl = 0.15;
+    let ac = null, out = null, noise = null, crowdG = null, crowdN = null, muted = false, lvl = 0.15, ka = null;
+    // a looped, near-silent media element: on iPhones it makes the page a media player, so game sound and the booth play with the ring switch on silent
+    const SILENT_MP3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//NwwAAAAAAAAAAAAEluZm8AAAAPAAAABwAAAW0AkZGRkZGRkZGRkZGRkZGkpKSkpKSkpKSkpKSkpLe3t7e3t7e3t7e3t7e3ycnJycnJycnJycnJycnJ29vb29vb29vb29vb29vt7e3t7e3t7e3t7e3t7f//////////////////AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQDKgAAAAAAAAFtxrSMoAAAAAAAAAAAAAAAAAD/8xDEAAAAA0gAAAAATEFNRTMuMTAwVVVVVf/zEsQNAAADSAAAAABVVVVVVVVVVVVVVVVVVf/zEMQbAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxCgAAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDENQAAA0gAAAAAVVVVVVVVVVVVVVVVVf/zEMRCAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxE8AAANIAAAAAFVVVVVVVVVVVVVVVVU=';
+    function keepAlive() {
+      if (ka) { if (ka.paused) { try { ka.play().catch(() => {}); } catch (e) {} } return; }
+      try { ka = document.createElement('audio'); ka.src = SILENT_MP3; ka.loop = true; ka.volume = 0.01; ka.setAttribute('playsinline', ''); ka.setAttribute('aria-hidden', 'true'); ka.style.display = 'none'; document.body.appendChild(ka); ka.play().catch(() => {}); } catch (e) {}
+    }
     let s = 9137;
     const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
     function init() {
       if (ac || muted) return ac;
       try {
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} // newer iPhones: play through the silent switch
+        keepAlive();
         ac = new (window.AudioContext || window.webkitAudioContext)();
         out = ac.createGain(); out.gain.value = 0.55; out.connect(ac.destination);
         const n = Math.floor(ac.sampleRate * 2), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
@@ -381,6 +389,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       mute(m) { muted = m; if (crowdG) try { crowdG.gain.setTargetAtTime(m ? 0.0001 : lvl * 0.5, ac.currentTime, 0.05); } catch (e) {} },
       get muted() { return muted; },
       ctx() { return init(); }, get out() { return out; },
+      // after another app or a lock screen: iPhones suspend the audio; pick it back up on return and on the next touch
+      wake() { if (!ac) return; if (ac.state !== 'running') { try { const p = ac.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) {} } keepAlive(); },
       close() { try { if (crowdN) crowdN.stop(); if (ac) ac.close(); } catch (e) {} ac = null; },
     };
   }
@@ -4967,7 +4977,7 @@ gl_FragColor=vec4(c,1.0);}`;
           if (!on || sfx.muted || finished || performance.now() - it.t > TTL[it.pri] + 800) { VST.dropped++; return done(); }
           const c = sfx.ctx(); if (!c) return done();
           if (!gain) { gain = c.createGain(); gain.gain.value = 1.0; gain.connect(c.destination); }
-          if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+          if (c.state !== 'running') { try { sfx.wake(); } catch (e) {} }
           VST.played++; VST.waits.push(Math.round(age)); if (VST.waits.length > 300) VST.waits.shift(); VST.log.push(it.urls[0]); if (VST.log.length > 300) VST.log.shift();
           let i = 0;
           const next = () => { // the segments of a line play back to back with a short breath between them
@@ -7066,7 +7076,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function startLoop() { if (running || finished) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
     function stopLoop() { running = false; cancelAnimationFrame(raf); }
-    const onVis = () => { if (document.hidden) stopLoop(); else startLoop(); };
+    const onVis = () => { if (document.hidden) stopLoop(); else { startLoop(); sfx.wake(); setTimeout(() => sfx.wake(), 400); } };
+    const onWake = () => sfx.wake();
+    window.addEventListener('pageshow', onWake); window.addEventListener('focus', onWake); window.addEventListener('pointerdown', onWake, { capture: true, passive: true }); window.addEventListener('touchend', onWake, { capture: true, passive: true });
     let rzT = 0;
     const onResize = () => { clearTimeout(rzT); const was = touchy && phase !== 'splash' && aligned(); rzT = setTimeout(() => { if (!finished) { fit(); bugCache = ''; if (was && !aligned()) scrollIn(); } }, 80); };
     const onOrient = () => { onResize(); setTimeout(() => { if (!finished && phase !== 'splash') { fit(); scrollIn(); } }, 350); };
@@ -7190,7 +7202,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- finish / cleanup ----------
     function cleanup() {
       stopLoop(); clearTimeout(boxT); clearTimeout(tickT);
-      document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pageshow', onWake); window.removeEventListener('focus', onWake); window.removeEventListener('pointerdown', onWake, { capture: true }); window.removeEventListener('touchend', onWake, { capture: true });
       window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onOrient);
       if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize);
       document.removeEventListener('fullscreenchange', onResize); document.removeEventListener('webkitfullscreenchange', onResize);
