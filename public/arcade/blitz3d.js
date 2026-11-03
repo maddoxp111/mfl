@@ -513,7 +513,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
     };
   }
     // ---------- voice commentary events (generated from commentary-lines.json by build.sh: vars and variant counts) ----------
-    const VOICE_LINES = {"events":{"intro":{"vars":["home","away","level"],"n":10},"kickoff_cpu":{"vars":["away"],"n":6},"kr_return":{"vars":["carrier","yards"],"n":7},"kr_touchback":{"vars":[],"n":5},"kr_td":{"vars":["carrier"],"n":6},"drive_start":{"vars":["home","spot"],"n":7},"cpu_drive_start":{"vars":["away","spot"],"n":6},"cpu_td":{"vars":["away"],"n":9},"cpu_fg":{"vars":["away"],"n":6},"cpu_punt":{"vars":["away"],"n":6},"cpu_int":{"vars":["away"],"n":7},"cpu_fumble":{"vars":["away"],"n":6},"cpu_downs":{"vars":["away"],"n":6},"cpu_miss_fg":{"vars":["away"],"n":6},"cpu_clock":{"vars":[],"n":4},"two_minute":{"vars":[],"n":6},"end_q1":{"vars":["score"],"n":6},"halftime":{"vars":["score"],"n":7},"end_q3":{"vars":["score"],"n":6},"final_win":{"vars":["score","away"],"n":10},"final_loss":{"vars":["score","away"],"n":10},"overtime":{"vars":[],"n":5},"timeout":{"vars":["team"],"n":5},"delay_of_game":{"vars":[],"n":4},"play_call":{"vars":["play"],"n":6},"complete":{"vars":["passer","rec","yards"],"n":12},"complete_big":{"vars":["passer","rec","yards"],"n":10},"first_down":{"vars":["player"],"n":10},"td_pass":{"vars":["passer","rec","yards"],"n":12},"td_run":{"vars":["carrier","yards"],"n":12},"td_short":{"vars":["carrier"],"n":6},"incomplete":{"vars":["passer","rec"],"n":9},"drop":{"vars":["rec"],"n":7},"batted":{"vars":[],"n":6},"throwaway":{"vars":["passer"],"n":5},"oob_catch":{"vars":["rec"],"n":5},"interception":{"vars":["passer","away"],"n":9},"pick_six":{"vars":["away"],"n":7},"fumble":{"vars":["carrier"],"n":7},"fumble_lost":{"vars":["away"],"n":6},"fumble_kept":{"vars":["home"],"n":5},"fumble_six":{"vars":["away"],"n":5},"run":{"vars":["carrier","yards"],"n":13},"run_big":{"vars":["carrier","yards"],"n":10},"run_loss":{"vars":["carrier"],"n":6},"no_gain":{"vars":["carrier"],"n":5},"sack":{"vars":["passer"],"n":8},"scramble":{"vars":["passer","yards"],"n":7},"slide":{"vars":["passer"],"n":4},"catch_wild":{"vars":["rec"],"n":10},"catch_diving":{"vars":["rec"],"n":7},"toe_tap":{"vars":["rec"],"n":6},"off_helmet":{"vars":["rec"],"n":6},"one_hand":{"vars":["rec"],"n":5},"juke":{"vars":["carrier"],"n":7},"spin":{"vars":["carrier"],"n":6},"stiff_arm":{"vars":["carrier"],"n":6},"hurdle":{"vars":["carrier"],"n":7},"truck":{"vars":["carrier"],"n":7},"decleat":{"vars":["carrier"],"n":7},"whiff":{"vars":[],"n":7},"ankles":{"vars":["carrier"],"n":7},"broken_tackle":{"vars":["carrier"],"n":6},"big_hit":{"vars":["carrier"],"n":6},"third_down":{"vars":["dist"],"n":6},"fourth_go":{"vars":[],"n":6},"turnover_downs":{"vars":[],"n":6},"punt":{"vars":["yards"],"n":6},"punt_shank":{"vars":[],"n":5},"safety":{"vars":[],"n":6},"fg_good":{"vars":["kicker","dist"],"n":8},"fg_miss":{"vars":["kicker","dist"],"n":7},"doink":{"vars":[],"n":6},"doink_in":{"vars":[],"n":5},"xp_good":{"vars":[],"n":6},"xp_miss":{"vars":[],"n":5},"two_good":{"vars":[],"n":7},"two_fail":{"vars":[],"n":6},"two_choice":{"vars":[],"n":4},"onside_choice":{"vars":[],"n":5},"onside_won":{"vars":["home"],"n":8},"onside_lost":{"vars":["away"],"n":6},"cpu_onside":{"vars":["away"],"n":6},"cpu_onside_won":{"vars":["away"],"n":5},"cpu_onside_lost":{"vars":["home"],"n":6},"friendly_fire":{"vars":[],"n":7},"ref_down":{"vars":[],"n":6},"houdini":{"vars":["passer"],"n":6},"pile_up":{"vars":[],"n":5},"big_man_td":{"vars":["carrier"],"n":6},"scoop_score":{"vars":["carrier"],"n":5},"bench_party":{"vars":["away"],"n":5},"spike":{"vars":["player"],"n":5},"dance":{"vars":["player"],"n":5},"leap":{"vars":["player"],"n":5},"perk":{"vars":["player","perk"],"n":10},"lead_change":{"vars":["team"],"n":6},"blowout":{"vars":[],"n":5},"comeback":{"vars":["home"],"n":5},"close_game":{"vars":[],"n":5},"snap_pass":{"vars":["passer"],"n":9},"snap_run":{"vars":["carrier"],"n":9},"qb_keep":{"vars":["passer"],"n":7},"throw_to":{"vars":["rec"],"n":11},"throw_deep":{"vars":["rec"],"n":7},"throw_dump":{"vars":["rec"],"n":6},"caught_live":{"vars":["rec"],"n":9},"run_live":{"vars":["carrier"],"n":11},"open_field":{"vars":["carrier"],"n":7},"pressure":{"vars":["passer"],"n":7},"scramble_live":{"vars":["passer"],"n":7},"inside_20":{"vars":[],"n":6},"inside_10":{"vars":[],"n":6},"at_the_5":{"vars":[],"n":6},"tackle_live":{"vars":[],"n":9},"oob_live":{"vars":[],"n":5},"ball_up":{"vars":[],"n":6},"onside_live":{"vars":[],"n":5},"return_live":{"vars":["carrier"],"n":6},"situation":{"vars":["down","dist"],"n":11},"situation_1st":{"vars":["spot"],"n":7},"situation_long":{"vars":["dist"],"n":7},"situation_short":{"vars":[],"n":7},"situation_redzone":{"vars":[],"n":7},"situation_goal":{"vars":[],"n":6},"situation_fourth":{"vars":["dist"],"n":6},"drive_note":{"vars":["plays","yards"],"n":7},"drive_stall":{"vars":[],"n":6},"drive_hot":{"vars":[],"n":6},"clock_note":{"vars":["secs","period"],"n":7},"clock_late":{"vars":[],"n":6},"score_lead":{"vars":["home","score"],"n":7},"score_trail":{"vars":["away","score"],"n":7},"score_tied":{"vars":["score"],"n":5},"score_blowout":{"vars":[],"n":5},"player_catches":{"vars":["player","n","yards"],"n":7},"player_rush":{"vars":["player","n","yards"],"n":6},"qb_line":{"vars":["passer","cmp","att","yards"],"n":7},"player_tds":{"vars":["player","n"],"n":5},"player_hot":{"vars":["player"],"n":7},"player_quiet":{"vars":["player"],"n":5},"perk_note":{"vars":["player","perk"],"n":9},"coach_note":{"vars":[],"n":12},"defense_note":{"vars":["away"],"n":7},"cpu_offense_note":{"vars":["away"],"n":7},"pat_note":{"vars":[],"n":5},"koc_note":{"vars":[],"n":4},"timeout_note":{"vars":[],"n":4},"halftime_color":{"vars":[],"n":6},"pregame_color":{"vars":["home","away"],"n":7},"color":{"vars":[],"n":34}}};
+    const VOICE_LINES = {"events":{"intro":{"vars":["home","away","level"],"n":10},"kickoff_cpu":{"vars":["away"],"n":6},"kr_return":{"vars":["carrier","yards"],"n":7},"kr_touchback":{"vars":[],"n":5},"kr_td":{"vars":["carrier"],"n":6},"drive_start":{"vars":["home","spot"],"n":7},"cpu_drive_start":{"vars":["away","spot"],"n":6},"cpu_td":{"vars":["away"],"n":9},"cpu_fg":{"vars":["away"],"n":6},"cpu_punt":{"vars":["away"],"n":6},"cpu_int":{"vars":["away"],"n":7},"cpu_fumble":{"vars":["away"],"n":6},"cpu_downs":{"vars":["away"],"n":6},"cpu_miss_fg":{"vars":["away"],"n":6},"cpu_clock":{"vars":[],"n":4},"two_minute":{"vars":[],"n":6},"end_q1":{"vars":["hs","as"],"n":6},"halftime":{"vars":["hs","as"],"n":7},"end_q3":{"vars":["hs","as"],"n":6},"final_win":{"vars":["hs","as","away"],"n":10},"final_loss":{"vars":["hs","as","away"],"n":10},"overtime":{"vars":[],"n":5},"timeout":{"vars":["team"],"n":5},"delay_of_game":{"vars":[],"n":4},"play_call":{"vars":["play"],"n":6},"complete":{"vars":["passer","rec","yards"],"n":12},"complete_big":{"vars":["passer","rec","yards"],"n":10},"first_down":{"vars":["player"],"n":10},"td_pass":{"vars":["passer","rec","yards"],"n":12},"td_run":{"vars":["carrier","yards"],"n":12},"td_short":{"vars":["carrier"],"n":6},"incomplete":{"vars":["passer","rec"],"n":9},"drop":{"vars":["rec"],"n":7},"batted":{"vars":[],"n":6},"throwaway":{"vars":["passer"],"n":5},"oob_catch":{"vars":["rec"],"n":5},"interception":{"vars":["passer","away"],"n":9},"pick_six":{"vars":["away"],"n":7},"fumble":{"vars":["carrier"],"n":7},"fumble_lost":{"vars":["away"],"n":6},"fumble_kept":{"vars":["home"],"n":5},"fumble_six":{"vars":["away"],"n":5},"run":{"vars":["carrier","yards"],"n":13},"run_big":{"vars":["carrier","yards"],"n":10},"run_loss":{"vars":["carrier"],"n":6},"no_gain":{"vars":["carrier"],"n":5},"sack":{"vars":["passer"],"n":8},"scramble":{"vars":["passer","yards"],"n":7},"slide":{"vars":["passer"],"n":4},"catch_wild":{"vars":["rec"],"n":10},"catch_diving":{"vars":["rec"],"n":7},"toe_tap":{"vars":["rec"],"n":6},"off_helmet":{"vars":["rec"],"n":6},"one_hand":{"vars":["rec"],"n":5},"juke":{"vars":["carrier"],"n":7},"spin":{"vars":["carrier"],"n":6},"stiff_arm":{"vars":["carrier"],"n":6},"hurdle":{"vars":["carrier"],"n":7},"truck":{"vars":["carrier"],"n":7},"decleat":{"vars":["carrier"],"n":7},"whiff":{"vars":[],"n":7},"ankles":{"vars":["carrier"],"n":7},"broken_tackle":{"vars":["carrier"],"n":6},"big_hit":{"vars":["carrier"],"n":6},"third_down":{"vars":["dist"],"n":6},"fourth_go":{"vars":[],"n":6},"turnover_downs":{"vars":[],"n":6},"punt":{"vars":["yards"],"n":6},"punt_shank":{"vars":[],"n":5},"safety":{"vars":[],"n":6},"fg_good":{"vars":["kicker","dist"],"n":8},"fg_miss":{"vars":["kicker","dist"],"n":7},"doink":{"vars":[],"n":6},"doink_in":{"vars":[],"n":5},"xp_good":{"vars":[],"n":6},"xp_miss":{"vars":[],"n":5},"two_good":{"vars":[],"n":7},"two_fail":{"vars":[],"n":6},"two_choice":{"vars":[],"n":4},"onside_choice":{"vars":[],"n":5},"onside_won":{"vars":["home"],"n":8},"onside_lost":{"vars":["away"],"n":6},"cpu_onside":{"vars":["away"],"n":6},"cpu_onside_won":{"vars":["away"],"n":5},"cpu_onside_lost":{"vars":["home"],"n":6},"friendly_fire":{"vars":[],"n":7},"ref_down":{"vars":[],"n":6},"houdini":{"vars":["passer"],"n":6},"pile_up":{"vars":[],"n":5},"big_man_td":{"vars":["carrier"],"n":6},"scoop_score":{"vars":["carrier"],"n":5},"bench_party":{"vars":["away"],"n":5},"spike":{"vars":["player"],"n":5},"dance":{"vars":["player"],"n":5},"leap":{"vars":["player"],"n":5},"perk":{"vars":["player","perk"],"n":10},"lead_change":{"vars":["team"],"n":6},"blowout":{"vars":[],"n":5},"comeback":{"vars":["home"],"n":5},"close_game":{"vars":[],"n":5},"snap_pass":{"vars":["passer"],"n":9},"snap_run":{"vars":["carrier"],"n":9},"qb_keep":{"vars":["passer"],"n":7},"throw_to":{"vars":["rec"],"n":11},"throw_deep":{"vars":["rec"],"n":7},"throw_dump":{"vars":["rec"],"n":6},"caught_live":{"vars":["rec"],"n":9},"run_live":{"vars":["carrier"],"n":11},"open_field":{"vars":["carrier"],"n":7},"pressure":{"vars":["passer"],"n":7},"scramble_live":{"vars":["passer"],"n":7},"inside_20":{"vars":[],"n":6},"inside_10":{"vars":[],"n":6},"at_the_5":{"vars":[],"n":6},"tackle_live":{"vars":[],"n":9},"oob_live":{"vars":[],"n":5},"ball_up":{"vars":[],"n":6},"onside_live":{"vars":[],"n":5},"return_live":{"vars":["carrier"],"n":6},"situation":{"vars":["down","dist"],"n":11},"situation_1st":{"vars":["spot"],"n":7},"situation_long":{"vars":["dist"],"n":7},"situation_short":{"vars":[],"n":7},"situation_redzone":{"vars":[],"n":7},"situation_goal":{"vars":[],"n":6},"situation_fourth":{"vars":["dist"],"n":6},"drive_note":{"vars":["plays","yards"],"n":7},"drive_stall":{"vars":[],"n":6},"drive_hot":{"vars":[],"n":6},"clock_note":{"vars":["secs","period"],"n":7},"clock_late":{"vars":[],"n":6},"score_lead":{"vars":["home","hs","as"],"n":7},"score_trail":{"vars":["away","hs","as"],"n":7},"score_tied":{"vars":["hs","as"],"n":5},"score_blowout":{"vars":[],"n":5},"player_catches":{"vars":["player","n","yards"],"n":7},"player_rush":{"vars":["player","n","yards"],"n":6},"qb_line":{"vars":["passer","cmp","att","yards"],"n":7},"player_tds":{"vars":["player","n"],"n":5},"player_hot":{"vars":["player"],"n":7},"player_quiet":{"vars":["player"],"n":5},"perk_note":{"vars":["player","perk"],"n":9},"coach_note":{"vars":[],"n":12},"defense_note":{"vars":["away"],"n":7},"cpu_offense_note":{"vars":["away"],"n":7},"pat_note":{"vars":[],"n":5},"koc_note":{"vars":[],"n":4},"timeout_note":{"vars":[],"n":4},"halftime_color":{"vars":[],"n":6},"pregame_color":{"vars":["home","away"],"n":7},"color":{"vars":[],"n":34}}};
 
   // =====================================================================================
   // Shaders (GLSL ES 1.00 so the same source runs on WebGL1 and WebGL2 contexts)
@@ -4647,8 +4647,8 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function endQuarter(cont) {
       clockRun = false; clock = 0; boardDirty = true;
-      const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, vsc = `${hs} to ${as}`;
-      if (qtr >= 4 && hs === as) voice.say('overtime', {}, 3); else if (qtr === 2) voice.say('halftime', { score: vsc }, 2); else if (qtr === 1) voice.say('end_q1', { score: vsc }, 2, 0.8); else if (qtr === 3) voice.say('end_q3', { score: vsc }, 2, 0.8);
+      const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, vsc = { hs: n99(hs), as: n99(as) };
+      if (qtr >= 4 && hs === as) voice.say('overtime', {}, 3); else if (qtr === 2) voice.say('halftime', vsc, 2); else if (qtr === 1) voice.say('end_q1', vsc, 2, 0.8); else if (qtr === 3) voice.say('end_q3', vsc, 2, 0.8);
       if (qtr >= 4) {
         if (hs === as && (qtr === 4 || opts.playoff)) {
           brkTo(qtr === 4 ? 'END OF REGULATION' : `END OF OVERTIME`, `Tied ${hs}–${as} · ${qtr === 4 ? 'overtime!' : 'another period'}`, () => {
@@ -4691,7 +4691,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'over' || phase === 'box') return;
       phase = 'over'; clockRun = false; boardDirty = true; closeSheet(); hideTags();
       const won = hs > as, tie = hs === as;
-      voice.say(won ? 'final_win' : tie ? 'close_game' : 'final_loss', { score: `${hs} to ${as}`, away: AWAY.name }, 3);
+      voice.say(won ? 'final_win' : tie ? 'close_game' : 'final_loss', { hs: n99(hs), as: n99(as), away: AWAY.name }, 3);
       banner(won ? 'YOU WIN!' : tie ? 'TIE GAME' : 'FINAL', `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, won ? '#2bd46b' : tie ? '#ffc21a' : '#ff3344');
       sfx.play(won ? 'win' : 'lose'); if (won) { sfx.play('cheer'); excite = 1; }
       setControls(true);
@@ -4875,16 +4875,16 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- voice commentary: one spoken line per event, picked from VOICE_LINES without repeats, clips made on the server and cached ----------
     const voice = (() => {
-      const EV = (typeof VOICE_LINES === 'object' && VOICE_LINES && VOICE_LINES.events) || {};
+      const EV = {}; // from the manifest: per event the variant count, the vars, and the var names of each segment of each variant
       let on = true; try { on = localStorage.getItem('mfl-blitz-voice') !== '0'; } catch (e) {}
       let avail = null, gain = null, cur = null, intro = false;
       const recent = {}, bufs = new Map(), q = [], pending = {};
-      const TTL = { 1: 3000, 2: 4500, 3: 8000, 4: 1700 }; // 4 = live play-by-play: now or never // how long a queued line stays worth saying; later than that it is dropped, never played late
+      const TTL = { 1: 3000, 2: 4500, 3: 8000, 4: 1700 }; // how long a queued line stays worth saying; later than that it is dropped, never played late
       const cosmetic = () => (typeof crand === 'function' ? crand() : Math.random());
       try {
         fetch('/arcade/tts/manifest', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((m) => {
           avail = !!(m && m.enabled);
-          if (m && m.events) for (const k in m.events) { const x = m.events[k], n = typeof x === 'number' ? x : x && x.n; if (n > 0) EV[k] = { vars: (x && x.vars) || (EV[k] && EV[k].vars) || [], n }; } // the server's file wins: variant counts and vars
+          if (m && m.events) for (const k in m.events) { const x = m.events[k]; if (x && x.n > 0 && x.segs) EV[k] = { vars: x.vars || [], n: x.n, segs: x.segs }; }
           try { updVoiceBtn(); } catch (e) {}
         }).catch(() => { avail = false; try { updVoiceBtn(); } catch (e) {} });
       } catch (e) { avail = false; }
@@ -4898,57 +4898,63 @@ gl_FragColor=vec4(c,1.0);}`;
         return i;
       }
       const clean = (x) => String(x == null ? '' : x).replace(/<[^>]*>/g, '').replace(/[^A-Za-z0-9 .,'’-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
-      // the request for an event with these names, without the variant: null when a name is missing
-      function build(e, vars) {
-        if (!EV[e]) return null;
-        const p = new URLSearchParams(); p.set('e', e);
-        for (const k of EV[e].vars || []) { const x = clean(vars && vars[k]); if (!x) return null; p.set(k, x); }
-        return { key: e + '?' + p.toString(), p };
+      // the clips of variant v for these names: one request per segment, each carrying only the var that segment uses; null when a name is missing
+      function urlsFor(e, v, vars) {
+        const ev = EV[e], segs = ev && ev.segs && ev.segs[v]; if (!segs) return null;
+        const out = [];
+        for (let i = 0; i < segs.length; i++) {
+          const p = new URLSearchParams(); p.set('e', e); p.set('v', String(v)); p.set('i', String(i));
+          for (const k of segs[i]) { const x = clean(vars && vars[k]); if (!x) return null; p.set(k, x); }
+          out.push('/arcade/tts?' + p.toString());
+        }
+        return out;
       }
+      const keyOf = (e, vars) => { const ev = EV[e]; if (!ev) return null; const parts = [e]; for (const k of ev.vars || []) { const x = clean(vars && vars[k]); if (!x) return null; parts.push(k + '=' + x); } return parts.join('|'); };
       // a line rendered ahead of time for these names is used first; otherwise a fresh variant is drawn
-      function urlFor(e, vars) {
-        const b = build(e, vars); if (!b) return null;
-        const pre = pending[b.key]; if (pre) { delete pending[b.key]; return pre; }
+      function lineFor(e, vars) {
+        const key = keyOf(e, vars); if (!key) return null;
+        const pre = pending[key]; if (pre) { delete pending[key]; return pre; }
         const v = pick(e); if (v < 0) return null;
-        b.p.set('v', String(v)); return '/arcade/tts?' + b.p.toString();
+        return urlsFor(e, v, vars);
       }
-      // render a likely line now (at the snap) so it is ready the moment the play ends
+      // fetch a likely line now (at the play call) so it is on hand the moment it is needed
       function prefetch(e, vars) {
         if (!on || avail === false || finished || !EV[e]) return;
-        const b = build(e, vars); if (!b || pending[b.key]) return;
+        const key = keyOf(e, vars); if (!key || pending[key]) return;
         const v = pick(e); if (v < 0) return;
-        b.p.set('v', String(v)); const url = '/arcade/tts?' + b.p.toString();
-        pending[b.key] = url; load(url);
-        const keys = Object.keys(pending); if (keys.length > 48) delete pending[keys[0]];
+        const urls = urlsFor(e, v, vars); if (!urls) return;
+        pending[key] = urls; for (const u of urls) load(u);
+        const keys = Object.keys(pending); if (keys.length > 64) delete pending[keys[0]];
       }
-      // say(event, vars, priority 1 flavor / 2 result / 3 big, chance 0..1)
+      // say(event, vars, priority 1 flavor / 2 result / 3 big / 4 live, chance 0..1)
       function say(e, vars, pri, chance) {
         if (!on || avail === false || finished || !EV[e]) return false;
         if (chance != null && cosmetic() > chance) return false;
-        const url = urlFor(e, vars); if (!url) return false;
-        enqueue(url, pri || 2);
+        const urls = lineFor(e, vars); if (!urls || !urls.length) return false;
+        enqueue(urls, pri || 2);
         return true;
       }
-      function enqueue(url, pri) {
+      function enqueue(urls, pri) {
+        const it = { urls, pri, t: performance.now() };
         if (pri === 4) { // a live call: only when nothing bigger is talking; it cuts off flavor and never waits in line
           if (cur && cur.pri >= 2) { VST.dropped++; return; }
-          if (cur && cur.src) { try { cur.src.stop(); } catch (e) {} }
-          q.unshift({ url, pri, t: performance.now() }); if (q.length > 3) q.length = 3; load(url); pump(); return;
+          if (cur && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; }
+          q.unshift(it); if (q.length > 3) q.length = 3; for (const u of urls) load(u); pump(); return;
         }
         if (q.length >= 3) { // the queue is full: the weakest line makes room, or a weaker arrival is dropped
           let w = 0; for (let i = 1; i < q.length; i++) if (q[i].pri < q[w].pri || (q[i].pri === q[w].pri && q[i].t < q[w].t)) w = i;
           if (q[w].pri <= pri) { q.splice(w, 1); VST.dropped++; } else { VST.dropped++; return; }
         }
-        q.push({ url, pri, t: performance.now() }); q.sort((a, b) => b.pri - a.pri || a.t - b.t);
-        if (cur && cur.pri === 1 && pri === 3 && cur.src) { try { cur.src.stop(); } catch (e) {} } // a big call cuts off flavor talk
-        load(url); pump();
+        q.push(it); q.sort((a, b) => b.pri - a.pri || a.t - b.t);
+        if (cur && cur.pri === 1 && pri === 3 && cur.src) { try { cur.src.stop(); } catch (e) {} cur.cut = true; } // a big call cuts off flavor talk
+        for (const u of urls) load(u); pump();
       }
       function load(url) {
         if (bufs.has(url)) return bufs.get(url);
         const pr = fetch(url, { credentials: 'same-origin' })
           .then((r) => { if (r.status === 204 || r.status === 401 || r.status === 403) { avail = false; q.length = 0; try { updVoiceBtn(); } catch (e) {} throw new Error('off'); } if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); }) // no voice for this visitor: stop asking
           .then((ab) => { const c = sfx.ctx(); if (!c) throw new Error('no audio'); return new Promise((res, rej) => c.decodeAudioData(ab.slice(0), res, rej)); });
-        pr.catch(() => { setTimeout(() => { if (bufs.get(url) === pr) bufs.delete(url); }, 15000); }); // a failed clip can be tried again later
+        pr.catch(() => { setTimeout(() => { if (bufs.get(url) === pr) bufs.delete(url); }, 15000); }); // a clip that is not rendered yet can be tried again later
         bufs.set(url, pr); return pr;
       }
       function pump() {
@@ -4956,14 +4962,21 @@ gl_FragColor=vec4(c,1.0);}`;
         const it = q.shift();
         if (performance.now() - it.t > TTL[it.pri]) { VST.dropped++; return pump(); } // the moment has passed
         cur = it;
-        load(it.url).then((buf) => {
+        Promise.all(it.urls.map(load)).then((bufsL) => {
           const age = performance.now() - it.t;
-          if (!on || sfx.muted || finished || !buf || age > TTL[it.pri] + 800) { if (buf) VST.dropped++; return done(); }
+          if (!on || sfx.muted || finished || performance.now() - it.t > TTL[it.pri] + 800) { VST.dropped++; return done(); }
           const c = sfx.ctx(); if (!c) return done();
           if (!gain) { gain = c.createGain(); gain.gain.value = 1.0; gain.connect(c.destination); }
           if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
-          const src = c.createBufferSource(); src.buffer = buf; src.connect(gain); src.onended = done; it.src = src; src.start();
-          VST.played++; VST.waits.push(Math.round(age)); if (VST.waits.length > 300) VST.waits.shift(); VST.log.push(it.url); if (VST.log.length > 300) VST.log.shift();
+          VST.played++; VST.waits.push(Math.round(age)); if (VST.waits.length > 300) VST.waits.shift(); VST.log.push(it.urls[0]); if (VST.log.length > 300) VST.log.shift();
+          let i = 0;
+          const next = () => { // the segments of a line play back to back with a short breath between them
+            if (it.cut || i >= bufsL.length) return done();
+            const src = c.createBufferSource(); src.buffer = bufsL[i++]; src.connect(gain); it.src = src;
+            src.onended = () => { if (i >= bufsL.length || it.cut) done(); else setTimeout(next, 90); };
+            src.start();
+          };
+          next();
         }).catch(() => { VST.failed++; done(); });
       }
       function done() { cur = null; setTimeout(pump, 150); }
@@ -4972,10 +4985,11 @@ gl_FragColor=vec4(c,1.0);}`;
       return {
         say, prefetch, start,
         get on() { return on; }, set on(v) { on = !!v; try { localStorage.setItem('mfl-blitz-voice', on ? '1' : '0'); } catch (e) {} if (!on) { q.length = 0; } },
-        get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get busy() { return !!cur; }, get stats() { return VST; }, get recent() { return recent; }, get pending() { return Object.keys(pending).length; },
+        get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get busy() { return !!cur; }, get stats() { return VST; }, get recent() { return recent; }, get pending() { return Object.keys(pending).length; }, get events() { return EV; },
       };
     })();
-    const yb = (n) => { n = Math.round(Math.abs(+n || 0)); if (n < 2) n = 2; if (n > 12) n = Math.round(n / 5) * 5; return String(n); }; // yards as the voice says them: exact when short, rounded when long
+    const yb = (n) => String(Math.max(1, Math.min(99, Math.round(Math.abs(+n || 0))))); // yards as the voice says them: 1 to 99, each its own clip
+    const n99 = (n) => String(Math.max(0, Math.min(99, Math.round(+n || 0))));
     const spotTxt = (z) => (Math.round(z) === 50 ? 'midfield' : 'the ' + (z < 50 ? Math.round(z) : 100 - Math.round(z)));
     let VD0 = 0, VMIN = 0, VBLOW = false, VCOME = false;
     // when the play is called: render the live calls for the players on it, so the snap and the throw are on hand
@@ -5084,7 +5098,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function voiceFiller() {
       const C = [], add = (w, e, vars, cat) => { if (cat !== VI.lastCat) C.push([w, e, vars || {}, cat]); };
-      const home = HOME.name, away = AWAY.name, score = `${hs} to ${as}`, dist = Math.max(1, Math.min(99, Math.round(fdz - los)));
+      const home = HOME.name, away = AWAY.name, sc = { hs: n99(hs), as: n99(as) }, dist = Math.max(1, Math.min(99, Math.round(fdz - los)));
       const lineup = ['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => OK[k]).filter((p) => p && p.sq);
       if (phase === 'pre' && !tryMode) {
         const sk = drivePlays + '|' + down + '|' + Math.round(los);
@@ -5103,15 +5117,15 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (phase === 'dead' || phase === 'pre') {
         const dy = Math.round(los - driveStart);
-        if (drivePlays >= 3 && cool('drive_note', 45)) add(3, 'drive_note', { plays: String(drivePlays), yards: String(Math.max(0, dy)) }, 'drive');
+        if (drivePlays >= 3 && cool('drive_note', 45)) add(3, 'drive_note', { plays: String(Math.min(30, drivePlays)), yards: yb(dy) }, 'drive');
         if (drivePlays >= 4 && dy >= 30 && cool('drive_hot', 60)) add(3, 'drive_hot', {}, 'drive');
         if (drivePlays >= 3 && dy <= 4 && cool('drive_stall', 60)) add(2, 'drive_stall', {}, 'drive');
         for (const p of lineup) {
           const s = stat(p.sq.pid); if (!s) continue;
-          if (p.role === 'QB' && s.passAtt >= 5 && cool('qb_line', 60)) add(3, 'qb_line', { passer: nm(p), cmp: String(s.passCmp), att: String(s.passAtt), yards: String(Math.max(0, s.passYds)) }, 'stat');
-          if (s.rec >= 2 && cool('player_catches', 50)) add(2, 'player_catches', { player: nm(p), n: String(s.rec), yards: String(Math.max(0, s.recYds)) }, 'stat');
-          if (s.rushAtt >= 3 && cool('player_rush', 50)) add(2, 'player_rush', { player: nm(p), n: String(s.rushAtt), yards: String(Math.max(0, s.rushYds)) }, 'stat');
-          const tds = s.recTD + s.rushTD; if (tds >= 2 && cool('player_tds', 90)) add(2, 'player_tds', { player: nm(p), n: String(tds) }, 'stat');
+          if (p.role === 'QB' && s.passAtt >= 5 && cool('qb_line', 60)) add(3, 'qb_line', { passer: nm(p), cmp: String(Math.min(30, s.passCmp)), att: String(Math.min(30, s.passAtt)), yards: yb(s.passYds) }, 'stat');
+          if (s.rec >= 2 && cool('player_catches', 50)) add(2, 'player_catches', { player: nm(p), n: String(Math.min(30, s.rec)), yards: yb(s.recYds) }, 'stat');
+          if (s.rushAtt >= 3 && cool('player_rush', 50)) add(2, 'player_rush', { player: nm(p), n: String(Math.min(30, s.rushAtt)), yards: yb(s.rushYds) }, 'stat');
+          const tds = s.recTD + s.rushTD; if (tds >= 2 && cool('player_tds', 90)) add(2, 'player_tds', { player: nm(p), n: String(Math.min(30, tds)) }, 'stat');
           if ((s.rec >= 4 || s.recYds >= 60 || s.rushYds >= 60) && cool('player_hot', 80)) add(2, 'player_hot', { player: nm(p) }, 'stat');
           if (p.role === 'WR' && TS.plays >= 10 && s.rec === 0 && cool('player_quiet', 90)) add(1, 'player_quiet', { player: nm(p) }, 'stat');
         }
@@ -5125,8 +5139,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'break') { if (qtr === 2 && cool('halftime_color', 60)) add(4, 'halftime_color', {}, 'color'); }
       // the clock and the score, now and then
       if (clock > 0 && clock <= 45 && (qtr === 2 || qtr >= 4) && cool('clock_late', 30)) add(3, 'clock_late', {}, 'clock');
-      else if (clock > 0 && cool('clock_note', 70)) add(1, 'clock_note', { secs: String(Math.max(10, Math.round(clock / 10) * 10)), period: PERIOD() }, 'clock');
-      if (cool('score', 75) && TS.plays >= 3) { const d = hs - as; if (Math.abs(d) >= 21) add(2, 'score_blowout', {}, 'score'); else if (d > 0) add(2, 'score_lead', { home, score }, 'score'); else if (d < 0) add(2, 'score_trail', { away, score }, 'score'); else add(1, 'score_tied', { score }, 'score'); }
+      else if (clock > 0 && cool('clock_note', 70)) add(1, 'clock_note', { secs: String(Math.min(120, Math.max(10, Math.round(clock / 10) * 10))), period: PERIOD() }, 'clock');
+      if (cool('score', 75) && TS.plays >= 3) { const d = hs - as; if (Math.abs(d) >= 21) add(2, 'score_blowout', {}, 'score'); else if (d > 0) add(2, 'score_lead', { home, hs: sc.hs, as: sc.as }, 'score'); else if (d < 0) add(2, 'score_trail', { away, hs: sc.hs, as: sc.as }, 'score'); else add(1, 'score_tied', { hs: sc.hs, as: sc.as }, 'score'); }
       if (cool('color', 25)) add(2, 'color', {}, 'color');
       if (!C.length) return null;
       let tot = 0; for (const c of C) tot += c[0]; let r = cosmetic2() * tot;
