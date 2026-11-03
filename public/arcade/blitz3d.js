@@ -94,6 +94,9 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-face{display:inline-block;flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:#1d212c 50% 30%/220% auto no-repeat;box-shadow:0 0 0 2px rgba(255,255,255,.9)}
 .bz-nof{display:inline-flex;align-items:center;justify-content:center;font:400 9px 'Press Start 2P',monospace;color:#07080b;background:#ffc21a}
 .bz-pop{position:absolute;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:11px;text-shadow:2px 2px 0 #000;white-space:nowrap;animation:bz-rise 1.1s ease-out both}
+.bz-pop.bz-big{font-size:17px;z-index:6;text-align:center;line-height:1.25;-webkit-text-stroke:1px #000;text-shadow:3px 3px 0 #000,0 0 14px rgba(0,0,0,.6);animation:bz-rise2 1.7s cubic-bezier(.2,.9,.3,1) both}.bz-pop.bz-big small{display:block;font-size:8px;color:#fff;-webkit-text-stroke:0;margin-top:5px;letter-spacing:.5px}
+.bz-pop.bz-perk{font-size:12px;z-index:5;text-align:center;line-height:1.3;animation:bz-rise2 1.5s cubic-bezier(.2,.9,.3,1) both}.bz-pop.bz-perk small{display:block;font-size:7px;color:#e8ebf2;margin-top:3px}
+@keyframes bz-rise2{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-8deg)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.3) rotate(3deg)}24%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}75%{opacity:1;transform:translate(-50%,-110%) scale(1)}100%{opacity:0;transform:translate(-50%,-190%) scale(.9)}}
 .bz-banner{position:absolute;left:50%;top:27%;transform:translate(-50%,-50%);text-align:center;font-family:'Press Start 2P',monospace;white-space:nowrap;animation:bz-zoom .6s cubic-bezier(.2,1.6,.4,1) both;text-shadow:3px 3px 0 #000;max-width:96%}
 .bz-banner b{display:block;font-size:20px;line-height:1.3}
 .bz-banner i{display:block;font-style:normal;font-size:9px;margin-top:8px;color:#f5f6f8;white-space:normal;line-height:1.5}
@@ -361,6 +364,13 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       horn: () => { tone(233, 0.6, 'sawtooth', 0.04); tone(294, 0.6, 'sawtooth', 0.035); tone(349, 0.6, 'sawtooth', 0.03); },
       cheer: () => burst(2.2, 1000, 0.35, 0.5),
       boo: () => burst(1.4, 300, 0.18, 0.6),
+      ooh: () => { burst(1.3, 650, 0.3, 0.55); tone(330, 0.6, 'sine', 0.025, 200); },
+      clang: () => { tone(900, 0.35, 'triangle', 0.06, 700); burst(0.12, 1800, 0.25, 2); },
+      doink: () => { tone(1250, 0.7, 'triangle', 0.09); tone(1875, 0.5, 'triangle', 0.05); tone(2500, 0.3, 'sine', 0.03); },
+      squeak: () => { tone(1500, 0.08, 'square', 0.035, 2600); tone(2400, 0.1, 'square', 0.03, 1400, 0.09); },
+      boing: () => tone(160, 0.38, 'sine', 0.09, 620),
+      zap: () => { tone(1800, 0.12, 'sawtooth', 0.03, 300); burst(0.08, 3000, 0.15, 1); },
+      coin: () => { tone(988, 0.07, 'square', 0.035); tone(1319, 0.2, 'square', 0.035, 0, 0.07); },
       win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'square', 0.04, 0, i * 0.11)),
       lose: () => [392, 330, 262].forEach((f, i) => tone(f, 0.25, 'square', 0.04, 0, i * 0.15)),
     };
@@ -494,10 +504,10 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
   function defParams(k) {
     const L = (a, b) => a + (b - a) * clamp(k, 0, 1.15);
     return {
-      cbV: L(6.75, 8.4), lbV: L(6.1, 7.5), dlV: L(5.4, 6.7), sV: L(6.6, 8.3),
-      lag: L(0.62, 0.26), react: L(0.6, 0.3), cush: L(7.5, 4.5), zoneTight: L(0.45, 1),
+      cbV: L(6.5, 8.3), lbV: L(6.0, 7.5), dlV: L(5.3, 6.7), sV: L(6.4, 8.2),
+      lag: L(0.7, 0.3), react: L(0.66, 0.32), cush: L(7.5, 4.5), zoneTight: L(0.45, 1),
       shedPass: L(4.0, 2.4), shedRun: L(2.2, 1.3), read: L(0.7, 0.34), bite: L(0.9, 0.25),
-      tackle: L(46, 86), intSkill: L(0.06, 0.17), deflect: L(0.2, 0.34), stare: L(0.15, 0.6),
+      tackle: L(40, 84), intSkill: L(0.06, 0.17), deflect: L(0.2, 0.34), stare: L(0.15, 0.6),
       blitz: L(0.06, 0.32), disguise: L(0, 0.7), pursuit: L(6.4, 8.35), stun: L(1.1, 0.5),
     };
   }
@@ -995,6 +1005,7 @@ gl_FragColor=vec4(c,1.0);}`;
       [1, gfit(pb({ shR: [0.6, 0, 1.4], elR: [0.4], shL: [0.6, 0, -1.4], elL: [0.4], spine: [-0.1, 0, 0], neck: [-0.35, 0, 0], hipL: [0.15, 0, -0.25], hipR: [0.15, 0, 0.25], knL: [-0.3], knR: [-0.3] }, -0.05, -0.05, 0))],
     ]);
     if (k === 2) return gfit(pb({ shR: [0.3, 0, 2.95], elR: [0.1], shL: [0.9, 0, -0.5], elL: [1.9], spine: [-0.2, 0, 0.1], neck: [-0.7, 0, 0], head: [-0.3, 0, 0], hipL: [0.1, 0, -0.2], hipR: [0.1, 0, 0.2], knL: [-0.25], knR: [-0.25] }, 0, -0.1, 0.05));
+    if (k === 4) { const s = Math.sin(t * 7.5), c = Math.cos(t * 7.5); return gfit(pb({ shR: [1.3 + 0.9 * s, 0, 0.9], elR: [1.3 + 0.6 * c], shL: [1.3 - 0.9 * s, 0, -0.9], elL: [1.3 - 0.6 * c], spine: [0.08, 0, 0.22 * s], neck: [-0.25, 0, -0.2 * s], hipL: [0.35 + 0.3 * s, 0, -0.2], hipR: [0.35 - 0.3 * s, 0, 0.2], knL: [-0.6 - 0.4 * s], knR: [-0.6 + 0.4 * s] }, 0, 0.05, 0.12 * s), 0.07 * Math.abs(c)); } // the dance
     if (k === 3) return gfit(pb({ shR: [0.4, 0, 1.7 + 0.1 * w], elR: [2.4], shL: [0.4, 0, -1.7 - 0.1 * w], elL: [2.4], spine: [0.2, 0, 0], neck: [-0.2, 0, 0], hipL: [0.5, 0, -0.3], hipR: [0.5, 0, 0.3], knL: [-0.7], knR: [-0.7] }, 0, 0.1, 0));
     return gfit(pb({ shR: [2.7 + 0.25 * w, 0, 0.5], elR: [0.35], shL: [2.7 - 0.25 * w, 0, -0.5], elL: [0.35], spine: [-0.1, 0, 0], neck: [-0.4, 0, 0], hipL: [0.3 - 0.2 * hop, 0, -0.15], hipR: [0.3 - 0.2 * hop, 0, 0.15], knL: [-0.5 + 0.3 * hop], knR: [-0.5 + 0.3 * hop] }, 0, -0.05, 0), 0.14 * hop);
   }
@@ -1595,7 +1606,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const baseR = clamp(HOME.ovrOff, 35, 95);
     const GEN = { QB: ['QB', 7], RB: ['Runner', 22], X: ['Flash', 1], Z: ['Hands', 81], S: ['Rocket', 19], Y: ['Tank', 88] };
     const numOf = (q) => { const s = String(q.num != null ? q.num : q.number != null ? q.number : '').trim(); return /^\d{1,2}$/.test(s) ? +s : null; };
-    const fxOf = (q) => (q && q.fx && typeof q.fx === 'object' ? { variant: String(q.fx.variant || ''), set: q.fx.set ? String(q.fx.set) : null, par: q.fx.par ? String(q.fx.par) : null, rarity: String(q.fx.rarity || 'common'), spec: q.fx.spec ? String(q.fx.spec) : null } : null);
+    const fxOf = (q) => (q && q.fx && typeof q.fx === 'object' ? { variant: String(q.fx.variant || ''), set: q.fx.set ? String(q.fx.set) : null, par: q.fx.par ? String(q.fx.par) : null, rarity: String(q.fx.rarity || 'common'), spec: q.fx.spec ? String(q.fx.spec) : null, perk: q.fx.perk ? String(q.fx.perk) : null, perkLv: +q.fx.perkLv || 0 } : null);
     const SQ = {};
     let sqi = 0;
     for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y']) {
@@ -2780,7 +2791,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- movement ----------
-    const effV = (p) => p.v * (p.sprint && p.sta > 0 ? 1.2 + (p.spd - 50) * 0.0012 : 1) * (p.wrapT > 0 ? 0.3 : 1) * (p.stumbleT > 0 ? 0.72 : 1) * (p.rising > 0 ? 0 : 1);
+    const effV = (p) => p.v * (p.sprint && p.sta > 0 ? 1.2 + (p.spd - 50) * 0.0012 : 1) * (p.wrapT > 0 ? 0.3 : 1) * (p.stumbleT > 0 ? 0.72 : 1) * (p.rising > 0 ? 0 : 1) * (p.pkV || 1);
     function steer(p, tx, tz, spd, dt, acc) {
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
       let vx = 0, vz = 0;
@@ -2830,6 +2841,7 @@ gl_FragColor=vec4(c,1.0);}`;
           if (a.eng !== b) { // bodies bump: trade a bit of momentum
             const nx = dx / d, nz = dz / d, rel = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
             if (rel < 0) { const fa = mb / (ma + mb), fb = ma / (ma + mb); a.vx -= nx * rel * fa; a.vz -= nz * rel * fa; b.vx += nx * rel * fb; b.vz += nz * rel * fb; }
+            if (a.side === b.side && rel < -4.2) { funBump(a, b, -rel); if (a.rag) break; }
           }
         }
       }
@@ -2861,7 +2873,7 @@ gl_FragColor=vec4(c,1.0);}`;
       d.shed = (run ? DP.shedRun : DP.shedPass) * ratio * (0.65 + rng() * 0.7) * (d.dbl ? 1.3 : 1) * (d.ko ? 0.55 : 1);
       d.shedSide = rng() < 0.5 ? -1 : 1;
       setPose(b, 'block'); setPose(d, 'rush');
-      sfx.play('tackle');
+      sfx.play('tackle'); perkHook('block', b, d);
       return true;
     }
     function shedEng(d) {
@@ -2876,7 +2888,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const g = carrier || (ball && ball.holder) || OK.QB || ball || d;
       let gx = g.x - d.x, gz = g.z - d.z; const gl2 = Math.hypot(gx, gz) || 1; gx /= gl2; gz /= gl2;
       const winning = d.engT > d.shed * 0.55;
-      const push = clamp((d.str - b.str) / 110 + ((d.mass || 1) - (b.mass || 1)) * 0.25 + (winning ? 0.5 : -0.25), -0.8, 0.9) * 1.6;
+      let push = clamp((d.str - b.str) / 110 + ((d.mass || 1) - (b.mass || 1)) * 0.25 + (winning ? 0.5 : -0.25), -0.8, 0.9) * 1.6;
+      if (b.pkStout) push = Math.min(push, 0); // Fire Hydrant: he cannot be pushed off his spot
       // the rusher works toward the ball; the blocker stays square and drives
       let sx = 0, sz = 0;
       if (winning) { const side = d.shedSide; sx = -gz * side * 1.2; sz = gx * side * 1.2; }
@@ -3257,6 +3270,7 @@ gl_FragColor=vec4(c,1.0);}`;
       hist.push({ id: play.id, cat: play.cat, blitz: dcall ? dcall.blitz : 0 }); if (hist.length > 6) hist.shift();
       for (const p of everyone) setPose(p, 'run');
       setControls(true); drivePlays++;
+      perkHook('snap');
     }
     function ballHeldByQB() {
       const qb = OK.QB;
@@ -3270,7 +3284,7 @@ gl_FragColor=vec4(c,1.0);}`;
       handed = true; runSeen = tPlay;
       ball = { st: 'held', holder: rb, x: rb.x, y: 1.3, z: rb.z, vx: 0, vy: 0, vz: 0 };
       carrier = rb; ctrl = rb; mode = 'run'; pr.rusher = rb; pr.kind = 'rush';
-      setControls(true);
+      setControls(true); perkHook('touch', rb);
     }
     function doPitch() {
       const qb = OK.QB, rb = OK.RB;
@@ -3370,7 +3384,7 @@ gl_FragColor=vec4(c,1.0);}`;
       qb.throwT = -1;
       const D0 = Math.hypot(spot.x - qb.x, spot.z - qb.z), D = Math.min(D0, maxDist());
       const ux = (spot.x - qb.x) / (D0 || 1), uz = (spot.z - qb.z) / (D0 || 1);
-      const sg = sigma(D, arcT), ex = gauss() * sg * 0.75, ez = gauss() * sg;
+      const sg = sigma(D, arcT) * perkThrow(qb, qb.throwSpot, arcT, D), ex = gauss() * sg * 0.75, ez = gauss() * sg;
       const tx = qb.x + ux * D + ex, tz = qb.z + uz * D + ez;
       const D2 = Math.hypot(tx - qb.x, tz - qb.z), T = flightOf(D2, arcT);
       const hp = handPos(qb, 1), y0 = hp[1] > 1.2 ? hp[1] : 2.2, y1 = [1.5, 1.6, 2.0][arcT];
@@ -3506,12 +3520,13 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (b.tips >= 2 && ((bO && dO <= RO) || (bD && dD <= RD))) {
         // tipped twice already: the next hand on it bats it down (a defender might still haul it in)
         const p = bD && dD <= RD ? bD : bO; p.lastTouch = tPlay;
-        if (p.side === 1 && facesBall(p) && rng() < 0.12 + 0.5 * DP.intSkill) { intercept(p, 'tips'); return; }
+        if (p.side === 1 && facesBall(p) && rng() < 0.05 + 0.3 * DP.intSkill) { intercept(p, 'tips'); return; }
         knockDown2('BATTED DOWN'); b.killed = true; return;
       }
       if ((bO && dO <= RO) || (bD && dD <= RD)) {
+        if (funForced('helmet') && !b.helmet) { helmetCarom(bD && dD <= RD ? bD : bO); return; }
         const wO = bO ? Math.min(dO, contactDist(bO, b.x, b.y, b.z, fx, fy, fz)) : 9, wD = bD ? Math.min(dD, contactDist(bD, b.x, b.y, b.z, fx, fy, fz)) : 9;
-        if (bO && bD && wO <= RO + 0.12 && wD <= RD + (dist(bD, bO) < 1.25 ? 0.58 : 0.42)) contestCatch(bO, bD, wO, wD); // a defender on his hip gets an arm in
+        if (bO && bD && wO <= RO + 0.12 && wD <= RD + (dist(bD, bO) < 1.25 ? 0.5 : 0.36)) contestCatch(bO, bD, wO, wD); // a defender on his hip gets an arm in
         else if (bO && dO <= RO) recAttempt(bO);
         else defAttempt(bD);
         if (ball !== b || b.st !== 'air') return;
@@ -3526,7 +3541,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.y <= 0.14) { b.st = 'dead'; bounce(b); endPlay('inc', 0, b.tipped ? 'Batted down' : b.drop ? 'Dropped' : !inField(b.x, b.z) ? 'Out of bounds' : 'Nobody there'); return; }
       if (Math.abs(b.x) > HW + 3 || b.z > 113 || b.z < -12) { b.st = 'dead'; endPlay('inc', 0, b.z > 110 ? 'Out of the back of the end zone' : 'Thrown away'); }
     }
-    const catchRadius = (p) => (p.side === 0 ? 0.36 + (p.cat - 50) * 0.0014 : 0.32) * (p.diveT > 0 ? 1.25 : 1);
+    const CROWDK = 0.8 - 0.06 * KDEF; // each extra defender in the crowd trims the odds (it does not kill them)
+    const catchRadius = (p) => (p.side === 0 ? 0.36 + (p.cat - 50) * 0.0014 : 0.32) * (p.diveT > 0 ? 1.25 : 1) * (p.pkR || 1);
     // where a hand is when the player reaches for the ball: shoulder (from the body, not the last drawn skeleton) plus the arm toward the reach point
     // how far the ball's path (from the previous position to now) passes from what this player can touch
     function contactDist(p, px, py, pz, qx, qy, qz) {
@@ -3564,21 +3580,24 @@ gl_FragColor=vec4(c,1.0);}`;
       r.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'rec';
       const [dN, cf] = contestOf(r);
       const diving = r.diveT > 0 || r.pose === 'dive', jumping = r.jumpY > 0.1;
-      let p = 0.7 + r.cat / 330;
+      let p = 0.8 + r.cat / 330;
       if (b.arc === 0 && b.D < 12) p -= 0.06;
       if (b.arc === 2) p += 0.02;
       if (b.behind) p -= 0.1;
-      if (diving) p -= 0.12;
-      if (jumping && b.y < 2.1) p -= 0.08;
+      if (diving) p -= 0.03;
+      if (jumping && b.y < 2.1) p -= 0.02;
       if (b.tipped) p -= 0.08;
       p -= WET * 0.03;
       const hv = Math.hypot(b.vx, b.vz); if (hv > 20) p -= (hv - 20) * 0.012;
-      p -= cf * (0.16 + 0.12 * KDEF) * (dN && dN.jumpY > 0.1 ? 1.3 : 1);
-      const crowd = crowdAt(r); if (crowd >= 2) p *= Math.pow(0.5, crowd - 1);
-      p = clamp(p, 0.05, 0.98);
+      p -= cf * (0.06 + 0.07 * KDEF) * (dN && dN.jumpY > 0.1 ? 1.3 : 1);
+      const crowd = crowdAt(r); if (crowd >= 2) p *= Math.pow(CROWDK, crowd - 1);
+      const [pkb, pks] = perkCatch(r, false); p += pkb; if (pks) p = Math.max(p, 0.995);
+      p = clamp(p, 0.15, 0.995);
       if (rng() < p) { catchBall(r, diving, jumping); return; }
+      if (!b.helmet && funRoll('helmet', 0.15)) { helmetCarom(r); return; }
       if (cf > 0.35 && dN) { if (rng() < 0.4) tipBall(r, 'JARRED LOOSE!'); else knockDown2('BROKEN UP!'); return; }
       if (rng() < 0.25) { tipBall(r, 'BOBBLED!'); return; }
+      if (perkHook('drop', r)) { catchBall(r, diving, jumping); return; }
       ball.drop = true; ball.vy = Math.min(ball.vy, -1.5) * 0.4; ball.vx *= 0.25; ball.vz *= 0.25;
       popAt(r, 'DROPPED', '#ff3344');
     }
@@ -3605,23 +3624,25 @@ gl_FragColor=vec4(c,1.0);}`;
       const diving = r.diveT > 0 || r.pose === 'dive', jumping = r.jumpY > 0.1;
       const qO = clamp(1 - wO / RO, 0, 1), qD = clamp(1 - wD / (RD + 0.42), 0, 1);
       const side = clamp((Math.hypot(b.x - d.x, b.z - d.z) - Math.hypot(b.x - r.x, b.z - r.z)) / 0.9, -1, 1);
-      const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.03 : 0) : 0;
+      const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.12 : 0) : 0;
       const sees = facesBall(d);
-      const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - (0.04 + 0.17 * KDEF);
+      const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - 0.1 * KDEF;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
-      const W = clamp(0.4 + 0.27 * plc + 0.1 * side + 0.25 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.1 : 0) - (diving ? 0.08 : 0) - (b.tipped ? 0.06 : 0), 0.04, 0.95) * (crowd >= 2 ? Math.pow(0.45, crowd - 1) : 1);
-      b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; if (pr) pr.contest = b.contest;
+      const [pkb, pks] = perkCatch(r, true);
+      const W = clamp(0.7 + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
       if (rng() < W) {
         const hv = Math.hypot(b.vx, b.vz);
-        const pc = clamp(0.9 + (r.cat - 66) / 260 - (1 - W) * 0.3 - WET * 0.04 - (hv > 20 ? (hv - 20) * 0.012 : 0), 0.35, 0.97);
-        if (rng() < pc) { catchBall(r, diving, jumping); return; }
+        const pc = clamp(0.92 + (r.cat - 66) / 260 - (1 - W) * 0.12 - WET * 0.04 - (hv > 20 ? (hv - 20) * 0.012 : 0), 0.5, 0.98);
+        if (pks || rng() < pc) { catchBall(r, diving, jumping); return; }
         if (rng() < 0.45) tipBall(r, 'KNOCKED LOOSE!'); else knockDown2('BROKEN UP!');
         return;
       }
       // the defender wins it: a pick if the ball was on his side and he sees it, otherwise he breaks it up
-      const pI = clamp(DP.intSkill * 1.25 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.3 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1), 0, 0.7);
+      const pI = clamp(DP.intSkill * 0.55 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.15 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1), 0, 0.32);
       if (rng() < pI) { intercept(d, 'contest'); return; }
+      if (!b.helmet && funRoll('helmet', 0.22)) { helmetCarom(rng() < 0.5 ? d : r); return; }
       if (rng() < 0.38) tipBall(d, 'TIPPED!'); else knockDown2(d.jumpY > 0.15 ? 'SWATTED!' : 'BROKEN UP!');
     }
     // a defender gets to the ball and no receiver is there with him (undercut, jumped route, overthrow into the safety)
@@ -3629,10 +3650,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const b = ball;
       d.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'def';
       const ok = b.y < topReach(d) - 0.05, sees = facesBall(d), looking = tPlay >= (d.breakAt || 0);
-      let pI = DP.intSkill * 1.45 * (b.arc === 2 ? 1.25 : b.arc === 0 ? 0.75 : 1) * (ok ? 1 : 0.35) * (1 - WET * 0.15) * (sees ? 1 : 0.35);
+      let pI = DP.intSkill * 0.95 * (b.arc === 2 ? 1.25 : b.arc === 0 ? 0.75 : 1) * (ok ? 1 : 0.35) * (1 - WET * 0.15) * (sees ? 1 : 0.35);
       if (!target || dist(target, b) > 4) pI = pI * 1.6 + 0.1;
       if (!looking) pI *= 0.3;
-      pI = Math.min(0.75, pI);
+      pI = Math.min(0.45, pI) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1);
       if (rng() < pI) { intercept(d, 'undercut'); return; }
       if (rng() < DP.deflect * 1.6 * (looking ? 1 : 0.5) * (sees ? 1 : 0.6) + (d.jumpY > 0.2 ? 0.2 : 0)) { if (rng() < 0.4) tipBall(d, 'TIPPED!'); else knockDown2('SWATTED!'); return; }
     }
@@ -3644,6 +3665,14 @@ gl_FragColor=vec4(c,1.0);}`;
       b.vy = (3 + rng() * 2.5) * k; b.vx = (rng() - 0.5) * 3 * k + b.vx * 0.2; b.vz = (rng() - 0.2) * 3 * k + b.vz * 0.15;
       b.y = Math.max(b.y, 1.0); updateCatchPoint(); if (msg) popAt(p, msg, '#ffc21a'); sfx.play('catch');
       if (target) { ctrl = target; }
+    }
+    // the ball bounces off a helmet and pops up, still alive: anybody's ball
+    function helmetCarom(p) {
+      const b = ball; b.helmet = p; b.tips = Math.min(b.tips || 0, 1); b.tipped = true; b.lev = null; b.killed = false; b.fingers = false;
+      const a = rng() * 6.283; b.vy = 5.4 + rng() * 1.4; b.vx = Math.cos(a) * 1.5 + b.vx * 0.08; b.vz = Math.sin(a) * 1.5 + b.vz * 0.08; b.y = Math.max(b.y, 1.95);
+      p.lastTouch = tPlay; updateCatchPoint(); if (target) ctrl = target;
+      for (const q of everyone) if (q !== p && Math.hypot(q.x - b.x, q.z - b.z) < 6) q.breakAt = Math.min(q.breakAt || 0, tPlay);
+      moment('helmet', p, 'OFF THE HELMET!', { a: p, snd: 'clang', col: '#ffc21a' });
     }
     function knockDown2(msg) { // broken up / batted down: the ball is dead, nobody gets another hand on it
       const b = ball; b.tipped = true; b.killed = true; b.vy = -3; b.vx *= -0.25; b.vz *= -0.2;
@@ -3661,29 +3690,42 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function catchBall(r, diving, jumping) {
       const b = ball;
-      if (!landsIn(r)) { ball.st = 'dead'; ball.vy = -1; popAt(r, 'NO FOOT DOWN', '#ff9a3c'); endPlay('inc', 0, r.z > 110 || r.z < -10 ? 'Out of bounds, past the end line' : 'Out of bounds'); return; }
+      if (!landsIn(r) && !perkHook('oob', r)) { ball.st = 'dead'; ball.vy = -1; popAt(r, 'NO FOOT DOWN', '#ff9a3c'); endPlay('inc', 0, r.z > 110 || r.z < -10 ? 'Out of bounds, past the end line' : 'Out of bounds'); return; }
       ball = { st: 'held', holder: r, x: r.x, y: 1.3, z: r.z, vx: 0, vy: 0, vz: 0 };
       carrier = r; ctrl = r; mode = 'run'; target = r; r.reach = null; r.pose = r.pose === 'reach' ? 'run' : r.pose;
       pr.rec = r; pr.catchZ = r.z; pr.caught = true; pr.tips = b.tips || 0;
-      const notes = [];
+      const notes = [], C = b.contest, crowd = crowdAt(r);
+      const wild = !!(C && (C.W < 0.55 || crowd >= 2 || jumping && C.hi > 0)); // a catch he had no business making
+      if (b.helmet) notes.push('OFF THE HELMET!');
       if (Math.abs(r.x) > HW - 1.25 || r.z > 108.8) notes.push('TOE TAP!');
+      if (wild && jumping && crowd <= 1) notes.push('MOSSED HIM!');
+      else if (wild && crowd >= 2) notes.push(diving ? 'CRAZY CATCH!' : 'IN TRAFFIC!');
+      else if (wild && diving) notes.push('ONE-HANDED!');
+      else if (wild) notes.push('SNATCHED IT!');
       if (diving) notes.push('DIVING CATCH!'); else if (jumping) notes.push(b.y > 2.6 ? 'HIGH-POINTED!' : 'LEAPING GRAB!');
       const [, cf] = contestOf(r);
-      if ((cf > 0.45 || b.contest) && !notes.length) notes.push('CONTESTED CATCH!');
-      pr.notes = notes;
-      popAt(r, notes[0] || 'CATCH!', '#2bd46b');
-      sfx.play('catch'); excite = Math.min(1, excite + 0.25);
-      for (const d of def) if (!d.rag && dist(d, r) < 3.2) { d.stun = Math.max(d.stun, 0.12 + 0.22 * (1 - KDEF)); d.stumbleT = Math.max(d.stumbleT, 0.2); }
-      if (notes.length) cam.kick = Math.max(cam.kick, 0.5);
+      if ((cf > 0.45 || C) && !notes.length) notes.push('CONTESTED CATCH!');
+      pr.notes = notes; pr.wild = wild;
+      if (b.helmet) { FUN.victim.away++; FUN.blooper.away++; bigPop(r, 'AND HE CAUGHT IT!', '#2bd46b'); }
+      else if (wild && (funGate() > 0.25 || funForced('catch'))) moment('catch', r, notes[0], { a: r, victim: 'away', col: '#2bd46b', snd: 'good' });
+      else popAt(r, notes[0] || 'CATCH!', wild ? '#ffc21a' : '#2bd46b');
+      perkHook('catch', r);
+      sfx.play('catch'); excite = Math.min(1, excite + (wild ? 0.6 : 0.25));
+      for (const d of def) if (!d.rag && dist(d, r) < 3.2) { d.stun = Math.max(d.stun, 0.2 + 0.35 * (1 - KDEF)); d.stumbleT = Math.max(d.stumbleT, 0.3); }
+      // posterized: the man who lost the jump ball goes down
+      if (wild && jumping && !diving && b.cd && !b.cd.rag && dist(b.cd, r) < 2.4) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
+      if (notes.length) cam.kick = Math.max(cam.kick, wild ? 0.9 : 0.5);
       const st = stat(SQ.QB.pid); if (st) st.passCmp++;
       if (r.z >= 100) { endPlay('td', r.z); return; }
       if (diving) { r.diveT = Math.max(r.diveT, 0.25); r.diveCatch = 1; setTimeout(() => { if (phase === 'live' && carrier === r) { knockDown(r, [r.vx * 0.6, -1, r.vz * 0.6], null, 1.2); endPlay('tackle', r.z, 'Diving catch'); } }, 220 / ((DBG && DBG.speed) || 1)); return; }
       setControls(true);
     }
     function intercept(d, how) {
+      if (perkHook('pick', d)) { knockDown2('SWATTED AWAY!'); return; }
       const tips = (ball && ball.tips) || 0;
       ball = { st: 'held', holder: d, x: d.x, y: 1.3, z: d.z, vx: 0, vy: 0, vz: 0 };
       carrier = d; ctrl = null; mode = 'none'; d.v = Math.max(d.v, 7.4); d.reach = null; setPose(d, 'run');
+      if (ball && ball.helmet) { FUN.victim.home++; FUN.blooper.home++; }
       pr.int = d; pr.intZ = d.z; pr.intInfo = { how: how || '', tips, role: d.role, man: !!(d.ass && d.ass.t === 'man'), dT: target ? +dist(target, ball).toFixed(1) : null, tgt: target ? target.key : null, t: +tPlay.toFixed(2), brk: +((d.breakAt || 0)).toFixed(2), D: ball.D ? Math.round(ball.D) : null, arc: ball.arc, y: +ball.y.toFixed(1) };
       const st = stat(SQ.QB.pid); if (st) st.passInt++;
       popAt(d, 'PICKED OFF!', '#ff3344'); sfx.play('boo'); excite = Math.max(0, excite - 0.3);
@@ -3691,7 +3733,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function doJump(p) {
       if (!p || p.jumpY > 0 || p.jumpT > 0 || p.jumpDelay > 0 || p.rag || p.diveT > 0 || p.rising > 0) return;
-      p.jumpPow = 5.6 + (p.agi - 50) * 0.02; p.jumpDelay = 0.16; setPose(p, 'jump'); sfx.play('tap');
+      p.jumpPow = 5.6 + (p.agi - 50) * 0.02; p.jumpDelay = 0.16; setPose(p, 'jump'); sfx.play('tap'); perkHook('jump', p);
     }
     function doDive(p) {
       if (!p || p.diveT > 0 || p.rag || p.jumpY > 0 || p.rising > 0) return;
@@ -3701,7 +3743,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const ud = p === ctrl ? userDir() : null;
       const d = ud || (toBall && bd > 0.3 ? v2n(toBall) : [Math.sin(p.h), Math.cos(p.h)]);
       const sp = ud ? p.v + 3.5 : clamp(bd * 4.5, 3.5, p.v + 3.5);
-      p.diveT = 0.62; p.ddx = d[0]; p.ddz = d[1]; p.vx = d[0] * sp; p.vz = d[1] * sp; setPose(p, 'dive'); p.h = Math.atan2(d[0], d[1]); p.jumpY = 0.35; p.jumpV = 1.6; p.jumpT = 0.4;
+      p.diveT = 0.62; p.ddx = d[0]; p.ddz = d[1]; p.vx = d[0] * sp; p.vz = d[1] * sp; setPose(p, 'dive'); p.h = Math.atan2(d[0], d[1]); p.jumpY = 0.35; p.jumpV = 1.6; p.jumpT = 0.4; perkHook('dive', p);
     }
     const v2n = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
     function receiverDiveStep(p, dt) {
@@ -3743,7 +3785,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (m === 'dive') {
         if (c.role === 'QB' && c.z < los + 30 && !qbRunPlay() && c === OK.QB) { slide(c); return; }
         const d = userDir() || [Math.sin(c.h), Math.cos(c.h)];
-        c.diveT = 0.45; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * (c.v + 2.5); c.vz = d[1] * (c.v + 2.5); setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3;
+        c.diveT = 0.45; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * (c.v + 2.5); c.vz = d[1] * (c.v + 2.5); setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3; perkHook('dive', c);
         sfx.play('tap'); return;
       }
       if (m === 'hurdle' && (c.jumpY > 0 || c.jumpT > 0 || c.wrapT > 0)) return;
@@ -3765,11 +3807,14 @@ gl_FragColor=vec4(c,1.0);}`;
         c.mvSide = side;
         const jx = side * 0.95, jz = 0.55, l = Math.hypot(jx, jz); c.jdx = jx / l; c.jdz = jz / l;
         setPose(c, 'juke');
-        let fooled = 0;
-        for (const d of def) if (dist(d, c) < 3.4 && d.stun <= 0 && !d.rag && rng() < 0.55 + (c.agi - d.agi) / 160 + (1 - KDEF) * 0.25) { d.stun = DP.stun * (0.8 + rng() * 0.4); d.stumbleT = 0.5; fooled++; }
+        let fooled = 0, fd = null, fdd = 9;
+        for (const d of def) if (dist(d, c) < 3.4 && d.stun <= 0 && !d.rag && rng() < 0.55 + (c.agi - d.agi) / 160 + (1 - KDEF) * 0.25) { d.stun = DP.stun * (0.8 + rng() * 0.4); d.stumbleT = 0.5; fooled++; if (dist(d, c) < fdd) { fdd = dist(d, c); fd = d; } }
         sfx.play(fooled ? 'good' : 'tap');
-        if (fooled) popAt(c, fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b');
-      } else if (m === 'spin') { c.mvT = 0.5; setPose(c, 'spin'); sfx.play('tap'); }
+        perkHook('juke', c);
+        // broke his ankles: the man he fooled goes down on his own
+        if (fd && fdd < 2.9 && funRoll('ankles', 0.35)) { knockDown(fd, [-side * 1.8, 0, fd.vz * 0.3], [-side * 1.4, 0.5, 0], 1.3); fd.tried = 1; moment('ankles', fd, fooled > 1 ? 'DOUBLE ANKLES!' : 'ANKLES!', { a: c, b: fd, victim: 'away', snd: 'good' }); }
+        else if (fooled) popAt(c, fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b');
+      } else if (m === 'spin') { c.mvT = 0.5; setPose(c, 'spin'); sfx.play('tap'); perkHook('spin', c); }
       else if (m === 'stiff') { c.mvT = 0.6; setPose(c, 'stiff'); sfx.play('tap'); }
     }
     function slide(c) {
@@ -3823,7 +3868,8 @@ gl_FragColor=vec4(c,1.0);}`;
           c.hurdHit = 1; d.tried = 1;
           const pH = clamp(0.62 + (c.agi - 50) / 160 - KDEF * 0.22, 0.3, 0.9);
           if (rng() < pH) { // clean: he goes right over the top of him
-            knockDown(d, [d.vx * 0.5, 0, d.vz * 0.5], [0, 0.2, 0], 0.9); popAt(c, 'HURDLED HIM!', '#2bd46b'); sfx.play('good'); excite = Math.min(1, excite + 0.12); cam.shake = Math.max(cam.shake, 0.15); if (pr) pr.notes.push('hurdle');
+            knockDown(d, [d.vx * 0.5, 0, d.vz * 0.5], [0, 0.2, 0], 0.9); sfx.play('good'); excite = Math.min(1, excite + 0.12); cam.shake = Math.max(cam.shake, 0.15); if (pr) pr.notes.push('hurdle');
+            if (funGate() > 0.25 || funForced('hurdle')) moment('hurdle', c, 'HURDLED HIM!', { a: c, b: d, victim: victimOf(d), col: '#2bd46b', snd: 'good' }); else popAt(c, 'HURDLED HIM!', '#2bd46b');
             return;
           }
           popAt(c, 'TRIPPED UP!', '#ff9a3c'); sfx.play('tackle'); // caught a leg: he comes down hard
@@ -3833,6 +3879,15 @@ gl_FragColor=vec4(c,1.0);}`;
       const behindLOS = c.role === 'QB' && !crossed && !handed && !thrown;
       const vc = Math.hypot(c.vx, c.vz), closing = Math.max(0, (d.vx * nx + d.vz * nz) - (c.vx * nx + c.vz * nz));
       const fromFront = (c.vx * -nx + c.vz * -nz) > vc * 0.3, fromBehind = (c.vx * nx + c.vz * nz) > vc * 0.5;
+      // card perks that change a tackle (two tacklers needed, bounce off, walk through, sidestep...)
+      const pk = perkTackle(c, d, { nx, nz, closing, fromFront, behindLOS }); if (pk) return;
+      // the QB spins out of a sure sack
+      if (behindLOS && c === OK.QB && mode === 'aim' && !c.houdini && (funRoll('houdini', 0.3) || (c.mv === 'spin' && c.mvT > 0 && rng() < 0.6))) {
+        c.houdini = 1; setPose(c, 'spin'); c.mv = 'spin'; c.mvT = 0.5; c.stumbleT = 0.15; c.vx += -nz * 2.2; c.vz += nx * 2.2;
+        knockDown(d, [d.vx * 0.9 + nx * -1, 0.3, d.vz * 0.9 + nz * -1], [d.vx * 0.3, 0.8, d.vz * 0.3], 1.3); d.tried = 1;
+        moment('houdini', c, 'HOUDINI!', { a: c, b: d, victim: 'away', snd: 'good', col: '#2bd46b' });
+        return;
+      }
       const power = (d.tackle / 70) * (0.6 + d.str / 150) * (1 + closing / 12) * (d.pose === 'tackle' ? 1.15 : 0.95) * Math.pow((d.mass || 1) / (c.mass || 1), 0.4); // weight matters
       let resist = (0.6 + c.str / 150) * (1 + vc / 16);
       if (c.mv === 'stiff' && c.mvT > 0 && fromFront) resist += 0.45 + (c.str - 50) / 250;
@@ -3841,21 +3896,43 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.wrapT > 0) resist -= 0.5;
       if (airborne) resist -= 0.45; // caught in mid-air by a defender who stayed on his feet
       let gang = 0; for (const o of def) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
-      let pB = clamp(0.05 + (resist - power) * 0.3 + (1 - KDEF) * 0.06 - gang * 0.12, 0.02, 0.5);
+      let pB = clamp(0.05 + (resist - power) * 0.3 + (1 - KDEF) * 0.1 - gang * 0.12, 0.02, 0.5);
+      if (c.side === 0) pB = Math.min(0.55, pB + 0.05 * Math.min(1.5, funGate())); // a quiet stretch makes a big run a little likelier
       if (DBG && DBG.forceBreak != null) pB = DBG.forceBreak;
+      if (funForced('trucked') || funForced('plant')) pB = 1;
       cam.shake = Math.max(cam.shake, 0.25 + Math.min(0.5, closing * 0.05));
       if (rng() < pB && c.wrapT <= 0) {
-        // broken tackle: the defender bounces off
-        const vel = [c.vx * 0.5 + nx * -2.5, 0.5, c.vz * 0.5 + nz * -2.5];
-        knockDown(d, [d.vx * 0.3, 0, d.vz * 0.3], [-nx * (1.6 + vc * 0.25), 0.9, -nz * (1.6 + vc * 0.25)], 1.0);
+        // broken tackle: the defender bounces off (a stiff arm plants him, a big runner at speed launches him)
+        const stiffing = c.mv === 'stiff' && c.mvT > 0;
+        const fun = stiffing && funRoll('plant', 0.85) ? 'plant' : !stiffing && fromFront && vc > 3.5 && ((c.mass || 1) > 1.04 || c.str > 68 || vc > 6) && funRoll('trucked', 0.6) ? 'trucked' : null;
+        if (fun === 'trucked') launch(d, -nx, -nz, 1.1, 1.6);
+        else if (fun === 'plant') knockDown(d, [-nx * 1.2, -2.5, -nz * 1.2], [-nx * 1.5, -1.5, -nz * 1.5], 1.8);
+        else knockDown(d, [d.vx * 0.3, 0, d.vz * 0.3], [-nx * (1.6 + vc * 0.25), 0.9, -nz * (1.6 + vc * 0.25)], 1.0);
         d.tried = 1;
-        if (c.mv === 'stiff' && c.mvT > 0) popAt(c, 'STIFF ARM!', '#2bd46b');
+        if (fun === 'trucked') moment('trucked', d, 'TRUCKED!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', shake: 0.6 });
+        else if (fun === 'plant') moment('plant', d, 'TRUCK STICK!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', sub: 'planted in the turf' });
+        else if (stiffing) popAt(c, 'STIFF ARM!', '#2bd46b');
         else popAt(c, c.mv === 'spin' && c.mvT > 0 ? 'SPIN MOVE!' : 'BROKE A TACKLE!', '#2bd46b');
+        perkHook('broke', c, d);
         c.stumbleT = 0.42; c.vx *= 0.75; c.vz *= 0.75; c.vx += nx * 1.5; c.vz += nz * 1.5;
         sfx.play('tackle'); sfx.play('good'); excite = Math.min(1, excite + 0.12);
         return;
       }
+      // the whiff: a defender lunges at the ball carrier, misses everything and eats turf
+      if (c.side === 0 && !behindLOS && c.wrapT <= 0 && gang === 0 && funRoll('whiff', 0.18)) {
+        knockDown(d, [d.vx * 1.2 - nx * 1.5, 0.2, d.vz * 1.2 - nz * 1.5], [d.vx * 0.5, -0.5, d.vz * 0.5], 1.4); d.tried = 1; c.stumbleT = Math.max(c.stumbleT, 0.15);
+        moment('whiff', d, 'WHIFF!', { a: c, b: d, victim: 'away', snd: 'ooh', col: '#2bd46b', sub: 'face first into the turf', line: `<b>${esc(nm(d))}</b> dives at <b>${esc(nm(c))}</b> and hugs nothing but grass. WHIFF!` });
+        return;
+      }
       sfx.play('tackle');
+      // a big hit: he gets de-cleated (launched), and now and then the ball comes out
+      if (!behindLOS && c.wrapT <= 0 && (closing > 4.2 || gang > 0 && vc > 3.5) && funRoll('decleat', c.side === 0 ? 0.32 : 0.5)) {
+        finishTackle(c, d, 'hit', nx, nz, closing);
+        if (c.rag) c.rag.impulse(nx * 3, 5.2, nz * 3, 0.35);
+        if (funRoll('fumble', c.side === 0 ? 0.2 : 0.9) || funForced('decleat') && DBG.funFumble) c.funFumble = 1;
+        moment('decleat', c, 'DE-CLEATED!', { a: c, b: d, victim: victimOf(c), snd: 'tackle', shake: 0.7, col: c.side === 0 ? '#ff9a3c' : '#2bd46b' });
+        return;
+      }
       if (c.wrapT > 0 || behindLOS || gang > 0 || closing > 7 || fromBehind && vc < 3) { finishTackle(c, d, behindLOS ? 'sack' : 'hit', nx, nz, closing); return; }
       // wrap-up: the carrier drags him for a moment, then goes down (or sheds him)
       c.wrapT = 0.22 + Math.min(0.3, vc * 0.03) * (c.str / 70); c.wrapBy = d; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle'); c.stumbleT = 0.5;
@@ -3882,6 +3959,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'live') return;
       const z = c.rag ? Math.max(c.rag.pts[0][2], (c.contactZ || c.z) - 1.8) : c.z;
       c.x = c.rag ? c.rag.pts[0][0] : c.x;
+      if (c.funFumble && !tryMode) { c.funFumble = 0; if (fumble(c)) moment('fumble', c, 'FUMBLE!', { a: c, victim: victimOf(c), col: '#ff3344', replay: false }); return; }
+      if (perkHook('down', c)) return;
       if (c.side === 1) { endPlay('intdown', z); return; }
       if (c.tackleKind !== 'sack' && c.role !== 'QB' || c.tackleKind === 'sack') {
         const pF = 0.007 + (c.tackleKind === 'sack' ? 0.025 : 0) - (c.str - 50) / 9000 + KDEF * 0.006 + (pile.length > 2 ? 0.012 : 0);
@@ -3890,9 +3969,11 @@ gl_FragColor=vec4(c,1.0);}`;
       endPlay(c.tackleKind === 'sack' ? 'sack' : 'tackle', z);
     }
     function fumble(c) {
+      if (perkHook('fumble', c)) { endPlay('tackle', c.contactZ || c.z); return false; }
       ball = { st: 'loose', x: c.x, y: 1.1, z: c.z, vx: (rng() - 0.5) * 6, vy: 3 + rng() * 2, vz: (rng() - 0.5) * 6, holder: null, t: 0, spin: 0 };
       carrier = null; ctrl = null; mode = 'none';
       popAt(c, 'FUMBLE!', '#ff3344'); sfx.play('bad'); pr.fumble = true; setControls(true);
+      return true;
     }
     function looseStep(dt) {
       const b = ball; b.t += dt;
@@ -3907,9 +3988,20 @@ gl_FragColor=vec4(c,1.0);}`;
       let best = null, bd = 0.8;
       for (const p of everyone) { if (p.rag || p.rising > 0) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < bd && b.y < 0.7) { bd = d; best = p; } }
       if (best) {
+        // on his feet and moving with the ball off the ground: he scoops it and runs (a big man rumbling is the best thing in football)
+        const big = best.role === 'OL' || best.role === 'DL', upr = Math.hypot(best.vx, best.vz) > 2 && best.stun <= 0;
+        if (upr && !kick && !tryMode && (funForced('bigman') ? big : funRoll(big ? 'bigman' : 'scoop', big ? 1.4 : 0.7))) {
+          ball = { st: 'held', holder: best, x: best.x, y: 1.3, z: best.z, vx: 0, vy: 0, vz: 0 }; carrier = best; pr.scoop = best;
+          if (best.side === 0) { ctrl = best; mode = 'run'; pr.kind = 'rush'; pr.rusher = best; runSeen = tPlay; crossed = true; }
+          else { ctrl = null; mode = 'none'; best.v = Math.max(best.v, 6.6); }
+          bigPop(best, big ? 'BIG MAN SCOOP!' : 'SCOOP AND GO!', best.side === 0 ? '#2bd46b' : '#ff3344'); sfx.play(best.side === 0 ? 'cheer' : 'ooh'); cam.kick = Math.max(cam.kick, 0.7);
+          setControls(true); return;
+        }
+        funPile(b, best);
         knockDown(best, [best.vx * 0.4, -1, best.vz * 0.4], null, 1.2); ball.holder = best; ball.st = 'held';
         popAt(best, best.side === 0 ? 'RECOVERED!' : 'THEY RECOVER!', best.side === 0 ? '#2bd46b' : '#ff3344');
-        endPlay(best.side === 0 ? 'tackle' : 'fumlost', best.z);
+        if (pr.int) { pr.regain = best.side === 0; endPlay(best.side === 0 ? 'tackle' : 'intdown', best.z); } // the return man coughed it up
+        else endPlay(best.side === 0 ? 'tackle' : 'fumlost', best.z);
       } else if (Math.abs(b.x) > HW) endPlay('tackle', b.z, 'Fumble out of bounds');
     }
     function liveChecks() {
@@ -3918,7 +4010,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.side === 0) {
         if (!crossed && c.z > los + 0.3) { crossed = true; if (c.role === 'QB' && mode === 'aim') { mode = 'run'; ctrl = c; carrier = c; pr.kind = 'rush'; pr.rusher = c; runSeen = tPlay; setControls(true); } }
         if (c.z >= 100) { endPlay(kick ? 'krtd' : 'td', c.z); return; }
-        if (Math.abs(c.x) > HW) { endPlay('oob', c.z); return; }
+        if (Math.abs(c.x) > HW) { if (perkHook('oob', c)) return; endPlay('oob', c.z); return; }
       } else {
         if (c.z <= 0) { endPlay('pick6', c.z); return; }
         if (Math.abs(c.x) > HW) { endPlay('intdown', c.z); return; }
@@ -3976,8 +4068,17 @@ gl_FragColor=vec4(c,1.0);}`;
       } else if (k.st === 'fly') {
         const b = ball;
         flyStep(b, dt);
-        if (k.type !== 'punt' && !k.judged && b.z >= 110) { k.judged = 1; k.good = Math.abs(b.x) < 3.08 && b.y > 3.33; endKick(); }
-        if (k.type !== 'punt' && !k.judged && (b.y <= 0.14 || b.vz <= 0)) { k.judged = 1; k.good = false; endKick(); }
+        // off the upright: a ball that crosses the plane just outside (or just inside) a post rings it and bounces
+        if (k.type !== 'punt' && !k.judged && !k.doink && b.z >= 109.6 && b.y > 3.33 && (Math.abs(Math.abs(b.x) - 2.95) < 0.42 || funForced('doink'))) {
+          k.doink = 1; const inn = funForced('doink') ? !!(DBG && DBG.doinkIn) : rng() < 0.5;
+          b.vz = inn ? Math.abs(b.vz) * 0.35 : -Math.abs(b.vz) * 0.3; b.vx = (inn ? -1 : 1) * Math.sign(b.x || 1) * 2.5; b.vy = Math.max(b.vy, 1.5); b.z = 109.9; if (inn) b.x = Math.sign(b.x || 1) * 2.4;
+          sfx.play('doink'); cam.shake = Math.max(cam.shake, 0.4); moment(inn ? 'doinkin' : 'doink', { x: b.x, z: 110 }, inn ? 'DOINK... AND IN!' : 'DOINK!', { victim: inn ? undefined : 'home', replay: false, snd: 'doink', col: inn ? '#2bd46b' : '#ff9a3c' });
+          if (inn) { k.judged = 1; k.good = true; endKick(); }
+        }
+        if (k.type !== 'punt' && !k.judged && b.z >= 110) { k.judged = 1; k.good = !k.doink && Math.abs(b.x) < 3.08 && b.y > 3.33; endKick(); }
+        if (k.type !== 'punt' && !k.judged && k.doink && b.vz < 0 && b.y <= 0.3) { k.judged = 1; k.good = false; endKick(); }
+        if (k.type !== 'punt' && !k.judged && !k.doink && (b.y <= 0.14 || b.vz <= 0)) { k.judged = 1; k.good = false; endKick(); }
+        if (k.doink && b.y <= 0.14 && b.vy < 0) bounce(b);
         if (k.type === 'punt' && b.y <= 0.14 && b.vy < 0) { bounce(b); if (!k.judged) { k.judged = 1; endKick(); } }
       }
       if (k.st === 'fly' || k.st === 'acc' || k.st === 'run') for (const d of def) if (d.key !== 'PR') steer(d, d.x * 0.7, los - 2, d.v * 0.6, dt); else steer(d, ball.tx != null ? ball.tx : d.x, ball.tzz != null ? ball.tzz : d.z, d.v * 0.8, dt);
@@ -3994,7 +4095,12 @@ gl_FragColor=vec4(c,1.0);}`;
     function fireKick() {
       const k = kick, kp = k.kp;
       sfx.play('kick'); cam.shake = Math.max(cam.shake, 0.12);
-      const wind = WET ? (rng() - 0.5) * 0.06 : 0;
+      let wind = WET ? (rng() - 0.5) * 0.06 : 0;
+      perkHook('kick', kp, k);
+      if ((Math.abs(k.acc) > 0.86 && rng() < 0.7) || funForced('shank')) { // shanked: off the side of his foot
+        const sd = Math.sign(k.acc || 1); k.acc = sd; wind += sd * (k.type === 'punt' ? 0.75 : 0.45); k.pow *= 0.7; k.shank = 1;
+        setTimeout(() => { if (kick === k) moment('shank', kp, 'SHANKED!', { a: kp, victim: 'home', replay: false, col: '#ff9a3c', snd: 'ooh' }); }, 250 / ((DBG && DBG.speed) || 1));
+      }
       if (k.type === 'punt') {
         const R = (40 + KK * 0.3) * (0.5 + 0.55 * k.pow) - WET * 3, ang = k.acc * 0.3 + wind, th = 0.95, v = Math.sqrt(R * GRAV / Math.sin(2 * th)) * 1.04;
         ball = { st: 'kick', x: kp.x, y: 1.0, z: kp.z + 0.6, vx: Math.sin(ang) * v * Math.cos(th), vz: Math.cos(ang) * v * Math.cos(th), vy: v * Math.sin(th), t: 0, spin: 0, holder: null };
@@ -4032,7 +4138,7 @@ gl_FragColor=vec4(c,1.0);}`;
         say(`<b>${esc(KR.name)}</b> drills it from ${d} yards.`); addHL(`${shortName(KR.name)} ${d}-yd FG`);
         pend = { next: ['cpu', 25, 'ko'] };
       } else {
-        banner('NO GOOD', `${d}-yard try ${Math.abs(b.x) >= 3.08 ? (b.x > 0 ? 'wide right' : 'wide left') : 'falls short'}`, '#ff3344'); sfx.play('bad'); sfx.play('boo');
+        banner('NO GOOD', `${d}-yard try ${k.doink ? 'off the upright' : k.shank ? 'shanked' : Math.abs(b.x) >= 3.08 ? (b.x > 0 ? 'wide right' : 'wide left') : 'falls short'}`, '#ff3344'); sfx.play('bad'); sfx.play('boo');
         say(`The ${d}-yard try is <b>no good</b>.`);
         pend = { next: ['cpu', clamp(Math.round(100 - k.kz), 20, 99)] };
       }
@@ -4041,7 +4147,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function finishSpecial(t, kind) {
       phase = 'dead'; deadT = t; deadTot = t; clockRun = false; mode = 'none'; ctrl = null;
       boardDirty = true; setControls(true);
-      kick.st = 'done';
+      kick.st = 'done'; if (FUN.line) { say(FUN.line); FUN.line = ''; } FUN.plays++; FUN.thisPlay = 0;
     }
 
     // ---------- kickoffs: the CPU kicks, you return ----------
@@ -4090,7 +4196,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (near && b.vy < 0 || b.y < 0.3) {
           if (b.z < -10 || b.y < 0.3 && b.z < 0) { touchback(); return; }
           ball = { st: 'held', holder: R, x: R.x, y: 1.3, z: R.z, vx: 0, vy: 0, vz: 0 }; carrier = R; ctrl = R; mode = 'run'; k.st = 'ret'; k.catchT = tPlay; R.reach = null; setPose(R, 'run');
-          k.tbOK = R.z < 0; sfx.play('catch'); pr.start = R.z; pr.rusher = R; setControls(true);
+          k.tbOK = R.z < 0; sfx.play('catch'); pr.start = R.z; pr.rusher = R; setControls(true); perkHook('touch', R);
         }
       } else if (k.st === 'ret') {
         if (k.tbOK && !carrier) k.tbOK = false; // fumbled: no touchback option any more
@@ -4114,10 +4220,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (side === 'home') { excite = 1; sfx.play('horn'); sfx.play('cheer'); } else sfx.play('boo');
     }
     function addHL(s) { if (HL.length < 10) HL.push(s); }
-    function celebrate(c) {
-      c.celType = (crand() * 4) | 0; c.celAt = 0.55;
-      if (c.celType === 1) setTimeout(() => { if (ball && ball.holder === c && (phase === 'dead' || phase === 'replay')) { ball = { st: 'dead', x: c.x + Math.sin(c.h) * 0.5, y: 1.6, z: c.z + Math.cos(c.h) * 0.5, vx: Math.sin(c.h) * 1.5, vy: -9, vz: Math.cos(c.h) * 1.5, spin: 0, holder: null }; sfx.play('tap'); } }, 950 / ((DBG && DBG.speed) || 1));
-    }
+    function celebrate(c) { funCelebrate(c); }
     function nm(p) { return p && p.sq ? shortName(p.sq.name) : p && p.side === 1 ? AWAY.abbr + ' #' + p.num : 'he'; }
 
     // ---------- end of a play ----------
@@ -4164,15 +4267,21 @@ gl_FragColor=vec4(c,1.0);}`;
             else line = `<b>${esc(nm(rus || carrier))}</b> punches it in from ${yd(gained)} out!`;
             addHL(P.caught ? `${nm(passer)} ${gained}-yd TD to ${nm(rec)}` : `${nm(rus || carrier)} ${gained}-yd TD run`);
             markBig('td');
+            if (P.scoop && carrier) { const big = carrier.role === 'OL'; head = big ? 'BIG MAN TOUCHDOWN!' : 'SCOOP AND SCORE!'; moment(big ? 'bigman' : 'scoop6', carrier, big ? 'BIG MAN TOUCHDOWN!' : 'SCOOP AND SCORE!', { a: carrier, victim: 'away', col: '#2bd46b', snd: 'good' }); }
+            benchParty(0);
           }
           closeP = carrier; if (carrier) celebrate(carrier);
           confetti(carrier ? carrier.x : 0, 100); clockRun = false; cam.kick = 1;
         } else if (kind === 'pick6') {
-          addPts('away', 7); head = 'PICK SIX'; sub = `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = ['home', null, 'ko']; clockRun = false;
-          line = `Intercepted and returned for a touchdown by <b>${esc(AWAY.abbr)} #${P.int ? P.int.num : ''}</b>.`; TS.turnovers++; markBig('int');
+          addPts('away', 7); head = P.scoop ? 'FUMBLE SIX' : 'PICK SIX'; sub = `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = ['home', null, 'ko']; clockRun = false;
+          const sc = P.scoop || P.int; line = `${P.scoop ? 'Scooped' : 'Intercepted'} and returned for a touchdown by <b>${esc(AWAY.abbr)} #${sc ? sc.num : ''}</b>.`; TS.turnovers++; markBig('td');
+          const bigD = P.scoop && P.scoop.role === 'DL';
+          moment(bigD ? 'bigman' : P.scoop ? 'fumble6' : 'pick6', carrier || sc, bigD ? 'BIG MAN TOUCHDOWN!' : P.scoop ? 'FUMBLE SIX!' : 'PICK SIX!', { a: carrier || sc, b: carrier || sc, victim: 'home', col: '#ff3344' });
+          if (carrier) { closeP = carrier; carrier.celType = (crand() * 5) | 0; carrier.celAt = 0.5; }
+          benchParty(1);
         } else if (kind === 'intdown') {
           const s = clamp(Math.round(100 - spot), 1, 99); nx.next = tryMode ? ['cpu', 25, 'ko'] : ['cpu', s]; clockRun = false;
-          head = 'INTERCEPTED'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++;
+          head = P.scoop || P.fumble ? 'FUMBLE LOST' : 'INTERCEPTED'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++;
           line = `<b>${esc(nm(passer))}</b> is picked off${P.tgt ? ' going for ' + esc(nm(P.tgt)) : ''}.`; markBig('int');
         } else if (kind === 'fumlost') {
           const s = clamp(Math.round(100 - spot), 1, 99); nx.next = tryMode ? ['cpu', 25, 'ko'] : ['cpu', s]; clockRun = false;
@@ -4202,6 +4311,7 @@ gl_FragColor=vec4(c,1.0);}`;
               if (carrier && kind !== 'sack') closeP = carrier;
             } else nx.down = down + 1;
             if (tryMode) { head = 'TWO-POINT TRY FAILS'; col = '#ff3344'; nx.next = ['cpu', 25, 'ko']; }
+            else if (P.regain) { nx.down = 1; nx.fdz = Math.min(nx.los + 10, 100); head = 'BALL\'S BACK!'; col = '#2bd46b'; sub = 'Your defense... er, offense, recovers'; }
           }
         }
         if (!nx.next && nx.down > 4) { nx.next = ['cpu', clamp(Math.round(100 - nx.los), 1, 99)]; clockRun = false; head = 'TURNOVER ON DOWNS'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++; }
@@ -4213,7 +4323,7 @@ gl_FragColor=vec4(c,1.0);}`;
             if (recS) { recS.rec++; recS.recYds += gained; recS.yac += Math.max(0, Math.round(endZ - (P.catchZ || los))); recS.long = Math.max(recS.long, gained); if (kind === 'td') recS.recTD++; }
             TS.passYds += gained;
             if (gained >= 25 && kind !== 'td') { addHL(`${nm(passer)} ${gained}-yd strike to ${nm(rec)}`); markBig('big'); }
-            if (P.notes && P.notes.length && (P.notes[0] === 'TOE TAP!' || P.notes[0] === 'DIVING CATCH!' || P.notes[0] === 'HIGH-POINTED!')) { addHL(`${nm(rec)} ${P.notes[0].toLowerCase().replace('!', '')}`); markBig('big'); }
+            if (P.notes && P.notes.length && (P.wild || P.notes[0] === 'TOE TAP!' || P.notes[0] === 'DIVING CATCH!' || P.notes[0] === 'HIGH-POINTED!')) { addHL(`${nm(rec)} ${P.notes[0].toLowerCase().replace('!', '')}`); markBig('big'); }
           } else if (P.kind === 'rush' && rus && kind !== 'sack') {
             if (rusS) { rusS.rushAtt++; rusS.rushYds += gained; rusS.long = Math.max(rusS.long, gained); if (kind === 'td') rusS.rushTD++; }
             TS.rushYds += gained;
@@ -4222,10 +4332,13 @@ gl_FragColor=vec4(c,1.0);}`;
         }
       }
       if (P.cov && line && !ko && kind !== 'td') line += ` <span style="color:#6f7584">vs ${esc(P.cov)}</span>`;
+      perkHook('end', null, kind, P, gained, nx);
+      if (FUN.line) { line = (line ? line + ' ' : '') + FUN.line; FUN.line = ''; }
+      FUN.plays++; FUN.thisPlay = 0;
       // the clock: after an in-bounds play it runs 4 more seconds of the dead ball, then stops until the snap
       runoff = clockRun ? RUNOFF : 0;
       pend = nx; deadTot = deadT;
-      if (closeP) { closeP.hold = true; deadT += 0.6; deadTot = deadT; }
+      if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : 0.6; deadTot = deadT; }
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
       if (lastBig && lastBig.kind === 'td') { deadT += 0.3; deadTot = deadT; }
       banner(head, sub, col);
@@ -4255,7 +4368,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function startDrive(yd) {
       los = clamp(Math.round(yd), 1, 99); down = 1; fdz = Math.min(los + 10, 100); tryMode = false; go4 = false;
-      driveStart = los; drivePlays = 0; clockRun = false; poss = 'home';
+      driveStart = los; drivePlays = 0; clockRun = false; poss = 'home'; perkHook('drive');
       toPre(true);
     }
     function startIntro() {
@@ -4300,7 +4413,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // (strength curved and capped so each level sits in its range: about 1.8 / 2.5 / 3.9 / 4.8 points per full drive; the CPU gets 6-9
     // drives a game, more when the player's drives stall)
     const CSc = Math.pow(CS, 1.8) * 0.8;
-    const CD = { g: lerp(6.0, 8.6, CSc), big: lerp(0.085, 0.19, CSc), loss: lerp(0.13, 0.055, CSc), to: lerp(0.034, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.17, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
+    const CD = { g: lerp(5.7, 8.6, CSc), big: lerp(0.075, 0.19, CSc), loss: lerp(0.14, 0.055, CSc), to: lerp(0.038, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.18, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
     function simCpu(spot, clk, log) {
       const start = spot; let dn = 1, fd = spot + 10, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
@@ -4360,8 +4473,9 @@ gl_FragColor=vec4(c,1.0);}`;
         d.shown = true; clock = d.r.t;
         if (d.r.res === 'TD') { addPts('away', 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
         else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') { sfx.play('good'); excite = 0.6; } else sfx.play('whistle');
+        const fz = funCpu(d.r); if (fz) { moment(fz[0], null, fz[1], { victim: 'away', replay: false, snd: fz[0] === 'cpudoink' ? 'doink' : 'ooh', line: funLine(fz[0]) }); d.fl = FUN.line; FUN.line = ""; FUN.plays++; FUN.thisPlay = 0; }
         drawCard(); boardDirty = true;
-        say(d.r.res === 'TD' ? `<b>${esc(AWAY.name)}</b> score a touchdown.` : d.r.res === 'FG' ? `<b>${esc(AWAY.name)}</b> kick a field goal.` : d.r.res === 'PUNT' ? `<b>${esc(AWAY.name)}</b> punt it away.` : d.r.res === 'CLOCK' ? 'Time runs out on the drive.' : 'Your defense comes up with the ball!');
+        say((d.r.res === 'TD' ? `<b>${esc(AWAY.name)}</b> score a touchdown.` : d.r.res === 'FG' ? `<b>${esc(AWAY.name)}</b> kick a field goal.` : d.r.res === 'PUNT' ? `<b>${esc(AWAY.name)}</b> punt it away.` : d.r.res === 'CLOCK' ? 'Time runs out on the drive.' : 'Your defense comes up with the ball!') + (d.fl ? ' ' + d.fl : ''));
       } else if (!d.shown && ((d.t * 8) | 0) !== ((d.t - dt) * 8 | 0)) drawCard();
       if (d.shown && d.t >= d.dur + 2.1) {
         d.el.remove(); cpuD = null;
@@ -4369,7 +4483,7 @@ gl_FragColor=vec4(c,1.0);}`;
         let cont;
         if (r.res === 'TD' || r.res === 'FG') cont = () => goHome(null, true);
         else if (r.res === 'MISS') cont = () => goHome(clamp(107 - sp, 20, 80));
-        else if (r.res === 'PUNT') cont = () => goHome(18 + Math.floor(rng() * 17));
+        else if (r.res === 'PUNT') cont = () => goHome(r.shank ? 42 + Math.floor(rng() * 12) : 18 + Math.floor(rng() * 17));
         else if (r.res === 'CLOCK') cont = () => startCpuDrive(sp);
         else cont = () => goHome(clamp(100 - sp, 15, 70));
         if (clock <= 0 || r.res === 'CLOCK') endQuarter(cont); else cont();
@@ -4439,6 +4553,541 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
 
+    // ---------- crazy moments ----------
+    // Big hits that launch a ragdoll, truck sticks, ankle breakers, bloopers, scoops, doinks and celebrations. Each one is visible on
+    // the field, pops a big label, gets a crowd reaction and a camera hit, adds a highlight line and (when it is big) a replay.
+    // A budget keeps them to about one every 3-5 plays, and the bloopers land on both teams.
+    const FUN = { plays: 0, last: -9, n: 0, thisPlay: 0, counts: {}, victim: { home: 0, away: 0 }, blooper: { home: 0, away: 0 }, line: '', lastRep: -9, log: [], celebs: {} };
+    // bloopers (things that go wrong) are counted per team: they should land on both about as often
+    const BLOOP = { whiff: 1, decleat: 1, fumble: 1, friendly: 1, shank: 1, doink: 1, helmet: 1, pick6: 1, fumble6: 1, bigman: 1, cpudoink: 1, cpushank: 1, cpufumble: 1, cpupick: 1 };
+    const funForced = (k) => !!(DBG && DBG.forceFun && (DBG.forceFun === k || DBG.forceFun === '*'));
+    // how much the budget wants a moment right now: hardly any right after one, a lot after a quiet stretch
+    function funGate() {
+      if (DBG && DBG.fun === 0) return 0;
+      if (FUN.thisPlay >= 2) return 0.04;
+      const s = FUN.plays - FUN.last;
+      return s < 1 ? 0.04 : s < 2 ? 0.1 : s < 3 ? 0.35 : s < 5 ? 0.8 : 1.4;
+    }
+    function funRoll(k, p) { if (funForced(k)) return true; if (DBG && DBG.forceFun) return false; return rng() < p * funGate(); }
+    const FUNL = {
+      trucked: ['{a} runs right through {b}. Somebody get the license plate!', '{a} TRUCKS {b}. That man has a family!', '{b} tried to tackle {a}. {b} regrets that.', 'Bowling ball, meet pin: {a} sends {b} flying.'],
+      whiff: ['{b} dives at {a} and hugs nothing but grass. WHIFF!', '{b} whiffs so hard his helmet spins.'],
+      plant: ['{a} plants {b} in the turf with a stiff arm. He may still be down there.', 'Truck stick! {a} puts {b} in the ground.', '{a} with the stiff arm: {b} sees the sky.'],
+      decleat: ['{b} DE-CLEATS {a}! His shoes are still at the 30.', '{a} gets launched by {b}. Is he OK? He is OK.', 'Ooof. {b} sends {a} into orbit.'],
+      ankles: ['{a} breaks {b}\'s ankles. Somebody call a doctor.', '{b} is on the ground and {a} never touched him.', 'ANKLES! {b} needs new shoes after that one.', '{a} sends {b} to the shadow realm.'],
+      hurdle: ['{a} goes right over the top of {b}!', '{a} hurdles {b} like it is track practice.'],
+      catch: ['{a} catches it with everybody in the way. How?!', '{a} out-jumps the whole defense!', 'Did {a} just catch that? He did.'],
+      fumble: ['The ball pops loose! Scramble!', 'BUTTERFINGERS! It is on the ground!', 'Big hit, ball out, everybody dives!'],
+      pile: ['A pile of bodies and somebody comes up with it.', 'Everybody jumps on the pile. Nobody is getting up soon.'],
+      bigman: ['BIG MAN TOUCHDOWN! {a} rumbles all the way!', '{a} scoops it and the big fella is GONE. Lineman dreams come true.', 'Somebody get {a} an oxygen tank. BIG MAN TOUCHDOWN!'],
+      fumble6: ['Scoop and score for {b}. Ouch.', '{b} picks it up and takes it to the house. Fumble six!'],
+      pick6: ['Picked off and taken to the house. The other bench goes wild.', 'Pick six! {b} high-steps the last ten yards.'],
+      friendly: ['FRIENDLY FIRE! {a} and {b} take each other out.', '{a} and {b} run into each other. Teamwork makes the dream work.', 'Two of them, one runner, zero tackles. Friendly fire!'],
+      ref: ['The ref gets bowled over! He is fine. His hat is not.', 'Somebody help the umpire up. He did not sign up for that.', 'The ref is down! Flag on... gravity?'],
+      shank: ['SHANKED! That one is headed for the parking lot.', 'Oh no. That kick went sideways. Way sideways.'],
+      doink: ['DOINK! Right off the upright!', 'You can hear that one from the parking lot. DOINK!'],
+      doinkin: ['DOINK... AND IN! It bounces off the post and through!', 'Off the upright and IN! The kicker cannot believe it.'],
+      helmet: ['Off the helmet and into somebody\'s hands. Football is weird.', 'BONK! The ball caroms off a helmet and is still alive!', 'OFF THE HELMET! Physics just took over.'],
+      houdini: ['{a} spins out of a sure sack. HOUDINI!', '{b} had him. {a} said no.', '{a} escapes! Where did he go?'],
+      cpudoink: ['Their kicker DOINKS it off the upright. No good!'],
+      cpushank: ['Their punter shanks it out of bounds. Gift wrapped!'],
+      cpufumble: ['They fumble the snap! Your defense pounces on it.', 'BUTTERFINGERS! Their running back drops it and your defense falls on it.'],
+      cpupick: ['Your defense jumps the route. PICKED!'],
+    };
+    function funLine(k, a, b) {
+      const L = FUNL[k]; if (!L) return '';
+      const s = L[(crand() * L.length) | 0];
+      return s.replace(/\{a\}/g, '<b>' + esc(nm(a)) + '</b>').replace(/\{b\}/g, '<b>' + esc(nm(b)) + '</b>');
+    }
+    function bigPop(p, txt, col, sub) {
+      const s = p ? project(p.x, 1.6, p.z) : null;
+      const e = el('div', 'bz-pop bz-big', esc(txt) + (sub ? `<small>${esc(sub)}</small>` : '')); e.style.color = col || '#ffc21a';
+      e.style.left = clamp(s ? s[0] : cssW / 2, 90, cssW - 90) + 'px'; e.style.top = clamp(s ? s[1] - 72 : cssH * 0.4, 60, cssH - 60) + 'px';
+      fx.appendChild(e); setTimeout(() => e.remove(), (DBG && DBG.popHold) || 1750);
+    }
+    // a moment: count it, show it, shout about it and maybe queue a replay. o = { a, b, victim: 'home'|'away', col, snd, cheer, kick, shake, replay }
+    function moment(k, p, label, o) {
+      o = o || {};
+      FUN.counts[k] = (FUN.counts[k] || 0) + 1; FUN.n++; FUN.thisPlay++; FUN.last = FUN.plays;
+      if (o.victim) { FUN.victim[o.victim]++; if (BLOOP[k]) FUN.blooper[o.victim]++; }
+      FUN.log.push({ k, play: FUN.plays, label });
+      bigPop(p, label, o.col || '#ffc21a', o.sub);
+      sfx.play(o.snd || 'ooh'); if (o.cheer !== false) sfx.play(o.victim === 'home' ? 'boo' : 'cheer');
+      excite = Math.min(1, excite + 0.55);
+      cam.kick = Math.max(cam.kick, o.kick == null ? 0.9 : o.kick); cam.shake = Math.max(cam.shake, o.shake == null ? 0.4 : o.shake);
+      const ln = o.line || funLine(k, o.a || p, o.b);
+      if (ln) { FUN.line = ln; if (HL.length < 9) addHL(ln.replace(/<[^>]*>/g, '')); }
+      // big ones get a replay (not two plays in a row), starting a beat before the moment
+      if (o.replay !== false && phase === 'live' && FUN.plays - FUN.lastRep >= 4 && replayBuf.length > 20) {
+        FUN.lastRep = FUN.plays;
+        if (!lastBig || lastBig.kind !== 'td') lastBig = { kind: 'fun', played: false, want: true, from: replayBuf.length - 55 };
+        else lastBig.from = Math.min(lastBig.from == null ? 1e9 : lastBig.from, replayBuf.length - 55);
+      }
+    }
+    // a launched body: the hit sends him up and over (a ragdoll with a big upward kick)
+    function launch(p, nx, nz, k, getup) {
+      knockDown(p, [nx * 4 * k, 4.5 * k, nz * 4 * k], [nx * 4.5 * k, 7 * k, nz * 4.5 * k], getup == null ? 1.3 : getup);
+    }
+    const victimOf = (p) => (p && p.side === 0 ? 'home' : 'away');
+    // two teammates crash into each other at speed (called from collide for same-side bumps)
+    function funBump(a, b, rel) {
+      if (phase !== 'live' || a.rag || b.rag || a.extra || b.extra || rel < 4.2) return;
+      const c = carrier;
+      if (a.eng || b.eng || a.role === 'OL' && b.role === 'OL') return;
+      // the runner crashes into his own blocker: down he goes, tackled by his own man
+      if ((a === c || b === c) && c.side === 0 && !kick) {
+        const o = a === c ? b : a; if (o.rag || !funRoll('friendly', 0.7)) return;
+        finishTackle(c, o, 'hit', (c.x - o.x) / (dist(c, o) || 1), (c.z - o.z) / (dist(c, o) || 1), rel);
+        moment('friendly', c, 'FRIENDLY FIRE!', { a: c, b: o, victim: 'home', snd: 'clang', col: '#ff9a3c', line: `<b>${esc(nm(c))}</b> runs smack into his own blocker <b>${esc(nm(o))}</b>. Friendly fire!` });
+        return;
+      }
+      if (a === c || b === c) return;
+      // defenders converging on the ball carrier, or two receivers going for the same pass
+      const chase = c && c.side !== a.side && dist(a, c) < 4.5 && dist(b, c) < 4.5;
+      const hunt = ball && ball.st === 'air' && a.side === 0 && isRec(a) && isRec(b) && ball.cp && Math.hypot(ball.cp.x - a.x, ball.cp.z - a.z) < 4;
+      if (!chase && !hunt) return;
+      if (!funRoll('friendly', 0.55)) return;
+      const nx = (a.x - b.x) / (dist(a, b) || 1), nz = (a.z - b.z) / (dist(a, b) || 1);
+      knockDown(a, [nx * 2, 0.6, nz * 2], [nx * 2.4, 2.2, nz * 2.4], 1.4); knockDown(b, [-nx * 2, 0.6, -nz * 2], [-nx * 2.4, 2.2, -nz * 2.4], 1.4);
+      a.tried = b.tried = 1; sfx.play('tackle');
+      if (hunt && ball && ball.st === 'air' && !ball.killed) { ball.vx *= 0.3; ball.vz *= 0.3; }
+      moment('friendly', a, 'FRIENDLY FIRE!', { a, b, victim: victimOf(a), snd: 'clang', col: '#ff9a3c' });
+    }
+    // the carrier (or a man chasing him) runs into an official
+    function funRef(dt) {
+      if (!extras.length || !carrier || carrier.rag || phase !== 'live') return;
+      const c = carrier;
+      for (const r of extras) {
+        if (!r.ref || r.rag || r.ref === 'HL' || r.ref === 'LJ' || r.bowled) continue;
+        const d = Math.hypot(r.x - c.x, r.z - c.z), sp = Math.hypot(c.vx, c.vz);
+        // an official who wanders into the runner's lane when the budget wants a laugh
+        const wd = r.wander === FUN.plays + 1; if (!wd && d < 7 && d > 2.5 && sp > 4 && ((c.vx * (r.x - c.x) + c.vz * (r.z - c.z)) / (d * sp)) > 0.75 && funRoll('ref', 0.12)) r.wander = FUN.plays + 1;
+        if (r.wander === FUN.plays + 1) { r.x += (c.x + c.vx * 0.3 - r.x) * Math.min(1, dt * 3); r.z += (c.z + c.vz * 0.3 - r.z) * Math.min(1, dt * 3); }
+        if (d < 0.75 && sp > 2.5 && r.wander !== FUN.plays + 1 && r.dodged !== FUN.plays && !funRoll('ref', 0.4)) { r.dodged = FUN.plays; r.x += (r.x >= c.x ? 1 : -1) * 1.1; continue; } // he hops out of the way (most of the time)
+        if (d < 0.75 && sp > 2.5 && r.dodged !== FUN.plays) {
+          r.bowled = true; r.wander = 0;
+          const nx = (r.x - c.x) / (d || 1), nz = (r.z - c.z) / (d || 1);
+          launch(r, nx, nz, 0.8, 2.2); c.stumbleT = Math.max(c.stumbleT, 0.3); c.vx *= 0.85; c.vz *= 0.85;
+          moment('ref', r, 'REF DOWN!', { a: c, snd: 'tackle', col: '#f2f4f7' });
+          break;
+        }
+      }
+    }
+    // the pile on a loose ball: everybody close dives on it
+    function funPile(b, winner) {
+      let n = 0;
+      for (const p of everyone) { if (p === winner || p.rag || p.rising > 0) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < 3.4) { const nx = (b.x - p.x) / (d || 1), nz = (b.z - p.z) / (d || 1); knockDown(p, [nx * 3.5, 1.2, nz * 3.5], [nx * 2, 1.4, nz * 2], 1.8); n++; } }
+      if (n >= 2) bigPop(winner, 'PILE UP!', '#ff9a3c');
+      return n;
+    }
+    // touchdown celebrations: spike, dance, point, flex, or a leap into the stands from near the sideline
+    function funCelebrate(c) {
+      if (!c) return;
+      const nearSide = Math.abs(c.x) > HW - 9;
+      let t = DBG && DBG.celType != null ? DBG.celType : (crand() * 6) | 0; if (t === 5 && !nearSide && !(DBG && DBG.celType === 5)) t = 4;
+      c.celType = t === 5 ? 0 : t; c.celAt = 0.55; c.leap = t === 5 ? { t: 0, sx: Math.sign(c.x) || 1 } : null;
+      const L = ['', 'THE SPIKE!', '', '', 'DANCE PARTY!', 'INTO THE STANDS!'][t];
+      FUN.celebs[t] = (FUN.celebs[t] || 0) + 1;
+      if (L) setTimeout(() => { if (!finished && (phase === 'dead' || phase === 'replay')) bigPop(c, L, '#2bd46b'); }, 700 / ((DBG && DBG.speed) || 1));
+      if (t === 1) setTimeout(() => { if (ball && ball.holder === c && (phase === 'dead' || phase === 'replay')) { ball = { st: 'dead', x: c.x + Math.sin(c.h) * 0.5, y: 1.6, z: c.z + Math.cos(c.h) * 0.5, vx: Math.sin(c.h) * 1.5, vy: -9, vz: Math.cos(c.h) * 1.5, spin: 0, holder: null }; sfx.play('tap'); } }, 950 / ((DBG && DBG.speed) || 1));
+    }
+    // the scorer runs for the wall and jumps into the front row
+    function leapStep(c, dt) {
+      const L = c.leap; if (!L || c.rag) return;
+      L.t += dt;
+      const wx = L.sx * (HW + 6.8), d = Math.abs(wx - c.x);
+      if (!L.up) {
+        if (c.pose !== 'run') setPose(c, 'run', true);
+        c.vx = L.sx * 7.5; c.vz *= 0.9; c.h = Math.atan2(c.vx, 0.01);
+        if (d < 2.4 || L.t > 2.6) { L.up = 1; c.jumpV = 7.4; c.jumpY = 0.01; c.jumpT = 0.9; setPose(c, 'jump', true); sfx.play('cheer'); FUN.counts.leap = (FUN.counts.leap || 0) + 1; }
+      } else {
+        c.vx = L.sx * 3; if (c.jumpV < 0 && c.jumpY < 1.9) { c.jumpY = 1.9; c.jumpV = 0; c.jumpT = 0; c.vx = 0; c.vz = 0; if (c.pose !== 'celebrate') { c.celType = 0; setPose(c, 'celebrate', true); } }
+      }
+    }
+    // bench party: the scoring side's bench pours toward the sideline jumping around
+    function benchParty(side) {
+      for (const p of extras) { if (p.ref || p.crew || p.coach || p.side !== side) continue; p.party = 3.2; p.celType = (crand() * 4) | 0; setPose(p, 'celebrate'); }
+    }
+    // CPU drives are simulated: their bloopers show on the drive card with a big pop
+    function funCpu(r) {
+      const R = r.res;
+      if (R === 'MISS' && rng() < 0.45) return ['cpudoink', 'DOINK!'];
+      if (R === 'FUMBLE') return ['cpufumble', 'BUTTERFINGERS!'];
+      if (R === 'INT') return ['cpupick', 'PICKED!'];
+      if (R === 'PUNT' && rng() < 0.08 * funGate()) { r.shank = true; return ['cpushank', 'SHANKED PUNT!']; }
+      return null;
+    }
+
+    // ---------- card perks: every card type does one thing on the field ----------
+    // fx.perk (the variant id, or the set id for set cards) and fx.perkLv (1..7) come with each Lineup player; older data falls back to
+    // the variant / set and the rarity. Strength x (1 + 0.25 (lv - 1)), cooldowns / the same, level 6+ has no cooldowns or limits.
+    // Each perk pops its name when it fires. They only ever help (or are a coin flip), and none of them stops the clock.
+    const PKN = {
+      base: ['Try Hard', 'Base'], team: ['Team Spirit', 'Team Colors'], silver: ['Shiny Hands', 'Silver'], action: ['Motion Blur', 'Action Shot'],
+      'spec-td': ['End Zone Magnet', 'TD Maker'], 'spec-pass': ['Laser Arm', 'Gunslinger'], 'spec-int': ['Sticky Gloves', 'Ball Hawk'], 'spec-def': ['Steam Engine', 'Lockdown'],
+      'spec-play': ['Highlight Hunter', 'Playmaker'], gold: ['Golden Spiral', 'Gold'], holo: ['Afterimage', 'Holo'], spec: ['Signature Move', 'Signature'],
+      legend: ['Old Pro', 'Legend'], allstar: ['Showtime', 'All-Star'], clutch: ['Ice Cold', 'Clutch'], icon: ['Spotlight', 'Icon'], bench: ['Nap Time', 'Benchwarmer'],
+      trophy: ['Everybody Wins', 'Participation Trophy'], pizza: ['Extra Cheese', 'Pizza Friday'], cutout: ['Flat Out', 'Cardboard Cutout'], bobble: ['Wobble Head', 'Bobblehead'],
+      pixel: ['8-Bit Runner', '8-Bit'], snow: ['Snow Day', 'Snow Day'], upside: ['Topsy-Turvy', 'Upside Down'], duck: ['Squeaky', 'Rubber Ducky'], built: ['Bulldozer', 'Built Different'],
+      throwback: ['Leather Helmet', 'Throwback'], spooky: ['Boo!', 'Spooky'], glitch: ['Lag Spike', 'Glitch'], goat: ['GOAT Aura', 'The GOAT 1/1'], mythic: ['Slow-Mo', 'Mythic 1/1'],
+      dark: ['Gravity Well', 'Dark Matter 1/1'], doh: ['Big Doh Mi', 'Big Doh Mi'], skinny: ['Sideways', 'Skinny'], heavy: ['Earthquake', 'Heavyweight'], tall: ['Sky Grab', 'Tall Order'],
+      short: ['Duck Under', 'Short King'], beanpole: ['Noodle Arms', 'Beanpole'], stout: ['Fire Hydrant', 'Stout'], giant: ['Eclipse', 'Giant'], pocket: ['Launch Pad', 'Pocket Rocket'],
+      'picture-day': ['Say Cheese', 'Picture Day'], 'hall-pass': ['Hall Pass', 'Hall Pass'], 'gym-class': ['Dodgeball', 'Gym Class'], 'science-fair': ['Calculated', 'Science Fair'],
+      library: ['Quiet Feet', 'Library Hush'], 'bus-ride': ['Late Bus', 'Bus Ride'], 'pajama-day': ['Sleepwalker', 'Pajama Day'], 'crazy-hair': ['Hair Tangle', 'Crazy Hair Day'],
+      'twin-day': ['Seeing Double', 'Twin Day'], 'pep-rally': ['Megaphone', 'Pep Rally'], homecoming: ['Slow Dance', 'Homecoming'], 'color-war': ['Paint Splat', 'Color War'],
+      halloween: ['Trick or Treat', 'Halloween Bowl'], turkey: ['Drumstick Stiff-Arm', 'Turkey Bowl'], christmas: ['Present Drop', 'Christmas Bowl'], spring: ['Spring Step', 'Spring Bowl'],
+      super: ['Big Game', 'Super Bowl'], 'new-year': ['Countdown', 'New Year'], galaxy: ['Zero Gravity', 'Galaxy'], ocean: ['Riptide', 'Deep Ocean'], jungle: ['Vine Swing', 'Jungle'],
+      volcano: ['Eruption', 'Volcano'], arctic: ['Ice Trail', 'Arctic'], desert: ['Sandstorm', 'Desert Storm'], chalkboard: ['Draw It Up', 'Chalkboard'], blueprint: ['By The Plans', 'Blueprint'],
+      comic: ['KA-POW', 'Comic Book'], graffiti: ['Tagged', 'Graffiti'], 'stained-glass': ['Glass Act', 'Stained Glass'], origami: ['Paper Airplane', 'Origami'], neon: ['Glow Up', 'Neon Nights'],
+      'pixel-plus': ['Extra Life', 'Pixel Pro'], 'high-score': ['Combo Meter', 'High Score'], circuit: ['Short Circuit', 'Circuit Board'], hologram: ['Flicker', 'Hologram'], vhs: ['Rewind', 'VHS Tape'],
+      thunder: ['Thunderclap', 'Thunderstruck'], 'rainy-day': ['Mudder', 'Rainy Day'], sunshine: ['Solar Power', 'Sunshine'], tornado: ['Spin Cycle', 'Tornado'], rainbow: ['Rainbow Arc', 'Rainbow'],
+      blizzard: ['Whiteout', 'Blizzard'], cereal: ['Breakfast Boost', 'Cereal Box'], nachos: ['Cheesy Grip', 'Nacho Day'], donut: ['Sugar Rush', 'Donut Run'], 'hot-sauce': ['Hot Feet', 'Hot Sauce'],
+      popcorn: ['Kernel Pop', 'Popcorn'], smoothie: ['Smooth Moves', 'Smoothie'], highlight: ['Instant Replay', 'Highlight Reel'], 'film-room': ['Studied Tape', 'Film Room'],
+      playbook: ['Audible', 'Playbook'], captains: ['Captain\'s Call', 'Captains'], 'all-mfl': ['Swiss Army', 'All-MFL'], 'hall-of-fame': ['Bronze Statue', 'Hall of Fame'],
+    };
+    const PK_RAR = { common: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, dark: 6, doh: 7 }, PK_PAR = { base: 1, silver: 2, gold: 3, prism: 4, black: 5 };
+    const PK = { t: 0, n: 0, fired: {}, log: [], st: {}, lastPop: {}, playN: 0, driveN: 0, h2: 0, list: [], ev: null, splats: [], slowT: 0, trophyNext: 0, captain: 0, bronze: 0, bronzeDrive: -1, lastPlayId: null, force: 0 };
+    // the perk on this player's card (only the player's own team carries cards)
+    function pkOf(p) {
+      if (!p || p.side !== 0) return null;
+      if (p.pkFx === p.fx) return p.pk;
+      p.pkFx = p.fx; p.pk = null;
+      const f = p.fx; if (!f) return null;
+      const id = f.perk && PKN[f.perk] ? f.perk : f.set && PKN[f.set] ? f.set : PKN[f.variant] ? f.variant : null;
+      if (!id) return null;
+      const lv = clamp(Math.round(+f.perkLv || (f.set && f.par ? PK_PAR[f.par] : PK_RAR[f.rarity]) || 1), 1, 7), S = 1 + 0.25 * (lv - 1);
+      p.pk = { id, lv, S, nocd: lv >= 6, name: PKN[id][0], label: PKN[id][1], key: p.sq ? 'q' + (p.sq.pid != null ? p.sq.pid : p.sq.name) : 'k' + p.key };
+      return p.pk;
+    }
+    const pst = (p) => PK.st[p.pk.key] || (PK.st[p.pk.key] = {});
+    // limits: 'play' | 'drive' | 'half' | 'game', or a cooldown in seconds of play (divided by the level factor)
+    function use(p, scope, tag) {
+      const P = p.pk; if (!P) return false;
+      if (P.nocd || PK.force) return true;
+      const s = pst(p), k = 'u' + (tag || '');
+      if (typeof scope === 'number') { const cd = scope / P.S; if (s[k] != null && PK.t - s[k] < cd) return false; s[k] = PK.t; return true; }
+      const cur = scope === 'play' ? PK.playN : scope === 'drive' ? PK.driveN : scope === 'half' ? (qtr <= 2 ? 1 : 2) : 0;
+      if (s[k + scope] === cur) return false; s[k + scope] = cur; return true;
+    }
+    const chance = (p, c) => PK.force || rng() < Math.min(0.97, c * p.pk.S);
+    const PKCOL = { pizza: '#ffb02e', duck: '#ffe14d', glitch: '#39ff88', snow: '#d9f2ff', dark: '#b07cff', goat: '#ffd23f', doh: '#ffd23f', spooky: '#cc99ff', icon: '#fff6c2', thunder: '#9fd8ff', rainbow: '#ff7ad9', 'color-war': '#ff4fa3', volcano: '#ff6a2b', 'hot-sauce': '#ff3b2b', arctic: '#bfe9ff', galaxy: '#b9a3ff', neon: '#3dfcff' };
+    function sparkle(p, col, n) {
+      const c = hex(col) || [1, 1, 1, 1];
+      for (let i = 0; i < (n || 14); i++) { const a = crand() * 6.283, v = 1.5 + crand() * 3; parts.push({ x: p.x, y: 1.4 + (p.jumpY || 0), z: p.z, vx: Math.cos(a) * v, vy: 2 + crand() * 4, vz: Math.sin(a) * v, life: 0.7 + crand() * 0.6, c, r: crand() * 6 }); }
+    }
+    // the perk fires: count it, pop its name over him (always-on perks pop now and then, not every play), a little sound and sparkle
+    function fire(p, o) {
+      const P = p.pk; if (!P) return;
+      o = o || {};
+      PK.fired[P.id] = (PK.fired[P.id] || 0) + 1; PK.n++; PK.log.push(P.id); if (PK.log.length > 80) PK.log.shift();
+      if (o.quiet && PK.lastPop[P.id] != null && PK.t - PK.lastPop[P.id] < 25) return;
+      PK.lastPop[P.id] = PK.t;
+      const s = project(p.x, 2.3 + (p.jumpY || 0), p.z), col = PKCOL[P.id] || '#7cf0ff';
+      const e = el('div', 'bz-pop bz-perk', esc((o.txt || P.name).toUpperCase() + (o.txt ? '' : '!')) + `<small>${esc(P.label)}${P.lv > 1 ? ' · Lv ' + P.lv : ''}</small>`); e.style.color = col;
+      e.style.left = clamp(s ? s[0] : cssW / 2, 70, cssW - 70) + 'px'; e.style.top = clamp(s ? s[1] - 50 : cssH * 0.35, 56, cssH - 50) + 'px';
+      fx.appendChild(e); setTimeout(() => e.remove(), (DBG && DBG.popHold) || 1550);
+      sfx.play(o.snd || 'coin'); sparkle(p, col, o.n);
+    }
+    function boost(p, k, t) { (p.pkB || (p.pkB = [])).push({ k, t }); }
+    const nearDef = (p, r) => { let b = null, bd = r || 99; for (const d of def) { if (d.rag) continue; const dd = dist(d, p); if (dd < bd) { bd = dd; b = d; } } return b; };
+    const defsNear = (p, r) => def.filter((d) => !d.rag && dist(d, p) < r);
+    const shortYd = () => fdz - los <= 2 || los >= 95;
+    function perkList() { if (PK.ev !== everyone) { PK.ev = everyone; PK.list = everyone.filter((p) => pkOf(p)); } return PK.list; }
+    const has = (p, id) => !!(p && pkOf(p) && p.pk.id === id);
+
+    // ---------- events ----------
+    function perkHook(ev, a, b, c, d, e) {
+      if (ev === 'drive') { PK.driveN++; if (qtr >= 3) PK.h2++; if (PK.bronze) { PK.bronze = 0; PK.bronzeDrive = PK.driveN; } return false; }
+      if (ev === 'end') { perkEnd(b, c, d, e); return false; }
+      const L = perkList();
+      if (ev === 'snap') { perkSnap(L); return false; }
+      const p = a, P = pkOf(p);
+      switch (ev) {
+        case 'juke':
+          if (!P) return false;
+          if (P.id === 'holo') { const n = nearDef(p, 5); if (n) { n.stun = Math.max(n.stun, 0.5 * P.S); n.face2 = Math.atan2(p.x - n.x, p.z - n.z) + 1.2; } fire(p); }
+          else if (P.id === 'glitch' && use(p, 3)) { p.x = clamp(p.x + (p.mvSide || 1) * 1.0 * Math.min(1.6, P.S), -HW + 0.6, HW - 0.6); fire(p, { snd: 'zap' }); }
+          else if (P.id === 'spec' && use(p, 'game')) { for (const d of defsNear(p, 3.6)) { d.stun = Math.max(d.stun, DP.stun); d.stumbleT = 0.5; } fire(p); }
+          else if (P.id === 'graffiti') { const n = nearDef(p, 3.6); if (n && (n.stun > 0 || PK.force)) { n.spdK = (n.spdK || 1) * 0.8; fire(p, { quiet: true }); } }
+          return false;
+        case 'spin':
+          if (!P) return false;
+          if (P.id === 'tornado') { const n = nearDef(p, 2.8); if (n) knockDown(n, [n.vx * 0.3, 0, n.vz * 0.3], [(n.x - p.x) * 1.2, 0.6, (n.z - p.z) * 1.2], 0.9); p.mvT += 0.15 * P.S; boost(p, 1.15, 0.5); fire(p); }
+          else if (P.id === 'spec' && use(p, 'game')) { for (const d of defsNear(p, 3)) d.stun = Math.max(d.stun, DP.stun); fire(p); }
+          return false;
+        case 'broke': // b = the defender he got away from
+          if (P && P.id === 'graffiti' && b) { b.spdK = (b.spdK || 1) * 0.8; fire(p, { quiet: true }); }
+          return false;
+        case 'catch': perkCatchFx(p); return false;
+        case 'touch': perkTouch(p); return false;
+        case 'down': return perkDown(p);
+        case 'kick':
+          if (!P) return false;
+          if (P.id === 'science-fair' && use(p, 'half')) { b.acc = 0; b.pow = Math.max(b.pow || 0, 0.86); fire(p); }
+          else if (P.id === 'rainbow') { b.acc *= 1 - Math.min(0.85, 0.5 * P.S); fire(p, { quiet: true }); }
+          return false;
+        case 'block': perkBlock(p, b); return false;
+        case 'fumble': if (P && P.id === 'pixel-plus' && use(p, 'game')) { fire(p, { txt: '1UP! EXTRA LIFE', snd: 'coin' }); return true; } return false;
+        case 'drop': if (P && (P.id === 'pixel-plus' && use(p, 'game', 'd') || P.id === 'nachos')) { fire(p, P.id === 'nachos' ? {} : { txt: '1UP! EXTRA LIFE' }); return true; } return false;
+        case 'pick': { // a defender about to pick it off next to a Sticky Gloves man: he gets a hand in first
+          for (const q of L) if (q.pk.id === 'spec-int' && !q.rag && dist(q, p) < 3.2 && chance(q, 0.5)) { fire(q); return true; }
+          return false;
+        }
+        case 'dive': if (P && P.id === 'origami') { p.vx *= 1 + 0.25 * P.S; p.vz *= 1 + 0.25 * P.S; p.diveT += 0.12; fire(p); } return false;
+        case 'jump':
+          if (!P) return false;
+          if (P.id === 'galaxy') { p.jumpPow *= 1 + 0.15 * P.S; fire(p, { quiet: true }); }
+          else if (P.id === 'super' && (qtr >= 3 && Math.abs(hs - as) <= 7 || PK.force)) { p.jumpPow *= 1.3; fire(p, { quiet: true }); }
+          return false;
+        case 'oob': // a catch or a run right at the sideline: swing back in
+          if (P && P.id === 'jungle' && use(p, 'play')) { p.x = Math.sign(p.x) * (HW - 1.2); p.vx = -Math.sign(p.x) * Math.abs(p.vx) * 0.5; fire(p); return true; }
+          return false;
+      }
+      return false;
+    }
+    function perkSnap(L) {
+      const F = PK.force, pass = isPassPlay(play) || F, runP = !isPassPlay(play) || F;
+      for (const p of L) {
+        const P = p.pk, s = pst(p);
+        if (s.agiB) p.agi += s.agiB; // Instant Replay: +1 agility per long play, up to +3
+        if (PK.bronzeDrive === PK.driveN) { p.cat += 1; p.str += 1; p.agi += 1; p.v *= 1.01; }
+        switch (P.id) {
+          case 'base': if (s.tryhard || F) { s.tryhard = 0; boost(p, 1 + 0.15 * P.S, 2.5); fire(p, { snd: 'good' }); } break;
+          case 'spec-def': boost(p, 1 + 0.2 * P.S, 0.5); fire(p, { quiet: true }); break;
+          case 'bench': if (s.nap || F) { s.nap = 0; p.stun = Math.max(p.stun, 0.45); boost(p, 1 + 0.15 * P.S, 3); fire(p, { txt: 'Zzz... NAP TIME!' }); } break;
+          case 'bus-ride': if (use(p, 'drive', 'bus')) { p.stun = Math.max(p.stun, 0.3); s.bus = PK.playN; fire(p, { quiet: true }); } break;
+          case 'pajama-day': p.stun = Math.max(p.stun, 0.2); p.pkNoSlip = 1; fire(p, { quiet: true }); break;
+          case 'twin-day': if (pass) { for (const d of def) if (d.ass && d.ass.tgt === p || F && d === nearDef(p, 9)) d.stun = Math.max(d.stun, Math.min(1.2, 0.5 * P.S)); fire(p, { quiet: true }); } break;
+          case 'pep-rally': if (down >= 3 || F) { for (const o of off) if (o.role === 'OL') boost(o, 1.25, 0.8); for (const d of def) if (d.role === 'DL') d.stun = Math.max(d.stun, 0.25 * P.S); fire(p); } break;
+          case 'homecoming': if (qtr >= 3 && PK.h2 === 1 || F) { p.pkDance = 1; if (use(p, 'drive')) fire(p); } break;
+          case 'volcano': boost(p, 1 + 0.28 * P.S, 0.7); p.pkCool = 1; fire(p, { quiet: true }); break;
+          case 'blueprint': if (runP) { const n = nearDef(p, 4); if (n) n.stun = Math.max(n.stun, 0.6 * P.S); fire(p, { quiet: true }); } break;
+          case 'hologram': if (pass) { for (const d of def) if (d.ass && d.ass.tgt === p || F && d === nearDef(p, 9)) d.stun = Math.max(d.stun, Math.min(1.2, 0.5 * P.S)); fire(p, { quiet: true }); } break;
+          case 'sunshine': p.staK = (p.staK || 1) * 2; if (use(p, 'drive')) fire(p, { quiet: true }); break;
+          case 'cereal': if (qtr === 1 || F) { p.pkCereal = 1; if (use(p, 'drive')) fire(p); } break;
+          case 'film-room': if (PK.lastPlayId === play.id || F) { boost(p, 1 + 0.1 * P.S, 4); fire(p); } break;
+          case 'playbook': if ((p.R || F) && use(p, 'drive')) { const n = nearDef(p, 6); if (n) p.x = clamp(p.x + Math.sign(p.x - n.x || 1) * 1.8, -HW + 1, HW - 1); fire(p); } break;
+          case 'captains': if (PK.captain || F) { for (const o of off) o.sta = 1; fire(p); } break;
+          case 'all-mfl': if (p.role === 'QB') p.pkAcc = 0.9; else if (p.role === 'OL') p.str += 2 * P.S; else if (p.key === 'RB') p.v *= 1.02; else p.cat += 2 * P.S; fire(p, { quiet: true }); break;
+          case 'goat': if (use(p, 'drive')) fire(p, { snd: 'good' }); break;
+          case 'clutch': if (qtr === 2 || qtr >= 4 || hs < as || F) { p.pkClutch = 1; p.pkAcc = (p.pkAcc || 1) * 0.8; if (use(p, 'drive')) fire(p); } break;
+          case 'smoothie': p.acc *= 1 + 0.3 * P.S; if (F) fire(p, { quiet: true }); break;
+          case 'new-year': break;
+        }
+      }
+      if (PK.captain) PK.captain = 0;
+      if (PK.trophyNext) { PK.trophyNext = 0; for (const o of off) boost(o, 1.05, 3); }
+      PK.lastPlayId = play.id;
+    }
+    // a pass is thrown: returns a multiplier on the throw's error (smaller = more accurate)
+    function perkThrow(qb, spot, arcT, D) {
+      let k = qb.pkAcc || 1;
+      const P = pkOf(qb), L = leadFor(spot, arcT, 7), r = L ? L.r : nearestRec(spot.x, spot.z, 10), R = pkOf(r);
+      if (P) {
+        if (P.id === 'spec-pass' && D > 13.7) { k *= 0.55; PK.laser = 1; fire(qb); }
+        if (P.id === 'science-fair' && use(qb, 'half')) { k = 0; fire(qb); }
+        if (P.id === 'gold' && (pst(qb).gold || PK.force)) { pst(qb).gold = 0; k *= 0.3; fire(qb); }
+        if (P.id === 'rainbow' && arcT === 2) { PK.rainbow = 1; fire(qb); }
+      }
+      if (R) {
+        if (R.id === 'chalkboard' && use(r, 'drive')) { k = 0; fire(r); }
+        if (R.id === 'neon') { let sd = 99; for (const d of def) sd = Math.min(sd, dist(d, r)); if (sd > 2.6 || PK.force) { k *= 0.6; fire(r, { quiet: true }); } }
+      }
+      return k;
+    }
+    // a pass he gets his hands on: [catch chance bonus, no-drop]
+    function perkCatch(r, contest) {
+      const P = pkOf(r); let bonus = r.pkGoat ? 0.03 : 0, safe = false;
+      if (!P) return [bonus, safe];
+      const s = pst(r), b = ball;
+      switch (P.id) {
+        case 'silver': if (use(r, 'drive', 'sh')) { safe = true; r.pkFire = 1; } break;
+        case 'gold': if (s.gold) { s.gold = 0; safe = true; bonus += 0.1; r.pkFire = 1; } break;
+        case 'nachos': safe = true; r.pkFire = 1; break;
+        case 'homecoming': if (r.pkDance) { safe = true; bonus += 0.25; r.pkFire = 1; } break;
+        case 'spec-play': if (contest || r.diveT > 0) { bonus += 0.08 * P.S; r.pkFire = 1; } break;
+        case 'tall': if (b && b.y > 2.15) { bonus += 0.1 * P.S; r.pkFire = 1; } break;
+        case 'stained-glass': { let sd = 99; for (const d of def) sd = Math.min(sd, dist(d, r)); if (sd > 3) { bonus += 0.1 * P.S; r.pkFire = 1; } break; }
+        case 'christmas': if (s.gift === PK.playN - 1) { bonus += 0.08; r.pkFire = 1; } break;
+        case 'bobble': if (b && b.arc === 2) { bonus += 0.06 * P.S; r.pkFire = 1; } break;
+        case 'beanpole': if (r.diveT > 0) r.pkFire = 1; break;
+        case 'dark': if (target === r) { bonus += 0.05; r.pkFire = 1; } break;
+      }
+      if (PK.force && /^(silver|gold|homecoming|spec-play|tall|stained-glass|christmas|bobble|beanpole|dark)$/.test(P.id)) r.pkFire = 1;
+      return [bonus, safe];
+    }
+    // catch reach multiplier for his catch radius (cheap: precomputed each frame in perkStep)
+    function perkReach(p) {
+      const P = p.pk; if (!P || !ball || ball.st !== 'air') return 1;
+      switch (P.id) {
+        case 'spec-play': return p.diveT > 0 ? 1 + 0.15 * P.S : 1;
+        case 'bobble': return ball.arc === 2 ? 1.25 : 1;
+        case 'tall': return ball.y > 2.15 ? 1 + 0.12 * P.S : 1;
+        case 'beanpole': return p.diveT > 0 ? 1 + 0.5 * P.S : 1;
+        case 'christmas': return pst(p).gift === PK.playN - 1 ? 1.15 : 1;
+        case 'dark': return target === p ? 1.12 : 1;
+      }
+      return 1;
+    }
+    function perkCatchFx(r) {
+      const P = pkOf(r);
+      if (!P) return;
+      perkTouch(r);
+      const s = pst(r);
+      switch (P.id) {
+        case 'team': { let m = null, md = 99; for (const o of off) if (o !== r && !o.rag && dist(o, r) < md) { md = dist(o, r); m = o; } if (m) { boost(m, 1 + 0.12 * P.S, 2); sparkle(m, '#7cf0ff', 10); } fire(r); break; }
+        case 'picture-day': { const n = nearDef(r, 6); if (n) n.stun = Math.max(n.stun, 0.5 * P.S); fire(r, { snd: 'zap' }); break; }
+        case 'high-score': s.combo = (s.comboD === PK.driveN ? s.combo || 0 : 0) + 1; s.comboD = PK.driveN; if (s.combo >= 3) { boost(r, 1 + 0.12 * P.S, 9); fire(r, { txt: 'COMBO x' + s.combo + '!' }); } else fire(r, { txt: 'COMBO x' + s.combo, quiet: true }); break;
+        default: if (r.pkFire) fire(r);
+      }
+      r.pkFire = 0;
+    }
+    function perkTouch(p) {
+      const P = pkOf(p); if (!P) return;
+      const s = pst(p);
+      if (P.id === 'doh') { for (let i = 0; i < 24; i++) parts.push({ x: p.x + (crand() - 0.5) * 4, y: 5 + crand() * 3, z: p.z + (crand() - 0.5) * 4, vx: 0, vy: -2, vz: 0, life: 1.6, c: hex('#ffd23f'), r: crand() * 6 }); fire(p, { txt: '+100! BIG DOH MI', snd: 'coin' }); }
+      if (P.id === 'donut') { s.touch = (s.touch || 0) + 1; if (s.touch % 3 === 0 || P.nocd || PK.force) { boost(p, 1 + 0.2 * P.S, 2); fire(p); } }
+    }
+    // the down is over (tackled): a few perks move the spot. Returns true if it handled the play (it never does now)
+    function perkDown(c) {
+      const P = pkOf(c);
+      // Hair Tangle: whoever brought him down is slow to get up (the tackler is a defender near him)
+      if (P && c.side === 0) {
+        const s = pst(c);
+        switch (P.id) {
+          case 'throwback': c.contactZ = (c.contactZ || c.z) + 1 * P.S; if (c.rag) c.rag.pts[0][2] += 1 * P.S; fire(c, { quiet: true }); break;
+          case 'vhs': if ((c.z < los || PK.force) && use(c, 'game')) { c.contactZ = los; if (c.rag) for (const q of c.rag.pts) q[2] += los - c.z; fire(c, { txt: 'REWIND!', snd: 'zap' }); } break;
+          case 'rainy-day': if (shortYd() || PK.force) { c.contactZ = (c.contactZ || c.z) + 1; if (c.rag) c.rag.pts[0][2] += 1; fire(c); } break;
+          case 'crazy-hair': { for (const d of defsNear(c, 2.2).concat(def.filter((d) => d.rag && dist(d, c) < 2.2))) d.getup = (d.getup || 1) + 1.5 * P.S; fire(c, { quiet: true }); break; }
+          case 'christmas': s.gift = PK.playN; fire(c, { quiet: true }); break;
+          case 'bobble': fire(c, { txt: 'WOBBLE WOBBLE', quiet: true, snd: 'boing' }); break;
+        }
+      }
+      return false;
+    }
+    // a block: c = the defender he took on
+    function perkBlock(b, d) {
+      const P = pkOf(b); if (!P || !d) return;
+      switch (P.id) {
+        case 'cutout': if (use(b, 6) && chance(b, 0.3)) { knockDown(b, [0, -2, 0], [0, -1, 0], 0.12); d.stun = Math.max(d.stun, 0.4); fire(b, { snd: 'boing' }); } break;
+        case 'built': if (use(b, 4) && chance(b, 0.35)) { const nx = (d.x - b.x) / (dist(d, b) || 1), nz = (d.z - b.z) / (dist(d, b) || 1); knockDown(d, [nx * 4, 0.4, nz * 4], [nx * 2, 0.8, nz * 2], 1.2); fire(b); } break;
+        case 'heavy': if (use(b, 3)) { for (const q of everyone) if (q !== b && !q.rag && dist(q, b) < 3) q.stumbleT = Math.max(q.stumbleT, 0.5); cam.shake = Math.max(cam.shake, 0.35); fire(b, { snd: 'tackle' }); } break;
+        case 'stout': b.pkStout = 1; fire(b, { quiet: true }); break;
+        case 'comic': if (use(b, 3)) { d.x += (d.x - b.x) * 0.5; d.z += (d.z - b.z) * 0.8; d.stun = Math.max(d.stun, 0.3); fire(b, { snd: 'tackle' }); } break;
+        case 'color-war': if (use(b, 4)) { PK.splats.push({ x: d.x, z: d.z, t: PK.t, hit: [] }); for (let i = 0; i < 16; i++) parts.push({ x: d.x, y: 0.4, z: d.z, vx: (crand() - 0.5) * 4, vy: 2 + crand() * 2, vz: (crand() - 0.5) * 4, life: 1, c: hex(['#ff4fa3', '#3dfcff', '#ffe14d'][i % 3]), r: 0 }); fire(b, { quiet: true }); } break;
+        case 'team': { let m = null, md = 99; for (const o of off) if (o !== b && !o.rag && dist(o, b) < md) { md = dist(o, b); m = o; } if (m && use(b, 4)) { boost(m, 1.1, 1.5); fire(b, { quiet: true }); } break; }
+      }
+    }
+    // a tackle attempt on a perk carrier: returns true when the perk turns it into a miss
+    function perkTackle(c, d, o) {
+      const P = pkOf(c); if (!P || c.side !== 0) return false;
+      const s = pst(c), low = d.lunge > 0 || d.pose === 'tackle' || d.diveT > 0;
+      const bounce = (k, txt, snd) => { const nx = (d.x - c.x) / (dist(d, c) || 1), nz = (d.z - c.z) / (dist(d, c) || 1); knockDown(d, [nx * 2.5 * k, 0.5, nz * 2.5 * k], [nx * 2 * k, 1.2 * k, nz * 2 * k], 1.1); d.tried = 1; c.stumbleT = Math.max(c.stumbleT, 0.25); fire(c, { txt, snd }); return true; };
+      switch (P.id) {
+        case 'icon': if (use(c, 'play')) { d.stun = Math.max(d.stun, 0.8 * P.S); d.lastTry = tPlay + 0.6; d.vx *= -0.3; d.vz *= -0.3; fire(c); return true; } break;
+        case 'duck': if (use(c, 'play')) return bounce(1.2, null, 'squeak'); break;
+        case 'pizza': { let gang = 0; for (const q of def) if (q !== d && !q.rag && dist(q, c) < 1.7) gang++; if ((!gang || PK.force) && chance(c, 0.6)) return bounce(1, null, 'good'); break; }
+        case 'hall-pass': if (use(c, 'game')) { d.stun = Math.max(d.stun, 0.6); d.lastTry = tPlay + 0.6; fire(c); return true; } break;
+        case 'gym-class': if (low && use(c, 'drive')) { c.x = clamp(c.x + (c.x > d.x ? 0.9 : -0.9), -HW + 0.5, HW - 0.5); knockDown(d, [d.vx, 0, d.vz], null, 1); d.tried = 1; fire(c); return true; } break;
+        case 'bus-ride': if (s.bus === PK.playN) { s.bus = -1; d.stun = Math.max(d.stun, 0.5); d.lastTry = tPlay + 0.6; fire(c, { txt: 'LATE BUS! CAN\'T CATCH HIM' }); return true; } break;
+        case 'halloween': if (use(c, 'drive')) { if (PK.force || rng() < 0.5 + 0.08 * (P.lv - 1)) return bounce(1, 'TREAT! SLIPS OUT', 'good'); c.stumbleT = 0.6; fire(c, { txt: 'TRICK! TRIPPED ON HIS CAPE', snd: 'bad' }); } break;
+        case 'turkey': if (o.fromFront && use(c, 4) && chance(c, 0.5)) return bounce(1.6, null, 'tackle'); break;
+        case 'upside': if (low && use(c, 3) && chance(c, 0.55)) { c.jumpY = 0.01; c.jumpV = 5.2; c.jumpT = 0.6; c.mv = 'hurdle'; c.mvT = 0.6; setPose(c, 'hurdle'); knockDown(d, [d.vx * 0.5, 0, d.vz * 0.5], null, 1); d.tried = 1; fire(c); return true; } break;
+        case 'short': if ((!low || PK.force) && use(c, 3) && chance(c, 0.4)) { knockDown(d, [d.vx * 1.1, 0.3, d.vz * 1.1], [d.vx * 0.3, 0.6, d.vz * 0.3], 1.1); d.tried = 1; fire(c); return true; } break;
+        case 'circuit': if (o.closing > 3.5 && use(c, 4) && chance(c, 0.5)) { c.stun = Math.max(c.stun, 0.35); return bounce(0.8, null, 'zap'); } break;
+        case 'popcorn': s.pop = (s.pop || 0) + 1; if (s.pop % (P.lv >= 3 ? 2 : 3) === 0 || P.nocd || PK.force) { c.jumpY = 0.01; c.jumpV = 4.6; c.jumpT = 0.5; c.x = clamp(c.x + (c.x > d.x ? 1 : -1), -HW + 0.5, HW - 0.5); d.lastTry = tPlay + 0.4; d.stun = Math.max(d.stun, 0.3); fire(c, { snd: 'boing' }); return true; } break;
+        case 'spec': if ((c.mv && c.mvT > 0 || PK.force) && use(c, 'game')) return bounce(1.2, null, 'good'); break;
+        case 'stained-glass': if (o.closing > 5) s.cracked = PK.playN; break;
+      }
+      return false;
+    }
+    function perkEnd(kind, P, gained, nx) {
+      const L = perkList(), inv = (p) => p === P.rec || p === P.rusher || p === P.passer || p === carrier;
+      for (const p of L) {
+        const s = pst(p);
+        switch (p.pk.id) {
+          case 'base': if (kind === 'inc' && P.tgt === p) s.tryhard = 1; if (PK.force) fire(p, { quiet: true }); break;
+          case 'bench': if (inv(p) && gained >= 20) s.nap = 1; break;
+          case 'trophy': if (playRes === 'first' || kind === 'td' || PK.force) { PK.trophyNext = 1; confetti(p.x, p.z); fire(p); } break;
+          case 'gold': if (P.caught && (P.passer === p || P.rec === p)) s.gold = 1; break;
+          case 'highlight': if ((inv(p) && gained >= 15 || PK.force) && (s.agiB || 0) < 3) { s.agiB = (s.agiB || 0) + 1; fire(p, { txt: 'INSTANT REPLAY! +1 AGI' }); } break;
+          case 'captains': if (PK.force || kind === 'intdown' || kind === 'pick6' || kind === 'fumlost' || nx && nx.next && nx.next[0] === 'cpu' && kind !== 'td') { PK.captain = 1; fire(p); } break;
+          case 'hall-of-fame': if (kind === 'td' && (carrier === p || P.rec === p || PK.force)) { PK.bronze = 1; fire(p, { txt: 'BRONZE STATUE!' }); } break;
+          case 'high-score': if (kind === 'inc' && P.tgt === p) s.combo = 0; break;
+        }
+      }
+      PK.playN++; PK.laser = 0; PK.rainbow = 0; PK.splats.length = 0;
+    }
+    // every frame of a live play: auras, speed perks, runner perks and ball-in-the-air perks
+    function perkStep(dt) {
+      PK.t += dt; if (PK.slowT > 0) PK.slowT -= dt;
+      const L = perkList(); if (!L.length && !PK.splats.length) return;
+      for (const d of def) d.pkV = 1;
+      for (const p of off) { p.pkGoat = 0; }
+      for (const p of L) if (p.pk.id === 'goat' && !p.rag) for (const o of off) if (o !== p && dist(o, p) < 5) o.pkGoat = 1;
+      const b = ball;
+      for (const p of L) {
+        const P = p.pk; if (p.rag) { p.pkV = 1; continue; }
+        let k = 1;
+        if (p.pkB) { for (const q of p.pkB) { if (q.t > 0) { k *= q.k; q.t -= dt; } } if (p.pkB.length > 6) p.pkB = p.pkB.filter((q) => q.t > 0); }
+        if (p.pkCool && !(p.pkB && p.pkB.some((q) => q.t > 0))) k *= 0.95;
+        if (p.pkCereal) k *= 1.06;
+        if (p.pkClutch) k *= 1.05;
+        if (p.pkDance) k *= 0.93;
+        if (p.pkGoat) k *= 1.03;
+        if (p.pkNoSlip) p.stumbleT = Math.min(p.stumbleT, 0.05);
+        p.pkR = perkReach(p);
+        const sp = Math.hypot(p.vx, p.vz), hd = Math.atan2(p.vx, p.vz);
+        // a cut: a sharp change of direction at speed
+        let cut = false;
+        if (sp > 3.4 && p.pkHd != null && Math.abs(angDiff(hd, p.pkHd)) > 0.55) cut = true;
+        if (sp > 2) p.pkHd = p.pkHd == null ? hd : p.pkHd + angDiff(hd, p.pkHd) * Math.min(1, dt * 6);
+        if (cut) p.pkHd = hd;
+        const run = p === carrier, moving = run || (p.R && thrown === false) || mode === 'catch' && p === ctrl;
+        if (cut && moving) {
+          if (P.id === 'action' && use(p, 'play')) { boost(p, 1 + 0.28 * P.S, 0.6); fire(p); }
+          if (P.id === 'mythic' && use(p, 'drive')) { PK.slowT = 0.8 * Math.min(1.5, P.S); fire(p, { snd: 'zap' }); }
+          if (P.id === 'snow' && use(p, 2.5)) { const n = nearDef(p, 2.2); if (n) { knockDown(n, [n.vx * 0.8, 0, n.vz * 0.8], [n.vx * 0.4, 0.4, n.vz * 0.4], 0.8); fire(p); } }
+          if (P.id === 'desert' && use(p, 3)) { const ds = defsNear(p, 4.5); if (ds.length) { for (const d of ds) d.stun = Math.max(d.stun, 0.5 * P.S); fire(p); } }
+          if (P.id === 'smoothie' && use(p, 'play')) fire(p, { quiet: true });
+        }
+        // Launch Pad: from standing to full speed in one step
+        if (P.id === 'pocket') { if (sp < 1.2) p.pkStill = (p.pkStill || 0) + dt; else { if ((p.pkStill > 0.2 || PK.force && p.pkStill > 0) && sp > 1.5 && use(p, 2)) { const v = effV(p); p.vx = p.vx / sp * v; p.vz = p.vz / sp * v; fire(p, { quiet: true }); } p.pkStill = 0; } }
+        if (run) {
+          p.pkCarry = (p.pkCarry || 0) + dt;
+          const nd = nearDef(p, 99), ndd = nd ? dist(nd, p) : 99;
+          switch (P.id) {
+            case 'spec-td': if (p.z > 80 && p.vz > 1) { k *= 1 + 0.08 * P.S; if (use(p, 'play')) fire(p); } break;
+            case 'allstar': if (ndd > 4.6) { k *= 1 + 0.1 * P.S; if (use(p, 'play')) fire(p); } break;
+            case 'pixel': if (!cut && sp > 3) p.pkStr = (p.pkStr || 0) + dt; if (cut) p.pkStr = 0; if (p.pkStr > 1) { k *= 1 + 0.12 * P.S; if (use(p, 'play')) fire(p); } break;
+            case 'hot-sauce': if (p.pkCarry > (PK.force ? 0.5 : 3)) { k *= 1 + Math.min(0.25, (p.pkCarry - 3) * 0.05) * P.S; if (use(p, 'play')) fire(p); } break;
+            case 'thunder': if (sp > effV(p) * 0.92 && use(p, 'play')) { for (const d of defsNear(p, 3.2)) d.stun = Math.max(d.stun, 0.4 * P.S); cam.shake = Math.max(cam.shake, 0.3); fire(p, { snd: 'zap' }); } break;
+            case 'spring': for (const o of pile) if (o !== p && o.rag && Math.hypot(o.rag.pts[0][0] - p.x, o.rag.pts[0][2] - p.z) < (PK.force ? 3 : 1.1) && p.jumpY <= 0 && use(p, 1.5)) { p.jumpY = 0.01; p.jumpV = 4.4; p.jumpT = 0.5; p.mv = 'hurdle'; p.mvT = 0.5; fire(p, { snd: 'boing' }); break; } break;
+            case 'skinny': { const ds = defsNear(p, 1.5); if (ds.length >= (PK.force ? 1 : 2) && use(p, 3)) { for (const d of ds) d.lastTry = tPlay; fire(p); } break; }
+            case 'arctic': if (nd && ndd < 2.5 && nd.z < p.z - 0.4 && use(p, 3)) { nd.stumbleT = 0.8; knockDown(nd, [nd.vx * 0.6, 0, nd.vz * 0.6], null, 0.8); fire(p); } break;
+            case 'library': for (const d of def) if (!d.rag && !d.pkLib && dist(d, p) < 2.6 && d.z < p.z - 0.5) { d.pkLib = 1; d.stun = Math.max(d.stun, 0.35 * P.S); if (use(p, 'play')) fire(p); } break;
+            case 'rainy-day': if (shortYd() || PK.force) { p.stumbleT = 0; if (use(p, 'play')) fire(p, { quiet: true }); } break;
+            case 'spooky': if (nd && ndd < 2 && use(p, 'play')) { nd.stun = Math.max(nd.stun, 0.7 * P.S); nd.vx = (nd.x - p.x) * 3; nd.vz = (nd.z - p.z) * 3; fire(p, { txt: 'BOO!', snd: 'ooh' }); } break;
+            case 'ocean': for (const o of off) if (o !== p && !o.rag && dist(o, p) < 2 && o.z < p.z && use(p, 'play')) { boost(o, 1.12, 1); fire(p); break; } break;
+            case 'new-year': if (((qtr === 2 || qtr >= 4) && clock <= 10 || PK.force) && use(p, 'half')) { boost(p, 1 + 0.2 * P.S, 3); confetti(p.x, p.z); fire(p); } break;
+            case 'dark': for (const d of defsNear(p, 2)) d.pkV = 0.8; if (ndd < 2 && use(p, 'play')) fire(p, { quiet: true }); break;
+          }
+        }
+        // the ball in the air near him
+        if (b && b.st === 'air' && b.kind === 'pass' && b.cp) {
+          const dc = Math.hypot(b.cp.x - p.x, b.cp.z - p.z);
+          switch (P.id) {
+            case 'dark': if (dc < 5 && isRec(p)) { b.vx += clamp(p.x - b.cp.x, -1, 1) * 1.6 * dt; b.vz += clamp(p.z - b.cp.z, -1, 1) * 1.6 * dt; if (use(p, 'play', 'g')) fire(p); } for (const d of defsNear(p, 2)) d.pkV = 0.8; break;
+            case 'legend': if (dc < 15 && isRec(p) && use(p, 'play')) { p.findT = 0; boost(p, 1.1, 1); fire(p); } break;
+            case 'giant': case 'blizzard': if (dc < 3.5 && use(p, 'play')) { for (const d of defsNear(p, 3.5)) d.breakAt = Math.max(d.breakAt || 0, tPlay + 0.25 * P.S); fire(p); } break;
+          }
+        }
+        p.pkV = k;
+      }
+      // Paint Splat: a defender who runs over the paint slips
+      for (const s of PK.splats) for (const d of def) if (!d.rag && s.hit.indexOf(d) < 0 && Math.hypot(d.x - s.x, d.z - s.z) < 0.8) { s.hit.push(d); knockDown(d, [d.vx * 0.8, 0, d.vz * 0.8], null, 0.8); popAt(d, 'SPLAT!', '#ff4fa3'); }
+    }
+
     // ---------- simulation step ----------
     const POSES = ['stance2', 'stance3', 'qbstance', 'run', 'block', 'tackle', 'dive', 'kneel', 'slide', 'kick', 'throw', 'jump', 'juke', 'spin', 'stiff', 'celebrate', 'reach', 'idle', 'hold', 'stumble', 'getup', 'rush', 'pocket', 'sit', 'sigtd', 'siginc', 'sigfirst', 'hurdle'];
     function step(dt) {
@@ -4464,8 +5113,9 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'dead') {
         if (clockRun && clock > 0) runoffTick(dt);
         for (const p of everyone) { if (p.rag) continue; if (p !== closeP && p.pose !== 'celebrate') { p.vx *= Math.pow(0.04, dt); p.vz *= Math.pow(0.04, dt); } integrate(p, dt); }
+        if (closeP && closeP.leap) leapStep(closeP, dt);
         collide();
-        if (closeP && deadTot - deadT > 0.5 && closeP.celType == null) { const c = closeP; if (c.rag) riseUp(c); c.rising = 0; c.face2 = 0; setPose(c, 'celebrate', true); c.celType = 2; }
+        if (closeP && deadTot - deadT > 0.5 && closeP.celType == null && !closeP.leap) { const c = closeP; if (c.rag) riseUp(c); c.rising = 0; c.face2 = 0; setPose(c, 'celebrate', true); c.celType = 2; }
         if (ball && (ball.st === 'dead' || ball.st === 'loose' || ball.st === 'kick')) groundStep(ball, dt);
         deadT -= dt;
         if (deadT <= 0) { if (lastBig && (lastBig.kind === 'td' || lastBig.want) && !lastBig.played && replayBuf.length > 20) startReplay(); else nextPlay(); }
@@ -4502,6 +5152,8 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const p of everyone) if (p.diveT > 0 && p !== carrier && !p.rag) receiverDiveStep(p, dt); // receivers and defenders laying out for a pass
       for (const p of everyone) integrate(p, dt);
       collide();
+      funRef(dt); perkStep(dt);
+      if (phase !== 'live') return;
       const h = ball.holder;
       if (h && h.side === 0 && !h.rag && h.wrapT <= 0) {
         for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
@@ -4536,7 +5188,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function startReplay() {
       lastBig.played = true;
       const n = replayBuf.length;
-      replay = { i0: Math.max(0, n - 300), n, t: 0, sp: 0.5, orbit: crand() * 6, bones: everyone.map((p) => p.bones) };
+      replay = { i0: lastBig.from != null ? clamp(lastBig.from, 0, Math.max(0, n - 30)) : Math.max(0, n - 300), n, t: 0, sp: 0.5, orbit: crand() * 6, bones: everyone.map((p) => p.bones) };
       phase = 'replay'; clearBanner(); hideTags(); setControls(true);
       banner('REPLAY', '', '#ffc21a'); setTimeout(() => { if (phase === 'replay') clearBanner(); }, 900);
     }
@@ -5127,6 +5779,7 @@ gl_FragColor=vec4(c,1.0);}`;
       p.extra = true; p.pose = o && o.pose || 'idle'; p.h = o && o.h != null ? o.h : (x < 0 ? Math.PI / 2 : -Math.PI / 2);
       p.lk = Object.assign({}, p.lk, { cleat: side === 2 ? CLEATS.black : TEAM2, visor: false, sleeves: false, tone: null });
       if (side === 2) p.lk.cleat = hex('#111111');
+      p.base = p.pose;
       p.towel = false; p.face = -1; p.ncell = -1; p.nmcell = -1; p.num = 0;
       extras.push(p);
       return p;
@@ -5164,6 +5817,13 @@ gl_FragColor=vec4(c,1.0);}`;
       const pre = phase === 'pre' || phase === 'break' || phase === 'cpu' || phase === 'splash';
       const bx = ball ? ball.x : 0, bz = ball ? ball.z : los;
       for (const p of extras) {
+        if (p.rag) { ragStep(p, dt); if (!p.rag) p.bowled = false; continue; }
+        if (p.party > 0) { // bench party after a score: pour toward the sideline and jump around
+          p.party -= dt; const tx = Math.sign(p.x) * (HW + 3.2); steerExtra(p, tx, p.z, 5, dt);
+          if (p.pose !== 'celebrate') setPose(p, 'celebrate');
+          if (p.party <= 0) { p.celType = null; setPose(p, p.base || 'idle'); }
+          continue;
+        }
         if (p.ref) {
           let tx = p.x, tz = p.z, face = null;
           if (p.ref === 'R') { tx = pre || phase === 'live' ? 5.5 : bx + 3; tz = pre ? los - 13 : phase === 'live' ? Math.min(p.z, (OK.QB ? OK.QB.z : los) - 6) : bz - 4; face = 0; }
@@ -5612,7 +6272,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function pop(txt, col, x, y) {
       const e = el('div', 'bz-pop', esc(txt)); e.style.color = col || '#ffc21a';
       e.style.left = (x == null ? cssW / 2 : x) + 'px'; e.style.top = (y == null ? cssH * 0.55 : y) + 'px';
-      fx.appendChild(e); setTimeout(() => e.remove(), 1150);
+      fx.appendChild(e); setTimeout(() => e.remove(), (DBG && DBG.popHold) || 1150);
     }
     function popAt(p, txt, col) { const s = p ? project(p.x, 1.2, p.z) : null; pop(txt, col, s ? s[0] : null, s ? s[1] : null); }
     function banner(txt, sub, col) {
@@ -5927,7 +6587,8 @@ gl_FragColor=vec4(c,1.0);}`;
       raf = requestAnimationFrame(frame);
       const el2 = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
       const mul = (DBG && DBG.speed) || 1;
-      let sim = el2 * mul, n = 0, rdt = el2 * mul;
+      const slow = PK.slowT > 0 && phase === 'live' ? 0.4 : 1; // Slow-Mo perk: time slows for a beat
+      let sim = el2 * mul * slow, n = 0, rdt = el2 * mul * slow;
       if (DBG && DBG.stepT) { sim = DBG.stepT; rdt = DBG.stepT; DBG.stepT = 0; } else if (DBG && DBG.speed === 0) { sim = 0; rdt = 0; }
       const ts = performance.now();
       while (sim > 1e-6 && n < 400 && !finished) { const d = Math.min(sim, 1 / 60); if (aim) aim.dur += d; step(d); sim -= d; n++; }
@@ -6027,7 +6688,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       if (phase === 'kick') { kickTap(); e.preventDefault(); return; }
       if (phase === 'replay') { endReplay(); return; }
-      if (pid != null) { if (ptype === 'aim') { setArc((arc + 1) % 3); e.preventDefault(); } return; } // second finger while aiming: cycle the arc
+      if (pid != null) { if (ptype === 'aim' && e.pointerId !== pid) { setArc(arc === 0 ? 1 : 0); e.preventDefault(); } return; } // second finger while aiming: Touch <-> Bullet only (Lob -> Bullet); Lob is its own button or the 3 key
       if (phase === 'live' && mode === 'aim') {
         pid = e.pointerId; ptype = 'aim'; ptT = performance.now();
         aim = { ax: x, ay: y, px: x, py: y, dur: 0, spot: null, tgt: null };
@@ -6105,7 +6766,7 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       <ul class="bz-how">
         <li><i>1</i><span><b>Call a play</b> from the 66-play playbook, or take one of the three the <b>Coach</b> tab suggests for the down, distance and clock, then <b>SNAP</b>${touchy ? '' : ' (Space)'}. Tap a receiver's tag before the snap for a hot route.</span></li>
-        <li><i>2</i><span><b>Throw</b>: ${touchy ? 'touch anywhere and pull back' : 'drag the mouse back'}, like a slingshot; the line and arc come out of the QB the opposite way and the ring is where it lands. Pull farther = throw farther. Let go to throw. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming)' : ' (1 2 3, or Q to cycle)'}. Lead your receiver!</span></li>
+        <li><i>2</i><span><b>Throw</b>: ${touchy ? 'touch anywhere and pull back' : 'drag the mouse back'}, like a slingshot; the line and arc come out of the QB the opposite way and the ring is where it lands. Pull farther = throw farther. Let go to throw. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming to flip Touch / Bullet)' : ' (1 2 3, or Q to cycle)'}. Lead your receiver!</span></li>
         <li><i>3</i><span><b>Scramble</b>: aim <b>behind</b> the QB (${touchy ? 'drag forward so the line points back' : 'drag forward so the line points back'}) and let go: he tucks it and runs. Then ${touchy ? 'drag on the field' : 'use the arrows'} to steer him.</span></li>
         <li><i>4</i><span><b>Catch</b>: lead your man (the small ring shows where he will be when it gets there). The receiver closest to the ball hunts it on his own and goes up or lays out if you don't; steer to adjust, or hit <b>JUMP</b> for high balls and <b>DIVE</b> for ones just out of reach. A ball thrown into a crowd usually gets broken up or picked.</span></li>
         <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Hurdle, Dive</b>${touchy ? '' : ' (J K L H Space)'}. Hurdle a diving tackler, but a defender on his feet will catch you in the air. Tacklers hit with momentum: break them or fall forward.</span></li>
@@ -6130,7 +6791,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); },
+      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; },
       input, snap, begin, choose4th, chooseTry, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
@@ -6143,9 +6804,15 @@ gl_FragColor=vec4(c,1.0);}`;
       jump() { doJump(ctrl); }, dive() { doDive(ctrl); },
       debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(100, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
       quit() { finishGame(true); },
+      // moments and perks (tests): pick off a pass now, kick now, give every Lineup card one perk, reach the hooks
+      intercept(i) { const d = def[i || 0]; if (d && ball && ball.st === 'air') intercept(d, 'test'); },
+      kickNow(t) { if (phase === 'pre') startKick(t || 'fg'); },
+      forcePre(l) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; replay = null; hideMeter(); clearBanner(); startDrive(l || 50); },
+      teamFx(f) { for (const k in SQ) SQ[k].fx = f; for (const p of off) { p.fx = f; p.pkFx = undefined; } PK.ev = null; },
+      perkInternals: { knockDown, hitCarrier, perkHook, perkTackle, perkThrow, perkCatch, perkReach, recAttempt, engage, doJump, doDive, pkOf, catchBall, PK, FUN },
       scenario(o) {
         if (finished) return;
-        closeSheet(); clearBanner(); hideTags(); clearPlayers();
+        closeSheet(); clearBanner(); hideTags(); clearPlayers(); if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; hideMeter();
         phase = 'live'; tPlay = 0; thrown = false; handed = true; runSeen = 0; crossed = true; aim = null; target = null; passer = null; kick = null; lastBig = null; replayBuf = []; recT = 0; carrier = null;
         los = o.los || 50; down = 1; fdz = los + 10; poss = 'home';
         const c = o.role ? (o.side ? addDef(mkP(1, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 24 })) : addOff(mkP(0, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 72 }))) : addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
