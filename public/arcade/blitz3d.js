@@ -2458,7 +2458,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let los = 25, down = 1, fdz = 35, play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
     const RUNOFF = 4; // seconds the clock keeps running after a play that ends in bounds
     let runoff = 0;
-    let tPlay = 0, clockRun = false, toLeft = TOS, playClock = 20, warned = [false, false], recv2 = 'away', otLeft = 0, suddenDeath = false;
+    let tPlay = 0, clockRun = false, toLeft = TOS, playClock = 20, warned = [false, false], recv2 = 'away', otLeft = 0, suddenDeath = false, kocT = 0;
     let everyone = [], off = [], def = [], OK = {}, DK = {};
     let ball = null, ctrl = null, carrier = null, mode = 'none', passer = null, target = null, thrown = false, handed = false, runSeen = -1, crossed = false;
     let aim = null, arc = 1, pend = null, deadT = 0, deadTot = 0, closeP = null, intro = 0, introCut = false, kick = null, cpuD = null, brk = null;
@@ -2633,7 +2633,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const one = ONE_SHOT[p.pose];
       if (one && p.poseT < one) return p.pose;
       if (p.pose === 'celebrate' || p.pose === 'block' || p.pose === 'rush' || p.pose === 'kneel' || p.pose === 'slide' || p.pose === 'hold') return p.pose;
-      if (phase === 'pre' || phase === 'pat' || phase === 'splash' || (phase === 'kick' && kick && kick.st !== 'fly') || (phase === 'live' && kick && kick.type === 'ko' && kick.st === 'wait')) {
+      if (phase === 'pre' || phase === 'pat' || phase === 'koc' || phase === 'splash' || (phase === 'kick' && kick && kick.st !== 'fly') || (phase === 'live' && kick && kick.type === 'ko' && kick.st === 'wait')) {
         if (p.pose === 'stance2' || p.pose === 'stance3' || p.pose === 'qbstance') return p.pose;
       }
       const sp = Math.hypot(p.vx, p.vz);
@@ -3743,11 +3743,12 @@ gl_FragColor=vec4(c,1.0);}`;
       const ud = p === ctrl ? userDir() : null;
       const d = ud || (toBall && bd > 0.3 ? v2n(toBall) : [Math.sin(p.h), Math.cos(p.h)]);
       const sp = ud ? p.v + 3.5 : clamp(bd * 4.5, 3.5, p.v + 3.5);
-      p.diveT = 0.62; p.ddx = d[0]; p.ddz = d[1]; p.vx = d[0] * sp; p.vz = d[1] * sp; setPose(p, 'dive'); p.h = Math.atan2(d[0], d[1]); p.jumpY = 0.35; p.jumpV = 1.6; p.jumpT = 0.4; perkHook('dive', p);
+      p.diveT = 0.62; p.diving = 1; p.ddx = d[0]; p.ddz = d[1]; p.vx = d[0] * sp; p.vz = d[1] * sp; setPose(p, 'dive'); p.h = Math.atan2(d[0], d[1]); p.jumpY = 0.35; p.jumpV = 1.6; p.jumpT = 0.4; perkHook('dive', p);
     }
     const v2n = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
     function receiverDiveStep(p, dt) {
-      if (p.diveT > 0) { p.vx *= 1 - dt * 1.2; p.vz *= 1 - dt * 1.2; if (p.diveT - dt <= 0 && (!ball || ball.holder !== p)) { knockDown(p, [p.vx * 0.8, -1.2, p.vz * 0.8], null, 1.0); } }
+      if (p.diveT > 0) { p.vx *= 1 - dt * 1.2; p.vz *= 1 - dt * 1.2; }
+      if (p.diving && p.diveT - dt <= 0) { p.diving = 0; if (!ball || ball.holder !== p) knockDown(p, [p.vx * 0.8, -1.2, p.vz * 0.8], null, 1.0); } // a missed dive ends on the turf, whichever timer ran out first
     }
 
     // ---------- user input direction ----------
@@ -3785,7 +3786,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (m === 'dive') {
         if (c.role === 'QB' && c.z < los + 30 && !qbRunPlay() && c === OK.QB) { slide(c); return; }
         const d = userDir() || [Math.sin(c.h), Math.cos(c.h)];
-        c.diveT = 0.45; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * (c.v + 2.5); c.vz = d[1] * (c.v + 2.5); setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3; perkHook('dive', c);
+        c.diveT = 0.45; c.diving = 1; c.tackleKind = 'dive'; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * (c.v + 2.5); c.vz = d[1] * (c.v + 2.5); setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3; perkHook('dive', c);
         sfx.play('tap'); return;
       }
       if (m === 'hurdle' && (c.jumpY > 0 || c.jumpT > 0 || c.wrapT > 0)) return;
@@ -3827,9 +3828,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.mvT > 0) c.mvT -= dt; else c.mv = null;
       if (c === ctrl) staminaStep(c, dt, input.sprint);
       let spd = effV(c);
+      if (c.rag) { if (c.downAt && tPlay >= c.downAt) { c.downAt = 0; resolveDown(c); } return; } // on the ground: no steering, the play ends when he is ruled down
+      // a dive ends on the ground: he is down where he lands, whoever counted the timer down first (the AI step also ticks diveT)
+      if (c.diving && c.diveT <= 0) { c.diving = 0; knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; return; }
       if (c.diveT > 0) {
         c.diveT -= dt; c.vx *= 1 - dt * 1.4; c.vz *= 1 - dt * 1.4;
-        if (c.diveT <= 0) { knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; return; }
+        if (c.diveT <= 0) { c.diving = 0; knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; return; }
       } else if (c.mv === 'juke' && c.mvT > 0) { c.vx = c.jdx * (c.v + 4.2); c.vz = c.jdz * (c.v + 4.2); }
       else if (c === ctrl) {
         const d = userDir() || (c.side === 0 ? autoDir(c) : [0, -1]);
@@ -3978,8 +3982,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function looseStep(dt) {
       const b = ball; b.t += dt;
       groundStep(b, dt);
+      const frozen = kick && kick.onside && kick.t - kick.kickT < kick.react ? (kick.home ? 1 : 0) : -1; // the hands team is a beat late to an onside kick
       for (const p of everyone) { // both sides go for the loose ball
-        if (p.rag || p.stun > 0 || p.rising > 0) continue;
+        if (p.rag || p.stun > 0 || p.rising > 0 || p.side === frozen) continue;
         p.eng = null; p.face2 = null;
         if (p !== ctrl) steer(p, b.x, b.z, p.side ? effV(p) : p.v, dt, 10);
         p.look = [b.x, b.y, b.z];
@@ -3988,6 +3993,17 @@ gl_FragColor=vec4(c,1.0);}`;
       let best = null, bd = 0.8;
       for (const p of everyone) { if (p.rag || p.rising > 0) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < bd && b.y < 0.7) { bd = d; best = p; } }
       if (best) {
+        if (kick && kick.onside) { // an onside kick: whoever falls on it has it, but the first touches can be bobbled
+          const hk = kick.home, kickSide = hk ? 0 : 1, muffP = best.side === kickSide ? 0.15 : hk ? 0.4 - 0.1 * DIFF : 0.25 + 0.15 * DIFF;
+          if (kick.muffs < 3 && rng() < muffP) {
+            kick.muffs++; best.stun = 0.6; popAt(best, 'BOBBLED!', '#ff9a3c'); sfx.play('tap');
+            b.t = 0; b.rolling = false; b.y = 0.3; b.vx = (rng() - 0.5) * 5; b.vz = (rng() - 0.5) * 5; b.vy = 3.5 + rng() * 2;
+            return;
+          }
+          funPile(b, best); knockDown(best, [best.vx * 0.4, -1, best.vz * 0.4], null, 1.2); ball.holder = best; ball.st = 'held';
+          popAt(best, best.side === 0 ? 'RECOVERED!' : 'THEY RECOVER!', best.side === 0 ? '#2bd46b' : '#ff3344');
+          onsideDone(best, best.z); return;
+        }
         // on his feet and moving with the ball off the ground: he scoops it and runs (a big man rumbling is the best thing in football)
         const big = best.role === 'OL' || best.role === 'DL', upr = Math.hypot(best.vx, best.vz) > 2 && best.stun <= 0;
         if (upr && !kick && !tryMode && (funForced('bigman') ? big : funRoll(big ? 'bigman' : 'scoop', big ? 1.4 : 0.7))) {
@@ -4002,7 +4018,7 @@ gl_FragColor=vec4(c,1.0);}`;
         popAt(best, best.side === 0 ? 'RECOVERED!' : 'THEY RECOVER!', best.side === 0 ? '#2bd46b' : '#ff3344');
         if (pr.int) { pr.regain = best.side === 0; endPlay(best.side === 0 ? 'tackle' : 'intdown', best.z); } // the return man coughed it up
         else endPlay(best.side === 0 ? 'tackle' : 'fumlost', best.z);
-      } else if (Math.abs(b.x) > HW) endPlay('tackle', b.z, 'Fumble out of bounds');
+      } else if (Math.abs(b.x) > HW) { if (kick && kick.onside) { onsideDone(null, b.z, true); return; } endPlay('tackle', b.z, 'Fumble out of bounds'); }
     }
     function liveChecks() {
       const c = carrier;
@@ -4151,7 +4167,10 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- kickoffs: the CPU kicks, you return ----------
-    function startKickoff() {
+    // the other team goes onside when it trails late in the 4th
+    const cpuWantsOnside = () => qtr >= 4 && !suddenDeath && as < hs && (clock < QS * 0.75 || hs - as >= 9) && !(DBG && DBG.noOnside) || !!(DBG && DBG.forceOnside);
+    function startKickoff(deep) {
+      if (!deep && cpuWantsOnside()) { startOnside(false); return; }
       clearBanner(); closeSheet();
       clearPlayers();
       tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = true; runSeen = 0; crossed = true; target = null; passer = null;
@@ -4202,6 +4221,91 @@ gl_FragColor=vec4(c,1.0);}`;
         if (k.tbOK && !carrier) k.tbOK = false; // fumbled: no touchback option any more
         if (k.tbOK && carrier && (carrier.z > 0.5 || tPlay - k.catchT > 2.6)) { if (carrier.z <= 0.5 && Math.hypot(carrier.vx, carrier.vz) < 1) { touchback(); return; } k.tbOK = false; setControls(true); }
       }
+    }
+    // ---------- onside kicks: a short kick, a live ball after 10 yards, a scramble ----------
+    function startOnside(homeKick) {
+      if (finished) return;
+      clearBanner(); closeSheet(); hideTags(); hideMeter(); clearPlayers();
+      tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = true; runSeen = 0; crossed = true; target = null; passer = null; aim = null; lastBig = null;
+      parts = parts.filter((q) => q.life > 0); replayBuf = []; recT = 0;
+      const kz = homeKick ? 35 : 65, dir = homeKick ? 1 : -1;
+      let kp, R;
+      if (homeKick) {
+        // your kicking team across the 34; their hands team ten yards off, two men back
+        const kq = KQ || { key: 'K', look: KLOOK, num: 3 };
+        kp = addOff(mkP(0, 'K', 'K', -0.6, kz - 1.6, { num: kq.num, lk: kq.look || KLOOK, sq: KQ, face: KQ ? KQ.cell : -1, v: 5.5, spd: 50, fx: KQ ? KQ.fx : null }));
+        ['RB', 'X', 'Z', 'S', 'Y'].forEach((k, i) => addOff(offPlayer(k, [-17, -9, 4, 10, 17][i], kz - 1)));
+        for (let i = 0; i < 5; i++) addOff(olPlayer(i, [-21, -13, -4, 14, 21][i], kz - 1, { v: 6.2 }));
+        for (let i = 0; i < 6; i++) addDef(mkP(1, i % 2 ? 'LB' : 'S', 'HC' + i, -15 + i * 6, kz + 10.5, { v: Math.max(7.2, DP.sV), num: 20 + i, tackle: DP.tackle, str: 60 + 30 * KDEF, lane: -15 + i * 6 }));
+        for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'HD' + i, -9 + i * 9, kz + 17, { v: Math.max(7, DP.lbV), num: 50 + i, tackle: DP.tackle, lane: -9 + i * 9 }));
+        addDef(mkP(1, 'S', 'HR', 0, kz + 30, { v: DP.sV, num: 29 })); addDef(mkP(1, 'S', 'HR2', 0, kz + 48, { v: DP.sV, num: 31 }));
+        R = kp;
+      } else {
+        // their kicking team across the 64; your hands team ten yards off, the fastest man deeper
+        let rk = 'RB'; for (const k of ['X', 'Z', 'S']) if (SQ[k].r.spd > SQ[rk].r.spd + 4) rk = k;
+        R = addOff(offPlayer(rk, 0, kz - 24));
+        ['RB', 'X', 'Z', 'S', 'Y'].filter((k) => k !== rk).forEach((k, i) => addOff(offPlayer(k, [-12, -4, 4, 12][i], kz - 13)));
+        for (let i = 0; i < 5; i++) addOff(olPlayer(i, [-18, -9, 0, 9, 18][i], kz - 10.5, { v: 6.2 }));
+        for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), kz - 1, { v: Math.max(7.5, DP.sV), lane: -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF }));
+        kp = addDef(mkP(1, 'K', 'KK', 0, kz + 1, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
+      }
+      finalizePlayers();
+      for (const p of everyone) setPose(p, 'stance2');
+      kick = { type: 'ko', st: 'wait', t: 0, onside: true, home: homeKick, kz, dir, kp, R, tbOK: false, react: homeKick ? 1.6 + 0.1 * (1 - DIFF) : 1.1 + 0.15 * DIFF, lx: 0, lz: kz + dir * 12, kickT: 0, muffs: 0 };
+      ball = { st: 'spot', x: 0, y: 0.3, z: kz, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
+      dcall = { name: 'Onside kick' };
+      pr = { type: 'ko', start: 0, kind: 'ret', notes: [], onside: true };
+      phase = 'live'; mode = 'none'; poss = 'home'; clockRun = false;
+      setControls(true);
+      banner('ONSIDE KICK', homeKick ? `${esc(HOME.name)} go for it` : `${esc(AWAY.name)} try an onside kick!`, '#ffc21a'); sfx.play(homeKick ? 'tap' : 'ooh');
+      say(homeKick ? `<b>${esc(KR.name)}</b> lines up an onside kick. It has to go 10 yards.` : `<b>${esc(AWAY.name)}</b> line up for an onside kick. Hands team!`);
+      FUN.counts.onside = (FUN.counts.onside || 0) + 1;
+    }
+    function onsideStep(dt) {
+      const k = kick, hk = k.home, kickers = hk ? off : def, hands = hk ? def : off;
+      k.t += dt;
+      if (k.st === 'wait') {
+        if (k.t > 0.55 && k.kp.pose !== 'kick') setPose(k.kp, 'kick');
+        if (k.t > 0.85) { // the kick: short and low, down at 11 to 14 yards
+          const T = 1.05, lz = k.kz + k.dir * (11 + rng() * 3), lx = (rng() - 0.5) * 14; k.lx = lx; k.lz = lz; k.st = 'air'; k.kickT = k.t; sfx.play('kick'); clearBanner();
+          ball = { st: 'kick', x: 0, y: 0.4, z: k.kz, vx: lx / T, vz: (lz - k.kz) / T, vy: (0.35 - 0.4 + 0.5 * GRAV * T * T) / T, t: 0, T, tx: lx, tz: lz, spin: 0, holder: null };
+          for (const p of kickers) if (p !== k.kp) setPose(p, 'run', true);
+        } else for (const p of everyone) { p.vx *= 0.8; p.vz *= 0.8; }
+      } else if (k.st === 'air') {
+        const b = ball; flyStep(b, dt);
+        for (const p of kickers) if (p !== k.kp) steer(p, b.tx + (p.lane != null ? p.lane - b.tx : p.x - b.tx) * 0.25, b.tz, p.v, dt, 8);
+        if (k.t - k.kickT > k.react) for (const p of hands) steer(p, b.tx + (p.x - b.tx) * 0.2, b.tz, p.v * 0.95, dt, 8); // the hands team wakes up
+        for (const p of everyone) p.look = [b.x, b.y, b.z];
+        if ((b.y <= 0.3 && b.vy < 0) || b.t >= b.T) { // it hits the turf and hops: a live ball
+          k.st = 'scramble'; k.landZ = b.z;
+          ball = { st: 'loose', x: b.x, y: 0.3, z: b.z, vx: b.vx * 0.3 + (rng() - 0.5) * 2.5, vy: 4.5 + rng() * 1.5, vz: b.vz * 0.45, holder: null, t: 0, spin: 0 };
+          sfx.play('tap'); setControls(true);
+        }
+      } else if (k.st === 'scramble') {
+        const b = ball;
+        if (b.t > 7 || (b.t > 2.5 && b.y < 0.3 && Math.hypot(b.vx, b.vz) < 0.25 && !everyone.some((p) => !p.rag && Math.hypot(p.x - b.x, p.z - b.z) < 2.5))) onsideDone(null, b.z); // nobody falls on it
+      }
+    }
+    function onsideDone(p, z, oob) {
+      if (phase !== 'live' || !kick) return;
+      const k = kick, hk = k.home, trav = Math.abs(z - k.kz), kickSide = hk ? 0 : 1;
+      let homeBall = p ? p.side === 0 : !hk, how = ''; // nobody on it, or out of bounds: the receiving team takes it
+      if (p && p.side === kickSide && trav < 9.5) { homeBall = !hk; how = 'Touched before 10 yards'; } // the kicking team touched it short: receiving team's ball
+      else if (oob) how = 'Out of bounds'; else if (!p) how = 'Nobody falls on it';
+      const spot = clamp(Math.round(z), 2, 98), at = ballTxt(spot).toLowerCase();
+      carrier = p || null;
+      if (homeBall) {
+        banner(hk ? 'ONSIDE KICK RECOVERED!' : 'YOU RECOVER!', how || `${esc(HOME.name)} ball at the ${at}`, '#2bd46b'); sfx.play('cheer'); excite = Math.max(excite, hk ? 1 : 0.7); cam.kick = Math.max(cam.kick, 0.8);
+        say(hk ? `<b>${esc(HOME.name)}</b> fall on the onside kick! Ball at the ${at}.` : `<b>${esc(HOME.name)}</b> hands team comes up with it at the ${at}.`);
+        if (hk) { addHL('Onside kick recovered'); markBig('big'); }
+        pend = { next: ['home', spot, 'same'] };
+      } else {
+        banner(hk ? 'THEY RECOVER' : 'ONSIDE KICK RECOVERED', how || `${esc(AWAY.name)} ball at the ${at}`, '#ff3344'); sfx.play(hk ? 'boo' : 'bad'); excite = Math.max(0, excite - 0.2);
+        say(hk ? `<b>${esc(AWAY.name)}</b> fall on it. Their ball at the ${at}.` : `<b>${esc(AWAY.name)}</b> recover their own onside kick.`);
+        pend = { next: ['cpu', clamp(100 - spot, 1, 99)] };
+      }
+      const key = homeBall ? 'onsideWon' : 'onsideLost'; FUN.counts[key] = (FUN.counts[key] || 0) + 1;
+      finishSpecial(2.8, 'onside');
     }
     function touchback() {
       if (phase !== 'live') return;
@@ -4356,7 +4460,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let cont;
       if (!next) cont = () => toPre(false);
       else if (next[0] === 'pat') cont = () => startPAT();
-      else if (next[0] === 'cpu') cont = () => goCpu(next[1]);
+      else if (next[0] === 'cpu') cont = () => (next[2] === 'ko' && qtr >= 4 && !suddenDeath && !(DBG && DBG.noKoChoice) ? startKoChoice() : goCpu(next[1])); // after you score in the 4th: kick deep or onside
       else cont = () => (next[2] === 'ko' ? goHome(null, true) : next[2] === 'same' ? startDrive(next[1]) : goHome(next[1]));
       if (clock <= 0 && (!next || next[0] !== 'pat')) endQuarter(cont); else cont();
     }
@@ -4378,6 +4482,18 @@ gl_FragColor=vec4(c,1.0);}`;
       banner('1st & 10', `${esc(nm(OK.QB))} and the ${esc(HOME.name)} offense · ${ballTxt(los)}`, '#ffc21a');
     }
     function introT0() { intro = 0; }
+    // after you score in the 4th quarter: kick it deep (they start at their 25) or try an onside kick
+    function startKoChoice() {
+      phase = 'koc'; poss = 'home'; clockRun = false; kick = null; carrier = null; ctrl = null; mode = 'none'; kocT = 8; los = 35;
+      setupPlay(); hideTags(); setControls(true);
+      banner('KICKOFF', 'Kick it deep, or try an onside kick?', '#ffc21a');
+      say('Fourth quarter: kick deep or go onside?');
+    }
+    function chooseKo(onside) {
+      if (phase !== 'koc') return;
+      clearBanner(); sfx.play('tap');
+      if (onside) startOnside(true); else goCpu(25);
+    }
     function startPAT() {
       phase = 'pat'; poss = 'home'; tryMode = false; clockRun = false; los = 85; down = 1; fdz = 100;
       setupPlay(); setControls(true);
@@ -4425,8 +4541,9 @@ gl_FragColor=vec4(c,1.0);}`;
     // per-play outcomes of a simulated drive (tuned so the CPU scores roughly 10-14 a game at Rookie up to 28-35 at Legend)
     // (strength curved and capped so each level sits in its range: about 1.8 / 2.5 / 3.9 / 4.8 points per full drive; the CPU gets 6-9
     // drives a game, more when the player's drives stall)
-    const CSc = Math.pow(CS, 1.8) * 0.8;
-    const CD = { g: lerp(5.7, 8.6, CSc), big: lerp(0.075, 0.19, CSc), loss: lerp(0.14, 0.055, CSc), to: lerp(0.038, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.18, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
+    // (curve retuned: about 1.4 / 2.7 / 4.3 / 5.2 points per full drive, so roughly 10 / 18 / 27 / 33 a game at Rookie / Pro / All-Pro / Legend)
+    const CSc = Math.pow(CS, 1.3);
+    const CD = { g: lerp(5.7, 9.4, CSc), big: lerp(0.075, 0.22, CSc), loss: lerp(0.14, 0.055, CSc), to: lerp(0.038, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.18, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
     function simCpu(spot, clk, log) {
       const start = spot; let dn = 1, fd = spot + 10, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
@@ -5138,6 +5255,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'kick') { if (kick.st === 'fly' && clock > 0) clockTick(dt); kickStep(dt); return; }
       if (phase === 'cpu') { cpuStep(dt); idle(dt); return; }
       if (phase === 'break') { brk.t -= dt; idle(dt); if (brk.t <= 0) { const f = brk.then; brk = null; clearBanner(); f(); } return; }
+      if (phase === 'koc') { kocT -= dt; idle(dt); if (kocT <= 0) chooseKo(false); return; } // kick deep on its own if nobody picks
       if (phase === 'pat' || phase === 'over' || phase === 'splash' || phase === 'box') idle(dt);
     }
     // between plays the clock only runs out the rest of the 4-second run-off, then stops for the next snap
@@ -5147,9 +5265,9 @@ gl_FragColor=vec4(c,1.0);}`;
       tPlay += dt;
       if (clock > 0) clockTick(dt);
       if (kick && kick.type === 'ko') {
-        kickoffStep(dt);
+        if (kick.onside) onsideStep(dt); else kickoffStep(dt);
         if (phase !== 'live') return;
-        if (kick.st !== 'ret') { for (const p of everyone) integrate(p, dt); collide(); recordFrame(dt); return; }
+        if (kick.st !== 'ret' && kick.st !== 'scramble') { for (const p of everyone) integrate(p, dt); collide(); recordFrame(dt); return; }
       }
       if (ball.st === 'snap' || ball.st === 'pitch' || (play.toss && ball.st === 'held')) snapStep(dt);
       throwStep(dt);
@@ -5270,7 +5388,9 @@ gl_FragColor=vec4(c,1.0);}`;
         else { e = [-9 - 4 * lnd, 5.5 + 5 * por, kick.kz - 9 - 4 * por]; c = [0, 3, kick.kz + (kick.type === 'punt' ? 24 : 20)]; }
       } else if (phase === 'pat') {
         e = [0, 13 + 10 * por, 74 - 4 * por]; c = [0, 0, 100];
-      } else if (kick && kick.type === 'ko' && (kick.st === 'wait' || kick.st === 'air')) {
+      } else if (phase === 'koc') {
+        e = [0, 12 + 9 * por, 22 - 4 * por]; c = [0, 0, 52];
+      } else if (kick && kick.type === 'ko' && (kick.st === 'wait' || kick.st === 'air' || kick.st === 'scramble')) {
         const R = kick.R, bz = ball ? ball.z : 65;
         e = [R.x * 0.5 + 4.5, 11 + 8 * por, R.z - 9 - 3 * por]; c = [(ball ? ball.x : 0) * 0.5, 3, Math.max(R.z + 14, Math.min(bz, R.z + 45))];
       } else if ((phase === 'live' || phase === 'dead') && carrier && (mode === 'run' || carrier.side === 1 || phase === 'dead')) {
@@ -5668,8 +5788,8 @@ gl_FragColor=vec4(c,1.0);}`;
       else drawBall(dyn, ball.x, Math.max(0.15, ball.y), ball.z, 0.6, ball.rolling ? 1.57 : 0.9, ball.spin || 0, true);
     }
     function drawMarks(now) {
-      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat';
-      const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat';
+      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat' || phase === 'koc';
+      const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && phase !== 'koc';
       if (scrim && !tryMode) {
         tr.seg(-HW, los, HW, los, 0.26, [0.25, 0.55, 1, 0.7], 0.03);
         if (fdz < 100) tr.seg(-HW, fdz, HW, fdz, 0.26, [1, 0.86, 0.1, 0.8], 0.03);
@@ -5865,8 +5985,8 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // down marker and chains as geometry held by the crew
     function drawExtrasProps() {
-      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat';
-      const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && !tryMode;
+      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat' || phase === 'koc';
+      const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && phase !== 'koc' && !tryMode;
       if (!scrim) return;
       const sx = HW + 2.9;
       const pole = (z, hgt, top) => { dyn.box(IDM, sx, hgt / 2, z, 0.07, hgt, 0.07, POLE); if (top) dyn.box(IDM, sx, hgt + 0.22, z, 0.42, 0.44, 0.07, ORANGE); else dyn.box(IDM, sx, hgt + 0.1, z, 0.22, 0.2, 0.22, ORANGE); };
@@ -6264,7 +6384,7 @@ gl_FragColor=vec4(c,1.0);}`;
       bPc.textContent = phase === 'pre' ? pc : '';
       bPc.classList.toggle('low', phase === 'pre' && pc <= 5);
       const cpuBall = poss === 'away' || phase === 'cpu';
-      bDD.innerHTML = cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : `<b>${ddTxt()}</b><span>${ballTxt(los)}</span>`;
+      bDD.innerHTML = cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : `<b>${ddTxt()}</b><span>${ballTxt(los)}</span>`;
       const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
     }
     let sprintBtn = null, staCache = -1;
@@ -6333,6 +6453,9 @@ gl_FragColor=vec4(c,1.0);}`;
       } else if (phase === 'pat') {
         btn('bz-y', `Kick XP<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => chooseTry(false));
         btn('', `Go for 2<small>one play from the 2</small>${K('2')}`, () => chooseTry(true));
+      } else if (phase === 'koc') {
+        btn('bz-y', `Kick deep<small>they start at their 25</small>${K('1')}`, () => chooseKo(false));
+        btn('', `Onside kick<small>live ball after 10 yards</small>${K('2')}`, () => chooseKo(true));
       } else if (phase === 'live' && mode === 'aim') {
         if (play.type === 'qbdraw') msg('<span><b>QB Draw</b> · he takes off on his own · pull back to throw instead</span>');
         else msg(touchy ? '<span><b>Pull back</b> to aim, let go to throw · aim <b>behind</b> the QB to run</span>' : '<span><b>Pull back</b> to aim &amp; release · aim <b>behind</b> the QB to run · arrows move the QB</span>');
@@ -6360,7 +6483,7 @@ gl_FragColor=vec4(c,1.0);}`;
         });
         if (touchy) mkSprint();
       } else if (phase === 'live') {
-        msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? '<span>Kickoff · get under it…</span>' : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
+        msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? (kick.onside ? '<span>Onside kick · live ball once it goes 10 yards…</span>' : '<span>Kickoff · get under it…</span>') : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
       } else if (phase === 'kick') {
         if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the 2</small>${K('2')}`, () => switchTry(true));
         btn('bz-y bz-wide', `${kick.st === 'power' ? 'Set power' : kick.st === 'acc' ? 'Set aim' : 'Kicking…'}${K('SPACE')}`, kickTap, 'pointerdown');
@@ -6694,6 +6817,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c === 'KeyG') { choose4th('go'); return; }
       if (c === 'Digit1' && phase === 'pat') { chooseTry(false); return; }
       if (c === 'Digit2' && phase === 'pat') { chooseTry(true); return; }
+      if (c === 'Digit1' && phase === 'koc') { chooseKo(false); return; }
+      if (c === 'Digit2' && phase === 'koc') { chooseKo(true); return; }
       if (c === 'Digit1' && phase === 'pre' && tryMode) { switchTry(false); return; } // lined up for two: kick instead
       if (c === 'Digit2' && phase === 'kick' && kick && kick.type === 'xp' && kick.st === 'power') { switchTry(true); return; } // kick lined up: go for two instead
       if (c === 'Escape' && aim) { aim = null; hideAim(); return; }
@@ -6790,7 +6915,7 @@ gl_FragColor=vec4(c,1.0);}`;
         <li><i>3</i><span><b>Scramble</b>: aim <b>behind</b> the QB (${touchy ? 'drag forward so the line points back' : 'drag forward so the line points back'}) and let go: he tucks it and runs. Then ${touchy ? 'drag on the field' : 'use the arrows'} to steer him.</span></li>
         <li><i>4</i><span><b>Catch</b>: lead your man (the small ring shows where he will be when it gets there). The receiver closest to the ball hunts it on his own and goes up or lays out if you don't; steer to adjust, or hit <b>JUMP</b> for high balls and <b>DIVE</b> for ones just out of reach. A ball thrown into a crowd usually gets broken up or picked.</span></li>
         <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Hurdle, Dive</b>${touchy ? '' : ' (J K L H Space)'}. Hurdle a diving tackler, but a defender on his feet will catch you in the air. Tacklers hit with momentum: break them or fall forward.</span></li>
-        <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. After a play that ends in bounds the clock runs 4 more seconds, then stops until the next snap; incompletions, out of bounds and scores stop it right away.</span></li>
+        <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. In the 4th quarter you can try an <b>onside kick</b> after you score (and the other team will when it trails late). A <b>dive</b> puts the runner down where he lands. After a play that ends in bounds the clock runs 4 more seconds, then stops until the next snap; incompletions, out of bounds and scores stop it right away.</span></li>
       </ul>
       <button type="button" class="bz-go">KICK OFF</button>`);
     wrap.appendChild(splash);
@@ -6811,8 +6936,8 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; },
-      input, snap, begin, choose4th, chooseTry, switchTry, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
+      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; },
+      input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
       get plays() { return PLAYS.map((p) => p.id); }, get cats() { return CATS.map((c) => c[0]); }, get sheetCat() { return sheetCat; },
@@ -6827,6 +6952,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // moments and perks (tests): pick off a pass now, kick now, give every Lineup card one perk, reach the hooks
       intercept(i) { const d = def[i || 0]; if (d && ball && ball.st === 'air') intercept(d, 'test'); },
       kickNow(t) { if (phase === 'pre') startKick(t || 'fg'); },
+      onside(home) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); startOnside(home !== false); }, koChoice() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; clearBanner(); startKoChoice(); },
       forcePre(l) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; replay = null; hideMeter(); clearBanner(); startDrive(l || 50); },
       teamFx(f) { for (const k in SQ) SQ[k].fx = f; for (const p of off) { p.fx = f; p.pkFx = undefined; } PK.ev = null; },
       perkInternals: { knockDown, hitCarrier, perkHook, perkTackle, perkThrow, perkCatch, perkReach, recAttempt, engage, doJump, doDive, pkOf, catchBall, PK, FUN },
