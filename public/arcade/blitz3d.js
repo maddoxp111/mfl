@@ -3280,7 +3280,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- snap, handoff, pitch ----------
     function snap() {
       if (phase !== 'pre' || finished) return;
-      phase = 'live'; tPlay = 0; introT0(); clearBanner(); closeSheet();
+      phase = 'live'; tPlay = 0; introT0(); clearBanner(); closeSheet(); resetPtr(); // a new play: no finger from the last one carries over
       sfx.play('hike'); sfx.crowd(0.18 + excite * 0.3);
       const qb = OK.QB, under = FORMS[play.form].under;
       ball = { st: 'snap', x: 0, y: 0.3, z: los, t: 0, T: under ? 0.08 : 0.24, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
@@ -7152,7 +7152,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function startLoop() { if (running || finished) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
     function stopLoop() { running = false; cancelAnimationFrame(raf); }
-    const onVis = () => { if (document.hidden) stopLoop(); else { startLoop(); sfx.wake(); setTimeout(() => sfx.wake(), 400); } };
+    const onVis = () => { resetPtr(); if (document.hidden) stopLoop(); else { startLoop(); sfx.wake(); setTimeout(() => sfx.wake(), 400); } };
     const onWake = () => sfx.wake();
     window.addEventListener('pageshow', onWake); window.addEventListener('focus', onWake); window.addEventListener('pointerdown', onWake, { capture: true, passive: true }); window.addEventListener('touchend', onWake, { capture: true, passive: true });
     let rzT = 0;
@@ -7228,15 +7228,22 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c === 'Escape' && aim) { aim = null; hideAim(); return; }
     }
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
-    const onBlur = () => { input.l = input.r = input.u = input.d = 0; input.sprint = false; };
+    const onBlur = () => { input.l = input.r = input.u = input.d = 0; input.sprint = false; resetPtr(); };
     window.addEventListener('blur', onBlur);
     let pid = null, origin = null, ptype = '', ptT = 0;
+    // A finger the game thinks is still down makes it ignore every new touch on the field (or read it as a second finger that
+    // only switches the throw), while the buttons keep working. iOS can swallow a finger's lift: a drag into the home-swipe
+    // edge, an app switch mid-drag. So the finger is forgotten whenever its lift can't come: the page hides or loses focus,
+    // its capture is lost, a new play is snapped, or it no longer fits what is happening on the field.
+    function resetPtr() { if (aim) { aim = null; try { hideAim(); } catch (e) {} } pid = null; origin = null; ptype = ''; input.stick = null; try { hideStick(); } catch (e) {} }
+    const ptrStale = () => pid != null && (ptype === 'aim' ? !(phase === 'live' && mode === 'aim') : ptype === 'stick' ? !(phase === 'live' && (mode === 'run' || mode === 'catch')) : true);
     stage.addEventListener('pointerdown', (e) => {
       if (finished) return;
       if (touchy && !aligned()) { scrollIn(); e.preventDefault(); return; } // first touch while the game is scrolled out of view: bring it back, nothing else
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       if (phase === 'kick') { kickTap(); e.preventDefault(); return; }
       if (phase === 'replay') { endReplay(); return; }
+      if (pid != null && (e.pointerId === pid || ptrStale() || performance.now() - ptT > 8000)) resetPtr(); // the old finger is gone
       if (pid != null) { if (ptype === 'aim' && e.pointerId !== pid) { setArc(arc === 0 ? 1 : 0); e.preventDefault(); } return; } // second finger while aiming: Touch <-> Bullet only (Lob -> Bullet); Lob is its own button or the 3 key
       if (phase === 'live' && mode === 'aim') {
         pid = e.pointerId; ptype = 'aim'; ptT = performance.now();
@@ -7245,7 +7252,7 @@ gl_FragColor=vec4(c,1.0);}`;
         showAim(); e.preventDefault(); return;
       }
       if (phase === 'live' && (mode === 'run' || mode === 'catch')) {
-        pid = e.pointerId; ptype = 'stick'; origin = [x, y]; input.stick = [0, 0];
+        pid = e.pointerId; ptype = 'stick'; ptT = performance.now(); origin = [x, y]; input.stick = [0, 0];
         try { stage.setPointerCapture(e.pointerId); } catch (er) {}
         stickEl.style.display = 'block'; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.firstChild.style.transform = '';
         e.preventDefault();
@@ -7274,6 +7281,7 @@ gl_FragColor=vec4(c,1.0);}`;
       pid = null; origin = null; input.stick = null; ptype = ''; hideStick();
     };
     stage.addEventListener('pointerup', endPtr); stage.addEventListener('pointercancel', endPtr);
+    stage.addEventListener('lostpointercapture', (e) => { if (e.pointerId === pid) resetPtr(); }); // its lift went somewhere else
 
     // ---------- finish / cleanup ----------
     function cleanup() {

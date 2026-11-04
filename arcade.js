@@ -535,6 +535,7 @@ module.exports = function arcade(app, h) {
       if (fm.run && won) fm.run.pending = true;
       fm.score = m.score ?? score;
       fm.stats = r.stats && typeof r.stats === 'object' ? { td: Math.min(30, +r.stats.td || +r.stats.tds || 0), ...(Number.isFinite(+r.stats.opp) ? { opp: Math.max(0, Math.min(200, Math.round(+r.stats.opp))) } : {}) } : undefined;
+      if (r.quit) fm.quit = true; // shown in Admin > Arcade, where a quit forced by a bug can be refunded
       const tied = !won && !!r.tie && !r.quit && fm.stats && fm.stats.opp != null && fm.stats.opp === score;
       if (tied) { fm.tie = true; if (refundMatch(fresh, fm, 'tie')) note = 'A tie: your coins are back.'; }
       fm.secs = Math.round(secs);
@@ -724,10 +725,10 @@ module.exports = function arcade(app, h) {
     const scoreOf = (m) => (m.score ?? '') + (m.stats && m.stats.opp != null ? '–' + m.stats.opp : '');
     const form = (action, u, m, label) => `<form method="post" action="${action}"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">${label}</button></form>`;
     res.send(layout(req, 'Arcade admin', h.pageHead('Admin', 'Arcade wins and losses') + `<div class="wrap">${h.adminNav('/admin/arcade')}
-      <div class="card"><p class="muted sm">Recent paid wins and coin losses, newest first. <b>Void</b> takes a win's coins back (and gives back a Risk stake). <b>Refund</b> gives a lost game's coins back; in a Double or Nothing / Double or Double run it also puts the run back to the choice after the game before it. Games before Nov 4 did not record the other team's score, so a tie shows as a loss: look for the time.</p>
+      <div class="card"><p class="muted sm">Recent paid wins and coin losses, newest first. <b>Void</b> takes a win's coins back (and gives back a Risk stake). <b>Refund</b> gives a lost game's coins back; in a Double or Nothing / Double or Double run it also puts the run back to the choice after the game before it. Games before Nov 4 did not record the other team's score or a quit, so a tie or a quit shows as a plain loss: look for the time.</p>
       <form method="get" action="/admin/arcade" class="row" style="gap:8px;margin:8px 0"><input name="u" value="${esc(req.query.u || '')}" placeholder="Filter by player"><button class="btn ghost sm">Filter</button></form>
       <table class="tbl"><thead><tr><th class="l">When</th><th class="l">Player</th><th class="l">Game</th><th>Level</th><th>Time</th><th>Score</th><th>Coins</th><th></th></tr></thead><tbody>
-      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
+      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}${m.quit ? ' (quit)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
         <td>${m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
   });
   // ---------- admin: how each real player looks (Modern Bowl and 3D Blitz) and their 3D build ----------
