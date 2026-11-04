@@ -24,6 +24,19 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-tm b{font:900 15px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px;text-transform:uppercase}
 .bz-tm em{font:400 13px/1 'Press Start 2P',monospace;font-style:normal;color:#ffc21a;min-width:22px;text-align:right}
 .bz-tm i{position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#ffc21a;opacity:0}
+.bz-tm.fire{box-shadow:inset 0 -3px 0 #ff7a1a;animation:bzfire .6s ease-in-out infinite alternate}.bz-tm.fire em{color:#ff9a3c}.bz-tm.fire b::after{content:' 🔥';font-size:12px}
+@keyframes bzfire{from{background:rgba(255,122,26,.08)}to{background:rgba(255,122,26,.28)}}
+.bz-bug.bz-clutch .bz-sb{border-color:#ff3344;animation:bzclutch .82s ease-in-out infinite}
+@keyframes bzclutch{0%,100%{box-shadow:0 0 0 0 rgba(255,51,68,.0),0 3px 10px rgba(0,0,0,.4)}30%{box-shadow:0 0 0 3px rgba(255,51,68,.55),0 3px 10px rgba(0,0,0,.4)}}
+.bz-clutchtag{position:absolute;left:50%;top:18%;transform:translateX(-50%);z-index:12;text-align:center;pointer-events:none;animation:bzct 3.2s ease-out forwards}
+.bz-clutchtag b{display:block;font:900 clamp(28px,7vw,54px)/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:2px;color:#ff3344;text-shadow:0 0 18px rgba(255,51,68,.7),0 3px 0 #000}
+.bz-clutchtag i{display:block;font:700 13px Inter,sans-serif;color:#fff;font-style:normal;margin-top:4px;text-shadow:0 2px 4px #000}
+@keyframes bzct{0%{opacity:0;transform:translateX(-50%) scale(1.6)}12%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+.bz-dcall{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 4px}
+.bz-dcall button{position:relative;display:flex;flex-direction:column;gap:2px;align-items:center;padding:9px 4px;border-radius:9px;border:1px solid #2f3546;background:#161a24;color:#e8e9ed;cursor:pointer;font:inherit;pointer-events:auto}
+.bz-dcall button b{font:900 16px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px;text-transform:uppercase}.bz-dcall button small{font-size:10px;color:#9aa0ad;line-height:1.2}
+.bz-dcall button.sug{border-color:#ffc21a;box-shadow:inset 0 0 0 1px #ffc21a}.bz-dcall button u{position:absolute;top:3px;right:5px;text-decoration:none;font:400 8px 'Press Start 2P',monospace;color:#ffc21a}
+.bz-dct{font-size:11px;color:#9aa0ad;margin:2px 0 0}
 .bz-tm.pos i{opacity:1}
 .bz-tm s{display:flex;gap:2px;text-decoration:none;position:absolute;left:8px;bottom:2px}
 .bz-tm s u{display:block;width:9px;height:2px;background:#ffc21a;text-decoration:none}.bz-tm s u.off{background:#2a2f3c}
@@ -369,6 +382,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       catch: () => { burst(0.05, 1200, 0.2, 3); tone(520, 0.05, 'square', 0.025); },
       tackle: () => { burst(0.16, 140, 0.5, 0.8); tone(70, 0.14, 'sine', 0.12, 45); },
       throw: () => burst(0.18, 2200, 0.08, 0.7),
+      beat: () => { tone(60, 0.1, 'sine', 0.18, 42); tone(54, 0.12, 'sine', 0.14, 38, 0.18); },
       horn: () => { tone(233, 0.6, 'sawtooth', 0.04); tone(294, 0.6, 'sawtooth', 0.035); tone(349, 0.6, 'sawtooth', 0.03); },
       cheer: () => burst(2.2, 1000, 0.35, 0.5),
       boo: () => burst(1.4, 300, 0.18, 0.6),
@@ -2810,7 +2824,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- movement ----------
-    const effV = (p) => p.v * (p.sprint && p.sta > 0 ? 1.2 + (p.spd - 50) * 0.0012 : 1) * (p.wrapT > 0 ? 0.3 : 1) * (p.stumbleT > 0 ? 0.72 : 1) * (p.rising > 0 ? 0 : 1) * (p.pkV || 1);
+    const effV = (p) => p.v * (p.sprint && p.sta > 0 ? 1.2 + (p.spd - 50) * 0.0012 : 1) * (p.wrapT > 0 ? 0.3 : 1) * (p.stumbleT > 0 ? 0.72 : 1) * (p.rising > 0 ? 0 : 1) * (p.pkV || 1) * (p.side === 0 && DRAMA.fireOn && ball && ball.holder === p ? 1.04 : 1);
     function steer(p, tx, tz, spd, dt, acc) {
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
       let vx = 0, vz = 0;
@@ -3651,7 +3665,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
-      const W = clamp(0.7 + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      const W = clamp(0.7 + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
       b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
       if (rng() < W) {
         const hv = Math.hypot(b.vx, b.vz);
@@ -3965,7 +3979,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.wrapT > 0) resist -= 0.5;
       if (airborne) resist -= 0.45; // caught in mid-air by a defender who stayed on his feet
       let gang = 0; for (const o of def) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
-      let pB = clamp(0.05 + (resist - power) * 0.3 + (1 - KDEF) * 0.1 - gang * 0.12, 0.02, 0.5);
+      let pB = clamp(0.05 + (resist - power) * 0.3 + (1 - KDEF) * 0.1 - gang * 0.12 + (c.side === 0 ? dramaBreak() : 0), 0.02, 0.55);
       if (c.side === 0) pB = Math.min(0.55, pB + 0.05 * Math.min(1.5, funGate())); // a quiet stretch makes a big run a little likelier
       if (DBG && DBG.forceBreak != null) pB = DBG.forceBreak;
       if (funForced('trucked') || funForced('plant')) pB = 1;
@@ -4225,6 +4239,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (st) { st.fgAtt++; if (k.good) st.fgMade++; }
       voice.say(k.good ? (k.doink ? 'doink_in' : 'fg_good') : (k.doink ? 'doink' : 'fg_miss'), { kicker: shortName(KR.name), dist: String(d) }, 3);
+      if (!k.good) fireOut('FIRE\'S OUT');
       if (k.good) {
         addPts('home', 3); banner('IT\'S GOOD!', `${d}-yard field goal`, '#2bd46b'); sfx.play('good'); sfx.play('cheer'); excite = 0.8; confetti(0, 110); cam.kick = 0.6;
         say(`<b>${esc(KR.name)}</b> drills it from ${d} yards.`); addHL(`${shortName(KR.name)} ${d}-yd FG`);
@@ -4399,7 +4414,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const PCL = Math.round(25 + (1 - DIFF) * 15);
     function addPts(side, n) {
       if (side === 'home') hs += n; else as += n;
-      boardDirty = true; voiceScore();
+      boardDirty = true; voiceScore(); lastPts = n; if (side === 'home') DRAMA.keep = true; dramaScore(side);
       if (side === 'home') { excite = 1; sfx.play('horn'); sfx.play('cheer'); } else sfx.play('boo');
     }
     function addHL(s) { if (HL.length < 10) HL.push(s); }
@@ -4526,6 +4541,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
       if (lastBig && lastBig.kind === 'td') { deadT += 0.3; deadTot = deadT; }
       voiceResult(kind, P, gained, nx, head, extra, slid, spot);
+      dramaPlay(kind, gained, head);
       banner(head, sub, col);
       say(line);
       if (warnPend) { warnPend = false; twoMin(); }
@@ -4625,9 +4641,9 @@ gl_FragColor=vec4(c,1.0);}`;
     // (strength curved and capped so each level sits in its range: about 1.8 / 2.5 / 3.9 / 4.8 points per full drive; the CPU gets 6-9
     // drives a game, more when the player's drives stall)
     // (curve retuned: about 1.4 / 2.7 / 4.3 / 5.2 points per full drive, so roughly 10 / 18 / 27 / 33 a game at Rookie / Pro / All-Pro / Legend)
-    const CSc = Math.pow(CS, 1.3);
-    const CD = { g: lerp(5.7, 9.4, CSc), big: lerp(0.075, 0.22, CSc), loss: lerp(0.14, 0.055, CSc), to: lerp(0.038, 0.014, CSc), fg: lerp(0.8, 0.96, CSc), inc: lerp(0.18, 0.1, CSc), oob: 0.1, go4: lerp(1, 3, CSc) };
-    function simCpu(spot, clk, log) {
+    // (the play table now comes from cpuTable in 71-drama.js, per drive: the comeback logic, a hot CPU and the defensive call)
+    function simCpu(spot, clk, log, call) {
+      const CD = cpuTable(call);
       const start = spot; let dn = 1, fd = spot + 10, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
       const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t) });
@@ -4649,7 +4665,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
         // same clock as the user: the play itself, then 4 more seconds after an in-bounds play before it stops for the next snap
-        const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF)) * QS / 120);
+        const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF) + CD.slow) * QS / 120);
         if (log) log.push({ g, stop, secs: +(c0 - clk.t).toFixed(2) });
         if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, 99); return fin(rng() < 0.6 ? 'INT' : 'FUMBLE'); }
         spot = Math.max(1, spot + g);
@@ -4664,29 +4680,46 @@ gl_FragColor=vec4(c,1.0);}`;
       clearBanner(); closeSheet(); carrier = null; clockRun = false; ctrl = null; mode = 'none'; kick = null;
       phase = 'cpu'; poss = 'away'; los = clamp(100 - start, 1, 99); down = 1; fdz = Math.min(100, los + 10);
       setupPlay(); hideTags();
-      const clk = { q: qtr, t: clock }, r = simCpu(start, clk);
-      CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
-      cpuD = { r, start, c0: clock, t: 0, dur: Math.min(5, 1.1 + r.plays * 0.32), shown: false, el: el('div', 'bz-dcard') };
+      if (!DRAMA.keep) fireOut('FIRE\'S OUT'); DRAMA.keep = false; // the player's drive ended without points
+      // the player calls the defense first (a few seconds, then the suggested call is made for him), then the drive is played out
+      const sug = suggestCall();
+      cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true, pickT: isClutch() ? 6 : 3.2, sug };
       cpuD.el.style.setProperty('--oc', OPPCSS);
-      fx.appendChild(cpuD.el); drawCard();
+      fx.appendChild(cpuD.el); drawPick();
       setControls(true);
-      say(`<b>${esc(AWAY.name)}</b> ball at their ${start}.`);
+      say(`<b>${esc(AWAY.name)}</b> ball at their ${start}. Call the defense.`);
       voice.say('cpu_drive_start', { away: AWAY.name, spot: start === 50 ? 'midfield' : 'the ' + start }, 1, 0.3);
+    }
+    function drawPick() {
+      const d = cpuD;
+      d.el.innerHTML = `<h3>${esc(AWAY.name)} ball</h3><p>Started at their ${d.start}. Call the defense:</p><div class="bz-dcall">${['blitz', 'base', 'prevent'].map((k, i) => `<button type="button" data-call="${k}" class="${k === d.sug ? 'sug' : ''}"><b>${DEFCALL[k].name}</b><small>${DEFCALL[k].sub}</small>${touchy ? '' : `<u>${i + 1}</u>`}</button>`).join('')}</div><p class="bz-dct">${DEFCALL[d.sug].name} in <b>${Math.ceil(d.pickT)}</b></p>`;
+      d.el.querySelectorAll('[data-call]').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); chooseCall(b.getAttribute('data-call')); }));
+    }
+    function chooseCall(call) {
+      const d = cpuD; if (!d || !d.pick) return;
+      d.pick = false; call = DEFCALL[call] ? call : 'base'; DRAMA.call = call; DRAMA.calls[call]++;
+      const clk = { q: qtr, t: clock }, r = simCpu(d.start, clk, null, call);
+      CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
+      Object.assign(d, { r, c0: clock, t: 0, call, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1) }); // clutch: the drive plays out slower
+      sfx.play('tap'); drawCard();
     }
     function drawCard() {
       const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, n = Math.max(1, Math.round(r.plays * k)), y = Math.round(r.yds * k);
       const res = d.shown ? RES[r.res] : null;
       const label = r.res === 'CLOCK' ? (qtr === 2 ? 'END OF HALF' : qtr >= 4 ? 'TIME RUNS OUT' : 'END OF QUARTER') : res ? res[0] : '';
-      d.el.innerHTML = `<h3>${esc(AWAY.name)} drive</h3><p>Plays <b>${n}</b> · Yards <b>${y}</b></p><p>Started at their ${d.start}</p>` +
+      d.el.innerHTML = `<h3>${esc(AWAY.name)} drive</h3><p>Plays <b>${n}</b> · Yards <b>${y}</b></p><p>Started at their ${d.start} · your defense: <b>${DEFCALL[d.call || 'base'].name}</b></p>` +
         (d.shown ? `<p class="res" style="color:${res[1]}">${label}</p><p class="sc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '<p class="res">…</p>');
     }
     function cpuStep(dt) {
-      const d = cpuD; d.t += dt;
+      const d = cpuD;
+      if (d.pick) { const was = Math.ceil(d.pickT); d.pickT -= dt; if (d.pickT <= 0) chooseCall(d.sug); else if (Math.ceil(d.pickT) !== was) { const b = d.el.querySelector('.bz-dct b'); if (b) b.textContent = Math.ceil(d.pickT); } return; }
+      d.t += dt;
       clock = d.c0 + (d.r.t - d.c0) * Math.min(1, d.t / d.dur);
       if (!d.shown && d.t >= d.dur) {
         d.shown = true; clock = d.r.t;
         if (d.r.res === 'TD') { addPts('away', 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
         else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') { sfx.play('good'); excite = 0.6; } else sfx.play('whistle');
+        if (d.r.res !== 'CLOCK') dramaCpu(d.r.res);
         const fz = funCpu(d.r); if (fz) { moment(fz[0], null, fz[1], { victim: 'away', replay: false, snd: fz[0] === 'cpudoink' ? 'doink' : 'ooh', line: funLine(fz[0]) }); d.fl = FUN.line; FUN.line = ""; FUN.plays++; FUN.thisPlay = 0; }
         drawCard(); boardDirty = true;
         { const R = d.r.res; voice.say(R === 'TD' ? 'cpu_td' : R === 'FG' ? 'cpu_fg' : R === 'PUNT' ? (d.r.shank ? 'punt_shank' : 'cpu_punt') : R === 'INT' ? 'cpu_int' : R === 'FUMBLE' ? 'cpu_fumble' : R === 'DOWNS' ? 'cpu_downs' : R === 'MISS' ? 'cpu_miss_fg' : 'cpu_clock', { away: AWAY.name }, R === 'TD' || R === 'INT' || R === 'FUMBLE' ? 3 : 2, R === 'PUNT' || R === 'CLOCK' ? 0.6 : 1); }
@@ -4769,6 +4802,110 @@ gl_FragColor=vec4(c,1.0);}`;
         parts.push({ x, y: 2.5, z, vx: Math.cos(a) * v, vy: 5 + crand() * 7, vz: Math.sin(a) * v, life: 2 + crand() * 1.2, c: cols[i % 4], r: crand() * 6 });
       }
     }
+    // ---------- drama: comeback logic, the defensive call, ON FIRE streaks, clutch time ----------
+    // Comeback logic: how much the game leans toward the side that is behind, -1..1 (above 0: the player leads), growing as the game
+    // goes on. It shapes the CPU's drives (stronger while the player leads, weaker and more turnover-prone while he trails) and,
+    // a little, the player's close calls (catches in traffic, broken tackles). In a whole-game model it takes games decided by 7
+    // or less from about half to about two thirds at Pro (38% to 55% at Legend) and cuts 21-point blowouts by two thirds, while
+    // who wins hardly moves.
+    const DRAMA = { streak: 0, fireOn: false, fires: 0, cpuStreak: 0, cpuHot: false, clutch: false, clutchShown: false, call: 'base', calls: { base: 0, blitz: 0, prevent: 0 }, beatT: 0, flameT: 0, winners: 0, log: [] };
+    function gameProg() { const q = Math.min(qtr, 4); return clamp(((q - 1) * QS + (QS - clock)) / (QS * 4), 0, 1); }
+    function rubber() { if (DBG && DBG.noRubber) return 0; return clamp((hs - as) / 12, -1, 1) * (0.4 + 0.6 * gameProg()); }
+    // nudges for the player's own close calls: up when he trails, down when he leads, plus the streak
+    const dramaCatch = () => -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
+    const dramaBreak = () => -rubber() * 0.06 + (DRAMA.fireOn ? 0.08 : 0);
+    // The defensive calls for a CPU drive (multipliers on its play table). Blitz: more sacks and turnovers, but more big plays
+    // allowed, and drives end faster either way. Prevent: takes the big play away and bleeds the clock, gives up the short stuff.
+    // Modeled from the 25: Blitz scores about what Base does with half again as many turnovers and 12 s shorter drives; Prevent
+    // gives up a little more but uses about 15 s more of the clock.
+    const DEFCALL = {
+      base: { name: 'Base', sub: 'Play it straight', loss: 1, big: 1, to: 1, g: 1, inc: 1, slow: 0 },
+      blitz: { name: 'Blitz', sub: 'Sacks and picks, but big plays', loss: 1.7, big: 2.2, to: 1.6, g: 0.9, inc: 1.1, slow: 0 },
+      prevent: { name: 'Prevent', sub: 'No big plays, burn the clock', loss: 0.6, big: 0.4, to: 0.8, g: 1.12, inc: 0.85, slow: 1.2 },
+    };
+    function cpuTable(call) {
+      const k = rubber(), K = DEFCALL[call] || DEFCALL.base;
+      const cs = clamp(CS + k * 0.3 + (DRAMA.cpuHot ? 0.08 : 0), 0, 1.25), c = Math.pow(cs, 1.3), toK = clamp(1 - k * 0.8, 0.2, 1.8);
+      return { g: lerp(5.7, 9.4, c) * K.g, big: lerp(0.075, 0.22, c) * K.big, loss: lerp(0.14, 0.055, c) * K.loss, to: lerp(0.038, 0.014, c) * K.to * toK, fg: lerp(0.8, 0.96, c), inc: lerp(0.18, 0.1, c) * K.inc, oob: 0.1, go4: lerp(1, 3, c), slow: K.slow };
+    }
+    // clutch time: the fourth quarter (or overtime) inside the last minute with one score in it
+    const isClutch = () => (qtr >= 5 || (qtr === 4 && clock <= 60)) && Math.abs(hs - as) <= 8;
+    // a suggested call for the situation (highlighted on the card): protecting a late lead, prevent; needing the ball back, blitz
+    function suggestCall() {
+      const late = qtr >= 4 && clock < 75, d = hs - as;
+      if (late && d > 0 && d <= 8) return 'prevent';
+      if (late && d < 0) return 'blitz';
+      return DRAMA.call || 'base';
+    }
+
+    // ---------- the ON FIRE streak ----------
+    // three good plays in a row (a first down, 12+ yards or a touchdown) and the offense is on fire: flames on the ball, catches in
+    // traffic and broken tackles come easier, a step quicker. It goes out on an incompletion, a sack, a loss, a turnover, a punt or
+    // a missed kick, or when the CPU scores. A touchdown or field goal keeps it going into the next drive.
+    function dramaPlay(kind, gained, head) {
+      if (tryMode || (kick && kick.type === 'ko')) return;
+      const good = kind === 'td' || head === 'FIRST DOWN!' || (gained >= 12 && kind !== 'inc');
+      const bad = ['inc', 'sack', 'intdown', 'fumlost', 'pick6', 'safety'].includes(kind) || gained < 0 || head === 'TURNOVER ON DOWNS';
+      if (bad) { if (DRAMA.fireOn) fireOut('FIRE\'S OUT'); DRAMA.streak = 0; return; }
+      if (!good) return;
+      DRAMA.streak++;
+      if (!DRAMA.fireOn && DRAMA.streak >= 3) fireUp();
+    }
+    function fireUp() {
+      DRAMA.fireOn = true; DRAMA.fires++; DRAMA.log.push('fire');
+      pop('ON FIRE!', '#ff7a1a'); sfx.play('horn'); excite = Math.min(1, excite + 0.4); cam.shake = Math.max(cam.shake, 0.25);
+      for (const p of off) if (p.R || p === OK.QB) flameBurst(p, 10);
+      voice.say('drive_hot', {}, 2, 0.9); boardDirty = true; bugCache = '';
+      if (FUN && FUN.line === '') FUN.line = `<b style="color:#ff7a1a">${esc(HOME.name)} are on fire.</b>`;
+    }
+    function fireOut(why) { if (!DRAMA.fireOn) return; DRAMA.fireOn = false; DRAMA.streak = 0; pop(why, '#9aa3b2'); boardDirty = true; bugCache = ''; }
+    // a drive that ends without points puts the fire out (punt, missed kick); one that scores keeps it lit
+    function dramaDriveEnd(scored) { if (!scored) fireOut('FIRE\'S OUT'); }
+    function flameBurst(p, n) {
+      const cols = [hex('#ff7a1a'), hex('#ffb020'), hex('#ff3d1a')];
+      for (let i = 0; i < n && parts.length < 140; i++) { const a = crand() * 6.283, v = 0.6 + crand() * 1.6; parts.push({ x: p.x + Math.cos(a) * 0.2, y: 0.6 + crand() * 1.2 + (p.jumpY || 0), z: p.z + Math.sin(a) * 0.2, vx: Math.cos(a) * v, vy: 3 + crand() * 3, vz: Math.sin(a) * v, life: 0.45 + crand() * 0.35, c: cols[i % 3], r: crand() * 6 }); }
+    }
+
+    // ---------- the CPU heats up ----------
+    function dramaCpu(res) {
+      const scored = res === 'TD' || res === 'FG';
+      if (scored) { if (DRAMA.fireOn) fireOut('FIRE\'S OUT'); DRAMA.cpuStreak++; if (DRAMA.cpuStreak >= 2 && !DRAMA.cpuHot) { DRAMA.cpuHot = true; DRAMA.log.push('cpuhot'); pop(`${AWAY.name.toUpperCase()} HEATING UP`, '#ff3344'); } }
+      else { if (DRAMA.cpuHot) pop('COOLED OFF', '#4dd2ff'); DRAMA.cpuStreak = 0; DRAMA.cpuHot = false; }
+    }
+
+    // ---------- clutch time and game winners ----------
+    function dramaStep(dt) {
+      // flames trail the ball while the offense is on fire
+      if (DRAMA.fireOn && phase === 'live') {
+        DRAMA.flameT -= dt;
+        const h = ball && ball.holder; if (h && h.side === 0 && DRAMA.flameT <= 0) { DRAMA.flameT = 0.05; flameBurst(h, 2); }
+      }
+      const cl = isClutch() && !finished && phase !== 'over' && phase !== 'box';
+      if (cl !== DRAMA.clutch) { DRAMA.clutch = cl; bug.classList.toggle('bz-clutch', cl); }
+      if (cl && !DRAMA.clutchShown && (phase === 'pre' || phase === 'cpu')) {
+        DRAMA.clutchShown = true; DRAMA.log.push('clutch');
+        const t = el('div', 'bz-clutchtag', `<b>CLUTCH TIME</b><i>${qtr >= 5 ? 'Overtime' : 'Under a minute'} · ${hs === as ? 'tied' : 'a one-score game'}</i>`);
+        wrap.appendChild(t); const gone = () => { try { t.remove(); } catch (e) {} }; t.addEventListener('animationend', gone); setTimeout(gone, 8000); // leaves when its animation ends (a slow phone still sees all of it)
+        sfx.play('horn'); excite = Math.max(excite, 0.8); voice.say('close_game', {}, 2, 0.9);
+      }
+      if (cl) {
+        excite = Math.max(excite, 0.55); // the crowd never sits down
+        if (phase === 'pre') { DRAMA.beatT -= dt; if (DRAMA.beatT <= 0) { DRAMA.beatT = 0.82; sfx.play('beat'); } }
+      }
+    }
+    // a score in the final 30 seconds (or overtime) that takes the lead
+    function dramaScore(side) {
+      const late = qtr >= 5 || (qtr === 4 && clock <= 30);
+      if (!late) return;
+      const leadNow = side === 'home' ? hs > as : as > hs, leadBefore = side === 'home' ? hs - (lastPts || 0) <= as : as - (lastPts || 0) <= hs;
+      if (!leadNow || !leadBefore) return;
+      DRAMA.winners++; DRAMA.log.push(side === 'home' ? 'winner' : 'cpuwinner');
+      if (side === 'home') {
+        pop(clock <= 0 || qtr >= 5 ? 'WALK-OFF!' : 'GO-AHEAD SCORE!', '#2bd46b'); excite = 1; cam.shake = Math.max(cam.shake, 0.5);
+        for (let i = 0; i < 40 && parts.length < 160; i++) { const a = crand() * 6.283, v = 2 + crand() * 5; parts.push({ x: (crand() - 0.5) * 20, y: 3, z: los + (crand() - 0.5) * 20, vx: Math.cos(a) * v, vy: 5 + crand() * 6, vz: Math.sin(a) * v, life: 1.6 + crand(), c: [hex('#ffc21a'), hex('#2bd46b'), hex('#ffffff')][i % 3], r: crand() * 6 }); }
+      } else pop(`${AWAY.name.toUpperCase()} TAKE THE LEAD`, '#ff3344');
+    }
+    let lastPts = 0;
 
     // ---------- crazy moments ----------
     // Big hits that launch a ragdoll, truck sticks, ankle breakers, bloopers, scoops, doinks and celebrations. Each one is visible on
@@ -5621,7 +5758,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function step(dt) {
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
-      voiceIdle(dt);
+      voiceIdle(dt); dramaStep(dt);
       excite = Math.max(0, excite - dt * 0.09);
       for (const q of parts) { if (q.life <= 0) continue; q.life -= dt; q.vy -= 12 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < 0.05) { q.y = 0.05; q.vy *= -0.3; q.vx *= 0.6; q.vz *= 0.6; } q.r += dt * 8; }
       for (const p of everyone) {
@@ -6776,8 +6913,9 @@ gl_FragColor=vec4(c,1.0);}`;
     let bugCache = '';
     function updBug() {
       const pc = Math.ceil(playClock), running = clockRun || phase === 'live' || (phase === 'kick' && kick && kick.st === 'fly');
-      const key = [hs, as, qtr, Math.ceil(clock), toLeft, poss, phase === 'pre' ? pc : '', down, Math.round(los * 2), fdz, tryMode, running, phase].join('|');
+      const key = [hs, as, qtr, Math.ceil(clock), toLeft, poss, phase === 'pre' ? pc : '', down, Math.round(los * 2), fdz, tryMode, running, phase, DRAMA.fireOn, DRAMA.cpuHot].join('|');
       if (key === bugCache) return; bugCache = key;
+      bH.classList.toggle('fire', DRAMA.fireOn); bA.classList.toggle('fire', DRAMA.cpuHot);
       bH.querySelector('em').textContent = hs; bA.querySelector('em').textContent = as;
       bH.classList.toggle('pos', poss === 'home'); bA.classList.toggle('pos', poss === 'away');
       bH.querySelector('s').innerHTML = Array.from({ length: TOS }, (_, i) => `<u class="${i < toLeft ? '' : 'off'}"></u>`).join('');
@@ -7182,6 +7320,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const KEYS = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd' };
     function onKey(e) {
       if (finished || phase === 'splash' || phase === 'box') return;
+      if (e.type === 'keydown' && phase === 'cpu' && cpuD && cpuD.pick && /^(Digit|Numpad)[123]$/.test(e.code)) { e.preventDefault(); chooseCall(['blitz', 'base', 'prevent'][+e.code.slice(-1) - 1]); return; }
       const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       if (!wrap.isConnected) return;
       const dn = e.type === 'keydown', k = KEYS[e.code];
@@ -7350,7 +7489,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
+      get dcall() { return dcall; }, get drama() { return DRAMA; }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
