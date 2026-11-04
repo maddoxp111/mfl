@@ -7,8 +7,10 @@ const crypto = require('crypto');
 const { DATA_DIR } = require('./db');
 
 const LINES = require('./commentary-lines.json');
-// the previous split of the same lines: while the new split's clips are still being made, a line can be said in its earlier split
-let PREV = null; try { PREV = require('./commentary-lines.prev.json'); } catch {}
+// Earlier splits of the same lines, newest first, each with the settings version its clips were made under: while the
+// new split's clips are still being made, a line is said in the newest earlier split whose clips all exist.
+const PREV_FILES = [['./commentary-lines.prev.json', 2], ['./commentary-lines.prev2.json', 2]];
+const PREVS = []; for (const [f, sv] of PREV_FILES) { try { PREVS.push({ lines: require(f), sv }); } catch {} }
 const SECRETS_FILE = path.join(DATA_DIR, 'secrets.json');
 const PRONOUNCE_FILE = path.join(DATA_DIR, 'pronounce.json');
 const CACHE_DIR = path.join(DATA_DIR, 'tts');
@@ -18,10 +20,16 @@ const DEFAULT_BASE = 'https://api.elevenlabs.io';
 // lead-in context for every clip keep the tone level from one phrase to the next.
 const VOICE_SETTINGS = { stability: 0.95, similarity_boost: 0.9, style: 0, use_speaker_boost: true };
 const LEAD_IN = 'And here we go. ';
+// Every clip is rendered as the continuation of one anchor clip (request stitching), so the voice keeps the same register
+// from phrase to phrase instead of each short clip settling into its own. Request ids expire after two hours, so the
+// anchor is remade every 90 minutes from the same text and seed.
+const ANCHOR_TEXT = 'Welcome back to the Blitz, folks. What a night for football, and this crowd is loving every second of it.';
+const ANCHOR_SEED = 777, ANCHOR_TTL = 90 * 60 * 1000;
+const ANCHOR_FILE = path.join(DATA_DIR, 'tts-anchor.json');
 // what follows a clip: a continuing phrase gets a mid-sentence read, a closing one a sentence end
 const nextText = (text) => (/[.!?]$/.test(text.trim()) ? 'What a night.' : 'and the crowd is loving it.');
 // bump when the settings or context change so every clip is made again the same way, instead of mixing takes
-const SETTINGS_V = 2;
+const SETTINGS_V = 3;
 // The voices the admin can pick from (ids only; useless without the key). The first is the current default.
 const DEFAULT_VOICES = [{ id: '5e7CHmBxorsZJP4N1Vbi', label: 'Voice 2' }, { id: 'keCu5L7yj9nJhFRsvWmk', label: 'Voice 1' }];
 const OUTPUT_FORMAT = 'mp3_22050_32';
@@ -119,26 +127,45 @@ const DOWN_RE = /^(1st|2nd|3rd|4th)$/;
 // Everything else (names, teams, perk, play, spot, level, period) uses NAME_RE.
 const VAR_RE = { yards: NUM_RE, dist: NUM_RE, n: NUM_RE, plays: NUM_RE, cmp: NUM_RE, att: NUM_RE, secs: NUM_RE, hs: NUM_RE, as: NUM_RE, down: DOWN_RE };
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-const segVar = (seg) => (/\{([a-z]+)\}/.exec(seg) || [])[1] || null;
+const segVars = (seg) => [...seg.matchAll(/\{([a-z]+)\}/g)].map((m) => m[1]);
+const segVar = (seg) => segVars(seg)[0] || null;
+const NAMEISH = new Set(['passer', 'rec', 'carrier', 'player', 'kicker']);
 
-// Checks a request's query: { e, v, i, <the segment's one var> }. Returns { seg, name, value } or { error }.
+// Checks a request's query: { e, v, i, <the segment's vars>, p? }, p being an earlier split (1 = the newest).
+// Returns { seg, vals, sv } (sv: the settings version of that split's clips) or { error }.
 function parse(q) {
-  const e = q.e, prev = q.p === '1', src = prev ? PREV : LINES;
+  const e = q.e, p = q.p === undefined ? 0 : /^[1-9]$/.test(String(q.p)) ? +q.p : -1, src = p === 0 ? LINES : p > 0 && PREVS[p - 1] ? PREVS[p - 1].lines : null;
   if (!src || typeof e !== 'string' || !has(src.events, e)) return { error: 'unknown event' };
   const ev = src.events[e];
   if (typeof q.v !== 'string' || !/^\d{1,3}$/.test(q.v) || +q.v >= ev.lines.length) return { error: 'bad variant' };
   const line = ev.lines[+q.v];
   if (typeof q.i !== 'string' || !/^\d{1,2}$/.test(q.i) || +q.i >= line.length) return { error: 'bad segment' };
-  const seg = line[+q.i], name = segVar(seg);
-  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && k !== 'i' && k !== 'p' && k !== name) return { error: `unexpected ${k}` };
-  if (!name) return { seg, name: null, value: null };
-  const value = q[name];
-  if (value === undefined) return { error: `missing ${name}` };
-  if (typeof value !== 'string' || !(VAR_RE[name] || NAME_RE).test(value)) return { error: `bad ${name}` };
-  return { seg, name, value };
+  const seg = line[+q.i], names = segVars(seg), vals = {}, sv = p === 0 ? SETTINGS_V : PREVS[p - 1].sv;
+  for (const k of Object.keys(q)) if (k !== 'e' && k !== 'v' && k !== 'i' && k !== 'p' && !names.includes(k)) return { error: `unexpected ${k}` };
+  for (const name of names) {
+    const value = q[name];
+    if (value === undefined) return { error: `missing ${name}` };
+    if (typeof value !== 'string' || !(VAR_RE[name] || NAME_RE).test(value)) return { error: `bad ${name}` };
+    vals[name] = value;
+  }
+  return { seg, vals, sv, name: names[0] || null, value: names.length ? vals[names[0]] : null };
 }
-const renderSeg = (seg, name, value) => (name ? seg.replace(`{${name}}`, value) : seg);
-const cacheKey = (c, text) => crypto.createHash('sha1').update(`${c.model}|${c.voice}|v${SETTINGS_V}|${text}`).digest('hex');
+// the segment with its placeholders filled in: renderSeg(seg, { rec: 'Tabaka', yards: '16' }) or renderSeg(seg, 'rec', 'Tabaka')
+const renderSeg = (seg, vals, value) => { if (typeof vals === 'string') vals = { [vals]: value }; return vals ? seg.replace(/\{([a-z]+)\}/g, (m, k) => (vals[k] !== undefined ? vals[k] : m)) : seg; };
+// every spoken text of a segment: the product of its vars' values (two names in one clip are never the same player)
+function* segTexts(seg, dom) {
+  const names = segVars(seg);
+  if (!names.length) { yield respell(seg); return; }
+  const lists = names.map((n) => dom[n] || []), idx = names.map(() => 0);
+  if (lists.some((l) => !l.length)) return;
+  for (;;) {
+    const vals = {}; names.forEach((n, j) => { vals[n] = lists[j][idx[j]]; });
+    if (!(names.length === 2 && NAMEISH.has(names[0]) && NAMEISH.has(names[1]) && vals[names[0]] === vals[names[1]])) yield respell(renderSeg(seg, vals));
+    let j = names.length - 1; while (j >= 0 && ++idx[j] === lists[j].length) { idx[j] = 0; j--; }
+    if (j < 0) return;
+  }
+}
+const cacheKey = (c, text, sv = SETTINGS_V) => crypto.createHash('sha1').update(`${c.model}|${c.voice}|v${sv}|${text}`).digest('hex');
 const clipPath = (key) => path.join(CACHE_DIR, key + '.mp3');
 
 // ---------- generation ----------
@@ -159,14 +186,43 @@ class TtsError extends Error {
   constructor(reason, status) { super(reason); this.reason = reason; this.status = status; }
 }
 
+// The anchor clip's request id for this model and voice: from memory, from disk, or made now (one request at a time).
+// Null when it cannot be made; clips are then rendered on the lead-in text alone.
+let anchorMemo = null, anchorInflight = null, anchorFailedAt = 0;
+function anchorFor(c) {
+  const fresh = (a) => !!(a && a.id && a.model === c.model && a.voice === c.voice && Date.now() - a.at < ANCHOR_TTL);
+  if (fresh(anchorMemo)) return Promise.resolve(anchorMemo.id);
+  try { const a = JSON.parse(fs.readFileSync(ANCHOR_FILE, 'utf8')); if (fresh(a)) { anchorMemo = a; return Promise.resolve(a.id); } } catch {}
+  if (anchorInflight) return anchorInflight;
+  if (Date.now() - anchorFailedAt < 60000) return Promise.resolve(null);
+  anchorInflight = (async () => {
+    try {
+      const r = await fetch(`${c.base}/v1/text-to-speech/${encodeURIComponent(c.voice)}?output_format=${OUTPUT_FORMAT}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+        body: JSON.stringify({ text: ANCHOR_TEXT, model_id: c.model, voice_settings: VOICE_SETTINGS, seed: ANCHOR_SEED }),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+      });
+      try { await r.arrayBuffer(); } catch {}
+      const id = r.ok ? r.headers.get('request-id') : null;
+      if (!id) { anchorFailedAt = Date.now(); return null; }
+      anchorMemo = { model: c.model, voice: c.voice, id, at: Date.now() };
+      try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(ANCHOR_FILE, JSON.stringify(anchorMemo)); } catch {}
+      return id;
+    } catch { anchorFailedAt = Date.now(); return null; } finally { anchorInflight = null; }
+  })();
+  return anchorInflight;
+}
+
 async function callUpstream(c, text) {
   const url = `${c.base}/v1/text-to-speech/${encodeURIComponent(c.voice)}?output_format=${OUTPUT_FORMAT}`;
+  const anchor = await anchorFor(c);
   let r;
   try {
     r = await fetch(url, {
       method: 'POST',
       headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS, previous_text: LEAD_IN, next_text: nextText(text) }),
+      body: JSON.stringify({ text, model_id: c.model, voice_settings: VOICE_SETTINGS, previous_text: LEAD_IN, next_text: nextText(text), ...(anchor ? { previous_request_ids: [anchor] } : {}) }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
     });
   } catch (e) {
@@ -200,6 +256,8 @@ function ensureClip(c, key, text) {
       const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
       fs.writeFileSync(tmp, buf);
       fs.renameSync(tmp, file);
+      keysMemo.set.add(key);
+      if (++madeSinceManifest >= 50) { madeSinceManifest = 0; manifestMemo.at = 0; } // the game's manifest learns of new clips as they land
       state.ok++;
       return file;
     } catch (e) {
@@ -258,6 +316,17 @@ function domainValues(name, db, spec = LINES.domains[name]) {
   return [];
 }
 
+// The order clips are made in, which is the order a part-made library fills up in: the first variant of every event, the
+// calls a game hears most first, then the second variant of every event, and so on, so every event has a line ready early
+// and variety grows from there.
+const PRIORITY = 'snap_pass snap_run throw_to caught_live run_live complete run incomplete first_down play_call situation situation_1st situation_long situation_short td_pass td_run td_short xp_good xp_miss pressure open_field tackle_live drop sack run_big complete_big run_loss no_gain interception cpu_td cpu_punt cpu_fg cpu_drive_start drive_start kickoff_cpu kr_return intro end_q1 halftime end_q3 final_win final_loss two_minute third_down fourth_go turnover_downs punt fg_good fg_miss color coach_note drive_note clock_note score_lead score_trail score_tied player_catches player_rush qb_line'.split(' ');
+function lineOrder() {
+  const ids = Object.keys(LINES.events), rank = new Map(PRIORITY.map((k, i) => [k, i]));
+  ids.sort((a, b) => (rank.has(a) ? rank.get(a) : 1e3 + ids.indexOf(a)) - (rank.has(b) ? rank.get(b) : 1e3 + ids.indexOf(b)));
+  const out = [], most = Math.max(...ids.map((k) => LINES.events[k].lines.length));
+  for (let v = 0; v < most; v++) for (const k of ids) if (LINES.events[k].lines[v]) out.push(LINES.events[k].lines[v]);
+  return out;
+}
 // The whole space: every segment of every variant of every event x every value of its var.
 // Identical texts (the same name in {passer} and {rec}, say) are one clip.
 function plan(db, c = config()) {
@@ -265,22 +334,55 @@ function plan(db, c = config()) {
   for (const k of Object.keys(LINES.domains)) dom[k] = domainValues(k, db);
   const clips = new Map();
   let chars = 0;
-  // the new split first (that is where the budget should go), then the earlier split of the lines that changed
-  const segsToMake = [];
-  for (const ev of Object.values(LINES.events)) for (const line of ev.lines) for (const seg of line) segsToMake.push(seg);
-  if (PREV) for (const [k, ev] of Object.entries(PREV.events)) ev.lines.forEach((line, i) => { const cur = LINES.events[k] && LINES.events[k].lines[i]; if (!cur || JSON.stringify(cur) === JSON.stringify(line)) return; for (const seg of line) segsToMake.push(seg); });
-  for (const seg of segsToMake) {
-    const name = segVar(seg);
-    for (const value of name ? dom[name] : [null]) {
-      const text = respell(renderSeg(seg, name, value));
-      const key = cacheKey(c, text);
-      if (clips.has(key)) continue;
-      clips.set(key, text);
-      chars += text.length;
-    }
+  for (const line of lineOrder()) for (const seg of line) for (const text of segTexts(seg, dom)) {
+    const key = cacheKey(c, text);
+    if (clips.has(key)) continue;
+    clips.set(key, text);
+    chars += text.length;
   }
   return { clips, chars, domains: Object.fromEntries(Object.entries(dom).map(([k, v]) => [k, v.length])) };
 }
+// the clips on disk, by key (read again every 30 s; a clip made by a run is added as it lands)
+let keysMemo = { at: 0, set: new Set() };
+function existingKeys() {
+  if (Date.now() - keysMemo.at < 30000) return keysMemo.set;
+  const set = new Set();
+  try { for (const f of fs.readdirSync(CACHE_DIR)) if (f.endsWith('.mp3')) set.add(f.slice(0, -4)); } catch {}
+  keysMemo = { at: Date.now(), set };
+  return set;
+}
+const lineReady = (line, dom, c, keys, sv) => line.every((seg) => { for (const text of segTexts(seg, dom)) if (!keys.has(cacheKey(c, text, sv))) return false; return true; });
+// What the game needs per event: the variant count, the vars, the var names of each segment of each variant, which
+// variants have every clip on disk, and for the others the newest earlier split of the event whose clips all exist
+// (p: which split, v: its variant, segs: its segments' vars). Worked out at most every 30 s.
+let manifestMemo = { at: 0, key: '', events: null }, madeSinceManifest = 0;
+function manifestEvents(db, c) {
+  const mk = `${c.model}|${c.voice}`;
+  if (manifestMemo.events && manifestMemo.key === mk && Date.now() - manifestMemo.at < 30000) return manifestMemo.events;
+  const dom = {};
+  for (const k of Object.keys(LINES.domains)) dom[k] = domainValues(k, db);
+  const keys = existingKeys(), segsOf = (l) => l.map(segVars);
+  const events = {};
+  for (const [id, ev] of Object.entries(LINES.events)) {
+    const o = { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map(segsOf), ready: ev.lines.map((l) => lineReady(l, dom, c, keys, SETTINGS_V)) };
+    if (!o.ready.every(Boolean)) {
+      const prev = o.ready.map((r, v) => {
+        if (r) return null;
+        for (let p = 0; p < PREVS.length; p++) {
+          const pe = PREVS[p].lines.events[id]; if (!pe || !pe.lines.length) continue;
+          const pv = v % pe.lines.length;
+          if (lineReady(pe.lines[pv], dom, c, keys, PREVS[p].sv)) return { p: p + 1, v: pv, segs: segsOf(pe.lines[pv]) };
+        }
+        return null;
+      });
+      if (prev.some(Boolean)) o.prev = prev;
+    }
+    events[id] = o;
+  }
+  manifestMemo = { at: Date.now(), key: mk, events };
+  return events;
+}
+const readiness = (events) => { let ready = 0, total = 0, fallback = 0; for (const o of Object.values(events)) { total += o.n; ready += o.ready.filter(Boolean).length; if (o.prev) fallback += o.prev.filter(Boolean).length; } return { ready, total, fallback }; };
 function coverage(p) {
   let have = 0, missingChars = 0;
   for (const [key, text] of p.clips) { if (fs.existsSync(clipPath(key))) have++; else missingChars += text.length; }
@@ -322,7 +424,7 @@ function startWarm(db, trigger = 'manual') {
       }
     }
   };
-  Promise.all([worker(), worker()]).finally(() => { warm.running = false; warm.finishedAt = Date.now(); });
+  Promise.all([worker(), worker()]).finally(() => { warm.running = false; warm.finishedAt = Date.now(); manifestMemo.at = 0; });
   return { queued: list.length, total: p.clips.size };
 }
 // On boot and every 6 hours: new roster names, pronunciations or a model change get rendered
@@ -397,7 +499,7 @@ function register(app, h) {
     res.json({
       enabled: enabled(c) && !!h.currentUser(req),
       model: c.model,
-      events: Object.fromEntries(Object.entries(LINES.events).map(([k, ev]) => { const o = { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map((l) => l.map((s) => (segVar(s) ? [segVar(s)] : []))) }; if (PREV && PREV.events[k]) { const pv = ev.lines.map((l, i) => { const pl = PREV.events[k].lines[i]; return pl && JSON.stringify(pl) !== JSON.stringify(l) ? pl.map((s) => (segVar(s) ? [segVar(s)] : [])) : null; }); if (pv.some(Boolean)) o.prev = pv; } return [k, o]; })),
+      events: manifestEvents(h.load(), c),
     });
   });
 
@@ -409,14 +511,14 @@ function register(app, h) {
     if (r.error) return res.status(400).json({ error: r.error });
     const c = config();
     if (!enabled(c)) return res.status(204).end();
-    const key = cacheKey(c, respell(renderSeg(r.seg, r.name, r.value))), file = clipPath(key);
+    const key = cacheKey(c, respell(renderSeg(r.seg, r.vals)), r.sv), file = clipPath(key);
     if (!fs.existsSync(file)) return res.status(404).json({ error: 'not rendered' });
     sendClip(req, res, file, key);
   });
 
   app.get('/admin/tts/status', h.requireAdmin, (req, res) => {
     const st = cacheStats(), cov = coverage(plan(h.load()));
-    noStore(res).json({ enabled: enabled(), cache: { count: st.count, bytes: st.bytes, size: fmtBytes(st.bytes) }, coverage: cov, warm, backoff: Math.ceil(backoffLeft() / 1000), upstream: { calls: state.calls, ok: state.ok, failed: state.fail, lastError: state.lastError } });
+    noStore(res).json({ enabled: enabled(), cache: { count: st.count, bytes: st.bytes, size: fmtBytes(st.bytes) }, coverage: cov, lines: readiness(manifestEvents(h.load(), config())), warm, backoff: Math.ceil(backoffLeft() / 1000), upstream: { calls: state.calls, ok: state.ok, failed: state.fail, lastError: state.lastError } });
   });
 
   app.post('/admin/tts/warm', h.requireAdmin, (req, res) => {
@@ -435,11 +537,12 @@ function register(app, h) {
     const line = LINES.events[e].lines[Math.floor(Math.random() * LINES.events[e].lines.length)];
     try {
       const parts = [];
+      const vals = (seg) => Object.fromEntries(segVars(seg).map((k) => [k, name]));
       for (const seg of line) {
-        const v = segVar(seg), text = respell(renderSeg(seg, v, name)), key = cacheKey(c, text);
+        const text = respell(renderSeg(seg, vals(seg))), key = cacheKey(c, text);
         parts.push(fs.readFileSync(await ensureClip(c, key, text)));
       }
-      res.set('X-Line', encodeURIComponent(line.map((s) => renderSeg(s, segVar(s), name)).join(' ')));
+      res.set('X-Line', encodeURIComponent(line.map((s) => renderSeg(s, vals(s))).join(' ')));
       res.set('Content-Type', 'audio/mpeg').end(Buffer.concat(parts));
     } catch (e) {
       res.status(503).json({ error: e.reason || 'voice unavailable' });
@@ -471,4 +574,4 @@ function register(app, h) {
   });
 }
 
-module.exports = { register, startAuto, startWarm, warm, adminBlock, parse, renderSeg, respell, config, plan, coverage, domainValues, LINES, VOICE_SETTINGS, LEAD_IN, DEFAULT_VOICES };
+module.exports = { register, startAuto, startWarm, warm, adminBlock, parse, renderSeg, segVars, segTexts, respell, config, plan, coverage, manifestEvents, domainValues, LINES, PREVS, VOICE_SETTINGS, LEAD_IN, ANCHOR_TEXT, DEFAULT_VOICES };

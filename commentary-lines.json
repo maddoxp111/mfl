@@ -25,12 +25,6 @@
   "secs",
   "period"
  ],
- "pronounce": {
-  "Pedon": "Peed-in",
-  "Tabaka": "tuh-BAKE-uh",
-  "Pelaez": "pell-IZE",
-  "Xavier": "ex-AVE-yer"
- },
  "domains": {
   "passer": {
    "from": "roster"
@@ -202,6 +196,12 @@
    "from": "plays"
   }
  },
+ "pronounce": {
+  "Pedon": "Peed-in",
+  "Tabaka": "tuh-BAKE-uh",
+  "Pelaez": "pell-IZE",
+  "Xavier": "ex-AVE-yer"
+ },
  "events": {
   "intro": {
    "vars": [
@@ -212,66 +212,53 @@
    "lines": [
     [
      "Welcome to the Blitz!",
-     "{home} and",
-     "{away},",
-     "on {level}.",
-     "Let's go!"
+     "{home} against {away}.",
+     "We're playing on {level}."
     ],
     [
-     "It's game day!",
-     "{home} hosting",
-     "{away}",
-     "at the {level} level."
+     "It's game day, and it's {level}.",
+     "{home} is hosting tonight.",
+     "{away} is in the building."
     ],
     [
-     "Lights on, crowd loud:",
-     "{home} versus",
-     "{away},",
-     "{level} mode!"
-    ],
-    [
-     "In comes",
-     "{away} to face",
-     "{home}.",
-     "{level} difficulty,",
-     "folks."
-    ],
-    [
-     "{level} difficulty tonight.",
-     "{home} against",
-     "{away}.",
-     "Hope you stretched!"
-    ],
-    [
-     "Grab your snacks!",
-     "{home} and",
-     "{away} are about to throw down on",
-     "{level}."
-    ],
-    [
-     "This is the one we circled:",
-     "{home} hosting",
-     "{away}.",
-     "Level:",
-     "{level}."
+     "Lights on, crowd loud, {level} mode!",
+     "{away} is in the house.",
+     "{home} is ready."
     ],
     [
      "Good evening and welcome!",
-     "{home} versus",
-     "{away},",
-     "and it's {level} out here."
+     "{home} takes on {away}.",
+     "It's {level} out here."
     ],
     [
-     "Sit back and relax. It's",
-     "{home} and",
-     "{away},",
-     "set to {level}."
+     "{level} difficulty tonight, folks.",
+     "{home} is ready to throw down.",
+     "Here comes {away}."
     ],
     [
-     "From the booth, welcome! Tonight:",
-     "{away} at",
-     "{home},",
-     "{level} level."
+     "Grab your snacks and settle in for {level}.",
+     "{away} made the trip.",
+     "{home} is waiting."
+    ],
+    [
+     "This is the one we circled on {level}.",
+     "{home} faces a tough one.",
+     "{away} awaits."
+    ],
+    [
+     "From the booth, welcome to {level} night!",
+     "{away} is the visitor.",
+     "{home} is the home side."
+    ],
+    [
+     "Sit back and relax, it's {level}.",
+     "{home} is on the field.",
+     "{away} is the opponent."
+    ],
+    [
+     "Here we go on {level}!",
+     "{home} fans, this one is for you.",
+     "{away} is in town."
     ]
    ]
   },
@@ -281,28 +268,27 @@
    ],
    "lines": [
     [
-     "{away} kicking it off. Here we go!"
+     "{away} kicks it off.",
+     "Here we go!"
     ],
     [
      "Ball's in the air!",
      "{away} gets us started."
     ],
     [
-     "And the kickoff from",
-     "{away} is away!"
+     "The kickoff from {away} is up and away!"
     ],
     [
      "Boot it!",
      "{away} sends it deep."
     ],
     [
-     "Here comes the kick from",
-     "{away}.",
+     "Here comes the kick from {away}.",
      "Somebody catch it!"
     ],
     [
-     "Leather meets foot, courtesy of",
-     "{away} and we are underway!"
+     "{away} tees it up and lets it fly.",
+     "We are underway!"
     ]
    ]
   },
@@ -313,42 +299,35 @@
    ],
    "lines": [
     [
-     "{carrier} brings it back",
-     "{yards}."
+     "{carrier} brings it back.",
+     "Good for {yards}."
     ],
     [
-     "Nice return by",
-     "{carrier},",
-     "{yards}",
-     "on the runback."
+     "Nice return by {carrier}.",
+     "Picks up {yards}."
     ],
     [
-     "{carrier} weaves upfield for a",
-     "{yards}-yard",
-     "return."
+     "{carrier} weaves upfield.",
+     "Gain of {yards}."
     ],
     [
-     "Good wheels on",
-     "{carrier}!",
-     "A {yards}-yard",
-     "runback."
+     "Good wheels on {carrier}!",
+     "{yards} on the carry."
     ],
     [
-     "Return of {yards}",
-     "from {carrier}.",
-     "Solid start."
+     "Solid start.",
+     "{carrier} finds a seam.",
+     "Good for {yards}."
     ],
     [
-     "Takes it",
-     "{yards}",
-     "the other way,",
-     "{carrier} before going down."
+     "{carrier} fields it and goes.",
+     "Picks up {yards}.",
+     "Nice runback."
     ],
     [
-     "Look at",
-     "{carrier} go!",
-     "That return covers",
-     "{yards}."
+     "Look at {carrier} go!",
+     "Gain of {yards}.",
+     "Plenty of room out there."
     ]
    ]
   },
@@ -356,19 +335,22 @@
    "vars": [],
    "lines": [
     [
-     "Taking a knee. Touchback."
+     "Takes a knee. Touchback."
     ],
     [
-     "Into the end zone, and that's a touchback."
+     "Sails into the end zone. That's a touchback."
     ],
     [
-     "Nobody's running that one back. Touchback."
+     "No reason to run that one out. Touchback."
     ],
     [
-     "Kneel it! We'll start with a touchback."
+     "Kneel it down! We start with a touchback."
     ],
     [
-     "Way too deep to bring out. Smart touchback."
+     "Way too deep to bring back. Smart touchback."
+    ],
+    [
+     "Through the end zone it goes. Touchback."
     ]
    ]
   },
@@ -378,30 +360,29 @@
    ],
    "lines": [
     [
-     "{carrier} takes it all the way! Kickoff return touchdown!"
+     "{carrier} takes it all the way!",
+     "Kickoff return touchdown!"
     ],
     [
      "Gone!",
-     "{carrier} goes the distance on the return!"
+     "{carrier} goes the distance!"
     ],
     [
-     "Nobody laid a finger on",
-     "{carrier}!",
+     "Nobody touched {carrier}!",
      "House call!"
     ],
     [
-     "Kick return, touchdown,",
-     "{carrier}!",
-     "Unbelievable!"
+     "Kick return touchdown!",
+     "{carrier} did it!",
+     "Are you kidding me?"
     ],
     [
      "Sound the alarm!",
-     "{carrier} just went coast to coast!"
+     "{carrier} went coast to coast!"
     ],
     [
-     "They kicked it to",
-     "{carrier}.",
-     "Big mistake. Touchdown!"
+     "They kicked it to {carrier}.",
+     "Huge mistake. Touchdown!"
     ]
    ]
   },
@@ -412,40 +393,35 @@
    ],
    "lines": [
     [
-     "{home} takes over at",
-     "{spot}."
+     "{home} takes over.",
+     "Ball at {spot}."
     ],
     [
-     "Ball's at {spot}.",
-     "Let's move it,",
-     "{home}!"
+     "First and 10 at {spot}.",
+     "Let's move it, {home}!"
     ],
     [
-     "First and 10 for",
-     "{home}",
-     "from {spot}."
+     "Here comes the {home} offense.",
+     "They start at {spot}."
     ],
     [
-     "The {home}",
-     "offense trots out at",
-     "{spot}.",
+     "Drive time for {home}.",
+     "Ball at {spot}.",
      "Let's cook."
     ],
     [
-     "Here comes our offense, starting",
-     "from {spot}.",
-     "Go get it,",
-     "{home}!"
+     "Our offense trots out.",
+     "First and 10 at {spot}.",
+     "Go get it, {home}!"
     ],
     [
-     "Drive time!",
-     "{home} with the ball",
-     "at {spot}."
+     "{home} has the ball.",
+     "They start at {spot}.",
+     "Time to go to work."
     ],
     [
-     "Fresh set of downs for",
-     "{home} ball spotted",
-     "at {spot}."
+     "Fresh set of downs for {home}.",
+     "Ball at {spot}."
     ]
    ]
   },
@@ -456,35 +432,32 @@
    ],
    "lines": [
     [
-     "{away} takes over at",
-     "{spot}.",
+     "{away} takes over.",
+     "Ball at {spot}.",
      "Defense, wake up!"
     ],
     [
-     "Here comes",
-     "{away}, starting",
-     "at {spot}."
+     "Here comes {away}.",
+     "They start at {spot}."
     ],
     [
-     "Offense for",
-     "{away} on the field",
-     "at {spot}.",
-     "Time to hold 'em."
+     "The {away} offense is on the field.",
+     "First and 10 at {spot}.",
+     "Time to hold them."
     ],
     [
      "Defense, you're up.",
-     "{away} has it at",
-     "{spot}."
+     "{away} has it.",
+     "Ball at {spot}."
     ],
     [
-     "Ball at {spot}",
-     "for {away}.",
-     "Let's get a stop!"
+     "Let's get a stop!",
+     "{away} with the ball.",
+     "They start at {spot}."
     ],
     [
-     "First and 10,",
-     "{away},",
-     "from {spot}."
+     "First and 10 at {spot}.",
+     "Over to {away}."
     ]
    ]
   },
@@ -494,41 +467,44 @@
    ],
    "lines": [
     [
-     "Touchdown,",
-     "{away}.",
-     "Ouch."
+     "Touchdown, {away}.",
+     "That one stings."
     ],
     [
-     "{away} punches it in. That stings."
+     "{away} punches it in.",
+     "The defense never got set."
     ],
     [
-     "And {away}",
-     "finds the end zone. Defense, regroup!"
+     "Into the end zone goes {away}.",
+     "Regroup, defense!"
     ],
     [
-     "That's a {away} touchdown.",
-     "Not what we wanted."
+     "7 on the board for the visitors.",
+     "Not the answer we wanted."
     ],
     [
      "They got in.",
-     "{away} touchdown,",
-     "and the crowd goes quiet."
+     "{away} touchdown, and the crowd goes quiet."
     ],
     [
-     "Defense got cooked on that one. Touchdown,",
-     "{away}."
+     "The defense got cooked on that one.",
+     "Touchdown for {away}."
     ],
     [
-     "{away} into the end zone. Shake it off, we've got time."
+     "Shake it off, defense.",
+     "{away} just found the end zone."
     ],
     [
-     "Score for",
-     "{away}.",
-     "Somebody check on the secondary."
+     "Somebody check on the secondary.",
+     "That's a score for {away}."
     ],
     [
-     "Well,",
-     "{away} made that look easy. Touchdown."
+     "Well, {away} made that look easy.",
+     "Touchdown."
+    ],
+    [
+     "Visitors cash in on that drive.",
+     "Touchdown."
     ]
    ]
   },
@@ -541,26 +517,28 @@
      "{away} settles for 3."
     ],
     [
-     "Field goal is good for",
-     "{away}.",
-     "Held 'em to 3, though!"
+     "The kick is good.",
+     "{away} adds 3, but the defense held in the red zone."
     ],
     [
-     "Kick is up, kick is good.",
-     "{away} adds 3."
-    ],
-    [
-     "Splitting the uprights,",
-     "{away}.",
-     "Could've been worse."
+     "Splitting the uprights for {away}.",
+     "Could have been worse."
     ],
     [
      "Bend, don't break!",
-     "{away} only gets a field goal."
+     "Only a field goal for {away}."
     ],
     [
-     "Defense holds in the red zone.",
-     "{away} kicks the field goal."
+     "Field goal is good for the visitors.",
+     "Hold them to 3 and move on."
+    ],
+    [
+     "Red zone stand!",
+     "{away} has to kick it, and it's through."
+    ],
+    [
+     "3 points for {away}.",
+     "That's a win for the defense down there."
     ]
    ]
   },
@@ -574,25 +552,28 @@
      "{away} has to punt."
     ],
     [
-     "Defense says no.",
-     "{away} punting it away."
+     "The defense says no.",
+     "{away} is kicking it away."
     ],
     [
-     "{away} brings out the punter. Great stand!"
+     "{away} brings out the punter.",
+     "Great stand!"
     ],
     [
-     "That's a defensive stop! Here comes",
-     "the {away} punt."
+     "That's a defensive stop!",
+     "Here comes the punt."
     ],
     [
-     "No dice for",
-     "{away}.",
-     "They'll kick it away."
+     "No dice for {away}.",
+     "They kick it away."
     ],
     [
-     "Punt team on for",
-     "{away}.",
+     "Punt team on for {away}.",
      "Love that defense!"
+    ],
+    [
+     "Visitors punt it back to us.",
+     "Get the offense ready!"
     ]
    ]
   },
@@ -602,20 +583,20 @@
    ],
    "lines": [
     [
-     "Picked off! Our defense takes it away from",
-     "{away}!"
+     "Picked off!",
+     "The defense takes it away from {away}!"
     ],
     [
      "Interception!",
      "{away} threw it right to us!"
     ],
     [
-     "Who was that throw for? Picked!",
-     "{away} gives it up."
+     "Who was that throw for?",
+     "Picked, and {away} gives it up."
     ],
     [
-     "Ball hawk alert! We intercept",
-     "{away}!"
+     "Ball hawk alert!",
+     "We intercept {away}!"
     ],
     [
      "Snagged it!",
@@ -626,8 +607,12 @@
      "{away} is going to regret that one."
     ],
     [
-     "Read it the whole way! Interception against",
-     "{away}!"
+     "Read it the whole way!",
+     "That's an interception against {away}!"
+    ],
+    [
+     "Jumped the route!",
+     "Our ball now."
     ]
    ]
   },
@@ -641,15 +626,15 @@
      "{away} coughs it up!"
     ],
     [
-     "Fumble! And we've got it!",
+     "Fumble, and we've got it!",
      "{away} loses the ball."
     ],
     [
      "{away} puts it on the turf and we pounce!"
     ],
     [
-     "Stripped! Takeaway against",
-     "{away}!"
+     "Stripped!",
+     "Takeaway against {away}!"
     ],
     [
      "Loose ball, our ball!",
@@ -658,6 +643,10 @@
     [
      "Butterfingers!",
      "{away} fumbles and we take over."
+    ],
+    [
+     "Ball on the ground, and the good guys land on it!",
+     "Turnover!"
     ]
    ]
   },
@@ -671,24 +660,28 @@
      "{away} turns it over on downs."
     ],
     [
-     "No! Not today,",
-     "{away}!",
+     "Not today, {away}!",
      "Turnover on downs!"
     ],
     [
-     "{away} went for it and came up short. Our ball!"
+     "{away} went for it and came up short.",
+     "Our ball!"
     ],
     [
-     "Defense holds on fourth down!",
+     "The defense holds on fourth down!",
      "{away} gets nothing."
     ],
     [
-     "Denied!",
-     "{away} turns it over on downs."
+     "Denied at the sticks!",
+     "That's a turnover on downs for {away}."
     ],
     [
      "That's a huge stop!",
      "{away} fails on fourth down."
+    ],
+    [
+     "Fourth down, and the visitors come up short.",
+     "Take over, offense!"
     ]
    ]
   },
@@ -706,11 +699,12 @@
      "{away} comes up empty."
     ],
     [
-     "{away} shanks the kick! No points!"
+     "{away} shanks the kick!",
+     "No points!"
     ],
     [
-     "The kick is no good! Phew,",
-     "{away} gets nothing."
+     "The kick is no good!",
+     "Phew, {away} gets nothing."
     ],
     [
      "Missed it!",
@@ -719,6 +713,10 @@
     [
      "And {away} misses!",
      "Big break for us."
+    ],
+    [
+     "Wide, and the visitors walk away with zero.",
+     "Take a breath, defense."
     ]
    ]
   },
@@ -729,13 +727,19 @@
      "They're just running out the clock now."
     ],
     [
-     "Taking a knee. They're burning time."
+     "Taking a knee.",
+     "They're burning time."
     ],
     [
-     "The clock is ticking and they're happy to let it."
+     "The clock is ticking, and they're happy to let it."
     ],
     [
-     "Kneel-down city. They want this one over."
+     "Kneel-down city.",
+     "They want this clock to hit zero."
+    ],
+    [
+     "Time runs out on that drive.",
+     "The visitors milk every second."
     ]
    ]
   },
@@ -743,149 +747,167 @@
    "vars": [],
    "lines": [
     [
-     "That's the 2-minute warning. Crunch time!"
+     "That's the 2-minute warning.",
+     "Crunch time!"
     ],
     [
-     "Under 2 minutes now. Every snap counts."
+     "Under 2 minutes now.",
+     "Every snap counts."
     ],
     [
-     "Clock's ticking! We're at the 2-minute warning."
+     "Clock's ticking!",
+     "We're at the 2-minute warning."
     ],
     [
-     "2 minutes to go. Time to be legendary."
+     "2 minutes to go.",
+     "Time to be legendary."
     ],
     [
-     "Hurry-up time! The 2-minute warning is here."
+     "Hurry-up time!",
+     "The 2-minute warning is here."
     ],
     [
-     "Grab the edge of your seat. 2-minute warning!"
+     "Grab the edge of your seat.",
+     "2-minute warning!"
+    ],
+    [
+     "2-minute warning, and the clock stops.",
+     "Manage it well, coach."
     ]
    ]
   },
   "end_q1": {
    "vars": [
     "hs",
-    "as"
+    "as",
+    "home",
+    "away"
    ],
    "lines": [
     [
      "End of the first quarter.",
-     "{hs}",
-     "to {as}."
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "That's one quarter in the books. It's",
-     "{hs}",
-     "to {as}."
+     "That's one quarter in the books.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "After 1, we've got",
-     "{hs}",
-     "to {as}."
+     "After 1, {home} is settling in.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "First quarter's done and it's",
-     "{hs}",
-     "to {as}.",
-     "Plenty of football left."
+     "First quarter done, plenty of football left.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Quarter number one is over. Scoreboard says",
-     "{hs}",
-     "to {as}."
+     "One quarter down, and {away} is in the fight.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Switch sides! We're through the first",
-     "at {hs}",
-     "to {as}."
+     "Switch sides, and {home} knows the test now.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Quarter number one is over, and here's the scoreboard.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
   "halftime": {
    "vars": [
     "hs",
-    "as"
+    "as",
+    "home",
+    "away"
    ],
    "lines": [
     [
      "That's halftime!",
-     "{hs}",
-     "to {as}",
-     "at the break."
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Halftime, folks. Score is",
-     "{hs}",
-     "to {as}."
+     "Halftime, folks, and here's where we stand.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Into the locker rooms",
-     "at {hs}",
-     "to {as}.",
-     "Grab a snack!"
+     "Locker rooms, and {home} has some thinking to do.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Halfway home. It's",
-     "{hs}",
-     "to {as}."
+     "Halfway home, and {away} is not going anywhere.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Bands on the field! Halftime score:",
-     "{hs}",
-     "to {as}."
+     "Bands on the field, because it's halftime!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "End of the half,",
-     "{hs}",
-     "to {as}.",
-     "Coaches, make those adjustments!"
+     "End of the half, so make those adjustments.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "We're at the half with the score",
-     "{hs}",
-     "to {as}.",
-     "What a show so far."
+     "At the break, and what a show so far.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Halftime, and {home} heads for the tunnel.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ]
    ]
   },
   "end_q3": {
    "vars": [
     "hs",
-    "as"
+    "as",
+    "home",
+    "away"
    ],
    "lines": [
     [
-     "End of the third,",
-     "{hs}",
-     "to {as}.",
-     "One quarter left!"
+     "End of the third, and one quarter is left!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Third quarter's over.",
-     "{hs}",
-     "to {as},",
-     "and we're heading to the fourth."
+     "Third quarter's over, on to the fourth.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Fourth quarter coming up! Score:",
-     "{hs}",
-     "to {as}."
+     "Fourth quarter coming, and {home} must finish the job.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "It's {hs}",
-     "to {as}",
-     "after 3. Time to finish strong."
+     "After 3, the fourth will decide it.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "That wraps the third.",
-     "{hs}",
-     "to {as}",
-     "going into the final quarter."
+     "That wraps the third, one quarter left for {away}.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "One more quarter to go and it's",
-     "{hs}",
-     "to {as}."
+     "One more quarter, so finish strong.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ]
    ]
   },
@@ -893,72 +915,69 @@
    "vars": [
     "hs",
     "as",
-    "away"
+    "away",
+    "home"
    ],
    "lines": [
     [
-     "Final score,",
-     "{hs}",
-     "to {as}!",
-     "Victory over",
-     "{away}!"
+     "That's the ballgame, and {home} wins it!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "That's the ballgame! We beat",
-     "{away},",
-     "{hs}",
-     "to {as}!"
+     "Game over, and {away} goes home sad.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Game over!",
-     "{away} goes home sad.",
-     "{hs}",
-     "to {as}!"
+     "Put it in the books, a win for {home}!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Put it in the books: a win over",
-     "{away},",
-     "{hs}",
-     "to {as}."
+     "Ring the bell, because {home} takes it!",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Ring the bell!",
-     "{hs}",
-     "to {as}",
-     "final, and",
-     "{away} never stood a chance."
-    ],
-    [
-     "What a performance! We take down",
-     "{away},",
-     "{hs}",
-     "to {as}."
+     "What a performance, and we take down {away}!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
      "Win! Win! Win!",
-     "{hs}",
-     "to {as}",
-     "over {away}!"
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Somebody call the trophy guy. We beat",
-     "{away}",
-     "{hs}",
-     "to {as}!"
+     "Somebody call the trophy guy, because {home} just won!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Clock hits zero and we win it,",
-     "{hs}",
-     "to {as}!",
-     "See ya,",
-     "{away}!"
+     "Clock hits zero, and {home} wins it!",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "Throw the confetti!",
-     "{hs}",
-     "to {as},",
-     "and {away}",
-     "can't believe it."
+     "Throw the confetti, and {away} can't believe it!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Final whistle, and the good guys did it!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "That's a final, and {home} walks off a winner!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Shake hands, {away}, this one belongs to us!",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
@@ -966,71 +985,64 @@
    "vars": [
     "hs",
     "as",
-    "away"
+    "away",
+    "home"
    ],
    "lines": [
     [
-     "That's the game.",
-     "{away} wins it,",
-     "{hs}",
-     "to {as}."
+     "That's the game, and {away} wins it.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Final:",
-     "{hs}",
-     "to {as}.",
-     "Tough one against",
-     "{away}."
+     "Final whistle, a tough one for {home}.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "{away} takes this one,",
-     "{hs}",
-     "to {as}.",
-     "We'll get 'em next time."
+     "{away} takes this one, we'll get them next time.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Not our day.",
-     "{hs}",
-     "to {as},",
-     "{away} on top."
+     "Not our day, {away} is on top.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "The clock runs out.",
-     "{away} hangs on,",
-     "{hs}",
-     "to {as}."
+     "The clock runs out, and {away} hangs on.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Final score",
-     "{hs}",
-     "to {as}.",
-     "Shake hands with",
-     "{away} and run it back."
+     "Shake hands with {away} and run it back.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Heartbreaker.",
-     "{away} gets the win,",
-     "{hs}",
-     "to {as}."
+     "Heartbreaker for {home}.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Rough night.",
-     "{away} wins,",
-     "{hs}",
-     "to {as}."
+     "Rough night, the visitors get the win.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
     ],
     [
-     "{away} gets this one,",
-     "{hs}",
-     "to {as}.",
-     "Back to practice."
+     "Back to practice for {home}, that one got away.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Hats off to",
-     "{away}.",
-     "Final,",
-     "{hs}",
-     "to {as}."
+     "Hats off to {away}, that's a final.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
+    ],
+    [
+     "Game over, and the visitors leave with the win.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
@@ -1041,16 +1053,23 @@
      "We're going to overtime!"
     ],
     [
-     "Tied up after 4! Free football, baby!"
+     "Tied at the horn!",
+     "Free football, baby!"
     ],
     [
-     "Overtime! Nobody's leaving early tonight."
+     "Overtime!",
+     "Nobody's leaving early tonight."
     ],
     [
-     "Regulation can't settle it. Bonus football!"
+     "Regulation can't settle it.",
+     "Bonus football!"
     ],
     [
-     "Sudden drama! This one's headed to overtime."
+     "Sudden drama!",
+     "This one's headed to overtime."
+    ],
+    [
+     "Dead even at the horn, so we play on!"
     ]
    ]
   },
@@ -1060,22 +1079,25 @@
    ],
    "lines": [
     [
-     "Timeout,",
-     "{team}."
+     "Timeout, {team}."
     ],
     [
-     "{team} calls timeout."
+     "{team} calls a timeout."
     ],
     [
-     "{team} wants a breather. Timeout on the field."
+     "{team} wants a breather.",
+     "Timeout on the field."
     ],
     [
      "Hold up!",
      "{team} burns a timeout."
     ],
     [
-     "And {team}",
-     "stops the clock with a timeout."
+     "And {team} stops the clock with a timeout."
+    ],
+    [
+     "Timeout on the field, and the clock stops.",
+     "Smart time to talk it over."
     ]
    ]
   },
@@ -1083,16 +1105,24 @@
    "vars": [],
    "lines": [
     [
-     "Flag! Delay of game. Back 5."
+     "Flag!",
+     "Delay of game, and that's 5 back."
     ],
     [
-     "Too slow! Delay of game, 5-yard penalty."
+     "Too slow!",
+     "Delay of game, a 5-yard penalty."
     ],
     [
-     "The play clock hit zero. Delay of game."
+     "The play clock hit zero.",
+     "Delay of game."
     ],
     [
-     "Tick tock! That's a delay of game penalty."
+     "Tick tock!",
+     "That's a delay of game penalty."
+    ],
+    [
+     "Get the play in faster, coach!",
+     "Delay of game moves us back 5."
     ]
    ]
   },
@@ -1105,20 +1135,20 @@
      "{play} is the call."
     ],
     [
-     "Going with {play} here."
+     "We're going with {play}."
     ],
     [
-     "Let's see if {play} works."
+     "Let's see if {play} gets it done."
     ],
     [
-     "Dialing up {play}."
-    ],
-    [
-     "Coach likes {play} on this one."
-    ],
-    [
-     "Here comes {play}.",
+     "Dialing up {play}.",
      "Let's run it!"
+    ],
+    [
+     "Coach likes {play} right here."
+    ],
+    [
+     "The call is {play}."
     ]
    ]
   },
@@ -1130,72 +1160,63 @@
    ],
    "lines": [
     [
-     "{passer} to",
-     "{rec} picks up",
-     "{yards}."
+     "{passer} to {rec}.",
+     "Gain of {yards}."
     ],
     [
      "Complete!",
-     "{rec} hauls it in for",
-     "{yards}."
+     "{passer} finds {rec}.",
+     "Good for {yards}."
     ],
     [
-     "{passer} finds",
-     "{rec}.",
-     "That's a gain",
-     "of {yards}."
-    ],
-    [
-     "Nice throw, nice catch.",
-     "{rec}",
-     "for {yards}."
-    ],
-    [
-     "{rec} grabs it from",
-     "{passer},",
-     "{yards}-yard",
-     "pickup."
+     "{passer} hits {rec}.",
+     "Picks up {yards}.",
+     "Nice and easy."
     ],
     [
      "Pitch and catch!",
-     "{passer} to",
-     "{rec},",
-     "{yards}",
-     "more."
+     "{passer} to {rec}.",
+     "{yards} on the catch."
+    ],
+    [
+     "Pump fake and throw!",
+     "{passer} fires to {rec}.",
+     "Good for {yards}."
     ],
     [
      "On target!",
-     "{passer} hits",
-     "{rec}",
-     "for {yards}."
-    ],
-    [
-     "{rec} with the grab.",
-     "{yards}",
-     "on the play."
+     "{passer} hits {rec}.",
+     "{yards} on the catch."
     ],
     [
      "Right on the numbers.",
-     "{passer} connects with",
-     "{rec}",
-     "for {yards}."
+     "{passer} finds {rec}.",
+     "Gain of {yards}."
     ],
     [
      "Easy money.",
-     "{rec} snags it for",
-     "{yards}."
+     "{rec} snags it.",
+     "Good for {yards}."
     ],
     [
-     "Quick strike from",
-     "{passer}.",
-     "{rec} takes it",
-     "{yards}."
+     "Quick strike!",
+     "{passer} fires to {rec}.",
+     "Picks up {yards}."
     ],
     [
-     "Good read by",
-     "{passer}, and",
-     "{rec} picks up",
-     "{yards}."
+     "Good read by {passer}.",
+     "Picks up {yards}.",
+     "Keep it moving."
+    ],
+    [
+     "{passer} to {rec}.",
+     "Good for {yards}.",
+     "Nice ball."
+    ],
+    [
+     "Nice throw, nice catch.",
+     "{passer} hits {rec}.",
+     "Gain of {yards}."
     ]
    ]
   },
@@ -1208,61 +1229,53 @@
    "lines": [
     [
      "Bombs away!",
-     "{passer} hits",
-     "{rec}",
-     "for {yards} yards!"
+     "{passer} hits {rec}.",
+     "Good for {yards}."
     ],
     [
      "Huge gain!",
-     "{rec} hauls in a",
-     "{yards}-yard",
-     "strike from",
-     "{passer}!"
+     "{passer} to {rec}.",
+     "Picks up {yards}."
     ],
     [
-     "{passer} lets it fly... and",
-     "{rec} has it!",
-     "{yards} yards!"
+     "{passer} lets it fly!",
+     "{rec} comes down with it!",
+     "Gain of {yards}."
     ],
     [
      "Deep shot connects!",
-     "{rec}",
-     "for {yards}!"
+     "{passer} finds {rec}.",
+     "Picks up {yards}."
     ],
     [
      "Are you kidding me?",
-     "{passer} to",
-     "{rec},",
-     "{yards} yards!"
+     "{passer} fires to {rec}.",
+     "{yards} on the catch."
     ],
     [
      "{rec} is wide open!",
-     "{passer} drops it in for",
-     "{yards}!"
+     "Dropped right in the bucket.",
+     "Good for {yards}."
     ],
     [
-     "Moonshot from",
-     "{passer}!",
-     "{rec} comes down with it,",
-     "{yards} yards!"
+     "Moonshot!",
+     "{passer} to {rec}.",
+     "Gain of {yards}."
     ],
     [
      "Big play alert!",
-     "{passer} and",
-     "{rec}",
-     "for {yards}!"
+     "{passer} hits {rec}.",
+     "{yards} on the catch."
     ],
     [
      "That's a chunk play!",
-     "{rec} picks up",
-     "{yards}",
-     "from {passer}."
+     "{passer} finds {rec}.",
+     "Gain of {yards}."
     ],
     [
      "Air it out!",
-     "{passer} finds",
-     "{rec} deep for",
-     "{yards}!"
+     "{passer} fires to {rec}.",
+     "Picks up {yards}."
     ]
    ]
   },
@@ -1272,41 +1285,42 @@
    ],
    "lines": [
     [
-     "First down,",
-     "{player}!"
+     "First down, {player}!",
+     "Keep it rolling."
     ],
     [
      "{player} moves the chains!"
     ],
     [
-     "And that's a first down. Thank you,",
-     "{player}."
+     "That'll do it for a first down.",
+     "Thank you, {player}."
     ],
     [
      "Chains are moving!",
-     "{player} gets the first."
+     "{player} picks up the first."
     ],
     [
-     "{player} picks up the first down."
+     "{player} gets the first down.",
+     "Drive stays alive."
     ],
     [
-     "Measure it? Nah. Easy first down for",
-     "{player}."
+     "No need to measure that one.",
+     "Easy first down for {player}."
     ],
     [
-     "New set of downs, courtesy of",
-     "{player}."
+     "New downs, thanks to {player}."
     ],
     [
-     "Moving the sticks! Nice work,",
-     "{player}."
+     "Moving the sticks!",
+     "Nice work by {player}."
     ],
     [
-     "{player} gets past the marker. First down!"
+     "{player} gets past the marker.",
+     "First down!"
     ],
     [
      "Fresh downs!",
-     "{player} did that."
+     "{player} made that happen."
     ]
    ]
   },
@@ -1319,68 +1333,62 @@
    "lines": [
     [
      "Touchdown!",
-     "{passer} to",
-     "{rec}",
-     "from {yards} out!"
+     "{passer} to {rec}.",
+     "From {yards} out!"
     ],
     [
-     "{rec} in the end zone!",
-     "{passer} with the dime!"
-    ],
-    [
-     "Score!",
-     "{passer} hits",
-     "{rec}",
-     "for a {yards}-yard",
-     "touchdown!"
+     "{passer} finds {rec}.",
+     "Touchdown!",
+     "{yards} to the house!"
     ],
     [
      "Pay dirt!",
-     "{rec} hauls in the",
-     "{yards}-yard",
-     "score from",
-     "{passer}!"
+     "{passer} hits {rec}.",
+     "From {yards} out!"
     ],
     [
-     "{passer} throws a strike, and",
-     "{rec} takes it to the house!"
+     "What a strike!",
+     "{passer} fires to {rec}.",
+     "Touchdown!"
     ],
     [
-     "Touchdown {rec}!",
-     "What a toss by",
-     "{passer}!"
+     "Touchdown for {rec}!",
+     "What a toss!"
     ],
     [
-     "Find the end zone, find",
-     "{rec}!",
-     "{passer} for the score!"
+     "{passer} hits {rec}.",
+     "Touchdown!",
+     "{yards} to the house!"
     ],
     [
      "Dot!",
-     "{passer} to",
-     "{rec},",
-     "{yards} yards,",
-     "touchdown!"
+     "{passer} to {rec}.",
+     "Touchdown, no doubt about it!"
     ],
     [
      "Oh, what a throw!",
-     "{rec} scores from",
-     "{yards} out!"
+     "{rec} hauls in the touchdown!",
+     "From {yards} out!"
     ],
     [
      "Paint it on the wall!",
-     "{passer} to",
-     "{rec} for 6!"
+     "{passer} finds {rec}.",
+     "Touchdown!"
     ],
     [
-     "{rec} catches it,",
-     "{rec} scores!",
-     "{passer} with the touchdown pass!"
+     "{passer} fires to {rec}.",
+     "Caught in the end zone!",
+     "Touchdown!"
     ],
     [
-     "Throw it up,",
-     "{rec} comes down with it! Touchdown",
-     "from {yards}!"
+     "Throw it up!",
+     "{rec} comes down with it!",
+     "Touchdown!"
+    ],
+    [
+     "Score!",
+     "{passer} to {rec}.",
+     "{yards} to the house!"
     ]
    ]
   },
@@ -1391,67 +1399,58 @@
    ],
    "lines": [
     [
-     "Touchdown,",
-     "{carrier}!",
-     "{yards} yards",
-     "to pay dirt!"
+     "Touchdown for {carrier}!",
+     "From {yards} out!"
     ],
     [
-     "{carrier} punches it in from",
-     "{yards}!"
+     "{carrier} punches it in!",
+     "{yards} to the house!"
     ],
     [
      "See ya!",
-     "{carrier} races",
-     "{yards} yards",
-     "for the score!"
+     "{carrier} races in!",
+     "From {yards} out!"
     ],
     [
-     "Nobody's catching",
-     "{carrier}!",
+     "Nobody's catching {carrier}!",
      "Touchdown!"
     ],
     [
-     "{carrier} walks in from",
-     "{yards} out!"
+     "{carrier} walks in.",
+     "From {yards} out!",
+     "Too easy."
     ],
     [
-     "Into the end zone goes",
-     "{carrier}!",
-     "A {yards}-yard",
-     "touchdown run!"
+     "Into the end zone goes {carrier}!",
+     "{yards} to the house!"
     ],
     [
      "Run it in!",
-     "{carrier} scores from",
-     "{yards}!"
+     "{carrier} scores on the ground!",
+     "From {yards} out!"
     ],
     [
      "Touchdown on the ground!",
-     "{carrier} with",
-     "the {yards}-yard",
-     "dash!"
+     "{carrier} finishes it.",
+     "{yards} to the house!"
     ],
     [
      "Follow the blockers, find the end zone.",
-     "{carrier} touchdown!"
+     "{carrier} with the touchdown run!"
     ],
     [
      "Bye bye!",
-     "{carrier} takes it",
-     "{yards}",
-     "for the score!"
+     "{carrier} takes it the distance!",
+     "From {yards} out!"
     ],
     [
-     "Put the team on your back,",
-     "{carrier}!",
+     "Put the team on your back, {carrier}!",
      "Touchdown!"
     ],
     [
-     "Sprint,",
-     "{carrier} sprint!",
-     "{yards} yards",
-     "and in!"
+     "Sprint, {carrier}, sprint!",
+     "He's in!",
+     "{yards} to the house!"
     ]
    ]
   },
@@ -1461,26 +1460,29 @@
    ],
    "lines": [
     [
-     "{carrier} pushes it across the goal line!"
+     "{carrier} shoves it across!",
+     "Touchdown!"
     ],
     [
      "Short yardage, no problem.",
-     "{carrier} scores!"
+     "{carrier} gets it in!"
     ],
     [
      "Plunge!",
-     "{carrier} gets in!"
+     "{carrier} is in!",
+     "Touchdown!"
     ],
     [
      "Just enough!",
      "{carrier} breaks the plane!"
     ],
     [
-     "Inches needed, inches gained. Touchdown",
-     "{carrier}!"
+     "Inches needed, inches gained.",
+     "Touchdown for {carrier}!"
     ],
     [
-     "{carrier} sneaks in for the score!"
+     "{carrier} sneaks in!",
+     "Touchdown!"
     ]
    ]
   },
@@ -1492,44 +1494,41 @@
    "lines": [
     [
      "Incomplete.",
-     "{passer} misses",
-     "{rec}."
+     "{passer} to {rec}.",
+     "Just short."
     ],
     [
-     "Off the fingertips of",
-     "{rec}.",
+     "Off the fingertips of {rec}.",
      "Incomplete."
     ],
     [
-     "{passer} throws behind",
-     "{rec}.",
-     "No good."
+     "Thrown behind {rec}.",
+     "Can't bring it in."
     ],
     [
      "Overthrown!",
      "{rec} had a step, too."
     ],
     [
-     "Can't connect.",
-     "{passer} to",
-     "{rec} falls incomplete."
+     "{passer} to {rec}.",
+     "Incomplete. Can't connect."
     ],
     [
-     "Just out of reach for",
-     "{rec}."
+     "Just out of reach for {rec}."
     ],
     [
-     "Hits the turf.",
-     "{passer} and",
-     "{rec} weren't on the same page."
+     "{passer} fires to {rec}.",
+     "It hits the turf.",
+     "Not on the same page."
     ],
     [
      "Too high!",
      "{rec} can't get there."
     ],
     [
-     "Pass broken up! Nothing doing for",
-     "{rec}."
+     "{passer} fires to {rec}.",
+     "Pass broken up!",
+     "Nothing doing."
     ]
    ]
   },
@@ -1540,23 +1539,22 @@
    "lines": [
     [
      "Dropped!",
-     "{rec} had that one!"
+     "{rec} had it in his hands!"
     ],
     [
-     "Oh no,",
-     "{rec}!",
-     "Right through the hands!"
+     "Oh no, {rec}!",
+     "Right through the mitts!"
     ],
     [
-     "Ball hits",
-     "{rec} in the chest and falls. Drop."
+     "Hits {rec} square in the chest.",
+     "And it falls. Drop."
     ],
     [
-     "{rec} lets it slip away. That one should've been caught."
+     "{rec} lets it slip away.",
+     "That one has to be caught."
     ],
     [
-     "Butter on the gloves for",
-     "{rec}!",
+     "Butter on the gloves for {rec}!",
      "Dropped."
     ],
     [
@@ -1564,8 +1562,8 @@
      "{rec} will want that one back."
     ],
     [
-     "Ooh,",
-     "{rec} looked upfield too soon. Dropped it."
+     "{rec} looked upfield too soon.",
+     "Dropped it."
     ]
    ]
   },
@@ -1576,19 +1574,19 @@
      "Batted down at the line!"
     ],
     [
-     "Swatted! That pass isn't going anywhere."
+     "Swatted! That ball isn't going anywhere."
     ],
     [
-     "Get that weak stuff outta here! Batted!"
+     "Get that weak stuff out of here! Batted!"
     ],
     [
-     "Tipped at the line and it falls harmlessly."
+     "Tipped at the line, and it falls harmlessly."
     ],
     [
      "Hand up, ball down. Batted pass!"
     ],
     [
-     "Knocked down at the line of scrimmage!"
+     "Knocked down right at the line of scrimmage!"
     ]
    ]
   },
@@ -1598,24 +1596,23 @@
    ],
    "lines": [
     [
-     "{passer} throws it away. Live to fight another down."
+     "{passer} throws it away.",
+     "Live to fight another down."
     ],
     [
      "Nobody open.",
      "{passer} chucks it out of bounds."
     ],
     [
-     "Smart play by",
-     "{passer}.",
-     "Throw it away, no harm done."
+     "Smart play by {passer}.",
+     "Nothing there, so throw it away."
     ],
     [
      "Into the bleachers!",
      "{passer} tosses it away."
     ],
     [
-     "Sideline delivery from",
-     "{passer}.",
+     "Sideline delivery from {passer}.",
      "Safe choice."
     ]
    ]
@@ -1626,11 +1623,12 @@
    ],
    "lines": [
     [
-     "{rec} catches it... out of bounds! No foot down."
+     "{rec} catches it out of bounds!",
+     "No foot down."
     ],
     [
-     "Great grab, but",
-     "{rec} was out! Incomplete."
+     "Great grab, but {rec} was out!",
+     "Incomplete."
     ],
     [
      "Close!",
@@ -1654,42 +1652,41 @@
    "lines": [
     [
      "Intercepted!",
-     "{away} picks off",
-     "{passer}!"
+     "{passer} gets picked off.",
+     "{away} ball."
     ],
     [
      "Oh no!",
-     "{passer} throws it right to",
-     "{away}!"
+     "{passer} throws it to the defense!",
+     "{away} takes it away."
     ],
     [
      "Picked!",
      "{away} jumped that route."
     ],
     [
-     "{passer} forced it, and",
-     "{away} takes it away."
+     "{passer} forced that one.",
+     "{away} comes away with it."
     ],
     [
-     "Interception! That one belongs to",
-     "{away} now."
+     "Interception!",
+     "That one belongs to {away} now."
     ],
     [
-     "Bad read by",
-     "{passer}.",
+     "Bad read by {passer}.",
      "Turnover!"
     ],
     [
      "Ouch.",
-     "{away} reads",
-     "{passer} like a book. Pick!"
+     "{away} read that like a book.",
+     "Pick!"
     ],
     [
      "Who was that for?",
-     "{away} says thanks!"
+     "{away} says thank you!"
     ],
     [
-     "Floated it, and",
+     "Floated it.",
      "{away} swoops in for the interception."
     ]
    ]
@@ -1701,27 +1698,26 @@
    "lines": [
     [
      "Pick 6!",
-     "{away} takes it the other way for a touchdown!"
+     "{away} takes it the other way for the touchdown!"
     ],
     [
      "Disaster!",
-     "{away} intercepts and scores!"
+     "{away} picks it off and scores!"
     ],
     [
      "Oh no, no, no.",
-     "{away} housed the interception."
+     "{away} just housed the interception."
     ],
     [
      "Intercepted and gone!",
      "{away} with the pick 6."
     ],
     [
-     "That's a turnover and a touchdown for",
-     "{away}.",
+     "Turnover and a touchdown for {away}.",
      "Yikes."
     ],
     [
-     "{away} jumps the route and runs it to the house!"
+     "{away} jumps the route and runs it all the way back!"
     ],
     [
      "Worst-case scenario.",
@@ -1743,23 +1739,23 @@
      "{carrier} lost the handle!"
     ],
     [
-     "Uh oh,",
+     "Uh oh!",
      "{carrier} coughs it up!"
     ],
     [
-     "Stripped! The ball pops out from",
-     "{carrier}!"
+     "Stripped!",
+     "The ball pops loose from {carrier}!"
     ],
     [
-     "Loose ball! Everybody dive!"
+     "Loose ball! Everybody dive on it!"
     ],
     [
-     "{carrier} fumbles!",
+     "{carrier} fumbles the ball!",
      "Scramble for it!"
     ],
     [
      "Ball on the turf!",
-     "{carrier} couldn't hold on!"
+     "{carrier} could not hang on!"
     ]
    ]
   },
@@ -1773,26 +1769,24 @@
      "Turnover."
     ],
     [
-     "{away} falls on it. That's their ball."
+     "{away} falls on it.",
+     "That's their ball now."
     ],
     [
-     "Ugh,",
+     "Ugh.",
      "{away} comes up with the fumble."
     ],
     [
-     "Possession,",
-     "{away}.",
-     "That hurts."
+     "Possession goes to {away}.",
+     "That one hurts."
     ],
     [
-     "Recovered by",
-     "{away}!",
+     "Recovered by {away}!",
      "Big swing in this game."
     ],
     [
-     "Scooped up by",
-     "{away}.",
-     "Our defense is back on the field."
+     "Scooped up by {away}.",
+     "Our defense is back out there."
     ]
    ]
   },
@@ -1803,15 +1797,15 @@
    "lines": [
     [
      "Phew!",
-     "{home} gets it back!"
+     "{home} gets it right back!"
     ],
     [
-     "Recovered by",
-     "{home}!",
+     "Recovered by {home}!",
      "Dodged one there."
     ],
     [
-     "{home} falls on it! Still our ball!"
+     "{home} falls on it!",
+     "Still our ball!"
     ],
     [
      "Lucky bounce!",
@@ -1819,7 +1813,7 @@
     ],
     [
      "Heart attack averted.",
-     "{home} recovers."
+     "{home} comes up with it."
     ]
    ]
   },
@@ -1834,19 +1828,19 @@
     ],
     [
      "Disaster!",
-     "{away} picks it up and races in!"
+     "{away} picks it up and races to the end zone!"
     ],
     [
-     "Fumble, recovery, touchdown,",
-     "{away}.",
-     "Brutal."
+     "Fumble, recovery, touchdown.",
+     "{away} cashes in. Brutal."
     ],
     [
-     "{away} turns our fumble into 6. Ouch."
+     "{away} turns our fumble into 6.",
+     "Ouch."
     ],
     [
-     "Nobody touched",
-     "{away} on the way back. Fumble return touchdown."
+     "Nobody touched {away} on the way back.",
+     "Fumble return touchdown."
     ]
    ]
   },
@@ -1857,72 +1851,60 @@
    ],
    "lines": [
     [
-     "{carrier} runs for",
-     "{yards}."
+     "{carrier} up the middle.",
+     "Gain of {yards}."
     ],
     [
-     "{carrier} pounds ahead for",
-     "{yards}."
+     "{carrier} pounds ahead.",
+     "Picks up {yards}."
     ],
     [
-     "Handoff to",
-     "{carrier},",
-     "{yards}",
-     "on the carry."
+     "Handoff to {carrier}.",
+     "{yards} on the carry."
     ],
     [
-     "Good burst by",
-     "{carrier}.",
-     "{yards}-yard",
-     "pickup."
+     "Good burst by {carrier}.",
+     "Picks up {yards}."
     ],
     [
-     "Through a crease goes",
-     "{carrier} and that's",
-     "{yards}."
+     "{carrier} finds a crease.",
+     "Good for {yards}."
     ],
     [
-     "Gain of {yards}",
-     "on the ground for",
-     "{carrier}."
-    ],
-    [
-     "Tough running from",
-     "{carrier}!",
-     "{yards}",
-     "more."
+     "Tough running from {carrier}!",
+     "Gain of {yards}."
     ],
     [
      "Up the gut!",
-     "{carrier} gets",
-     "{yards}."
+     "{carrier} churns ahead.",
+     "Gain of {yards}."
     ],
     [
-     "Bouncing outside,",
-     "{carrier} picks up",
-     "{yards}."
+     "Bouncing outside!",
+     "{carrier} finds the edge.",
+     "Picks up {yards}."
     ],
     [
-     "Churning legs,",
-     "{carrier}!",
-     "That's {yards}",
-     "on the run."
+     "Churning legs from {carrier}!",
+     "{yards} on the carry."
     ],
     [
-     "Nice cut by",
-     "{carrier}",
-     "for a {yards}-yard",
-     "gain."
+     "Nice cut by {carrier}.",
+     "Good for {yards}."
     ],
     [
      "Ground and pound!",
-     "{carrier} with",
-     "{yards}."
+     "{carrier} lowers the shoulder.",
+     "Gain of {yards}."
     ],
     [
-     "Keeps the legs moving,",
-     "{carrier} grinds out",
-     "{yards}."
+     "{carrier} keeps the legs moving.",
+     "Good for {yards}."
+    ],
+    [
+     "Off tackle to {carrier}.",
+     "Gain of {yards}.",
+     "Steady work."
     ]
    ]
   },
@@ -1934,55 +1916,51 @@
    "lines": [
     [
      "Breakaway!",
-     "{carrier} rips off",
-     "{yards} yards!"
+     "{carrier} rips off a big one!",
+     "Good for {yards}."
     ],
     [
-     "Look at",
-     "{carrier} go!",
-     "{yards} yards",
-     "on the run!"
+     "Look at {carrier} go!",
+     "Good for {yards}."
     ],
     [
-     "{carrier} hits the hole and explodes for",
-     "{yards}!"
+     "{carrier} hits the hole!",
+     "And he's gone!",
+     "Gain of {yards}."
     ],
     [
      "Huge run!",
-     "{carrier} picks up",
-     "{yards} yards!"
+     "{carrier} is off to the races!",
+     "Picks up {yards}."
     ],
     [
-     "Somebody tackle",
-     "{carrier}!",
-     "{yards}-yard",
-     "gallop!"
+     "Somebody tackle {carrier}!",
+     "{yards} on the carry."
     ],
     [
      "Out of the gate like a rocket!",
-     "{carrier}",
-     "for {yards}!"
+     "{carrier} finally goes down.",
+     "Gain of {yards}."
     ],
     [
      "Daylight!",
-     "{carrier} takes it",
-     "{yards} yards!"
+     "{carrier} takes it a long way.",
+     "Good for {yards}."
     ],
     [
      "That's a highlight run!",
-     "{carrier}",
-     "for {yards}!"
+     "{carrier} did the work.",
+     "Gain of {yards}."
     ],
     [
      "Big gainer!",
-     "{carrier} goes",
-     "{yards}",
-     "before anyone catches up."
+     "{carrier} is caught from behind.",
+     "{yards} on the carry."
     ],
     [
      "Turbo mode activated!",
-     "{carrier}",
-     "for {yards} yards!"
+     "{carrier} outruns everybody.",
+     "Picks up {yards}."
     ]
    ]
   },
@@ -1992,28 +1970,27 @@
    ],
    "lines": [
     [
-     "{carrier} gets dropped in the backfield."
+     "Tackled in the backfield!",
+     "{carrier} loses ground."
     ],
     [
      "Loss on the play.",
-     "{carrier} had nowhere to go."
+     "{carrier} had nowhere to run."
     ],
     [
      "Stuffed!",
      "{carrier} goes backwards."
     ],
     [
-     "Tackled for a loss! Rough one for",
-     "{carrier}."
+     "Tackled for a loss!",
+     "Rough one for {carrier}."
     ],
     [
-     "Defense was waiting for",
-     "{carrier}.",
+     "They were waiting on {carrier}.",
      "Lost yardage."
     ],
     [
-     "Wrong way,",
-     "{carrier}!",
+     "Wrong way, {carrier}!",
      "That's a loss."
     ]
    ]
@@ -2027,19 +2004,18 @@
      "No gain on the play."
     ],
     [
-     "{carrier} gets stuffed at the line."
+     "{carrier} is stuffed at the line."
     ],
     [
-     "Nothing there for",
-     "{carrier}."
+     "Nothing there for {carrier}."
     ],
     [
      "Wall of defenders!",
      "{carrier} goes nowhere."
     ],
     [
-     "Stood up! No gain for",
-     "{carrier}."
+     "Stood up at the line!",
+     "No gain for {carrier}."
     ]
    ]
   },
@@ -2050,22 +2026,22 @@
    "lines": [
     [
      "Sacked!",
-     "{passer} goes down!"
+     "{passer} goes down hard!"
     ],
     [
-     "{passer} is brought down behind the line!"
+     "{passer} is dragged down!",
+     "Sack!"
     ],
     [
-     "Sack! Nowhere to throw for",
-     "{passer}."
+     "Sack!",
+     "Nowhere to go for {passer}."
     ],
     [
-     "Get {passer}",
-     "on the ground! Sack!"
+     "They got {passer} on the ground!",
+     "Sack!"
     ],
     [
-     "Oh, they got",
-     "{passer}!",
+     "Oh, they got to {passer}!",
      "Loss on the play."
     ],
     [
@@ -2073,11 +2049,12 @@
      "{passer} is sacked."
     ],
     [
-     "{passer} held it too long. Sack!"
+     "{passer} held it too long.",
+     "Sack!"
     ],
     [
-     "Flag pulled!",
-     "{passer} sacked in the backfield."
+     "Flag pulled in the backfield!",
+     "{passer} is taken down."
     ]
    ]
   },
@@ -2089,39 +2066,33 @@
    "lines": [
     [
      "{passer} takes off!",
-     "{yards}",
-     "on the scramble!"
+     "Picks up {yards}."
     ],
     [
-     "Nobody open, so",
-     "{passer} runs for",
-     "{yards}."
+     "Nobody open, so {passer} runs.",
+     "Good for {yards}."
     ],
     [
      "Escape artist!",
-     "{passer} scrambles for",
-     "{yards}."
+     "{passer} gets loose.",
+     "Gain of {yards}."
     ],
     [
      "Legs!",
-     "{passer} picks up",
-     "{yards}",
-     "on the keeper."
+     "{passer} keeps it himself.",
+     "Good for {yards}."
     ],
     [
-     "Look out, it's",
-     "{passer} on the run! Gain",
-     "of {yards}."
+     "Look out, {passer} is running!",
+     "Gain of {yards}."
     ],
     [
      "{passer} tucks it and goes.",
-     "{yards}-yard",
-     "scramble."
+     "{yards} on the carry."
     ],
     [
-     "The pocket collapses and",
-     "{passer} sprints for",
-     "{yards}."
+     "{passer} escapes the pocket.",
+     "Picks up {yards}."
     ]
    ]
   },
@@ -2131,19 +2102,20 @@
    ],
    "lines": [
     [
-     "{passer} slides.",
+     "{passer} slides down.",
      "Smart."
     ],
     [
-     "{passer} gets down safely. Good slide."
+     "{passer} gets down safely.",
+     "Good slide."
     ],
     [
      "Slide!",
-     "{passer} lives to play another down."
+     "{passer} hits the deck.",
+     "Live for another down."
     ],
     [
-     "Nice slide from",
-     "{passer}.",
+     "Nice slide from {passer}.",
      "No need for heroics."
     ]
    ]
@@ -2154,42 +2126,46 @@
    ],
    "lines": [
     [
-     "What a catch by",
-     "{rec}!"
+     "What a catch!",
+     "{rec} came down with it!"
     ],
     [
      "Are you serious?",
-     "{rec} came down with that!"
+     "{rec} just caught that!"
     ],
     [
-     "Unreal grab!",
-     "{rec} makes it look easy."
+     "Unreal grab by {rec}!",
+     "He makes it look easy."
     ],
     [
-     "{rec} with the circus catch!"
+     "Circus catch by {rec}!",
+     "Somebody check him for glue."
     ],
     [
-     "How did",
-     "{rec} hold onto that?"
+     "How did he hold onto that?",
+     "{rec} is a magician!"
     ],
     [
      "Highlight reel!",
-     "{rec} snatches it out of the air!"
+     "{rec} snatches it!",
+     "Right out of the sky!"
     ],
     [
-     "Put that on the poster!",
-     "{rec} with the grab!"
+     "Put that on a poster!",
+     "{rec} plucked it clean!"
     ],
     [
-     "Somebody check",
-     "{rec} for glue! Incredible catch!"
+     "Catch of the year, right there!",
+     "Take a bow, {rec}."
     ],
     [
-     "That's the catch of the year from",
-     "{rec}!"
+     "{rec} went up high!",
+     "And took it away!",
+     "Just wow."
     ],
     [
-     "{rec} went up and took it! Wow!"
+     "Hands of glue!",
+     "That ball was never coming out!"
     ]
    ]
   },
@@ -2200,30 +2176,32 @@
    "lines": [
     [
      "Diving catch!",
-     "{rec} lays out!"
+     "{rec} lays out for it!"
     ],
     [
-     "{rec} sells out and makes the grab!"
+     "{rec} sells out completely!",
+     "What a grab!"
     ],
     [
      "Full extension!",
-     "{rec} gets it!"
+     "{rec} gets there!"
     ],
     [
      "Airborne!",
-     "{rec} dives and hauls it in!"
+     "{rec} hauls it in!"
     ],
     [
-     "{rec} hits the turf with the ball! Diving grab!"
+     "{rec} hits the deck!",
+     "And holds on!",
+     "Diving grab!"
     ],
     [
-     "Laid out! What effort from",
-     "{rec}!"
+     "Laid out and held on!",
+     "What effort from {rec}!"
     ],
     [
-     "Off the ground and into the arms of",
-     "{rec}!",
-     "Diving catch!"
+     "Inches off the grass!",
+     "He got under it!"
     ]
    ]
   },
@@ -2238,24 +2216,24 @@
     ],
     [
      "Just inbounds!",
-     "{rec} with the tiptoe catch!"
+     "Tiptoe catch by {rec}!"
     ],
     [
-     "Ballerina feet from",
-     "{rec}!",
-     "What a sideline grab!"
+     "Ballerina feet!",
+     "{rec} stays in!",
+     "By a toenail!"
     ],
     [
-     "{rec} drags the toes! Catch!"
+     "{rec} drags the toes!",
+     "That's a catch!"
     ],
     [
-     "Right on the edge!",
+     "Right on the chalk!",
      "{rec} gets a foot down!"
     ],
     [
-     "Sideline magic from",
-     "{rec}!",
-     "Toes in!"
+     "Sideline magic!",
+     "Toes in, catch good."
     ]
    ]
   },
@@ -2266,27 +2244,29 @@
    "lines": [
     [
      "Off the helmet!",
-     "{rec} pins it and hangs on!"
+     "{rec} pins it there!"
     ],
     [
-     "{rec} traps it against the helmet! Unbelievable!"
+     "{rec} traps it!",
+     "On his own helmet!",
+     "Unbelievable!"
     ],
     [
      "Helmet catch!",
      "{rec} somehow holds on!"
     ],
     [
-     "No hands? No problem!",
-     "{rec} catches it with the helmet!"
+     "No hands, no problem!",
+     "{rec} used his head!"
     ],
     [
-     "That ball stuck to the helmet of",
-     "{rec}!",
-     "Are you kidding?"
+     "Stuck to the helmet!",
+     "He'll take it!",
+     "Are you kidding me?"
     ],
     [
      "Headgear grab!",
-     "{rec} won't let go!"
+     "{rec} refuses to let go!"
     ]
    ]
   },
@@ -2300,20 +2280,21 @@
      "{rec} snags it!"
     ],
     [
-     "One-handed grab from",
-     "{rec}!",
-     "Show off!"
+     "One-handed grab!",
+     "{rec} is showing off!"
     ],
     [
-     "{rec} reaches out with one mitt and pulls it in!"
+     "One mitt!",
+     "{rec} reaches out!",
+     "Pulls it in!"
     ],
     [
      "Single paw!",
-     "{rec} makes the one-hander!"
+     "{rec} with the one-hander!"
     ],
     [
      "Look, no other hand!",
-     "{rec} with the one-handed snag!"
+     "Who needs it?"
     ]
    ]
   },
@@ -2324,29 +2305,33 @@
    "lines": [
     [
      "Juke!",
-     "{carrier} leaves the defender grasping air!"
+     "He's grasping at air!",
+     "{carrier} is too quick!"
     ],
     [
-     "{carrier} with the juke! Wow!"
+     "{carrier} with the juke!",
+     "Wow!"
     ],
     [
      "Shake and bake!",
-     "{carrier} sends a defender the wrong way!"
+     "{carrier} sends him the wrong way!"
     ],
     [
-     "Nasty move by",
-     "{carrier}!"
+     "Nasty move by {carrier}!",
+     "That defender is still looking for him."
     ],
     [
      "Side to side!",
-     "{carrier} jukes the defender into next week!"
+     "{carrier} jukes him!",
+     "Into next week!"
     ],
     [
      "Did you see that cut?",
-     "{carrier} is slippery!"
+     "Slippery!"
     ],
     [
-     "{carrier} fakes left, goes right. Gone!"
+     "Fakes left, goes right.",
+     "{carrier} is gone!"
     ]
    ]
   },
@@ -2367,17 +2352,16 @@
      "{carrier} with the spin!"
     ],
     [
-     "Pirouette from",
-     "{carrier}!",
-     "Still going!"
+     "Pirouette!",
+     "{carrier} is still going!"
     ],
     [
-     "What a spin by",
-     "{carrier}!",
-     "Defender grabs nothing!"
+     "What a spin by {carrier}!",
+     "The defender grabs nothing."
     ],
     [
-     "{carrier} spins off the tackle!"
+     "Spins off the tackle!",
+     "Nice balance."
     ]
    ]
   },
@@ -2388,26 +2372,28 @@
    "lines": [
     [
      "Stiff arm!",
-     "{carrier} says get away!"
+     "{carrier} says get off me!"
     ],
     [
-     "{carrier} with the stiff arm! Back off!"
+     "{carrier} with the stiff arm!",
+     "Back off!"
     ],
     [
      "Talk to the hand!",
-     "{carrier} shoves a defender aside!"
+     "{carrier} shoves him aside!"
     ],
     [
      "Push off!",
-     "{carrier} stiff arms a defender into the turf!"
+     "{carrier} plants him!",
+     "Right into the turf!"
     ],
     [
      "Get outta here!",
-     "{carrier} with a mean stiff arm!"
+     "That's a mean stiff arm!"
     ],
     [
      "No thank you!",
-     "{carrier} straight-arms the tackler!"
+     "{carrier} straight-arms him!"
     ]
    ]
   },
@@ -2418,29 +2404,31 @@
    "lines": [
     [
      "Hurdle!",
-     "{carrier} goes right over the top!"
+     "{carrier} goes over him!"
     ],
     [
      "Up and over!",
-     "{carrier} hurdles the defender!"
+     "{carrier} hurdles him!"
     ],
     [
-     "{carrier} leaps a tackler! Track star!"
+     "{carrier} leaps a tackler!",
+     "Track star!"
     ],
     [
      "Airborne!",
-     "{carrier} clears the defender!"
+     "{carrier} clears him clean!"
     ],
     [
-     "Did {carrier}",
-     "just jump over somebody? Yes!"
+     "Did he just jump over somebody?",
+     "Yes, {carrier} did!"
     ],
     [
      "Over the top!",
-     "{carrier} with the hurdle!"
+     "Somebody get a tape measure!"
     ],
     [
-     "{carrier} skies over the defender! Ridiculous!"
+     "{carrier} skies over him!",
+     "Ridiculous!"
     ]
    ]
   },
@@ -2451,30 +2439,31 @@
    "lines": [
     [
      "Trucked!",
-     "{carrier} runs right through a defender!"
+     "{carrier} runs right through him!"
     ],
     [
-     "{carrier} lowers the shoulder and flattens a defender!"
+     "{carrier} lowers the shoulder!",
+     "That man got trucked."
     ],
     [
-     "Run 'em over!",
-     "{carrier} trucks the tackler!"
+     "Run him over!",
+     "{carrier} trucks him!"
     ],
     [
      "Beep beep!",
-     "{carrier} just ran somebody over!"
+     "{carrier} ran him over!"
     ],
     [
      "Bulldozer mode!",
-     "{carrier} goes through, not around!"
+     "Through him, not around him!"
     ],
     [
      "Somebody get the license plate!",
-     "{carrier} flattened a defender!"
+     "{carrier} flattened him!"
     ],
     [
      "Pancake!",
-     "{carrier} put a defender on the turf!"
+     "{carrier} laid him out!"
     ]
    ]
   },
@@ -2485,22 +2474,24 @@
    "lines": [
     [
      "De-cleated!",
-     "{carrier} knocked a defender clean out of the shoes!"
+     "{carrier} took his shoes off!"
     ],
     [
      "Cleats in the air!",
-     "{carrier} sends a defender flying!"
+     "{carrier} sends him flying!"
     ],
     [
-     "{carrier} with the de-cleater! Oof!"
+     "De-cleater by {carrier}!",
+     "Oof!"
     ],
     [
      "Boom!",
-     "{carrier} blows a defender off the turf!"
+     "{carrier} blew him up!"
     ],
     [
      "Ouch!",
-     "{carrier} knocks a tackler head over heels!"
+     "Head over heels!",
+     "{carrier} flipped him!"
     ],
     [
      "That's a de-cleater, folks!",
@@ -2508,7 +2499,7 @@
     ],
     [
      "Somebody find that defender's shoes!",
-     "{carrier} sent them flying!"
+     "They went flying!"
     ]
    ]
   },
@@ -2516,25 +2507,29 @@
    "vars": [],
    "lines": [
     [
-     "Whiff! Missed tackle!"
+     "Whiff!",
+     "Nothing but air on that tackle!"
     ],
     [
-     "Grabbed nothing but air!"
+     "He grabbed a handful of nothing!"
     ],
     [
-     "Swing and a miss on the tackle!"
+     "Swing and a miss by the defender!"
     ],
     [
-     "The defender dove and got nothing!"
+     "Dove at him and came up empty!"
     ],
     [
-     "Missed completely! What a whiff!"
+     "Missed him by a mile!",
+     "What a whiff!"
     ],
     [
-     "Tackle attempt? More like a tackle suggestion."
+     "Was that a tackle attempt?",
+     "More of a tackle suggestion."
     ],
     [
-     "Air ball! That tackle wasn't even close."
+     "Ole!",
+     "That defender never touched him."
     ]
    ]
   },
@@ -2548,26 +2543,27 @@
      "{carrier} is filthy!"
     ],
     [
-     "{carrier} just broke some ankles!"
+     "{carrier} broke his ankles!"
     ],
     [
      "Somebody call a doctor for those ankles!",
-     "{carrier} wow!"
+     "{carrier} did that!"
     ],
     [
      "Down goes the defender!",
-     "{carrier} with the ankle breaker!"
+     "Ankle breaker by {carrier}!"
     ],
     [
-     "{carrier} put a defender on the ground without touching anybody!"
+     "Never touched him!",
+     "Dropped him anyway!"
     ],
     [
      "Ankle tax!",
-     "{carrier} collects!"
+     "{carrier} collects on it!"
     ],
     [
-     "Sit down!",
-     "{carrier} made that defender fall over!"
+     "Have a seat!",
+     "{carrier} made him sit!"
     ]
    ]
   },
@@ -2578,27 +2574,26 @@
    "lines": [
     [
      "Broken tackle!",
-     "{carrier} keeps going!"
+     "{carrier} keeps on going!"
     ],
     [
-     "{carrier} shrugs it off!"
+     "{carrier} shrugs that one off!"
     ],
     [
-     "Can't bring",
-     "{carrier} down!",
-     "Still running!"
+     "Can't bring him down!",
+     "{carrier} keeps his feet!"
     ],
     [
-     "First tackle doesn't get it done.",
-     "{carrier} bounces off!"
+     "First man in doesn't get it done.",
+     "{carrier} bounces off him!"
     ],
     [
      "Not enough!",
-     "{carrier} breaks free!"
+     "{carrier} rips free of that!"
     ],
     [
      "Bounced right off!",
-     "{carrier} stays upright!"
+     "Still upright!"
     ]
    ]
   },
@@ -2608,20 +2603,21 @@
    ],
    "lines": [
     [
-     "Big hit on",
-     "{carrier}!"
+     "Big hit on {carrier}!",
+     "That one hurt."
     ],
     [
      "Boom!",
      "{carrier} gets rocked!"
     ],
     [
-     "Ooh,",
-     "{carrier} felt that one!"
+     "Ooh!",
+     "{carrier} got lit up!",
+     "He'll feel that tomorrow."
     ],
     [
-     "Lights out! The defense lays the wood on",
-     "{carrier}!"
+     "Lights out!",
+     "They laid the wood on him!"
     ],
     [
      "Crunch!",
@@ -2629,7 +2625,7 @@
     ],
     [
      "Whoa!",
-     "{carrier} just got leveled!"
+     "Somebody just got leveled!"
     ]
    ]
   },
@@ -2639,32 +2635,30 @@
    ],
    "lines": [
     [
-     "Third down and",
-     "{dist}."
+     "Third down.",
+     "{dist} to go."
     ],
     [
      "Big third down here.",
-     "{dist}",
-     "to go."
+     "Needs {dist} for the first."
     ],
     [
-     "Third and",
-     "{dist}.",
-     "Gotta have it."
+     "Third down, gotta have it.",
+     "{dist} to the sticks."
     ],
     [
-     "Here's a third down,",
-     "{dist}",
-     "to go."
+     "Here's a third down.",
+     "{dist} to go.",
+     "Make it count."
     ],
     [
-     "Need {dist}",
-     "on third down. Make it happen!"
+     "Money down.",
+     "{dist} to go.",
+     "Convert it."
     ],
     [
-     "Third and",
-     "{dist}.",
-     "Crowd's on its feet!"
+     "Third down and the crowd is on its feet.",
+     "{dist} to the sticks."
     ]
    ]
   },
@@ -2675,13 +2669,13 @@
      "We're going for it on fourth down!"
     ],
     [
-     "No punt! Offense stays on the field!"
+     "No punt! The offense stays out there!"
     ],
     [
      "Fourth down, and we're feeling brave!"
     ],
     [
-     "Go time! Leaving the offense out there on fourth."
+     "Go time! Offense stays on the field for fourth."
     ],
     [
      "Bold call! We're going for it!"
@@ -2698,19 +2692,19 @@
      "Stopped short! Turnover on downs."
     ],
     [
-     "Didn't get it. Their ball."
+     "Didn't get it. That's their ball."
     ],
     [
      "Came up short on fourth. Turnover on downs."
     ],
     [
-     "So close! Defense takes over."
+     "So close! The ball goes over on downs."
     ],
     [
      "That's a turnover on downs. Ouch."
     ],
     [
-     "Denied on fourth down. They'll take over."
+     "Denied on fourth down. They take over from here."
     ]
    ]
   },
@@ -2720,30 +2714,32 @@
    ],
    "lines": [
     [
-     "Punt is away,",
-     "{yards} yards."
+     "Punt is away.",
+     "Good for {yards}."
     ],
     [
      "Big boot!",
-     "{yards} yards",
-     "on the punt."
+     "That's {yards} on the play."
     ],
     [
-     "{yards}-yard",
-     "punt flips the field."
+     "That punt flips the field.",
+     "Good for {yards}."
     ],
     [
-     "Booming punt! That one travels",
-     "{yards}."
+     "Kicked away, and the coverage gets down there.",
+     "That's {yards} on the play."
     ],
     [
-     "Kicked away.",
-     "{yards} yards",
-     "on the punt."
+     "The punter gets a good foot on it.",
+     "Good for {yards}."
     ],
     [
-     "Punter gets a good foot on it,",
-     "{yards} yards."
+     "Nice hang time on that punt.",
+     "That's {yards} on the play."
+    ],
+    [
+     "Punt team does its job.",
+     "Good for {yards}."
     ]
    ]
   },
@@ -2751,19 +2747,28 @@
    "vars": [],
    "lines": [
     [
-     "Shanked! That punt went nowhere."
+     "Shanked!",
+     "That punt went nowhere."
     ],
     [
-     "Oof, off the side of the foot. Ugly punt."
+     "Oof, off the side of the foot.",
+     "Ugly punt."
     ],
     [
-     "That punt went sideways. Literally."
+     "That punt went sideways.",
+     "Literally."
     ],
     [
-     "Yikes! The punter wants that one back."
+     "Yikes!",
+     "The punter wants that one back."
     ],
     [
-     "Shank city! Barely made it past the line."
+     "Shank city!",
+     "It barely made it past the line."
+    ],
+    [
+     "Low, short and wobbly.",
+     "The punter will hear about that one."
     ]
    ]
   },
@@ -2777,7 +2782,7 @@
      "Tackled in the end zone! That's a safety!"
     ],
     [
-     "Trapped in the end zone. Safety, and 2 points!"
+     "Trapped in the end zone. Safety, and 2 points the other way!"
     ],
     [
      "Caught in the end zone! It's a safety!"
@@ -2798,41 +2803,48 @@
    "lines": [
     [
      "It's good!",
-     "{kicker}",
-     "from {dist}!"
-    ],
-    [
-     "{kicker} drills it from",
-     "{dist} yards!"
+     "{kicker} drills it.",
+     "From {dist} out."
     ],
     [
      "Right down the middle!",
-     "{dist}-yard",
-     "field goal is good!"
+     "{kicker} nails that one.",
+     "That's a {dist}-yarder."
     ],
     [
-     "Kick is up... and it's good!",
-     "{kicker} nails it from",
-     "{dist}."
+     "Kick is up, and it's good!",
+     "{kicker} splits the uprights.",
+     "From {dist} out."
     ],
     [
-     "Money from {dist}!",
-     "{kicker} delivers."
+     "Money!",
+     "{kicker} delivers again.",
+     "That's a {dist}-yarder."
     ],
     [
      "Through the uprights!",
-     "{kicker} connects from",
-     "{dist} yards."
+     "{kicker} connects on that one.",
+     "From {dist} out."
     ],
     [
      "Split 'em!",
-     "{kicker} hits from",
-     "{dist}."
+     "Big leg from {kicker}.",
+     "That's a {dist}-yarder."
     ],
     [
      "Automatic!",
-     "{kicker} makes the",
-     "{dist}-yarder."
+     "Count on {kicker} every time.",
+     "From {dist} out."
+    ],
+    [
+     "3 points, and the kicker never doubted it!",
+     "Good one, {kicker}.",
+     "That's a {dist}-yarder."
+    ],
+    [
+     "Plenty of leg, plenty of accuracy.",
+     "{kicker} puts it through.",
+     "From {dist} out."
     ]
    ]
   },
@@ -2844,35 +2856,41 @@
    "lines": [
     [
      "No good!",
-     "{kicker} misses from",
-     "{dist}."
+     "{kicker} misses it.",
+     "From {dist} out."
     ],
     [
      "It's wide!",
-     "The {dist}-yard",
-     "try fails."
-    ],
-    [
-     "{kicker} pushes it! No good",
-     "from {dist}."
+     "{kicker} pushes that one.",
+     "That's a {dist}-yarder."
     ],
     [
      "Off target!",
-     "{kicker} misses the",
-     "{dist}-yarder."
+     "{kicker} can't find the range.",
+     "That's a {dist}-yarder."
     ],
     [
-     "The kick is no good. Tough break,",
-     "{kicker}."
+     "The kick is no good.",
+     "Tough break for {kicker}."
     ],
     [
      "Oh, so close!",
-     "{kicker} misses from",
-     "{dist} yards."
+     "{kicker} just misses.",
+     "From {dist} out."
     ],
     [
-     "{kicker} hooks it. No points",
-     "from {dist}."
+     "{kicker} hooks it.",
+     "No points on that one.",
+     "From {dist} out."
+    ],
+    [
+     "Wide, and the points stay on the field.",
+     "{kicker} will want another shot.",
+     "That's a {dist}-yarder."
+    ],
+    [
+     "Not this time.",
+     "{kicker} comes up empty."
     ]
    ]
   },
@@ -2880,22 +2898,31 @@
    "vars": [],
    "lines": [
     [
-     "Doink! Off the upright!"
+     "Doink!",
+     "Off the upright!"
     ],
     [
-     "Clang! It hits the post and bounces out!"
+     "Clang!",
+     "It hits the post and bounces out!"
     ],
     [
-     "Off the upright! So close!"
+     "Off the upright, and so close!"
     ],
     [
-     "The post says no! Doink!"
+     "The post says no!",
+     "Doink!"
     ],
     [
-     "Ping! Iron! No good!"
+     "Ping!",
+     "Iron, and no good!"
     ],
     [
-     "That sound! Right off the upright and out!"
+     "That sound!",
+     "Right off the upright and out!"
+    ],
+    [
+     "Kissed the post and fell away.",
+     "No good!"
     ]
    ]
   },
@@ -2903,19 +2930,28 @@
    "vars": [],
    "lines": [
     [
-     "Doink... and in! It counts!"
+     "Doink, and in!",
+     "It counts!"
     ],
     [
-     "Off the upright and through! We'll take it!"
+     "Off the upright and through!",
+     "We'll take it!"
     ],
     [
-     "Clang and in! Lucky bounce!"
+     "Clang and in!",
+     "Lucky bounce!"
     ],
     [
-     "Hit the post, still good! Ugly but effective!"
+     "Hit the post, still good!",
+     "Ugly but effective!"
     ],
     [
-     "The post was friendly today! It's good!"
+     "The post was friendly today!",
+     "It's good!"
+    ],
+    [
+     "Bounced off the iron and wobbled through.",
+     "They all count the same!"
     ]
    ]
   },
@@ -2929,16 +2965,22 @@
      "PAT is good."
     ],
     [
-     "Point after: good."
+     "Point after is good."
     ],
     [
-     "Easy as pie. Extra point good."
+     "Easy as pie.",
+     "Extra point good."
     ],
     [
-     "Kick is good. Add 1 more."
+     "Kick is good.",
+     "Add 1 more."
     ],
     [
      "Through the pipes for the extra point."
+    ],
+    [
+     "No drama on the point after.",
+     "It's good."
     ]
    ]
   },
@@ -2949,7 +2991,8 @@
      "Extra point no good!"
     ],
     [
-     "Missed the extra point! Ouch."
+     "Missed the extra point!",
+     "Ouch."
     ],
     [
      "Whoa, the point after is no good!"
@@ -2958,7 +3001,11 @@
      "Shanked the PAT!"
     ],
     [
-     "Doesn't get the extra point. That might matter."
+     "Doesn't get the extra point.",
+     "That might matter later."
+    ],
+    [
+     "The kicker pulls it, and the extra point is off."
     ]
    ]
   },
@@ -2969,22 +3016,30 @@
      "2-point try is good!"
     ],
     [
-     "They're in! 2-point conversion successful!"
+     "They're in!",
+     "2-point conversion successful!"
     ],
     [
      "Going for 2 and getting 2!"
     ],
     [
-     "Conversion good! That's 2 more!"
+     "Conversion good!",
+     "That's 2 more!"
     ],
     [
-     "Got it! The 2-point play works!"
+     "Got it!",
+     "The 2-point play works!"
     ],
     [
-     "Bonus points! 2-point conversion is good!"
+     "Bonus points!",
+     "2-point conversion is good!"
     ],
     [
-     "In for 2! Great call!"
+     "In for 2!",
+     "Great call!"
+    ],
+    [
+     "Gutsy call, and it pays off with 2!"
     ]
    ]
   },
@@ -2995,19 +3050,27 @@
      "2-point try fails."
     ],
     [
-     "Stopped! No conversion."
+     "Stopped!",
+     "No conversion."
     ],
     [
-     "Didn't get in. The 2-point try is no good."
+     "Didn't get in.",
+     "The 2-point try is no good."
     ],
     [
-     "Denied! No extra 2 points."
+     "Denied!",
+     "No extra 2 points."
     ],
     [
-     "So close! Conversion fails."
+     "So close!",
+     "Conversion fails."
     ],
     [
-     "Short of the goal line. No good on the 2-point try."
+     "Short of the goal line.",
+     "No good on the 2-point try."
+    ],
+    [
+     "Swallowed up at the line, and the 2 stays off the board."
     ]
    ]
   },
@@ -3015,16 +3078,21 @@
    "vars": [],
    "lines": [
     [
-     "Kick it or go for 2? Your call, coach."
+     "Kick it or go for 2?",
+     "Your call, coach."
     ],
     [
-     "Decision time: extra point or 2-point try?"
+     "Decision time, extra point or 2-point try?"
     ],
     [
-     "Coach, what's it gonna be? 1 or 2?"
+     "Coach, what's it gonna be?",
+     "1 or 2?"
     ],
     [
      "The kicker is warming up, but going for 2 is tempting."
+    ],
+    [
+     "Take the sure point, or roll with a 2-point play?"
     ]
    ]
   },
@@ -3032,19 +3100,25 @@
    "vars": [],
    "lines": [
     [
-     "Onside kick? Feeling sneaky, coach?"
+     "Onside kick?",
+     "Feeling sneaky, coach?"
     ],
     [
      "Kick it deep or try the onside?"
     ],
     [
-     "Decision time: onside or regular kick?"
+     "Decision time, onside or regular kick?"
     ],
     [
      "Do we go for the onside here?"
     ],
     [
-     "Big choice coming. Onside kick, anyone?"
+     "Big choice coming.",
+     "Onside kick, anyone?"
+    ],
+    [
+     "Deep ball or a surprise onside?",
+     "Make the call."
     ]
    ]
   },
@@ -3054,11 +3128,11 @@
    ],
    "lines": [
     [
-     "Onside kick recovered by",
-     "{home}!"
+     "Onside kick recovered by {home}!"
     ],
     [
-     "{home} gets it back! What a kick!"
+     "{home} gets it back!",
+     "What a kick!"
     ],
     [
      "They did it!",
@@ -3069,12 +3143,10 @@
      "{home} steals the possession!"
     ],
     [
-     "Perfect hop, and",
-     "{home} has the ball!"
+     "Perfect hop, and {home} has the ball!"
     ],
     [
-     "Onside, recovered,",
-     "{home}!",
+     "Onside, recovered, and it's {home} ball!",
      "Wild!"
     ],
     [
@@ -3084,6 +3156,10 @@
     [
      "Hands team who?",
      "{home} wins the onside!"
+    ],
+    [
+     "The kicking team falls on it!",
+     "Possession stays with the home side!"
     ]
    ]
   },
@@ -3104,15 +3180,19 @@
      "{away} ball."
     ],
     [
-     "{away} was ready for it. Onside fails."
+     "{away} was ready for it.",
+     "Onside fails."
     ],
     [
-     "Onside attempt falls to",
-     "{away}."
+     "The onside attempt falls to {away}."
     ],
     [
      "Ah, so close.",
      "{away} smothers the onside."
+    ],
+    [
+     "The hands team was ready, and the visitors pounce on it.",
+     "Short field for them now."
     ]
    ]
   },
@@ -3122,12 +3202,10 @@
    ],
    "lines": [
     [
-     "Uh oh,",
-     "{away} is trying an onside kick!"
+     "Uh oh, {away} is trying an onside kick!"
     ],
     [
-     "Onside from",
-     "{away}!",
+     "Onside from {away}!",
      "Hands team, get ready!"
     ],
     [
@@ -3135,15 +3213,19 @@
      "{away} goes onside!"
     ],
     [
-     "Here comes the onside kick from",
-     "{away}!"
+     "Here comes the onside kick from {away}!"
     ],
     [
-     "{away} lines up for an onside. Watch the hop!"
+     "{away} lines up for an onside.",
+     "Watch the hop!"
     ],
     [
      "Squib, dribble, onside!",
      "{away} wants it back!"
+    ],
+    [
+     "The visitors are lining up short.",
+     "Onside kick coming!"
     ]
    ]
   },
@@ -3156,12 +3238,10 @@
      "{away} recovers their own onside kick!"
     ],
     [
-     "Oh no,",
-     "{away} gets it back!"
+     "Oh no, {away} gets it back!"
     ],
     [
-     "Onside works for",
-     "{away}.",
+     "Onside works for {away}.",
      "Not good."
     ],
     [
@@ -3171,6 +3251,10 @@
     [
      "Who's on hands team?",
      "{away} recovers!"
+    ],
+    [
+     "The ball squirts loose, and the visitors fall on it.",
+     "That hurts."
     ]
    ]
   },
@@ -3191,16 +3275,18 @@
      "{home} recovers."
     ],
     [
-     "Hands team comes through! Ball to",
-     "{home}."
+     "Hands team comes through!",
+     "Ball goes to {home}."
     ],
     [
-     "Onside fails, and",
-     "{home} takes over in great field position."
+     "Onside fails, and {home} takes over in great field position."
     ],
     [
      "Gotcha!",
      "{home} smothers the onside kick."
+    ],
+    [
+     "The hands team does its job, and it's a short field for the offense!"
     ]
    ]
   },
@@ -3208,25 +3294,32 @@
    "vars": [],
    "lines": [
     [
-     "Wait, that's a teammate! Friendly fire!"
+     "Wait, that's his own guy!",
+     "Friendly fire!"
     ],
     [
-     "Wrong jersey, buddy! Friendly fire!"
+     "Wrong jersey, buddy!",
+     "Check the colors next time."
     ],
     [
-     "They ran into each other! Oops!"
+     "They ran into each other!",
+     "Oops."
     ],
     [
-     "Teammate collision! Somebody needs glasses."
+     "Teammate collision!",
+     "Somebody needs glasses."
     ],
     [
-     "Same team, guys! Same team!"
+     "Same team, fellas!",
+     "Same team!"
     ],
     [
-     "Bumper cars out there! Friendly fire!"
+     "Bumper cars out there!",
+     "Friendly fire!"
     ],
     [
-     "Even the ref is laughing at that one. Teammates collide!"
+     "Even the ref is laughing at that one.",
+     "Teammates collide!"
     ]
    ]
   },
@@ -3234,22 +3327,24 @@
    "vars": [],
    "lines": [
     [
-     "The ref got run over!"
+     "The ref just got run over!"
     ],
     [
      "Somebody check on the referee!"
     ],
     [
-     "Stripes down! The official took a hit!"
+     "Stripes down!",
+     "The official took the hit!"
     ],
     [
-     "Whoa, the ref is on the ground!"
+     "Whoa, the ref is flat on his back!"
     ],
     [
-     "Even the ref couldn't get out of the way!"
+     "Not even the ref could get out of the way!"
     ],
     [
-     "Zebra down! Zebra down!"
+     "Zebra down!",
+     "Repeat, zebra down!"
     ]
    ]
   },
@@ -3259,24 +3354,24 @@
    ],
    "lines": [
     [
-     "{passer} escapes!",
-     "How did that happen?"
+     "{passer} escapes somehow!",
+     "How on earth did that happen?"
     ],
     [
      "Can't catch a ghost!",
-     "{passer} slips away!"
+     "{passer} slips out!"
     ],
     [
-     "They had",
-     "{passer} dead to rights, and still nothing!"
+     "They had him dead to rights!",
+     "{passer} got away!"
     ],
     [
      "Magic act!",
      "{passer} wriggles free!"
     ],
     [
-     "Now you see",
-     "{passer} now you don't!"
+     "Now you see him, now you don't!",
+     "{passer} is loose!"
     ],
     [
      "Wiggle, wiggle, free!",
@@ -3288,19 +3383,21 @@
    "vars": [],
    "lines": [
     [
-     "Big pile-up out there!"
+     "Big pile-up on the field!"
     ],
     [
-     "Everybody's on the ground!"
+     "Everybody is on the ground!"
     ],
     [
-     "Bodies everywhere! What a pile!"
+     "Bodies everywhere!",
+     "What a pile!"
     ],
     [
-     "Dog pile! Who's at the bottom?"
+     "Dog pile!",
+     "Who's at the bottom of that?"
     ],
     [
-     "Somebody start pulling people off that pile!"
+     "Start peeling people off that pile!"
     ]
    ]
   },
@@ -3314,25 +3411,27 @@
      "{carrier} rumbles in!"
     ],
     [
-     "Look at",
-     "{carrier} rumble!",
+     "Look at {carrier} rumble!",
      "Touchdown for the big fella!"
     ],
     [
      "The big guy scores!",
-     "{carrier} everybody!"
+     "Take a bow, {carrier}!"
     ],
     [
      "Lineman glory!",
-     "{carrier} lumbers into the end zone!"
+     "{carrier} lumbers in!",
+     "That's a lot of man in the end zone."
     ],
     [
      "Make way!",
-     "{carrier} finally gets a touchdown!"
+     "{carrier} finally gets one!",
+     "Touchdown, big man!"
     ],
     [
      "Heavy hitter heaven!",
-     "{carrier} scores!"
+     "{carrier} scores it!",
+     "Feed the big man!"
     ]
    ]
   },
@@ -3343,18 +3442,19 @@
    "lines": [
     [
      "Scoop and score!",
-     "{carrier} takes it in!"
+     "{carrier} takes it all the way!"
     ],
     [
-     "{carrier} picks it up and runs it home!"
+     "Picks it up!",
+     "{carrier} runs it home!"
     ],
     [
-     "Loose ball, and",
-     "{carrier} takes it to the house!"
+     "Loose ball!",
+     "{carrier} to the house!"
     ],
     [
-     "Fumble return touchdown for",
-     "{carrier}!"
+     "Fumble return touchdown!",
+     "{carrier} did the honors!"
     ],
     [
      "Right place, right time!",
@@ -3368,25 +3468,21 @@
    ],
    "lines": [
     [
-     "The {away}",
-     "bench is partying!"
+     "{away} bench is having a party!"
     ],
     [
-     "Look at",
-     "the {away} sideline!",
-     "Dance party!"
+     "Look at that {away} sideline!",
+     "Dance party over there!"
     ],
     [
-     "Celebration on",
-     "the {away} bench!"
+     "Big celebration for {away}!",
+     "The whole bench is up!"
     ],
     [
-     "They're going wild over on",
-     "the {away} side."
+     "{away} players are going wild on the sideline."
     ],
     [
-     "Party on",
-     "the {away} sideline.",
+     "Party time for {away}.",
      "Enjoy it while it lasts."
     ]
    ]
@@ -3397,7 +3493,7 @@
    ],
    "lines": [
     [
-     "{player} spikes the ball!"
+     "{player} spikes it!"
     ],
     [
      "Spike!",
@@ -3408,11 +3504,12 @@
      "{player} is fired up!"
     ],
     [
-     "{player} sends that ball into orbit with the spike!"
+     "That ball went into orbit!",
+     "{player} with the spike!"
     ],
     [
      "Boom, spike!",
-     "{player} celebrates!"
+     "{player} is loving this!"
     ]
    ]
   },
@@ -3422,19 +3519,20 @@
    ],
    "lines": [
     [
-     "{player} breaking out the dance moves!"
+     "Dance moves!",
+     "{player} is grooving!"
     ],
     [
-     "Look at",
-     "{player} dance!",
+     "Look at {player} dance!",
      "Somebody get a camera!"
     ],
     [
-     "Dance party in the end zone, led by",
-     "{player}!"
+     "Dance party in the end zone!",
+     "{player} is leading it!"
     ],
     [
-     "{player} has moves! What a celebration!"
+     "{player} has moves!",
+     "What a celebration!"
     ],
     [
      "Groove time!",
@@ -3448,11 +3546,13 @@
    ],
    "lines": [
     [
-     "{player} leaps into the crowd!"
+     "{player} takes flight!",
+     "Right into the crowd!"
     ],
     [
-     "Celebration jump from",
-     "{player}!"
+     "Celebration jump!",
+     "{player} gets some air!",
+     "The fans love it!"
     ],
     [
      "Up in the air!",
@@ -3474,56 +3574,50 @@
    ],
    "lines": [
     [
-     "{perk}",
-     "kicks in for",
-     "{player}!"
+     "{perk} kicks in!",
+     "{player} is feeling it!"
     ],
     [
-     "There's that",
-     "{perk}",
-     "perk from",
-     "{player}!"
+     "There's that perk!",
+     "{perk} is live.",
+     "Big boost for {player}!"
     ],
     [
-     "{player} activates",
-     "{perk}!"
+     "{player} pulls his card!",
+     "{perk} is live."
     ],
     [
      "Card power!",
-     "{perk}",
-     "for {player}!"
+     "{perk} kicks in!",
+     "Courtesy of {player}."
     ],
     [
-     "Ooh,",
-     "{perk}!",
+     "Ooh, there it is!",
+     "{perk} fires!",
      "{player} is powered up!"
     ],
     [
      "Perk alert!",
-     "{player} with",
-     "{perk}!"
+     "{player} lights it up!",
+     "That's the {perk} perk."
     ],
     [
-     "{perk}",
-     "just fired for",
-     "{player}!",
-     "Watch out!"
+     "{perk} fires!",
+     "Watch out for {player}!"
     ],
     [
-     "That's the {perk}",
-     "card at work for",
-     "{player}."
+     "That's the {perk} perk.",
+     "{player} gets the boost."
     ],
     [
-     "{player} flashes",
-     "{perk}.",
+     "{player} plays his card!",
+     "{perk} is live.",
      "Special stuff!"
     ],
     [
      "Look out!",
-     "{perk}",
-     "is on for",
-     "{player}!"
+     "{perk} kicks in!",
+     "{player} is dangerous!"
     ]
    ]
   },
@@ -3537,23 +3631,25 @@
      "{team} goes on top!"
     ],
     [
-     "And now",
-     "{team} leads!"
+     "And now {team} leads!"
     ],
     [
-     "New leader! It's",
-     "{team} in front!"
+     "New leader!",
+     "It's {team} in front!"
     ],
     [
      "Flip the scoreboard!",
      "{team} takes the lead!"
     ],
     [
-     "{team} pulls ahead! Game on!"
+     "{team} pulls ahead!",
+     "Game on!"
     ],
     [
-     "The lead belongs to",
-     "{team} now!"
+     "The lead belongs to {team} now!"
+    ],
+    [
+     "We've got a new leader, and this one is a fight!"
     ]
    ]
   },
@@ -3570,10 +3666,15 @@
      "Somebody call the mercy rule!"
     ],
     [
-     "The rout is on! The scoreboard is lopsided."
+     "The rout is on!",
+     "The scoreboard is lopsided."
     ],
     [
      "Lots of points, and only one team is scoring them."
+    ],
+    [
+     "That's a 3-touchdown gap.",
+     "Somebody wake up the other sideline."
     ]
    ]
   },
@@ -3583,24 +3684,27 @@
    ],
    "lines": [
     [
-     "{home} is clawing back into this one!"
+     "What a comeback!",
+     "{home} is back in front!"
     ],
     [
      "Comeback alert!",
-     "{home} is closing the gap!"
+     "{home} has erased the whole deficit!"
     ],
     [
-     "Don't count out",
-     "{home}!",
-     "Here they come!"
+     "Don't ever count out {home}!",
+     "They've got the lead!"
     ],
     [
-     "Momentum swing!",
-     "{home} is charging back!"
+     "Momentum swing of the night, and {home} is on top now!"
     ],
     [
      "Never say die!",
-     "{home} has life!"
+     "{home} comes all the way back to lead!"
+    ],
+    [
+     "From way down to out in front!",
+     "The home side did it!"
     ]
    ]
   },
@@ -3611,7 +3715,8 @@
      "What a tight game!"
     ],
     [
-     "Nail-biter, folks! Anybody's game!"
+     "Nail-biter, folks!",
+     "Nobody can breathe!"
     ],
     [
      "This one's going down to the wire!"
@@ -3620,7 +3725,11 @@
      "Too close to call!"
     ],
     [
-     "Neither team can pull away. Edge of your seat stuff!"
+     "Neither team can pull away.",
+     "Edge of your seat stuff!"
+    ],
+    [
+     "Dead even, and nobody is blinking."
     ]
    ]
   },
@@ -3630,35 +3739,33 @@
    ],
    "lines": [
     [
-     "Snap.",
+     "Snap to {passer}."
+    ],
+    [
      "{passer} drops back."
     ],
     [
      "{passer} takes the snap."
     ],
     [
-     "Here's the snap to {passer}."
-    ],
-    [
-     "In the pocket,",
-     "{passer}."
+     "In the pocket, {passer}."
     ],
     [
      "{passer} sets up to throw."
     ],
     [
-     "Dropping back,",
-     "it's {passer}."
+     "Here's the snap.",
+     "Reading the coverage."
     ],
     [
      "Eyes downfield for {passer}."
     ],
     [
-     "Shotgun snap,",
-     "{passer} reading it."
+     "{passer} surveys the field."
     ],
     [
-     "{passer} surveys the field."
+     "Play action.",
+     "Looking to throw."
     ]
    ]
   },
@@ -3677,10 +3784,10 @@
      "Give to {carrier}."
     ],
     [
-     "It's {carrier} with the carry."
+     "{carrier} with the carry."
     ],
     [
-     "Pitch to {carrier}!"
+     "Pitch out to {carrier}!"
     ],
     [
      "Ball goes to {carrier}."
@@ -3689,11 +3796,12 @@
      "{carrier} gets the rock."
     ],
     [
-     "Here's {carrier} on the ground."
+     "Handoff.",
+     "Running play."
     ],
     [
-     "Hand it off,",
-     "{carrier} running."
+     "Hands it off.",
+     "Up the middle."
     ]
    ]
   },
@@ -3706,8 +3814,8 @@
      "{passer} keeps it!"
     ],
     [
-     "Quarterback keeper,",
-     "{passer}!"
+     "Quarterback keeper!",
+     "{passer} goes himself!"
     ],
     [
      "{passer} pulls it and goes."
@@ -3717,16 +3825,16 @@
      "{passer} pushing ahead."
     ],
     [
-     "Nope,",
-     "{passer} is keeping this one."
-    ],
-    [
-     "Fake handoff,",
+     "Fake handoff.",
      "{passer} runs it."
     ],
     [
-     "The QB keeps,",
-     "{passer} on the move."
+     "The QB keeps it.",
+     "On the move!"
+    ],
+    [
+     "Nope!",
+     "{passer} keeps this one."
     ]
    ]
   },
@@ -3739,31 +3847,35 @@
      "Fires it to {rec}!"
     ],
     [
-     "Looking for {rec}..."
+     "Looking for {rec}."
     ],
     [
      "Throw goes to {rec}."
     ],
     [
-     "Ball in the air for {rec}."
+     "Ball's up for {rec}."
     ],
     [
-     "Here comes the pass to {rec}."
+     "Pass is up.",
+     "{rec} is the target."
     ],
     [
      "Lets it go toward {rec}."
     ],
     [
-     "Targeting {rec}!"
+     "Pulls the trigger!",
+     "It's for {rec}!"
     ],
     [
-     "Throwing to {rec}..."
+     "Pass is away!",
+     "Who's it for?"
     ],
     [
-     "{rec} is the target."
+     "Pump fake!",
+     "Now to {rec}!"
     ],
     [
-     "Delivers to {rec}..."
+     "Delivers to {rec}."
     ],
     [
      "Zips one at {rec}!"
@@ -3779,24 +3891,25 @@
      "Going deep for {rec}!"
     ],
     [
-     "Launches it downfield to {rec}!"
+     "Launches it to {rec}!"
     ],
     [
      "Long ball for {rec}!"
     ],
     [
-     "Up it goes,",
-     "deep for {rec}!"
+     "Bombs away!",
+     "Deep to {rec}!"
     ],
     [
      "Heaves it toward {rec}!"
     ],
     [
-     "{rec} streaking,",
-     "ball in the air!"
+     "{rec} is streaking!",
+     "Ball's in the air!"
     ],
     [
-     "Lofts a deep one to {rec}!"
+     "Airs it out!",
+     "Way downfield!"
     ]
    ]
   },
@@ -3806,7 +3919,7 @@
    ],
    "lines": [
     [
-     "Quick dump to {rec}."
+     "Quick dump-off to {rec}."
     ],
     [
      "Checks it down to {rec}."
@@ -3815,12 +3928,13 @@
      "Screen to {rec}!"
     ],
     [
-     "Short toss to {rec}."
+     "Short toss out to {rec}."
     ],
     [
-     "Flips it out to {rec}."
+     "Flips it to {rec}."
     ],
     [
+     "Safety valve.",
      "Underneath to {rec}."
     ]
    ]
@@ -3837,8 +3951,8 @@
      "Caught by {rec}!"
     ],
     [
-     "Secured,",
-     "{rec} with the ball!"
+     "Secured!",
+     "{rec} tucks it away!"
     ],
     [
      "In the hands of {rec}!"
@@ -3851,14 +3965,14 @@
      "{rec} turning upfield!"
     ],
     [
-     "And {rec} pulls it down!"
+     "{rec} pulls it down!"
     ],
     [
-     "Ball's in,",
-     "{rec} running!"
+     "Hauled in!",
+     "And he's off!"
     ],
     [
-     "Right into the arms of {rec}!"
+     "Into the arms of {rec}!"
     ]
    ]
   },
@@ -3877,34 +3991,32 @@
      "{carrier} finds a crease!"
     ],
     [
-     "Stretching wide,",
-     "{carrier}!"
+     "{carrier} stretches it wide!"
     ],
     [
-     "{carrier} looking for room..."
+     "{carrier} looking for room."
     ],
     [
-     "Into the gap,",
-     "{carrier}!"
+     "Into the gap!",
+     "{carrier} squeezes through!"
     ],
     [
-     "Weaving through traffic,",
-     "{carrier}!"
+     "Weaving through traffic!",
+     "Legs still churning!"
     ],
     [
-     "Lowering the shoulder,",
-     "{carrier}!"
+     "Lowers the shoulder!",
+     "{carrier} pushes ahead!"
     ],
     [
      "Here comes {carrier}!"
     ],
     [
      "Patient, patient...",
-     "{carrier} goes!"
+     "Now he goes!"
     ],
     [
-     "Feet churning,",
-     "{carrier} pushing!"
+     "He's got room!"
     ]
    ]
   },
@@ -3914,7 +4026,7 @@
    ],
    "lines": [
     [
-     "{carrier} is in space!"
+     "{carrier} in the open!"
     ],
     [
      "Nobody near {carrier}!"
@@ -3923,17 +4035,19 @@
      "Open field for {carrier}!"
     ],
     [
-     "Wide open grass ahead of {carrier}!"
+     "Nothing but green ahead!",
+     "{carrier} is loose!"
     ],
     [
      "{carrier} has room to run!"
     ],
     [
-     "Clear sailing for {carrier}!"
+     "Clear sailing ahead!",
+     "Hit the gas!"
     ],
     [
-     "Only green ahead,",
-     "{carrier}!"
+     "Daylight!",
+     "Nobody's going to catch him!"
     ]
    ]
   },
@@ -3949,20 +4063,22 @@
      "Heat coming at {passer}!"
     ],
     [
-     "{passer} under fire!"
+     "{passer} is under fire!"
     ],
     [
-     "Pocket's collapsing around {passer}!"
+     "Pocket's collapsing!",
+     "{passer} in trouble!"
     ],
     [
-     "Rushers closing on {passer}!"
+     "Rushers closing in!",
+     "{passer} has to move!"
     ],
     [
      "{passer} feels the blitz!"
     ],
     [
-     "Get rid of it,",
-     "{passer}!"
+     "Get rid of it!",
+     "They're coming!"
     ]
    ]
   },
@@ -3972,28 +4088,29 @@
    ],
    "lines": [
     [
-     "{passer} tucks it and takes off!"
+     "{passer} tucks it and runs!"
     ],
     [
      "{passer} is running!"
     ],
     [
-     "Scrambling,",
-     "{passer}!"
+     "Scrambling!",
+     "{passer} on the move!"
     ],
     [
-     "Taking off,",
-     "it's {passer}!"
+     "Taking off!",
+     "Here goes {passer}!"
     ],
     [
-     "Out of the pocket goes {passer}!"
+     "Out of the pocket!",
+     "{passer} takes off!"
     ],
     [
      "{passer} breaks contain!"
     ],
     [
-     "No one open,",
-     "{passer} runs!"
+     "Nobody open!",
+     "He's running with it!"
     ]
    ]
   },
@@ -4007,13 +4124,13 @@
      "Into the red zone!"
     ],
     [
-     "Crossing the 20!"
+     "Across the 20 and going!"
     ],
     [
      "Past the 20 now!"
     ],
     [
-     "Red zone, here we come!"
+     "Red zone, here they come!"
     ],
     [
      "Under the 20!"
@@ -4027,19 +4144,20 @@
      "Inside the 10!"
     ],
     [
-     "To the 10!"
+     "Down to the 10!"
     ],
     [
      "Past the 10!"
     ],
     [
-     "Getting close, inside 10!"
+     "Getting close now!",
+     "Inside the 10!"
     ],
     [
      "Single digits now!"
     ],
     [
-     "Under the 10 and going!"
+     "Under the 10 and still going!"
     ]
    ]
   },
@@ -4056,13 +4174,15 @@
      "Down to the 5!"
     ],
     [
-     "The 5... still going!"
+     "The 5...",
+     "Still going!"
     ],
     [
      "Inside the 5!"
     ],
     [
-     "Almost there, at the 5!"
+     "Knocking on the door!",
+     "At the 5!"
     ]
    ]
   },
@@ -4076,25 +4196,26 @@
      "Brought down."
     ],
     [
-     "Dragged down there."
+     "Dragged down right there."
     ],
     [
      "Flag pulled!"
     ],
     [
-     "Grabbed the flag, play over."
+     "Grabbed the flag.",
+     "Play over."
     ],
     [
      "Defense makes the stop."
     ],
     [
-     "That's where the play ends."
+     "And that's where it ends."
     ],
     [
-     "Finally brought to the turf."
+     "Finally hauled to the turf."
     ],
     [
-     "Tackled from behind."
+     "Run down from behind."
     ]
    ]
   },
@@ -4108,13 +4229,13 @@
      "Out at the sideline."
     ],
     [
-     "Pushed out."
+     "Pushed out of bounds."
     ],
     [
-     "Runs out of bounds."
+     "Runs out to stop the clock."
     ],
     [
-     "Gets out to stop the clock."
+     "Takes it out of bounds."
     ]
    ]
   },
@@ -4134,7 +4255,7 @@
      "Here's the kick!"
     ],
     [
-     "Off the foot!"
+     "Off the foot and up!"
     ],
     [
      "High and deep!"
@@ -4145,19 +4266,22 @@
    "vars": [],
    "lines": [
     [
-     "Onside ball is live!"
+     "Onside kick, ball is live!"
     ],
     [
-     "It's bouncing! Who gets it?"
+     "It's bouncing!",
+     "Who wants it?"
     ],
     [
-     "Live ball, scramble for it!"
+     "Live ball!",
+     "Everybody scrambling!"
     ],
     [
      "Hopping around out there!"
     ],
     [
-     "Short kick, everybody dive!"
+     "Short kick!",
+     "Bodies flying in!"
     ]
    ]
   },
@@ -4173,18 +4297,20 @@
      "{carrier} brings it out!"
     ],
     [
-     "Caught by {carrier},",
-     "heading upfield!"
+     "Fielded by {carrier}!",
+     "Heading upfield!"
     ],
     [
-     "{carrier} with the catch,",
-     "running!"
+     "{carrier} has it!",
+     "Running!"
     ],
     [
-     "Return man {carrier} on the move!"
+     "Return man {carrier}!",
+     "On the move!"
     ],
     [
-     "Here comes {carrier} on the return!"
+     "Here comes {carrier}!",
+     "On the return!"
     ]
    ]
   },
@@ -4195,64 +4321,61 @@
    ],
    "lines": [
     [
-     "{down} and",
-     "{dist}.",
+     "{down} down.",
+     "{dist} to go.",
      "Keep the chains moving."
     ],
     [
-     "It's {down} and",
-     "{dist}.",
-     "Take what the defense gives you."
+     "It's {down} down.",
+     "{dist} to the sticks.",
+     "Take what they give you."
     ],
     [
-     "Coming up,",
-     "{down} and",
-     "{dist}.",
-     "Good time for a quick pass."
+     "Here's {down} down.",
+     "{dist} to the sticks.",
+     "Good spot for a quick throw."
     ],
     [
-     "We've got",
-     "{down} and",
-     "{dist}.",
-     "Let's stay ahead of the sticks."
+     "{down} down coming up.",
+     "{dist} to go.",
+     "Stay ahead of the sticks."
     ],
     [
-     "On {down} and",
-     "{dist},",
-     "watch for the run."
+     "On {down} down, watch for the run.",
+     "{dist} to the sticks."
     ],
     [
-     "Defense has to guess on",
-     "{down} and",
-     "{dist}."
+     "Defense has to guess here.",
+     "{down} down.",
+     "{dist} to go."
     ],
     [
-     "Here's {down} and",
-     "{dist}.",
-     "No need to force anything."
+     "That makes it {down} down.",
+     "{dist} to go.",
+     "Don't force it."
     ],
     [
-     "Situation:",
-     "{down} and",
-     "{dist}.",
-     "Smart football wins this down."
+     "Smart football wins this down.",
+     "{down} down.",
+     "{dist} to the sticks."
     ],
     [
-     "Looking at",
-     "{down} and",
-     "{dist}.",
-     "Find the open man."
+     "Find the open man on {down} down.",
+     "{dist} to go."
     ],
     [
-     "That makes it",
-     "{down} and",
-     "{dist}.",
+     "We've got {down} down.",
+     "{dist} to the sticks.",
      "Let's see the call."
     ],
     [
-     "{down} and",
-     "{dist}",
-     "for the offense. Pick a play and trust it."
+     "Pick a play and trust it.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "Plenty of options on {down} down.",
+     "{dist} to the sticks."
     ]
    ]
   },
@@ -4262,37 +4385,40 @@
    ],
    "lines": [
     [
-     "First and 10",
-     "from {spot}.",
-     "Fresh start."
+     "Fresh set of downs.",
+     "Ball at {spot}."
     ],
     [
-     "New set of downs",
-     "at {spot}.",
+     "First and 10.",
+     "Ball at {spot}.",
+     "Plenty of options."
+    ],
+    [
+     "New set of downs.",
+     "Ball at {spot}.",
      "Let's build on it."
     ],
     [
-     "From {spot},",
-     "first and 10. Plenty of options."
+     "Take a shot, or play it safe?",
+     "Ball at {spot}."
     ],
     [
-     "First down",
-     "at {spot}.",
-     "Take a shot or play it safe?"
+     "Set the tone with this one.",
+     "Ball at {spot}."
     ],
     [
-     "Ball spotted",
-     "at {spot},",
-     "first and 10. Set the tone."
+     "Mix it up and keep them guessing.",
+     "Ball at {spot}."
     ],
     [
-     "We're at {spot}",
-     "with a fresh set. Keep it rolling."
+     "Chains moved.",
+     "Ball at {spot}.",
+     "Keep it rolling."
     ],
     [
-     "First and 10,",
-     "{spot}.",
-     "Mix it up and keep them guessing."
+     "Full playbook is open.",
+     "Ball at {spot}.",
+     "First and 10."
     ]
    ]
   },
@@ -4302,36 +4428,39 @@
    ],
    "lines": [
     [
-     "{dist}",
-     "to go. That's a passing down, folks."
-    ],
-    [
      "Long yardage here.",
-     "{dist} yards",
-     "is a lot to ask."
+     "{dist} to go.",
+     "That's a passing down."
     ],
     [
-     "Need {dist} yards.",
-     "Time to push it downfield."
+     "{dist} to the sticks.",
+     "That's a lot to ask."
     ],
     [
-     "Big chunk needed:",
-     "{dist} yards.",
+     "Time to push it downfield.",
+     "{dist} to the sticks."
+    ],
+    [
+     "Big chunk needed.",
+     "{dist} to go.",
      "The defense knows it."
     ],
     [
-     "{dist} yards",
-     "to go. Don't take a sack here."
+     "Don't take a sack here.",
+     "{dist} to the sticks."
     ],
     [
-     "A long way to the marker.",
-     "{dist}",
-     "to go."
+     "It's a long way to the marker.",
+     "{dist} to go."
     ],
     [
-     "Uphill climb,",
-     "{dist} yards.",
-     "Find a receiver past the sticks."
+     "Uphill climb here.",
+     "{dist} to go.",
+     "Look past the sticks."
+    ],
+    [
+     "Everybody in the building expects a pass.",
+     "{dist} to the sticks."
     ]
    ]
   },
@@ -4339,25 +4468,28 @@
    "vars": [],
    "lines": [
     [
-     "Short yardage. Just need a little push."
+     "Short yardage. Just a little push needed."
     ],
     [
      "Inches to go. Lean on them!"
     ],
     [
-     "Just a yard or so needed. Run it?"
+     "A yard or so. Run it, or sneak it?"
     ],
     [
-     "Short and sweet. Keep it simple here."
+     "Keep it simple. Short and sweet here."
     ],
     [
-     "Barely any distance needed. Don't overthink it."
+     "Don't overthink this one. Barely any distance to cover."
     ],
     [
-     "Short yardage situation. Pound the rock or sneak it."
+     "Pound the rock, or try the sneak."
     ],
     [
-     "Almost there. A quick hitter should do it."
+     "Almost there. A quick hitter gets it done."
+    ],
+    [
+     "Third and short. Everybody up on the line."
     ]
    ]
   },
@@ -4365,25 +4497,28 @@
    "vars": [],
    "lines": [
     [
-     "Red zone time. Field shrinks, windows get tight."
+     "Red zone time. The field shrinks and the windows get tight."
     ],
     [
-     "We're in the red zone. Gotta come away with points."
+     "Inside the 20 now. Every snap could be the one."
     ],
     [
-     "Inside the 20 now. Every play could be the one."
+     "We're in the red zone. Come away with points."
     ],
     [
-     "Red zone offense. Throw it where only our guy can catch it."
+     "Red zone offense. Throw it where only your guy can get it."
     ],
     [
-     "Close enough to smell it. Finish the drive!"
+     "Close enough to smell the end zone. Finish the drive!"
     ],
     [
-     "Down in scoring range. Don't settle for a field goal."
+     "Scoring range. Don't settle for 3 here."
     ],
     [
-     "Red zone, folks. Tight windows, big rewards."
+     "Tight windows down here, but big rewards."
+    ],
+    [
+     "Red zone, folks. Points are right there for the taking."
     ]
    ]
   },
@@ -4397,16 +4532,19 @@
      "Right at the doorstep. Time to finish."
     ],
     [
-     "Goal line stand coming. Who wants it more?"
+     "Goal line football. Who wants it more?"
     ],
     [
-     "First and goal. This is where games are won."
+     "Inside the 3. This is where games are won."
     ],
     [
      "One more push to the end zone."
     ],
     [
-     "Knocking on the door. Open it up!"
+     "Knocking on the door. Kick it open!"
+    ],
+    [
+     "Every inch is a fight down here."
     ]
    ]
   },
@@ -4416,32 +4554,34 @@
    ],
    "lines": [
     [
-     "Fourth down,",
-     "{dist}",
-     "to go. Kick it or go for it?"
+     "Fourth down.",
+     "{dist} to go.",
+     "Kick it, or go for it?"
     ],
     [
-     "Big decision on fourth and",
-     "{dist}."
+     "Big decision on fourth down.",
+     "{dist} to the sticks."
     ],
     [
-     "Fourth and",
-     "{dist}.",
-     "Coach, what's the call?"
+     "Fourth down, coach.",
+     "{dist} to the sticks.",
+     "What's the call?"
     ],
     [
-     "Need {dist}",
-     "on fourth down. Feeling brave?"
+     "Feeling brave on fourth?",
+     "{dist} to go."
     ],
     [
-     "Here's a fourth down,",
-     "{dist}",
-     "to go. Gut check time."
+     "Gut check time on fourth down.",
+     "{dist} to the sticks."
     ],
     [
-     "Decision time: fourth and",
-     "{dist}.",
-     "Punt, kick or go?"
+     "Punt, kick, or go?",
+     "{dist} to go."
+    ],
+    [
+     "Fourth down, and the whole stadium knows it.",
+     "{dist} to go."
     ]
    ]
   },
@@ -4452,45 +4592,42 @@
    ],
    "lines": [
     [
-     "This drive:",
-     "{plays}",
-     "plays,",
-     "{yards} yards."
-    ],
-    [
-     "{plays}",
-     "plays and",
-     "{yards} yards",
-     "on this march."
+     "Drive check.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
     ],
     [
      "Nice drive so far.",
-     "{plays}",
-     "plays,",
-     "{yards} yards."
+     "A {plays}-play drive.",
+     "{yards} on the drive."
     ],
     [
-     "We've gone",
-     "{yards} yards",
-     "in {plays}",
-     "plays. Keep it up."
+     "Moving with purpose.",
+     "{yards} on the drive.",
+     "A {plays}-play drive."
     ],
     [
-     "Drive check:",
-     "{plays}",
-     "plays covering",
-     "{yards} yards."
+     "Let's take stock of this march.",
+     "A {plays}-play drive."
     ],
     [
-     "{yards} yards",
-     "on {plays}",
-     "plays. Moving with purpose."
+     "Keep it up.",
+     "{yards} on the drive.",
+     "A {plays}-play drive."
     ],
     [
-     "That's {plays}",
-     "snaps for",
-     "{yards} yards",
-     "on this drive."
+     "Here's the drive so far.",
+     "{yards} on the drive."
+    ],
+    [
+     "One snap at a time.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "The offense is stacking plays.",
+     "A {plays}-play drive.",
+     "Nice and steady."
     ]
    ]
   },
@@ -4504,16 +4641,19 @@
      "Not much happening on this possession."
     ],
     [
-     "Need something to get this drive going."
+     "Somebody needs to shake something loose."
     ],
     [
-     "Offense is sputtering. Shake something loose!"
+     "The offense is sputtering right now."
     ],
     [
      "Going nowhere fast. Time for a big play."
     ],
     [
      "Stalled out. Let's find a spark."
+    ],
+    [
+     "Plenty of snaps, barely a dent. Try something new."
     ]
    ]
   },
@@ -4527,7 +4667,7 @@
      "Everything is working on this possession."
     ],
     [
-     "Defense can't stop this drive right now."
+     "The defense can't stop this drive right now."
     ],
     [
      "Moving the ball at will. Keep feeding it!"
@@ -4537,6 +4677,9 @@
     ],
     [
      "Chunk after chunk. This drive has legs."
+    ],
+    [
+     "Whatever they call, it works. Stay hot!"
     ]
    ]
   },
@@ -4547,39 +4690,38 @@
    ],
    "lines": [
     [
-     "Clock check:",
-     "{secs} seconds",
-     "left,",
-     "{period}."
+     "Clock check.",
+     "{secs} seconds left.",
+     "The clock says {period}."
     ],
     [
-     "{secs} seconds",
-     "to go. Make them count."
+     "Make them count.",
+     "{secs} seconds left."
     ],
     [
-     "Just {secs} seconds",
-     "remaining. Use them wisely."
+     "{secs} seconds left.",
+     "Use them wisely."
     ],
     [
-     "Clock's ticking:",
-     "{secs} seconds,",
-     "{period}."
+     "{period}, and the clock is a factor.",
+     "{secs} seconds left."
     ],
     [
-     "We have",
-     "{secs} seconds",
-     "on the clock.",
-     "{period},",
-     "winding down."
+     "Time check.",
+     "{secs} seconds left.",
+     "That's the {period} clock."
     ],
     [
-     "{secs} seconds",
-     "left. Can we squeeze in one more play?"
+     "Can we squeeze in one more play?",
+     "{secs} seconds left."
     ],
     [
-     "Under the gun:",
-     "{secs} seconds,",
-     "{period}."
+     "{period} football, folks.",
+     "{secs} seconds left."
+    ],
+    [
+     "Keep an eye on the {period} clock.",
+     "{secs} seconds left."
     ]
    ]
   },
@@ -4593,7 +4735,7 @@
      "Not much clock left. Hurry up!"
     ],
     [
-     "Clock is the enemy now."
+     "The clock is the enemy now."
     ],
     [
      "Every second matters here."
@@ -4603,142 +4745,139 @@
     ],
     [
      "The clock won't wait for anybody."
+    ],
+    [
+     "Under a minute. No wasted snaps."
     ]
    ]
   },
   "score_lead": {
    "vars": [
     "home",
-    "hs",
-    "as"
-   ],
-   "lines": [
-    [
-     "{home} on top,",
-     "{hs}",
-     "to {as}."
-    ],
-    [
-     "We lead it",
-     "{hs}",
-     "to {as}.",
-     "Keep the foot on the gas."
-    ],
-    [
-     "Scoreboard check:",
-     "{home} ahead,",
-     "{hs}",
-     "to {as}."
-    ],
-    [
-     "{home} leading",
-     "{hs}",
-     "to {as}.",
-     "Don't let up now."
-    ],
-    [
-     "Good spot to be in:",
-     "{home} up",
-     "{hs}",
-     "to {as}."
-    ],
-    [
-     "It's {hs}",
-     "to {as},",
-     "{home} in front. Protect that lead."
-    ],
-    [
-     "Up {hs}",
-     "to {as}.",
-     "{home} is in control for now."
-    ]
-   ]
-  },
-  "score_trail": {
-   "vars": [
     "away",
     "hs",
     "as"
    ],
    "lines": [
     [
-     "{away} leads it",
-     "{hs}",
-     "to {as}.",
-     "Plenty of time."
+     "{home} with the lead.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Down {hs}",
-     "to {as}",
-     "to {away}.",
-     "Time to respond."
+     "Keep the foot on the gas.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Scoreboard:",
-     "{away} up",
-     "{hs}",
-     "to {as}.",
-     "We need points."
+     "Scoreboard check.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Chasing {away}",
-     "at {hs}",
-     "to {as}.",
-     "Chip away."
+     "{away} is chasing now.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "We trail",
-     "{away},",
-     "{hs}",
-     "to {as}.",
-     "No panic yet."
+     "Good spot for {home}.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "It's {hs}",
-     "to {as},",
-     "{away} ahead.",
-     "Let's answer back."
+     "Protect that lead.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
     ],
     [
-     "{away} in front",
-     "{hs}",
-     "to {as}.",
-     "Comeback time?"
+     "{away} needs an answer.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ]
+   ]
+  },
+  "score_trail": {
+   "vars": [
+    "away",
+    "home",
+    "hs",
+    "as"
+   ],
+   "lines": [
+    [
+     "{away} leads it.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Time to respond.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "{home} is chasing.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Chip away at {away}.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "No panic yet.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "We need points, and soon.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "Comeback time for {home}?",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
   "score_tied": {
    "vars": [
     "hs",
-    "as"
+    "as",
+    "home",
+    "away"
    ],
    "lines": [
     [
-     "All square",
-     "at {hs}",
-     "to {as}."
+     "All square.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Tied up,",
-     "{hs}",
-     "to {as}.",
-     "Anybody's game."
+     "Tied up, and it's anybody's game.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ],
     [
-     "Dead even",
-     "at {hs}",
-     "to {as}",
-     "right now."
+     "Dead even right now.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
     ],
     [
-     "Knotted at {hs}",
-     "to {as}.",
-     "Next score is huge."
+     "{away} is right there with us.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
     ],
     [
-     "It's {hs}",
-     "to {as}.",
-     "Nobody's blinking."
+     "Nobody's blinking.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Next score is huge for {home}.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
@@ -4758,7 +4897,10 @@
      "The lead keeps growing and growing."
     ],
     [
-     "This might be over already, folks."
+     "This one might be over already, folks."
+    ],
+    [
+     "Garbage time is creeping in."
     ]
    ]
   },
@@ -4770,51 +4912,37 @@
    ],
    "lines": [
     [
-     "{player} has",
-     "{n}",
-     "catches for",
-     "{yards} yards."
+     "{player} has been busy.",
+     "{n} catches today.",
+     "{yards} receiving."
     ],
     [
-     "Another look at",
-     "{player}:",
-     "{n}",
-     "grabs,",
-     "{yards} yards."
+     "Stat check on {player}.",
+     "{n} catches today.",
+     "{yards} receiving."
     ],
     [
-     "{player} is up to",
-     "{n}",
-     "receptions and",
-     "{yards} yards."
+     "Keep looking for {player}.",
+     "{yards} receiving.",
+     "{n} catches today."
     ],
     [
-     "Reliable target:",
-     "{player},",
-     "{n}",
-     "catches for",
-     "{yards}."
+     "{player} is a reliable target.",
+     "{n} catches today."
     ],
     [
-     "Keep throwing to",
-     "{player}.",
-     "{n}",
-     "catches,",
-     "{yards} yards",
-     "so far."
+     "Big day for {player}.",
+     "{yards} receiving.",
+     "{n} catches today."
     ],
     [
-     "Stat check:",
-     "{player} with",
-     "{n}",
-     "catches and",
-     "{yards} yards."
+     "{player} is everywhere today.",
+     "{n} catches today."
     ],
     [
-     "{n}",
-     "catches,",
-     "{yards} yards.",
-     "{player} is everywhere."
+     "Keep feeding {player}.",
+     "{n} catches today.",
+     "{yards} receiving."
     ]
    ]
   },
@@ -4826,44 +4954,33 @@
    ],
    "lines": [
     [
-     "{player} has",
-     "{n}",
-     "carries for",
-     "{yards} yards."
+     "{player} has been busy.",
+     "{n} carries so far.",
+     "{yards} on the ground."
     ],
     [
-     "On the ground,",
-     "{player}:",
-     "{n}",
-     "carries,",
-     "{yards} yards."
+     "Stat check on {player}.",
+     "{yards} on the ground.",
+     "{n} carries so far."
     ],
     [
-     "Stat check:",
-     "{player} with",
-     "{n}",
-     "rushes for",
-     "{yards}."
+     "Feed {player} the rock.",
+     "{n} carries so far.",
+     "{yards} on the ground."
     ],
     [
-     "{n}",
-     "carries,",
-     "{yards} yards.",
-     "{player} is grinding."
+     "{player} is grinding it out.",
+     "{yards} on the ground."
     ],
     [
-     "Feed {player}!",
-     "{n}",
-     "runs for",
-     "{yards} yards",
-     "today."
+     "Big day for {player}.",
+     "{n} carries so far.",
+     "{yards} on the ground."
     ],
     [
-     "Workhorse alert:",
-     "{player},",
-     "{n}",
-     "carries,",
-     "{yards} yards."
+     "{player} is everywhere today.",
+     "{yards} on the ground.",
+     "{n} carries so far."
     ]
    ]
   },
@@ -4876,53 +4993,42 @@
    ],
    "lines": [
     [
-     "{passer} is",
-     "{cmp} of",
-     "{att}",
-     "for {yards} yards."
+     "{passer} has been sharp.",
+     "{att} attempts so far.",
+     "Completed {cmp} of them."
     ],
     [
-     "Passing line for",
-     "{passer}:",
-     "{cmp} of",
-     "{att},",
-     "{yards} yards."
+     "Passing line for {passer}.",
+     "{att} attempts so far.",
+     "{yards} through the air."
     ],
     [
-     "{cmp}",
-     "for {att} with",
-     "{yards} yards.",
-     "{passer} is dealing."
+     "{passer} is dealing today.",
+     "{yards} through the air."
     ],
     [
-     "Stat check:",
-     "{passer},",
-     "{cmp} of",
-     "{att} and",
-     "{yards} yards."
+     "Quick look at {passer}.",
+     "{att} attempts so far.",
+     "Completed {cmp} of them."
     ],
     [
-     "{passer} has completed",
-     "{cmp} of",
-     "{att}",
-     "passes for",
-     "{yards}."
+     "{passer} is dealing today.",
+     "{att} attempts so far.",
+     "{yards} through the air."
     ],
     [
-     "So far",
-     "{passer} is",
-     "{cmp} of",
-     "{att},",
-     "{yards} yards."
+     "Stat check on {passer}.",
+     "{att} attempts so far.",
+     "Completed {cmp} of them."
     ],
     [
-     "Through the air,",
-     "{passer}:",
-     "{cmp}",
-     "completions on",
-     "{att}",
-     "throws,",
-     "{yards} yards."
+     "{att} attempts so far.",
+     "Completed {cmp} of them.",
+     "{passer} is dealing today."
+    ],
+    [
+     "{yards} through the air.",
+     "{passer} has been sharp."
     ]
    ]
   },
@@ -4933,31 +5039,29 @@
    ],
    "lines": [
     [
-     "{player} has",
-     "{n}",
-     "touchdowns today."
+     "{player} has been busy.",
+     "{n} touchdowns on the night."
     ],
     [
-     "That's {n}",
-     "scores for",
-     "{player}!"
+     "{player} is a touchdown machine.",
+     "{n} touchdowns on the night."
     ],
     [
-     "Touchdown machine:",
-     "{player} with",
-     "{n}."
+     "Somebody cover {player}!",
+     "{n} touchdowns on the night."
     ],
     [
-     "{n}",
-     "touchdowns for",
-     "{player}.",
-     "Somebody cover that kid!"
+     "Big day for {player}.",
+     "{n} touchdowns on the night."
     ],
     [
-     "End zone regular:",
-     "{player},",
-     "{n}",
-     "touchdowns."
+     "{n} touchdowns on the night.",
+     "{player} is everywhere today."
+    ],
+    [
+     "Stat check on {player}.",
+     "{n} touchdowns on the night.",
+     "Keep going."
     ]
    ]
   },
@@ -4967,31 +5071,26 @@
    ],
    "lines": [
     [
-     "{player} is on fire today!"
+     "{player} is on fire!"
     ],
     [
-     "Can anybody stop",
-     "{player}?"
+     "Can anybody stop {player}?"
     ],
     [
-     "Keep feeding",
-     "{player}.",
+     "Keep feeding {player}.",
      "It's working."
     ],
     [
-     "{player} is having a monster game."
+     "Monster game for {player}."
     ],
     [
-     "What a day for",
-     "{player}!"
+     "What a day for {player}!"
     ],
     [
-     "The defense has no answer for",
-     "{player}."
+     "Nobody can cover {player}."
     ],
     [
-     "Somebody frame this game for",
-     "{player}."
+     "Frame this one for {player}."
     ]
    ]
   },
@@ -5001,24 +5100,24 @@
    ],
    "lines": [
     [
-     "Haven't heard much from",
-     "{player}.",
-     "Get the ball over there!"
+     "Not much from {player} yet.",
+     "Get him the ball!"
     ],
     [
-     "{player} has been quiet. Time to wake up."
+     "{player} has been quiet.",
+     "Time to wake up."
     ],
     [
-     "Let's get",
-     "{player} involved."
+     "Get {player} involved.",
+     "Find him the ball."
     ],
     [
-     "Where's {player}?",
+     "Where's {player} been?",
      "Find that guy the ball."
     ],
     [
-     "Quiet game for",
-     "{player} so far. That could change fast."
+     "{player} has been quiet.",
+     "Look his way."
     ]
    ]
   },
@@ -5029,53 +5128,51 @@
    ],
    "lines": [
     [
-     "Tip:",
-     "{player} has",
-     "{perk}.",
+     "Quick tip on {player}.",
+     "The card says {perk}.",
      "Get the ball there."
     ],
     [
-     "Watch {player}.",
-     "That {perk}",
-     "card can swing a play."
+     "Watch {player} closely.",
+     "{perk} is in play.",
+     "That can swing a snap."
     ],
     [
-     "{player} is carrying",
-     "{perk}.",
+     "Keep an eye on {player}.",
+     "The card says {perk}.",
      "Use it!"
     ],
     [
-     "Don't forget,",
-     "{player} has",
-     "{perk}",
-     "on the card."
+     "Keep an eye on {player}.",
+     "Lean on {perk}."
     ],
     [
-     "Pro tip:",
-     "{perk}",
-     "on {player}",
-     "is a big deal."
+     "{perk} is in play.",
+     "Watch {player} closely."
     ],
     [
-     "Keep an eye on",
-     "{perk}",
-     "for {player}."
+     "Got a perk on {player}?",
+     "The card says {perk}.",
+     "Dial it up."
     ],
     [
-     "That {perk}",
-     "perk makes",
-     "{player} dangerous."
+     "Pro tip from the booth.",
+     "{perk} is in play.",
+     "Keep an eye on {player}."
     ],
     [
-     "{perk}",
-     "is ready for",
-     "{player}.",
+     "Watch {player} closely.",
+     "Lean on {perk}.",
      "Make it happen."
     ],
     [
-     "Got {perk}",
-     "on {player}?",
-     "Lean on it."
+     "Quick tip on {player}.",
+     "{perk} is in play."
+    ],
+    [
+     "Got a perk on {player}?",
+     "Lean on {perk}.",
+     "Make it count."
     ]
    ]
   },
@@ -5083,40 +5180,43 @@
    "vars": [],
    "lines": [
     [
-     "Spread them out and find the mismatch."
+     "Spread them out and hunt the mismatch."
     ],
     [
-     "Take the quick one when it's there."
+     "Take the easy completion when it's there."
     ],
     [
-     "Got a lead late? Run the clock."
+     "Got a lead late? Milk the clock."
     ],
     [
-     "Don't be afraid to go for it on fourth."
+     "Fourth and short is a chance, not a problem."
     ],
     [
-     "Check it down if nothing's open deep."
+     "Nothing open deep? Check it down."
     ],
     [
-     "Mix in the run to keep the defense honest."
+     "Run the ball enough to keep them honest."
     ],
     [
-     "Play action works best after a few runs."
+     "Play action sells best after a few handoffs."
     ],
     [
-     "Throw it before the rush gets there."
+     "Get rid of it before the rush arrives."
     ],
     [
-     "Screens are great against a hard pass rush."
+     "Screens punish a defense that pins its ears back."
     ],
     [
-     "Use the sideline to stop the clock."
+     "Work the sideline to stop the clock."
     ],
     [
-     "A field goal beats no points every time."
+     "Points are points. Take the field goal when it's smart."
     ],
     [
-     "Patience in the pocket pays off."
+     "A patient quarterback finds the second read."
+    ],
+    [
+     "Protect the football first, then get greedy."
     ]
    ]
   },
@@ -5126,29 +5226,28 @@
    ],
    "lines": [
     [
-     "{away} is bringing a lot of pressure."
+     "{away} has been bringing pressure all day."
     ],
     [
-     "The {away}",
-     "defense is sitting back in coverage."
+     "Zone coverage is the look from {away}."
     ],
     [
-     "{away} keeps crowding the line. Throw over the top!"
+     "{away} keeps crowding the line.",
+     "Throw over the top!"
     ],
     [
-     "Watch the {away} safeties.",
-     "They're playing deep."
+     "{away} keeps the safeties deep.",
+     "Work underneath them."
     ],
     [
-     "{away} has been stacking the box against the run."
+     "{away} loves to stack the box."
     ],
     [
-     "This {away}",
-     "defense is flying around today."
+     "{away} is flying around on defense."
     ],
     [
-     "Soft spots in the middle of",
-     "the {away} zone."
+     "{away} blitzes on the big downs.",
+     "Keep a back in to block."
     ]
    ]
   },
@@ -5158,31 +5257,31 @@
    ],
    "lines": [
     [
-     "{away} offense on the field. Let's hold them."
+     "{away} offense on the field.",
+     "Let's hold them."
     ],
     [
-     "Here comes",
-     "{away}.",
+     "Here comes {away}.",
      "Defense, dig in."
     ],
     [
-     "Time for a stop against",
-     "{away}."
+     "Time for a stop against {away}."
     ],
     [
-     "Defense, you know what to do. Shut down",
-     "{away}."
+     "Defense, you know the job.",
+     "Shut down {away}."
     ],
     [
-     "{away} has the ball. Make them earn every yard."
+     "{away} has the ball.",
+     "Make them earn every yard."
     ],
     [
-     "Big series for our defense against",
-     "{away}."
+     "Big series for the defense.",
+     "Here comes {away}."
     ],
     [
-     "Get off the field fast.",
-     "{away} is driving next."
+     "Get a stop and get the ball back.",
+     "{away} is on offense."
     ]
    ]
   },
@@ -5190,19 +5289,22 @@
    "vars": [],
    "lines": [
     [
-     "Extra point or go for 2?"
+     "Kick the extra point, or go for 2?"
     ],
     [
-     "Kick it, or get greedy and go for 2?"
+     "Easy 1 or a gutsy 2? Your call."
     ],
     [
-     "Safe 1 or risky 2? Your call."
+     "Check the scoreboard before you choose 1 or 2."
     ],
     [
-     "Think about the score before you pick 1 or 2."
+     "The kick is nearly automatic. The 2-pointer is a dare."
     ],
     [
-     "The extra point is easy, but 2 is tempting."
+     "Need 2 here, or is 1 enough?"
+    ],
+    [
+     "1 point is safe. 2 points change the math."
     ]
    ]
   },
@@ -5213,13 +5315,16 @@
      "Deep kick or onside? Choose wisely."
     ],
     [
-     "Deep kick is safe. Onside is spicy."
+     "Boot it deep for the safe play, or try the onside."
     ],
     [
-     "Need the ball back? Think onside."
+     "Need the ball back in a hurry? Onside is on the table."
     ],
     [
-     "Pin them deep, or roll the onside?"
+     "Pin them deep, or surprise them with an onside kick?"
+    ],
+    [
+     "Onside kicks are rare for a reason. Go deep unless you must."
     ]
    ]
   },
@@ -5230,13 +5335,16 @@
      "Timeouts are gold late in a half."
     ],
     [
-     "Save those timeouts for the end."
+     "Save a timeout for the last drive."
     ],
     [
-     "Need to stop the clock? Burn a timeout."
+     "Need the clock stopped? That's what timeouts are for."
     ],
     [
-     "A timeout now could save the drive."
+     "A well-placed timeout can save a drive."
+    ],
+    [
+     "Count your timeouts before the 2-minute mark."
     ]
    ]
   },
@@ -5244,22 +5352,25 @@
    "vars": [],
    "lines": [
     [
-     "Halftime! Time for the band to take the field."
+     "Halftime! The band is taking the field."
     ],
     [
-     "Grab a hot dog, we'll be right back."
+     "Grab a hot dog. We'll be right back."
     ],
     [
-     "Locker room speeches happening right now."
+     "Locker room speeches are happening right now."
     ],
     [
-     "Halfway there. Second half adjustments coming."
+     "Halfway home. Second half adjustments are coming."
     ],
     [
-     "Snack bar line is out the door at halftime."
+     "The snack bar line is out the door at halftime."
     ],
     [
      "Big second half ahead, folks. Don't go anywhere."
+    ],
+    [
+     "The marching band has the crowd on its feet at the break."
     ]
    ]
   },
@@ -5270,37 +5381,33 @@
    ],
    "lines": [
     [
-     "{home} and",
-     "{away}.",
-     "Should be a good one."
+     "Welcome to a big one.",
+     "{home} is the host tonight.",
+     "{away} is the visitor."
     ],
     [
-     "Big crowd tonight for",
-     "{home} against",
-     "{away}."
+     "Big crowd tonight for {home}.",
+     "{away} is in town."
     ],
     [
      "Players are warming up.",
-     "{away} looks ready,",
+     "{away} looks ready.",
      "{home} looks hungry."
     ],
     [
-     "Keys to the game: protect the ball and beat",
-     "{away}."
+     "Protect the ball and beat {away}."
     ],
     [
-     "If {home}",
-     "wins the turnover battle,",
-     "{away} is in trouble."
+     "Win the turnover battle, {home}.",
+     "That's the whole game plan."
     ],
     [
-     "The {away}",
-     "fans made the trip. Loud bunch."
+     "{away} fans made the trip.",
+     "Loud bunch."
     ],
     [
-     "Everybody's talking about",
-     "{home} versus",
-     "{away} today."
+     "Everybody's talking about {home} today.",
+     "Let's see if they back it up."
     ]
    ]
   },
@@ -5308,106 +5415,106 @@
    "vars": [],
    "lines": [
     [
-     "Students are packed into the bleachers today."
+     "Not an empty seat in the student section tonight."
     ],
     [
-     "The band is really bringing it tonight."
+     "The band just hit the fight song and the place erupted."
     ],
     [
-     "Somebody in row 3 has a giant foam finger."
+     "Row 3 has a foam finger the size of a canoe."
     ],
     [
-     "Hot dogs are flying off the grill."
+     "The grill is working overtime behind the end zone."
     ],
     [
-     "That's the loudest this crowd has been all day."
+     "That's the loudest this place has been all afternoon."
     ],
     [
-     "The lights are on and the field looks perfect."
+     "Lights on, grass cut, chalk fresh. Perfect night for football."
     ],
     [
-     "Our camera crew just caught a kid doing the worm."
+     "Our camera just found a kid doing the worm on the track."
     ],
     [
-     "I've been calling games for years, and I still love this."
+     "I've been in this booth a long time, and it never gets old."
     ],
     [
-     "Fun fact: I practiced my touchdown voice in the shower."
+     "Fun fact: I practice my touchdown call in the car."
     ],
     [
-     "The snack bar says nachos are sold out. Tragic."
+     "Word from the snack bar: the nachos are gone. Devastating."
     ],
     [
-     "Shout out to the parents in the front row."
+     "Shout out to the moms and dads in the front row."
     ],
     [
-     "This broadcast is brought to you by pure hustle."
+     "This broadcast runs on hustle and lukewarm coffee."
     ],
     [
-     "The drumline is going crazy over there."
+     "The drumline is putting on a show of its own."
     ],
     [
-     "One teacher just started the wave all alone."
+     "A teacher in the end zone seats just started the wave solo."
     ],
     [
-     "Somebody's little brother is out-cheering the whole section."
+     "Somebody's little sister is out-yelling the whole section."
     ],
     [
-     "If you're just joining us, welcome to the show!"
+     "If you're just tuning in, you picked a good time."
     ],
     [
-     "My booth partner just spilled lemonade on the stat sheet."
+     "My partner just knocked a lemonade onto the stat sheet. Again."
     ],
     [
-     "Crowd's on its feet. You can feel it."
+     "The whole crowd is standing. You can feel the buzz."
     ],
     [
-     "I'd tell you my stats, but they're classified."
+     "People ask about my playing career. I tell them it's classified."
     ],
     [
-     "The cheer squad has the whole crowd clapping."
+     "The cheer squad has every single fan clapping in rhythm."
     ],
     [
-     "Popcorn count in the booth: dangerously low."
+     "Popcorn supply in the booth is critically low."
     ],
     [
-     "Somebody brought a cowbell. Of course they did."
+     "Somebody brought a cowbell, and they are not shy about it."
     ],
     [
-     "The mascot is doing push-ups on the sideline."
+     "The mascot is doing push-ups by the bench. Showoff."
     ],
     [
-     "Signs in the stands say it all: go team!"
+     "Hand-painted signs everywhere you look. Love this crowd."
     ],
     [
-     "This field has seen some legends, folks."
+     "This field has hosted some legends over the years."
     ],
     [
-     "Booth fact: I've had 3 sodas. I'm ready."
+     "Booth update: 3 sodas in, and I feel unstoppable."
     ],
     [
-     "Somebody tell the band to play that song again."
+     "Can we get that song from the band one more time?"
     ],
     [
-     "The noise in here is unreal."
+     "The noise level in here is off the charts."
     ],
     [
-     "Phones are out all over the stands. Smile!"
+     "Phones are up all over the stands. Everybody wants the clip."
     ],
     [
-     "I love a crowd that knows its football."
+     "I love a crowd that knows when to get loud."
     ],
     [
      "Stay hydrated out there, everybody. Coach's orders."
     ],
     [
-     "Kids on the fence are chanting for a touchdown."
+     "The kids along the fence are chanting for a touchdown."
     ],
     [
-     "Back in my playing days, I was mostly on the bench."
+     "Back in my playing days, I was the best cheerleader on the bench."
     ],
     [
-     "Just another day at the best little stadium around."
+     "Just another perfect evening at the best little stadium around."
     ]
    ]
   }
