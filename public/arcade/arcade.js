@@ -12,6 +12,7 @@
 //   data,        // game-specific data from the server (rosters, trivia questions...)
 //   exhibition,  // true = just for fun, no coins
 //   risk,        // true = Risk mode
+//   run,         // a Double or Nothing / Double or Double run: { id, mode, name, step, cash, atRisk, next } (3D Blitz only)
 //   finish(result),  // call once: { won: bool, score?, detail?, moves?, stats? }
 //   sound(name),     // 'tap' | 'good' | 'bad' | 'win' | 'lose' | 'whistle' | 'kick' | 'catch'
 // }
@@ -87,10 +88,41 @@
       btn.disabled = false;
       if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
       $('#arcMsg').textContent = '';
+      launch(start);
+    });
+    const post = async (url, body) => { try { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return await r.json(); } catch (err) { return { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + ').' }; } };
+    const again = `<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`;
+    const balLine = (r) => (r && r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins${r.balance < 0 ? ' (in debt)' : ''}</p>` : '');
+    // a won game of a run: cash out, or double and play the next game right away
+    function runChoice(run) {
+      const dod = run.mode === 'dod';
+      const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
+        <p class="muted">${dod ? `${fmt(run.atRisk)} at risk right now. Cash out and you net +${fmt(run.cash - run.atRisk)}.` : 'Cash out now, or play one more for double.'}</p>
+        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button><button type="button" class="btn ghost" id="runDouble">Double: play for ${fmt(run.next.cash)}${dod ? `<small>${fmt(run.next.atRisk)} at risk (${fmt(run.next.charge)} more now)</small>` : ''}</button></div>
+        <p class="muted sm"><a href="#" id="runLater">Decide later</a></p>`);
+      const busy = (t) => { o.querySelectorAll('button').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
+      o.querySelector('#runLater').addEventListener('click', (e) => { e.preventDefault(); o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
+      o.querySelector('#runCash').addEventListener('click', async () => {
+        busy('Cashing out…');
+        const r = await post('/arcade/run/cashout', { id: run.id });
+        if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not cash out.'}</p>${again}`);
+        overlay(`<h2>Cashed out</h2><p class="arc-coins up">+${fmt(r.net)} coins</p><p class="muted">${run.name}: ${run.step} ${run.step === 1 ? 'win' : 'wins in a row'}.</p>${balLine(r)}${again}`);
+        document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
+      });
+      o.querySelector('#runDouble').addEventListener('click', async () => {
+        busy();
+        const r = await post('/arcade/run/double', { id: run.id });
+        if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not start the next game.'}</p>${again}`);
+        o.hidden = true;
+        launch(r);
+      });
+    }
+    if (cfg.pending) { const b = document.getElementById('runResume'); if (b) b.addEventListener('click', () => runChoice(cfg.pending)); }
+    function launch(start) {
       const game = A.games[cfg.game];
       if (!game) { $('#arcMsg').textContent = 'Game failed to load. Refresh and try again.'; return; }
       const level = Number(start.level || 0);
-      open = start.id ? { id: start.id, risk: !!start.risk } : null;
+      open = start.id ? { id: start.id, risk: !!start.risk || !!(start.run && start.stake) } : null;
       document.body.classList.add('arc-playing');
       const stage = $('#arcStage');
       stage.hidden = false;
@@ -103,7 +135,7 @@
       let done = false;
       const ctx = {
         root, game: cfg.game, level, levelName: start.levelName, seed: start.seed, rng: rng(start.seed), data: start.data || {},
-        exhibition: !start.id, risk: !!start.risk, sound,
+        exhibition: !start.id, risk: !!start.risk, run: start.run || null, sound,
         async finish(result) {
           if (done) return; done = true;
           sound(result && result.won ? 'win' : 'lose');
@@ -118,13 +150,18 @@
             r = await res.json();
           } catch { r = { ok: false, error: 'Could not reach the server. Your result was not saved.' }; }
           open = null;
+          if (r.ok && r.run && r.run.choice) return runChoice(r.run);
+          if (r.ok && r.run && r.run.over) {
+            const dod = r.run.mode === 'dod';
+            return overlay(`<h2>Run over</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="arc-coins down">${dod ? '-' + fmt(r.run.atRisk) + ' coins' : 'Nothing this time'}</p><p class="muted">${r.run.name} ended at game ${r.run.step}.${r.message ? ' ' + r.message : ''}</p>${balLine(r)}${again}`);
+          }
           const coins = r.ok ? (r.net > 0 ? `<p class="arc-coins up">+${fmt(r.net)} coins</p>` : r.net < 0 ? `<p class="arc-coins down">${fmt(r.net)} coins</p>` : '') : '';
           overlay(`<h2>${r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`);
           document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
         },
       };
       try { game.start(ctx); } catch (err) { console.error(err); overlay(`<h2>Game crashed</h2><p class="muted">${String(err.message || err)}</p><div class="arc-over-b"><a class="btn" href="">Reload</a></div>`); }
-    });
+    }
   };
   // Show script errors on the page instead of failing silently.
   window.addEventListener('error', (e) => { const m = document.getElementById('arcMsg'); if (m && !document.body.classList.contains('arc-playing')) m.textContent = 'Error: ' + (e.message || 'script failed'); });

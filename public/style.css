@@ -1846,6 +1846,12 @@ details.mk .obs{padding:0 12px 12px}
 .mode span{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);font:700 14px Inter;cursor:pointer}
 .mode input:checked+span{background:#ffc21a;color:#1a1300;border-color:#ffc21a}
 .mode input:disabled+span{opacity:.45;cursor:not-allowed}
+.arc-modes.four{grid-template-columns:1fr 1fr}.mode.run span{font-weight:800}.mode.don input:checked+span{background:#4ade80;border-color:#4ade80;color:#06230f}.mode.dod input:checked+span{background:#ff3344;border-color:#ff3344;color:#fff}
+.run-info{margin:-4px 0 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);color:var(--ink2);font-size:14px;line-height:1.45}.run-info b{color:var(--ink)}
+.lvl.locked span{opacity:.4}
+.run-wait{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:12px;padding:12px 14px;border-radius:14px;border:1px solid rgba(74,222,128,.5);background:rgba(74,222,128,.1)}.run-wait b{font:800 16px var(--disp);text-transform:uppercase}.run-wait span{flex:1;min-width:200px;color:var(--ink2);font-size:14px}
+.run-b{flex-direction:column}.run-b .btn{width:100%;justify-content:center;flex-direction:column;gap:2px;line-height:1.15}.run-b .btn small{display:block;font-size:12px;font-weight:600;opacity:.8;text-transform:none;letter-spacing:0}
+.coins.debt{color:#ff6b7a}
 .lvls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .lvl span{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);cursor:pointer;height:100%}
 .lvl b{font:800 18px var(--disp);text-transform:uppercase}.lvl small{font:700 13px Inter;color:#4ade80}.lvl em{font-style:normal;font-size:11.5px;color:var(--muted)}
