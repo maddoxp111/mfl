@@ -93,28 +93,29 @@
     const post = async (url, body) => { try { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return await r.json(); } catch (err) { return { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + ').' }; } };
     const again = `<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`;
     const balLine = (r) => (r && r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins${r.balance < 0 ? ' (in debt)' : ''}</p>` : '');
-    // a won game of a run: cash out, or double and play the next game right away
+    // a won game of a run: cash out, or play one more at Legend (x1.5) or GOAT (x2) right away
     function runChoice(run) {
-      const dod = run.mode === 'dod';
-      const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
-        <p class="muted">${dod ? `${fmt(run.atRisk)} at risk right now. Cash out and you net +${fmt(run.cash - run.atRisk)}.` : 'Cash out now, or play one more for double.'}</p>
-        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button><button type="button" class="btn ghost" id="runDouble">Double: play for ${fmt(run.next.cash)}${dod ? `<small>${fmt(run.next.atRisk)} at risk (${fmt(run.next.charge)} more now)</small>` : ''}</button><button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
+      const dod = run.mode === 'dod', nx = run.next || {};
+      const go = (l, nm) => nx[l] ? `<button type="button" class="btn ghost" data-go="${l}">Play on at ${nm} ×${run.factor ? run.factor[l] : ''}: ${fmt(nx[l].cash)}${dod ? `<small>${fmt(nx[l].atRisk)} at risk (${fmt(nx[l].charge)} more now)</small>` : ''}</button>` : '';
+      const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}${run.levelName ? ' at ' + run.levelName : ''}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
+        <p class="muted">${dod ? `Cash out and ${fmt(run.cash)} goes to your balance, ${fmt(run.cash - run.atRisk)} more than the ${fmt(run.atRisk)} you have at risk.` : 'Cash out now, or play one more.'}</p>
+        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button>${go(3, 'Legend')}${go(4, 'GOAT')}<button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
       const busy = (t) => { o.querySelectorAll('button').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
       o.querySelector('#runLater').addEventListener('click', () => { o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
       o.querySelector('#runCash').addEventListener('click', async () => {
         busy('Cashing out…');
         const r = await post('/arcade/run/cashout', { id: run.id });
         if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not cash out.'}</p>${again}`);
-        overlay(`<h2>Cashed out</h2><p class="arc-coins up">+${fmt(r.net)} coins</p><p class="muted">${run.name}: ${run.step} ${run.step === 1 ? 'win' : 'wins in a row'}.</p>${balLine(r)}${again}`);
+        overlay(`<h2>Cashed out</h2><p class="arc-coins up">+${fmt(r.payout)} coins</p><p class="muted">${run.name}: ${run.step} ${run.step === 1 ? 'win' : 'wins in a row'}.${r.atRisk ? ` Net +${fmt(r.net)} after the ${fmt(r.atRisk)} you had at risk.` : ''}</p>${balLine(r)}${again}`);
         document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
       });
-      o.querySelector('#runDouble').addEventListener('click', async () => {
+      o.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
         busy();
-        const r = await post('/arcade/run/double', { id: run.id });
+        const r = await post('/arcade/run/double', { id: run.id, level: +b.getAttribute('data-go') });
         if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not start the next game.'}</p>${again}`);
         o.hidden = true;
         launch(r);
-      });
+      }));
     }
     if (cfg.pending) { const b = document.getElementById('runResume'); if (b) b.addEventListener('click', () => runChoice(cfg.pending)); }
     function launch(start) {

@@ -48,7 +48,8 @@
     "Hall Monitors",
     "Detention Kings",
     "The Faculty",
-    "MFL Stars"
+    "MFL Stars",
+    "The Board"
    ]
   },
   "away": {
@@ -58,7 +59,8 @@
     "Hall Monitors",
     "Detention Kings",
     "The Faculty",
-    "MFL Stars"
+    "MFL Stars",
+    "The Board"
    ]
   },
   "team": {
@@ -68,7 +70,8 @@
     "Hall Monitors",
     "Detention Kings",
     "The Faculty",
-    "MFL Stars"
+    "MFL Stars",
+    "The Board"
    ]
   },
   "level": {
@@ -76,7 +79,8 @@
     "Rookie",
     "Pro",
     "All-Pro",
-    "Legend"
+    "Legend",
+    "GOAT"
    ]
   },
   "yards": {
