@@ -98,10 +98,9 @@
       const dod = run.mode === 'dod';
       const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
         <p class="muted">${dod ? `${fmt(run.atRisk)} at risk right now. Cash out and you net +${fmt(run.cash - run.atRisk)}.` : 'Cash out now, or play one more for double.'}</p>
-        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button><button type="button" class="btn ghost" id="runDouble">Double: play for ${fmt(run.next.cash)}${dod ? `<small>${fmt(run.next.atRisk)} at risk (${fmt(run.next.charge)} more now)</small>` : ''}</button></div>
-        <p class="muted sm"><a href="#" id="runLater">Decide later</a></p>`);
+        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button><button type="button" class="btn ghost" id="runDouble">Double: play for ${fmt(run.next.cash)}${dod ? `<small>${fmt(run.next.atRisk)} at risk (${fmt(run.next.charge)} more now)</small>` : ''}</button><button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
       const busy = (t) => { o.querySelectorAll('button').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
-      o.querySelector('#runLater').addEventListener('click', (e) => { e.preventDefault(); o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
+      o.querySelector('#runLater').addEventListener('click', () => { o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
       o.querySelector('#runCash').addEventListener('click', async () => {
         busy('Cashing out…');
         const r = await post('/arcade/run/cashout', { id: run.id });

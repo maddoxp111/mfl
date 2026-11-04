@@ -1850,7 +1850,7 @@ details.mk .obs{padding:0 12px 12px}
 .run-info{margin:-4px 0 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);color:var(--ink2);font-size:14px;line-height:1.45}.run-info b{color:var(--ink)}
 .lvl.locked span{opacity:.4}
 .run-wait{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:12px;padding:12px 14px;border-radius:14px;border:1px solid rgba(74,222,128,.5);background:rgba(74,222,128,.1)}.run-wait b{font:800 16px var(--disp);text-transform:uppercase}.run-wait span{flex:1;min-width:200px;color:var(--ink2);font-size:14px}
-.run-b{flex-direction:column}.run-b .btn{width:100%;justify-content:center;flex-direction:column;gap:2px;line-height:1.15}.run-b .btn small{display:block;font-size:12px;font-weight:600;opacity:.8;text-transform:none;letter-spacing:0}
+.run-b{flex-direction:column}.run-b .btn{width:100%;justify-content:center;flex-direction:column;gap:2px;line-height:1.15}.run-b .btn small{display:block;font-size:12px;font-weight:600;opacity:.8;text-transform:none;letter-spacing:0}.run-b .btn.later{opacity:.85}
 .coins.debt{color:#ff6b7a}
 .lvls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .lvl span{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);cursor:pointer;height:100%}
