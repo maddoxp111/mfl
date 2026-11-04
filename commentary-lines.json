@@ -49,7 +49,8 @@
     "Detention Kings",
     "The Faculty",
     "MFL Stars",
-    "The Board"
+    "The Board",
+    "The Principals"
    ]
   },
   "away": {
@@ -60,7 +61,8 @@
     "Detention Kings",
     "The Faculty",
     "MFL Stars",
-    "The Board"
+    "The Board",
+    "The Principals"
    ]
   },
   "team": {
@@ -71,7 +73,8 @@
     "Detention Kings",
     "The Faculty",
     "MFL Stars",
-    "The Board"
+    "The Board",
+    "The Principals"
    ]
   },
   "level": {
@@ -80,6 +83,7 @@
     "Pro",
     "All-Pro",
     "Legend",
+    "Hall of Fame",
     "GOAT"
    ]
   },

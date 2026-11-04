@@ -402,6 +402,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
     { name: 'Detention Kings', abbr: 'DK', color: '#b91c1c', color2: '#111111', ovrOff: 72, ovrDef: 72 },
     { name: 'The Faculty', abbr: 'FAC', color: '#0f172a', color2: '#facc15', ovrOff: 84, ovrDef: 85 },
     { name: 'The Board', abbr: 'BRD', color: '#111827', color2: '#f87171', ovrOff: 95, ovrDef: 96 },
+    { name: 'The Principals', abbr: 'PRN', color: '#1e3a8a', color2: '#fbbf24', ovrOff: 92, ovrDef: 88 }, // Hall of Fame (level index 5)
   ];
 
   // ---------- playbook ----------
@@ -1543,8 +1544,11 @@ gl_FragColor=vec4(c,1.0);}`;
     opts = opts || {};
     const QS = clamp(Math.round(+opts.quarterSecs || 120), 30, 900);
     const TOS = clamp(opts.timeouts == null ? 2 : opts.timeouts | 0, 0, 5);
-    // 0..1 from Rookie to Legend; above 1 is GOAT, a notch past Legend on every knob (the formulas extrapolate from the Legend values)
-    const DIFF = (+opts.difficulty || 0) > 1 ? 1.3 : clamp(+opts.difficulty || 0, 0, 1);
+    // 0..1 from Rookie to Legend; past 1 the knobs extrapolate from the Legend values: Hall of Fame 1.1, GOAT 1.3.
+    // DIFF drives the CPU defense, the rush, the play clock and the kicks; DIFF_OFF the CPU's simulated offense (Hall of Fame
+    // plays defense a little past Legend and offense a little short of GOAT).
+    const DIFF = clamp(+opts.difficulty || 0, 0, 1.3);
+    const DIFF_OFF = clamp(opts.offense != null ? +opts.offense : DIFF, 0, 1.3);
     const WX = ['clear', 'rain', 'snow', 'night'].indexOf(opts.weather) >= 0 ? opts.weather : 'night';
     const WET = WX === 'rain' ? 1 : WX === 'snow' ? 0.8 : 0;
     const rng = mkRng(opts.seed || 'blitz-' + Date.now());
@@ -4568,7 +4572,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function goHome(start, ko) { if (!otCheck()) return; if (ko) startKickoff(); else startDrive(start); }
 
     // ---------- simulated CPU drives ----------
-    const CS = clamp(0.55 + (AWAY.ovrOff - HOME.ovrDef) / 70 + (DIFF - 0.5) * 0.5, 0, DIFF > 1 ? 1.15 : 1); // GOAT: past the Legend cap, so the CPU scores more
+    const CS = clamp(0.55 + (AWAY.ovrOff - HOME.ovrDef) / 70 + (DIFF_OFF - 0.5) * 0.5, 0, DIFF_OFF > 1 ? 1 + (DIFF_OFF - 1) * 0.5 : 1); // past Legend the cap rises: Hall of Fame 1.10, GOAT 1.15
     // per-play outcomes of a simulated drive (tuned so the CPU scores roughly 10-14 a game at Rookie up to 28-35 at Legend)
     // (strength curved and capped so each level sits in its range: about 1.8 / 2.5 / 3.9 / 4.8 points per full drive; the CPU gets 6-9
     // drives a game, more when the player's drives stall)
@@ -7254,7 +7258,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- splash ----------
-    const lvlName = DIFF < 0.17 ? 'Rookie' : DIFF < 0.5 ? 'Pro' : DIFF < 0.83 ? 'All-Pro' : DIFF <= 1 ? 'Legend' : 'GOAT';
+    const lvlName = DIFF < 0.17 ? 'Rookie' : DIFF < 0.5 ? 'Pro' : DIFF < 0.83 ? 'All-Pro' : DIFF <= 1 ? 'Legend' : DIFF < 1.2 ? 'Hall of Fame' : 'GOAT';
     const wxName = { clear: 'Clear skies', rain: 'Rain', snow: 'Snow', night: 'Under the lights' }[WX];
     const splash = el('div', 'bz-splash', `
       <div class="bz-title">BLITZ 3D</div>
@@ -7403,12 +7407,12 @@ gl_FragColor=vec4(c,1.0);}`;
   if (window.MFLArcade && window.MFLArcade.register) {
     window.MFLArcade.register('blitz3d', {
       start(ctx) {
-        const lvl = clamp(ctx.level | 0, 0, 4), data = ctx.data || {};
+        const lvl = clamp(ctx.level | 0, 0, 5), data = ctx.data || {};
         const players = (Array.isArray(data.players) ? data.players : []).filter((p) => p && p.name).map((p, i) => Object.assign({ id: p.id != null ? p.id : 'arc' + i }, p));
         const t0 = players[0] || {};
         const home = { name: String(t0.team || 'MFL Stars'), abbr: String(t0.abbr || t0.team || 'MFL').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MFL', color: t0.color || '#ffc21a', color2: t0.color2 || '#1b1e27', ovrOff: 66, ovrDef: 60, players };
         const away = CPU_TEAMS[lvl];
-        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3][lvl], seed: ctx.seed, quarterSecs: 120, timeouts: 2, weather: data.weather || 'night', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT'][lvl]) + ' · Arcade' }).then((r) => {
+        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], seed: ctx.seed, quarterSecs: 120, timeouts: 2, weather: data.weather || 'night', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
           let tds = 0; for (const k in r.stats || {}) tds += (r.stats[k].rushTD || 0) + (r.stats[k].recTD || 0);
           const ab = esc(home.abbr), nm = esc(away.name);
