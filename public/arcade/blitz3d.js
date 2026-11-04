@@ -3809,7 +3809,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (m === 'dive') {
         if (c.role === 'QB' && c.z < los + 30 && !qbRunPlay() && c === OK.QB) { slide(c); return; }
         const d = userDir() || [Math.sin(c.h), Math.cos(c.h)];
-        c.diveT = 0.45; c.diving = 1; c.tackleKind = 'dive'; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * (c.v + 2.5); c.vz = d[1] * (c.v + 2.5); setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3; perkHook('dive', c);
+        // held up in a wrap: he falls forward for the extra yards and takes the tackler down with him
+        const held = c.wrapT > 0, by = c.wrapBy;
+        if (held) { c.wrapT = 0; c.wrapBy = null; if (by && !by.rag) knockDown(by, [d[0] * 2, 0, d[1] * 2], null, 1.0); }
+        const lunge = held ? Math.max(3.4, c.v * 0.45 + 1.6) : c.v + 2.5;
+        c.diveT = 0.45; c.diving = 1; c.tackleKind = 'dive'; c.ddx = d[0]; c.ddz = d[1]; c.vx = d[0] * lunge; c.vz = d[1] * lunge; c.diveHit = 0; c.diveFar = null;
+        setPose(c, 'dive'); c.mv = 'dive'; c.mvT = 0.45; c.jumpY = 0.25; c.jumpV = 1.2; c.jumpT = 0.3; perkHook('dive', c);
         sfx.play('tap'); return;
       }
       if (m === 'hurdle' && (c.jumpY > 0 || c.jumpT > 0 || c.wrapT > 0)) return;
@@ -3838,9 +3843,35 @@ gl_FragColor=vec4(c,1.0);}`;
         // broke his ankles: the man he fooled goes down on his own
         if (fd && fdd < 2.9 && funRoll('ankles', 0.35)) { knockDown(fd, [-side * 1.8, 0, fd.vz * 0.3], [-side * 1.4, 0.5, 0], 1.3); fd.tried = 1; moment('ankles', fd, fooled > 1 ? 'DOUBLE ANKLES!' : 'ANKLES!', { a: c, b: fd, victim: 'away', snd: 'good' }); }
         else if (fooled) { popAt(c, fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b'); voice.say('juke', { carrier: nm(c) }, 1, 0.35); }
-      } else if (m === 'spin') { c.mvT = 0.5; setPose(c, 'spin'); sfx.play('tap'); perkHook('spin', c); }
+      } else if (m === 'spin') {
+        // a juke beats everyone near with a sharp cut at a distance; the spin beats the one man who is right on him: he pivots off
+        // that man's shoulder, swings out the far side and comes back upfield while the tackler grabs where he was
+        c.spinDur = c.mvT = 0.5 + (c.agi - 50) * 0.001; setPose(c, 'spin'); sfx.play('tap'); perkHook('spin', c);
+        let near = null, nd = 1e9;
+        for (const d of def) { if (d.rag || d.stun > 0) continue; const dd = dist(d, c); if (dd < nd) { nd = dd; near = d; } }
+        const dir = userDir();
+        let side = near && nd < 4.5 ? (near.x > c.x ? -1 : 1) : dir && Math.abs(dir[0]) > 0.3 ? Math.sign(dir[0]) : (c.x > 0 ? -1 : 1);
+        if (Math.abs(c.x + side * 3) > HW - 1) side = -side;
+        c.mvSide = side; c.spinFz = c.side === 0 ? 1 : -1; c.spinV = Math.max(4.5, effV(c) * 0.9); c.spinBeat = null;
+        if (near && nd < 3.2) {
+          const d = near, pS = clamp(0.62 + (c.agi - d.agi) / 150 + (1 - KDEF) * 0.25, 0.3, 0.92);
+          if (rng() < pS) {
+            c.spinBeat = d; d.tried = 1; d.stun = DP.stun * (1 + rng() * 0.3); d.stumbleT = 0.6;
+            d.vx = -side * 3.2; d.vz = (c.z - d.z) * 1.4; d.face2 = Math.atan2(-side, (c.z - d.z) || 1); setPose(d, 'tackle'); // he bites the wrong way, lunging at where the runner was headed
+            excite = Math.min(1, excite + 0.08);
+            if (nd < 2.4 && funRoll('spinout', 0.3)) { knockDown(d, [d.vx * 0.6, 0, d.vz * 0.6], [-side * 1.2, 0.4, 0], 1.3); moment('ankles', d, 'SPUN HIM AROUND!', { a: c, b: d, victim: 'away', snd: 'good' }); }
+            else { popAt(c, 'SPIN MOVE!', '#2bd46b'); sfx.play('good'); voice.say('spin', { carrier: nm(c) }, 1, 0.4); }
+          } else popAt(c, 'HE READ IT', '#ff9a3c');
+        }
+      }
       else if (m === 'stiff') { c.mvT = 0.6; setPose(c, 'stiff'); sfx.play('tap'); }
     }
+    // the ball is stretched out in front of him as he goes down: the farthest it gets is his forward progress
+    function diveReach(c) {
+      const bz = c.z + (c.ddz || 0) * 0.9, fwd = c.side === 0 ? 1 : -1;
+      if (c.diveFar == null || (bz - c.diveFar) * fwd > 0) c.diveFar = bz;
+    }
+    function landDive(c) { c.diving = 0; diveReach(c); knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; }
     function slide(c) {
       setPose(c, 'slide'); c.down = true; c.fall = 1; c.fallT = 1; c.vx *= 0.4; c.vz = Math.max(0, c.vz * 0.4); c.getup = 1.2;
       popAt(c, 'SLIDE', '#c9ccd4');
@@ -3852,16 +3883,20 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c === ctrl) staminaStep(c, dt, input.sprint);
       let spd = effV(c);
       if (c.rag) { if (c.downAt && tPlay >= c.downAt) { c.downAt = 0; resolveDown(c); } return; } // on the ground: no steering, the play ends when he is ruled down
-      // a dive ends on the ground: he is down where he lands, whoever counted the timer down first (the AI step also ticks diveT)
-      if (c.diving && c.diveT <= 0) { c.diving = 0; knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; return; }
+      // a dive ends on the ground: he is down where the ball lands (the integrate step counts diveT down; it used to be ticked
+      // twice a frame, here as well, so every dive lasted half as long as it should)
+      if (c.diving && c.diveT <= 0) { landDive(c); return; }
       if (c.diveT > 0) {
-        c.diveT -= dt; c.vx *= 1 - dt * 1.4; c.vz *= 1 - dt * 1.4;
-        if (c.diveT <= 0) { c.diving = 0; knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; return; }
+        c.vx *= 1 - dt * 1.4; c.vz *= 1 - dt * 1.4;
+        diveReach(c);
       } else if (c.mv === 'juke' && c.mvT > 0) { c.vx = c.jdx * (c.v + 4.2); c.vz = c.jdz * (c.v + 4.2); }
+      else if (c.mv === 'spin' && c.mvT > 0 && c.spinV > 0) { // the spin: out sideways around the man first, then back upfield
+        const u = 1 - c.mvT / c.spinDur, lat = Math.max(0.15, Math.cos(u * 1.5708)), fw = 0.35 + 0.65 * Math.sin(u * 1.5708), l = Math.hypot(lat, fw);
+        c.vx = c.mvSide * lat / l * c.spinV; c.vz = c.spinFz * fw / l * c.spinV;
+      }
       else if (c === ctrl) {
         const d = userDir() || (c.side === 0 ? autoDir(c) : [0, -1]);
-        if (c.mv === 'spin' && c.mvT > 0) spd *= 0.88;
-        steerDir(c, d[0], d[1], spd, dt, c.acc * (c.mv === 'spin' ? 0.6 : c.jumpY > 0.05 ? 0.18 : 1)); // little steering in the air
+        steerDir(c, d[0], d[1], spd, dt, c.acc * (c.jumpY > 0.05 ? 0.18 : 1)); // little steering in the air
         if (c.mv === 'hurdle' && c.jumpY <= 0 && c.mvT > 0 && c.mvT < 0.3 && !c.landed) { c.landed = 1; c.vx *= 0.9; c.vz *= 0.9; } else if (c.mv !== 'hurdle') c.landed = 0;
       }
       wrapStep(c, dt);
@@ -3887,6 +3922,13 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'live' || c.rag || !d || d.rag) return;
       if (c.mv === 'juke' && c.mvT > 0.12) return;
       const dx = c.x - d.x, dz = c.z - d.z, dl = Math.hypot(dx, dz) || 1, nx = dx / dl, nz = dz / dl;
+      // a dive is already on its way down: contact can't stop it, only shorten it, and the tackler goes down with him
+      if (c.diving || c.diveT > 0) {
+        if (!c.diveHit) { c.diveHit = 1; d.tried = 1; const head = (c.vx * -nx + c.vz * -nz) > 0, k = head ? 0.55 : 0.85; c.vx *= k; c.vz *= k; knockDown(d, [c.vx * 0.4, 0, c.vz * 0.4], [nx * -0.4, 0.2, nz * -0.4], 1.0); sfx.play('tackle'); }
+        return;
+      }
+      // he spun off this man: the tackle grabs air
+      if (c.mv === 'spin' && c.mvT > 0.06 && c.spinBeat === d) return;
       const airborne = c.mv === 'hurdle' && c.jumpY > 0.25;
       if (airborne) {
         const low = d.lunge > 0 || d.pose === 'tackle' || d.diveT > 0 || d.stumbleT > 0 || d.stun > 0 || d.rising > 0;
@@ -3910,7 +3952,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const pk = perkTackle(c, d, { nx, nz, closing, fromFront, behindLOS }); if (pk) return;
       // the QB spins out of a sure sack
       if (behindLOS && c === OK.QB && mode === 'aim' && !c.houdini && (funRoll('houdini', 0.3) || (c.mv === 'spin' && c.mvT > 0 && rng() < 0.6))) {
-        c.houdini = 1; setPose(c, 'spin'); c.mv = 'spin'; c.mvT = 0.5; c.stumbleT = 0.15; c.vx += -nz * 2.2; c.vz += nx * 2.2;
+        c.houdini = 1; setPose(c, 'spin'); c.mv = 'spin'; c.mvT = 0.5; c.spinV = 0; c.stumbleT = 0.15; c.vx += -nz * 2.2; c.vz += nx * 2.2;
         knockDown(d, [d.vx * 0.9 + nx * -1, 0.3, d.vz * 0.9 + nz * -1], [d.vx * 0.3, 0.8, d.vz * 0.3], 1.3); d.tried = 1;
         moment('houdini', c, 'HOUDINI!', { a: c, b: d, victim: 'away', snd: 'good', col: '#2bd46b' });
         return;
@@ -3984,8 +4026,14 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function resolveDown(c) {
       if (phase !== 'live') return;
-      const z = c.rag ? Math.max(c.rag.pts[0][2], (c.contactZ || c.z) - 1.8) : c.z;
+      let z = c.rag ? Math.max(c.rag.pts[0][2], (c.contactZ || c.z) - 1.8) : c.z;
       c.x = c.rag ? c.rag.pts[0][0] : c.x;
+      // a dive: the ball goes down where it was stretched out to, and over the goal line that is a score
+      if (c.tackleKind === 'dive' && c.diveFar != null) {
+        z = c.side === 0 ? Math.max(z, c.diveFar) : Math.min(z, c.diveFar); c.diveFar = null;
+        if (c.side === 0 && z >= 100) { endPlay(kick ? 'krtd' : 'td', z); return; }
+        if (c.side === 1 && z <= 0) { endPlay('pick6', z); return; }
+      }
       if (c.funFumble && !tryMode) { c.funFumble = 0; if (fumble(c)) moment('fumble', c, 'FUMBLE!', { a: c, victim: victimOf(c), col: '#ff3344', replay: false }); return; }
       if (perkHook('down', c)) return;
       if (c.side === 1) { endPlay('intdown', z); return; }
@@ -4666,7 +4714,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, vsc = { hs: n99(hs), as: n99(as), home: HOME.name, away: AWAY.name };
       if (qtr >= 4 && hs === as) voice.say('overtime', {}, 3); else if (qtr === 2) voice.say('halftime', vsc, 2); else if (qtr === 1) voice.say('end_q1', vsc, 2, 0.8); else if (qtr === 3) voice.say('end_q3', vsc, 2, 0.8);
       if (qtr >= 4) {
-        if (hs === as && (qtr === 4 || opts.playoff)) {
+        if (hs === as && (qtr === 4 || opts.playoff || opts.noTies)) { // coin games and playoffs never end tied: overtime until someone wins
           brkTo(qtr === 4 ? 'END OF REGULATION' : `END OF OVERTIME`, `Tied ${hs}–${as} · ${qtr === 4 ? 'overtime!' : 'another period'}`, () => {
             const first = qtr === 4;
             qtr++; clock = QS; boardDirty = true;
@@ -7412,7 +7460,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const t0 = players[0] || {};
         const home = { name: String(t0.team || 'MFL Stars'), abbr: String(t0.abbr || t0.team || 'MFL').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MFL', color: t0.color || '#ffc21a', color2: t0.color2 || '#1b1e27', ovrOff: 66, ovrDef: 60, players };
         const away = CPU_TEAMS[lvl];
-        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], seed: ctx.seed, quarterSecs: 120, timeouts: 2, weather: data.weather || 'night', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
+        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 2, weather: data.weather || 'night', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
           let tds = 0; for (const k in r.stats || {}) tds += (r.stats[k].rushTD || 0) + (r.stats[k].recTD || 0);
           const ab = esc(home.abbr), nm = esc(away.name);

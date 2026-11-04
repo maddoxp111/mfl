@@ -59,6 +59,17 @@ function runEffective(m) {
 }
 // what the page and the client need to show a run step: the offer now, and the offer after one more win at either level
 const runInfo = (m) => { const e = runEffective(m), cur = { step: m.run.step, level: m.run.level || 3, cash: e.cash || m.run.cash, atRisk: e.atRisk != null ? e.atRisk : m.run.atRisk }; return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: cur.step, level: cur.level, levelName: LEVELS[cur.level], cash: cur.cash, atRisk: cur.atRisk, charge: e.stake, factor: RUN_FACTOR, order: RUN_LEVELS, main: RUN_MAIN, next: Object.fromEntries(RUN_LEVELS.map((l) => [l, { ...runNext(cur, l), levelName: LEVELS[l] }])) }; };
+// Refund a lost coin game: it becomes void (a void match nets 0, so its stake comes back). In a run, the run goes back to where it
+// was before that game: the game before it is won again with its choice waiting (cash out, or play on).
+function refundMatch(user, m, why) {
+  if (!m || m.status !== 'lost') return false;
+  m.status = 'void'; m.refund = { why: why || 'refund', at: new Date().toISOString() };
+  if (m.run && m.run.step > 1) {
+    const prev = (user.arcade || []).find((x) => x.run && x.run.id === m.run.id && x.run.step === m.run.step - 1 && x.status === 'won');
+    if (prev) { prev.run.rolled = false; prev.run.pending = true; }
+  }
+  return true;
+}
 // a won step whose choice was never made is cashed out when the player starts anything else: nobody loses coins by walking away
 function settlePending(user) {
   let n = 0;
@@ -523,12 +534,14 @@ module.exports = function arcade(app, h) {
       fm.payout = won && !fm.run ? Math.round(G.prizes[m.level] * (m.risk ? RISK_MULT[m.level] : 1)) : 0; // every win pays: no daily cap (a run's win waits for the cash out)
       if (fm.run && won) fm.run.pending = true;
       fm.score = m.score ?? score;
-      fm.stats = r.stats && typeof r.stats === 'object' ? { td: Math.min(30, +r.stats.td || +r.stats.tds || 0) } : undefined;
+      fm.stats = r.stats && typeof r.stats === 'object' ? { td: Math.min(30, +r.stats.td || +r.stats.tds || 0), ...(Number.isFinite(+r.stats.opp) ? { opp: Math.max(0, Math.min(200, Math.round(+r.stats.opp))) } : {}) } : undefined;
+      const tied = !won && !!r.tie && !r.quit && fm.stats && fm.stats.opp != null && fm.stats.opp === score;
+      if (tied) { fm.tie = true; if (refundMatch(fresh, fm, 'tie')) note = 'A tie: your coins are back.'; }
       fm.secs = Math.round(secs);
       delete fm.secret;
       await putDoc(userKey(name), fresh);
       const bal = h.accountOf(db, fresh, await h.survivorNow(db)).balance;
-      json(res, { ok: true, won, net: fm.status === 'won' ? fm.payout - fm.stake : -fm.stake, balance: bal, message: note, ...(fm.run ? { run: { ...runInfo(fm), choice: won, over: !won } } : {}) });
+      json(res, { ok: true, won, tie: !!fm.tie, net: fm.status === 'void' ? 0 : fm.status === 'won' ? fm.payout - fm.stake : -fm.stake, balance: bal, message: note, ...(fm.run ? { run: { ...runInfo(fm), choice: won, over: !won && !fm.tie } } : {}) });
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not save the result.' }); }
   });
 
@@ -579,7 +592,7 @@ module.exports = function arcade(app, h) {
         <div class="wrap">${req.query.m === 'checkin' ? '<div class="toast">Checked in ✓</div>' : ''}
           <div class="arc-grid">${ORDER.map(tile).join('')}</div>
           <div class="home-grid"><div class="col">${earnList(user, db)}
-            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || m.game)}</b><small>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`).join('')}</ol></section>` : ''}</div>
+            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || m.game)}</b><small>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`).join('')}</ol></section>` : ''}</div>
             <div class="col"><section class="card"><div class="card-h"><h2>Every way to earn coins</h2></div><div class="ways">${WAYS.map(([e, t, d]) => `<div><span>${e}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div></section>
             <section class="card"><div class="card-h"><h2>How Arcade coins work</h2></div><ul class="how">
               <li>Pick a level: Rookie, Pro, All-Pro or Legend, and in 3D Blitz also Hall of Fame and GOAT. Harder levels pay more.</li>
@@ -706,12 +719,16 @@ module.exports = function arcade(app, h) {
   // ---------- admin: recent paid wins, with a Void button for anything fishy ----------
   app.get('/admin/arcade', h.requireAdmin, async (req, res) => {
     const users = await h.listDocs('users/');
-    const rows = users.flatMap((u) => (u.arcade || []).filter((m) => m.status === 'won' || m.status === 'void').map((m) => ({ u: u.name, m }))).sort((a, b) => b.m.at.localeCompare(a.m.at)).slice(0, 150);
-    res.send(layout(req, 'Arcade admin', h.pageHead('Admin', 'Arcade wins') + `<div class="wrap">${h.adminNav('/admin/arcade')}
-      <div class="card"><p class="muted sm">Most recent paid wins. Voiding a win removes its coins (and gives back a Risk stake). Fast times or huge scores are worth a look.</p>
+    const who = String(req.query.u || '').trim().toLowerCase();
+    const rows = users.filter((u) => !who || String(u.name).toLowerCase() === who).flatMap((u) => (u.arcade || []).filter((m) => m.status === 'won' || m.status === 'void' || (m.status === 'lost' && (matchNet(m) < 0 || m.run))).map((m) => ({ u: u.name, m }))).sort((a, b) => b.m.at.localeCompare(a.m.at)).slice(0, 200);
+    const scoreOf = (m) => (m.score ?? '') + (m.stats && m.stats.opp != null ? '–' + m.stats.opp : '');
+    const form = (action, u, m, label) => `<form method="post" action="${action}"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">${label}</button></form>`;
+    res.send(layout(req, 'Arcade admin', h.pageHead('Admin', 'Arcade wins and losses') + `<div class="wrap">${h.adminNav('/admin/arcade')}
+      <div class="card"><p class="muted sm">Recent paid wins and coin losses, newest first. <b>Void</b> takes a win's coins back (and gives back a Risk stake). <b>Refund</b> gives a lost game's coins back; in a Double or Nothing / Double or Double run it also puts the run back to the choice after the game before it. Games before Nov 4 did not record the other team's score, so a tie shows as a loss: look for the time.</p>
+      <form method="get" action="/admin/arcade" class="row" style="gap:8px;margin:8px 0"><input name="u" value="${esc(req.query.u || '')}" placeholder="Filter by player"><button class="btn ghost sm">Filter</button></form>
       <table class="tbl"><thead><tr><th class="l">When</th><th class="l">Player</th><th class="l">Game</th><th>Level</th><th>Time</th><th>Score</th><th>Coins</th><th></th></tr></thead><tbody>
-      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${m.score ?? ''}</td><td>${m.status === 'void' ? 'void' : '+' + fmt(m.payout - m.stake)}</td>
-        <td>${m.status === 'won' ? `<form method="post" action="/admin/arcade/void"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">Void</button></form>` : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No wins yet.</td></tr>'}</tbody></table></div></div>`));
+      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
+        <td>${m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
   });
   // ---------- admin: how each real player looks (Modern Bowl and 3D Blitz) and their 3D build ----------
   const LOOK_OPTS = { skin: [0, 1, 2, 3, 4], height: ['short', 'normal', 'tall'], cleats: ['black', 'white', 'team', 'gold', 'red'] };
@@ -840,6 +857,13 @@ module.exports = function arcade(app, h) {
     const m = user && (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
     if (m && m.status === 'won') { m.status = 'void'; await putDoc(userKey(name), user); }
     res.redirect('/admin/arcade');
+  });
+  app.post('/admin/arcade/refund', h.requireAdmin, async (req, res) => {
+    const name = String(req.body.u || '');
+    const user = await getDoc(userKey(name), { fresh: true });
+    const m = user && (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
+    if (m && refundMatch(user, m, 'admin')) await putDoc(userKey(name), user);
+    res.redirect('/admin/arcade' + (req.body.u ? '?u=' + encodeURIComponent(name) : ''));
   });
 
   return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup };

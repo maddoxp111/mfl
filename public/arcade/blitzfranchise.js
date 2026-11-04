@@ -2480,7 +2480,7 @@
     const att = (UI.attempt[ctx.g.id] = (UI.attempt[ctx.g.id] || 0) + 1);
     return {
       home: engineTeam(userTeam()), away: engineTeam(TM(ctx.oppId)), difficulty: DIFFS[S.diff].eng, seed: `${S.seed}:${ctx.g.id}:${att}`,
-      quarterSecs: S.qmin * 60, timeouts: 2, label: ctx.label, playoff: ctx.po, weather: ctx.wx,
+      quarterSecs: S.qmin * 60, timeouts: 2, label: ctx.label, playoff: ctx.po, noTies: !!BOOT.user, weather: ctx.wx,
     };
   }
   function topSecs(v) { if (typeof v === 'number' && isFinite(v)) return Math.round(v); const m = /^(\d+):(\d\d)$/.exec(String(v || '')); return m ? +m[1] * 60 + +m[2] : 0; }
