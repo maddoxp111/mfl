@@ -4805,16 +4805,28 @@ gl_FragColor=vec4(c,1.0);}`;
       const d = cpuD; if (!d || !d.pick) return;
       d.pick = false; call = DEFCALL[call] ? call : 'base'; DRAMA.call = call; DRAMA.calls[call]++;
       const clk = { q: qtr, t: clock }, r = simCpu(d.start, clk, null, call);
+      if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = 100; } // tests: force the drive's result
       CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       Object.assign(d, { r, c0: clock, t: 0, call, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1) }); // clutch: the drive plays out slower
       sfx.play('tap'); drawCard();
+    }
+    // The CPU's conversion after its touchdown. In the 4th quarter and overtime it follows the two-point chart (go for 2 when
+    // behind by 2, 5, 9, 12 or 16, or ahead by 1, 4, 5, 12, 15 or 19 after the six: to tie, to get within a field goal or one
+    // score, to go up 3, 7 or 14...); in the 3rd only to tie or get within 3; otherwise it kicks (always good). A try is good about
+    // 4 times in 10 for a weak CPU up to 6 in 10 for the best, a little more when it is on fire. Returns null for a kick.
+    const TWO_LATE = [-2, -5, -9, -12, -16, 1, 4, 5, 12, 15, 19], TWO_Q3 = [-2, -5];
+    function cpuTry() {
+      const m = as + 6 - hs, go = qtr >= 4 ? TWO_LATE.includes(m) : qtr === 3 ? TWO_Q3.includes(m) : false;
+      if (DBG && DBG.cpuTwo != null ? !DBG.cpuTwo : !go) return null;
+      const p = clamp(0.42 + (CS - 0.6) * 0.35 + (DRAMA.cpuHot ? 0.05 : 0), 0.35, 0.6);
+      return { good: DBG && DBG.cpuTwoGood != null ? !!DBG.cpuTwoGood : rng() < p };
     }
     function drawCard() {
       const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, n = Math.max(1, Math.round(r.plays * k)), y = Math.round(r.yds * k);
       const res = d.shown ? RES[r.res] : null;
       const label = r.res === 'CLOCK' ? (qtr === 2 ? 'END OF HALF' : qtr >= 4 ? 'TIME RUNS OUT' : 'END OF QUARTER') : res ? res[0] : '';
       d.el.innerHTML = `<h3>${esc(AWAY.name)} drive</h3><p>Plays <b>${n}</b> · Yards <b>${y}</b></p><p>Started at their ${d.start} · your defense: <b>${DEFCALL[d.call || 'base'].name}</b></p>` +
-        (d.shown ? `<p class="res" style="color:${res[1]}">${label}</p><p class="sc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '<p class="res">…</p>');
+        (d.shown ? `<p class="res" style="color:${res[1]}">${label}</p>${r.two ? `<p style="margin:4px 0 0;color:${r.two.good ? '#ff3344' : '#2bd46b'}">2-PT TRY ${r.two.good ? 'GOOD' : 'NO GOOD'}</p>` : ''}<p class="sc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '<p class="res">…</p>');
     }
     function cpuStep(dt) {
       const d = cpuD;
@@ -4823,13 +4835,14 @@ gl_FragColor=vec4(c,1.0);}`;
       clock = d.c0 + (d.r.t - d.c0) * Math.min(1, d.t / d.dur);
       if (!d.shown && d.t >= d.dur) {
         d.shown = true; clock = d.r.t;
-        if (d.r.res === 'TD') { addPts('away', 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
+        if (d.r.res === 'TD') { const two = cpuTry(); d.r.two = two; addPts('away', two ? (two.good ? 8 : 6) : 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
         else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') { sfx.play('good'); excite = 0.6; } else sfx.play('whistle');
         if (d.r.res !== 'CLOCK') dramaCpu(d.r.res);
         const fz = funCpu(d.r); if (fz) { moment(fz[0], null, fz[1], { victim: 'away', replay: false, snd: fz[0] === 'cpudoink' ? 'doink' : 'ooh', line: funLine(fz[0]) }); d.fl = FUN.line; FUN.line = ""; FUN.plays++; FUN.thisPlay = 0; }
         drawCard(); boardDirty = true;
         { const R = d.r.res; voice.say(R === 'TD' ? 'cpu_td' : R === 'FG' ? 'cpu_fg' : R === 'PUNT' ? (d.r.shank ? 'punt_shank' : 'cpu_punt') : R === 'INT' ? 'cpu_int' : R === 'FUMBLE' ? 'cpu_fumble' : R === 'DOWNS' ? 'cpu_downs' : R === 'MISS' ? 'cpu_miss_fg' : 'cpu_clock', { away: AWAY.name }, R === 'TD' || R === 'INT' || R === 'FUMBLE' ? 3 : 2, R === 'PUNT' || R === 'CLOCK' ? 0.6 : 1); }
-        say((d.r.res === 'TD' ? `<b>${esc(AWAY.name)}</b> score a touchdown.` : d.r.res === 'FG' ? `<b>${esc(AWAY.name)}</b> kick a field goal.` : d.r.res === 'PUNT' ? `<b>${esc(AWAY.name)}</b> punt it away.` : d.r.res === 'CLOCK' ? 'Time runs out on the drive.' : 'Your defense comes up with the ball!') + (d.fl ? ' ' + d.fl : ''));
+        say((d.r.res === 'TD' ? `<b>${esc(AWAY.name)}</b> score a touchdown${d.r.two ? `, go for two and ${d.r.two.good ? '<b>get it</b>' : 'are <b>stopped</b>'}` : ''}.` : d.r.res === 'FG' ? `<b>${esc(AWAY.name)}</b> kick a field goal.` : d.r.res === 'PUNT' ? `<b>${esc(AWAY.name)}</b> punt it away.` : d.r.res === 'CLOCK' ? 'Time runs out on the drive.' : 'Your defense comes up with the ball!') + (d.fl ? ' ' + d.fl : ''));
+        if (d.r.two) { voice.say(d.r.two.good ? 'two_good' : 'two_fail', {}, 2); if (d.r.two.good) sfx.play('boo'); else { sfx.play('cheer'); excite = Math.max(excite, 0.7); } }
       } else if (!d.shown && ((d.t * 8) | 0) !== ((d.t - dt) * 8 | 0)) drawCard();
       if (d.shown && d.t >= d.dur + 2.1) {
         d.el.remove(); cpuD = null;
@@ -8110,7 +8123,7 @@ gl_FragColor=vec4(c,1.0);}`;
         } else { ball = { st: 'held', holder: c, x: c.x, y: 1.3, z: c.z, vx: 0, vy: 0, vz: 0 }; carrier = c; ctrl = c; mode = 'run'; c.vx = o.vx || 0; c.vz = o.vz == null ? 6 : o.vz; if (o.pocket) { handed = false; crossed = false; } }
         setControls(true);
       },
-      reachGap, ballOver, leverage, leadPt, get pr() { return pr; }, get vs() { return VS; }, projectPt(x, y, z) { return project(x, y, z); }, vsCalls: VS_CALLS, vsPick(id) { if (vsCardEl && vsCardEl.fn) vsCardEl.fn(id); }, get vsCard() { return vsCardEl ? vsCardEl.textContent : null; }, vsJump() { vsJumpTap(); }, vsTimeout() { vsTimeout(); }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
+      reachGap, ballOver, leverage, leadPt, get pr() { return pr; }, get vs() { return VS; }, cpuTry() { return cpuTry(); }, projectPt(x, y, z) { return project(x, y, z); }, vsCalls: VS_CALLS, vsPick(id) { if (vsCardEl && vsCardEl.fn) vsCardEl.fn(id); }, get vsCard() { return vsCardEl ? vsCardEl.textContent : null; }, vsJump() { vsJumpTap(); }, vsTimeout() { vsTimeout(); }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
       swipe(ux, uz, k) { if (mode !== 'aim') return false; const D = Math.max(3, Math.min(1, k || 1) * maxDist()); return throwBall({ x: OK.QB.x + ux * D, z: OK.QB.z + uz * D, D }, arc); },
       kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } },
       get playClock() { return playClock; }, set playClock(v) { playClock = v; }, get cpuStats() { return CPUS; }, get cpuCS() { return CS; },
