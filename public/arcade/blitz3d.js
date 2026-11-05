@@ -3430,9 +3430,13 @@ gl_FragColor=vec4(c,1.0);}`;
     function releaseBall() {
       const qb = OK.QB, arcT = qb.throwArc, as0 = assistSpot(qb.throwSpot, arcT), spot = as0.spot;
       qb.throwT = -1;
+      // the ball is out of his hands: he is nobody's ball carrier any more, whatever happens to him next
+      const hurry = qb.hurried ? 1.7 : 1; qb.hurried = 0;
+      if (carrier === qb) carrier = null;
+      qb.wrapT = 0; qb.wrapBy = null; qb.downAt = 0;
       const D0 = Math.hypot(spot.x - qb.x, spot.z - qb.z), D = Math.min(D0, maxDist());
       const ux = (spot.x - qb.x) / (D0 || 1), uz = (spot.z - qb.z) / (D0 || 1);
-      const sg = sigma(D, arcT) * perkThrow(qb, qb.throwSpot, arcT, D), ex = gauss() * sg * 0.75, ez = gauss() * sg;
+      const sg = sigma(D, arcT) * perkThrow(qb, qb.throwSpot, arcT, D) * hurry, ex = gauss() * sg * 0.75, ez = gauss() * sg;
       const tx = qb.x + ux * D + ex, tz = qb.z + uz * D + ez;
       const D2 = Math.hypot(tx - qb.x, tz - qb.z), T = flightOf(D2, arcT);
       const hp = handPos(qb, 1), y0 = hp[1] > 1.2 ? hp[1] : 2.2, y1 = [1.5, 1.6, 2.0][arcT];
@@ -3950,6 +3954,10 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'live' || c.rag || !d || d.rag) return;
       if (c.mv === 'juke' && c.mvT > 0.12) return;
       const dx = c.x - d.x, dz = c.z - d.z, dl = Math.hypot(dx, dz) || 1, nx = dx / dl, nz = dz / dl;
+      // the QB is already in his throwing motion: the ball still comes out (hurried, a little wild) and he takes the hit after it
+      if (c === OK.QB && c.throwT >= 0 && ball && ball.holder === c && !thrown) { c.hurried = 1; releaseBall(); lateHit(c, d, nx, nz); popAt(c, 'GOT IT OFF!', '#2bd46b'); return; }
+      // the ball is gone (thrown or handed off): flattening him now can't end the play
+      if (ball && ball.holder !== c) { lateHit(c, d, nx, nz); return; }
       // a dive is already on its way down: contact can't stop it, only shorten it, and the tackler goes down with him
       if (c.diving || c.diveT > 0) {
         if (!c.diveHit) { c.diveHit = 1; d.tried = 1; const head = (c.vx * -nx + c.vz * -nz) > 0, k = head ? 0.55 : 0.85; c.vx *= k; c.vz *= k; knockDown(d, [c.vx * 0.4, 0, c.vz * 0.4], [nx * -0.4, 0.2, nz * -0.4], 1.0); sfx.play('tackle'); }
@@ -4034,8 +4042,17 @@ gl_FragColor=vec4(c,1.0);}`;
       // wrap-up: the carrier drags him for a moment, then goes down (or sheds him)
       c.wrapT = 0.22 + Math.min(0.3, vc * 0.03) * (c.str / 70); c.wrapBy = d; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle'); c.stumbleT = 0.5;
     }
+    // a hit on a player without the ball: he goes down, the play goes on
+    function lateHit(c, d, nx, nz) {
+      if (c.rag) return;
+      d.tried = 1; d.lastTry = tPlay;
+      knockDown(c, [nx * 2.2 + d.vx * 0.3, 0.3, nz * 2.2 + d.vz * 0.3], [nx * 0.5, 0.35, nz * 0.5], 1.1);
+      c.downAt = 0; c.wrapT = 0; c.wrapBy = null;
+      sfx.play('tackle'); cam.shake = Math.max(cam.shake, 0.3);
+    }
     function finishTackle(c, d, kind, nx, nz, closing) {
       if (c.rag) return;
+      if (ball && ball.holder !== c && ball.st === 'air') { if (d) lateHit(c, d, nx == null ? 0 : nx, nz == null ? -1 : nz); return; } // the ball is up: not a tackle
       if (nx == null) { const dx = c.x - (d ? d.x : c.x - 1), dz = c.z - (d ? d.z : c.z), l = Math.hypot(dx, dz) || 1; nx = dx / l; nz = dz / l; closing = 4; }
       const vc = Math.hypot(c.vx, c.vz);
       // momentum carries the pile: a sprinting back falls forward, a stood-up runner gets driven back
@@ -4054,6 +4071,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function resolveDown(c) {
       if (phase !== 'live') return;
+      if (ball && ball.st === 'air' && ball.holder !== c) return; // he got rid of it before he went down: the pass decides the play
       let z = c.rag ? Math.max(c.rag.pts[0][2], (c.contactZ || c.z) - 1.8) : c.z;
       c.x = c.rag ? c.rag.pts[0][0] : c.x;
       // a dive: the ball goes down where it was stretched out to, and over the goal line that is a score
@@ -5912,8 +5930,9 @@ gl_FragColor=vec4(c,1.0);}`;
         for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
       }
       if (phase !== 'live') return;
-      if (play.type === 'qbdraw' && mode === 'aim' && tPlay > 0.85 && ball && ball.holder === OK.QB && !thrown && !aim) scramble(); // the draw: show pass, then go
-      if (mode === 'aim' && OK.QB.z > los + 0.3) { carrier = OK.QB; ctrl = OK.QB; mode = 'run'; crossed = true; pr.kind = 'rush'; pr.rusher = OK.QB; runSeen = tPlay; aim = null; hideAim(); setControls(true); }
+      if (play.type === 'qbdraw' && mode === 'aim' && tPlay > 0.85 && ball && ball.holder === OK.QB && !thrown && !aim && OK.QB.throwT < 0) scramble(); // the draw: show pass, then go
+      // past the line he is a runner (not while he is throwing: the ball is about to go)
+      if (mode === 'aim' && OK.QB.z > los + 0.3 && OK.QB.throwT < 0) { carrier = OK.QB; ctrl = OK.QB; mode = 'run'; crossed = true; pr.kind = 'rush'; pr.rusher = OK.QB; runSeen = tPlay; aim = null; hideAim(); setControls(true); }
       if (mode === 'aim' || (ball.holder === OK.QB && !handed)) { const q = OK.QB; if (Math.abs(q.x) > HW && phase === 'live') { endPlay('oob', q.z); return; } }
       liveChecks();
       if (phase === 'live' && tPlay > 14 && mode === 'none' && !carrier && ball.st !== 'air' && ball.st !== 'loose') endPlay('inc', 0, 'Play blown dead');
@@ -7127,7 +7146,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const hotOK = (p) => p.type === 'pass' || p.type === 'pa' || p.type === 'boot' || p.type === 'qbdraw';
     function setArc(i) { arc = i; sfx.play('tap'); ctl.querySelectorAll('.bz-arc button').forEach((b, k) => b.classList.toggle('sel', k === arc)); }
     function scramble() {
-      if (phase !== 'live' || mode !== 'aim' || !OK.QB || ball.holder !== OK.QB) return;
+      if (phase !== 'live' || mode !== 'aim' || !OK.QB || ball.holder !== OK.QB || OK.QB.throwT >= 0) return;
       const q = OK.QB; aim = null; hideAim();
       carrier = q; ctrl = q; mode = 'run'; pr.kind = 'rush'; pr.rusher = q; runSeen = tPlay; q.hold = false; q.face2 = null; q.look = null;
       sfx.play('tap'); setControls(true); voiceLive('scramble_live', { passer: nm(q) }, 0.9);
