@@ -14,7 +14,9 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
 const { WebSocketServer } = require('ws');
+const { EventEmitter } = require('events');
 
 module.exports = function versus(app, h) {
   const { esc, icon, coins, layout, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, pk, TZ, sign } = h;
@@ -551,8 +553,74 @@ module.exports = function versus(app, h) {
     setTimeout(scanLeftovers, SCAN_MS).unref();
   }
 
-  // ---------- pages ----------
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);
+  // ---------- the same connection over plain HTTPS ----------
+  // Some networks (school filters among them) block the WebSocket to the Railway host, and the site's own domain (Vercel) can't
+  // carry WebSockets. So the page can also talk over ordinary requests on the site's own domain: a long poll brings the server's
+  // messages (it answers at once when something is waiting, otherwise after HTTP_HOLD), and batched POSTs carry the page's. An
+  // HttpSock behaves like a ws socket (send, close, readyState, bufferedAmount, 'message' and 'close' events), so everything above
+  // treats both kinds the same. Binary frames travel as base64. A session with no poll for HTTP_IDLE is closed (which starts the
+  // usual disconnect clock).
+  const HTTP_HOLD = envMs('VERSUS_HTTP_HOLD_MS', 8000), HTTP_IDLE = envMs('VERSUS_HTTP_IDLE_MS', 30000), HTTP_MAX_Q = 2e6;
+  const hsocks = new Map();
+  class HttpSock extends EventEmitter {
+    constructor(name) { super(); this.sid = hex(16); this.name = name; this.readyState = OPEN; this.q = []; this.qBytes = 0; this.waiter = null; this.seen = Date.now(); this.http = true; }
+    get bufferedAmount() { return this.qBytes; }
+    send(data) {
+      if (this.readyState !== OPEN) return;
+      const bin = typeof data !== 'string';
+      const item = bin ? { b: Buffer.from(data).toString('base64') } : { s: data }, n = (item.b || item.s).length;
+      if (bin && this.qBytes + n > HTTP_MAX_Q) return; // far behind: drop picture frames, never messages
+      this.q.push(item); this.qBytes += n; this.flush();
+    }
+    flush() {
+      if (!this.waiter || !this.q.length) return;
+      const w = this.waiter; this.waiter = null; clearTimeout(w.timer);
+      const out = this.q; this.q = []; this.qBytes = 0;
+      json(w.res, { ok: true, m: out });
+    }
+    ping() {}
+    terminate() { this.close(); }
+    close() {
+      if (this.readyState !== OPEN) return;
+      this.readyState = 3; hsocks.delete(this.sid);
+      if (this.waiter) { const w = this.waiter; this.waiter = null; clearTimeout(w.timer); json(w.res, { ok: false, closed: true }); }
+      this.emit('close');
+    }
+  }
+  const hsockOf = (req) => { const s = hsocks.get(String((req.body && req.body.sid) || '')); return s && s.name === currentUser(req) ? s : null; };
+  const httpJson = express.json({ limit: '1mb' });
+  app.post('/arcade/versus/http/open', httpJson, (req, res) => {
+    const name = currentUser(req);
+    if (!name) return json(res, { ok: false, error: 'login' });
+    const s = new HttpSock(name); hsocks.set(s.sid, s);
+    onConnect(s, name);
+    json(res, { ok: true, sid: s.sid, hold: HTTP_HOLD });
+  });
+  app.post('/arcade/versus/http/poll', httpJson, (req, res) => {
+    const s = hsockOf(req); if (!s) return json(res, { ok: false, closed: true });
+    s.seen = Date.now();
+    if (s.waiter) { const w = s.waiter; s.waiter = null; clearTimeout(w.timer); json(w.res, { ok: true, m: [] }); }
+    const w = { res, timer: setTimeout(() => { if (s.waiter === w) { s.waiter = null; s.seen = Date.now(); json(res, { ok: true, m: [] }); } }, HTTP_HOLD) };
+    s.waiter = w;
+    req.on('close', () => { if (s.waiter === w && !res.headersSent) { s.waiter = null; clearTimeout(w.timer); } });
+    s.flush();
+  });
+  app.post('/arcade/versus/http/send', httpJson, (req, res) => {
+    const s = hsockOf(req); if (!s) return json(res, { ok: false, closed: true });
+    s.seen = Date.now();
+    const m = Array.isArray(req.body.m) ? req.body.m.slice(0, 400) : [];
+    for (const it of m) {
+      if (!it || typeof it !== 'object') continue;
+      if (typeof it.b === 'string') { if (it.b.length <= MAX_FRAME * 1.4) s.emit('message', Buffer.from(it.b, 'base64'), true); }
+      else if (typeof it.s === 'string') s.emit('message', Buffer.from(it.s, 'utf8'), false);
+    }
+    json(res, { ok: true });
+  });
+  app.post('/arcade/versus/http/close', httpJson, (req, res) => { const s = hsockOf(req); if (s) s.close(); json(res, { ok: true }); });
+  setInterval(() => { const now = Date.now(); for (const s of [...hsocks.values()]) if (!s.waiter && now - s.seen > HTTP_IDLE) s.close(); }, 5000).unref();
+
+  // ---------- pages ----------
   app.get('/arcade/versus/token', (req, res) => {
     const name = currentUser(req);
     if (!name) return json(res, { ok: false, error: 'Log in to play Head to Head.' });

@@ -6257,13 +6257,15 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let k = 0; k < 6; k++) full[n * RF + k] = f[o + k];
       const now = performance.now(), ts = f[1], d = now - ts;
       VS.off = VS.off == null || d < VS.off ? d : VS.off + Math.min(4, (d - VS.off) * 0.01); // the least delayed frame sets the clock; drift up slowly
+      // how late frames arrive past the best case (bursty over HTTPS): the playback waits that long, so it doesn't stutter
+      VS.jit = Math.max(d - VS.off, (VS.jit == null ? (VS.net.lag || VS_DELAY) - 50 : VS.jit) * 0.996);
       VS.frames.push({ ts, f: full, h: f.slice(0, VS_HDR) });
       if (VS.frames.length > 90) VS.frames.splice(0, VS.frames.length - 90);
     }
     // the other side's screen, played back a beat behind so it stays smooth
     function vsStep(dt) {
       vsCardStep(dt);
-      const F = VS.frames, rt = performance.now() - (VS.off || 0) - VS_DELAY;
+      const F = VS.frames, rt = performance.now() - (VS.off || 0) - clamp((VS.jit == null ? (VS.net.lag || VS_DELAY) - 50 : VS.jit) + 50, 90, 1000);
       // banners, pops and sounds land with the picture
       while (VS.fxq.length && (VS.off == null || VS.fxq[0].ts <= rt)) vsFxIn(VS.fxq.shift());
       if (!F.length || VS.off == null) { idle(dt); return; }
