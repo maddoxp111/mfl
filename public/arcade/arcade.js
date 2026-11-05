@@ -72,6 +72,32 @@
     const form = $('#arcSetup');
     if (!cfg || !form) return;
     let open = null; // a coin match that's running: leaving the page forfeits it
+    // A finished game's result is never lost to a server update: it is retried for up to 4 minutes, and kept on this device until
+    // it lands, so the next Arcade page sends it if this one is closed (within the 3 hours a game stays open).
+    const UNSENT = 'mfl-arc-unsent';
+    const keep = (x) => { try { if (x) localStorage.setItem(UNSENT, JSON.stringify(x)); else localStorage.removeItem(UNSENT); } catch (e) {} };
+    async function sendFinish(id, result, onWait) {
+      keep({ id, result, at: Date.now() });
+      const t0 = Date.now();
+      for (let n = 1; ; n++) {
+        try {
+          const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result }) });
+          if (res.status < 500) { const r = await res.json(); keep(null); return r; } // a real answer (even a refusal): done
+        } catch (e) {} // down or restarting (the update page is not JSON either)
+        if (Date.now() - t0 > 240e3) return { ok: false, kept: true, error: 'Could not reach the server. Your result is kept on this device and goes in the next time you open the Arcade.' };
+        if (onWait) onWait(n);
+        await new Promise((ok) => setTimeout(ok, Math.min(15000, 1500 * n)));
+      }
+    }
+    (async () => { // a result from last time that never arrived
+      let u = null; try { u = JSON.parse(localStorage.getItem(UNSENT) || 'null'); } catch (e) {}
+      if (!u || !u.id) return;
+      if (Date.now() - (u.at || 0) > 3 * 3600e3) { keep(null); return; }
+      const r = await sendFinish(u.id, u.result);
+      if (!r || r.kept) return;
+      const m = $('#arcMsg');
+      if (r.ok) { if (m) m.textContent = `Your last game's result is in: ${r.won ? 'a win' : 'a loss'}${r.net ? ` (${r.net > 0 ? '+' : ''}${fmt(r.net)} coins)` : ''}.`; if (r.run && r.run.choice) setTimeout(() => location.reload(), 1500); }
+    })();
     window.addEventListener('beforeunload', (e) => { if (open && open.risk) { e.preventDefault(); e.returnValue = ''; } });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -144,11 +170,8 @@
             return;
           }
           overlay('<h2>Checking the result…</h2>');
-          let r;
-          try {
-            const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: start.id, result }) });
-            r = await res.json();
-          } catch { r = { ok: false, error: 'Could not reach the server. Your result was not saved.' }; }
+          const r = await sendFinish(start.id, result, (n) => overlay(`<h2>Saving your result…</h2><p class="muted">The server isn't answering (it may be updating). Still trying${'.'.repeat(1 + (n % 3))} Don't close this page.</p>`));
+          if (!r.ok && r.kept) return overlay(`<h2>Result not saved yet</h2><p class="muted">${r.error}</p><div class="arc-over-b"><a class="btn" href="">Try again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`);
           open = null;
           if (r.ok && r.run && r.run.choice) return runChoice(r.run);
           if (r.ok && r.run && r.run.over) {
@@ -156,7 +179,7 @@
             return overlay(`<h2>Run over</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="arc-coins down">${dod ? '-' + fmt(r.run.atRisk) + ' coins' : 'Nothing this time'}</p><p class="muted">${r.run.name} ended at game ${r.run.step}.${r.message ? ' ' + r.message : ''}</p>${balLine(r)}${again}`);
           }
           const coins = r.ok ? (r.net > 0 ? `<p class="arc-coins up">+${fmt(r.net)} coins</p>` : r.net < 0 ? `<p class="arc-coins down">${fmt(r.net)} coins</p>` : '') : '';
-          overlay(`<h2>${r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`);
+          overlay(`<h2>${!r.ok ? 'Result not saved' : r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`);
           document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
         },
       };
