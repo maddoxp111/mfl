@@ -32,6 +32,14 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-clutchtag b{display:block;font:900 clamp(28px,7vw,54px)/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:2px;color:#ff3344;text-shadow:0 0 18px rgba(255,51,68,.7),0 3px 0 #000}
 .bz-clutchtag i{display:block;font:700 13px Inter,sans-serif;color:#fff;font-style:normal;margin-top:4px;text-shadow:0 2px 4px #000}
 @keyframes bzct{0%{opacity:0;transform:translateX(-50%) scale(1.6)}12%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+.bz-pls{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#0f1117;border:1px solid #262b38;border-radius:8px;animation:bzpls var(--pd,1.4s) ease-in-out infinite}
+.bz-pls span{font:800 11px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#9aa0ad;margin-right:3px}
+.bz-pls i{display:block;width:4px;border-radius:2px;background:#262b38}
+.bz-pls i:nth-of-type(1){height:7px}.bz-pls i:nth-of-type(2){height:10px}.bz-pls i:nth-of-type(3){height:13px}.bz-pls i:nth-of-type(4){height:16px}.bz-pls i:nth-of-type(5){height:19px}
+.bz-pls i.on{background:#2bd46b}.bz-pls.t3 i.on{background:#ffc21a}.bz-pls.t4 i.on{background:#ff9a3c}.bz-pls.t5 i.on{background:#ff3344}
+.bz-pls.t4,.bz-pls.t5{border-color:rgba(255,51,68,.6)}
+@keyframes bzpls{0%,100%{transform:scale(1)}12%{transform:scale(1.07)}}
+.bz-narrow .bz-pls{padding:3px 6px}.bz-narrow .bz-pls span{display:none}
 .bz-dcall{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 4px}
 .bz-dcall button{position:relative;display:flex;flex-direction:column;gap:2px;align-items:center;padding:9px 4px;border-radius:9px;border:1px solid #2f3546;background:#161a24;color:#e8e9ed;cursor:pointer;font:inherit;pointer-events:auto}
 .bz-dcall button b{font:900 16px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px;text-transform:uppercase}.bz-dcall button small{font-size:10px;color:#9aa0ad;line-height:1.2}
@@ -382,6 +390,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       catch: () => { burst(0.05, 1200, 0.2, 3); tone(520, 0.05, 'square', 0.025); },
       tackle: () => { burst(0.16, 140, 0.5, 0.8); tone(70, 0.14, 'sine', 0.12, 45); },
       throw: () => burst(0.18, 2200, 0.08, 0.7),
+      stomp: () => { tone(52, 0.13, 'sine', 0.2, 38); burst(0.07, 110, 0.32, 0.9); },
+      clap: () => { burst(0.05, 1700, 0.22, 1.4); burst(0.05, 2300, 0.16, 1.6, 0.012); },
       beat: () => { tone(60, 0.1, 'sine', 0.18, 42); tone(54, 0.12, 'sine', 0.14, 38, 0.18); },
       horn: () => { tone(233, 0.6, 'sawtooth', 0.04); tone(294, 0.6, 'sawtooth', 0.035); tone(349, 0.6, 'sawtooth', 0.03); },
       cheer: () => burst(2.2, 1000, 0.35, 0.5),
@@ -4875,6 +4885,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- clutch time and game winners ----------
     function dramaStep(dt) {
+      pulseStep(dt);
       // flames trail the ball while the offense is on fire
       if (DRAMA.fireOn && phase === 'live') {
         DRAMA.flameT -= dt;
@@ -4906,6 +4917,46 @@ gl_FragColor=vec4(c,1.0);}`;
       } else pop(`${AWAY.name.toUpperCase()} TAKE THE LEAD`, '#ff3344');
     }
     let lastPts = 0;
+
+    // ---------- stadium pulse ----------
+    // How loud the building is, 0..1: a bigger crowd on the harder levels, louder as the ball gets into the red zone (either team's),
+    // louder late in the game, and most of all about the score (a close game rocks, a blowout empties the place), which counts for
+    // more as the game goes on. It sets how many fans stand and bounce and flash their phones, how often the wave goes round, how loud
+    // the crowd is, a stomp-stomp-clap at the line when the place is rocking, and the PULSE meter on the scoreboard.
+    const PULSE = { v: 0.2, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
+    const PULSE_TIERS = [[0, 'Quiet'], [0.38, 'Loud'], [0.58, 'Rocking'], [0.78, 'Deafening']];
+    function pulseTarget() {
+      if (phase === 'splash' || phase === 'box' || phase === 'over') return 0.15;
+      const g = gameProg(), m = Math.abs(hs - as);
+      const level = 0.1 + clamp(DIFF / 1.3, 0, 1) * 0.22;
+      // the red zone: the player's ball inside the 20, or a CPU drive getting there on its card
+      let rz = 0;
+      if (poss === 'home' && phase !== 'cpu') rz = los >= 80 ? 0.12 + (los - 80) / 20 * 0.14 : 0;
+      else if (cpuD && cpuD.r) { const k = Math.min(1, cpuD.t / cpuD.dur), sp = cpuD.start + (cpuD.r.spot - cpuD.start) * k; rz = sp >= 80 ? 0.1 + (sp - 80) / 20 * 0.12 : 0; }
+      const late = (g > 0.5 ? (g - 0.5) * 0.24 : 0) + (qtr === 4 && clock < 120 ? 0.08 : 0) + (qtr >= 5 ? 0.16 : 0);
+      const close = (m <= 3 ? 0.3 : m <= 8 ? 0.22 : m <= 14 ? 0.08 : m <= 21 ? -0.06 : -0.18) * (0.35 + 0.65 * g);
+      const rally = qtr >= 3 && hs < as && as - hs <= 8 ? 0.06 : 0; // the home crowd wants the comeback
+      return clamp(level + rz + late + close + rally + (DRAMA.fireOn ? 0.06 : 0) + (isClutch() ? 0.1 : 0), 0, 1);
+    }
+    function pulseStep(dt) {
+      PULSE.v += (pulseTarget() - PULSE.v) * Math.min(1, dt * 0.7);
+      const p = PULSE.v;
+      if (phase !== 'splash' && phase !== 'box' && phase !== 'over') excite = Math.max(excite, p * 0.62); // the crowd stands, bounces and flashes with it
+      // the meter: five bars, a beat that quickens as it climbs
+      const lit = Math.max(1, Math.ceil(p * 5 - 0.001));
+      if (lit !== PULSE.shown && pulseEl) { PULSE.shown = lit; pulseEl.querySelectorAll('i').forEach((b, i) => b.classList.toggle('on', i < lit)); pulseEl.style.setProperty('--pd', (1.5 - p * 1.05).toFixed(2) + 's'); pulseEl.className = 'bz-pls t' + lit; }
+      // a tier up gets called out (not every flicker: it has to climb, and not more than every 20 s)
+      let tier = 0; for (let i = 0; i < PULSE_TIERS.length; i++) if (p >= PULSE_TIERS[i][0]) tier = i;
+      PULSE.popT -= dt;
+      if (tier > PULSE.tier && tier >= 2 && PULSE.popT <= 0 && (phase === 'pre' || phase === 'cpu' || phase === 'dead')) { PULSE.popT = 20; pop(`STADIUM ${PULSE_TIERS[tier][1].toUpperCase()}`, tier >= 3 ? '#ff3344' : '#ffc21a'); DRAMA.log.push('pulse' + tier); }
+      PULSE.tier = tier;
+      // stomp, stomp, clap: the crowd's own rhythm at the line or on defense once the place is rocking (the heartbeat takes over in clutch time)
+      if (p >= 0.58 && !isClutch() && (phase === 'pre' || phase === 'cpu')) {
+        PULSE.beatT -= dt;
+        if (PULSE.beatT <= 0) { const n = PULSE.beatN++ % 3; sfx.play(n === 2 ? 'clap' : 'stomp'); PULSE.beatT = n === 2 ? 0.8 : 0.36; }
+      } else PULSE.beatN = 0;
+    }
+    let pulseEl = null;
 
     // ---------- crazy moments ----------
     // Big hits that launch a ragdoll, truck sticks, ankle breakers, bloopers, scoops, doinks and celebrations. Each one is visible on
@@ -6208,7 +6259,7 @@ gl_FragColor=vec4(c,1.0);}`;
       DRAWS.n = 0; DRAWS.tris = 0;
       updateCam(dt);
       const now = performance.now() / 1000;
-      if (wave > 0) wave = Math.max(0, wave - dt * 0.25); else if ((phase === 'cpu' || phase === 'break' || phase === 'pre') && dt > 0 && crand() < dt * 0.012) wave = 1;
+      if (wave > 0) wave = Math.max(0, wave - dt * 0.25); else if ((phase === 'cpu' || phase === 'break' || phase === 'pre') && dt > 0 && crand() < dt * 0.012 * (1 + PULSE.v * 4)) wave = 1; // the wave goes round more often when the place is rocking
       crowdMood += ((lastBig && (lastBig.kind === 'int' || lastBig.kind === 'fum') ? -1 : 0) - crowdMood) * Math.min(1, dt * 0.8);
       // pose everyone for this frame
       for (const p of everyone) animUpdate(p, Math.max(0, dt));
@@ -6891,8 +6942,8 @@ gl_FragColor=vec4(c,1.0);}`;
     const SVG_FS = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5"/></svg>';
     const SVG_SND = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 5c1.2 1.5 1.2 4.5 0 6" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>';
     const SVG_MUTE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.5"/></svg>';
-    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & 10</b><span>Own 25</span></div><div class="bz-sp"></div>`;
-    const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.bz-clk'), bPc = bug.querySelector('.bz-pc'), bDD = bug.querySelector('.bz-dd'), bSta = bug.querySelector('.bz-sta');
+    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & 10</b><span>Own 25</span></div><div class="bz-pls t1" title="Stadium pulse: how loud the building is"><span>Pulse</span><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="bz-sp"></div>`;
+    const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.bz-clk'), bPc = bug.querySelector('.bz-pc'), bDD = bug.querySelector('.bz-dd'), bSta = bug.querySelector('.bz-sta'); pulseEl = bug.querySelector('.bz-pls');
     const mkIB = (html, title) => { const b = el('button', 'bz-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const SVG_X = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3l10 10M13 3L3 13"/></svg>';
     const sndBtn = mkIB(SVG_SND, 'Sound'); sndBtn.classList.add('bz-snd'); const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="bz-q">' + QN[quality] + '</span>', 'Graphics quality'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
@@ -7489,7 +7540,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get drama() { return DRAMA; }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
+      get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
