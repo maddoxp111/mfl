@@ -32,6 +32,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-clutchtag b{display:block;font:900 clamp(28px,7vw,54px)/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:2px;color:#ff3344;text-shadow:0 0 18px rgba(255,51,68,.7),0 3px 0 #000}
 .bz-clutchtag i{display:block;font:700 13px Inter,sans-serif;color:#fff;font-style:normal;margin-top:4px;text-shadow:0 2px 4px #000}
 @keyframes bzct{0%{opacity:0;transform:translateX(-50%) scale(1.6)}12%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+.bz-noise{position:absolute;inset:-12px;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(0,0,0,.55) 70%,rgba(0,0,0,.92) 100%);transition:background .07s}
+.bz-noise.flash{background:radial-gradient(ellipse at center,rgba(255,255,255,.22) 0%,rgba(255,255,255,.08) 45%,rgba(0,0,0,.6) 100%)}
 .bz-pls{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#0f1117;border:1px solid #262b38;border-radius:8px;animation:bzpls var(--pd,1.4s) ease-in-out infinite}
 .bz-pls span{font:800 11px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#9aa0ad;margin-right:3px}
 .bz-pls i{display:block;width:4px;border-radius:2px;background:#262b38}
@@ -3369,8 +3371,10 @@ gl_FragColor=vec4(c,1.0);}`;
     function aimSpot() {
       if (!aim) return null;
       // pull back to aim: the throw goes the opposite way from the drag, like a slingshot
-      const dx = aim.ax - aim.px, dy = aim.ay - aim.py, len = Math.hypot(dx, dy);
-      if (len < 14) return null;
+      // the crowd sways the aim (the same sway the line shows)
+      const W = crowdWobble(), rx = aim.ax - aim.px, ry = aim.ay - aim.py, ca = Math.cos(W.a), sa = Math.sin(W.a);
+      const dx = (rx * ca - ry * sa) * W.k, dy = (rx * sa + ry * ca) * W.k, len = Math.hypot(dx, dy);
+      if (Math.hypot(rx, ry) < 14) return null;
       const qb = OK.QB, o = project(qb.x, 0, qb.z), ex = project(qb.x + 1, 0, qb.z), ez = project(qb.x, 0, qb.z + 1);
       if (!o || !ex || !ez) return null;
       const ax = ex[0] - o[0], ay = ex[1] - o[1], bx = ez[0] - o[0], by = ez[1] - o[1], det = ax * by - ay * bx;
@@ -4885,7 +4889,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- clutch time and game winners ----------
     function dramaStep(dt) {
-      pulseStep(dt);
+      pulseStep(dt); crowdStep(dt);
       // flames trail the ball while the offense is on fire
       if (DRAMA.fireOn && phase === 'live') {
         DRAMA.flameT -= dt;
@@ -4923,7 +4927,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // louder late in the game, and most of all about the score (a close game rocks, a blowout empties the place), which counts for
     // more as the game goes on. It sets how many fans stand and bounce and flash their phones, how often the wave goes round, how loud
     // the crowd is, a stomp-stomp-clap at the line when the place is rocking, and the PULSE meter on the scoreboard.
-    const PULSE = { v: 0.2, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
+    const PULSE = { e: 0, v: 0.2, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
     const PULSE_TIERS = [[0, 'Quiet'], [0.38, 'Loud'], [0.58, 'Rocking'], [0.78, 'Deafening']];
     function pulseTarget() {
       if (phase === 'splash' || phase === 'box' || phase === 'over') return 0.15;
@@ -4957,6 +4961,37 @@ gl_FragColor=vec4(c,1.0);}`;
       } else PULSE.beatN = 0;
     }
     let pulseEl = null;
+
+    // ---------- the crowd gets in your head ----------
+    // Once the building is loud the noise works on the player: the aim line sways and swells in his hand (the throw goes exactly where
+    // the line points the moment he lets go, so timing the release is part of it), the camera and the whole picture shake, and a dark
+    // vignette and flash bulbs make the field harder to read. All of it grows with the pulse past "loud" and with the level: Rookie
+    // gets under half of what GOAT does.
+    const crowdLvlK = () => 0.45 + 0.55 * clamp(DIFF / 1.3, 0, 1);
+    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead'; return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() : 0; }
+    // the sway applied to the aim: an angle (radians) and a length factor, from the time
+    function crowdWobble() {
+      const e = PULSE.e || 0; if (e <= 0.01) return { a: 0, k: 1 };
+      const t = performance.now() / 1000;
+      return { a: e * 0.17 * (0.7 * Math.sin(t * 11.9) + 0.3 * Math.sin(t * 20.7 + 1)), k: 1 + e * 0.09 * Math.sin(t * 8.8 + 2) };
+    }
+    let noiseEl = null, flashT = 0;
+    function crowdStep(dt) {
+      const e = PULSE.e = crowdE();
+      if (e > 0.01) cam.shake = Math.max(cam.shake, 0.2 + 0.75 * e);
+      // the picture itself shakes
+      if (stage) stage.style.transform = e > 0.01 ? `translate(${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 90) * 3 * e).toFixed(1)}px,${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 130) * 2 * e).toFixed(1)}px)` : '';
+      // the vignette closes in with the beat; flash bulbs pop
+      if (!noiseEl && stage) { noiseEl = el('div', 'bz-noise', ''); stage.appendChild(noiseEl); }
+      if (noiseEl) {
+        const beat = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * (6.3 / Math.max(0.45, 1.5 - PULSE.v * 1.05)));
+        noiseEl.style.opacity = e > 0.01 ? (e * (0.55 + 0.3 * beat)).toFixed(2) : '0';
+        flashT -= dt;
+        if (e > 0.15 && flashT <= 0 && Math.random() < dt * e * 3) { flashT = 0.25; noiseEl.classList.add('flash'); setTimeout(() => { try { noiseEl.classList.remove('flash'); } catch (er) {} }, 70); }
+      }
+      // keep the aim line moving even while the finger holds still
+      if (aim && phase === 'live' && mode === 'aim' && e > 0.01) showAim();
+    }
 
     // ---------- crazy moments ----------
     // Big hits that launch a ragdoll, truck sticks, ankle breakers, bloopers, scoops, doinks and celebrations. Each one is visible on
@@ -7273,7 +7308,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const s = aimSpot();
       if (s && s.back) { aimLn.style.display = 'none'; aimRun.style.display = 'block'; aimRun.style.left = o[0] + 'px'; aimRun.style.top = (o[1] - 40) + 'px'; return; }
       aimRun.style.display = 'none'; aimLn.style.display = 'block';
-      aimLn.style.left = o[0] + 'px'; aimLn.style.top = o[1] + 'px'; aimLn.style.width = Math.min(l, 260) + 'px'; aimLn.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+      const W = crowdWobble(); // the crowd sways the line (and the throw with it)
+      aimLn.style.left = o[0] + 'px'; aimLn.style.top = o[1] + 'px'; aimLn.style.width = Math.min(l * W.k, 260) + 'px'; aimLn.style.transform = `rotate(${Math.atan2(dy, dx) + W.a}rad)`;
       aimLn.style.opacity = s && s.over ? '1' : '0.75';
     }
     function hideAim() { aimLn.style.display = aimRun.style.display = 'none'; }
@@ -7540,7 +7576,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
-      get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
+      get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, get crowdE() { return PULSE.e; }, aimSpotNow() { return aimSpot(); }, crowdWobble() { return crowdWobble(); }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
