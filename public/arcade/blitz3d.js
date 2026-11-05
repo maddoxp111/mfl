@@ -47,6 +47,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-dcall button b{font:900 16px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px;text-transform:uppercase}.bz-dcall button small{font-size:10px;color:#9aa0ad;line-height:1.2}
 .bz-dcall button.sug{border-color:#ffc21a;box-shadow:inset 0 0 0 1px #ffc21a}.bz-dcall button u{position:absolute;top:3px;right:5px;text-decoration:none;font:400 8px 'Press Start 2P',monospace;color:#ffc21a}
 .bz-dct{font-size:11px;color:#9aa0ad;margin:2px 0 0}
+.bz-dtm{height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin:5px 0 0;overflow:hidden}.bz-dtm i{display:block;height:100%;background:#ffc21a;border-radius:2px}
 .bz-tm.pos i{opacity:1}
 .bz-tm s{display:flex;gap:2px;text-decoration:none;position:absolute;left:8px;bottom:2px}
 .bz-tm s u{display:block;width:9px;height:2px;background:#ffc21a;text-decoration:none}.bz-tm s u.off{background:#2a2f3c}
@@ -3431,7 +3432,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const qb = OK.QB, arcT = qb.throwArc, as0 = assistSpot(qb.throwSpot, arcT), spot = as0.spot;
       qb.throwT = -1;
       // the ball is out of his hands: he is nobody's ball carrier any more, whatever happens to him next
-      const hurry = qb.hurried ? 1.7 : 1; qb.hurried = 0;
+      const hurry = qb.hurried ? 1.7 : qb.sackBy ? 1.45 : 1; qb.hurried = 0; // hurried: wilder (a throw out of a rusher's grip a little less so)
       if (carrier === qb) carrier = null;
       qb.wrapT = 0; qb.wrapBy = null; qb.downAt = 0;
       const D0 = Math.hypot(spot.x - qb.x, spot.z - qb.z), D = Math.min(D0, maxDist());
@@ -3958,6 +3959,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c === OK.QB && c.throwT >= 0 && ball && ball.holder === c && !thrown) { c.hurried = 1; releaseBall(); lateHit(c, d, nx, nz); popAt(c, 'GOT IT OFF!', '#2bd46b'); return; }
       // the ball is gone (thrown or handed off): flattening him now can't end the play
       if (ball && ball.holder !== c) { lateHit(c, d, nx, nz); return; }
+      if (c.sackBy) return; // already in a rusher's grip: the clock on that is running
       // a dive is already on its way down: contact can't stop it, only shorten it, and the tackler goes down with him
       if (c.diving || c.diveT > 0) {
         if (!c.diveHit) { c.diveHit = 1; d.tried = 1; const head = (c.vx * -nx + c.vz * -nz) > 0, k = head ? 0.55 : 0.85; c.vx *= k; c.vz *= k; knockDown(d, [c.vx * 0.4, 0, c.vz * 0.4], [nx * -0.4, 0.2, nz * -0.4], 1.0); sfx.play('tackle'); }
@@ -4038,16 +4040,41 @@ gl_FragColor=vec4(c,1.0);}`;
         moment('decleat', c, 'DE-CLEATED!', { a: c, b: d, victim: victimOf(c), snd: 'tackle', shake: 0.7, col: c.side === 0 ? '#ff9a3c' : '#2bd46b' });
         return;
       }
+      // a rusher gets hold of the QB in the pocket: a split second to get the ball out before he goes down
+      if (behindLOS && c === OK.QB && mode === 'aim') { grabQB(c, d); return; }
       if (c.wrapT > 0 || behindLOS || gang > 0 || closing > 7 || fromBehind && vc < 3) { finishTackle(c, d, behindLOS ? 'sack' : 'hit', nx, nz, closing); return; }
       // wrap-up: the carrier drags him for a moment, then goes down (or sheds him)
       c.wrapT = 0.22 + Math.min(0.3, vc * 0.03) * (c.str / 70); c.wrapBy = d; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle'); c.stumbleT = 0.5;
+    }
+    // ---------- the sack: a rusher grabs the QB, and he has a split second (time slows a touch) to throw before he is taken down ----------
+    const SACK_WIN = clamp(0.55 - DIFF * 0.12, 0.38, 0.55); // game seconds: Rookie 0.55, Legend 0.43, GOAT 0.39 (about 0.9 / 0.7 / 0.65 s on the clock on the wall)
+    function grabQB(c, d) {
+      c.sackT = SACK_WIN; c.sackBy = d; d.tried = 1; d.lastTry = tPlay; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle');
+      c.stumbleT = Math.max(c.stumbleT || 0, 0.25);
+      popAt(c, 'GET IT OUT!', '#ff9a3c'); sfx.play('tackle'); cam.shake = Math.max(cam.shake, 0.35);
+      if (pr) pr.notes.push('grab');
+    }
+    function sackStep(q, dt) {
+      const d = q.sackBy;
+      if (phase !== 'live') return;
+      const ox = q.x - (d ? d.x : q.x), oz = q.z - (d ? d.z : q.z - 1), ol = Math.hypot(ox, oz) || 1;
+      // the ball is out: he takes the hit after it, and the pass plays on
+      if (q.rag || !ball || ball.holder !== q || thrown) { q.sackBy = null; q.sackT = 0; if (!q.rag && d && !d.rag && thrown) lateHit(q, d, ox / ol, oz / ol); return; }
+      if (!d || d.rag) { q.sackBy = null; q.sackT = 0; return; } // a blocker knocked him off: free again
+      q.sackT -= dt;
+      q.vx *= 0.2; q.vz *= 0.2; // held: he can't get away, only throw
+      if (d && !d.rag) { const want = q.rad + d.rad + 0.05; d.x = q.x - ox / ol * want; d.z = q.z - oz / ol * want; d.vx = q.vx; d.vz = q.vz; d.face2 = Math.atan2(ox, oz); setPose(d, 'tackle', true); }
+      if (q.sackT > 0) return;
+      q.sackBy = null; q.sackT = 0;
+      if (q.throwT >= 0) { q.hurried = 1; releaseBall(); if (d) lateHit(q, d, ox / ol, oz / ol); popAt(q, 'GOT IT OFF!', '#2bd46b'); return; } // the arm was already coming forward
+      finishTackle(q, d, 'sack', ox / ol, oz / ol, 3);
     }
     // a hit on a player without the ball: he goes down, the play goes on
     function lateHit(c, d, nx, nz) {
       if (c.rag) return;
       d.tried = 1; d.lastTry = tPlay;
       knockDown(c, [nx * 2.2 + d.vx * 0.3, 0.3, nz * 2.2 + d.vz * 0.3], [nx * 0.5, 0.35, nz * 0.5], 1.1);
-      c.downAt = 0; c.wrapT = 0; c.wrapBy = null;
+      c.downAt = 0; c.wrapT = 0; c.wrapBy = null; c.sackBy = null; c.sackT = 0;
       sfx.play('tackle'); cam.shake = Math.max(cam.shake, 0.3);
     }
     function finishTackle(c, d, kind, nx, nz, closing) {
@@ -4715,16 +4742,17 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!DRAMA.keep) fireOut('FIRE\'S OUT'); DRAMA.keep = false; // the player's drive ended without points
       // the player calls the defense first (a few seconds, then the suggested call is made for him), then the drive is played out
       const sug = suggestCall();
-      cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true, pickT: isClutch() ? 6 : 3.2, sug };
+      cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true, pickT: PICK_T, sug };
       cpuD.el.style.setProperty('--oc', OPPCSS);
       fx.appendChild(cpuD.el); drawPick();
       setControls(true);
       say(`<b>${esc(AWAY.name)}</b> ball at their ${start}. Call the defense.`);
       voice.say('cpu_drive_start', { away: AWAY.name, spot: start === 50 ? 'midfield' : 'the ' + start }, 1, 0.3);
     }
+    const PICK_T = 5; // seconds to call the defense before the suggested call is made for you
     function drawPick() {
       const d = cpuD;
-      d.el.innerHTML = `<h3>${esc(AWAY.name)} ball</h3><p>Started at their ${d.start}. Call the defense:</p><div class="bz-dcall">${['blitz', 'base', 'prevent'].map((k, i) => `<button type="button" data-call="${k}" class="${k === d.sug ? 'sug' : ''}"><b>${DEFCALL[k].name}</b><small>${DEFCALL[k].sub}</small>${touchy ? '' : `<u>${i + 1}</u>`}</button>`).join('')}</div><p class="bz-dct">${DEFCALL[d.sug].name} in <b>${Math.ceil(d.pickT)}</b></p>`;
+      d.el.innerHTML = `<h3>${esc(AWAY.name)} ball</h3><p>Started at their ${d.start}. Call the defense:</p><div class="bz-dcall">${['blitz', 'base', 'prevent'].map((k, i) => `<button type="button" data-call="${k}" class="${k === d.sug ? 'sug' : ''}"><b>${DEFCALL[k].name}</b><small>${DEFCALL[k].sub}</small>${touchy ? '' : `<u>${i + 1}</u>`}</button>`).join('')}</div><p class="bz-dct">No pick and it's ${DEFCALL[d.sug].name} in <b>${Math.ceil(d.pickT)}</b></p><div class="bz-dtm"><i style="width:${(d.pickT / PICK_T * 100).toFixed(1)}%"></i></div>`;
       d.el.querySelectorAll('[data-call]').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); chooseCall(b.getAttribute('data-call')); }));
     }
     function chooseCall(call) {
@@ -4744,7 +4772,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function cpuStep(dt) {
       const d = cpuD;
-      if (d.pick) { const was = Math.ceil(d.pickT); d.pickT -= dt; if (d.pickT <= 0) chooseCall(d.sug); else if (Math.ceil(d.pickT) !== was) { const b = d.el.querySelector('.bz-dct b'); if (b) b.textContent = Math.ceil(d.pickT); } return; }
+      if (d.pick) { const was = Math.ceil(d.pickT); d.pickT -= dt; if (d.pickT <= 0) chooseCall(d.sug); else { if (Math.ceil(d.pickT) !== was) { const b = d.el.querySelector('.bz-dct b'); if (b) b.textContent = Math.ceil(d.pickT); } const bar = d.el.querySelector('.bz-dtm i'); if (bar) bar.style.width = (d.pickT / PICK_T * 100).toFixed(1) + '%'; } return; }
       d.t += dt;
       clock = d.c0 + (d.r.t - d.c0) * Math.min(1, d.t / d.dur);
       if (!d.shown && d.t >= d.dur) {
@@ -4941,24 +4969,29 @@ gl_FragColor=vec4(c,1.0);}`;
     let lastPts = 0;
 
     // ---------- stadium pulse ----------
-    // How loud the building is, 0..1: a bigger crowd on the harder levels, louder as the ball gets into the red zone (either team's),
-    // louder late in the game, and most of all about the score (a close game rocks, a blowout empties the place), which counts for
-    // more as the game goes on. It sets how many fans stand and bounce and flash their phones, how often the wave goes round, how loud
-    // the crowd is, a stomp-stomp-clap at the line when the place is rocking, and the PULSE meter on the scoreboard.
-    const PULSE = { e: 0, v: 0.2, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
+    // How loud the building is, 0..1. Plays that don't matter get a quiet hum. It only gets going on a big down in the red zone
+    // (the player's 3rd or 4th down inside the 20) or in the fourth quarter and overtime, and then it is about the score (a close
+    // game rocks, a blowout empties the place), the field position, the down, the clock and the level (a bigger crowd on the harder
+    // levels). It sets how many fans stand and bounce and flash their phones, how often the wave goes round, how loud the crowd is,
+    // a stomp-stomp-clap at the line when the place is rocking, and the PULSE meter on the scoreboard.
+    const PULSE = { e: 0, v: 0.12, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
     const PULSE_TIERS = [[0, 'Quiet'], [0.38, 'Loud'], [0.58, 'Rocking'], [0.78, 'Deafening']];
+    // the player's ball inside the 20 (live, between plays, or lined up)
+    const homeRZ = () => poss === 'home' && phase !== 'cpu' && phase !== 'koc' && !(kick && kick.type === 'ko') && los >= 80;
     function pulseTarget() {
       if (phase === 'splash' || phase === 'box' || phase === 'over') return 0.15;
-      const g = gameProg(), m = Math.abs(hs - as);
+      const g = gameProg(), m = Math.abs(hs - as), q4 = qtr >= 4;
       const level = 0.1 + clamp(DIFF / 1.3, 0, 1) * 0.22;
       // the red zone: the player's ball inside the 20, or a CPU drive getting there on its card
-      let rz = 0;
-      if (poss === 'home' && phase !== 'cpu') rz = los >= 80 ? 0.12 + (los - 80) / 20 * 0.14 : 0;
-      else if (cpuD && cpuD.r) { const k = Math.min(1, cpuD.t / cpuD.dur), sp = cpuD.start + (cpuD.r.spot - cpuD.start) * k; rz = sp >= 80 ? 0.1 + (sp - 80) / 20 * 0.12 : 0; }
-      const late = (g > 0.5 ? (g - 0.5) * 0.24 : 0) + (qtr === 4 && clock < 120 ? 0.08 : 0) + (qtr >= 5 ? 0.16 : 0);
-      const close = (m <= 3 ? 0.3 : m <= 8 ? 0.22 : m <= 14 ? 0.08 : m <= 21 ? -0.06 : -0.18) * (0.35 + 0.65 * g);
-      const rally = qtr >= 3 && hs < as && as - hs <= 8 ? 0.06 : 0; // the home crowd wants the comeback
-      return clamp(level + rz + late + close + rally + (DRAMA.fireOn ? 0.06 : 0) + (isClutch() ? 0.1 : 0), 0, 1);
+      let rz = 0, big = false;
+      if (homeRZ()) { rz = 0.12 + (los - 80) / 20 * 0.14; big = down >= 3; }
+      else if (phase === 'cpu' && cpuD && cpuD.r) { const k = Math.min(1, cpuD.t / cpuD.dur), sp = cpuD.start + (cpuD.r.spot - cpuD.start) * k; rz = sp >= 80 ? 0.1 + (sp - 80) / 20 * 0.12 : 0; }
+      if (!q4 && !big) return clamp(level * 0.5 + rz * 0.35, 0, 0.24); // a play that doesn't matter: one bar, two in the red zone
+      const close = (m <= 3 ? 0.3 : m <= 8 ? 0.22 : m <= 14 ? 0.06 : m <= 21 ? -0.08 : -0.2) * (q4 ? 1 : 0.35 + 0.65 * g);
+      const late = q4 ? 0.12 + (qtr === 4 && clock < 60 ? 0.08 : 0) + (qtr >= 5 ? 0.12 : 0) : 0;
+      const dn = big ? 0.12 + (down === 4 ? 0.06 : 0) : 0;
+      const rally = q4 && hs < as && as - hs <= 8 ? 0.06 : 0; // the home crowd wants the comeback
+      return clamp(level + rz + dn + late + close + rally + (DRAMA.fireOn ? 0.06 : 0) + (isClutch() ? 0.1 : 0), 0, 1);
     }
     function pulseStep(dt) {
       PULSE.v += (pulseTarget() - PULSE.v) * Math.min(1, dt * 0.7);
@@ -4983,10 +5016,12 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- the crowd gets in your head ----------
     // Once the building is loud the noise works on the player: the aim line sways and swells in his hand (the throw goes exactly where
     // the line points the moment he lets go, so timing the release is part of it), the camera and the whole picture shake, and a dark
-    // vignette and flash bulbs make the field harder to read. All of it grows with the pulse past "loud" and with the level: Rookie
-    // gets under half of what GOAT does.
+    // vignette and flash bulbs make the field harder to read. All of it grows with the pulse past "loud" and with the level (Rookie
+    // gets under half of what GOAT does), and it only happens where it matters: in the red zone, or at half strength in a one-score
+    // fourth quarter (or overtime) anywhere else on the field.
     const crowdLvlK = () => 0.45 + 0.55 * clamp(DIFF / 1.3, 0, 1);
-    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead'; return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() : 0; }
+    const crowdZone = () => homeRZ() ? 1 : qtr >= 4 && Math.abs(hs - as) <= 8 ? 0.5 : 0;
+    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead'; return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() * crowdZone() : 0; }
     // the sway applied to the aim: an angle (radians) and a length factor, from the time
     function crowdWobble() {
       const e = PULSE.e || 0; if (e <= 0.01) return { a: 0, k: 1 };
@@ -5918,6 +5953,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!loose) { offenseAI(dt); defenseAI(dt); }
       if (qbMan) { const d = userDir(), q = OK.QB; staminaStep(q, dt, input.sprint); steerDir(q, d[0], d[1], effV(q) * 0.8, dt, 10); }
       else if (!loose && mode === 'aim' && OK.QB && ctrl !== OK.QB) staminaStep(OK.QB, dt, false);
+      if (OK.QB && OK.QB.sackBy) { sackStep(OK.QB, dt); if (phase !== 'live') return; }
       if (carrier && carrier === ctrl && mode === 'run') carrierStep(carrier, dt);
       else if (carrier) { if (carrier.wrapT > 0) wrapStep(carrier, dt); if (carrier.downAt && tPlay >= carrier.downAt) { carrier.downAt = 0; resolveDown(carrier); } if (phase !== 'live') return; }
       for (const p of everyone) if (p.diveT > 0 && p !== carrier && !p.rag) receiverDiveStep(p, dt); // receivers and defenders laying out for a pass
@@ -7146,7 +7182,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const hotOK = (p) => p.type === 'pass' || p.type === 'pa' || p.type === 'boot' || p.type === 'qbdraw';
     function setArc(i) { arc = i; sfx.play('tap'); ctl.querySelectorAll('.bz-arc button').forEach((b, k) => b.classList.toggle('sel', k === arc)); }
     function scramble() {
-      if (phase !== 'live' || mode !== 'aim' || !OK.QB || ball.holder !== OK.QB || OK.QB.throwT >= 0) return;
+      if (phase !== 'live' || mode !== 'aim' || !OK.QB || ball.holder !== OK.QB || OK.QB.throwT >= 0 || OK.QB.sackBy) return;
       const q = OK.QB; aim = null; hideAim();
       carrier = q; ctrl = q; mode = 'run'; pr.kind = 'rush'; pr.rusher = q; runSeen = tPlay; q.hold = false; q.face2 = null; q.look = null;
       sfx.play('tap'); setControls(true); voiceLive('scramble_live', { passer: nm(q) }, 0.9);
@@ -7374,7 +7410,7 @@ gl_FragColor=vec4(c,1.0);}`;
       raf = requestAnimationFrame(frame);
       const el2 = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
       const mul = (DBG && DBG.speed) || 1;
-      const slow = PK.slowT > 0 && phase === 'live' ? 0.4 : 1; // Slow-Mo perk: time slows for a beat
+      const slow = phase !== 'live' ? 1 : PK.slowT > 0 ? 0.4 : OK.QB && OK.QB.sackBy ? 0.6 : 1; // Slow-Mo perk: time slows for a beat; a touch slower while a rusher has the QB
       let sim = el2 * mul * slow, n = 0, rdt = el2 * mul * slow;
       if (DBG && DBG.stepT) { sim = DBG.stepT; rdt = DBG.stepT; DBG.stepT = 0; } else if (DBG && DBG.speed === 0) { sim = 0; rdt = 0; }
       const ts = performance.now();
