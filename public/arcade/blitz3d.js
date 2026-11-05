@@ -4118,7 +4118,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function fumble(c) {
       if (perkHook('fumble', c)) { endPlay('tackle', c.contactZ || c.z); return false; }
-      ball = { st: 'loose', x: c.x, y: 1.1, z: c.z, vx: (rng() - 0.5) * 6, vy: 3 + rng() * 2, vz: (rng() - 0.5) * 6, holder: null, t: 0, spin: 0 };
+      ball = { st: 'loose', x: c.x, y: 1.1, z: c.z, vx: (rng() - 0.5) * 6, vy: 3 + rng() * 2, vz: (rng() - 0.5) * 6, holder: null, t: 0, spin: 0, from: c };
       carrier = null; ctrl = null; mode = 'none';
       popAt(c, 'FUMBLE!', '#ff3344'); sfx.play('bad'); pr.fumble = true; setControls(true);
       return true;
@@ -4127,8 +4127,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const b = ball; b.t += dt;
       groundStep(b, dt);
       const frozen = kick && kick.onside && kick.t - kick.kickT < kick.react ? (kick.home ? 1 : 0) : -1; // the hands team is a beat late to an onside kick
+      // a fumble on a kick return: the return team's blockers have their backs to the ball and turn a beat late; the cover team is running at it
+      const kr = !!(kick && kick.type === 'ko' && !kick.onside), late = kr && b.t < 0.5 ? 0 : -1;
       for (const p of everyone) { // both sides go for the loose ball
-        if (p.rag || p.stun > 0 || p.rising > 0 || p.side === frozen) continue;
+        if (p.rag || p.stun > 0 || p.rising > 0 || p.side === frozen || p.side === late) continue;
         p.eng = null; p.face2 = null;
         if (p !== ctrl) steer(p, b.x, b.z, p.side ? effV(p) : p.v, dt, 10);
         p.look = [b.x, b.y, b.z];
@@ -4136,6 +4138,9 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.t < 0.35) return;
       let best = null, bd = 0.8;
       for (const p of everyone) { if (p.rag || p.rising > 0) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < bd && b.y < 0.7) { bd = d; best = p; } }
+      // on a kick return the men knocked down in the pile can fall on it when it squirts out next to them (not the one who fumbled it)
+      let fell = null;
+      if (!best && kr && b.y < 0.5) { let fd = 1.0; for (const p of everyone) { if (!p.rag || p === b.from) continue; const r = p.rag.pts[0], d = Math.hypot(r[0] - b.x, r[2] - b.z); if (d < fd) { fd = d; fell = p; } } best = fell; }
       if (best) {
         if (kick && kick.onside) { // an onside kick: whoever falls on it has it, but the first touches can be bobbled
           const hk = kick.home, kickSide = hk ? 0 : 1, muffP = best.side === kickSide ? 0.15 : hk ? 0.4 - 0.1 * DIFF : 0.25 + 0.15 * DIFF;
@@ -4158,7 +4163,8 @@ gl_FragColor=vec4(c,1.0);}`;
           setControls(true); return;
         }
         funPile(b, best);
-        knockDown(best, [best.vx * 0.4, -1, best.vz * 0.4], null, 1.2); ball.holder = best; ball.st = 'held';
+        if (fell) { best.x = fell.rag.pts[0][0]; best.z = fell.rag.pts[0][2]; } else knockDown(best, [best.vx * 0.4, -1, best.vz * 0.4], null, 1.2);
+        ball.holder = best; ball.st = 'held';
         popAt(best, best.side === 0 ? 'RECOVERED!' : 'THEY RECOVER!', best.side === 0 ? '#2bd46b' : '#ff3344');
         if (pr.int) { pr.regain = best.side === 0; endPlay(best.side === 0 ? 'tackle' : 'intdown', best.z); } // the return man coughed it up
         else endPlay(best.side === 0 ? 'tackle' : 'fumlost', best.z);
