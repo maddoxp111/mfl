@@ -89,7 +89,7 @@
         await new Promise((ok) => setTimeout(ok, Math.min(15000, 1500 * n)));
       }
     }
-    (async () => { // a result from last time that never arrived
+    const resent = (async () => { // a result from last time that never arrived
       let u = null; try { u = JSON.parse(localStorage.getItem(UNSENT) || 'null'); } catch (e) {}
       if (!u || !u.id) return;
       if (Date.now() - (u.at || 0) > 3 * 3600e3) { keep(null); return; }
@@ -106,6 +106,8 @@
       body.game = cfg.game;
       const btn = form.querySelector('button[type=submit]');
       btn.disabled = true;
+      // a kept result from last time goes in first (starting a game would otherwise count that one as unfinished)
+      try { const u = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (u) { $('#arcMsg').textContent = 'Saving your last game\'s result first…'; await resent; const again = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (again) await sendFinish(again.id, again.result); } } catch (e) {}
       let start;
       try {
         const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

@@ -91,6 +91,19 @@ function markWon(user, m, why) {
   else m.payout = Math.round(G.prizes[m.level] * (m.risk ? RISK_MULT[m.level] : 1));
   return { ok: true, why: m.run ? `${RUNS[m.run.mode].name} game ${m.run.step} is a win now, with the choice to cash out or play on waiting on the 3D Blitz page.` : `Marked won: ${m.payout} coins.` };
 }
+// A game still open from before this server started was cut off by a restart (an update, a crash): its result had nowhere to go.
+// A restart never turns a game into a loss: when the player starts something else and no result has come in, it is refunded
+// (void, stake back), and in a run the run goes back to the choice after the game before it, as an admin refund does.
+const SERVER_START = Date.now();
+function cutOffByRestart(user, m) {
+  if (!m || m.status !== 'open' || m.versus || !(Date.parse(m.at) < SERVER_START)) return false;
+  m.status = 'void'; m.refund = { why: 'restart', at: new Date().toISOString() };
+  if (m.run && m.run.step > 1) {
+    const prev = (user.arcade || []).find((x) => x.run && x.run.id === m.run.id && x.run.step === m.run.step - 1 && x.status === 'won');
+    if (prev) { prev.run.rolled = false; prev.run.pending = true; }
+  }
+  return true;
+}
 // a won step whose choice was never made is cashed out when the player starts anything else: nobody loses coins by walking away
 function settlePending(user) {
   let n = 0;
@@ -466,7 +479,7 @@ module.exports = function arcade(app, h) {
       user.arcade = user.arcade || [];
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule). A live Head to Head
       // match (m.versus) is settled by versus.js, not here.
-      for (const m of user.arcade) if (m.status === 'open' && !m.versus) { m.status = 'lost'; m.forfeit = true; }
+      for (const m of user.arcade) if (m.status === 'open' && !m.versus && !cutOffByRestart(user, m)) { m.status = 'lost'; m.forfeit = true; }
       settlePending(user);
       const step = runMode ? runFirst(runMode, level) : null;
       const stake = runMode ? step.charge : risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line; a run's risk is never capped by the balance
@@ -509,7 +522,7 @@ module.exports = function arcade(app, h) {
     }
     // play on: the won step is rolled into the next one, at the level asked for (Legend x1.5, GOAT x2); dod charges the risk's growth now
     m.run.rolled = true;
-    for (const x of user.arcade) if (x.status === 'open' && !x.versus) { x.status = 'lost'; x.forfeit = true; }
+    for (const x of user.arcade) if (x.status === 'open' && !x.versus && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
     const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V } };
     user.arcade.push(n);
@@ -909,7 +922,17 @@ module.exports = function arcade(app, h) {
     } catch (e) { FIX = { error: String(e && e.message || e) }; console.error('arcade repair', e); }
   }
   if (process.env.RAILWAY_ENVIRONMENT && Date.now() < FIX_UNTIL) setTimeout(repairOnce, 15000).unref?.();
-  app.get('/arcade/fix-status/:key', (req, res) => { if (req.params.key !== FIX_KEY || Date.now() > FIX_UNTIL) return res.status(404).send('Not found'); json(res, FIX); });
+  app.get('/arcade/fix-status/:key', async (req, res) => {
+    if (req.params.key !== FIX_KEY || Date.now() > FIX_UNTIL) return res.status(404).send('Not found');
+    if (!req.query.d) return json(res, FIX);
+    try { // live: his recent arcade games and what each did to his coins
+      const all = await h.listDocs('users/'), u0 = all.find((u) => String(u.name || '').toLowerCase() === 'mpedon');
+      if (!u0) return json(res, { found: false });
+      const user = await getDoc(userKey(u0.name), { fresh: true }), db = load();
+      const recent = (user.arcade || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, +req.query.n || 14).map((m) => ({ id: m.id, game: m.game, at: m.at, local: m.local, status: m.status, level: m.level, risk: !!m.risk, stake: m.stake, payout: m.payout, net: matchNet(m), run: m.run || null, refund: m.refund || null, forfeit: !!m.forfeit, quit: !!m.quit, fixed: m.fixed || null, versus: m.versus ? { opp: m.versus.opp, reason: m.versus.reason } : null, score: m.score, opp: m.stats && m.stats.opp }));
+      json(res, { name: u0.name, balance: h.accountOf(db, user, await h.survivorNow(db)).balance, arcadeNet: (user.arcade || []).reduce((a, m) => a + matchNet(m), 0), serverStart: new Date(SERVER_START).toISOString(), recent });
+    } catch (e) { json(res, { error: String(e && e.message || e) }); }
+  });
   app.post('/admin/arcade/won', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
     const user = await getDoc(userKey(name), { fresh: true });
