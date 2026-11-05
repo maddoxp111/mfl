@@ -3276,6 +3276,8 @@ function ratingOf(db, t, p) {
 
 tts.register(app, { currentUser, requireAdmin, load }); // before /arcade/:game
 arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
+// Head to Head (3D Blitz, live): its WebSocket is attached to each server app.listen() starts, below.
+const versusApi = require('./versus')(app, { esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
@@ -3314,10 +3316,10 @@ function shrinkLogos(db) {
 
 if (require.main === module) {
   refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db); if (a || b || c) await save(); }).catch((e) => console.error(e));
-  app.listen(PORT, () => console.log(`MFL running on :${PORT}`));
+  versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
   // On Railway also listen on a fixed port, for the TCP proxy Vercel forwards to.
-  if (process.env.RAILWAY_ENVIRONMENT && String(PORT) !== '8080') app.listen(8080, () => console.log('MFL also on :8080'));
+  if (process.env.RAILWAY_ENVIRONMENT && String(PORT) !== '8080') versusApi.attach(app.listen(8080, () => console.log('MFL also on :8080')));
 }
 module.exports = app;

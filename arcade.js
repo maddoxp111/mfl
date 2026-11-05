@@ -219,7 +219,7 @@ module.exports = function arcade(app, h) {
   // What a user did on one day (for challenges).
   function dayFacts(user, day) {
     const ms = (user.arcade || []).filter((m) => m.local?.slice(0, 10) === day);
-    const won = ms.filter((m) => m.status === 'won');
+    const won = ms.filter((m) => m.status === 'won' && !(m.versus && m.versus.reason !== 'final'));
     const winsBy = {}; for (const m of won) winsBy[m.game] = (winsBy[m.game] || 0) + 1;
     return {
       bets: (user.bets || []).filter((b) => localDay(b.placed) === day).length,
@@ -443,8 +443,9 @@ module.exports = function arcade(app, h) {
       }
       if (practice) return json(res, { ok: true, id: null, seed, level, levelName: LEVELS[level], risk: false, data });
       user.arcade = user.arcade || [];
-      // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule).
-      for (const m of user.arcade) if (m.status === 'open') { m.status = 'lost'; m.forfeit = true; }
+      // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule). A live Head to Head
+      // match (m.versus) is settled by versus.js, not here.
+      for (const m of user.arcade) if (m.status === 'open' && !m.versus) { m.status = 'lost'; m.forfeit = true; }
       settlePending(user);
       const step = runMode ? runFirst(runMode, level) : null;
       const stake = runMode ? step.charge : risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line; a run's risk is never capped by the balance
@@ -487,7 +488,7 @@ module.exports = function arcade(app, h) {
     }
     // play on: the won step is rolled into the next one, at the level asked for (Legend x1.5, GOAT x2); dod charges the risk's growth now
     m.run.rolled = true;
-    for (const x of user.arcade) if (x.status === 'open') { x.status = 'lost'; x.forfeit = true; }
+    for (const x of user.arcade) if (x.status === 'open' && !x.versus) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
     const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V } };
     user.arcade.push(n);
@@ -506,6 +507,7 @@ module.exports = function arcade(app, h) {
       const user = await getDoc(userKey(name), { fresh: true });
       const m = (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
       if (!m) return json(res, { ok: false, error: 'That game was not found.' });
+      if (m.versus) return json(res, { ok: false, error: 'Head to Head games are settled by the server.' });
       if (m.status !== 'open') return json(res, { ok: false, error: m.forfeit ? 'That game was forfeited when another one started.' : 'That game already ended.' });
       const G = GAMES[m.game], r = req.body.result || {};
       const secs = (Date.now() - Date.parse(m.at)) / 1000;
@@ -587,13 +589,13 @@ module.exports = function arcade(app, h) {
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
               <p>${ORDER.length} games, 4 levels each (6 in 3D Blitz: Hall of Fame and GOAT past Legend), Risk mode for up to ${Math.max(...RISK_MULT)}× the coins, and two runs in 3D Blitz: Double or Nothing and Double or Double.</p>
-              <div class="arc-cta"><a class="btn" href="/arcade/blitz3d?mode=don">${RUNS.don.emoji} Double or Nothing</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
+              <div class="arc-cta"><a class="btn" href="/arcade/blitz3d?mode=don">${RUNS.don.emoji} Double or Nothing</a><a class="btn ghost" href="/arcade/blitz3d/versus">🆚 Head to Head</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
         <div class="wrap">${req.query.m === 'checkin' ? '<div class="toast">Checked in ✓</div>' : ''}
           <div class="arc-grid">${ORDER.map(tile).join('')}</div>
           <div class="home-grid"><div class="col">${earnList(user, db)}
-            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || m.game)}</b><small>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`).join('')}</ol></section>` : ''}</div>
+            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || m.game)}</b><small>${m.versus ? `Head to Head vs @${esc(m.versus.opp)}` : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.versus && !m.stake ? (m.status === 'won' ? 'Win' : 'Loss') : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`).join('')}</ol></section>` : ''}</div>
             <div class="col"><section class="card"><div class="card-h"><h2>Every way to earn coins</h2></div><div class="ways">${WAYS.map(([e, t, d]) => `<div><span>${e}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div></section>
             <section class="card"><div class="card-h"><h2>How Arcade coins work</h2></div><ul class="how">
               <li>Pick a level: Rookie, Pro, All-Pro or Legend, and in 3D Blitz also Hall of Fame and GOAT. Harder levels pay more.</li>
@@ -690,7 +692,8 @@ module.exports = function arcade(app, h) {
         : `<b>Hall of Fame is the main level, your coins on the line.</b> From Hall of Fame, ${fmt(r)} at risk to cash out ${fmt(c)} (Legend: ${fmt(R.stake(3))} to cash out ${fmt(R.cash(3))}; GOAT: ${fmt(R.stake(4))} to cash out ${fmt(R.cash(4))}). After every win: cash out, or play one more and both grow by the next game's level, ×1.5 at Legend, ×2 at Hall of Fame, ×2.5 at GOAT. The risk is never capped by your balance. Lose and you go into debt.`}</div>`; }).join('');
       res.send(layout(req, G.name, `<div class="wrap arc-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
-        ${id === 'blitz3d' ? `<a class="card bf-promo" href="/career/blitz"><span class="bf-promo-e">🏆</span><div><b>Career mode</b><small>Run a program for seasons: 12-team league, playoffs and the Blitz Bowl, recruiting, upgrades and records. 3 save slots. Every 3D win pays coins.</small></div><span class="btn">Play Career ${icon('arrow')}</span></a>` : ''}
+        ${id === 'blitz3d' ? `<a class="card bf-promo" href="/career/blitz"><span class="bf-promo-e">🏆</span><div><b>Career mode</b><small>Run a program for seasons: 12-team league, playoffs and the Blitz Bowl, recruiting, upgrades and records. 3 save slots. Every 3D win pays coins.</small></div><span class="btn">Play Career ${icon('arrow')}</span></a>
+          <a class="card bf-promo" href="/arcade/blitz3d/versus"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your Lineup against theirs. Put coins on it (the winner takes both wagers) or play a friendly.</small></div><span class="btn">Find a game ${icon('arrow')}</span></a>` : ''}
         ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career/bowl">Play Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
           ${pending ? `<div class="run-wait" id="runWait"><b>${RUNS[pending.run.mode].emoji} Your ${RUNS[pending.run.mode].name} run is waiting.</b><span>You won game ${pending.run.step}. Cash out ${fmt(runInfo(pending).cash)}, or play one more for ${((xs) => xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1])(RUN_LEVELS.map((l) => `${fmt(runInfo(pending).next[l].cash)} at ${LEVELS[l]}`))}.</span><button type="button" class="btn" id="runResume">Decide now</button></div>` : ''}
@@ -867,7 +870,7 @@ module.exports = function arcade(app, h) {
     res.redirect('/admin/arcade' + (req.body.u ? '?u=' + encodeURIComponent(name) : ''));
   });
 
-  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup };
+  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData };
 };
 const ASSET_V = Date.now().toString(36);
 module.exports.GAMES = GAMES;
