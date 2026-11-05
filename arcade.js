@@ -74,13 +74,22 @@ function refundMatch(user, m, why) {
 // An ordinary game pays its prize; a run game becomes a won step with its choice waiting (cash out, or play on), as if the
 // result had arrived. Not for a run that has already gone on past this game.
 function markWon(user, m, why) {
-  if (!m || !(m.status === 'lost' || m.status === 'open') || m.versus) return false;
-  if (m.run && (user.arcade || []).some((x) => x.run && x.run.id === m.run.id && x.run.step > m.run.step)) return false;
-  const G = GAMES[m.game]; if (!G) return false;
+  if (!m) return { ok: false, why: 'That game was not found.' };
+  if (m.versus) return { ok: false, why: 'Head to Head games are settled by the Head to Head server.' };
+  const refunded = m.status === 'void' && !!m.refund; // refunded by mistake: the win goes back in, and the refund is undone
+  if (!(m.status === 'lost' || m.status === 'open' || refunded)) return { ok: false, why: m.status === 'won' ? 'That game is already a win.' : 'Only a lost, open or refunded game can be marked won.' };
+  const later = m.run ? (user.arcade || []).filter((x) => x.run && x.run.id === m.run.id && x.run.step > m.run.step) : [];
+  if (later.length) return { ok: false, why: `That run already went on to game ${Math.max(...later.map((x) => x.run.step))}, so this game can't be changed.` };
+  const G = GAMES[m.game]; if (!G) return { ok: false, why: 'Unknown game.' };
+  if (m.run && refunded && m.run.step > 1) { // the refund put the run back to the choice after the game before; it moves on again
+    const prev = (user.arcade || []).find((x) => x.run && x.run.id === m.run.id && x.run.step === m.run.step - 1 && x.status === 'won');
+    if (prev) { prev.run.pending = false; prev.run.rolled = true; if (prev.run.cashedOut) { prev.run.cashedOut = false; prev.payout = 0; delete prev.run.auto; } }
+  }
+  if (refunded) { m.unrefunded = m.refund; delete m.refund; }
   m.status = 'won'; delete m.forfeit; delete m.quit; m.fixed = { why: why || 'admin', at: new Date().toISOString() };
   if (m.run) { m.payout = 0; m.run.pending = true; m.run.rolled = false; m.run.cashedOut = false; delete m.run.auto; }
   else m.payout = Math.round(G.prizes[m.level] * (m.risk ? RISK_MULT[m.level] : 1));
-  return true;
+  return { ok: true, why: m.run ? `${RUNS[m.run.mode].name} game ${m.run.step} is a win now, with the choice to cash out or play on waiting on the 3D Blitz page.` : `Marked won: ${m.payout} coins.` };
 }
 // a won step whose choice was never made is cashed out when the player starts anything else: nobody loses coins by walking away
 function settlePending(user) {
@@ -741,10 +750,11 @@ module.exports = function arcade(app, h) {
     const form = (action, u, m, label) => `<form method="post" action="${action}"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="id" value="${esc(m.id)}"><button class="btn ghost sm">${label}</button></form>`;
     res.send(layout(req, 'Arcade admin', h.pageHead('Admin', 'Arcade wins and losses') + `<div class="wrap">${h.adminNav('/admin/arcade')}
       <div class="card"><p class="muted sm">Recent paid wins and coin losses, newest first. <b>Void</b> takes a win's coins back (and gives back a Risk stake). <b>Refund</b> gives a lost game's coins back; in a Double or Nothing / Double or Double run it also puts the run back to the choice after the game before it. <b>Mark won</b> is for a game that was won but counted as a loss (its result never reached the server, e.g. during an update): it pays the win, and in a run it brings back the choice to cash out or play on. <i>Open</i> games never sent a result and count as losses. Games before Nov 4 did not record the other team's score or a quit, so a tie or a quit shows as a plain loss: look for the time.</p>
+      ${req.query.msg ? `<p class="notice" style="margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,194,26,.12);border:1px solid rgba(255,194,26,.4)">${esc(String(req.query.msg).slice(0, 300))}</p>` : ''}
       <form method="get" action="/admin/arcade" class="row" style="gap:8px;margin:8px 0"><input name="u" value="${esc(req.query.u || '')}" placeholder="Filter by player"><button class="btn ghost sm">Filter</button></form>
       <table class="tbl"><thead><tr><th class="l">When</th><th class="l">Player</th><th class="l">Game</th><th>Level</th><th>Time</th><th>Score</th><th>Coins</th><th></th></tr></thead><tbody>
       ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}${m.quit ? ' (quit)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
-        <td>${m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' || m.status === 'open' ? (m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : '<span class="muted sm">open</span>') + (!m.versus && !(m.run && (users.find((x) => x.name === u).arcade || []).some((x) => x.run && x.run.id === m.run.id && x.run.step > m.run.step)) ? form('/admin/arcade/won', u, m, 'Mark won') : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
+        <td>${m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' || m.status === 'open' || (m.status === 'void' && m.refund) ? (m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : m.status === 'open' ? '<span class="muted sm">open</span>' : '<span class="muted sm">refunded</span>') + (!m.versus ? form('/admin/arcade/won', u, m, 'Mark won') : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
   });
   // ---------- admin: how each real player looks (Modern Bowl and 3D Blitz) and their 3D build ----------
   const LOOK_OPTS = { skin: [0, 1, 2, 3, 4], height: ['short', 'normal', 'tall'], cleats: ['black', 'white', 'team', 'gold', 'red'] };
@@ -874,12 +884,39 @@ module.exports = function arcade(app, h) {
     if (m && m.status === 'won') { m.status = 'void'; await putDoc(userKey(name), user); }
     res.redirect('/admin/arcade');
   });
+  // One-time repair (Nov 5): @mpedon's last game, a Double or Double game whose result was lost in a server update and that the
+  // admin Mark won didn't take. It becomes the win it was, with the choice to cash out or play on waiting. Runs once (a marker on
+  // the user), only on the live server. Its outcome can be read at /arcade/fix-status/<key> until Nov 8.
+  let FIX = { pending: true };
+  const FIX_KEY = 'a3cddb07cb3e8de9f90b45fb', FIX_UNTIL = Date.parse('2026-11-08T00:00:00Z'), FIX_ID = 'fix-2026-11-05-mpedon';
+  async function repairOnce() {
+    try {
+      const all = await h.listDocs('users/');
+      const u0 = all.find((u) => String(u.name || '').toLowerCase() === 'mpedon');
+      if (!u0) { FIX = { found: false }; return; }
+      const user = await getDoc(userKey(u0.name), { fresh: true });
+      const brief = (m) => m && { game: m.game, at: m.at, status: m.status, run: m.run ? { mode: m.run.mode, step: m.run.step, level: m.run.level, pending: !!m.run.pending, rolled: !!m.run.rolled, cashedOut: !!m.run.cashedOut } : null, refund: !!m.refund, forfeit: !!m.forfeit };
+      const ms = (user.arcade || []).filter((m) => !m.versus).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      if ((user.fixes || []).includes(FIX_ID)) { FIX = { done: true, last: brief(ms[0]) }; return; }
+      // the last game he played, if it is a run game; otherwise his latest run game from the last day
+      const m = ms[0] && ms[0].run ? ms[0] : ms.find((x) => x.run && Date.now() - Date.parse(x.at) < 24 * 3600e3);
+      if (!m) { FIX = { found: true, noRunGame: true, last: brief(ms[0]) }; return; }
+      if (m.status === 'won' && m.run.pending) { FIX = { found: true, alreadyWaiting: true, game: brief(m) }; return; }
+      const r = markWon(user, m, 'update restart');
+      if (r.ok) { (user.fixes = user.fixes || []).push(FIX_ID); await putDoc(userKey(u0.name), user); }
+      FIX = { found: true, applied: r.ok, why: r.why, game: brief(m), cash: m.run ? runInfo(m).cash : m.payout };
+      console.log('arcade repair', JSON.stringify(FIX));
+    } catch (e) { FIX = { error: String(e && e.message || e) }; console.error('arcade repair', e); }
+  }
+  if (process.env.RAILWAY_ENVIRONMENT && Date.now() < FIX_UNTIL) setTimeout(repairOnce, 15000).unref?.();
+  app.get('/arcade/fix-status/:key', (req, res) => { if (req.params.key !== FIX_KEY || Date.now() > FIX_UNTIL) return res.status(404).send('Not found'); json(res, FIX); });
   app.post('/admin/arcade/won', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
     const user = await getDoc(userKey(name), { fresh: true });
     const m = user && (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
-    if (m && markWon(user, m, 'admin')) await putDoc(userKey(name), user);
-    res.redirect('/admin/arcade' + (req.body.u ? '?u=' + encodeURIComponent(name) : ''));
+    const r = markWon(user, m, 'admin');
+    if (r.ok) await putDoc(userKey(name), user);
+    res.redirect('/admin/arcade?' + new URLSearchParams({ ...(req.body.u ? { u: name } : {}), msg: (r.ok ? '' : "Couldn't mark it won: ") + r.why }).toString());
   });
   app.post('/admin/arcade/refund', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
