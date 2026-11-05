@@ -897,31 +897,36 @@ module.exports = function arcade(app, h) {
     if (m && m.status === 'won') { m.status = 'void'; await putDoc(userKey(name), user); }
     res.redirect('/admin/arcade');
   });
-  // One-time repair (Nov 5): @mpedon's last game, a Double or Double game whose result was lost in a server update and that the
-  // admin Mark won didn't take. It becomes the win it was, with the choice to cash out or play on waiting. Runs once (a marker on
-  // the user), only on the live server. Its outcome can be read at /arcade/fix-status/<key> until Nov 8.
+  // One-time correction (Nov 5). An earlier automatic repair for @mpedon (meant for his Double or Double game 3, which had already
+  // been fixed by hand) ran again at a server restart and marked his game 5 of that run a win while it was still being played; the
+  // real result was then refused. He lost game 5. So game 5 becomes a loss (the run ends there, as the real result would have
+  // done); a cash-out of it is taken back and any game played after it in the run is refunded. It runs once: the marker is set
+  // whatever it finds. Its outcome can be read at /arcade/fix-status/<key> until Nov 8.
   let FIX = { pending: true };
-  const FIX_KEY = 'a3cddb07cb3e8de9f90b45fb', FIX_UNTIL = Date.parse('2026-11-08T00:00:00Z'), FIX_ID = 'fix-2026-11-05-mpedon';
-  async function repairOnce() {
+  const FIX_KEY = 'a3cddb07cb3e8de9f90b45fb', FIX_UNTIL = Date.parse('2026-11-08T00:00:00Z'), FIX_ID = 'fix-2026-11-05-g5-lost';
+  async function correctOnce() {
     try {
       const all = await h.listDocs('users/');
       const u0 = all.find((u) => String(u.name || '').toLowerCase() === 'mpedon');
       if (!u0) { FIX = { found: false }; return; }
       const user = await getDoc(userKey(u0.name), { fresh: true });
-      const brief = (m) => m && { game: m.game, at: m.at, status: m.status, run: m.run ? { mode: m.run.mode, step: m.run.step, level: m.run.level, pending: !!m.run.pending, rolled: !!m.run.rolled, cashedOut: !!m.run.cashedOut } : null, refund: !!m.refund, forfeit: !!m.forfeit };
-      const ms = (user.arcade || []).filter((m) => !m.versus).sort((a, b) => String(b.at).localeCompare(String(a.at)));
-      if ((user.fixes || []).includes(FIX_ID)) { FIX = { done: true, last: brief(ms[0]) }; return; }
-      // the last game he played, if it is a run game; otherwise his latest run game from the last day
-      const m = ms[0] && ms[0].run ? ms[0] : ms.find((x) => x.run && Date.now() - Date.parse(x.at) < 24 * 3600e3);
-      if (!m) { FIX = { found: true, noRunGame: true, last: brief(ms[0]) }; return; }
-      if (m.status === 'won' && m.run.pending) { FIX = { found: true, alreadyWaiting: true, game: brief(m) }; return; }
-      const r = markWon(user, m, 'update restart');
-      if (r.ok) { (user.fixes = user.fixes || []).push(FIX_ID); await putDoc(userKey(u0.name), user); }
-      FIX = { found: true, applied: r.ok, why: r.why, game: brief(m), cash: m.run ? runInfo(m).cash : m.payout };
-      console.log('arcade repair', JSON.stringify(FIX));
-    } catch (e) { FIX = { error: String(e && e.message || e) }; console.error('arcade repair', e); }
+      if ((user.fixes || []).includes(FIX_ID)) { FIX = { done: true }; return; }
+      (user.fixes = user.fixes || []).push(FIX_ID); // set first: this never runs twice, whatever happens below
+      const m = (user.arcade || []).find((x) => x.run && x.run.id === '1fedb4bc' && x.run.step === 5);
+      if (!m) { await putDoc(userKey(u0.name), user); FIX = { found: true, noGame5: true }; return; }
+      const before = { status: m.status, payout: m.payout, pending: !!m.run.pending, cashedOut: !!m.run.cashedOut, fixed: m.fixed || null };
+      const after = (user.arcade || []).filter((x) => x.run && x.run.id === m.run.id && x.run.step > 5);
+      if (m.status === 'won' && m.fixed && m.fixed.why === 'update restart') {
+        m.status = 'lost'; m.payout = 0; m.run.pending = false; m.run.cashedOut = false; m.run.rolled = false; delete m.run.auto;
+        m.fixed = { why: 'update restart', undone: true, at: new Date().toISOString() }; m.corrected = { why: 'lost on the field; an automatic repair had marked it won by mistake', at: new Date().toISOString() };
+        for (const x of after) if (x.status !== 'void') { x.status = 'void'; x.payout = 0; if (x.run) { x.run.pending = false; x.run.cashedOut = false; } x.refund = { why: 'the run had ended at game 5', at: new Date().toISOString() }; }
+        FIX = { found: true, applied: true, before, game5: { status: m.status, payout: m.payout }, laterRefunded: after.length };
+      } else FIX = { found: true, applied: false, before, why: 'game 5 is not the repair-made win any more; left as it is' };
+      await putDoc(userKey(u0.name), user);
+      console.log('arcade correction', JSON.stringify(FIX));
+    } catch (e) { FIX = { error: String(e && e.message || e) }; console.error('arcade correction', e); }
   }
-  if (process.env.RAILWAY_ENVIRONMENT && Date.now() < FIX_UNTIL) setTimeout(repairOnce, 15000).unref?.();
+  if (process.env.RAILWAY_ENVIRONMENT && Date.now() < FIX_UNTIL) setTimeout(correctOnce, 8000).unref?.();
   app.get('/arcade/fix-status/:key', async (req, res) => {
     if (req.params.key !== FIX_KEY || Date.now() > FIX_UNTIL) return res.status(404).send('Not found');
     if (!req.query.d) return json(res, FIX);
