@@ -30,7 +30,7 @@ function nextGame(db, tz) {
     .filter((g) => g.date && g.status === 'scheduled' && now < `${g.date} ${lockTime(g)}`)
     .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0] || null;
 }
-const isOpen = (db, g, tz) => !!g && nextGame(db, tz)?.id === g.id;
+const isOpen = (db, g, tz) => !!g && !g.betsVoid && nextGame(db, tz)?.id === g.id; // a game the commissioner voided takes no picks
 
 // ---------- odds model ----------
 function rng(seed) {
@@ -136,7 +136,18 @@ const fmtLine = (v) => (v > 0 ? '+' + v : String(v));
 const marginLabel = (name, line) => (line < 0 ? `${name} win by ${Math.ceil(-line)}+` : `${name} within ${Math.floor(line)}`);
 
 const cache = new Map();
+// Market groups the commissioner has switched off (Admin → Pick'em). Interception picks start off: players were throwing
+// interceptions on purpose to the people others had picked. Picks already placed on them still settle.
+const DEFAULT_OFF = ['Interceptions', 'Turnovers'];
+const offGroups = (db) => new Set(Array.isArray(db.pickemOff) ? db.pickemOff : DEFAULT_OFF);
+const MARKET_GROUPS = ['Touchdown scorers', 'TD passes', 'Interceptions', 'Turnovers', 'Specials'];
 function markets(db, g) {
+  const all = allMarkets(db, g), off = offGroups(db);
+  if (!off.size || !all.list.some((m) => off.has(m.group))) return all;
+  const list = all.list.filter((m) => !off.has(m.group));
+  return { ...all, list, byKey: Object.fromEntries(list.map((m) => [m.key, m])) };
+}
+function allMarkets(db, g) {
   const sig = g.id + '|' + (g.out || []).join() + '|' + db.games.filter(isFinal).map((x) => `${x.id}:${x.homeScore}-${x.awayScore}:${JSON.stringify(x.events || [])}`).join(',') +
     '|' + Object.values(db.teams).map((t) => JSON.stringify(t.tend || {}) + t.roster.map((p) => p.id + p.name + JSON.stringify(p.tend || {})).join()).join();
   if (cache.has(sig)) return cache.get(sig);
@@ -249,6 +260,7 @@ const isOut = (g, team, pid) => !!g && (g.out || []).includes(team + '|' + pid);
 function legResult(db, leg) {
   const g = db.games.find((x) => x.id === leg.game);
   if (!g || g.status === 'postponed') return 'void';
+  if (g.betsVoid) return 'void'; // the commissioner voided every pick on this game: stakes back, nothing paid
   const [type, a, b] = leg.key.split(':');
   // Player picks on someone who didn't play are cancelled: refunded as a single,
   // dropped from a combo (which is then paid on the picks that are left).
@@ -378,4 +390,4 @@ function mult(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
+module.exports = { offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };

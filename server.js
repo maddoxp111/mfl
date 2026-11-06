@@ -587,6 +587,7 @@ app.get('/games/:id', (req, res) => {
         <div class="gh-mid">${center}</div>
         <a href="/teams/${b.id}" class="gh-team ${w && w !== b.id ? 'dim' : ''}">${logo(b, 96)}<b>${esc(b.name)}</b><small>${esc(b.city)} · ${record(teamStats(db, b.id))}</small></a>
       </div>
+      ${g.betsVoid ? `<div class="gh-note"><b>Pick'em voided</b> · Every pick on this game was cancelled and refunded by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}.</div>` : ''}
       ${g.reason ? `<div class="gh-note">${g.status === 'postponed' ? '<b>Postponed</b> · ' : g.type === 'exhibition' ? '<b>Exhibition</b> · ' : ''}${esc(g.reason)}</div>` : ''}
     </div></section>
     <div class="wrap">${isFinal(g) || g.status === 'postponed' ? '' : preview(db, g)}${recapCard(db, g, req)}${g.status === 'postponed' ? '' : pollCard(db, g, req)}</div>
@@ -1114,7 +1115,7 @@ function betCard(db, b, opts = {}) {
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
-      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}${g && g.betsVoid ? ` · <span class="out-note">Game voided by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}. Stake refunded</span>` : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
     <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
@@ -1472,6 +1473,7 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
   try {
     const user = await getDoc(userKey(name), { fresh: true });
     if (!user) return res.json({ ok: false, error: 'Account not found. Log in again.' });
+    if (user.noPicks) return res.json({ ok: false, error: 'Your Pick\'em account is suspended by the commissioner.' });
     const built = pk.buildBet(db, req.body.picks, req.body.amount ?? req.body.stake, TZ);
     if (built.error) return res.json({ ok: false, error: built.error });
     const bal = accountOf(db, user, await survivorNow(db)).balance;
@@ -1575,6 +1577,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody gains anything by playing badly on purpose.</p>
       <h3>Margin picks</h3><p>The favorite's margin pick is <b>win by 14 or more</b>. The other team's is <b>within 13</b>: right if they win, or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
+      <h3>Fair play</h3><p>Picks are about predicting the game, not changing it. If players fix plays for picks (throwing an interception on purpose, letting someone score), the commissioner can void every pick on that game (stakes back, nothing paid, anything already paid taken back), switch whole kinds of picks off, and suspend the accounts involved from Pick'em. ${pk.offGroups(load()).size ? `Right now these picks are off: ${[...pk.offGroups(load())].join(', ')}.` : ''}</p>
       <h3>Players ruled out</h3><p>If the commissioner marks a player as out for a game (even after it's over), every pick on him is cancelled: singles are refunded, and combos drop that pick and count the rest. Results update by themselves.</p>
       <h3>Coins</h3><p>Coins are the only currency. You win them with picks, your Lineup earns them every game (1 fantasy point = 1 coin), Survivor winners get ${sv.PRIZE}, and extra copies of cards sell for coins (${cards.SHOWN_RARITIES.map((r) => `${cards.RARITIES[r].name} ${cards.RARITIES[r].sell.toLocaleString('en-US')}`).join(', ')}). Spend them on picks or card packs.</p>
       <h3>MFL Cards &amp; the Lineup</h3><p>Collect cards of every player: ${cards.SHOWN_RARITIES.map((r) => `${cards.RARITIES[r].name} (${cards.RARITIES[r].mult}×)`).join(', ')}, and every player has ${cards.VARIANTS.filter((v) => !v.only && !v.set).length} classic cards (Base, Team Colors, Silver, Action Shot, five Specialists, Gold, Holo, Signature, Legend, All-Star, Clutch, Icon, and the 1-of-1 Mythic and Dark Matter). On top of that there are ${cards.SETS.length} card sets (${cards.SERIES.map((x) => x[1]).join(', ')}), with Base, Silver, Gold, Prism and Black versions of every player, for ${cards.catalog(load()).filter((c) => !c.hidden).length.toLocaleString('en-US')} cards in all. Set cards only come from Card Set packs. Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty. There are free packs (daily, game day, weekly, collector rewards) and ${pp.n} packs to buy with coins, from ${pp.lo.toLocaleString('en-US')} to ${pp.hi.toLocaleString('en-US')} coins. Prices follow the odds: everyday packs cost a few hundred to a couple thousand, packs with a Legend or better guaranteed cost over ten thousand, and Dark Matter, 1 of 1 hunts and Prism or Black set packs cost the most, up to ${pp.hi.toLocaleString('en-US')}. Set a Lineup of 11 different players; every game they score fantasy points (TD catch or run ${cards.SCORING.td}, TD pass ${cards.SCORING.pass}, INT ${cards.SCORING.int}, sack ${cards.SCORING.sack}, notable catch or play ${cards.SCORING.catch}, breakup ${cards.SCORING.pbu}, flag pull ${cards.SCORING.flag}, MVP ${cards.SCORING.mvp}, win ${cards.SCORING.win}, thrown INT ${cards.SCORING.picked}) times the card's multiplier. Example: a QB who throws 10 TD passes on a Base card earns 10 × ${cards.SCORING.pass} = ${10 * cards.SCORING.pass} coins (${Math.round(10 * cards.SCORING.pass * cards.RARITIES.legendary.mult)} on a ${cards.RARITIES.legendary.name} card), plus ${cards.SCORING.win} if his team wins. Your lineup locks with Pick'em at ${time12('12:31')} and carries over until you change it. <a href="/pickem/cards">My cards →</a></p>
@@ -2711,6 +2714,13 @@ function gameForm(db, g, isNew) {
       ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}</span></label>`).join('')}</div></div>`).join('')}
     </section>
 
+    <section class="card ${g.betsVoid ? 'void-on' : ''}">
+      <div class="card-h"><h2>Void every pick on this game</h2></div>
+      <p class="muted sm">For a game that can't be trusted (players fixing plays for picks). Every pick on it is cancelled: stakes go back, nothing is paid, and anything already paid is taken back. Combos drop this game's picks and count the rest. Untick it to put the picks back.</p>
+      <label class="chk"><input type="checkbox" name="betsVoid" value="1" ${g.betsVoid ? 'checked' : ''}> Void all picks on this game</label>
+      <label class="wide">Reason shown to players <input name="voidReason" maxlength="200" value="${esc(g.voidReason || '')}" placeholder="e.g. Interceptions thrown on purpose"></label>
+    </section>
+
     <section class="card">
       <div class="card-h"><h2>Coach's notes</h2><span class="muted sm">Private · the AI reads these</span></div>
       <textarea name="notes" rows="4" maxlength="2000" placeholder="How did people play? e.g. dom blocked terribly, pedon pressured the ball well, chuck threw the ball in cover well">${esc(g.notes || '')}</textarea>
@@ -2789,6 +2799,9 @@ function readGame(body, g) {
   if (BOX_STATUS[body.boxStatus] && body.boxStatus !== 'complete') g.boxStatus = body.boxStatus; else delete g.boxStatus;
   const valid = new Set([g.home, g.away].flatMap((id) => (load().teams[id]?.roster || []).map((p) => id + '|' + p.id)));
   g.out = [...new Set(arr(body.out))].filter((k) => valid.has(k));
+  if (body.betsVoid === '1') { if (!g.betsVoid) g.voidAt = new Date().toISOString(); g.betsVoid = true; } else { delete g.betsVoid; delete g.voidAt; }
+  g.voidReason = String(body.voidReason || '').trim().slice(0, 200) || (g.betsVoid ? 'Voided by the commissioner' : '');
+  if (!g.voidReason) delete g.voidReason;
   g.homeScore = num(body.homeScore); g.awayScore = num(body.awayScore);
   delete g.quarters;
   const types = arr(body.ev_type);
@@ -3148,15 +3161,58 @@ app.post('/admin/transactions/:id/delete', requireAdmin, async (req, res) => {
 });
 
 // ---------- admin: pick'em ----------
+// ---------- admin: pick'em integrity ----------
+// Which kinds of picks are on, which games are voided, and who has been picking what on each player: the same player
+// prop backed by several accounts, or big money on an interception, is what fixing looks like.
+function integrityCard(db, docs) {
+  const off = pk.offGroups(db), t0 = today();
+  const voided = db.games.filter((g) => g.betsVoid);
+  const games = db.games.filter((g) => g.date && g.date <= t0 && g.status !== 'postponed').sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)).slice(0, 4);
+  const next = pk.nextGame(db, TZ); if (next && !games.includes(next)) games.unshift(next);
+  const watch = games.map((g) => {
+    const by = new Map();
+    for (const u of docs) for (const b of u.bets || []) for (const l of b.legs) {
+      if (l.game !== g.id) continue;
+      const t = l.key.split(':')[0];
+      if (!(t.startsWith('p') || /^int|^bothint/.test(t))) continue; // player picks and interception picks
+      const e = by.get(l.key) || { label: l.label, int: /int/.test(t), users: new Map(), stake: 0, bets: 0 };
+      e.users.set(u.name, (e.users.get(u.name) || 0) + b.stake); e.stake += b.stake; e.bets++;
+      by.set(l.key, e);
+    }
+    const rows = [...by.values()].sort((a, b) => b.stake - a.stake).slice(0, 12);
+    return { g, rows };
+  });
+  const flag = (e) => e.users.size >= 3 || e.stake >= 2000 || (e.int && (e.users.size >= 2 || e.stake >= 500));
+  return `<div class="card"><div class="card-h"><h2>Fair play</h2></div>
+    <form method="post" action="/admin/pickem-markets" class="inline-wrap"><p class="muted sm">Kinds of picks people can make. Switching one off takes it off the board for new picks; picks already made still settle.</p>
+      ${pk.MARKET_GROUPS.map((k) => `<label class="chk"><input type="checkbox" name="on" value="${esc(k)}" ${off.has(k) ? '' : 'checked'}> ${esc(k)}${k === 'Interceptions' ? ' <small class="muted">(player gets an INT)</small>' : k === 'Turnovers' ? ' <small class="muted">(team INTs)</small>' : ''}</label>`).join(' ')}
+      <button class="btn sm">Save</button></form>
+    <p class="sm"><b>Voided games:</b> ${voided.length ? voided.map((g) => `<a href="/admin/game/${g.id}">${esc(matchName(db, g))} · ${esc(shortDate(g.date))}</a>${g.voidReason ? ` <small class="muted">(${esc(g.voidReason)})</small>` : ''}`).join(', ') : 'none'}. To void a game, open it in Admin and tick <i>Void all picks on this game</i>.</p>
+    <h3>Betting watch</h3><p class="muted sm">Player and interception picks on recent games, biggest first. <span class="badge ppd">Check</span> = three or more accounts on one player pick, 2,000+ coins on it, or two or more accounts (or 500+ coins) on an interception.</p>
+    ${watch.map(({ g, rows }) => `<h4>${esc(matchName(db, g))} · ${esc(shortDate(g.date))}${g.betsVoid ? ' · <span class="badge ppd">Voided</span>' : ''}</h4>${rows.length ? `<div class="scroll"><table class="tbl admin"><thead><tr><th class="l">Pick</th><th>Accounts</th><th>Picks</th><th>Coins</th><th class="l">Who (coins)</th></tr></thead><tbody>
+      ${rows.map((e) => `<tr><td class="l">${flag(e) ? '<span class="badge ppd">Check</span> ' : ''}${esc(e.label)}</td><td>${e.users.size}</td><td>${e.bets}</td><td>${coins(e.stake)}</td><td class="l sm">${[...e.users].sort((a, b) => b[1] - a[1]).map(([n, c]) => `<a href="/pickem/u/${esc(n)}">@${esc(n)}</a> ${c.toLocaleString('en-US')}`).join(', ')}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="muted sm">No player picks.</p>'}`).join('')}
+  </div>`;
+}
+app.post('/admin/pickem-markets', requireAdmin, async (req, res) => {
+  const db = load();
+  const on = new Set((Array.isArray(req.body.on) ? req.body.on : req.body.on ? [req.body.on] : []).map(String));
+  db.pickemOff = pk.MARKET_GROUPS.filter((k) => !on.has(k));
+  await save();
+  res.redirect('/admin/pickem?saved=1');
+});
 app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
   try {
     const db = load();
     const board = await leaderboard(db);
-    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten password, give coins, or remove an account.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
-      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset password</th><th class="l">Give coins</th><th></th></tr></thead><tbody>
-      ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b></td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
+    const docs = await listDocs('users/'), byName = Object.fromEntries(docs.map((u) => [u.name, u]));
+    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten password, give coins, suspend or remove an account, and keep the picks honest.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
+      ${integrityCard(db, docs)}
+      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset password</th><th class="l">Give coins</th><th></th><th></th></tr></thead><tbody>
+      ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b>${byName[u.name]?.noPicks ? ' <span class="badge ppd">Suspended</span>' : ''}</td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" minlength="4" maxlength="72" placeholder="New password" required><button class="btn sm ghost">Set</button></form></td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/coins" class="inline"><input name="amount" type="number" placeholder="+500" required><button class="btn sm ghost">Give</button></form></td>
+        <td><form method="post" action="/admin/pickem/${esc(u.name)}/${byName[u.name]?.noPicks ? 'unsuspend' : 'suspend'}"><button class="btn sm ghost">${byName[u.name]?.noPicks ? 'Unsuspend' : 'Suspend'}</button></form></td>
         <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their picks?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
       </tbody></table></div></div></div>`, { ticker: false }));
   } catch (e) { next(e); }
@@ -3196,6 +3252,8 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   if (req.params.action === 'pin' && String(req.body.pin || '').length >= 4 && String(req.body.pin).length <= 72) Object.assign(user, pk.hashPin(String(req.body.pin)));
   else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount)) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
   else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
+  else if (req.params.action === 'suspend') { user.noPicks = true; user.noPicksAt = new Date().toISOString(); }
+  else if (req.params.action === 'unsuspend') { delete user.noPicks; delete user.noPicksAt; }
   await putDoc(userKey(name), user);
   res.redirect('/admin/pickem?saved=1');
 });
@@ -3300,6 +3358,17 @@ function fixNames(db) {
   if (changed) { const fixed = JSON.parse(json); for (const k of Object.keys(fixed)) db[k] = fixed[k]; }
   return changed;
 }
+// Nov 6, 2026: players threw interceptions on purpose to the players people had picked, so the commissioner voided every pick
+// on that day's game. Runs once: the marker is written before anything else, and the admin can untick it on the game.
+function voidNov6(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.void20261106) return false;
+  const hit = db.games.filter((g) => g.date === '2026-11-06');
+  db.fixes.void20261106 = { at: new Date().toISOString(), games: hit.map((g) => g.id) };
+  for (const g of hit) { g.betsVoid = true; g.voidAt = g.voidAt || new Date().toISOString(); g.voidReason = g.voidReason || 'Interceptions thrown on purpose for picks'; }
+  console.log(`voided every pick on ${hit.length} game(s) dated 2026-11-06: ${hit.map((g) => g.id).join(', ')}`);
+  return true;
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3315,7 +3384,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db); if (a || b || c) await save(); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
