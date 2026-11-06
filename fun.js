@@ -588,6 +588,7 @@ module.exports = function fun(app, h) {
       <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Lineup and the Arcade and spent on packs.</p>
       <div class="pb-rows">
         ${row("From Pick'em (start + picks)", picks)}
+        ${P.playerLink ? row('<a href="#your-player">Your player</a>', P.player, `${esc(P.playerLink.p.name)} · ${(P.playerGames || []).length} game${(P.playerGames || []).length === 1 ? '' : 's'}`) : ''}
         ${row('Lineup', P.fantasy, nGames ? `${nGames} game${nGames === 1 ? '' : 's'} · ${f(P.fan.total)} points × ${cards.COINS_PER_POINT}` : '')}
         ${row('Arcade games', P.arcade || 0, `won ${f(won)} · lost ${f(lost)}${P.arcadePlayed ? ` · ${P.arcadePlayed} game${P.arcadePlayed === 1 ? '' : 's'}` : ''}`, 'pb-arc')}
         ${row('Daily challenges', P.challenges || 0)}
@@ -597,7 +598,7 @@ module.exports = function fun(app, h) {
         ${row('Card sales &amp; rewards', P.bonus)}
         ${row('Spent on packs', -P.spent)}
         <div class="tot"><span>Balance</span><b>${f(acct.balance)}</b></div>
-      </div></div>`;
+      </div></div>${h.playerCard ? h.playerCard(h.load(), acct) : ''}`;
   }
   h.pointsBreakdown = pointsBreakdown;
 
