@@ -237,6 +237,7 @@ const CHALLENGES = [
   { id: 'variety', text: 'Play 3 different Arcade games', reward: 140, need: 3, count: (d) => d.kinds },
 ];
 const CH_START = '2026-10-29';
+const CHECKIN = 150; // coins for the game-day check-in
 function hashNum(s) { return parseInt(crypto.createHash('sha1').update(String(s)).digest('hex').slice(0, 8), 16); }
 function challengesFor(day) {
   const easy = CHALLENGES.filter((c) => c.easy), hard = CHALLENGES.filter((c) => !c.easy);
@@ -276,7 +277,6 @@ module.exports = function arcade(app, h) {
     for (const d of days) if (d && d >= CH_START) for (const c of challengeStatus(user, d)) if (c.done) total += c.reward;
     return total;
   }
-  const CHECKIN = 150;
   function canCheckIn(db, user) {
     const day = today(), now = pk.nowLocal(TZ).slice(11, 16);
     const game = db.games.find((g) => g.date === day && g.status !== 'postponed');
@@ -967,3 +967,5 @@ module.exports.ATTR_RANGE = ATTR_RANGE;
 module.exports.BUILDS = BUILDS;
 module.exports.playerAttrs = playerAttrs;
 module.exports.derivedAttrs = derivedAttrs;
+// For the /coins page (earn.js): what everything pays, read from the values above.
+module.exports.EARN = { LEVELS, LEVEL_ORDER, RISK_MULT, ORDER, CHALLENGES, CHECKIN, RUNS, RUN_LEVELS, RUN_MAIN, RUN_FACTOR, matchNet };

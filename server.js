@@ -370,7 +370,7 @@ function layout(req, title, body, opts = {}) {
     <div class="dd ${on(['/stats', '/records', '/cards'])}"><button>Stats ${icon('chev')}</button><div class="dd-m">
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
     <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
-      <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
+      <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a><a href="/coins">${icon('coin')} Earn coins</a></div></div>
     <div class="nav-main"><a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
     <a class="nav-career ${on(['/career'])}" href="/career" aria-label="Career" title="Career">🏈 <span class="nav-career-t">Career</span></a>
     <a class="nav-cards ${CARD_PAGES.test(cur) ? 'on' : ''}" href="/pickem/cards">🃏 Cards</a>
@@ -386,7 +386,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/coins">Earn coins</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
 ${hypeBowl(db) ? hypeBarScript : ''}<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
   <img src="/static/mfl-logo.webp" alt="" width="56" height="56">
@@ -1117,8 +1117,8 @@ function pickHead(user, acct, mode) {
   return `<section class="ph pick-ph ${cardsMode ? 'cards-ph' : ''}"><div class="wrap pick-top">
     ${cardsMode ? `<div><div class="kicker">${icon('star')} Collect · trade · play</div><h1>MFL Cards</h1><p>Open packs, set your Lineup and trade cards with other collectors.</p></div>`
       : `<div><div class="kicker">${icon('coin')} Prediction game · MFL coins</div><h1>Pick'em</h1><p>Predict what happens in every MFL game with MFL coins: winners, player picks and combos.</p></div>`}
-    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${cardsMode ? `${Object.keys(cards.collection(user)).length} different cards` : `${acct.won}W · ${acct.lost}L · ${acct.pending} open `}</span></div>`
-      : `<div class="wallet cta"><b>Start with ${pk.START_COINS.toLocaleString()} coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div></div>`}
+    ${user ? `<div class="wallet"><small>@${esc(user.name)}</small><b>${icon('coin')}<span data-balance>${acct.balance.toLocaleString('en-US')}</span></b><span>${cardsMode ? `${Object.keys(cards.collection(user)).length} different cards` : `${acct.won}W · ${acct.lost}L · ${acct.pending} open `}</span><span><a href="/coins">Ways to earn ${icon('arrow')}</a></span></div>`
+      : `<div class="wallet cta"><b>Start with ${pk.START_COINS.toLocaleString()} coins</b><div><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login">Log in</a></div><span><a href="/coins">Ways to earn ${icon('arrow')}</a></span></div>`}
   </div></section>`;
 }
 function betCard(db, b, opts = {}) {
@@ -1583,7 +1583,7 @@ app.get('/pickem/rules', async (req, res, next) => {
     res.send(layout(req, "Pick'em Rules", pickHead(user, acct) + `<div class="wrap">${pickNav('/pickem/rules', name)}<div class="card prose">
       <h2>How Pick'em works</h2>
       <p><b>It's free and just for fun.</b> MFL Coins are fake. They can't be bought, sold or traded for anything.</p>
-      <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open picks, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My picks</a>.</p>
+      <h3>Coins</h3><p>Everyone starts with ${pk.START_COINS.toLocaleString()} coins. If you drop under ${pk.BAILOUT_BELOW} with no open picks, you can claim a ${pk.BAILOUT_COINS} coin bailout from <a href="/pickem/me">My picks</a>. <a href="/coins">Every way to earn coins →</a></p>
       <h3>Making picks</h3><p>Tap any pick to add it to your pick slip, choose how many coins to play and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to be right, but the rewards multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
       <h3>Reading the numbers</h3><p><b>+150</b> means a 100 coin pick gets 150 more if you're right. <b>−200</b> means you play 200 coins to get 100 more. Unlikely picks have bigger numbers. They come from each team's and player's real stats and update as the season goes.</p>
       <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Rewards come in as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
@@ -1597,7 +1597,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       ${cardEffectsHelp()}
       <h3>Survivor</h3><p>Each game, pick a player who has to score a touchdown. Miss and you're out, and you can't reuse a player in a round. Last one standing wins ${sv.PRIZE} coins. <a href="/pickem/survivor">Play Survivor →</a></p>
       <h3>MFL Arcade</h3><p>11 games (3D Blitz, Modern Bowl, Chess, 8-Ball Pool, Trivia, Checkers, Connect Four, Field Goal Frenzy, QB Bullseye, Flag Pull and Card Memory), each with 4 levels. Winning pays coins; harder levels pay more and 3D Blitz pays the most (${arcadeApi ? arcadeApi.LEVEL_ORDER.map((i) => arcadeApi.GAMES.blitz3d.prizes[i].toLocaleString('en-US')).join(' / ') : ''} a win by level). <b>Risk mode</b>: put up the whole prize first; a win pays the prize × ${arcadeApi ? arcadeApi.LEVEL_ORDER.map((i) => arcadeApi.RISK_MULT[i]).join(' / ') : ''} (by level, Rookie to GOAT), a loss loses what you put up. Leaving or refreshing mid-game counts as a loss. Every win pays; Practice is always free. Chess, Checkers and Connect Four games are replayed on the server to confirm a win, and Trivia is graded by the server. <a href="/arcade">Play →</a></p>
-      <h3>More ways to earn coins</h3><p>Three daily challenges every day, a game-day check-in (+150 on game days, 11:30 to 2:30), +${ACHIEVEMENT_COINS} for every achievement, a free Arcade Champ Pack for winning 3 Arcade games in a day, plus Pick'em, your Lineup, Survivor, the daily bonus and selling cards.</p>
+      <h3>More ways to earn coins</h3><p>Three daily challenges every day, a game-day check-in (+150 on game days, 11:30 to 2:30), +${ACHIEVEMENT_COINS} for every achievement, a free Arcade Champ Pack for winning 3 Arcade games in a day, plus Pick'em, your Lineup, Survivor, the daily bonus and selling cards. <a href="/coins">See them all →</a></p>
       <h3>Lineup positions</h3><p>Your Lineup has 11 positions: QB, RB, WR1, WR2, WR3, TE, two UTIL and three OL. They don't change fantasy points; they decide who does what in the games. On the Cards page you can filter your players by the positions they like to play, tap one spot and then another to swap two players, and auto-pick puts players at the spots they like. Modern Bowl uses the first eight (QB throws, receivers catch, the first UTIL blocks and the second kicks and leads the defense). 3D Blitz uses all 11: WR3 lines up in the slot, and the two UTIL and three OL are your five linemen.</p>
       <h3>Picker of the Week</h3><p>The best Pick'em profit each week (Monday to Sunday) is crowned Picker of the Week, shown on the homepage, and wins a free Champion Pack.</p>
     </div></div>`));
@@ -3349,6 +3349,8 @@ tts.register(app, { currentUser, requireAdmin, load }); // before /arcade/:game
 arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save });
 // Head to Head (3D Blitz, live): its WebSocket is attached to each server app.listen() starts, below.
 const versusApi = require('./versus')(app, { esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
+// Every way to earn coins (/coins).
+require('./earn')(app, { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS, dailyInfo, addDays, today, packPrices, arcade: () => arcadeApi });
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
