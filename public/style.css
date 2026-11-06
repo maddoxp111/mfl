@@ -2566,3 +2566,14 @@ body.arc-playing .ticker{display:none}
 .mpop-b{text-align:left;font-size:15px;line-height:1.45;margin-bottom:16px}
 .mpop-b ul{margin:6px 0 0;padding-left:20px}.mpop-b li{margin:4px 0}
 .mpop .btn{min-width:140px}
+
+/* patch notes: /updates and the latest update's popup (updates.js) */
+.upd h2{display:flex;align-items:center;gap:10px;margin:0}
+.upd-d{font:600 13px Inter;color:var(--muted);margin:4px 0 0}
+.upd h3{margin:14px 0 4px}
+.upd ul{margin:0;padding-left:20px}.upd li{margin:8px 0}
+.upd li b,.mpop-upd .mpop-b b{color:var(--ink)}
+.mpop-upd .mpop-b{color:var(--ink2)}
+.mpop-upd .upd-t{margin:0 0 6px;color:var(--ink);font-weight:700;text-align:center}
+.mpop-upd .upd-all{margin:12px 0 0;text-align:center}
+.mpop-upd .upd-all a{color:var(--red2);font-weight:600}
