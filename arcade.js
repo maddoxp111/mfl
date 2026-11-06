@@ -119,7 +119,7 @@ const CPU_TEAMS = [
   { name: 'Detention Kings', abbr: 'DTK', color: '#b91c1c', color2: '#111111' },
   { name: 'The Faculty', abbr: 'FAC', color: '#0f172a', color2: '#facc15' },
   { name: 'The Board', abbr: 'BRD', color: '#111827', color2: '#f87171' },
-  { name: 'The Principals', abbr: 'PRN', color: '#1e3a8a', color2: '#fbbf24' },
+  { name: 'The Principals', abbr: 'PRI', color: '#1e3a8a', color2: '#fbbf24' },
 ];
 // The 11-player Lineup. Modern Bowl's runtime knows the first 8 spots (BOWL_SIZE); 3D Blitz uses
 // all 11: WR3 is the slot, and UTIL1, UTIL2, OL1, OL2, OL3 are the five linemen (left to right).
