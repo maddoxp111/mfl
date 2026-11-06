@@ -12,7 +12,7 @@ const UPDATES = [
       'Your player: the commissioner can link your account to your real MFL player. Every win pays 50,000 coins, plus coins for your stats: 125,000 per TD you score, 75,000 per TD pass, 50,000 per interception, 25,000 per pass breakup, notable catch or notable play, minus 25,000 per interception you throw or penalty you get. Past games count, and a popup shows what you earned after every game.',
       'Lineup players pay way more: 250 coins per fantasy point.',
       'Pack prices are up 1.5× to 2× (the most on the top packs) now that coins come easier.',
-      'New page: every way to earn coins.',
+      'New page: every way to earn coins. Find it as Earn coins in the News menu and at the bottom of every page.',
       "New: these patch notes, and a popup like this one whenever there's an update.",
       'Fair play: every pick on the Nov 6 game was voided and interception picks are off, after players threw interceptions on purpose.',
     ],

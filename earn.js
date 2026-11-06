@@ -31,7 +31,7 @@ module.exports = function earn(app, h) {
     if (!pay || typeof pay !== 'object') return null;
     const labels = (mod && (mod.LABELS || mod.labels)) || {};
     const rows = Object.entries(pay).map(([k, v]) => [k, typeof v === 'object' && v ? Number(v.amount) : Number(v), typeof v === 'object' && v && v.label]).filter(([, v]) => Number.isFinite(v) && v !== 0);
-    const name = (k, v, l) => l || labels[k] || PAY_LABEL[k] || (k === 'flag' ? (v < 0 ? 'A flag on you' : 'You pull a flag') : k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()));
+    const name = (k, v, l) => l || PAY_LABEL[k] || labels[k] || (k === 'flag' ? (v < 0 ? 'A flag on you' : 'You pull a flag') : k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()));
     return rows.map(([k, v, l]) => ({ k, v, label: name(k, v, l) }));
   }
 
