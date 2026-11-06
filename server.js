@@ -353,7 +353,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=66">
+<link rel="stylesheet" href="/static/style.css?v=67">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -400,6 +400,19 @@ ${hypeBowl(db) ? hypeBarScript : ''}<div class="disc" id="disc" hidden role="dia
 const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
 const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
 b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<div class="mpop" id="mpop" hidden role="dialog" aria-modal="true" aria-labelledby="mpopT"><div class="mpop-box"><h2 id="mpopT"></h2><div class="mpop-b" id="mpopB"></div><button class="btn" id="mpopOk">Got it</button></div></div>
+${req.popups && req.popups.length ? `<script>window.MFL_POPS=${JSON.stringify(req.popups).replace(/</g, '\\u003c')}</script>` : ''}
+<script>
+// Popups (a player's game result, a site update...): one at a time, each shown once, after the first-visit notice.
+// window.mflPopup({ id, title, html, button, cls, seen }): seen 'local' (default) remembers it on this device; a URL is POSTed
+// { id } instead, for popups the server keeps track of per account.
+(()=>{const Q=[];let open=false;const el=document.getElementById('mpop'),T=document.getElementById('mpopT'),B=document.getElementById('mpopB'),ok=document.getElementById('mpopOk'),disc=document.getElementById('disc');
+const local=(p)=>!p.seen||p.seen==='local',done=(p)=>{try{return local(p)&&localStorage.getItem('mfl-pop-'+p.id)==='1'}catch(e){return false}};
+function next(){if(open||!Q.length)return;if(disc&&!disc.hidden){setTimeout(next,400);return}const p=Q.shift();open=true;el.className='mpop '+(p.cls||'');T.textContent=p.title||'';B.innerHTML=p.html||'';ok.textContent=p.button||'Got it';el.hidden=false;document.documentElement.classList.add('disc-on');ok.focus();
+ok.onclick=()=>{el.hidden=true;open=false;document.documentElement.classList.remove('disc-on');try{if(local(p))localStorage.setItem('mfl-pop-'+p.id,'1');else fetch(p.seen,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).catch(()=>{})}catch(e){}setTimeout(next,250)}}
+window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;Q.push(p);next()};
+(window.MFL_POPS||[]).forEach(window.mflPopup);})();
 </script>
 <script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
