@@ -196,13 +196,14 @@ module.exports = function fun(app, h) {
   }
   function lastGame(db, last, fan) {
     const rows = [...last.cards].sort((a, b) => b.pts - a.pts || (a.pos || '').localeCompare(b.pos || ''));
-    return `<section class="card last-game"><div class="card-h"><h2>Last game: +${pts(last.total)} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
-      <p class="muted sm">What each card in your Lineup scored. Points = stat × points per stat × the card's multiplier (mistakes are never multiplied). 1 point = 1 coin.</p>
+    const toCoins = (p) => p * cards.COINS_PER_POINT;
+    return `<section class="card last-game"><div class="card-h"><h2>Last game: +${pts(toCoins(last.total))} coins</h2><span class="muted sm">${esc(h.matchName(db, last.g))} · ${esc(h.shortDate(last.g.date))}</span></div>
+      <p class="muted sm">What each card in your Lineup scored. Points = stat × points per stat × the card's multiplier (mistakes are never multiplied). 1 point = ${cards.COINS_PER_POINT} coins: ${pts(last.total)} points paid ${pts(toCoins(last.total))} coins.</p>
       <div class="fan-rows">${rows.map((x) => {
         const line = !x.played ? ['Did not play · 0 pts'] : x.parts.length ? x.parts.map((q) => partMath(x.c, q)) : ['Played, no stats · 0 pts'];
         return `<div class="fan-row${x.pts ? '' : ' zero'}"><span class="fan-av">${avatar(x.c.t, x.c.p, 40)}</span><span class="fan-main"><b>${esc(x.c.p.name)}</b><small>${x.pos ? `<i class="fan-pos">${esc(x.pos)}</i> ` : ''}<span class="rar-tag r-${x.c.rarity}">${esc(x.c.rarityName)}</span> ${esc(x.c.label)} · ${x.c.mult}×</small><span class="fan-math">${line.map((t) => `<span>${esc(t)}</span>`).join(' · ')}</span></span><b class="fan-pts ${x.pts > 0 ? 'up' : x.pts < 0 ? 'down' : ''}">${x.pts > 0 ? '+' : x.pts < 0 ? '−' : ''}${pts(Math.abs(x.pts))}</b></div>`;
       }).join('')}</div>
-      ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} +${pts(r.total)}`).join(' · ')}</p>` : ''}</section>`;
+      ${fan.results.length > 1 ? `<p class="muted sm">Earlier: ${fan.results.slice(0, -1).reverse().slice(0, 6).map((r) => `${esc(h.shortDate(r.g.date))} +${pts(toCoins(r.total))}`).join(' · ')} coins</p>` : ''}</section>`;
   }
 
   const needLogin = (req, res, title, what) => res.send(layout(req, title, pickHead(null, null, /^\/pickem\/(cards|packs)/.test(req.path) ? 'cards' : '') + `<div class="wrap">${pickNav(req.path, null)}<div class="card empty-pick">${icon('star')}<h2>Log in to ${what}</h2><p class="muted">Pick'em accounts are free. You get a free Starter Pack too.</p><p><a class="btn" href="/pickem/signup">Sign up</a> <a class="btn ghost" href="/pickem/login?next=${esc(req.path)}">Log in</a></p></div></div>`));
@@ -274,7 +275,7 @@ module.exports = function fun(app, h) {
         <section class="card lineup-card" id="lineupCard">
           <div class="card-h"><h2>Lineup</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
           <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier, paid in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card changes its player's ratings (some up, some down). Your Lineup carries over until you change it.</p>
-          <p class="lu-score sm"><b>Points</b> ${scoreLine}. A QB with 10 TD passes on a Base card earns ${10 * S.pass} coins.</p>
+          <p class="lu-score sm"><b>Points</b> ${scoreLine}. Every point pays ${cards.COINS_PER_POINT} coins: a QB with 10 TD passes on a Base card scores ${10 * S.pass} points, ${(10 * S.pass * cards.COINS_PER_POINT).toLocaleString('en-US')} coins.</p>
           <p class="lu-how sm"><b>Tap a spot</b>, then pick a player. Tap a filled spot, then another spot to swap them (or drag on a computer). Tap a spot twice to empty it.</p>
           <form method="post" action="/pickem/lineup" id="lineupForm"><input type="hidden" name="cards" id="lineupInput" value="${esc(lineup.join(','))}">
             <div class="slots" id="slots">${Array.from({ length: cards.LINEUP_SIZE }, (_, i) => `<div class="slot g-${POS_GROUP(POS[i])}" data-i="${i}" role="button" tabindex="0" aria-label="${POS[i]}"><span class="slot-pos">${POS[i]}</span><div class="slot-c" data-cur="${esc(lineup[i])}">${slot(lineup[i])}</div></div>`).join('')}</div>
@@ -587,7 +588,7 @@ module.exports = function fun(app, h) {
       <p class="muted sm">Coins are the only currency: the same coins you win in Pick'em are earned by your Lineup and the Arcade and spent on packs.</p>
       <div class="pb-rows">
         ${row("From Pick'em (start + picks)", picks)}
-        ${row('Lineup', P.fantasy, nGames ? `${nGames} game${nGames === 1 ? '' : 's'} scored` : '')}
+        ${row('Lineup', P.fantasy, nGames ? `${nGames} game${nGames === 1 ? '' : 's'} · ${f(P.fan.total)} points × ${cards.COINS_PER_POINT}` : '')}
         ${row('Arcade games', P.arcade || 0, `won ${f(won)} · lost ${f(lost)}${P.arcadePlayed ? ` · ${P.arcadePlayed} game${P.arcadePlayed === 1 ? '' : 's'}` : ''}`, 'pb-arc')}
         ${row('Daily challenges', P.challenges || 0)}
         ${row('Game-day check-ins', P.checkins || 0)}
@@ -643,7 +644,7 @@ module.exports = function fun(app, h) {
         ${sections}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
           <li>${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
-          <li><b>Prices follow the odds.</b> Everyday packs ${tierPrice(0, 7500)} coins · bigger packs with guarantees ${tierPrice(7500, 50000)} · Legend-or-better packs ${tierPrice(50000, 100000)} · Dark Matter, 1 of 1 hunts and Prism or Black set packs ${tierPrice(100000, Infinity)}. The best packs take a real grind.</li>
+          <li><b>Prices follow the odds.</b> Everyday packs ${tierPrice(0, 7500)} coins · bigger packs with guarantees ${tierPrice(7500, 20000)} · Legend-or-better packs, 1 of 1 hunts and Prism or Black set packs ${tierPrice(20000, 100000)} · Dark Matter, The Vault and the Black Label Box ${tierPrice(100000, Infinity)}. The best packs take a real grind.</li>
           <li>Extra copies sell for ${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${fmtN(R[r].sell)}`).join(' · ')} coins (on <a href="/pickem/cards">My cards</a>). A pack's cards sell for far less than the pack costs.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
