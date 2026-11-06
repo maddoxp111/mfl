@@ -8,6 +8,7 @@ const tts = require('./tts');
 const cards = require('./cards');
 const sv = require('./survivor');
 const badges = require('./badges');
+const PP = require('./playerpay');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -113,6 +114,20 @@ app.use((req, res, next) => {
     if (name && left(c[USER_COOKIE]) < (SESSION_DAYS - 7) * DAY) setUserCookie(req, res, name);
     if (isAdmin(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
   }
+  next();
+});
+// "Your player" popups (playerpay.js): an account linked to a real player hears about each of
+// his final games once, on its next page. Only page loads by a signed-in, linked account do any work.
+app.use(async (req, res, next) => {
+  try {
+    if (req.method !== 'GET' || /\.[a-z0-9]+$/i.test(req.path) || /^\/(static|media|api|admin)(\/|$)/.test(req.path)) return next();
+    const name = currentUser(req);
+    const user = name ? await getDoc(userKey(name)) : null;
+    if (user && user.player) {
+      const pops = PP.popups(load(), user.player, '/pickem/player/seen');
+      if (pops.length) req.popups = [...(req.popups || []), ...pops];
+    }
+  } catch (e) { console.error(e); }
   next();
 });
 
@@ -353,7 +368,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=67">
+<link rel="stylesheet" href="/static/style.css?v=68">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1089,7 +1104,11 @@ function coinExtras(db, user, svState) {
   const badgesWon = badges.userBadges({ db, acct: pk.account(db, user), user, weeklyWins: 0, survivorWins: survivor / sv.PRIZE, fantasy: fan }).length;
   const achieve = badgesWon * ACHIEVEMENT_COINS;
   const extra = ar.arcade + ar.challenges + ar.checkins + achieve;
-  return { fantasy: fan.total, fan, survivor, bonus, spent, arcade: ar.arcade, arcadeWon: ar.arcadeWon || Math.max(0, ar.arcade), arcadeLost: ar.arcadeLost || Math.max(0, -ar.arcade), arcadePlayed: ar.arcadePlayed || 0, challenges: ar.challenges, checkins: ar.checkins, achieve, net: fan.total + survivor + bonus - spent + extra };
+  // "Your player": coins from the real games of the player linked to this account (playerpay.js).
+  const playerLink = user.player ? PP.findPlayer(db, user.player) : null;
+  const playerGames = playerLink ? PP.playerGames(db, user.player) : [];
+  const player = playerGames.reduce((s, x) => s + x.total, 0);
+  return { fantasy: fan.total, fan, survivor, bonus, spent, arcade: ar.arcade, arcadeWon: ar.arcadeWon || Math.max(0, ar.arcade), arcadeLost: ar.arcadeLost || Math.max(0, -ar.arcade), arcadePlayed: ar.arcadePlayed || 0, challenges: ar.challenges, checkins: ar.checkins, achieve, player, playerLink, playerGames, net: fan.total + survivor + bonus - spent + extra + player };
 }
 let arcadeApi = null;
 function accountOf(db, user, svState) {
@@ -1102,6 +1121,21 @@ async function loadAccount(db, name) {
   const user = name ? await getDoc(userKey(name)) : null;
   if (!user) return { user: null, acct: null };
   return { user, acct: accountOf(db, user, await survivorNow(db)) };
+}
+// "Your player" card: the linked player's games (newest first), what each one paid, and the season total.
+function playerCard(db, acct) {
+  const P = acct && acct.points;
+  if (!P || !P.playerLink) return '';
+  const { team, p } = P.playerLink, games = [...(P.playerGames || [])].reverse(), pay = PP.payTable(db);
+  const sg = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toLocaleString('en-US');
+  const one = (gp) => `<div class="pp-g${gp.voided ? ' void' : ''}"><div class="pp-gh"><span class="pp-res ${gp.result}">${gp.result}</span><a href="/games/${esc(gp.game.id)}">${gp.score} vs ${esc(db.teams[gp.opp]?.name || '')}</a><small>${esc(shortDate(gp.game.date))}</small><b class="${gp.total > 0 ? 'up' : 'zero'}">${sg(gp.total)}</b></div>${PP.linesHtml(gp)}</div>`;
+  return `<div class="card pp-card" id="your-player"><div class="card-h"><h2>${icon('star')} Your player</h2><b class="big">${coins(P.player)}</b></div>
+    ${team ? `<a class="pp-who" href="${playerUrl(team, p)}">${avatar(team, p, 48)}<div><b>${esc(p.name)}</b><small>${logo(team, 16)} ${esc(team.name)} · ${games.length} game${games.length === 1 ? '' : 's'}</small></div></a>` : `<div class="pp-who"><div><b>${esc(p.name)}</b><small>${games.length} game${games.length === 1 ? '' : 's'}</small></div></div>`}
+    ${games.slice(0, 5).map(one).join('') || '<p class="muted sm">No final games yet. Your first game pays as soon as it is final.</p>'}
+    ${games.length > 5 ? `<details class="pp-more"><summary>All ${games.length} games</summary>${games.slice(5).map(one).join('')}</details>` : ''}
+    <div class="pb-rows"><div class="tot"><span>Season total</span><b>${P.player.toLocaleString('en-US')}</b></div></div>
+    <p class="muted sm">Each game pays: ${PP.ORDER.filter((k) => pay[k]).map((k) => `${esc(PP.LABELS[k])} ${sg(pay[k])}`).join(' · ')}. A game never pays below 0, and voided games pay nothing.</p>
+  </div>`;
 }
 // Pick'em and MFL Cards are separate sections, each with its own tab bar.
 const CARD_PAGES = /^\/pickem\/(cards|packs|trades?|collectors|collection)(\/|$)/;
@@ -1512,6 +1546,21 @@ app.get('/pickem/me.json', async (req, res) => {
   if (!user) return res.set('Cache-Control', 'no-store').json({});
   const offers = (await listDocs('cardtrades/')).filter((t) => t.status === 'open' && t.to === name).length;
   res.set('Cache-Control', 'no-store').json({ name, balance: accountOf(load(), user, await survivorNow(load())).balance, offers });
+});
+// "Your player" popups are closed per account, not per device: remember which ones were seen.
+app.post('/pickem/player/seen', async (req, res) => {
+  const name = currentUser(req);
+  const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
+  const id = String((req.body && req.body.id) || '');
+  if (!user || !user.player) return res.json({ ok: false });
+  const L = user.player;
+  if (id === 'pp-welcome') L.welcomed = true;
+  else if (/^pp-g[\w-]{1,40}$/.test(id) && load().games.some((g) => String(g.id) === id.slice(4))) {
+    L.seen = L.seen || [];
+    if (!L.seen.includes(id.slice(4))) L.seen.push(id.slice(4));
+  } else return res.json({ ok: false });
+  await putDoc(userKey(name), user);
+  res.json({ ok: true });
 });
 
 // Out of coins: a top-up, but not right after spending them on packs.
@@ -2499,6 +2548,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       </div>
       ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
+      ${mine ? playerCard(db, acct) : ''}
       ${canBail ? `<form method="post" action="/pickem/bailout" class="card bail"><div><b>Out of coins?</b><p class="muted">Get a ${pk.BAILOUT_COINS} coin bailout and keep playing.</p></div><button class="btn">Claim ${pk.BAILOUT_COINS} coins</button></form>` : ''}
       <div class="stats-row six">${tile('Lineup', coins(acct.points.fantasy))}${tile('Profit', signed(acct.profit), acct.profit >= 0 ? 'up' : 'down')}${tile('Record', `${acct.won}-${acct.lost}`)}${tile('Win rate', st.winRate + '%')}${tile('Streak', st.streak)}${tile('Singles', `${st.singles.rate}% <small>of ${st.singles.n}</small>`)}${tile('Combos', `${st.parlays.rate}% <small>of ${st.parlays.n}</small>`)}</div>
       ${mine ? `<details class="card pw-card" id="password" ${req.query.pw ? 'open' : ''}><summary><h2>Change password</h2>${icon('chev')}</summary>
@@ -3214,19 +3264,50 @@ app.post('/admin/pickem-markets', requireAdmin, async (req, res) => {
   await save();
   res.redirect('/admin/pickem?saved=1');
 });
+// "Your player" on /admin/pickem: who is linked to which real player, what each has earned, and the pay table.
+function playerPayCard(db, board) {
+  const pay = PP.payTable(db), linked = board.filter((u) => u.points.playerLink);
+  return `<div class="card" id="player-pay"><div class="card-h"><h2>Your player</h2></div>
+    <p class="muted sm">Link an account to the real player who owns it (the Player column below) and it earns coins from his real games, worked out live: linking pays every game he has played, unlinking takes it back. Deductions come off that game, but a game never pays below 0. Voided games and games he was ruled out of pay nothing.</p>
+    ${linked.length ? `<div class="scroll"><table class="tbl admin"><thead><tr><th class="l">Account</th><th class="l">Player</th><th>Games</th><th>Earned</th></tr></thead><tbody>
+      ${linked.map((u) => { const { team, p } = u.points.playerLink; return `<tr><td class="l"><a href="/pickem/u/${esc(u.name)}">@${esc(u.name)}</a></td><td class="l">${team ? `${logo(team, 18)} <a href="${playerUrl(team, p)}">${esc(p.name)}</a>` : `${esc(p.name)} <small class="muted">(not on a roster)</small>`}</td><td>${u.points.playerGames.length}</td><td>${coins(u.points.player)}</td></tr>`; }).join('')}
+      </tbody></table></div>` : '<p class="muted sm">No accounts are linked yet.</p>'}
+    <form method="post" action="/admin/player-pay" class="form"><h3>Coins per game</h3><p class="muted sm">Changes apply to every game, past ones too. Leave a box empty for the default.</p>
+      <div class="fgrid">${PP.ORDER.map((k) => `<label>${esc(PP.LABELS[k])} <small class="muted">(${esc(PP.RULES[k])}; default ${PP.PAYOUTS[k].toLocaleString('en-US')})</small><input type="number" step="1" name="${k}" value="${pay[k]}" placeholder="${PP.PAYOUTS[k]}"></label>`).join('')}</div>
+      <div class="actions"><button class="btn sm">Save amounts</button></div></form>
+  </div>`;
+}
+// Every roster player, grouped by team, for linking an account.
+function playerOptions(db, link) {
+  const cur = link && PP.findPlayer(db, link);
+  return `<option value="">None</option>${Object.values(db.teams).map((t) => `<optgroup label="${esc(t.name)}">${t.roster.map((p) => `<option value="${esc(t.id)}|${esc(p.id)}" ${cur && cur.p === p ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}`;
+}
+app.post('/admin/player-pay', requireAdmin, async (req, res) => {
+  const db = load();
+  const pay = {};
+  for (const k of PP.ORDER) {
+    const v = String(req.body[k] ?? '').trim();
+    if (v !== '' && Number.isFinite(+v) && Math.trunc(+v) !== PP.PAYOUTS[k]) pay[k] = Math.trunc(+v);
+  }
+  db.playerPay = pay;
+  await save();
+  res.redirect('/admin/pickem?saved=1#player-pay');
+});
 app.get('/admin/pickem', requireAdmin, async (req, res, next) => {
   try {
     const db = load();
     const board = await leaderboard(db);
     const docs = await listDocs('users/'), byName = Object.fromEntries(docs.map((u) => [u.name, u]));
-    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten password, give coins, suspend or remove an account, and keep the picks honest.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
+    res.send(layout(req, "Pick'em Admin", pageHead('Admin', "Pick'em Accounts", 'Reset a forgotten password, give coins, suspend or remove an account, link an account to its real player, and keep the picks honest.') + `<div class="wrap">${adminNav('/admin/pickem')}${savedMsg(req)}
       ${integrityCard(db, docs)}
-      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Reset password</th><th class="l">Give coins</th><th></th><th></th></tr></thead><tbody>
-      ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b>${byName[u.name]?.noPicks ? ' <span class="badge ppd">Suspended</span>' : ''}</td><td>${coins(u.balance)}</td><td>${u.won}-${u.lost}</td><td>${u.pending}</td>
+      ${playerPayCard(db, board)}
+      <div class="card"><div class="scroll"><table class="tbl admin"><thead><tr><th class="l">User</th><th>Coins</th><th>W-L</th><th>Open</th><th class="l">Player</th><th class="l">Reset password</th><th class="l">Give coins</th><th></th><th></th></tr></thead><tbody>
+      ${board.map((u) => `<tr><td class="l"><b>@${esc(u.name)}</b>${byName[u.name]?.noPicks ? ' <span class="badge ppd">Suspended</span>' : ''}</td><td class="nw">${coins(u.balance)}</td><td class="nw">${u.won}-${u.lost}</td><td>${u.pending}</td>
+        <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/player" class="inline pp-pick"><select name="player" aria-label="Real player for @${esc(u.name)}">${playerOptions(db, byName[u.name]?.player)}</select><button class="btn sm ghost">Save</button></form></td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/pin" class="inline"><input name="pin" minlength="4" maxlength="72" placeholder="New password" required><button class="btn sm ghost">Set</button></form></td>
         <td class="l"><form method="post" action="/admin/pickem/${esc(u.name)}/coins" class="inline"><input name="amount" type="number" placeholder="+500" required><button class="btn sm ghost">Give</button></form></td>
         <td><form method="post" action="/admin/pickem/${esc(u.name)}/${byName[u.name]?.noPicks ? 'unsuspend' : 'suspend'}"><button class="btn sm ghost">${byName[u.name]?.noPicks ? 'Unsuspend' : 'Suspend'}</button></form></td>
-        <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their picks?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>'}
+        <td><form method="post" action="/admin/pickem/${esc(u.name)}/delete"><button class="btn sm ghost danger" onclick="return confirm('Delete @${esc(u.name)} and all their picks?')">Delete</button></form></td></tr>`).join('') || '<tr><td colspan="9" class="muted">No accounts yet.</td></tr>'}
       </tbody></table></div></div></div>`, { ticker: false }));
   } catch (e) { next(e); }
 });
@@ -3267,6 +3348,19 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
   else if (req.params.action === 'suspend') { user.noPicks = true; user.noPicksAt = new Date().toISOString(); }
   else if (req.params.action === 'unsuspend') { delete user.noPicks; delete user.noPicksAt; }
+  else if (req.params.action === 'player') {
+    // Link (or unlink) the account's real player. Games he has already played are paid as back
+    // pay in one welcome popup, so they're marked seen instead of popping one by one.
+    const db = load();
+    const [team, pid] = String(req.body.player || '').split('|');
+    const p = db.teams[team]?.roster.find((x) => x.id === pid);
+    const now = user.player && PP.findPlayer(db, user.player);
+    if (!req.body.player) delete user.player;
+    else if (p && !(now && now.p === p)) {
+      const link = { team, pid, name: p.name, at: new Date().toISOString() };
+      user.player = { ...link, seen: PP.playerGames(db, link).map((x) => String(x.game.id)), welcomed: false };
+    }
+  }
   await putDoc(userKey(name), user);
   res.redirect('/admin/pickem?saved=1');
 });
@@ -3340,7 +3434,7 @@ function ratingOf(db, t, p) {
   if (!ratingMemo.map || Date.now() - ratingMemo.at > 3000) ratingMemo = { at: Date.now(), map: Object.fromEntries(ratings(db).map((x) => [x.p.id, x.r])) };
   return ratingMemo.map[p.id] ?? 60;
 }
-{ const funH = { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pageHead, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf };
+{ const funH = { esc, icon, logo, avatar, pts, coins, layout, pickHead, pickNav, pageHead, pk, TZ, load, save, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, leaderboard, weeklyWinners, matchName, shortDate, time12, ratingOf, playerCard };
   require('./fun')(app, funH);
   require('./trading')(app, funH);
   require('./cardbook')(app, funH); }
