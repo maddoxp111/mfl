@@ -142,9 +142,16 @@ function popups(db, link, seenUrl, max = 5) {
   if (!link.welcomed && who) {
     const back = games.filter((x) => seen.has(String(x.game.id)) && !x.voided);
     const total = back.reduce((s, x) => s + x.total, 0);
-    pops.push({ id: 'pp-welcome', title: 'Your player', seen: seenUrl, button: "Let's go",
-      html: `<p>Your account is now linked to your real player: <b>${esc(who.p.name)}</b>${who.team ? ` (${esc(who.team.name)})` : ''}. Every game you play earns you coins: wins, touchdowns, interceptions and more.</p>`
-        + (back.length ? `<p>You've been credited <b>${fmt(total)} coins</b> for your ${back.length} game${back.length === 1 ? '' : 's'} so far.</p>` : '<p>Your first game pays as soon as it is final.</p>') });
+    // what his earlier games added up to, line by line (a game that went below 0 paid 0: that shows as its own line)
+    const sum = {};
+    for (const x of back) for (const l of x.lines) { const o = sum[l.key] || (sum[l.key] = { key: l.key, label: l.label, n: 0, each: l.each, coins: 0 }); o.n += l.n; o.coins += l.coins; }
+    const lines = ORDER.map((k) => sum[k]).filter(Boolean), raw = lines.reduce((t, l) => t + l.coins, 0);
+    if (total > raw) lines.push({ key: 'floor', label: 'Not taken (a game never pays below 0)', n: 1, each: total - raw, coins: total - raw });
+    const linked = `<p>Your account is now linked to your real player: <b>${esc(who.p.name)}</b>${who.team ? ` (${esc(who.team.name)})` : ''}.</p>`;
+    pops.push({ id: 'pp-welcome', title: back.length && total > 0 ? 'You got coins!' : 'Your player', seen: seenUrl, button: "Let's go",
+      html: linked + (back.length
+        ? `<p>You got <b>${fmt(total)} coins</b> for your performance in your ${back.length} previous game${back.length === 1 ? '' : 's'}:</p>${linesHtml({ lines, total, raw: total, voided: false }, 'Coins from past games')}<p>From now on, every game you play pays: wins, touchdowns, interceptions and more, with a popup after each one.</p>`
+        : '<p>Every game you play earns you coins: wins, touchdowns, interceptions and more. Your first game pays as soon as it is final.</p>') });
   }
   for (const gp of games) {
     if (pops.length >= max) break;
