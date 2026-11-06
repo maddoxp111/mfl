@@ -8,6 +8,7 @@ const tts = require('./tts');
 const cards = require('./cards');
 const sv = require('./survivor');
 const badges = require('./badges');
+const updates = require('./updates');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -339,6 +340,16 @@ function gameCard(db, g, opts = {}) {
   </a>`;
 }
 
+// Patch notes (updates.js): a bullet's lead-in ("Fair play: ...") is bolded; everything is escaped.
+const updateItem = (s) => { const m = /^([^:]{1,24}): ([\s\S]*)$/.exec(String(s)); return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(s); };
+// The latest update pops up once per device on any page, through the shared popup queue.
+const updatePop = (() => {
+  const u = updates.latest();
+  if (!u) return '';
+  const html = `<p class="upd-t">${esc(u.title)}</p><ul>${(u.items || []).map((s) => `<li>${updateItem(s)}</li>`).join('')}</ul><p class="upd-all"><a href="/updates">All patch notes →</a></p>`;
+  return `<script>window.mflPopup(${JSON.stringify({ id: 'update-' + u.n, title: 'UPDATE ' + u.n, html, button: 'Nice', cls: 'mpop-upd' }).replace(/</g, '\\u003c')})</script>`;
+})();
+
 function layout(req, title, body, opts = {}) {
   const db = load();
   const teams = Object.values(db.teams);
@@ -353,7 +364,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=67">
+<link rel="stylesheet" href="/static/style.css?v=68">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -369,8 +380,8 @@ function layout(req, title, body, opts = {}) {
       ${teams.map((t) => `<a href="/teams/${t.id}">${logo(t, 22)} ${esc(teamFull(t))}</a>`).join('')}<a href="/transactions">${icon('swap')} Transactions</a></div></div>
     <div class="dd ${on(['/stats', '/records', '/cards'])}"><button>Stats ${icon('chev')}</button><div class="dd-m">
       <a href="/stats/team">${icon('chart')} Team Stats</a><a href="/stats/players">${icon('star')} Player Leaders</a><a href="/stats/rankings">${icon('fire')} Power Rankings</a><a href="/records">${icon('trophy')} Records Book</a><a href="/cards">${icon('star')} Trading Cards</a></div></div>
-    <div class="dd ${on(['/midweek', '/analyst'])}"><button>News ${icon('chev')}</button><div class="dd-m">
-      <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a></div></div>
+    <div class="dd ${on(['/midweek', '/analyst', '/updates'])}"><button>News ${icon('chev')}</button><div class="dd-m">
+      <a href="/midweek">${icon('cal')} Midweek Recap</a><a href="/analyst">${icon('star')} Ask the Analyst</a><a href="/pickem/survivor">${icon('fire')} Survivor</a><a href="/pickem/cards">${icon('trophy')} MFL Cards</a><a href="/updates">${icon('clock')} Patch notes</a></div></div>
     <div class="nav-main"><a class="nav-arc ${on(['/arcade'])}" href="/arcade">🕹️ Arcade</a>
     <a class="nav-career ${on(['/career'])}" href="/career" aria-label="Career" title="Career">🏈 <span class="nav-career-t">Career</span></a>
     <a class="nav-cards ${CARD_PAGES.test(cur) ? 'on' : ''}" href="/pickem/cards">🃏 Cards</a>
@@ -386,7 +397,7 @@ ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
   <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a><a href="/updates">Patch notes</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
 </div></footer>
 ${hypeBowl(db) ? hypeBarScript : ''}<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
   <img src="/static/mfl-logo.webp" alt="" width="56" height="56">
@@ -414,6 +425,7 @@ ok.onclick=()=>{el.hidden=true;open=false;document.documentElement.classList.rem
 window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;Q.push(p);next()};
 (window.MFL_POPS||[]).forEach(window.mflPopup);})();
 </script>
+${updatePop}
 <script>
 document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
 document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
@@ -1760,6 +1772,18 @@ app.get('/transactions', (req, res) => {
   const txs = [...(db.transactions || [])].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   res.send(layout(req, 'Transactions', pageHead('2026–27 Season', 'Transactions', 'Trades, signings and releases. Team reps can trade non-team-representatives.') + `<div class="wrap">
     <div class="card">${txs.map((t) => txLine(db, t)).join('') || '<p class="muted">No transactions yet.</p>'}</div></div>`));
+});
+
+// ---------- patch notes (updates.js) ----------
+app.get('/updates', (req, res) => {
+  const list = [...updates.UPDATES].sort((a, b) => b.n - a.n);
+  res.send(layout(req, 'Patch notes', pageHead('MFL website', 'Patch notes', 'Everything new on the site, newest first.') + `<div class="wrap">
+    ${list.map((u, i) => `<article class="card prose upd" id="update-${esc(u.n)}">
+      <h2>Update ${esc(u.n)}${i === 0 ? ' <span class="badge live">Latest</span>' : ''}</h2>
+      <div class="upd-d">${esc(longDate(u.date))}</div>
+      <h3>${esc(u.title)}</h3>
+      <ul>${(u.items || []).map((s) => `<li>${updateItem(s)}</li>`).join('')}</ul>
+    </article>`).join('') || '<p class="muted">No updates yet.</p>'}</div>`));
 });
 
 // ---------- calendar ----------
