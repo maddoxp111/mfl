@@ -3228,8 +3228,13 @@ gl_FragColor=vec4(c,1.0);}`;
         const k = Math.max(0, 1 - tPlay / 1.6), sp = Math.hypot(q.vx, q.vz) || 1;
         tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + DP.cush * k - (q.vz / sp) * 0.5 * (1 - k);
       } else { tx = r.x; tz = r.z + 1.2; }
-      staminaStep(d, dt, dist(d, r) > 2.5 && tPlay > 1);
-      steer(d, tx, tz, effV(d) * d.spdK, dt, 8);
+      // a vertical route: once the receiver is even with him or by him going upfield, he opens his hips and runs with him, aimed at
+      // his inside hip (not where the route was a beat ago) at a sprint, and a good corner has a closing gear: he stays in phase,
+      // and a real burner can still win a step on a weak one
+      const vert = !thrown && tPlay > 0.6 && r.vz > 4.5 && r.z > d.z - 1.5;
+      if (vert) { const inside = r.x > 0 ? -1 : 1; tx = r.x + inside * 0.7 + r.vx * 0.1; tz = r.z + r.vz * 0.12; }
+      staminaStep(d, dt, vert || dist(d, r) > 2.5 && tPlay > 1);
+      steer(d, tx, tz, effV(d) * d.spdK * (vert ? 1.02 + 0.07 * KDEF : 1), dt, vert ? 10 : 8);
     }
     const ZR = { X: 1, Z: 1, S: 1, Y: 1, RB: 1 };
     function zoneCover(d, dt) {
@@ -3239,20 +3244,22 @@ gl_FragColor=vec4(c,1.0);}`;
         if (!ZR[r.key] || !r.R || r.blk === 'block') continue;
         const dx = r.x - Lx, dz = r.z - Lz;
         let s;
-        if (a.deep) { if (r.z < Lz - 10 || Math.abs(dx) > 11) continue; s = -r.z + Math.abs(dx) * 0.4; }
+        if (a.deep) { if (r.z < Lz - 10 || Math.abs(dx) > (Math.abs(Lx) < 3 ? 20 : 11)) continue; s = -r.z + Math.abs(dx) * 0.4; } // a lone middle safety helps on the outside go routes too
         else { const dd = Math.hypot(dx, dz * 1.25); if (dd > 8.5) continue; s = dd; }
         if (s < bs) { bs = s; best = r; }
       }
       if (best) {
-        if (a.deep) { tx = lerp(Lx, best.x, 0.75); tz = Math.max(Lz - 3, best.z + 3.2); }
+        if (a.deep) { tx = lerp(Lx, best.x, Math.abs(Lx) < 3 ? 0.65 : 0.88); tz = Math.max(Lz - 3, best.z + 1.8 + Math.max(0, best.vz) * 0.08); } // just over the top of the deepest one, matched across
         else { const k = DP.zoneTight; tx = lerp(Lx, best.x, k); tz = lerp(Lz, best.z - 0.5, k * 0.9); }
       }
       if (aim && aim.spot && aim.dur > 0.25) {
         const s = DP.stare * clamp((aim.dur - 0.25) / 1.2, 0, 1) * (Math.hypot(aim.spot.x - d.x, aim.spot.z - d.z) < 14 ? 1 : 0.3);
         tx = lerp(tx, aim.spot.x, s * 0.55); tz = lerp(tz, aim.spot.z, s * 0.4);
       }
-      staminaStep(d, dt, false);
-      steer(d, tx, tz, d.v * (tPlay < 0.45 ? 0.8 : 1), dt, 7);
+      // a deep defender with a receiver threatening his depth turns and runs (a sprint), so nobody just runs past the last man
+      const threat = a.deep && best && best.vz > 4 && best.z > d.z - 7;
+      staminaStep(d, dt, threat);
+      steer(d, tx, tz, (threat ? effV(d) * (1 + 0.05 * KDEF) : d.v) * (tPlay < 0.45 ? 0.8 : 1), dt, 7);
     }
     function rushQB(d, dt) {
       const qb = carrier || OK.QB, fx = d.x < 0 ? -1 : 1;
@@ -3625,7 +3632,9 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.y <= 0.14) { b.st = 'dead'; bounce(b); endPlay('inc', 0, b.tipped ? 'Batted down' : b.drop ? 'Dropped' : !inField(b.x, b.z) ? 'Out of bounds' : 'Nobody there'); return; }
       if (Math.abs(b.x) > HW + 3 || b.z > 113 || b.z < -12) { b.st = 'dead'; endPlay('inc', 0, b.z > 110 ? 'Out of the back of the end zone' : 'Thrown away'); }
     }
-    const CROWDK = 0.8 - 0.06 * KDEF; // each extra defender in the crowd trims the odds (it does not kill them)
+    // each extra defender around the catch cuts the odds a lot: double coverage is a gamble (about 1 in 3, more picks), a triple
+    // team a long shot, but never zero: the crazy catch still happens
+    const CROWDK = 0.62 - 0.1 * KDEF;
     const catchRadius = (p) => (p.side === 0 ? 0.36 + (p.cat - 50) * 0.0014 : 0.32) * (p.diveT > 0 ? 1.25 : 1) * (p.pkR || 1);
     // where a hand is when the player reaches for the ball: shoulder (from the body, not the last drawn skeleton) plus the arm toward the reach point
     // how far the ball's path (from the previous position to now) passes from what this player can touch
@@ -3714,7 +3723,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
-      const W = clamp(0.7 + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
       b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
       if (rng() < W) {
         const hv = Math.hypot(b.vx, b.vz);
@@ -3724,7 +3733,7 @@ gl_FragColor=vec4(c,1.0);}`;
         return;
       }
       // the defender wins it: a pick if the ball was on his side and he sees it, otherwise he breaks it up
-      const pI = clamp(DP.intSkill * 0.55 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.15 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1), 0, 0.32);
+      const pI = clamp(DP.intSkill * 0.55 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.7 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1), 0, crowd >= 2 ? 0.5 : 0.36);
       if (rng() < pI) { intercept(d, 'contest'); return; }
       if (!b.helmet && funRoll('helmet', 0.22)) { helmetCarom(rng() < 0.5 ? d : r); return; }
       if (rng() < 0.38) tipBall(d, 'TIPPED!'); else knockDown2(d.jumpY > 0.15 ? 'SWATTED!' : 'BROKEN UP!');
