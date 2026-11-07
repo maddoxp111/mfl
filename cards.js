@@ -3,6 +3,7 @@
 // Every card also shifts its player's game attributes (see cardEffects): some up, some down.
 const crypto = require('crypto');
 const pk = require('./pickem');
+const { S1 } = require('./seasons');
 
 // Rarity sets how often a card shows up in packs (and what an extra copy sells for).
 // Sell values stay far below pack prices: on average a pack's cards sell for well under
@@ -14,10 +15,12 @@ const RARITIES = {
   legendary: { name: 'Legend', mult: 2, weight: 90, sell: 1500 },
   mythic: { name: 'Mythic', mult: 3, weight: 8, sell: 5000 },
   dark: { name: 'Dark Matter', mult: 4, weight: 2, sell: 15000 },
+  // Season 1's top rarity, above Dark Matter. Only Season 1 cards have it, so only Season 1 packs drop it.
+  zenith: { name: 'Zenith', mult: 5, weight: 1, sell: 40000 },
   // Never rolled by weight: see DOH_ODDS. Hidden: never listed anywhere until someone pulls it.
   doh: { name: 'Big Doh Mi', mult: 101, weight: 0, sell: 100000, hidden: true },
 };
-const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'dark', 'doh'];
+const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic', 'dark', 'zenith', 'doh'];
 // The rarities pages list (odds, filters, help). Hidden ones stay out of every list.
 const SHOWN_RARITIES = RARITY_ORDER.filter((r) => !RARITIES[r].hidden);
 // Big Doh Mi: a 1 in 100,000 (0.001%) shot on every card pulled.
@@ -178,6 +181,25 @@ const BODY_VARIANTS = [
 ];
 const BODY_TYPES = BODY_VARIANTS.map((v) => v.id);
 VARIANTS.push(...BODY_VARIANTS);
+
+// Season 1: Full Extension (seasons.js). Every player gets these nine; the cover athlete also gets two of his own.
+// Season cards only drop from Season 1 packs, and each one beats the older cards of its rarity. Added last so every
+// older card keeps its artwork.
+const S1_VARIANTS = [
+  { id: 's1-ttime', rarity: 'rare', label: 'T-Time', mult: 1.4, quote: "It's T-Time." },
+  { id: 's1-23', rarity: 'rare', label: 'Twenty-Three', mult: 1.45, quote: 'Wears 23. Plays like it.' },
+  { id: 's1-cars', rarity: 'epic', label: 'Cars', mult: 1.8, quote: 'Say it right: car-se.' },
+  { id: 's1-chem', rarity: 'epic', label: 'Team Chemistry', mult: 1.9, quote: 'Makes everybody around him better.' },
+  { id: 's1-onehand', rarity: 'legendary', label: 'One-Hand CT', mult: 2.4, quote: 'Only needed the one.' },
+  { id: 's1-tabaka', rarity: 'legendary', label: 'Tabaka Grab', mult: 2.6, quote: 'A catch with his name on it.' },
+  { id: 's1-bbmode', rarity: 'mythic', label: 'Big Boy Mode', mult: 3.2, quote: 'Big boy mode: on.' },
+  { id: 's1-shoot', rarity: 'mythic', label: 'Cover Shoot 1/1', mult: 3.8, one: true, quote: 'One take. Nailed it.' },
+  { id: 's1-fullext', rarity: 'zenith', label: 'Full Extension 1/1', mult: 5, one: true, quote: 'The catch that named a season.' },
+  // The cover athlete's own two.
+  { id: 's1-cover', rarity: 'mythic', label: 'Cover Athlete', mult: 3.5, only: S1.cover, quote: 'The face of Season 1.' },
+  { id: 's1-bigboy', rarity: 'zenith', label: `${S1.nick} 1/1`, mult: 6, one: true, only: S1.cover, quote: 'Big boy. Bigger hands.' },
+].map((v) => ({ ...v, season: 1 }));
+VARIANTS.push(...S1_VARIANTS);
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
 
 // ---------- card effects ----------
@@ -236,6 +258,18 @@ const VARIANT_FX = {
   mythic: { a: { thr: 10, acc: 10, spd: 10, agi: 10, cat: 10, def: 10, sta: 8, str: 8, kick: 8 } },
   dark: { a: { spd: 12, agi: 12, str: 11, def: 11, sta: 10, cat: 9, thr: 9, acc: 9, kick: 7, wgt: 10 } }, // dense
   doh: { a: { thr: 12, acc: 12, spd: 12, agi: 12, sta: 12, str: 12, cat: 12, def: 12, kick: 12, hgt: 2, wgt: 15 } },
+  // Season 1, all named for the cover athlete: bigger upsides than the older cards of the same rarity. The 1/1s are all upside.
+  's1-ttime': { a: { spd: 5, kick: 4, sta: 2, def: -2 } }, // T-Time: first one off the line
+  's1-23': { a: { acc: 4, def: 4, cat: 2, kick: -2 } },
+  's1-cars': { a: { spd: 7, agi: 6, cat: 4, str: -2 } }, // "Cars": built for speed
+  's1-chem': { a: { cat: 5, acc: 5, sta: 5, def: 4, kick: -2 } }, // good at everything, makes everyone better
+  's1-onehand': { a: { cat: 10, agi: 6, acc: 5, spd: 4, str: -2 } },
+  's1-tabaka': { a: { cat: 9, spd: 8, agi: 7, kick: 5, sta: -2, hgt: 2 } },
+  's1-bbmode': { a: { str: 12, def: 10, cat: 9, sta: 8, spd: 5, agi: -2, wgt: 20 }, build: 'tank' },
+  's1-shoot': { a: { cat: 12, spd: 12, agi: 12, acc: 12, thr: 11, def: 11, sta: 10, str: 10, kick: 9, hgt: 2 } },
+  's1-fullext': { a: { thr: 12, acc: 12, spd: 12, agi: 12, sta: 12, str: 12, cat: 12, def: 12, kick: 12, hgt: 2, wgt: 5 } },
+  's1-cover': { a: { cat: 12, str: 10, agi: 9, spd: 8, sta: 6, kick: -2, wgt: 10 } },
+  's1-bigboy': { a: { thr: 12, acc: 12, spd: 12, agi: 12, sta: 12, str: 12, cat: 12, def: 12, kick: 12, hgt: 2, wgt: 20 }, build: 'tank' },
   // Body types.
   skinny: { a: { spd: 4, agi: 4, str: -4, def: -2, wgt: -15 }, build: 'slim' },
   heavy: { a: { str: 5, def: 3, spd: -4, sta: -2, wgt: 20 }, build: 'fat' },
@@ -250,7 +284,7 @@ const VARIANT_FX = {
 const RARITY_FX = {
   common: { sta: 1, cat: 1, kick: -1 }, rare: { cat: 2, spd: 2, str: -1 }, epic: { cat: 3, spd: 3, acc: 2, str: -2 },
   legendary: { cat: 5, spd: 5, acc: 4, str: -2 }, mythic: { cat: 7, spd: 7, acc: 6, thr: 4, str: -1 },
-  dark: { cat: 10, spd: 10, acc: 10, thr: 10, str: 10 }, doh: { cat: 12, spd: 12, acc: 12, thr: 12, str: 12 },
+  dark: { cat: 10, spd: 10, acc: 10, thr: 10, str: 10 }, zenith: { cat: 12, spd: 12, acc: 12, thr: 12, str: 12 }, doh: { cat: 12, spd: 12, acc: 12, thr: 12, str: 12 },
 };
 // Card sets: one small table per set (Base parallel numbers). The parallel scales them:
 // [upside ×, downside ×, height/weight ×]. Rarer parallels get much more upside and less downside.
@@ -422,6 +456,18 @@ const PERK_ROWS = [
   ['captains', "Captain's Call", 'He rallies the team and everyone gets their energy back', 'right after his team loses the ball'],
   ['all-mfl', 'Swiss Army', 'A role badge shows over him and he gets +2 to the main skill of whatever spot he lines up at', 'every play'],
   ['hall-of-fame', 'Bronze Statue', 'He freezes in a bronze statue pose and his teammates get +1 to everything next drive', 'right after he scores'],
+  // Season 1 (in the games each one plays out like an older perk: see PK_ALIAS in the 3D Blitz engine)
+  ['s1-ttime', 'T-Time Burst', 'He shoots forward in a quick burst of speed', 'his first cut on each play'],
+  ['s1-23', 'Sure Hands', 'The ball sticks: that catch cannot be dropped', 'the first pass thrown his way on each drive'],
+  ['s1-cars', 'Car-se Turbo', 'He goes from standing still to full speed instantly', 'his first step after stopping or cutting'],
+  ['s1-chem', 'Chemistry', 'Sparks jump to the nearest teammate, who gets a quick speed boost', 'every time he makes a catch or a block'],
+  ['s1-onehand', 'One-Handed Snag', 'He sticks one hand up and snags high passes no one else can reach', 'passes thrown above head height'],
+  ['s1-tabaka', 'Tabaka Time', 'Time slows down for a beat so he can pick the perfect lane', 'his first cut on each drive'],
+  ['s1-bbmode', 'Big Boy Block', 'Defenders he blocks get shoved back 2 yards and fall over', 'every block he makes'],
+  ['s1-shoot', 'Flashbulbs', 'Cameras flash and the first defender who tries to tackle him freezes for a beat', 'the first tackle attempt on him each play'],
+  ['s1-fullext', 'Full Extension', 'Passes thrown near him bend toward his hands, and defenders right next to him move in slow motion', 'any pass within 5 yards, and always within 2 yards'],
+  ['s1-cover', 'Camera Ready', 'He gets a big speed boost while nobody is near him', 'when no defender is within 5 yards of him'],
+  ['s1-bigboy', `${S1.nick} Aura`, 'Everyone feeds off the big boy: every teammate within 5 yards gets +2 in all skills', 'always, while he is on the field'],
 ];
 const PERKS = Object.fromEntries(PERK_ROWS.map(([id, name, text, when]) => [id, { id, name, text, when }]));
 
@@ -439,6 +485,7 @@ const TIERS = {
   dark: { name: 'Event Horizon', lv: 6, top: [5, 4, 3], rest: 1, shrink: 99, text: '+5 / +4 / +3 to the top three skills, +1 to every other skill. Perk level 6: always on, no cooldowns.' },
   doh: { name: '101×', lv: 7, top: [], rest: 0, shrink: 0, text: 'Every point he scores comes with 100 more (101× scoring). Perk level 7: maxed out.' },
 };
+TIERS.zenith = { name: 'Peak', lv: 7, top: [6, 5, 4], rest: 2, shrink: 99, text: '+6 / +5 / +4 to the top three skills, +2 to every other skill, every downside shrinks by 1. Perk level 7: maxed out, always on.' };
 const tierOf = (rarity) => ({ id: rarity, rarity: (RARITIES[rarity] || RARITIES.common).name, ...(TIERS[rarity] || TIERS.common) });
 // A card's perk: { id, name, text, when, lv }. Set cards use their set's perk.
 function perkOf(card) {
@@ -666,6 +713,25 @@ for (const id of ['halloween', 'super', 'galaxy', 'comic', 'pixel-plus', 'hot-sa
   const st = SET_MAP.get(id);
   PACKS['mini-' + id] = { name: `${st.name} Mini`, cards: 2, cost: 6750, group: 'sets', sets: true, pool: inSets(id), added: NEW_PACK, art: { c: [st.c1, st.c2], e: st.emoji, pat: PATTERNS[st.pat] }, desc: `2 cards from the ${st.name} set only. “${st.quote}”` };
 }
+// ---------- Season 1 packs ----------
+// Season 1 cards only drop from these (packPool / packCanDrop check `season`). The odds use the same rarity weights as
+// every pack (Zenith weighs 1, half of Dark Matter) with boosts on the chase packs; the Full Extension Pack tops the shop.
+const S1_ADDED = '2026-11-07';
+const s1Pack = (o) => ({ group: 'season', season: 1, added: S1_ADDED, ...o });
+const S1_NAVY = '#0a1a3f';
+Object.assign(PACKS, {
+  's1p-welcome': s1Pack({ name: 'T-Time Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: "Two free Season 1 cards, once per account. It's T-Time." }),
+  's1p-ttime': s1Pack({ name: 'T-Time Pack', cards: 3, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '⏰', pat: 'stripes' }, desc: '3 Season 1 cards. The cheapest way into Season 1.' }),
+  's1p-23': s1Pack({ name: 'Number 23 Pack', cards: 5, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '2️⃣', pat: 'rays', foil: 'silver' }, desc: '5 Season 1 cards with a Gold or better guaranteed.' }),
+  's1p-chem': s1Pack({ name: 'Chemistry Box', cards: 4, cost: 70000, floor: 'epic', art: { c: ['#22c55e', S1_NAVY], e: '🧪', pat: 'dots' }, desc: '4 Season 1 cards and every one is Gold or better.' }),
+  's1p-mega': s1Pack({ name: 'Big Boy Mega', cards: 12, cost: 110000, min: 'epic', mins: 3, art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'confetti', foil: 'holo' }, desc: '12 Season 1 cards with three Gold or better guaranteed.' }),
+  's1p-cover': s1Pack({ name: 'Cover Athlete Pack', cards: 3, cost: 120000, min: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => c.pid === S1.cover, art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Only ${S1.coverName}'s Season 1 cards, including his Cover Athlete card and the ${S1.nick} 1/1.`, desc: `3 of ${S1.coverName}'s own Season 1 cards, with a Legend or better guaranteed.` }),
+  's1p-pick': s1Pack({ name: "CT's Pick", cards: 1, choose: 4, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '👆', pat: 'dots', foil: 'holo' }, desc: 'See 4 Season 1 cards, every one Legend or better, and keep the one you want.' }),
+  's1p-tabaka': s1Pack({ name: 'Tabaka Time Pack', cards: 3, cost: 240000, floor: 'legendary', art: { c: ['#c084fc', '#020617'], e: '⏳', pat: 'waves', foil: 'gold' }, desc: '3 Season 1 cards and every one is Legend or better.' }),
+  's1p-onehand': s1Pack({ name: 'One-Hand Chase', cards: 1, cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#ff3b6b', S1_NAVY], e: '✋', pat: 'stars', foil: 'gold' }, desc: 'One Mythic or better Season 1 card. About a 1 in 5 shot at a Zenith 1/1.' }),
+  's1p-fullext': s1Pack({ name: 'Full Extension Pack', cards: 1, cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🌠', pat: 'rays', foil: 'black' }, desc: 'One Mythic or better Season 1 card: a coin flip for a Zenith 1/1, the best cards in the game.' }),
+  's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'A T-Time Pack, a Number 23 Pack and a Chemistry Box: 12 Season 1 cards, about 12% off.' }),
+});
 for (const P of Object.values(PACKS)) if (P.bundle) {
   P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
   P.list = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cost * n, 0);
@@ -792,7 +858,7 @@ function rolePos(db, t, p) {
 // The cards a pack draws from. `ok` is false when its own pool is empty right now
 // (openPack then falls back to every card, and the shop shows the pack as restocking).
 function packPool(db, P, taken = new Set()) {
-  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)));
+  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.season || 0) === c.season);
   if (!P.pool) return { pool: base, base, ok: true };
   const f = base.filter(P.pool);
   return f.length ? { pool: f, base, ok: true } : { pool: base, base, ok: false };
@@ -828,6 +894,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (P.bundle) return P.bundle.some(([t]) => packCanDrop(db, t, c));
   if (type === 'starter') return c.variant === 'base';
   if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
+  if ((P.season || 0) !== c.season) return false; // season cards only come from that season's packs
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
   if (P.floor && c.rarity !== 'doh' && RARITY_ORDER.indexOf(c.rarity) < RARITY_ORDER.indexOf(P.floor)) return false;
@@ -857,7 +924,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();

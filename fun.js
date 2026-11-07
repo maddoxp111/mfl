@@ -25,7 +25,13 @@ module.exports = function fun(app, h) {
     pixel: 'tv', glitch: 'tv',
     'spec-pass': 'duo', 'spec-int': 'duo', 'spec-def': 'duo', snow: 'duo',
     spec: 'cut', goat: 'cut',
+    // Season 1
+    's1-ttime': 'banner', 's1-23': 'fade', 's1-cars': 'banner', 's1-chem': 'polaroid', 's1-onehand': 'full', 's1-tabaka': 'cut',
+    's1-bbmode': 'full', 's1-shoot': 'full', 's1-fullext': 'full', 's1-cover': 'cover', 's1-bigboy': 'cover',
   };
+  // The cover athlete's two cover cards use the real cover photo (a cutout) instead of his avatar.
+  const S1 = require('./seasons').S1;
+  const COVER_ART = new Set(['s1-cover', 's1-bigboy']);
   function cardArt(db, c, opts = {}) {
     const rt = c.rating || h.ratingOf(db, c.t, c.p);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
@@ -34,11 +40,12 @@ module.exports = function fun(app, h) {
     const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
     const st = c.set && cards.SET_MAP.get(c.set), si = st ? cards.SETS.indexOf(st) : 0;
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
-    const look = st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`;
+    const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '');
+    const photo = COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
     return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
-      <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${logo(c.t, 22)}</div>
-      <div class="mc-photo">${avatar(c.t, c.p, opts.small ? 74 : 104, 'xl')}</div>
+      <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${c.season ? `<span class="mc-season" title="Season ${c.season}">S${c.season}</span>` : ''}${logo(c.t, 22)}</div>
+      <div class="mc-photo">${photo}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
       ${cardPerkFront(c, spec)}
@@ -417,7 +424,7 @@ module.exports = function fun(app, h) {
             ids=out;sel=-1;sheet=false;filt='ALL';flashAt=ids.map((x,i)=>i);say('Auto-picked '+ids.filter(Boolean).length+'/'+max+'. Save to keep it.');draw();};
           addEventListener('pageshow',()=>{document.body.classList.remove('lu-sheet');});
           draw();})();</script>`;
-      res.send(layout(req, 'My Cards', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${body}</div>`));
+      res.send(layout(req, 'My Cards', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/cards', name)}${flash(req)}${h.seasonHero ? h.seasonHero('mini') : ''}${body}</div>`));
     } catch (e) { next(e); }
   });
 
@@ -472,6 +479,7 @@ module.exports = function fun(app, h) {
     const has = (type, key) => packs.some((p) => p.type === type && (key == null || p.key === key));
     const out = [];
     if (!has('starter')) out.push({ type: 'starter', key: 'starter' });
+    if (!has('s1p-welcome')) out.push({ type: 's1p-welcome', key: 's1', note: `Season ${S1.n} is here: two free Season ${S1.n} cards for everyone.` });
     for (const w of await prizeWeeks(db, name, user)) out.push({ type: 'prize', key: w, note: `Picker of the Week reward · week of ${h.shortDate(w)}` });
     const n = uniqueCount(user);
     for (const step of cards.COLLECTOR_STEPS) if (n >= step && !has('milestone', 'c' + step)) out.push({ type: 'milestone', key: 'c' + step, note: `Collected ${step} different cards` });
@@ -499,6 +507,7 @@ module.exports = function fun(app, h) {
   }
   const GROUPS = [
     ['free', 'Free', 'Claim these. They refill.'],
+    ['season', `Season ${S1.n}: ${S1.name}`, `The newest cards and the best ones in the game, up to the new Zenith rarity. Season ${S1.n} cards only come from these packs.`],
     ['core', 'Core', 'Any card in the league can drop. Bigger packs, better guarantees.'],
     ['theme', 'Themes', 'Positions, teams, hot streaks and specialists.'],
     ['body', 'Body Shop', 'Skinny, heavy, tall, short and everything between. A card\'s build changes how the player looks and plays in the games.'],
@@ -518,8 +527,8 @@ module.exports = function fun(app, h) {
     const t = P.team && db.teams[P.team], a = P.art || {};
     const [c1, c2] = t ? [t.color, t.color2] : a.c || P.colors || ['#2a3242', '#141821'];
     const title = o.title || P.name.replace(/^Flash Sale: .*/, 'Flash Sale').replace(/ Pack$/, '');
-    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}">
-      <div class="pk-body" aria-hidden="true"><span class="pk-pat"></span><span class="pk-brand">MFL Cards</span><span class="pk-emo">${t ? logo(t, 44) : esc(a.e || '🏈')}</span><b class="pk-nm">${esc(title)}</b><i class="pk-n">${esc(cardCount(P))}</i><span class="pk-shine"></span></div>${o.badges || ''}</div>`;
+    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''}${P.season ? ` pk-season pk-s${P.season}` : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}">
+      <div class="pk-body" aria-hidden="true"><span class="pk-pat"></span><span class="pk-brand">${P.season ? `Season ${P.season}` : 'MFL Cards'}</span><span class="pk-emo">${t ? logo(t, 44) : esc(a.e || '🏈')}</span><b class="pk-nm">${esc(title)}</b><i class="pk-n">${esc(cardCount(P))}</i><span class="pk-shine"></span></div>${o.badges || ''}</div>`;
   }
   const pct = (x) => (x >= 10 ? Math.round(x) : x >= 1 ? x.toFixed(1) : x >= 0.01 ? x.toFixed(2) : '<0.01') + '%';
   // "What's inside": guarantees, features, per-card rarity odds and the pool.
@@ -628,11 +637,12 @@ module.exports = function fun(app, h) {
         return items.length ? `<section class="psec" data-g="${g}" id="g-${g}"><header class="psec-h"><h2>${esc(title)}</h2><p>${esc(sub)}</p></header><div class="psi-grid">${items.join('')}</div></section>` : '';
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));
-      const totalW = Object.values(R).reduce((s, x) => s + x.weight, 0);
-      const paid = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => !P.free && !P.flash).map((P) => P.cost);
+      const totalW = Object.entries(R).filter(([r]) => r !== 'zenith').reduce((s, [, x]) => s + x.weight, 0);
+      const paid = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => !P.free && !P.flash && !P.season).map((P) => P.cost);
+      const s1Costs = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => P.season && !P.free).map((P) => P.cost);
       const tierPrice = (lo, hi) => { const n = paid.filter((c) => c >= lo && c < hi); const a = Math.min(...n), b = Math.max(...n); return !n.length ? '' : a === b ? fmtN(a) : `${fmtN(a)} to ${fmtN(b)}`; };
       const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
-      res.send(layout(req, 'Packs', pickHead(user, acct, 'cards') + `<div class="wrap pshop">${pickNav('/pickem/packs', name)}${packMsg(req)}
+      res.send(layout(req, 'Packs', pickHead(user, acct, 'cards') + `<div class="wrap pshop">${pickNav('/pickem/packs', name)}${packMsg(req)}${h.seasonHero ? h.seasonHero('mini') : ''}
         <section class="card pshop-head"><div class="psh-bal"><small>Your coins</small><b>${icon('coin')}${fmtN(bal)}</b></div>
           <p class="psh-sum">You can afford <b>${nCan}</b> of ${nAll} packs.${free.length ? ` <a href="#g-free">${free.length} free pack${free.length > 1 ? 's' : ''} to open →</a>` : ''}</p>
           <a class="btn ghost sm" href="/pickem/cards/book">Card Book</a></section>
@@ -644,14 +654,15 @@ module.exports = function fun(app, h) {
         <p class="pnone" id="pnone" hidden>No packs match. <button type="button" class="btn ghost sm">Show all packs</button></p>
         ${sections}
         <div class="home-grid"><div class="col">${pointsBreakdown(acct)}<div class="card"><div class="card-h"><h2>Rarities &amp; drop rates</h2></div><ul class="how">
-          <li>${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. Every pack's own odds are under "What's inside".</li>
+          <li>${cards.SHOWN_RARITIES.filter((r) => r !== 'zenith').map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. <span class="rar-tag r-zenith">Zenith</span> cards only come from Season ${S1.n} packs. Every pack's own odds are under "What's inside".</li>
           <li><b>Prices follow the odds.</b> Everyday packs ${tierPrice(0, 7500)} coins · bigger packs with guarantees ${tierPrice(7500, 20000)} · Legend-or-better packs, 1 of 1 hunts and Prism or Black set packs ${tierPrice(20000, 100000)} · Dark Matter, The Vault and the Black Label Box ${tierPrice(100000, Infinity)}. The best packs take a real grind.</li>
           <li>Extra copies sell for ${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${fmtN(R[r].sell)}`).join(' · ')} coins (on <a href="/pickem/cards">My cards</a>). A pack's cards sell for far less than the pack costs.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
           <li>Card sets: ${cards.SETS.length} themed sets with 5 versions of every player each (Base ${cards.PARALLELS[0].mult}×, Silver ${cards.PARALLELS[1].mult}×, Gold ${cards.PARALLELS[2].mult}×, Prism ${cards.PARALLELS[3].mult}×, Black ${cards.PARALLELS[4].mult}×). They only come from set packs.</li>
-          <li>Mythic and Dark Matter cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
+          <li><b>Season ${S1.n} packs</b> run ${fmtN(Math.min(...s1Costs))} to ${fmtN(Math.max(...s1Costs))} coins. Their cards beat the older cards of the same rarity, and the Full Extension Pack is the best pack in the shop.</li>
+          <li>Mythic, Dark Matter and Zenith cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
           <li>Collect more different cards to unlock free Collector Packs at ${cards.COLLECTOR_STEPS.join(', ')}.</li></ul></div></div>
         <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Big pulls</h2></div>${pulls.length ? `<ol class="lb">${pulls.map((x) => { const c = cards.cardInfo(db, x.id); return `<li><b>@${esc(x.u)}</b><small>${esc(c.p.name)} · ${esc(c.label)}</small><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span></li>`; }).join('')}</ol>` : '<p class="muted">No Legend-or-better pulls yet. Be the first.</p>'}</div></div></div>
         <script>(()=>{const bar=document.getElementById('pshopBar');if(!bar)return;

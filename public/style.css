@@ -2626,3 +2626,119 @@ body.arc-playing .ticker{display:none}
 .sg-d{font-weight:700;font-size:13px}
 .sg-m{font-weight:700}
 .sg-r b{font:800 18px var(--disp)}
+
+/* ===================== Season 1: Full Extension ===================== */
+/* Zenith: the new top rarity (above Dark Matter): white-hot sky blue with a gold edge */
+.mcard.r-zenith{--rc:#bae6fd;background:radial-gradient(ellipse at 50% 16%,rgba(255,255,255,.5) 0%,rgba(125,211,252,.22) 20%,transparent 46%),repeating-conic-gradient(from 0deg at 50% 16%,rgba(255,255,255,.06) 0 5deg,transparent 5deg 15deg),linear-gradient(172deg,#0d2c63 0%,#071433 52%,#020617 100%);
+  box-shadow:0 0 0 2px transparent inset,0 0 46px 2px rgba(125,211,252,.7),0 0 80px -12px rgba(251,191,36,.5),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.r-zenith::before{content:'';position:absolute;inset:0;z-index:-1;padding:2.5px;border-radius:16px;background:conic-gradient(from 0deg,#fff,#7dd3fc,#fbbf24,#fff,#38bdf8,#e0f2fe,#fff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:zen-spin 3s linear infinite}
+@keyframes zen-spin{to{filter:hue-rotate(40deg) brightness(1.25)}}
+.r-zenith .mc-shine{opacity:1;background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.38) 45%,rgba(125,211,252,.28) 52%,transparent 64%);background-size:260% 100%;animation:shine 3.2s linear infinite}
+.r-zenith .mc-name{text-shadow:0 0 14px #7dd3fc,0 0 2px #fff}
+.r-zenith .mc-rt{color:#fff;text-shadow:0 0 10px #7dd3fc}
+.flip.r-zenith{--tc:#7dd3fc}
+.flip.r-zenith.on .flip-front{animation:pop 1.8s .5s both}
+.reveal.best-zenith{background:radial-gradient(ellipse at center,rgba(125,211,252,.32),rgba(251,191,36,.08) 45%,transparent 72%)}
+.rar-tag.r-zenith{color:#e0f2fe;border-color:#7dd3fc;background:linear-gradient(90deg,rgba(125,211,252,.22),rgba(251,191,36,.16));box-shadow:0 0 14px rgba(125,211,252,.55)}
+.po-r.r-zenith{--rcol:#7dd3fc}
+.col-mini.r-zenith{box-shadow:0 0 0 1.5px #7dd3fc inset,0 0 10px #7dd3fc}
+
+/* every Season 1 card: navy and sky, Carson's 23 in the background, an S1 chip */
+.mcard.s1c:not(.r-zenith):not(.ph-full){background:linear-gradient(162deg,color-mix(in srgb,var(--c) 30%,#0a1a3f) 0%,#081530 50%,#030817 100%)}
+.mcard.s1c .mc-pat{opacity:1;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 140'%3E%3Ctext x='50' y='112' text-anchor='middle' font-family='Arial Black,Impact,sans-serif' font-weight='900' font-style='italic' font-size='92' fill='none' stroke='%237dd3fc' stroke-opacity='.16' stroke-width='1.6'%3E23%3C/text%3E%3C/svg%3E") center 62%/118% auto no-repeat,repeating-linear-gradient(-62deg,rgba(125,211,252,.07) 0 2px,transparent 2px 15px)}
+.mc-season{font:900 italic 11px/1 var(--disp);letter-spacing:.06em;padding:3px 6px 2px;border-radius:5px;background:linear-gradient(100deg,#e0f2fe,#38bdf8);color:#0a1a3f;box-shadow:0 0 10px rgba(56,189,248,.45)}
+.mcard.v-s1-23{--rc:#e0f2fe}
+.mcard.v-s1-cars .mc-pat{background:linear-gradient(90deg,transparent 38%,rgba(125,211,252,.18) 38% 44%,transparent 44% 50%,rgba(125,211,252,.18) 50% 56%,transparent 56%),repeating-linear-gradient(-62deg,rgba(125,211,252,.07) 0 2px,transparent 2px 15px)}
+.mcard.v-s1-chem{--rc:#4ade80}
+.mcard.v-s1-bbmode{--rc:#38bdf8}
+/* the cover athlete's own cards: the real cover photo, cut out, reaching out of the frame */
+.mcard.ph-cover .mc-photo{position:absolute;inset:0;z-index:-1;display:flex;align-items:flex-start;justify-content:center;pointer-events:none;overflow:hidden;border-radius:16px}
+.mcard.ph-cover .mc-photo .mc-cover{height:78%;width:auto;margin-top:-4%;transform:translateX(4%);filter:drop-shadow(0 10px 14px rgba(0,0,0,.65)) drop-shadow(0 0 18px color-mix(in srgb,var(--rc) 45%,transparent))}
+.mcard.ph-cover .mc-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,transparent 20%,transparent 48%,rgba(3,8,23,.88) 70%,#030817)}
+.mcard.ph-cover .mc-top{margin-bottom:118px;position:relative}
+.mcard.ph-cover .mc-rt{text-shadow:0 2px 6px #000}
+
+/* Season packs in the shop */
+.pk-season .pk-brand{color:#bae6fd;text-shadow:0 0 8px rgba(56,189,248,.7)}
+.psec[data-g="season"] .psec-h h2{background:linear-gradient(90deg,#fff,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---------- the Season 1 hero ---------- */
+.s1-hero{--sky:#38bdf8;position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:end;min-height:420px;margin:56px 0 22px;border-radius:26px;
+  background:radial-gradient(ellipse 60% 80% at 78% 30%,rgba(56,189,248,.45),transparent 70%),radial-gradient(ellipse 50% 60% at 10% 100%,rgba(91,42,134,.55),transparent 70%),linear-gradient(160deg,#0d2558 0%,#0a1a3f 45%,#040a1c 100%);
+  box-shadow:0 0 0 1px rgba(125,211,252,.28) inset,0 30px 60px -30px rgba(56,189,248,.45)}
+.s1h-bg{position:absolute;inset:0;z-index:-1;border-radius:inherit;overflow:hidden}
+.s1h-big{position:absolute;right:-2%;bottom:-18%;font:900 italic 520px/1 var(--disp);color:transparent;-webkit-text-stroke:2px rgba(125,211,252,.22);letter-spacing:-.04em;user-select:none}
+.s1h-rays{position:absolute;inset:0;background:repeating-linear-gradient(-62deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px),linear-gradient(-62deg,transparent 40%,rgba(255,255,255,.1) 48%,transparent 56%);background-size:auto,300% 100%;animation:s1rays 7s linear infinite}
+@keyframes s1rays{from{background-position:0 0,100% 0}to{background-position:0 0,-200% 0}}
+.s1h-txt{position:relative;z-index:2;padding:34px 0 34px 36px}
+.s1h-kick{display:flex;align-items:center;gap:10px;font:800 12px Inter;letter-spacing:.18em;text-transform:uppercase;color:#bae6fd}
+.s1h-kick b{font:900 italic 15px/1 var(--disp);letter-spacing:.08em;padding:5px 10px 4px;border-radius:6px;background:linear-gradient(100deg,#e0f2fe,#38bdf8);color:#0a1a3f;box-shadow:0 0 18px rgba(56,189,248,.55)}
+.s1h-title{margin:14px 0 10px;font:900 italic clamp(58px,9vw,112px)/.84 var(--disp);text-transform:uppercase;letter-spacing:-.01em}
+.s1h-title span{display:block;width:fit-content;padding-right:.08em;background:linear-gradient(180deg,#fff 30%,#bae6fd 70%,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 18px rgba(56,189,248,.35))}
+.s1h-title span+span{padding-left:.5em}
+.s1h-sub{max-width:440px;color:#cfe7f7;font-size:15px;line-height:1.5;margin:0 0 16px}
+.s1h-sub b{color:#fff}
+.s1h-cover{display:inline-grid;grid-template-columns:auto auto;align-items:baseline;column-gap:10px;padding:10px 14px;border-radius:14px;background:rgba(4,10,28,.55);border:1px solid rgba(125,211,252,.25);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.s1h-cover small{grid-column:1/-1;font:700 10px Inter;letter-spacing:.16em;text-transform:uppercase;color:#7dd3fc}
+.s1h-cover b{font:900 24px/1.1 var(--disp);text-transform:uppercase;letter-spacing:.02em}
+.s1h-cover i{font:800 italic 14px var(--disp);color:#fbbf24;letter-spacing:.04em}
+.s1h-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.s1h-cta .btn:not(.ghost){background:linear-gradient(100deg,#38bdf8,#0ea5e9);color:#04102a;box-shadow:0 8px 24px -8px rgba(56,189,248,.8)}
+.s1h-cta .btn.ghost{background:rgba(255,255,255,.06);border-color:rgba(125,211,252,.35)}
+.s1h-img{position:relative;z-index:1;justify-self:end;align-self:end;width:auto;height:118%;max-height:560px;margin:0 -10px -2px 0;transform:rotate(-2deg);transform-origin:bottom right;filter:drop-shadow(0 18px 30px rgba(0,0,0,.6)) drop-shadow(0 0 40px rgba(56,189,248,.35));pointer-events:none}
+.s1-hero.mini{min-height:250px;margin:44px 0 18px}
+.s1-hero.mini .s1h-txt{padding:22px 0 22px 26px}
+.s1-hero.mini .s1h-title{font-size:clamp(40px,6vw,66px);margin:10px 0 12px}
+.s1-hero.mini .s1h-big{font-size:330px}
+.s1-hero.mini .s1h-img{height:128%;max-height:340px}
+.s1-hero.mini .s1h-cta{margin-top:12px}
+@media (max-width:640px){
+  .s1-hero{grid-template-columns:1fr;min-height:0;margin-top:70px}
+  .s1h-txt{padding:22px 18px 22px}
+  .s1h-title{font-size:clamp(46px,14.5vw,60px)}
+  .s1h-title span+span{padding-left:.25em}
+  .s1h-sub,.s1h-cover,.s1h-cta{max-width:57%}
+  .s1h-sub{font-size:13.5px}
+  .s1h-cta .btn{padding:10px 14px;font-size:13px}
+  .s1h-img{position:absolute;right:-18px;bottom:0;height:auto;width:58%;max-height:none}
+  .s1h-big{font-size:330px;right:-6%;bottom:-10%}
+  .s1h-cover b{font-size:19px}
+  .s1-hero.mini{min-height:0}
+  .s1-hero.mini .s1h-txt{padding:18px 16px}
+  .s1-hero.mini .s1h-title{font-size:clamp(36px,11vw,46px)}
+  .s1-hero.mini .s1h-img{width:56%;height:auto;max-height:none}
+  .s1-hero.mini .s1h-cover{display:none}
+}
+
+/* ---------- the season page ---------- */
+.s1-sec{margin:34px 0}
+.s1-sh{margin-bottom:16px}
+.s1-k{font:800 11px Inter;letter-spacing:.18em;text-transform:uppercase;color:#7dd3fc}
+.s1-sh h2{font:900 italic 38px/1 var(--disp);text-transform:uppercase;margin:4px 0 6px}
+.s1-sh p{color:var(--ink2);margin:0;max-width:640px}
+.s1-coverrow{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.s1-cc{display:flex;flex-direction:column;align-items:center;gap:8px}
+.s1-cap{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-size:12.5px;color:var(--ink2)}
+.s1-cap b{color:var(--ink);font-size:13.5px}
+.s1-own{font-size:12px;color:var(--muted)}
+.s1-own.open{color:#7dd3fc}
+.s1-coverinfo{flex:1;min-width:240px;padding:18px 20px;border-radius:18px;background:linear-gradient(160deg,rgba(13,37,88,.6),rgba(4,10,28,.6));border:1px solid rgba(125,211,252,.2)}
+.s1-coverinfo p{margin:0 0 10px;color:var(--ink2);line-height:1.5}
+.s1-coverinfo p:last-child{margin:0}
+.s1-coverinfo b{color:var(--ink)}
+.s1-grid{gap:20px 14px}
+.s1-zen{padding:22px;border-radius:22px;background:radial-gradient(ellipse at 20% 0%,rgba(125,211,252,.25),transparent 60%),linear-gradient(160deg,#0d2558,#040a1c);border:1px solid rgba(125,211,252,.3)}
+.s1-facts{list-style:none;padding:0;margin:0 0 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.s1-facts li{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;background:rgba(4,10,28,.55);border:1px solid rgba(125,211,252,.18)}
+.s1-facts b{font:900 italic 34px/1 var(--disp);color:#e0f2fe;text-shadow:0 0 14px rgba(125,211,252,.6)}
+.s1-facts b small{font-size:18px;color:#7dd3fc}
+.s1-facts span{font-size:12.5px;color:var(--ink2)}
+.s1-packs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.s1-pk{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line2);color:inherit;text-decoration:none;transition:.15s}
+.s1-pk:hover{border-color:rgba(125,211,252,.5);transform:translateY(-2px)}
+.s1-pk-e{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;font-size:22px;background:radial-gradient(circle at 30% 25%,color-mix(in srgb,var(--p1) 70%,#fff),#0a1a3f)}
+.s1-pk-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.s1-pk-t small{color:var(--muted);font-size:12px;line-height:1.35}
+.s1-pk-c{font:800 15px Inter;color:#bae6fd;white-space:nowrap}
+.mcard.s1c.ph-full .mc-photo::after{background:linear-gradient(180deg,rgba(2,6,23,.5) 0%,transparent 20%,transparent 36%,rgba(8,21,48,.86) 60%,#030817 82%)}
+.mcard.s1c.ph-full .mc-photo .av{opacity:1}

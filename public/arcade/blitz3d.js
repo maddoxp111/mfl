@@ -5819,7 +5819,14 @@ gl_FragColor=vec4(c,1.0);}`;
       popcorn: ['Kernel Pop', 'Popcorn'], smoothie: ['Smooth Moves', 'Smoothie'], highlight: ['Instant Replay', 'Highlight Reel'], 'film-room': ['Studied Tape', 'Film Room'],
       playbook: ['Audible', 'Playbook'], captains: ['Captain\'s Call', 'Captains'], 'all-mfl': ['Swiss Army', 'All-MFL'], 'hall-of-fame': ['Bronze Statue', 'Hall of Fame'],
     };
-    const PK_RAR = { common: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, dark: 6, doh: 7 }, PK_PAR = { base: 1, silver: 2, gold: 3, prism: 4, black: 5 };
+    // Season 1 cards (all named for the cover athlete): their own names, played out like an older perk (PK_ALIAS)
+    Object.assign(PKN, {
+      's1-ttime': ['T-Time Burst', 'T-Time'], 's1-23': ['Sure Hands', 'Twenty-Three'], 's1-cars': ['Car-se Turbo', 'Cars'], 's1-chem': ['Chemistry', 'Team Chemistry'],
+      's1-onehand': ['One-Handed Snag', 'One-Hand CT'], 's1-tabaka': ['Tabaka Time', 'Tabaka Grab'], 's1-bbmode': ['Big Boy Block', 'Big Boy Mode'],
+      's1-shoot': ['Flashbulbs', 'Cover Shoot 1/1'], 's1-fullext': ['Full Extension', 'Full Extension 1/1'], 's1-cover': ['Camera Ready', 'Cover Athlete'], 's1-bigboy': ['BigBoyCT Aura', 'BigBoyCT 1/1'],
+    });
+    const PK_ALIAS = { 's1-ttime': 'action', 's1-23': 'silver', 's1-cars': 'pocket', 's1-chem': 'team', 's1-onehand': 'tall', 's1-tabaka': 'mythic', 's1-bbmode': 'built', 's1-shoot': 'icon', 's1-fullext': 'dark', 's1-cover': 'allstar', 's1-bigboy': 'goat' };
+    const PK_RAR = { common: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, dark: 6, zenith: 7, doh: 7 }, PK_PAR = { base: 1, silver: 2, gold: 3, prism: 4, black: 5 };
     const PK = { t: 0, n: 0, fired: {}, log: [], st: {}, lastPop: {}, playN: 0, driveN: 0, h2: 0, list: [], ev: null, splats: [], slowT: 0, trophyNext: 0, captain: 0, bronze: 0, bronzeDrive: -1, lastPlayId: null, force: 0 };
     // the perk on this player's card (only the player's own team carries cards)
     function pkOf(p) {
@@ -5830,7 +5837,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const id = f.perk && PKN[f.perk] ? f.perk : f.set && PKN[f.set] ? f.set : PKN[f.variant] ? f.variant : null;
       if (!id) return null;
       const lv = clamp(Math.round(+f.perkLv || (f.set && f.par ? PK_PAR[f.par] : PK_RAR[f.rarity]) || 1), 1, 7), S = 1 + 0.25 * (lv - 1);
-      p.pk = { id, lv, S, nocd: lv >= 6, name: PKN[id][0], label: PKN[id][1], key: p.sq ? 'q' + (p.sq.pid != null ? p.sq.pid : p.sq.name) : 'k' + p.key };
+      p.pk = { id: PK_ALIAS[id] || id, lv, S, nocd: lv >= 6, name: PKN[id][0], label: PKN[id][1], key: p.sq ? 'q' + (p.sq.pid != null ? p.sq.pid : p.sq.name) : 'k' + p.key };
       return p.pk;
     }
     const pst = (p) => PK.st[p.pk.key] || (PK.st[p.pk.key] = {});
@@ -7377,9 +7384,14 @@ gl_FragColor=vec4(c,1.0);}`;
       smoothie: { p: 'smoothie' },
       highlight: { e: ['flash', 'sparkle:gold'] }, 'film-room': { l: 'gray', e: ['static'] }, playbook: { l: 'chalk', e: ['xo'] }, captains: { p: 'star', e: ['sparkle:gold'] },
       'all-mfl': { p: 'star', e: ['star'] }, 'hall-of-fame': { p: 'halo', l: 'metal', c: '#ffcc33', o: '#ffe680' },
+      // Season 1
+      's1-ttime': { e: ['streak'] }, 's1-23': { l: 'metal', c: '#e0f2fe', e: ['sparkle:silver'] }, 's1-cars': { e: ['streak', 'flame'], o: '#38bdf8' },
+      's1-chem': { e: ['teamspark', 'sparkle:gold'] }, 's1-onehand': { e: ['glove', 'sparkle:holo'], o: '#7dd3fc' }, 's1-tabaka': { l: 'prism', e: ['sparkle:holo'], o: '#c084fc' },
+      's1-bbmode': { l: 'muscle', e: ['dust'], o: '#38bdf8' }, 's1-shoot': { e: ['flash', 'star'], o: '#fff6c2' }, 's1-fullext': { p: 'halo', l: 'prism', e: ['star', 'sparkle:holo'], o: '#7dd3fc' },
+      's1-cover': { e: ['flash', 'sparkle:gold'], o: '#ffd23f' }, 's1-bigboy': { p: 'crown', l: 'metal', c: '#7dd3fc', e: ['star', 'sparkle:holo'], o: '#7dd3fc' },
     };
     const PAR_K = { base: 0.55, silver: 0.75, gold: 0.95, prism: 1.2, black: 1.45 };
-    const RAR_K = { common: 0.55, rare: 0.75, epic: 0.95, legendary: 1.2, mythic: 1.45, dark: 1.5, doh: 1.8 };
+    const RAR_K = { common: 0.55, rare: 0.75, epic: 0.95, legendary: 1.2, mythic: 1.45, dark: 1.5, zenith: 1.65, doh: 1.8 };
     // what a card does in the game
     function fxRecipe(fx) {
       if (!fx) return null;

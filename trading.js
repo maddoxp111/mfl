@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const cards = require('./cards');
 
 // How much each rarity counts toward a collection's score.
-const SCORE = { common: 1, rare: 3, epic: 10, legendary: 40, mythic: 150, dark: 400, doh: 10000 };
+const SCORE = { common: 1, rare: 3, epic: 10, legendary: 40, mythic: 150, dark: 400, zenith: 900, doh: 10000 };
 const MAX_CARDS = 10, MAX_OPEN = 5;
 
 module.exports = function trading(app, h) {

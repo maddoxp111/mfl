@@ -45,6 +45,18 @@ const UPDATES = [
       'The admin panel now needs a PIN as well as the password.',
     ],
   },
+  {
+    n: 5,
+    date: '2026-11-07',
+    title: 'Season 1: Full Extension',
+    items: [
+      'Season 1 is here: Full Extension, with Carson Tabaka (#23, BigBoyCT) on the cover. See everything on the new Season 1 page (Cards, then Packs or My Cards, or go to /season).',
+      'Nine new cards for every player, all named for Carson: T-Time, Twenty-Three, Cars, Team Chemistry, One-Hand CT, Tabaka Grab, Big Boy Mode, Cover Shoot 1/1 and Full Extension 1/1. Each one beats the older cards of its rarity.',
+      "Carson's own two: the Cover Athlete card and the BigBoyCT 1/1, worth 6x fantasy points with every skill maxed.",
+      'A new top rarity, Zenith, above Dark Matter: 5x points, every skill maxed and perk level 7. Every Zenith is a 1 of 1.',
+      'Eleven Season 1 packs, from a free T-Time Welcome Pack (two free cards for everyone) up to the Full Extension Pack, the best pack in the shop and a coin flip for a Zenith. Season 1 cards only come from Season 1 packs.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
