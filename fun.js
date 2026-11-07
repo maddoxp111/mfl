@@ -158,6 +158,7 @@ module.exports = function fun(app, h) {
       <dl class="mb-meta">${meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
       <div class="mb-attrs"><div class="mb-a mb-ah"><span>${est ? 'Ratings (est.)' : 'Ratings'}</span><i>Base</i><em>Card</em><b>Now</b></div>${rows}</div>
       ${(() => { const P = perkOfCard(c); return P ? `<p class="mb-perk"><b>Perk · ${esc(P.name)}${P.lv > 1 ? ` · level ${P.lv}` : ''}</b>${esc(P.text)}. <span class="muted">When: ${esc(P.when)}.</span></p>` : ''; })()}
+      ${(() => { const S = cards.superstarOf ? cards.superstarOf(ovr, pos, ca && ca.attr) : null; return S ? `<p class="mb-perk"><b>3D Blitz · ${esc(S.tier)} (${ovr})</b>${ovr >= 99 ? 'A shimmering 99 badge and a white-gold glow' : 'A gold OVR badge and a gold glow'}, a callout on big plays${S.ability ? `. ${esc(S.ability.name)}${pos ? ` at ${esc(pos)}` : ''}: ${esc(S.ability.text)}` : ''}.</p>` : ''; })()}
       <p class="mb-fx"><b>In game</b> ${effectWords(c, fx)}</p>
       <p class="mb-tier"><b>${esc(tierOfCard(c).rarity || c.rarityName)} tier · ${esc(tierOfCard(c).name)}</b>${esc(tierOfCard(c).text)}</p>
       <p class="mb-fan"><b>Fantasy</b> ${c.mult}× points${c.flat ? ` · +${c.flat} every game` : ''}${c.spec ? ` · ${esc(cards.SPECIALTIES[c.spec].desc)}` : ''}</p>

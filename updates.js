@@ -129,6 +129,21 @@ const UPDATES = [
       'Clutch time and goal-line stands: in the last minute of a one-score 4th quarter or in overtime, and whenever the CPU is inside your 10, you play every defensive snap yourself (CLUTCH D and GOAL LINE STAND).',
     ],
   },
+  {
+    n: 13,
+    date: '2026-11-07',
+    title: '3D Blitz: the realism update',
+    items: [
+      'Smarter defense: safeties stay over the top, corners turn and run with deep routes, defenders read the quarterback and break on the throw, and they play deep balls at the highest point. Linebackers carry seams and wall off crossers, and tacklers take real pursuit angles.',
+      'The line: the pocket forms and collapses, pass rushers win with bull rushes, speed rushes, swims and rips, and run plays have pulling guards and double teams. Running backs read the hole and cut back.',
+      'Routes: receivers slow into their breaks and drive out of them, and when the QB scrambles they work back to him.',
+      "Throws and catches: arm strength sets how fast the ball gets there, and accuracy depends on the QB's accuracy and his feet (set, on the run, under pressure). Receivers catch at the chest, high-point it, catch over the shoulder or lay out, and good hands matter. Breakups are real swats, and most picks come from bad throws.",
+      'Physics: players build up speed, hard cuts cost speed, tackles depend on momentum and angle, runners keep their forward progress, and falls look real.',
+      'All-new animations: running with no sliding feet, backpedals, jukes, spins, stiff arms and hurdles, a real throwing motion, hands catches, diving catches, wrap-up tackles and linemen fighting hands.',
+      'Great cards play great: 90+ players are faster, stronger and shiftier, and 95+ cards get a 3D Blitz ability for their spot (Pocket Presence, Freight Train, Ankle Breaker, Deep Tracker, Brick Wall). Your players wear their OVR in the game, superstar plays get a callout, and the game shows your Lineup overall against the other team before kickoff. Card backs show the ability.',
+      'Live defense: your AI teammates read and react like a top defense at every difficulty, so getting a stop is more up to you.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

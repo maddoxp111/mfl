@@ -505,6 +505,24 @@ function cardOvr(card, rating) {
   return Math.max(40, Math.min(99, Math.round(lo + (hi - lo) * q + step)));
 }
 
+// 3D Blitz superstars (the game's 74-perks.js): a card at 90+ overall is a superstar there (a gold OVR badge, a gold glow, a
+// callout on big plays), and at 95+ it also gets one ability for its Lineup spot. `pos` is the spot (QB, RB, WR, TE, OL /
+// UTIL) and `attr` the ratings the card plays at (an RB with more strength than agility is a Freight Train, otherwise an Ankle Breaker).
+// Returns null under 90, else { tier: 'Superstar' | 'Elite' | 'Peak', ability: { name, text } | null }.
+const STAR_ABILITY = {
+  pocket: ['Pocket Presence', 'throws stay much tighter under pressure (and a little tighter in a clean pocket)'],
+  truck: ['Freight Train', 'runs right through a head-on tackler now and then (once a play)'],
+  juke: ['Ankle Breaker', 'every juke freezes the nearest defender'],
+  deep: ['Deep Tracker', 'tracks deep balls faster, with bigger hands and an edge in contested catches'],
+  wall: ['Brick Wall', 'the defender being blocked takes half again as long to get off the block'],
+};
+function superstarOf(ovr, pos, attr) {
+  if (!(ovr >= 90)) return null;
+  const p = String(pos || '').toUpperCase(), a = attr || {};
+  const id = ovr < 95 ? null : p === 'QB' ? 'pocket' : p === 'RB' ? ((a.str || 0) >= (a.agi || 0) ? 'truck' : 'juke') : p === 'WR' || p === 'TE' || /^WR/.test(p) ? 'deep' : /^(OL|UTIL|OT|OG|C|DL)/.test(p) ? 'wall' : null;
+  return { tier: ovr >= 99 ? 'Peak' : ovr >= 95 ? 'Elite' : 'Superstar', ability: id ? { name: STAR_ABILITY[id][0], text: STAR_ABILITY[id][1] } : null };
+}
+
 // A card's perk: { id, name, text, when, lv }. Set cards use their set's perk.
 function perkOf(card) {
   if (typeof card === 'string') card = { variant: card.includes(':') ? card.slice(card.indexOf(':') + 1) : card };
@@ -1128,4 +1146,4 @@ function fantasy(db, user, mvpOf) {
 }
 
 module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
-  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr };
+  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf };
