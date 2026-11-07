@@ -120,6 +120,15 @@ const UPDATES = [
       'My Cards, the Lineup picker, auto-pick and collections all sort by overall now, best first.',
     ],
   },
+  {
+    n: 12,
+    date: '2026-11-07',
+    title: '3D Blitz: returns get tackled, clutch defense',
+    items: [
+      "Interception and fumble returns: the other team tackles you when they get to you now. Before, they could be right on you and not even try.",
+      'Clutch time and goal-line stands: in the last minute of a one-score 4th quarter or in overtime, and whenever the CPU is inside your 10, you play every defensive snap yourself (CLUTCH D and GOAL LINE STAND).',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

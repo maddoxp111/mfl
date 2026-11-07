@@ -2733,6 +2733,9 @@ gl_FragColor=vec4(c,1.0);}`;
         d.lagK = 0.8 + rng() * 0.45; d.spdK = 0.96 + rng() * 0.08;
         d.tackle = DP.tackle * (0.9 + rng() * 0.2);
       }
+      // the offense tackles too once the defense has the ball (an interception or fumble return): the same rating as the defense
+      // (no roll, so the play's random sequence is unchanged)
+      for (const p of off) p.tackle = DP.tackle;
       if (dcall.stunt) { DK.DT1.stunt = -1; DK.DE1.stunt = 1; }
       filmApply();
       // Press Man: each corner jams his man at the line. Win it and the receiver is late into his route; lose it and the corner is
@@ -3249,8 +3252,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const c = carrier, ip = interceptPt(p, c, effV(p));
       staminaStep(p, dt, dist(p, c) < 12);
       steer(p, ip[0], ip[1], effV(p) * (p.role === 'OL' ? 0.85 : 1), dt, 9);
-      p.look = [c.x, 1.5, c.z];
-      if (dist(p, c) < p.rad + c.rad + 0.2 && !c.rag && tPlay - (c.lastTackle || -9) > 0.5) { c.lastTackle = tPlay; if (rng() < 0.75) hitCarrier(c, p); }
+      p.look = [c.x, 1.5, c.z]; // the tackle attempts are in the step (75-step.js), every chaser on his own clock like a defender
     }
 
     // ---------- defense AI ----------
@@ -3504,8 +3506,8 @@ gl_FragColor=vec4(c,1.0);}`;
       steer(d, tx, tz, effV(d) * (r.vz > 4 ? 1.03 : 0.95), dt, 8);
     }
     // ---------- live defense: key defensive plays, and a defender you control ----------
-    // Against the CPU its drives are simulated (70-flow.js), but two to four of the biggest snaps of a game are played live: 3rd and
-    // 4th downs, the red zone, the two-minute drill, a one-score game late. The player calls an actual defense (the Head to Head
+    // Against the CPU its drives are simulated (70-flow.js), but two to four of the biggest snaps of each drive are played live: 3rd and
+    // 4th downs, the red zone, the two-minute drill, a one-score game late. In clutch time and inside your 10, every snap is live. The player calls an actual defense (the Head to Head
     // calls), picks a defender and plays him: arrows (or a drag) to move, SHIFT to sprint, SPACE to jump for the ball, X to dive
     // (a tackle, or a hand on the pass), Q to switch to the defender nearest the ball. Left alone, he plays his assignment.
     // The CPU runs a real play on the offense side of the engine: the two squads and kits swap sides (theirs on offense, ours on
@@ -3520,8 +3522,12 @@ gl_FragColor=vec4(c,1.0);}`;
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
       if (DBG && DBG.defKey === 'every') return !VS; // tests: every CPU snap is played live
-      if (VS || !(DEFP.left > 0)) return false;
+      if (VS) return false;
       if (DBG && DBG.defKey != null) return DBG.defKey === 'always';
+      // every snap is yours in clutch time (the 4th quarter's last minute or overtime, a one-score game) and once they are inside
+      // your 10, however many key plays the drive has already had
+      if (spot >= 90 || ((clk.q >= 5 || (clk.q === 4 && clk.t <= 60)) && Math.abs(hs - as) <= 8)) return true;
+      if (!(DEFP.left > 0)) return false;
       // two to four a drive (set when the drive starts): the big snaps always (3rd and 4th down, the red zone, the two-minute drill,
       // a one-score game late), the others now and then, more often until two have been played
       const big = dn >= 3 || spot >= 80 || ((clk.q === 2 || clk.q >= 4) && clk.t < 120) || (clk.q >= 4 && Math.abs(hs - as) <= 8);
@@ -3530,7 +3536,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- the key play: call, line up, snap ----------
     function defpBegin(r, d) {
-      DEFP.left--; DEFP.dnum++;
+      DEFP.left = Math.max(0, DEFP.left - 1); DEFP.dnum++;
       DEFP.st = { start: d.start, call: d.call || 'base', spot: r.spot, dn: r.dn || 1, fd: r.fd || r.spot + 10, plays: r.plays, yds: r.spot - d.start, base: d.base || null };
       DEFP.brain = defpBrain();
       phase = 'dcall'; poss = 'away'; carrier = null; ctrl = null; mode = 'none'; kick = null; clockRun = false;
@@ -3538,8 +3544,9 @@ gl_FragColor=vec4(c,1.0);}`;
       // the suggestion: the down, the distance and the score
       const late = qtr >= 4 && clock < 75, lead = hs - as;
       DEFP.sug = late && lead > 0 && lead <= 8 && togo > 5 ? 'prev' : togo <= 1.5 ? 'box' : S.dn >= 3 && togo >= 8 ? 'c3d' : S.spot >= 85 ? 'c1' : S.dn >= 3 ? 'c1b' : 'c3';
-      banner('KEY PLAY', `${dd} · ${esc(AWAY.name)} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)}`, '#ffc21a');
-      say(`<b>Key play.</b> ${dd} for <b>${esc(AWAY.name)}</b>. Call the defense, then play it yourself.`);
+      const goal = S.spot >= 90, clutchD = isClutch();
+      banner(goal ? 'GOAL LINE STAND' : clutchD ? 'CLUTCH D' : 'KEY PLAY', `${dd} · ${esc(AWAY.name)} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)}`, '#ffc21a');
+      say(`<b>${goal ? 'Goal line stand.' : clutchD ? 'Clutch time: every snap is yours.' : 'Key play.'}</b> ${dd} for <b>${esc(AWAY.name)}</b>. Call the defense, then play it yourself.`);
       sfx.play('whistle'); excite = Math.max(excite, 0.5);
       openDSheet({ title: `Key play · ${dd}`, sub: `${AWAY.name} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)} · then you play a defender`, T: 10, cur: S.call, fn: defpCall, situation: [S.dn, togo, S.spot, lead, late] });
       setControls(true);
@@ -4414,6 +4421,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const hum = isHumanDef(d), ok = b.y < topReach(d) - 0.05, sees = hum || facesBall(d), looking = hum || tPlay >= (d.breakAt || 0);
       // decided, not rolled: eyes on it, hands on it (in reach, a good grip) and nobody to fight him for it: a pick; a hand on it: a deflection
       const qD = wD != null ? clamp(1 - wD / catchRadius(d), 0, 1) : 0.5;
+      if (DBG && DBG.forcePick) { intercept(d, 'undercut'); return; } // tests: every hand on the ball is a pick (return tackling)
       const alone = !target || dist(target, b) > 2.2;
       if (ok && sees && looking && qD > (alone ? 0.78 : 0.9) - (DP.intSkill - 0.06) * 1.2 - (hum ? 0.3 : 0) && !PK.rainbow && !(PK.laser && !alone)) { intercept(d, 'undercut'); return; }
       // a hand on it: knocked away when he gets enough of it, otherwise it gets by him
@@ -4723,7 +4731,7 @@ gl_FragColor=vec4(c,1.0);}`;
         moment('houdini', c, 'HOUDINI!', { a: c, b: d, victim: 'away', snd: 'good', col: '#2bd46b' });
         return;
       }
-      const power = (d.tackle / 70) * (0.6 + d.str / 150) * (1 + closing / 12) * (d.pose === 'tackle' ? 1.15 : 0.95) * Math.pow((d.mass || 1) / (c.mass || 1), 0.4); // weight matters
+      const power = ((d.tackle != null ? d.tackle : DP.tackle) / 70) * (0.6 + d.str / 150) * (1 + closing / 12) * (d.pose === 'tackle' ? 1.15 : 0.95) * Math.pow((d.mass || 1) / (c.mass || 1), 0.4); // weight matters
       let resist = (0.6 + c.str / 150) * (1 + vc / 16);
       if (c.mv === 'stiff' && c.mvT > 0 && fromFront) resist += 0.45 + (c.str - 50) / 250;
       const stiffT = c.mv === 'stiff' && c.mvT > 0 && fromFront ? tPlay - (c.mvT0 || 0) : -1, stiffWin = stiffT >= 0.08 && stiffT <= 0.4 && c.str + 18 >= d.str;
@@ -4731,8 +4739,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (behindLOS) resist -= 0.3;
       if (c.wrapT > 0) resist -= 0.5;
       if (airborne) resist -= 0.45; // caught in mid-air by a defender who stayed on his feet
-      let gang = 0; for (const o of def) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
-      let pB = clamp(0.05 + (resist - power) * 0.3 + (1 - KDEF) * 0.1 - gang * 0.12 + (c.side === 0 ? dramaBreak() : 0), 0.02, 0.55);
+      let gang = 0; for (const o of (d.side === 0 ? off : def)) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
+      let pB = clamp(0.05 + (resist - power) * 0.3 + (c.side === 0 || c === ctrl ? (1 - KDEF) * 0.1 : 0) - gang * 0.12 + (c.side === 0 ? dramaBreak() : 0), 0.02, 0.55);
       if (c.side === 0) pB = Math.min(0.55, pB + 0.05 * Math.min(1.5, funGate())); // a quiet stretch makes a big run a little likelier
       if (DBG && DBG.forceBreak != null) pB = DBG.forceBreak;
       if (funForced('trucked') || funForced('plant')) pB = 1;
@@ -4819,7 +4827,7 @@ gl_FragColor=vec4(c,1.0);}`;
       knockDown(c, vel, [nx * closing * 0.12, 0.25 + closing * 0.03, nz * closing * 0.12], 1.0);
       if (d && !d.rag) { knockDown(d, [vel[0] * 0.75, 0.2, vel[2] * 0.75], [-nx * 0.3, 0.2, -nz * 0.3], 0.8); setPose(d, 'tackle'); }
       // others nearby pile on
-      for (const o of def) if (o !== d && !o.rag && dist(o, c) < 1.5 && rng() < 0.7) knockDown(o, [vel[0] * 0.5, 0.3, vel[2] * 0.5], [(c.x - o.x) * 0.6, 0.35, (c.z - o.z) * 0.6], 0.9);
+      for (const o of (c.side === 1 ? off : def)) if (o !== d && !o.rag && dist(o, c) < 1.5 && rng() < 0.7) knockDown(o, [vel[0] * 0.5, 0.3, vel[2] * 0.5], [(c.x - o.x) * 0.6, 0.35, (c.z - o.z) * 0.6], 0.9);
       cam.shake = Math.max(cam.shake, 0.3 + Math.min(0.5, (closing || 0) * 0.05));
       c.tackleKind = kind === 'sack' ? 'sack' : 'tackle'; c.contactZ = c.z;
       c.downAt = tPlay + 0.42; if (!carrier) carrier = c; aim = null; hideAim(); c.throwT = -1;
@@ -6763,6 +6771,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = ball.holder;
       if (h && h.side === 0 && !h.rag && h.wrapT <= 0) {
         for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
+      }
+      // an interception or fumble return: the offense players who get to him tackle him, each one trying, the same as defenders do
+      if (h && h.side === 1 && !h.rag && h.wrapT <= 0 && phase === 'live') {
+        for (const p of off) { if (p.rag || p.stun > 0 || p.eng || p.rising > 0) continue; if (dist(p, h) < h.rad + p.rad + 0.2 && tPlay - (p.lastTry || -9) > 0.6) { p.lastTry = tPlay; hitCarrier(h, p); if (phase !== 'live' || h.rag) break; } }
       }
       if (phase !== 'live') return;
       if (play.type === 'qbdraw' && mode === 'aim' && tPlay > 0.85 && ball && ball.holder === OK.QB && !thrown && !aim && OK.QB.throwT < 0) scramble(); // the draw: show pass, then go
