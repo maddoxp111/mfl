@@ -5978,8 +5978,8 @@ gl_FragColor=vec4(c,1.0);}`;
       c.dragK = clamp(drive / (drive + hold) * 1.1 - 0.12, 0.12, 0.62);
       c.wrapT = 0.2 + Math.min(0.32, vc * 0.03) * (0.5 + c.dragK); c.wrapBy = d; c.fpZ = c.z; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle'); c.stumbleT = Math.max(c.stumbleT, 0.2);
     }
-    // ---------- the sack: a rusher grabs the QB, and he has a split second (time slows a touch) to throw before he is taken down ----------
-    const SACK_WIN = clamp(0.55 - DIFF * 0.12, 0.38, 0.55); // game seconds: Rookie 0.55, Legend 0.43, GOAT 0.39 (about 0.9 / 0.7 / 0.65 s on the clock on the wall)
+    // ---------- the sack: a rusher grabs the QB, and he has a split second (in real time) to throw before he is taken down ----------
+    const SACK_WIN = clamp(0.75 - DIFF * 0.15, 0.55, 0.75); // seconds, in real time (no slow motion): Rookie 0.75, Pro 0.7, All-Pro 0.65, Legend 0.6
     function grabQB(c, d) {
       c.sackT = SACK_WIN; c.sackBy = d; d.tried = 1; d.lastTry = tPlay; d.vx = c.vx; d.vz = c.vz; setPose(d, 'tackle');
       c.stumbleT = Math.max(c.stumbleT || 0, 0.25);
@@ -7923,6 +7923,7 @@ gl_FragColor=vec4(c,1.0);}`;
       PK.t += dt; if (PK.slowT > 0) PK.slowT -= dt;
       const L = perkList(); if (!L.length && !PK.splats.length) { starStep(dt, L); return; }
       for (const d of def) d.pkV = 1;
+      if (PK.slowT > 0 && PK.slowBy && !PK.slowBy.rag) for (const d of defsNear(PK.slowBy, 7)) d.pkV = Math.min(d.pkV, 0.45); // Slow-Mo: the defenders around him, not the game
       for (const p of off) { p.pkGoat = 0; }
       for (const p of L) if (p.pk.id === 'goat' && !p.rag) for (const o of off) if (o !== p && dist(o, p) < 5) o.pkGoat = 1;
       const b = ball;
@@ -7946,7 +7947,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const run = p === carrier, moving = run || (p.R && thrown === false) || mode === 'catch' && p === ctrl;
         if (cut && moving) {
           if (P.id === 'action' && use(p, 'play')) { boost(p, 1 + 0.28 * P.S, 0.6); fire(p); }
-          if (P.id === 'mythic' && use(p, 'drive')) { PK.slowT = 0.8 * Math.min(1.5, P.S); fire(p, { snd: 'zap' }); }
+          if (P.id === 'mythic' && use(p, 'drive')) { PK.slowT = 0.8 * Math.min(1.5, P.S); PK.slowBy = p; fire(p, { snd: 'zap' }); }
           if (P.id === 'snow' && use(p, 2.5)) { const n = nearDef(p, 2.2); if (n) { knockDown(n, [n.vx * 0.8, 0, n.vz * 0.8], [n.vx * 0.4, 0.4, n.vz * 0.4], 0.8); fire(p); } }
           if (P.id === 'desert' && use(p, 3)) { const ds = defsNear(p, 4.5); if (ds.length) { for (const d of ds) d.stun = Math.max(d.stun, 0.5 * P.S); fire(p); } }
           if (P.id === 'smoothie' && use(p, 'play')) fire(p, { quiet: true });
@@ -8180,7 +8181,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function startReplay() {
       lastBig.played = true;
       const n = replayBuf.length;
-      replay = { i0: lastBig.from != null ? clamp(lastBig.from, 0, Math.max(0, n - 30)) : Math.max(0, n - 300), n, t: 0, sp: 0.5, orbit: crand() * 6, bones: everyone.map((p) => p.bones) };
+      replay = { i0: lastBig.from != null ? clamp(lastBig.from, 0, Math.max(0, n - 30)) : Math.max(0, n - 300), n, t: 0, sp: 1, orbit: crand() * 6, bones: everyone.map((p) => p.bones) };
       phase = 'replay'; clearBanner(); hideTags(); setControls(true);
       banner('REPLAY', '', '#ffc21a'); setTimeout(() => { if (phase === 'replay') clearBanner(); }, 900);
     }
@@ -10153,10 +10154,9 @@ gl_FragColor=vec4(c,1.0);}`;
     let raf = 0, last = 0, running = false, ftAvg = 1 / 60, ftT = 0, qDropped = 0;
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      const el2 = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+      const el2 = Math.min(0.2, Math.max(0, (now - last) / 1000)); last = now; // a slow frame catches up (up to a fifth of a second) instead of turning into slow motion
       const mul = (DBG && DBG.speed) || 1;
-      const slow = phase !== 'live' ? 1 : PK.slowT > 0 ? 0.4 : OK.QB && OK.QB.sackBy ? 0.6 : 1; // Slow-Mo perk: time slows for a beat; a touch slower while a rusher has the QB
-      let sim = el2 * mul * slow, n = 0, rdt = el2 * mul * slow;
+      let sim = el2 * mul, n = 0, rdt = el2 * mul; // the game always runs in real time: nothing slows it down
       if (DBG && DBG.stepT) { sim = DBG.stepT; rdt = DBG.stepT; DBG.stepT = 0; } else if (DBG && DBG.speed === 0) { sim = 0; rdt = 0; }
       const ts = performance.now();
       while (sim > 1e-6 && n < 400 && !finished) { const d = Math.min(sim, 1 / 60); if (aim) aim.dur += d; step(d); sim -= d; n++; }

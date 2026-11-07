@@ -391,7 +391,7 @@ const PERK_ROWS = [
   ['spooky', 'Boo!', 'He turns see-through for a moment and the closest defender jumps back, scared', 'once a play, when a defender gets within 2 yards'],
   ['glitch', 'Lag Spike', 'He teleports a yard sideways in a burst of glitchy pixels', 'every juke (once every few seconds)'],
   ['goat', 'GOAT Aura', 'A golden aura (and a little bleat) lifts every teammate within 5 yards by +2 in all skills', 'always, while he is on the field'],
-  ['mythic', 'Slow-Mo', 'Time slows down for a beat so he can pick the perfect lane', 'his first cut on each drive'],
+  ['mythic', 'Slow-Mo', 'Every defender nearby slows to a crawl for a beat, opening up the perfect lane', 'his first cut on each drive'],
   ['dark', 'Gravity Well', 'Passes thrown near him bend toward him, and defenders right next to him move in slow motion', 'any pass within 5 yards, and always within 2 yards'],
   ['doh', 'Big Doh Mi', 'Coins rain down and the scoreboard flashes +100', 'every time he touches the ball'],
   ['skinny', 'Sideways', 'He turns sideways and slips through gaps too small for anyone else', 'running between two players who are close together'],

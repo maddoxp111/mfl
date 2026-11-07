@@ -184,6 +184,17 @@ const UPDATES = [
       'New gear button in the game: change how much defense you play, and turn sound and voice commentary on or off.',
     ],
   },
+  {
+    n: 17,
+    date: '2026-11-07',
+    title: '3D Blitz: no more slow motion',
+    items: [
+      "The game never slows down anymore. It used to drop into slow motion whenever a rusher grabbed your quarterback. Now you still get a split second to get the throw off, but in real time, and the window is a little longer to make up for it.",
+      'The Slow-Mo card perk no longer slows the whole game: it slows every defender near the player instead.',
+      'Instant replays play at normal speed (they were half speed).',
+      "On a slow device, a frame that takes too long now catches up instead of playing in slow motion.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
