@@ -3638,6 +3638,39 @@ async function revertArcadeOnce(db) {
   }
   await save();
 }
+// Part 3: an account that got admin-panel coins and is below 0 once its Arcade games were taken back had spent coins that
+// came from the hack after the first rollback ran (packs bought with Arcade winnings the gifts paid for). Its packs and
+// picks from the cutoff on are undone too. Runs once, after the Arcade rollback; kept in reverts/20261106-late/<name>.
+async function revertLateOnce(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.revertLate20261106) return;
+  const a0 = db.fixes.revertArcade20261106, T = (db.fixes.revertGifts20261106 || {}).cutoff || REVERT_FROM;
+  if (!a0 || !a0.done) return;
+  db.fixes.revertLate20261106 = { at: new Date().toISOString(), started: true };
+  await save();
+  const done = [];
+  try {
+    const gifted = new Set((await listDocs('reverts/20261106/')).filter((d) => d && d.name && (d.gifts || []).length).map((d) => d.name));
+    const sv0 = await survivorNow(db);
+    for (const name of gifted) {
+      const user = await getDoc(userKey(name), { fresh: true });
+      if (!user || accountOf(db, user, sv0).balance >= 0) continue;
+      const packs = (user.packs || []).filter((p) => (p.at || '') >= T), bets = (user.bets || []).filter((b) => (b.placed || '') >= T);
+      if (!packs.length && !bets.length) continue;
+      await putDoc(`reverts/20261106-late/${name}`, { name, cutoff: T, at: new Date().toISOString(), packs, bets });
+      user.packs = (user.packs || []).filter((p) => !packs.includes(p));
+      user.bets = (user.bets || []).filter((b) => !bets.includes(b));
+      await putDoc(userKey(name), user);
+      done.push({ name, packs: packs.length, bets: bets.length });
+    }
+    db.fixes.revertLate20261106 = { at: new Date().toISOString(), done: true, accounts: done };
+    console.log('late rollback:', JSON.stringify(done));
+  } catch (e) {
+    db.fixes.revertLate20261106 = { ...db.fixes.revertLate20261106, error: String(e && e.message || e) };
+    console.error('late rollback failed', e);
+  }
+  await save();
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3653,7 +3686,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
