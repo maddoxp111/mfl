@@ -522,8 +522,8 @@ function effectText(card, opts = {}) {
 // Fantasy points for one player in one game.
 // A QB who throws 10 TD passes on a Base card scores 350 points (plus 10 for the win).
 const SCORING = { td: 50, pass: 35, int: 30, catch: 15, sack: 20, pbu: 10, flag: 5, big: 15, picked: -25, mvp: 25, win: 10 };
-// Every fantasy point pays this many coins: that QB's 350 points earn 87,500 coins.
-const COINS_PER_POINT = 250;
+// Every fantasy point pays this many coins: that QB's 350 points earn 35,000 coins.
+const COINS_PER_POINT = 100;
 const SCORING_LABEL = { flat: 'Card bonus', td: 'Touchdown catch or run', pass: 'TD pass', int: 'Interception', catch: 'Notable catch', sack: 'Sack', pbu: 'Pass breakup', flag: 'Flag pull', big: 'Notable play', picked: 'Threw an INT', mvp: 'Game MVP', win: 'Team win' };
 const STAT_CAT = { TD: 'td', INT: 'int', CATCH: 'catch', SACK: 'sack', PBU: 'pbu', FLAG: 'flag', PLAY: 'big' };
 

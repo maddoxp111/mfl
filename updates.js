@@ -27,6 +27,14 @@ const UPDATES = [
       'The admin password was reset and every admin login was signed out.',
     ],
   },
+  {
+    n: 3,
+    date: '2026-11-07',
+    title: 'Lineup pays 100 coins a point',
+    items: [
+      'Lineup players now pay 100 coins per fantasy point instead of 250. It counts for every past game too, so Lineup coins from earlier games went down to match.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
