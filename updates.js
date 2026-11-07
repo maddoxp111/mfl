@@ -195,6 +195,16 @@ const UPDATES = [
       "On a slow device, a frame that takes too long now catches up instead of playing in slow motion.",
     ],
   },
+  {
+    n: 18,
+    date: '2026-11-07',
+    title: '3D Blitz: no more wide-open receivers',
+    items: [
+      "Fixed receivers being left wide open with nobody near them. In zone coverage, each corner and outside linebacker had a zone on a fixed side of the field. When a play was flipped, both corners ran across the field at the snap and left the outside receivers alone. Now everyone covers the zone on their own side. In our tests, a receiver alone with 7+ yards of space went from about 1 in 4 pass plays to about 1 in 20.",
+      'Same fix for a disguised Cover 3: the strong safety now lines up on the tight end\'s side instead of always on the right, so the flat on the other side isn\'t left open.',
+      'This also fixes your own defense on live snaps and in Head to Head, which had the same problem.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

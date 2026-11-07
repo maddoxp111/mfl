@@ -2941,8 +2941,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (dk === 'prev') { D('S', 'FS', -9, zc(los + 18), { num: 31 }); D('S', 'SS', 9, zc(los + 18), { num: 42 }); }
       else if (dk === 'box') { D('S', 'FS', 0, zc(los + 14.5), { num: 31 }); D('S', 'SS', OK.Y.x + sgn * 1.2, zc(los + 4.6), { num: 42 }); } // the strong safety walks down over the tight end
       else {
-        D('S', 'FS', twoHigh ? -10 : 0, zc(los + (twoHigh ? 13 : 14.5)), { num: 31 });
-        D('S', 'SS', twoHigh ? 10 : 5 * sgn, zc(los + (twoHigh ? 13 : 7.5)), { num: 42 });
+        D('S', 'FS', twoHigh ? -10 * sgn : 0, zc(los + (twoHigh ? 13 : 14.5)), { num: 31 }); // the strong safety on the tight end's side, two-high or not
+        D('S', 'SS', twoHigh ? 10 * sgn : 5 * sgn, zc(los + (twoHigh ? 13 : 7.5)), { num: 42 });
       }
       if (dk === 'box') for (const k of ['LBW', 'LBM', 'LBS']) if (DK[k].num !== 26) DK[k].z = los + 3.3; // linebackers up in the box
       const Z_ = (x, z, deep) => ({ t: 'zone', x, z, deep: !!deep });
@@ -2953,6 +2953,11 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (c === 2) Object.assign(A, { CB1: Z_(-16, 4), CB2: Z_(16, 4), FS: Z_(-10, 20, 1), SS: Z_(10, 20, 1), LBW: Z_(-8, 9), LBM: Z_(0, 10), LBS: Z_(8, 9) });
       else if (c === 3) Object.assign(A, { CB1: Z_(-16, 20, 1), CB2: Z_(16, 20, 1), FS: Z_(0, 23, 1), SS: Z_(sgn * 14, 6), LBW: Z_(-sgn * 14, 5), LBM: Z_(0, 9), LBS: Z_(sgn * 6, 9) });
       else Object.assign(A, { CB1: Z_(-17, 18, 1), FS: Z_(-6, 21, 1), SS: Z_(6, 21, 1), CB2: Z_(17, 18, 1), LBW: Z_(-14, 5), LBM: Z_(0, 9), LBS: Z_(14, 5) });
+      // zones belong to the side of the field, the players don't: when the offense flips (X on the right) the corner lined up
+      // over him takes the right-side zone, not the left one across the field (that left both outside receivers alone at the
+      // snap while the corners crossed). Each mirrored pair goes to whichever of the two is lined up on that side.
+      const sideUp = () => { for (const [k1, k2] of [['CB1', 'CB2'], ['LBW', 'LBS'], ['FS', 'SS']]) { const z1 = A[k1], z2 = A[k2], d1 = DK[k1], d2 = DK[k2]; if (z1 && z2 && d1 && d2 && z1.t === 'zone' && z2.t === 'zone' && z1.x * z2.x < 0 && (d1.x - d2.x) * (z1.x - z2.x) < 0) { A[k1] = z2; A[k2] = z1; } } };
+      sideUp();
       if (c >= 2 && dcall.blitz) {
         const bk = rng() < 0.5 ? 'LBM' : 'LBW', hole = A[bk]; A[bk] = { t: 'rush' };
         // a zone blitz still covers the field: the nearest hook defender slides toward the hole the blitzer left
@@ -2962,6 +2967,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (dk === 'prev') Object.assign(A, { CB1: Z_(-16, 22, 1), CB2: Z_(16, 22, 1), FS: Z_(-6, 28, 1), SS: Z_(6, 28, 1), LBW: Z_(-12, 9), LBM: Z_(0, 12), LBS: Z_(12, 9) }); // four deep, three under
       else if (dk === 'spy') A.LBW = { t: 'spy' };
       else if (dk === 'box') Object.assign(A, { LBW: Z_(-sgn * 3.5, 3.5), LBM: Z_(0, 3.5), FS: Z_(0, 17, 1) });
+      sideUp(); // again for the Prevent and Stack the Box zones
       for (const k of ['DE1', 'DT1', 'DT2', 'DE2']) A[k] = { t: 'rush' };
       if (dk === 'prev') A[sgn > 0 ? 'DE1' : 'DE2'] = Z_(0, 5); // only three rush: the weak-side end drops into the middle
       for (const k in A) if (A[k].t === 'man' && A[k].tgt && A[k].tgt.blk === 'block') A[k] = KDEF > 0.5 && rng() < 0.5 ? { t: 'rush' } : Z_(0, 8);
@@ -10154,7 +10160,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let raf = 0, last = 0, running = false, ftAvg = 1 / 60, ftT = 0, qDropped = 0;
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      const el2 = Math.min(0.2, Math.max(0, (now - last) / 1000)); last = now; // a slow frame catches up (up to a fifth of a second) instead of turning into slow motion
+      const el2 = Math.min(VS ? 0.1 : 0.2, Math.max(0, (now - last) / 1000)); last = now; // a slow frame catches up (up to a fifth of a second) instead of turning into slow motion (Head to Head keeps smaller steps for the stream)
       const mul = (DBG && DBG.speed) || 1;
       let sim = el2 * mul, n = 0, rdt = el2 * mul; // the game always runs in real time: nothing slows it down
       if (DBG && DBG.stepT) { sim = DBG.stepT; rdt = DBG.stepT; DBG.stepT = 0; } else if (DBG && DBG.speed === 0) { sim = 0; rdt = 0; }
