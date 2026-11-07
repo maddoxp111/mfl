@@ -118,7 +118,7 @@ app.use((req, res, next) => {
     const left = (v) => Number(String(v || '').split('.')[v && v.split('.').length === 3 ? 1 : 0]) - Date.now();
     const name = currentUser(req);
     if (name && left(c[USER_COOKIE]) < (SESSION_DAYS - 7) * DAY) setUserCookie(req, res, name);
-    if (isAdmin(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
+    if (adminSession(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
   }
   next();
 });
@@ -304,15 +304,49 @@ function playerLeaders(db) {
 
 // ---------- auth ----------
 const sign = (v) => crypto.createHmac('sha256', SECRET).update(v).digest('hex');
-function isAdmin(req) {
-  const c = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((x) => { const i = x.indexOf('='); return [x.slice(0, i), decodeURIComponent(x.slice(i + 1))]; }));
-  if (!c.mfl_admin) return false;
-  const [exp, sig] = c.mfl_admin.split('.');
+const cookiesOf = (req) => Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((x) => { const i = x.indexOf('='); return [x.slice(0, i), decodeURIComponent(x.slice(i + 1))]; }));
+const sigOk = (sig, good) => !!sig && sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
+// Logged in with the admin password (step 1 of 2).
+function adminSession(req) {
+  const v = cookiesOf(req).mfl_admin;
+  if (!v) return false;
+  const [exp, sig] = v.split('.');
   if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const good = sign(ADMIN_GEN + exp);
-  return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
+  return sigOk(sig, sign(ADMIN_GEN + exp));
 }
-const requireAdmin = (req, res, next) => (isAdmin(req) ? next() : res.redirect('/admin/login'));
+// Step 2: the admin PIN. It is set once, at the first admin login, and asked for again whenever the admin panel is opened
+// after PIN_IDLE without using it. Saving a form gets a longer grace, so a long box score is never lost to the PIN.
+// Only a hash of the PIN is kept; changing it locks every unlocked browser.
+const PIN_IDLE = 30 * 60 * 1000, PIN_SAVE_GRACE = 12 * 3600 * 1000, PIN_TRIES = 5, PIN_LOCK = 3600 * 1000;
+const adminPin = () => load().adminPin || null;
+const pinTag = () => (adminPin() ? adminPin().hash.slice(0, 16) : '');
+function pinUnlocked(req) {
+  if (!adminPin()) return false;
+  const v = cookiesOf(req).mfl_apin;
+  if (!v) return false;
+  const [exp, sig] = v.split('.');
+  const left = Number(exp) - Date.now();
+  if (!exp || !sig || !(left > (req.method === 'POST' ? -PIN_SAVE_GRACE : 0))) return false;
+  return sigOk(sig, sign('apin.' + pinTag() + '.' + exp));
+}
+function setPinCookie(req, res) {
+  const exp = String(Date.now() + PIN_IDLE);
+  res.append('Set-Cookie', `mfl_apin=${exp}.${sign('apin.' + pinTag() + '.' + exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${(PIN_IDLE + PIN_SAVE_GRACE) / 1000}${secureFlag(req)}`);
+}
+const isAdmin = (req) => adminSession(req) && pinUnlocked(req);
+const requireAdmin = (req, res, next) => {
+  if (!adminSession(req)) return res.redirect('/admin/login');
+  if (!pinUnlocked(req)) return res.redirect('/admin/pin' + (req.method === 'GET' && req.originalUrl !== '/admin' ? '?next=' + encodeURIComponent(req.originalUrl) : ''));
+  if (req.method === 'GET') setPinCookie(req, res); // using the panel keeps it unlocked
+  next();
+};
+// The score panel: site accounts the admin lets score games (result, box score, who didn't play) and nothing else.
+const isScorer = (req) => { const u = currentUser(req); return !!u && (load().scorers || []).includes(u); };
+const requireScorer = (req, res, next) => {
+  if (isScorer(req)) return next();
+  if (!currentUser(req)) return res.redirect('/pickem/login?next=' + encodeURIComponent(req.originalUrl));
+  res.status(403).send(layout(req, 'Score panel', pageHead('Score panel', 'Not on the score panel') + '<div class="wrap"><div class="card"><p>Only accounts the commissioner adds to the score panel can score games.</p></div></div>'));
+};
 
 // ---------- components ----------
 function icon(name) {
@@ -381,8 +415,9 @@ const SITE_NOTICE = { id: 'notice-nov6-fairplay', first: true, wait: 5, button: 
 function layout(req, title, body, opts = {}) {
   const db = load();
   const teams = Object.values(db.teams);
-  const admin = isAdmin(req);
+  const admin = adminSession(req);
   const user = currentUser(req);
+  const scorer = !admin && isScorer(req);
   const cur = req.path;
   const on = (prefixes) => (prefixes.some((p) => cur.startsWith(p)) ? 'on' : '');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -392,7 +427,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=71">
+<link rel="stylesheet" href="/static/style.css?v=72">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -417,7 +452,7 @@ function layout(req, title, body, opts = {}) {
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a><a class="acct-out" href="/pickem/logout">Log out</a>`
       : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
-    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : ''}</div>
+    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : scorer ? `<a class="nav-admin ${on(['/score'])}" href="/score">Score</a>` : ''}</div>
   </nav>
 </div></header>
 ${hypeBanner(db, cur)}
@@ -2640,7 +2675,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -2659,7 +2694,72 @@ app.post('/admin/login', (req, res) => {
   setAdminCookie(req, res);
   res.redirect('/admin');
 });
-app.get('/admin/logout', (req, res) => { res.setHeader('Set-Cookie', 'mfl_admin=; Path=/; Max-Age=0'); res.redirect('/'); });
+app.get('/admin/logout', (req, res) => { res.setHeader('Set-Cookie', ['mfl_admin=; Path=/; Max-Age=0', 'mfl_apin=; Path=/; Max-Age=0']); res.redirect('/'); });
+
+// ---------- admin PIN ----------
+const pinNext = (v) => (/^\/admin(\/[a-z0-9/_?=&.-]*)?$/i.test(String(v || '')) && !/^\/admin\/(pin|login|logout)/.test(v) ? v : '/admin');
+const pinLockedUntil = () => { const f = load().adminPinFails; return f && f.until && Date.parse(f.until) > Date.now() ? Date.parse(f.until) : 0; };
+const pinField = (name, label) => `<label>${label}<input class="pin-in" type="password" name="${name}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" autocomplete="off" required></label>`;
+function pinPage(req, err = '') {
+  const set = !!adminPin(), until = pinLockedUntil();
+  const next = pinNext(req.query.next || req.body?.next);
+  const body = until
+    ? `<p class="err">Too many wrong PINs. The admin panel is locked until ${esc(new Date(until).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }))}.</p><p><a class="btn ghost" href="/admin/logout">Log out</a></p>`
+    : `${set ? '<p class="muted sm">Enter your 4-digit admin PIN.</p>' : '<p class="muted sm">First time here: choose a 4-digit PIN. You will need it, as well as the password, every time you open the admin panel.</p>'}
+      ${err ? `<p class="err">${esc(err)}</p>` : ''}
+      <input type="hidden" name="next" value="${esc(next)}">
+      ${pinField('pin', set ? 'PIN' : 'New PIN')}${set ? '' : pinField('pin2', 'Type it again')}
+      <button class="btn">${set ? 'Unlock' : 'Set PIN'}</button>
+      <p class="muted sm"><a href="/admin/logout">Log out</a></p>`;
+  return layout(req, 'Admin PIN', `<div class="wrap login"><form method="post" action="/admin/pin" class="card form">
+    <img src="/static/mfl-logo.webp" alt="" class="login-logo"><h2>${set ? 'Admin PIN' : 'Set a PIN'}</h2>${body}</form></div>`, { ticker: false });
+}
+app.get('/admin/pin', (req, res) => {
+  if (!adminSession(req)) return res.redirect('/admin/login');
+  if (pinUnlocked(req)) return res.redirect(pinNext(req.query.next));
+  res.send(pinPage(req));
+});
+app.post('/admin/pin', async (req, res) => {
+  if (!adminSession(req)) return res.redirect('/admin/login');
+  const db = load(), pin = String(req.body.pin || ''), next = pinNext(req.body.next);
+  if (pinLockedUntil()) return res.send(pinPage(req));
+  if (!db.adminPin) {
+    if (!/^\d{4}$/.test(pin)) return res.send(pinPage(req, 'The PIN is 4 digits.'));
+    if (pin !== String(req.body.pin2 || '')) return res.send(pinPage(req, "The two PINs didn't match. Try again."));
+    db.adminPin = { ...pk.hashPin(pin), at: new Date().toISOString() };
+    delete db.adminPinFails;
+    await save();
+  } else if (!/^\d{4}$/.test(pin) || !pk.checkPin(db.adminPin, pin)) {
+    const f = db.adminPinFails = { n: ((db.adminPinFails || {}).n || 0) + 1, last: new Date().toISOString() };
+    if (f.n % PIN_TRIES === 0) f.until = new Date(Date.now() + PIN_LOCK).toISOString();
+    await save();
+    return res.send(pinPage(req, `Wrong PIN. ${PIN_TRIES - (f.n % PIN_TRIES)} tr${PIN_TRIES - (f.n % PIN_TRIES) === 1 ? 'y' : 'ies'} left before the panel locks for an hour.`));
+  } else if (db.adminPinFails) { delete db.adminPinFails; await save(); }
+  setPinCookie(req, res);
+  res.redirect(next);
+});
+// Change the PIN (needs the current one). Every other unlocked browser is locked again.
+app.post('/admin/pin/change', requireAdmin, async (req, res) => {
+  const db = load(), cur = String(req.body.current || ''), pin = String(req.body.pin || '');
+  const back = (m) => res.redirect('/admin/security?msg=' + encodeURIComponent(m));
+  if (!pk.checkPin(db.adminPin, cur)) return back('Your current PIN was wrong.');
+  if (!/^\d{4}$/.test(pin) || pin !== String(req.body.pin2 || '')) return back("The new PIN has to be 4 digits, typed the same twice.");
+  db.adminPin = { ...pk.hashPin(pin), at: new Date().toISOString() };
+  await save();
+  setPinCookie(req, res);
+  back('PIN changed.');
+});
+app.get('/admin/security', requireAdmin, (req, res) => {
+  const p = adminPin(), f = load().adminPinFails;
+  res.send(layout(req, 'Admin PIN', pageHead('Admin', 'PIN') + `<div class="wrap">${adminNav('/admin/security')}
+    ${req.query.msg ? `<div class="toast">${esc(req.query.msg)}</div>` : ''}
+    <div class="card"><div class="card-h"><h2>Admin PIN</h2></div>
+      <p class="muted sm">The admin panel asks for the password once per device, then for this PIN whenever it's opened after ${PIN_IDLE / 60000} minutes away. ${PIN_TRIES} wrong PINs in a row lock it for an hour. PIN set ${esc(longDate(p.at.slice(0, 10)))}.${f && f.n ? ` <b>${f.n} wrong PIN${f.n === 1 ? '' : 's'}</b> since the last right one (latest ${esc(new Date(f.last).toLocaleString('en-US', { timeZone: TZ }))}).` : ''}</p>
+      <form method="post" action="/admin/pin/change" class="form fgrid">
+        ${pinField('current', 'Current PIN')}${pinField('pin', 'New PIN')}${pinField('pin2', 'New PIN again')}
+        <button class="btn">Change PIN</button>
+      </form></div></div>`, { ticker: false }));
+});
 
 app.get('/admin', requireAdmin, (req, res) => {
   const db = load();
@@ -2750,7 +2850,7 @@ const PLAY_TYPES = [
   ['INT', 'Interception', 'int', 'Who intercepted it?'],
   ...Object.entries(STATS).map(([k, st]) => [k, st.label, st.tag, st.who]),
 ];
-function gameForm(db, g, isNew) {
+function gameForm(db, g, isNew, scorer = false) {
   const teams = Object.values(db.teams);
   const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
   const t1 = db.teams[g.home] || teams[0], t2 = db.teams[g.away] || teams[1];
@@ -2822,7 +2922,7 @@ function gameForm(db, g, isNew) {
       ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}</span></label>`).join('')}</div></div>`).join('')}
     </section>
 
-    <section class="card ${g.betsVoid ? 'void-on' : ''}">
+    ${scorer ? '' : `<section class="card ${g.betsVoid ? 'void-on' : ''}">
       <div class="card-h"><h2>Void every pick on this game</h2></div>
       <p class="muted sm">For a game that can't be trusted (players fixing plays for picks). Every pick on it is cancelled: stakes go back, nothing is paid, and anything already paid is taken back. Combos drop this game's picks and count the rest. Untick it to put the picks back.</p>
       <label class="chk"><input type="checkbox" name="betsVoid" value="1" ${g.betsVoid ? 'checked' : ''}> Void all picks on this game</label>
@@ -2844,12 +2944,12 @@ function gameForm(db, g, isNew) {
         <label id="bowlF" ${g.type === 'playoff' ? '' : 'hidden'}>Bowl<select name="bowl"><option value="">—</option>${db.bowls.map((b) => opt(b.slug, g.bowl, b.name)).join('')}</select></label>
         <label class="wide">Reason <small class="muted">(shown for postponed or exhibition games)</small><input name="reason" value="${esc(g.reason)}" placeholder="e.g. Rain, assembly, scrimmage"></label>
       </div>
-    </details>
+    </details>`}
 
     <div class="savebar">
-      ${isNew ? '<a class="btn ghost" href="/admin">Cancel</a>' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game for good?')">Delete</button>`}
+      ${scorer ? '<a class="btn ghost" href="/score">Back</a>' : isNew ? '<a class="btn ghost" href="/admin">Cancel</a>' : `<button class="btn ghost danger" formaction="/admin/game/${g.id}/delete" onclick="return confirm('Delete this game for good?')">Delete</button>`}
       <span class="savebar-msg" id="dirty"></span>
-      <button class="btn">${isNew ? 'Create game' : 'Save changes'}</button>
+      <button class="btn">${isNew ? 'Create game' : scorer ? 'Save score' : 'Save changes'}</button>
     </div>
   </form>
   <script>
@@ -2893,23 +2993,31 @@ function gameForm(db, g, isNew) {
   </script>`;
 }
 
-function readGame(body, g) {
+// scoreOnly (the score panel): only the result, the box score and who didn't play change; the matchup, date, notes and
+// the void switch stay as the admin set them.
+function readGame(body, g, scoreOnly = false) {
   const arr = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
   const num = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
-  g.date = body.date || null;
-  g.time = body.time || '12:35';
-  g.home = body.home; g.away = body.away;
-  g.type = ['regular', 'exhibition', 'playoff'].includes(body.type) ? body.type : 'regular';
-  g.bowl = g.type === 'playoff' ? body.bowl || null : null;
+  if (!scoreOnly) {
+    g.date = body.date || null;
+    g.time = body.time || '12:35';
+    g.home = body.home; g.away = body.away;
+    g.type = ['regular', 'exhibition', 'playoff'].includes(body.type) ? body.type : 'regular';
+    g.bowl = g.type === 'playoff' ? body.bowl || null : null;
+  }
   g.status = ['scheduled', 'live', 'final', 'postponed'].includes(body.status) ? body.status : 'scheduled';
-  g.reason = String(body.reason || '').slice(0, 300);
-  g.notes = String(body.notes || '').trim().slice(0, 2000);
+  if (!scoreOnly) {
+    g.reason = String(body.reason || '').slice(0, 300);
+    g.notes = String(body.notes || '').trim().slice(0, 2000);
+  }
   if (BOX_STATUS[body.boxStatus] && body.boxStatus !== 'complete') g.boxStatus = body.boxStatus; else delete g.boxStatus;
   const valid = new Set([g.home, g.away].flatMap((id) => (load().teams[id]?.roster || []).map((p) => id + '|' + p.id)));
   g.out = [...new Set(arr(body.out))].filter((k) => valid.has(k));
-  if (body.betsVoid === '1') { if (!g.betsVoid) g.voidAt = new Date().toISOString(); g.betsVoid = true; } else { delete g.betsVoid; delete g.voidAt; }
-  g.voidReason = String(body.voidReason || '').trim().slice(0, 200) || (g.betsVoid ? 'Voided by the commissioner' : '');
-  if (!g.voidReason) delete g.voidReason;
+  if (!scoreOnly) {
+    if (body.betsVoid === '1') { if (!g.betsVoid) g.voidAt = new Date().toISOString(); g.betsVoid = true; } else { delete g.betsVoid; delete g.voidAt; }
+    g.voidReason = String(body.voidReason || '').trim().slice(0, 200) || (g.betsVoid ? 'Voided by the commissioner' : '');
+    if (!g.voidReason) delete g.voidReason;
+  }
   g.homeScore = num(body.homeScore); g.awayScore = num(body.awayScore);
   delete g.quarters;
   const types = arr(body.ev_type);
@@ -2917,7 +3025,7 @@ function readGame(body, g) {
     type: EV_TYPES.includes(t) ? t : 'TD', team: arr(body.ev_team)[i], player: (arr(body.ev_player)[i] || '').trim(),
     passer: (arr(body.ev_passer)[i] || '').trim(), note: (arr(body.ev_note)[i] || '').trim(),
     ...(t === 'PEN' ? { pen: PENALTIES[arr(body.ev_pen)[i]] ? arr(body.ev_pen)[i] : 'OTHER' } : {}),
-  })).filter((e) => e.player || e.passer || e.note || e.pen);
+  })).filter((e) => (e.player || e.passer || e.note || e.pen) && (e.team === g.home || e.team === g.away));
   return g;
 }
 
@@ -2946,6 +3054,65 @@ app.post('/admin/game/:id', requireAdmin, async (req, res) => {
   await save();
   res.redirect(`/admin/game/${g.id}?saved=1`);
 });
+// ---------- score panel ----------
+const scoreLine = (db, g) => `${db.teams[g.home]?.abbr || g.home} ${g.homeScore ?? '–'}–${g.awayScore ?? '–'} ${db.teams[g.away]?.abbr || g.away}`;
+const scoreSnap = (db, g) => ({ status: g.status, score: scoreLine(db, g), plays: (g.events || []).length, out: (g.out || []).length });
+app.get('/score', requireScorer, (req, res) => {
+  const db = load(), t = today();
+  const games = [...db.games].filter((g) => g.date && g.date >= addDays(t, -21) && g.date <= addDays(t, 14)).sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+  const mine = (db.scoreLog || []).filter((e) => e.by === currentUser(req)).slice(-8).reverse();
+  res.send(layout(req, 'Score panel', pageHead('Score panel', 'Score games', 'Enter the result, the plays and who didn\'t play. Every save is logged with your name.') + `<div class="wrap">${savedMsg(req)}
+    <div class="card score-list">${games.map((g) => { const [dow, md] = [shortDate(g.date).split(', ')[0], shortDate(g.date).split(', ').slice(1).join(', ')], go = !isFinal(g) && g.status !== 'postponed' && g.date <= t;
+      return `<a class="score-g ${g.date === t ? 'today' : ''}" href="/score/game/${g.id}"><span class="sg-d">${esc(md)}<small>${g.date === t ? 'Today' : esc(dow)}</small></span><span class="sg-m">${esc(db.teams[g.home].abbr)} vs ${esc(db.teams[g.away].abbr)}${gameLabel(db, g) ? `<small>${esc(gameLabel(db, g))}</small>` : ''}</span><span class="sg-r">${isFinal(g) ? `<b>${g.homeScore}–${g.awayScore}</b>` : statusBadge(g)}</span><span class="btn sm ${go ? 'go' : 'ghost'}">${isFinal(g) ? 'Edit' : 'Score'}</span></a>`; }).join('') || '<p class="empty">No games in the last three weeks or the next two.</p>'}</div>
+    ${mine.length ? `<div class="card"><div class="card-h"><h2>Your recent saves</h2></div><ul class="score-log">${mine.map((e) => `<li><b>${esc(e.after.score)}</b> · ${esc(e.after.status)} · ${e.after.plays} plays <small class="muted">${esc(new Date(e.at).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</small></li>`).join('')}</ul></div>` : ''}
+  </div>`, { ticker: false }));
+});
+app.get('/score/game/:id', requireScorer, (req, res) => {
+  const db = load(), g = db.games.find((x) => x.id === req.params.id);
+  if (!g) return res.redirect('/score');
+  res.send(layout(req, 'Score game', pageHead('Score panel', `${db.teams[g.home].abbr} vs ${db.teams[g.away].abbr} · ${shortDate(g.date)}`, `<a href="/games/${g.id}">View public page →</a>`) + `<div class="wrap">${savedMsg(req)}${gameForm(db, g, false, true)}</div>`, { ticker: false }));
+});
+app.post('/score/game/:id', requireScorer, async (req, res) => {
+  const db = load(), g = db.games.find((x) => x.id === req.params.id);
+  if (!g) return res.redirect('/score');
+  const before = scoreSnap(db, g);
+  readGame(req.body, g, true);
+  g.scoredBy = { name: currentUser(req), at: new Date().toISOString() };
+  db.scoreLog = [...(db.scoreLog || []), { by: currentUser(req), game: g.id, at: g.scoredBy.at, before, after: scoreSnap(db, g) }].slice(-300);
+  await save();
+  res.redirect(`/score/game/${g.id}?saved=1`);
+});
+// Admin: who is on the score panel, and every save they made.
+app.get('/admin/scorers', requireAdmin, (req, res) => {
+  const db = load(), list = db.scorers || [], log = (db.scoreLog || []).slice(-60).reverse();
+  const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  res.send(layout(req, 'Scorers', pageHead('Admin', 'Score panel') + `<div class="wrap">${adminNav('/admin/scorers')}
+    ${req.query.msg ? `<div class="toast">${esc(req.query.msg)}</div>` : ''}
+    <div class="card"><div class="card-h"><h2>Scorers</h2><span class="muted sm">${list.length}</span></div>
+      <p class="muted sm">These accounts get a <b>Score</b> link in the menu. They can enter a game's result, box score and who didn't play, and nothing else: no coins, picks, rosters, game details or voiding. Every save is logged below.</p>
+      ${list.length ? `<div class="scorer-list">${list.map((n) => `<form method="post" action="/admin/scorers/remove" class="scorer"><a href="/pickem/u/${esc(n)}">@${esc(n)}</a><input type="hidden" name="name" value="${esc(n)}"><button class="btn sm ghost danger" onclick="return confirm('Take @${esc(n)} off the score panel?')">Remove</button></form>`).join('')}</div>` : '<p class="empty">Nobody yet.</p>'}
+      <form method="post" action="/admin/scorers/add" class="form scorer-add"><label>Add a scorer<input name="name" placeholder="username" maxlength="16" autocapitalize="off" autocomplete="off" required></label><button class="btn">Add</button></form>
+    </div>
+    <div class="card"><div class="card-h"><h2>Scoring log</h2><span class="muted sm">latest ${log.length}</span></div>
+      ${log.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">When</th><th class="l">Who</th><th class="l">Game</th><th class="l">Before</th><th class="l">After</th></tr></thead><tbody>${log.map((e) => `<tr><td class="l">${esc(when(e.at))}</td><td class="l">@${esc(e.by)}</td><td class="l"><a href="/admin/game/${esc(e.game)}">#${esc(e.game)}</a></td><td class="l">${esc(e.before.score)} · ${esc(e.before.status)} · ${e.before.plays} plays</td><td class="l">${esc(e.after.score)} · ${esc(e.after.status)} · ${e.after.plays} plays${e.after.out ? ` · ${e.after.out} out` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No saves from the score panel yet.</p>'}
+    </div></div>`, { ticker: false }));
+});
+app.post('/admin/scorers/add', requireAdmin, async (req, res) => {
+  const name = String(req.body.name || '').trim().replace(/^@/, '').toLowerCase();
+  const back = (m) => res.redirect('/admin/scorers?msg=' + encodeURIComponent(m));
+  if (!pk.validName(name) || !(await getDoc(userKey(name), { fresh: true }))) return back(`There's no account called @${name}.`);
+  const db = load();
+  db.scorers = [...new Set([...(db.scorers || []), name])];
+  await save();
+  back(`@${name} is on the score panel.`);
+});
+app.post('/admin/scorers/remove', requireAdmin, async (req, res) => {
+  const db = load(), name = String(req.body.name || '');
+  db.scorers = (db.scorers || []).filter((n) => n !== name);
+  await save();
+  res.redirect('/admin/scorers?msg=' + encodeURIComponent(`@${name} was taken off the score panel.`));
+});
+
 app.post('/admin/game/:id/delete', requireAdmin, async (req, res) => {
   const db = load();
   db.games = db.games.filter((x) => x.id !== req.params.id);

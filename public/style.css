@@ -2609,3 +2609,20 @@ body.arc-playing .ticker{display:none}
 /* the read-me notice (SITE_NOTICE): wider, and the button shows the countdown */
 .mpop-notice .mpop-box{max-width:520px}.mpop-notice .mpop-b p{margin:0 0 10px}.mpop-notice .mpop-b ul{margin:0 0 12px}
 .mpop .btn:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.4)}
+/* admin PIN */
+.pin-in{font:800 28px var(--disp);letter-spacing:.5em;text-align:center;padding-left:.5em}
+/* score panel */
+.scorer-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 14px}
+.scorer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:12px;background:var(--card2)}
+.scorer a{font-weight:700}
+.scorer-add{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.scorer-add label{flex:1;min-width:180px}
+.score-log{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.score-list{padding:6px 0}
+.score-g{display:grid;grid-template-columns:58px 1fr auto auto;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.score-g:last-child{border-bottom:0}
+.score-g.today{background:rgba(255,51,68,.07)}
+.score-g small{display:block;font-size:11px;color:var(--muted);font-weight:500}
+.sg-d{font-weight:700;font-size:13px}
+.sg-m{font-weight:700}
+.sg-r b{font:800 18px var(--disp)}
