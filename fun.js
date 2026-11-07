@@ -49,6 +49,7 @@ module.exports = function fun(app, h) {
       <div class="mc-name">${esc(c.p.name)}</div>
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
       ${cardPerkFront(c, spec)}
+      ${c.season ? `<div class="mc-s1tag">Season ${c.season}</div>` : ''}
       <div class="mc-foot"><span class="mc-rar" title="${esc(tierWords(c))}">${esc(c.rarityName)}${c.rarity === 'common' ? '' : ` · ${esc(tierOfCard(c).name)}`}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
     </div>`;

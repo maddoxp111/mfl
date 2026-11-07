@@ -2758,3 +2758,20 @@ body.arc-playing .ticker{display:none}
 .box-packs{margin-top:10px}
 .box-packs ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink2);font-size:13px}
 .rv-t .rar-tag{display:inline-block;white-space:nowrap;margin:2px 0}
+/* "SEASON 1" in the season lettering, just above the footer of every Season 1 card */
+.mc-s1tag{flex:none;margin-top:auto;padding:4px 2px 0;font:900 italic 15px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;background:linear-gradient(180deg,#fff 30%,#bae6fd 70%,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 6px rgba(56,189,248,.5))}
+.mc-s1tag+.mc-foot{margin-top:2px}
+/* room for it: the cover cards stack their text at the bottom, and the polaroid and cutout photos get a bit smaller */
+.mcard.s1c{gap:3px}
+.mcard.ph-cover .mc-top{margin-bottom:auto}
+.mcard.ph-cover .mc-s1tag{margin-top:0}
+.mcard.s1c.ph-polaroid .mc-photo{margin:0 0 2px}
+.mcard.s1c.ph-polaroid .mc-photo .av{width:80px!important;height:90px!important;padding:5px 5px 15px}
+.mcard.s1c.ph-cut .mc-photo .av.photo{width:96px!important;height:96px!important}
+@media(max-width:760px){
+  .mc-s1tag{font-size:13px;padding-top:3px}
+  .mcard.s1c{gap:2px}
+  .mcard.s1c.ph-polaroid .mc-photo .av{width:64px!important;height:72px!important;padding:4px 4px 12px}
+  .mcard.s1c.ph-cut .mc-photo .av.photo{width:72px!important;height:72px!important}
+}
+.slot .mc-s1tag{font-size:10px;padding-top:1px}

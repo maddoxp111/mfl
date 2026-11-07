@@ -106,6 +106,7 @@ const UPDATES = [
     title: 'Season 1 card names',
     items: [
       "The Season 1 cards are named after the Season 1 packs now: Tabaka Welcome, T-Time, Momma P's Cookies, Full Extension Essentials, CT Team Chemistry, Carson Charles Tabaka, Tabaka Time, Season 1: Carson Tabaka 1/1 and Carson's Filet Dinner 1/1, plus Carson's own Cover Athlete and BigBoyCT 1/1. Cards you already have keep everything but the old name.",
+      'Every Season 1 card now says SEASON 1 near the bottom, in the Season 1 lettering.',
     ],
   },
 ];
