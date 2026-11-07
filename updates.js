@@ -144,6 +144,18 @@ const UPDATES = [
       'Live defense: your AI teammates read and react like a top defense at every difficulty, so getting a stop is more up to you.',
     ],
   },
+  {
+    n: 14,
+    date: '2026-11-07',
+    title: '3D Blitz: drive plans and a defender who matters',
+    items: [
+      'On defense, the guy you play makes plays: press JUMP or DIVE with the ball in the air and he goes after it with a much bigger reach. Get a hand on it and it is at least a breakup, and a clean one is often a pick. A dive at the ball carrier is a real tackle.',
+      "Drive plans: when they get the ball you pick a plan for the whole drive instead of one play: Bend Don't Break, Bring the Heat, Lockdown, Run Wall, Ball Hawk or Mix It Up. Every snap runs the call from your plan that fits the down, and key plays open on your plan's calls.",
+      'Simulated drives play out on a little field on the drive card: the ball, the line to gain, each play and the call it ran against. It takes no longer than before.',
+      'You can see the down on defense: the scoreboard shows their down and distance and where the ball is.',
+      'Stadium pulse on kicks: the place gets loud for your field goals and extra points (louder for long ones and late in a close game), and a loud crowd makes the kick meter harder. Kickoffs and punts get the crowd going too.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
