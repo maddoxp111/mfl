@@ -168,6 +168,22 @@ const UPDATES = [
       "Games are a lot shorter: in our test games Medium ran about a third shorter than before, and Quick or None are back near the old length.",
     ],
   },
+  {
+    n: 16,
+    date: '2026-11-07',
+    title: '3D Blitz: the defense fights back',
+    items: [
+      "The go route can't be thrown every play anymore. The CPU remembers your deep shots, whatever play you call or hot route you use. Go deep a few times and they switch to two deep safeties, the corners back off and stay on top, and a safety rides over the receiver you keep going to. You'll see THEY'RE SITTING DEEP when it happens. Then the short stuff is open, and going underneath cools them off.",
+      'Contested deep balls are harder to come down with, the longer the throw the harder, and more of them get picked or broken up.',
+      "If you catch it with a defender right on you, you're usually going down. The catch costs you speed (most of all on a leaping grab), you can't juke or spin for a split second while you tuck it away, and the defender on you drives right through the catch. Defenders near you no longer freeze when you catch it.",
+      "A juke fakes out the defender it's aimed at, not everyone around you. Anyone you didn't fool can still tackle you mid-cut, a second defender only bites on a perfect juke by a clearly quicker runner, and a juke is now a sharp cut that costs a little speed instead of a burst.",
+      'The defender who loses a jump ball only gets knocked down on a real highlight catch, where you both went up and you had no business winning it. Otherwise that defender is right there to tackle you.',
+      "Interception returns: everyone chases you now, the quarterback and the linemen too, and they tackle like defenders even at the easy levels. Fewer pick-sixes from nobody touching you.",
+      "On defense, the moment the ball is thrown you're switched to the defender covering the receiver it's going to.",
+      'The start screen has a Defense slider (None to Full) instead of the instructions. The voice commentary checkbox is gone: commentary is on by default.',
+      'New gear button in the game: change how much defense you play, and turn sound and voice commentary on or off.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

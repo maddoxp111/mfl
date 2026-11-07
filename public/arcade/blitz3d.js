@@ -162,6 +162,19 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-dcard h3{margin:0 0 8px;font:900 22px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--oc,#ffc21a)}
 .bz-dcard p{margin:5px 0;font:400 9px/1.6 'Press Start 2P',monospace;color:#c9ccd4}
 .bz-dcard p b{color:#f5f6f8}
+.bz-dslide{width:min(520px,92%);margin:4px auto 14px;padding:12px 16px 10px;border-radius:12px;background:rgba(15,17,23,.72);border:1px solid #2a2f3c;text-align:center}
+.bz-dslide-h{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-bottom:8px}.bz-dslide-h b{font:900 20px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#ffc21a}.bz-dslide-h span{font:500 12px Inter,sans-serif;color:#9aa0ad}
+.bz-dslide input{width:100%;accent-color:#ffc21a;cursor:pointer;height:26px;margin:0}
+.bz-dslide-t{display:flex;justify-content:space-between;margin:2px 2px 0;font:800 12px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#6b7280}.bz-dslide-t i{font-style:normal;width:20%;text-align:center}.bz-dslide-t i:first-child{text-align:left}.bz-dslide-t i:last-child{text-align:right}.bz-dslide-t i.on{color:#ffc21a}
+.bz-dslide-d{margin:6px 0 0;font:500 13px Inter,sans-serif;color:#e5e7eb}
+.bz-setp{position:absolute;top:54px;right:calc(10px + env(safe-area-inset-right,0px));z-index:30;width:min(340px,calc(100% - 20px));padding:12px 14px;border-radius:12px;background:rgba(15,17,23,.97);border:1px solid #2a2f3c;box-shadow:0 12px 30px rgba(0,0,0,.6);color:#e5e7eb;font:500 13px Inter,sans-serif}
+.bz-setp[hidden]{display:none}
+.bz-setp h5{margin:0 0 8px;font:900 18px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#ffc21a}
+.bz-sp-row{padding:8px 0;border-top:1px solid #222734}.bz-sp-row>b{display:block;font-weight:700;color:#f5f6f8}.bz-sp-row>small{display:block;margin:2px 0 6px;color:#9aa0ad;font-size:11.5px}
+.bz-sp-seg{display:flex;gap:4px}.bz-sp-seg button{flex:1;min-height:34px;padding:0 4px;border-radius:8px;border:1px solid #2a2f3c;background:#1d212c;color:#c9ccd4;font:700 12px Inter,sans-serif;cursor:pointer}.bz-sp-seg button.on{background:#ffc21a;border-color:#ffc21a;color:#111}
+.bz-sp-d{margin-top:6px!important;color:#e5e7eb!important}
+.bz-sp-tg{display:flex;align-items:center;justify-content:space-between}.bz-sp-tg>b{display:inline}
+.bz-sw{min-width:58px;min-height:32px;border-radius:999px;border:1px solid #2a2f3c;background:#1d212c;color:#9aa0ad;font:800 12px Inter,sans-serif;cursor:pointer}.bz-sw.on{background:#2bd46b;border-color:#2bd46b;color:#06210f}
 .bz-dcard canvas.bz-mf{display:block;width:300px;max-width:100%;height:64px;margin:2px auto 6px;border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
 .bz-dcard .mf-dd{font-size:10px;color:#c9ccd4}.bz-dcard .mf-dd b{color:#ffc21a}
 .bz-dcard .mf-lp{min-height:1.6em;color:#f5f6f8}
@@ -1775,7 +1788,9 @@ gl_FragColor=vec4(c,1.0);}`;
     // how much defense you play live (the setup screen's Defense choice, kept in the browser): none (their drives are simulated),
     // quick (clutch time and goal-line stands), medium (1-2 snaps a drive plus those), high (2-4 a drive plus those), full (every snap)
     const DEFMODES = ['none', 'quick', 'medium', 'high', 'full'];
-    const DEFMODE = DEFMODES.includes(opts.defense) ? opts.defense : (() => { try { const m = localStorage.getItem('mfl-blitz-def'); return DEFMODES.includes(m) ? m : 'medium'; } catch (e) { return 'medium'; } })();
+    const DEFLBL = { none: ['None', 'Their drives are simulated'], quick: ['Quick', 'Clutch time and goal-line stands'], medium: ['Medium', '1-2 snaps a drive, plus clutch and goal line'], high: ['High', '2-4 snaps a drive, plus clutch and goal line'], full: ['Full', 'Every snap of their drives'] };
+    const setDefMode = (m) => { if (!DEFMODES.includes(m)) return; DEFMODE = m; try { localStorage.setItem('mfl-blitz-def', m); } catch (e) {} };
+    let DEFMODE = DEFMODES.includes(opts.defense) ? opts.defense : (() => { try { const m = localStorage.getItem('mfl-blitz-def'); return DEFMODES.includes(m) ? m : 'medium'; } catch (e) { return 'medium'; } })();
     // head to head: another person on the other side (the logic is in 77-versus.js)
     const VS = opts.versus ? { net: opts.versus, auth: false, flipped: false, dc: null, waitD: false, waitT: 0, toOpp: TOS, frames: [], fxq: [], fxo: [], pend: [], off: null, cam: null, hdr: null, mute: 0, reacted: false, lastCall: null, picked: null, kc: 'mid', kq: null, ons: null, awaitKick: false, endSent: false, over: null, sendT: 0, oPh: '', air: false } : null;
     // 0..1 from Rookie to Legend; past 1 the knobs extrapolate from the Legend values: Hall of Fame 1.1, GOAT 1.3.
@@ -2854,6 +2869,8 @@ gl_FragColor=vec4(c,1.0);}`;
     const DEFK = (k) => ({ cov: DEFKIND[k].cov, blitz: 0, stunt: false, disguise: false, name: DEFKIND[k].name, kind: k });
     function chooseDef() {
       if (FILM.rec && !(DBG && DBG.defKind != null)) return filmCounter(play); // they've seen it: the call built to stop it
+      // they've seen you go deep over and over: two deep (quarters, Cover 2, or Cover 3 with the corners bailing), no all-out blitz
+      if (FILM.heat > 0 && !(DBG && DBG.defKind != null) && !tryMode && rng() < FILM.heat * 0.9) { const r = rng(), cov = r < 0.45 ? 4 : r < 0.8 ? 2 : 3; return { cov, blitz: 0, stunt: rng() < 0.15, disguise: rng() < DP.disguise, name: COVN[cov], film: true }; }
       if (DBG && DBG.defKind != null) return /^c[0-4]$/.test(DBG.defKind) ? { cov: +DBG.defKind[1], blitz: DBG.defKind === 'c0' ? 2 : 0, stunt: false, disguise: false, name: COVN[+DBG.defKind[1]] } : DEFK(DBG.defKind); // tests
       const togo = fdz - los, rz = los >= 78;
       let w;
@@ -2955,7 +2972,8 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       // the offense tackles too once the defense has the ball (an interception or fumble return): the same rating as the defense
       // (no roll, so the play's random sequence is unchanged)
-      for (const p of off) p.tackle = DP.tackle;
+      // (at the easy levels the CPU defense tackles poorly, but a returner still goes down when they get to him)
+      for (const p of off) p.tackle = Math.max(DP.tackle, 60 + 16 * clamp(KDEF, 0, 1));
       if (dcall.stunt) { DK.DT1.stunt = -1; DK.DE1.stunt = 1; }
       filmApply();
       // Press Man: each corner jams his man at the line. Win it and the receiver is late into his route; lose it and the corner is
@@ -3655,6 +3673,7 @@ gl_FragColor=vec4(c,1.0);}`;
         p.face2 = null;
         if (p.rag || p.rising > 0) continue;
         if (p === ctrl && mode !== 'catch') continue;
+        if (carrier && carrier.side === 1 && !(p.stun > 0)) { p.eng = null; chaseCarrier(p, dt); continue; } // a pick or a scoop: everybody chases, the QB and the linemen too
         if (p.eng) continue;
         if (p.stun > 0) { p.vx *= 0.9; p.vz *= 0.9; continue; }
         if (p === carrier && p !== ctrl) { autoRun(p, dt); continue; }
@@ -4046,13 +4065,13 @@ gl_FragColor=vec4(c,1.0);}`;
       if (r.R && !thrown && !(r.blk === 'chip' && tPlay < r.R.blk)) {
         const lag = DP.lag * d.lagK, q = posAt(r.R, Math.max(0, (r.rtT != null ? r.rtT : tPlay - (r.jam || 0)) - lag + (d.read || 0))); // where the receiver really is on his route; read: he knows where it's going
         const k = Math.max(0, 1 - tPlay / 1.6), sp = Math.hypot(q.vx, q.vz) || 1;
-        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + DP.cush * k - (q.vz / sp) * 0.5 * (1 - k);
+        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + (DP.cush + (d.bail || 0) * 3) * k - (q.vz / sp) * 0.5 * (1 - k);
       } else { tx = r.x; tz = r.z + 1.2; }
       // a vertical route: once the receiver is even with him or by him going upfield, he opens his hips and runs with him, aimed at
       // his inside hip (not where the route was a beat ago) at a sprint, and a good corner has a closing gear: he stays in phase,
       // and a real burner can still win a step on a weak one. With no deep help (Cover 0) he plays on top instead of the hip.
       const vert = !thrown && tPlay > 0.6 && r.vz > 4.5 && r.z > d.z - 1.5;
-      if (vert) { const inside = r.x > 0 ? -1 : 1, top = dcall && dcall.cov === 0 ? 0.9 : 0; tx = r.x + inside * 0.7 + r.vx * 0.1; tz = r.z + r.vz * 0.12 + top; }
+      if (vert) { const inside = r.x > 0 ? -1 : 1, top = (dcall && dcall.cov === 0 ? 0.9 : 0) + (d.bail || 0) * 1.1; tx = r.x + inside * 0.7 + r.vx * 0.1; tz = r.z + r.vz * 0.12 + top; }
       staminaStep(d, dt, vert || dist(d, r) > 2.5 && tPlay > 1);
       // a corner who got beaten (lost the jam, came up on a fake) can't make the step back up: no faster than the man he chases
       let spd = effV(d) * d.spdK * (vert && !d.beaten ? 1.02 + 0.07 * KDEF : 1);
@@ -4107,7 +4126,7 @@ gl_FragColor=vec4(c,1.0);}`;
       } else if (flatMan && tPlay > 0.9) { // nothing in the flat: sink under the outside route (a corner or an out behind him)
         let o = null, oz = 1e9;
         for (const r of off) { if (!ZR[r.key] || !r.R || r.rag || r.x * Lx <= 0 || Math.abs(r.x) < Math.abs(Lx) - 6) continue; const dz = r.z - los; if (dz > 6 && dz < 20 && dz < oz) { oz = dz; o = r; } }
-        if (o) { tx = lerp(Lx, o.x, 0.5); tz = los + Math.min(oz - 2, 11 + 2 * KDEF); }
+        if (o) { tx = lerp(Lx, o.x, 0.5); tz = los + Math.min(oz - 2, 11 + 2 * KDEF + (d.bail || 0) * 4); }
       }
       zt[0] = tx; zt[1] = tz; eyesPull(d, zt); tx = zt[0]; tz = zt[1];
       staminaStep(d, dt, carry);
@@ -4119,7 +4138,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // faster than him gets a bigger cushion; a vertical gets carried with the hips open and the eyes on the quarterback, a full
     // turn only once the receiver is even. Nothing deep: a sharp single-high safety comes down and robs the intermediate route.
     function deepZone(d, dt) {
-      const a = d.ass, Lx = a.x, Lz = los + a.z, mid = Math.abs(Lx) < 3, half = !mid && Math.abs(Lx) < 12, prev = dcall && dcall.kind === 'prev';
+      const a = d.ass, Lx = a.x, Lz = los + a.z + (d.bail || 0) * 3, mid = Math.abs(Lx) < 3, half = !mid && Math.abs(Lx) < 12, prev = dcall && dcall.kind === 'prev';
       const ds = d.v * (1.2 + ((d.spd || 60) - 50) * 0.0012) * (d.spdK || 1); // his top speed
       let tx = Lx, tz = Lz, best = null, bs = 1e9, b2 = null, b2s = 1e9, rob = false;
       for (const r of off) {
@@ -4131,7 +4150,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       d.even = 0;
       if (best) {
-        const rv = Math.hypot(best.vx, best.vz), cush = (prev ? 4.5 : 1.8) + clamp((rv - ds * 0.92) * 0.3, 0, 1) + Math.max(0, best.vz) * 0.08;
+        const rv = Math.hypot(best.vx, best.vz), cush = (prev ? 4.5 : 1.8) + clamp((rv - ds * 0.92) * 1.1, 0, 3.5) + Math.max(0, best.vz) * 0.08 + (d.bail || 0) * 1.2; // nobody gets behind him: the faster the receiver, the deeper he plays
         // a deep-half safety splits two verticals in his half (four verticals is how you beat two deep)
         const bx0 = half && b2 && b2s - bs < 2.5 && Math.abs(b2.x - Lx) < 11 ? (best.x + b2.x) / 2 : best.x, lim = half ? 6 : 4;
         tx = lerp(Lx, bx0, mid ? 0.65 : half ? 0.85 : 0.88); if (!mid) tx = Lx < 0 ? Math.min(tx, Lx + lim) : Math.max(tx, Lx - lim);
@@ -4252,7 +4271,17 @@ gl_FragColor=vec4(c,1.0);}`;
     // biting on a play-action fake it has seen) and every defender sits on its routes. A receiver who keeps getting the ball
     // gets doubled: a safety rides over the top of him and the man on him plays him tighter. Spread it around and the defense
     // has nothing to key on. (Head to head: the other player still makes the call; their defenders still read your tendencies.)
-    const FILM = { plays: {}, tgt: {}, passes: 0, snaps: 0, memo: null, rec: false, fav: null, log: [] };
+    const FILM = { plays: {}, tgt: {}, passes: 0, snaps: 0, memo: null, rec: false, fav: null, log: [], heat: 0, deep: { last: [], n: 0, gain: 0, who: {}, pend: 0, told: 0 } };
+    // Deep shots are remembered whatever the play or the hot route: every throw 18+ yards past the line counts. Two of the last six
+    // and they start to lean deep; four and they live there: two safeties back (or quarters), the corners bail with a cushion and
+    // stay on top of a vertical, the deep zones start deeper, and a safety rides over the top of the man you keep going to. That
+    // leaves the underneath open, and taking it cools them off again.
+    function deepHeat() {
+      if (!filmOn()) return 0;
+      const D = FILM.deep, k = D.last.reduce((s, x) => s + x, 0);
+      if (k < 2) return 0;
+      return clamp(((k - 1) / 3 + (D.n && D.gain / D.n > 12 ? 0.15 : 0)) * (0.8 + 0.25 * clamp(KDEF, 0, 1)), 0, 1); // even Rookie catches on
+    }
     const filmWho = (p) => (p && p.sq && (p.sq.pid || p.sq.id || p.sq.name)) || (p && p.key) || '';
     const filmLv = () => 0.55 + 0.45 * clamp(KDEF, 0, 1.3);
     const filmOn = () => !DEFP.on && !(VS && VS.mute) && !(DBG && DBG.noFilm);
@@ -4271,8 +4300,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // decided once per play call (picking another play and coming back doesn't re-roll it)
     function filmPrep() {
-      FILM.rec = false; FILM.fav = null;
+      FILM.rec = false; FILM.fav = null; FILM.heat = 0;
       if (!filmOn() || !play || poss !== 'home' && !VS) return;
+      FILM.heat = deepHeat(); if (!FILM.heat) FILM.deep.told = 0;
       const key = FILM.snaps + ':' + play.id;
       if (!FILM.memo || FILM.memo.key !== key) {
         const fav = filmFav();
@@ -4296,6 +4326,17 @@ gl_FragColor=vec4(c,1.0);}`;
       if (FILM.rec) {
         for (const d of def) d.read = 0.22 + 0.13 * clamp(KDEF, 0, 1.3);
       }
+      const H = FILM.heat || 0;
+      if (H > 0) {
+        for (const d of def) if (d.role === 'CB' || d.role === 'S') d.bail = H;
+        // the man they keep going to deep gets a safety over the top (only with two or more deep: it can't leave the middle open)
+        let who = null, n = 0; for (const k in FILM.deep.who) if (FILM.deep.who[k] > n) { n = FILM.deep.who[k]; who = k; }
+        const r = H >= 0.5 && n >= 2 && !FILM.fav && dcall && (dcall.cov === 2 || dcall.cov === 4) ? ['X', 'Z', 'S', 'Y'].map((k) => OK[k]).find((p) => p && p.R && filmWho(p) === who) : null;
+        if (r) {
+          const cand = def.filter((d) => d.ass && d.ass.t === 'zone' && d.ass.deep && d.role === 'S').sort((a, b) => Math.abs(a.x - r.x) - Math.abs(b.x - r.x));
+          if (cand[0]) { cand[0].ass = { t: 'bracket', tgt: r }; r.keyed = true; }
+        }
+      }
       const fv = FILM.fav; if (!fv) return;
       const r = ['X', 'Z', 'S', 'Y', 'RB'].map((k) => OK[k]).find((p) => p && p.R && filmWho(p) === fv.who);
       if (!r) return;
@@ -4311,12 +4352,21 @@ gl_FragColor=vec4(c,1.0);}`;
     function filmTell(atSnap) {
       const m = FILM.memo; if (!m || !filmOn() || (VS && !VS.auth)) return;
       if (FILM.rec && !m.told) { m.told = true; FILM.log.push('rec:' + play.id); if (atSnap) pop('THEY READ IT', '#ff9a3c'); else say(`The defense has seen <b>${esc(play.name)}</b> before. They're sitting on it.`); }
+      if (FILM.heat >= 0.5 && !FILM.deep.told) { FILM.deep.told = 1; FILM.log.push('deep'); if (atSnap) pop('THEY\'RE SITTING DEEP', '#ff9a3c'); else say(`You keep going deep. They've got two safeties back and the corners bailing: everything deep is covered over the top. The short stuff is open.`); }
       const r = FILM.fav && ['X', 'Z', 'S', 'Y', 'RB'].map((k) => OK[k]).find((p) => p && p.keyed);
       if (r && !m.toldFav) { m.toldFav = true; FILM.log.push('fav:' + FILM.fav.who); popAt(r, 'DOUBLED', '#ff9a3c'); if (!atSnap) say(`They're doubling <b>${esc(nm(r))}</b>: ${Math.round(FILM.fav.share * 100)}% of your throws have gone his way.`); }
     }
     function filmSnap() { if (!filmOn() || !play) return; FILM.snaps++; const e = FILM.plays[play.id] || (FILM.plays[play.id] = { n: 0, gain: 0, good: 0 }); e.n++; }
-    function filmThrow(r) { if (!filmOn() || !r || r.side !== 0) return; const k = filmWho(r); FILM.tgt[k] = (FILM.tgt[k] || 0) + 1; FILM.passes++; }
-    function filmResult(gained, good) { if (!filmOn() || !play) return; const e = FILM.plays[play.id]; if (!e) return; e.gain += gained; if (good) e.good++; }
+    function filmThrow(r, air) {
+      if (!filmOn() || !r || r.side !== 0) return; const k = filmWho(r); FILM.tgt[k] = (FILM.tgt[k] || 0) + 1; FILM.passes++;
+      const D = FILM.deep, deep = air >= 18 ? 1 : 0; D.last.push(deep); if (D.last.length > 6) D.last.shift();
+      if (deep) { D.n++; D.who[k] = (D.who[k] || 0) + 1; D.pend = 1; }
+    }
+    function filmResult(gained, good) {
+      if (!filmOn() || !play) return;
+      if (FILM.deep.pend) { FILM.deep.pend = 0; FILM.deep.gain += Math.max(0, gained); }
+      const e = FILM.plays[play.id]; if (!e) return; e.gain += gained; if (good) e.good++;
+    }
     // a defender riding over the top of a doubled receiver: inside and deeper than where he is headed
     function bracketCover(d, dt) {
       const r = d.ass.tgt; if (!r || r.rag || thrown) { d.ass = { t: 'zone', x: d.x, z: d.z - los, deep: true }; zoneCover(d, dt); return; }
@@ -4509,6 +4559,22 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (!(ball && ball.st === 'air') && dir) d.h = Math.atan2(dir[0], dir[1]);
       d.breakAt = 0; doDive(d);
       if (c && dist(d, c) < 5) { const dx = c.x - d.x, dz = c.z - d.z, l = Math.hypot(dx, dz) || 1; d.vx = dx / l * (d.v + 3.5); d.vz = dz / l * (d.v + 3.5); d.ddx = dx / l; d.ddz = dz / l; }
+    }
+    // The ball is thrown: you take the defender covering the receiver it's thrown to (his man in man coverage, else the one closest to
+    // the receiver and to where it comes down), at once, so you can play it. Left alone he plays the ball himself; steer, JUMP or
+    // DIVE to take over. Live defensive snaps, and the defender the other side plays in Head to Head.
+    function coverSwitch(r) {
+      const H = DEFP.on ? DEFP : VS && VS.auth && VS.rc ? VS.rc : null; if (!H || !r) return;
+      const cp = ball && ball.cp; let best = null, bs = 1e9;
+      for (const d of def) {
+        if (d.rag || d.rising > 0 || d.eng) continue;
+        const man = d.ass && d.ass.t === 'man' && d.ass.tgt === r && Math.hypot(d.x - r.x, d.z - r.z) < 7, s = Math.hypot(d.x - r.x, d.z - r.z) * 0.6 + (cp ? Math.hypot(d.x - cp.x, d.z - cp.z) * 0.4 : 0) - (man ? 4 : 0);
+        if (s < bs) { bs = s; best = d; }
+      }
+      const cur = DEFP.on ? DEFP.ctl : H.d;
+      if (!best || best === cur) return;
+      if (DEFP.on) { DEFP.ctl = best; DEFP.manT = -9; } else { H.d = best; H.manT = -9; H.dir = null; }
+      best.breakAt = Math.min(best.breakAt || 0, tPlay + 0.05); // he sees it the moment it's thrown, like you would
     }
     // switch: before the snap the next man down the list; after it the defender nearest the ball
     function nearestDefToBall(skip) {
@@ -5170,7 +5236,7 @@ gl_FragColor=vec4(c,1.0);}`;
       target = hunter(ball.cp, L ? L.r : nearestRec(tx, tz, 10));
       if (target) placeOf(ball, target, L && L.r === target ? L : null);
       const st = stat(SQ.QB.pid); if (st) st.passAtt++;
-      pr.kind = 'pass'; pr.passer = qb; pr.tgt = target; pr.thrown = true; filmThrow(target);
+      pr.kind = 'pass'; pr.passer = qb; pr.tgt = target; pr.thrown = true; filmThrow(target, tz - los);
       if (target) voiceLive(spot.D >= 25 ? 'throw_deep' : spot.D < 7 ? 'throw_dump' : 'throw_to', { rec: nm(target) }, 0.9);
       const stare = aim && aim.dur > 0.8 && aim.tgt && aim.tgt === target ? Math.min(0.28, (aim.dur - 0.8) * 0.25) * (0.4 + DP.stare) : 0;
       for (const d of def) {
@@ -5179,6 +5245,7 @@ gl_FragColor=vec4(c,1.0);}`;
         d.tried = 0; d.dvTry = 0;
       }
       huntGo();
+      if (target) coverSwitch(target); // your defender: the man covering the receiver it's thrown to (33-defplay.js)
       sfx.play('throw'); setControls(true);
       if (VS && VS.jumpPend) vsJump(true); // head to head: the defense jumped it during the throwing motion
     }
@@ -5466,7 +5533,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
       const nz = (rng() + rng() - 1) * 0.07; // a close one can go either way
-      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0) - (b.D > 15 ? Math.min(0.15, (b.D - 15) * 0.011) : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
       b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
       const hv = Math.hypot(b.vx, b.vz), hit = clamp((Math.hypot(d.vx, d.vz) - 2) / 5, 0, 1);
       // over the line the receiver wins it: he holds on unless the hit or the defender's arm rips it out
@@ -5568,9 +5635,17 @@ gl_FragColor=vec4(c,1.0);}`;
       perkHook('catch', r);
       sfx.play('catch'); excite = Math.min(1, excite + (wild ? 0.6 : 0.25));
       if (!wild && !diving) voiceLive('caught_live', { rec: nm(r) }, 0.7);
-      for (const d of def) if (!d.rag && dist(d, r) < 3.2) { d.stun = Math.max(d.stun, 0.2 + 0.35 * (1 - KDEF)); d.stumbleT = Math.max(d.stumbleT, 0.3); }
+      // no free step at the catch (defenders near him used to freeze): he is still tucking the ball away for a moment (a step
+      // slower, no moves, hard to break a tackle) and the man on him drives through the catch to wrap him up
+      r.secureT = 0.42; r.jukeBeat = null;
+      // and the catch costs him speed (adjusting to the ball, coming down from a jump, reaching low): a man trailing him by a step
+      // gets to him before he is back up to full speed
+      { const ck = r.catchKind, k = jumping || ck === 'high' ? 0.55 : ck === 'low' || ck === 'onehand' ? 0.68 : C ? 0.72 : ck === 'basket' ? 0.93 : 0.88; r.vx *= k; r.vz *= k; }
+      { let cd = null, cdd = 9; for (const d of def) { if (d.rag || d.eng || d.rising > 0 || d.stun > 0) continue; const dd = dist(d, r); if (dd < cdd) { cdd = dd; cd = d; } }
+        if (cd && cdd < 2.2 && !isHumanDef(cd)) { const ux = (r.x - cd.x) / (cdd || 1), uz = (r.z - cd.z) / (cdd || 1); cd.vx += ux * 1.6; cd.vz += uz * 1.6; if (cdd < 1.7) { setPose(cd, 'tackle'); cd.lunge = 0.3; } } }
       // posterized: the man who lost the jump ball goes down
-      if (wild && jumping && !diving && b.cd && !b.cd.rag && dist(b.cd, r) < 2.4) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
+      // (only a real jump ball he had no business winning, the defender up in the air with him; otherwise the man lands on him)
+      if (wild && jumping && !diving && C.W < 0.6 && b.cd && !b.cd.rag && b.cd.jumpY > 0.05 && dist(b.cd, r) < 2.4 && funRoll('poster', 0.55)) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
       if (notes.length) cam.kick = Math.max(cam.kick, wild ? 0.9 : 0.5);
       const st = stat(SQ.QB.pid); if (st) st.passCmp++;
       if (r.z >= 100) { endPlay('td', r.z); return; }
@@ -5583,6 +5658,7 @@ gl_FragColor=vec4(c,1.0);}`;
       setCatch(d, catchKindOf(d, d.diveT > 0, d.jumpY > 0.1, 0.3, false));
       ball = { st: 'held', holder: d, x: d.x, y: 1.3, z: d.z, vx: 0, vy: 0, vz: 0 };
       carrier = d; ctrl = null; mode = 'none'; d.v = Math.max(d.v, 7.4); d.reach = null; setPose(d, 'run');
+      for (const p of everyone) p.eng = null; // the blocks break up: the linemen turn and chase
       if (ball && ball.helmet) { FUN.victim.home++; FUN.blooper.home++; }
       pr.int = d; pr.intZ = d.z; pr.intInfo = { how: how || '', tips, role: d.role, man: !!(d.ass && d.ass.t === 'man'), dT: target ? +dist(target, ball).toFixed(1) : null, tgt: target ? target.key : null, t: +tPlay.toFixed(2), brk: +((d.breakAt || 0)).toFixed(2), D: ball.D ? Math.round(ball.D) : null, arc: ball.arc, y: +ball.y.toFixed(1) };
       const st = stat(SQ.QB.pid); if (st) st.passInt++;
@@ -5647,13 +5723,15 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- moves ----------
     const qbRunPlay = () => play.type === 'sneak' || play.type === 'qbdraw';
-    function moveCd(c, m) { const a = (c.agi - 50) / 50, s = (c.str - 50) / 50; return { juke: 2.4 - a * 0.7 + DIFF * 0.5, spin: 2.8 - a * 0.6 + DIFF * 0.5, stiff: 2.1 - s * 0.5 + DIFF * 0.4, hurdle: 1.6 - a * 0.4 + DIFF * 0.3 }[m]; }
+    function moveCd(c, m) { const a = (c.agi - 50) / 50, s = (c.str - 50) / 50; return { juke: 2.7 - a * 0.7 + DIFF * 0.5, spin: 2.8 - a * 0.6 + DIFF * 0.5, stiff: 2.1 - s * 0.5 + DIFF * 0.4, hurdle: 1.6 - a * 0.4 + DIFF * 0.3 }[m]; }
     // Moves are timed, not rolled: against each tackler coming at him, the time until contact when the move starts decides it.
     // Juke: 0.12-0.45 s out is perfect (he's beaten for sure), up to 0.8 s good (beaten if he isn't much quicker), earlier and
     // he just adjusts, later and the hit is already on. Spin: the man right on him, 0.02-0.32 s out perfect, up to 0.55 s good.
     function moveGrade(c, d, kind) {
       const dx = d.x - c.x, dz = d.z - c.z, dd = Math.hypot(dx, dz) || 1;
       const cl = -((d.vx - c.vx) * dx + (d.vz - c.vz) * dz) / dd, gap = dd - (c.rad + d.rad + 0.15);
+      // a fake only works on a man who can see it: one in front of him or off his shoulder, not one chasing him down from behind
+      const cs = Math.hypot(c.vx, c.vz); if (kind === 'juke' && cs > 2 && (dx * c.vx + dz * c.vz) / (dd * cs) < -0.25) return null;
       if (gap <= 0.05) return 'late';
       if (cl < 0.8) return dd < 2.2 ? 'good' : null; // not closing: a man squared up right in front of him can still be beaten
       const t = gap / cl, W = kind === 'spin' ? [0.02, 0.32, 0.55] : [0.12, 0.45, 0.8];
@@ -5675,6 +5753,7 @@ gl_FragColor=vec4(c,1.0);}`;
         sfx.play('tap'); return;
       }
       if (m === 'hurdle' && (c.jumpY > 0 || c.jumpT > 0 || c.wrapT > 0)) return;
+      if (c.secureT > 0.12) return; // still tucking the catch away: no move yet
       if (c.mvCd[m] > 0) return;
       c.mvCd[m] = moveCd(c, m); c.mv = m; c.mvT0 = tPlay;
       if (m === 'hurdle') { // leap: clears a diving tackler, but a standing one can catch him in the air
@@ -5693,13 +5772,17 @@ gl_FragColor=vec4(c,1.0);}`;
         c.mvSide = side;
         const jx = side * 0.95, jz = 0.55, l = Math.hypot(jx, jz); c.jdx = jx / l; c.jdz = jz / l;
         setPose(c, 'juke');
-        let fooled = 0, fd = null, fdd = 9, best = null;
-        for (const d of def) {
-          if (d.stun > 0 || d.rag) continue;
-          const dd = dist(d, c); if (dd > 4.5) continue;
+        // the cut is aimed at the nearest man: a perfect one beats him unless he is much quicker, a good one only if the runner
+        // is the quicker man. A second man bites only on a perfect cut by a clearly quicker runner, and never more than two.
+        // Whoever isn't fooled can still make the tackle while he is cutting (the juke used to make him untouchable).
+        let fooled = 0, fd = null, fdd = 9, best = null; c.jukeBeat = [];
+        const cand = def.filter((d) => !(d.stun > 0) && !d.rag && dist(d, c) <= 4.5).sort((a, b) => dist(a, c) - dist(b, c));
+        for (let i = 0; i < cand.length; i++) {
+          const d = cand[i], dd = dist(d, c);
           const g = moveGrade(c, d, 'juke'); if (!g) continue;
           if (!best || dd < best.dd) best = { g, dd };
-          if (g === 'perfect' || (g === 'good' && c.agi + 12 >= d.agi)) { d.stun = DP.stun * (g === 'perfect' ? 1.25 : 1); d.stumbleT = 0.5; fooled++; if (dd < fdd) { fdd = dd; fd = d; } }
+          const beat = i === 0 ? (g === 'perfect' && c.agi + 15 >= d.agi) || (g === 'good' && c.agi >= d.agi + 4) : g === 'perfect' && c.agi >= d.agi + 8 && fooled < 2;
+          if (beat) { d.stun = DP.stun * (g === 'perfect' ? 0.85 : 0.6); d.stumbleT = 0.4; fooled++; c.jukeBeat.push(d); if (dd < fdd) { fdd = dd; fd = d; } }
         }
         sfx.play(fooled ? 'good' : 'tap');
         perkHook('juke', c);
@@ -5745,7 +5828,8 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const k in c.mvCd) if (c.mvCd[k] > 0) c.mvCd[k] -= dt;
       if (c.mvT > 0) c.mvT -= dt; else c.mv = null;
       if (c === ctrl) staminaStep(c, dt, DEFP.on || input.sprint);
-      let spd = effV(c);
+      if (c.secureT > 0) c.secureT -= dt;
+      let spd = effV(c) * (c.secureT > 0 ? 0.86 : 1);
       if (c.rag) { if (c.downAt && tPlay >= c.downAt) { c.downAt = 0; resolveDown(c); } return; } // on the ground: no steering, the play ends when he is ruled down
       // a dive ends on the ground: he is down where the ball lands (the integrate step counts diveT down; it used to be ticked
       // twice a frame, here as well, so every dive lasted half as long as it should)
@@ -5753,7 +5837,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.diveT > 0) {
         c.vx *= 1 - dt * 1.4; c.vz *= 1 - dt * 1.4;
         diveReach(c);
-      } else if (c.mv === 'juke' && c.mvT > 0) { c.vx = c.jdx * (c.v + 4.2); c.vz = c.jdz * (c.v + 4.2); }
+      } else if (c.mv === 'juke' && c.mvT > 0) { const jv = c.v * 0.8 + 1.4; c.vx = c.jdx * jv; c.vz = c.jdz * jv; } // a hard cut: quick sideways, but it costs him some speed
       else if (c.mv === 'spin' && c.mvT > 0 && c.spinV > 0) { // the spin: out sideways around the man first, then back upfield
         const u = 1 - c.mvT / c.spinDur, lat = Math.max(0.15, Math.cos(u * 1.5708)), fw = 0.35 + 0.65 * Math.sin(u * 1.5708), l = Math.hypot(lat, fw);
         c.vx = c.mvSide * lat / l * c.spinV; c.vz = c.spinFz * fw / l * c.spinV;
@@ -5778,7 +5862,7 @@ gl_FragColor=vec4(c,1.0);}`;
         // a second man gets there while he is dragging the first: the pile goes down where they drive it
         for (const o of (c.side === 0 ? def : off)) { if (o === d || o.rag || o.eng || o.stun > 0 || o.rising > 0) continue; const dd = dist(o, c); if (dd < c.rad + o.rad + 0.15) { o.tried = 1; o.lastTry = tPlay; finishTackle(c, o, 'hit', (c.x - o.x) / (dd || 1), (c.z - o.z) / (dd || 1), Math.max(0, (o.vx * (c.x - o.x) + o.vz * (c.z - o.z)) / (dd || 1))); return; } }
         if (c.wrapT <= 0) {
-          const pB = clamp(0.06 + (c.str - DP.tackle) / 260 + ((c.dragK || 0.3) - 0.35) * 0.2, 0.02, 0.3); // the harder he was driving, the likelier he tears free
+          const pB = clamp(0.06 + (c.str - (d && d.tackle != null ? d.tackle : DP.tackle)) / 260 + ((c.dragK || 0.3) - 0.35) * 0.2, 0.02, 0.3); // the harder he was driving, the likelier he tears free
           if (rng() < pB && d) { knockDown(d, [c.vx * 0.5, 0, c.vz * 0.5], [-(c.x - d.x) * 1.5, 0.6, -(c.z - d.z) * 1.5], 1.1); popAt(c, 'SHED THE TACKLE!', '#2bd46b'); voice.say('broken_tackle', { carrier: nm(c) }, 1, 0.4); c.wrapBy = null; c.stumbleT = 0.35; }
           else { finishTackle(c, d, 'wrap'); return; }
         }
@@ -5787,7 +5871,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- contact: tackles as collisions with momentum ----------
     function hitCarrier(c, d) {
       if (phase !== 'live' || c.rag || !d || d.rag) return;
-      if (c.mv === 'juke' && c.mvT > 0.12) return;
+      if (c.mv === 'juke' && c.mvT > 0.12 && c.jukeBeat && c.jukeBeat.indexOf(d) >= 0) return; // he faked this man out
       const dx = c.x - d.x, dz = c.z - d.z, dl = Math.hypot(dx, dz) || 1, nx = dx / dl, nz = dz / dl;
       // the QB is already in his throwing motion: the ball still comes out (hurried, a little wild) and he takes the hit after it
       if (c === OK.QB && c.throwT >= 0 && ball && ball.holder === c && !thrown) { c.hurried = 1; releaseBall(); lateHit(c, d, nx, nz); popAt(c, 'GOT IT OFF!', '#2bd46b'); return; }
@@ -5836,13 +5920,17 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c.mv === 'stiff' && c.mvT > 0 && fromFront) resist += 0.45 + (c.str - 50) / 250;
       const stiffT = c.mv === 'stiff' && c.mvT > 0 && fromFront ? tPlay - (c.mvT0 || 0) : -1, stiffWin = stiffT >= 0.08 && stiffT <= 0.4 && c.str + 18 >= d.str;
       if (c.mv === 'spin' && c.mvT > 0) resist += 0.35 + (c.agi - 50) / 300;
+      if (c.mv === 'juke' && c.mvT > 0) resist -= 0.25; // caught mid-cut by a man he didn't fool: his feet aren't under him
+      const securing = c.secureT > 0; // the ball just got there: he is still tucking it away
+      if (securing) resist -= 0.4;
       if (behindLOS) resist -= 0.3;
       if (c.wrapT > 0) resist -= 0.5;
       if (airborne) resist -= 0.45; // caught in mid-air by a defender who stayed on his feet
       let gang = 0; for (const o of (d.side === 0 ? off : def)) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
       let pB = clamp(0.05 + (resist - power) * 0.3 + (c.side === 0 || c === ctrl ? (1 - KDEF) * 0.1 : 0) - gang * 0.12 + (c.side === 0 ? dramaBreak() : 0), 0.02, 0.55);
       if (c.side === 0) pB = Math.min(0.55, pB + 0.05 * Math.min(1.5, funGate())); // a quiet stretch makes a big run a little likelier
-      if (isHumanDef(d)) pB *= d.diveT > 0 || d.diving || d.pose === 'dive' ? 0.15 : 0.6; // the defender you play: a dive at him almost always takes him down
+      if (isHumanDef(d)) pB *= d.diveT > 0 || d.diving || d.pose === 'dive' ? 0.15 : 0.6;
+      if (securing) pB *= 0.35; // the defender you play: a dive at him almost always takes him down
       if (DBG && DBG.forceBreak != null) pB = DBG.forceBreak;
       if (funForced('trucked') || funForced('plant')) pB = 1;
       if (stiffWin) pB = 1; // a perfectly timed stiff arm
@@ -5867,7 +5955,7 @@ gl_FragColor=vec4(c,1.0);}`;
         return;
       }
       // the whiff: a defender lunges at the ball carrier, misses everything and eats turf
-      if (c.side === 0 && !behindLOS && c.wrapT <= 0 && gang === 0 && funRoll('whiff', 0.18)) {
+      if (c.side === 0 && !behindLOS && c.wrapT <= 0 && gang === 0 && !securing && !square && funRoll('whiff', 0.1)) {
         knockDown(d, [d.vx * 1.2 - nx * 1.5, 0.2, d.vz * 1.2 - nz * 1.5], [d.vx * 0.5, -0.5, d.vz * 0.5], 1.4); d.tried = 1; c.stumbleT = Math.max(c.stumbleT, 0.15);
         moment('whiff', d, 'WHIFF!', { a: c, b: d, victim: 'away', snd: 'ooh', col: '#2bd46b', sub: 'face first into the turf', line: `<b>${esc(nm(d))}</b> dives at <b>${esc(nm(c))}</b> and hugs nothing but grass. WHIFF!` });
         return;
@@ -9576,14 +9664,25 @@ gl_FragColor=vec4(c,1.0);}`;
     const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.bz-clk'), bPc = bug.querySelector('.bz-pc'), bDD = bug.querySelector('.bz-dd'), bSta = bug.querySelector('.bz-sta'); pulseEl = bug.querySelector('.bz-pls');
     const mkIB = (html, title) => { const b = el('button', 'bz-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const SVG_X = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3l10 10M13 3L3 13"/></svg>';
-    const sndBtn = mkIB(SVG_SND, 'Sound'); sndBtn.classList.add('bz-snd'); const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="bz-q">' + QN[quality] + '</span>', 'Graphics quality'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
-    const vcBtn = mkIB('<span class="bz-q">VOICE</span>', 'Voice commentary'); vcBtn.classList.add('bz-vc'); vcBtn.style.display = 'none';
-    function updVoiceBtn() { vcBtn.style.display = voice.avail ? '' : 'none'; vcBtn.style.opacity = voice.on ? '' : '0.45'; vcBtn.title = 'Voice commentary ' + (voice.on ? 'on' : 'off'); if (voice.splashToggle) { voice.splashToggle.hidden = !voice.avail; voice.splashToggle.querySelector('input').checked = voice.on; } }
-    vcBtn.addEventListener('click', () => { voice.on = !voice.on; updVoiceBtn(); sfx.play('tap'); });
+    // the gear: settings during the game (how much defense you play, sound, voice commentary)
+    const SVG_GEAR = (() => { let d = ''; for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2 - Math.PI / 2, r = i % 4 < 2 ? 10.2 : 7.7; d += (i ? 'L' : 'M') + (12 + r * Math.cos(a)).toFixed(2) + ' ' + (12 + r * Math.sin(a)).toFixed(2); } return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="${d}Z"/><circle cx="12" cy="12" r="3.3"/></svg>`; })();
+    const gearBtn = mkIB(SVG_GEAR, 'Settings'); gearBtn.classList.add('bz-gear');
+    const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="bz-q">' + QN[quality] + '</span>', 'Graphics quality'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
+    const setP = el('div', 'bz-setp'); setP.hidden = true; wrap.appendChild(setP);
+    function drawSetP() {
+      setP.innerHTML = '<h5>Settings</h5>' +
+        (VS ? '' : `<div class="bz-sp-row"><b>Defense</b><small>How many of their snaps you play yourself. Starts with their next drive.</small><div class="bz-sp-seg">${DEFMODES.map((m) => `<button type="button" data-m="${m}" class="${m === DEFMODE ? 'on' : ''}">${DEFLBL[m][0]}</button>`).join('')}</div><small class="bz-sp-d">${DEFLBL[DEFMODE][1]}</small></div>`) +
+        `<div class="bz-sp-row bz-sp-tg"><b>Sound</b><button type="button" data-t="snd" class="bz-sw${sfx.muted ? '' : ' on'}">${sfx.muted ? 'Off' : 'On'}</button></div>` +
+        (voice.avail ? `<div class="bz-sp-row bz-sp-tg"><b>Voice commentary</b><button type="button" data-t="vc" class="bz-sw${voice.on ? ' on' : ''}">${voice.on ? 'On' : 'Off'}</button></div>` : '');
+    }
+    function updVoiceBtn() { if (!setP.hidden) drawSetP(); }
+    setP.addEventListener('pointerdown', (e) => e.stopPropagation());
+    setP.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.m) setDefMode(b.dataset.m); else if (b.dataset.t === 'snd') sfx.mute(!sfx.muted); else if (b.dataset.t === 'vc') voice.on = !voice.on; sfx.play('tap'); drawSetP(); });
+    gearBtn.addEventListener('click', () => { setP.hidden = !setP.hidden; if (!setP.hidden) drawSetP(); sfx.play('tap'); });
+    wrap.addEventListener('pointerdown', (e) => { if (!setP.hidden && !setP.contains(e.target) && !gearBtn.contains(e.target)) setP.hidden = true; }, true); // a tap anywhere else closes it
     qBtn.addEventListener('click', () => { setQuality((quality + 1) % 3); qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; sfx.play('tap'); });
     function showQuality() { qBtn.innerHTML = '<span class="bz-q">' + QN[quality] + '</span>'; }
     if (!fsOK || fixedMode) fsBtn.style.display = 'none';
-    sndBtn.addEventListener('click', () => { sfx.mute(!sfx.muted); sndBtn.innerHTML = sfx.muted ? SVG_MUTE : SVG_SND; });
     fsBtn.addEventListener('click', toggleFS);
     let quitArm = 0;
     quitBtn.addEventListener('click', () => {
@@ -10274,18 +10373,11 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="bz-goal">${opts.label ? esc(opts.label) : lvlName} · ${wxName}<br>4 quarters × <em>${fmtClock(QS)}</em> · clock stops between plays · <em>${TOS}</em> timeouts a half</div>
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}${ovrBadge(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       ${ovrPanel()}
-      <ul class="bz-how">
-        <li><i>1</i><span><b>Call a play</b> from the 66-play playbook, or take one of the three the <b>Coach</b> tab suggests for the down, distance and clock, then <b>SNAP</b>${touchy ? '' : ' (Space)'}. Tap a receiver's tag before the snap for a hot route.</span></li>
-        <li><i>2</i><span><b>Throw</b>: ${touchy ? 'touch anywhere and pull back' : 'drag the mouse back'}, like a slingshot; the line and arc come out of the QB the opposite way and the ring is where it lands. Pull farther = throw farther. Let go to throw. <b>Bullet / Touch / Lob</b> buttons${touchy ? ' (or tap with a second finger while aiming to flip Touch / Bullet)' : ' (1 2 3, or Q to cycle)'}. Lead your receiver!</span></li>
-        <li><i>3</i><span><b>Scramble</b>: aim <b>behind</b> the QB (${touchy ? 'drag forward so the line points back' : 'drag forward so the line points back'}) and let go: he tucks it and runs. Then ${touchy ? 'drag on the field' : 'use the arrows'} to steer him.</span></li>
-        <li><i>4</i><span><b>Catch</b>: lead your man (the small ring shows where he will be when it gets there). The receiver closest to the ball hunts it on his own and goes up or lays out if you don't; steer to adjust, or hit <b>JUMP</b> for high balls and <b>DIVE</b> for ones just out of reach. A ball thrown into a crowd usually gets broken up or picked.</span></li>
-        <li><i>5</i><span><b>Run</b>: ${touchy ? 'drag on the field to steer' : 'arrows / WASD'}, hold <b>SPRINT</b>${touchy ? '' : ' (Shift)'} for a burst, and use <b>Juke, Spin, Stiff arm, Hurdle, Dive</b>${touchy ? '' : ' (J K L H Space)'}. Hurdle a diving tackler, but a defender on his feet will catch you in the air. Tacklers hit with momentum: break them or fall forward.</span></li>
-        <li><i>6</i><span>On 4th down go for it, punt or kick a field goal with the <b>kick meter</b>. After a TD: kick the extra point or go for 2. In the 4th quarter you can try an <b>onside kick</b> after you score: no aiming, just tap when the marker is in the green, and the better the timing, the better your chance to get it back (and the other team will when it trails late). A <b>dive</b> puts the runner down where he lands. After a play that ends in bounds the clock runs 4 more seconds, then stops until the next snap; incompletions, out of bounds and scores stop it right away.</span></li>
-      </ul>
-      <label class="bz-vtog" hidden><input type="checkbox"> Voice commentary</label>
+      ${VS ? '' : `<div class="bz-dslide"><div class="bz-dslide-h"><b>Defense</b><span>how many of their snaps you play yourself</span></div><input type="range" min="0" max="4" step="1" value="${DEFMODES.indexOf(DEFMODE)}" aria-label="How much defense you play"><div class="bz-dslide-t">${DEFMODES.map((m) => `<i class="${m === DEFMODE ? 'on' : ''}">${DEFLBL[m][0]}</i>`).join('')}</div><p class="bz-dslide-d">${DEFLBL[DEFMODE][1]}</p></div>`}
       <button type="button" class="bz-go">KICK OFF</button>`);
     wrap.appendChild(splash);
-    { const tg = splash.querySelector('.bz-vtog'), cb = tg.querySelector('input'); cb.checked = voice.on; cb.addEventListener('change', () => { voice.on = cb.checked; try { updVoiceBtn(); } catch (e) {} }); voice.splashToggle = tg; }
+    { const sl = splash.querySelector('.bz-dslide input'); // how much defense: kept in the browser, and in the game's gear panel too
+      if (sl) { sl.addEventListener('pointerdown', (e) => e.stopPropagation()); sl.addEventListener('input', () => { const m = DEFMODES[sl.value | 0]; setDefMode(m); splash.querySelectorAll('.bz-dslide-t i').forEach((x, i) => x.classList.toggle('on', i === (sl.value | 0))); splash.querySelector('.bz-dslide-d').textContent = DEFLBL[m][1]; }); } }
     splash.querySelector('.bz-go').addEventListener('click', begin);
     function begin() {
       if (phase !== 'splash' || finished) return;
@@ -10315,7 +10407,7 @@ gl_FragColor=vec4(c,1.0);}`;
       setBuild(k, b, wgt) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; const B6 = BUILDS6[b] || {}, base = BODY[p.role] || BODY.WR; p.lk = Object.assign({}, p.lk, { build: BUILDS6[b] ? b : null, hs: base.hs * (B6.hs || 1), ll: B6.ll || 1 }); if (wgt != null) p.wgt = wgt; p.body = bodySpec(base, p.lk, p.wgt); p.lk.sw = p.body.sw; p.rag = null; p.fl = null; return p.body; },
       setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },
       throwAt(x, z, a) { if (mode !== 'aim') return false; if (a != null) arc = a; return throwBall({ x, z, D: Math.hypot(x - OK.QB.x, z - OK.QB.z) }, arc); },
-      jump() { doJump(ctrl); }, dive() { doDive(ctrl); },
+      jump() { doJump(ctrl); }, dive() { doDive(ctrl); }, hotGo(k) { if (!hot[k]) cycleHot(k); return hot[k]; },
       debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(100, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
       quit() { finishGame(true); },
       // moments and perks (tests): pick off a pass now, kick now, give every Lineup card one perk, reach the hooks
