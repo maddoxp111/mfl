@@ -30,8 +30,13 @@ const adminAuth = (() => {
   return a;
 })();
 const SECRET = process.env.SESSION_SECRET || (ADMIN_PASSWORD ? crypto.createHash('sha256').update('mfl:' + ADMIN_PASSWORD).digest('hex') : adminAuth.secret);
-const adminPasswordSet = () => !!(ADMIN_PASSWORD || adminAuth.hash);
+// Nov 7, 2026: the admin password was reset and every admin session signed out, after someone with admin access gave out
+// billions of coins. Only a one-way hash of the new password lives here; it wins over the old password everywhere.
+const ADMIN_RESET = { salt: '9c19352d57714248e6b67edd993fccf4', hash: '2ad74e995de6c7521b453e96173abcc194261e01bf300efb25d7e5e0c353d5fb' };
+const ADMIN_GEN = 'a2.'; // part of every admin cookie's signature: cookies from before the reset no longer work
+const adminPasswordSet = () => !!(ADMIN_RESET || ADMIN_PASSWORD || adminAuth.hash);
 function adminPasswordOk(p) {
+  if (ADMIN_RESET) return typeof p === 'string' && p.length > 0 && pk.checkPin(ADMIN_RESET, p);
   if (ADMIN_PASSWORD) return p.length === ADMIN_PASSWORD.length && crypto.timingSafeEqual(Buffer.from(p), Buffer.from(ADMIN_PASSWORD));
   return !!adminAuth.hash && pk.checkPin(adminAuth, p);
 }
@@ -304,7 +309,7 @@ function isAdmin(req) {
   if (!c.mfl_admin) return false;
   const [exp, sig] = c.mfl_admin.split('.');
   if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const good = sign(exp);
+  const good = sign(ADMIN_GEN + exp);
   return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
 }
 const requireAdmin = (req, res, next) => (isAdmin(req) ? next() : res.redirect('/admin/login'));
@@ -983,7 +988,7 @@ function setUserCookie(req, res, name) {
 }
 function setAdminCookie(req, res) {
   const exp = String(Date.now() + SESSION_DAYS * DAY);
-  res.append('Set-Cookie', `mfl_admin=${exp}.${sign(exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
+  res.append('Set-Cookie', `mfl_admin=${exp}.${sign(ADMIN_GEN + exp)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 3600}${secureFlag(req)}`);
 }
 const userKey = (name) => 'users/' + name;
 const signed = (n) => `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}`;
@@ -1567,6 +1572,7 @@ app.get('/diag/coins/:key', async (req, res) => {
   if (req.params.key !== '4d97385d414d9fea5d9aa0d3' || Date.now() > Date.parse('2026-11-09T00:00:00Z')) return res.status(404).send('Not found');
   try {
     const db = load(), sv0 = await survivorNow(db), out = {};
+    if (req.query.report) return res.set('Cache-Control', 'no-store').json({ fix: (db.fixes || {}).revertGifts20261106 || null, report: await getDoc('reverts/20261106/_report', { fresh: true }) });
     for (const n of String(req.query.u || '').toLowerCase().split(',').filter(pk.validName).slice(0, 8)) {
       const user = await getDoc(userKey(n), { fresh: true });
       if (!user) { out[n] = null; continue; }
@@ -3389,7 +3395,7 @@ app.post('/admin/pickem/:name/:action', requireAdmin, async (req, res) => {
   const user = pk.validName(name) ? await getDoc(userKey(name), { fresh: true }) : null;
   if (!user) return res.redirect('/admin/pickem');
   if (req.params.action === 'pin' && String(req.body.pin || '').length >= 4 && String(req.body.pin).length <= 72) Object.assign(user, pk.hashPin(String(req.body.pin)));
-  else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount)) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
+  else if (req.params.action === 'coins' && Number.isFinite(+req.body.amount) && Math.abs(+req.body.amount) <= 10000000) (user.bonuses = user.bonuses || []).push({ amount: Math.trunc(+req.body.amount), reason: 'Admin', at: new Date().toISOString() });
   else if (req.params.action === 'delete') { await deleteDoc(userKey(name)); return res.redirect('/admin/pickem?saved=1'); }
   else if (req.params.action === 'suspend') { user.noPicks = true; user.noPicksAt = new Date().toISOString(); }
   else if (req.params.action === 'unsuspend') { delete user.noPicks; delete user.noPicksAt; }
@@ -3523,6 +3529,74 @@ function voidNov6(db) {
   console.log(`voided every pick on ${hit.length} game(s) dated 2026-11-06: ${hit.map((g) => g.id).join(', ')}`);
   return true;
 }
+// Nov 7, 2026: someone with admin access gave out coins from the admin panel all through Nov 6 (billions to a few
+// accounts). The commissioner had every account put back the way it was before the first gift: every admin gift is
+// removed, and every pack, pick, card sale, accepted trade and Lineup change made from the first gift on is undone,
+// site wide. Each account's undone records are kept in reverts/20261106/<name> so nothing is lost for good. Runs once:
+// the marker is saved before anything changes.
+const REVERT_FROM = '2026-11-06T16:55:28.000Z'; // just before the first admin gift (finnhop, 16:55:28.998)
+async function revertGiftsOnce(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.revertGifts20261106) return;
+  db.fixes.revertGifts20261106 = { at: new Date().toISOString(), started: true };
+  await save();
+  const report = { cutoff: REVERT_FROM, accounts: {}, trades: 0 };
+  try {
+    const users = await listDocs('users/');
+    // the cutoff: the earliest admin gift on Nov 6 (no later than REVERT_FROM)
+    let T = REVERT_FROM;
+    for (const u of users) for (const b of u.bonuses || []) if (b.reason === 'Admin' && b.at >= '2026-11-06T00:00:00Z' && b.at < T) T = b.at;
+    report.cutoff = T;
+    const docs = {};
+    const fresh = async (n) => docs[n] || (docs[n] = await getDoc(userKey(n), { fresh: true }));
+    // trades accepted from the cutoff on: take the cards back to where they were
+    const trades = (await listDocs('cardtrades/')).filter((t) => t.status === 'accepted' && (t.doneAt || '') >= T);
+    const drop = (arr, ids) => { arr = [...(arr || [])]; for (const id of ids) { const i = arr.lastIndexOf(id); if (i >= 0) arr.splice(i, 1); } return arr; };
+    for (const t of trades) {
+      const from = await fresh(t.from), to = await fresh(t.to);
+      if (from) { from.tradeOut = drop(from.tradeOut, t.give); from.tradeIn = drop(from.tradeIn, t.get); }
+      if (to) { to.tradeIn = drop(to.tradeIn, t.give); to.tradeOut = drop(to.tradeOut, t.get); }
+      t.status = 'reverted'; t.revertedAt = new Date().toISOString();
+      await putDoc('cardtrades/' + String(t.id || '').replace(/[^a-z0-9]/gi, ''), t);
+      report.trades++;
+    }
+    for (const u0 of users) {
+      const user = await fresh(u0.name); if (!user) continue;
+      const late = (x) => (x || '') >= T;
+      const gifts = (user.bonuses || []).filter((b) => b.reason === 'Admin' && late(b.at));
+      const packs = (user.packs || []).filter((p) => late(p.at));
+      const bets = (user.bets || []).filter((b) => late(b.placed));
+      const sales = (user.pointBonuses || []).filter((b) => /^Sold /.test(b.reason || '') && late(b.at));
+      const lineups = (user.lineups || []).filter((l) => late(l.at));
+      const touched = trades.some((t) => t.from === user.name || t.to === user.name);
+      if (!gifts.length && !packs.length && !bets.length && !sales.length && !lineups.length && !touched) continue;
+      await putDoc(`reverts/20261106/${user.name}`, { name: user.name, cutoff: T, at: new Date().toISOString(), gifts, packs, bets, sales, lineups });
+      user.bonuses = (user.bonuses || []).filter((b) => !gifts.includes(b));
+      user.packs = (user.packs || []).filter((p) => !packs.includes(p));
+      user.bets = (user.bets || []).filter((b) => !bets.includes(b));
+      user.pointBonuses = (user.pointBonuses || []).filter((b) => !sales.includes(b));
+      user.sold = drop(user.sold, sales.map((b) => String(b.reason).slice(5)));
+      user.lineups = (user.lineups || []).filter((l) => !lineups.includes(l));
+      // a card sold or traded away that the account no longer has (it came from an undone pack) comes off too
+      const own = {};
+      for (const p of user.packs) for (const id of p.cards || []) own[id] = (own[id] || 0) + 1;
+      for (const id of user.tradeIn || []) own[id] = (own[id] || 0) + 1;
+      const keep = (list) => (list || []).filter((id) => { if (own[id] > 0) { own[id]--; return true; } return false; });
+      user.tradeOut = keep(user.tradeOut);
+      const soldBefore = user.sold.length; user.sold = keep(user.sold);
+      if (user.sold.length < soldBefore) { const gone = soldBefore - user.sold.length; let n = 0; user.pointBonuses = [...user.pointBonuses].reverse().filter((b) => !(/^Sold /.test(b.reason || '') && n < gone && ++n)).reverse(); }
+      await putDoc(userKey(user.name), user);
+      report.accounts[user.name] = { gifts: gifts.length, giftCoins: gifts.reduce((t, b) => t + (Number(b.amount) || 0), 0), packs: packs.length, bets: bets.length, sales: sales.length, lineups: lineups.length };
+    }
+    db.fixes.revertGifts20261106 = { at: new Date().toISOString(), done: true, cutoff: T, accounts: Object.keys(report.accounts).length, trades: report.trades };
+    await putDoc('reverts/20261106/_report', report);
+    console.log('revert of the Nov 6 admin gifts:', JSON.stringify(db.fixes.revertGifts20261106));
+  } catch (e) {
+    db.fixes.revertGifts20261106 = { ...db.fixes.revertGifts20261106, error: String(e && e.message || e) };
+    console.error('revert of the Nov 6 admin gifts failed', e);
+  }
+  await save();
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3538,7 +3612,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
