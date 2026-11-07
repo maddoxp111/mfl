@@ -45,7 +45,8 @@ module.exports = function season(app, h) {
       const ones = cards.catalog(db).filter((c) => c.season === S.n && c.one), onesLeft = ones.filter((c) => !owner.has(c.id)).length;
       const nCards = cards.catalog(db).filter((c) => c.season === S.n).length;
       const who = (c) => (!c.one ? '' : owner.has(c.id) ? `<span class="s1-own">Pulled by <a href="/pickem/u/${esc(owner.get(c.id))}">@${esc(owner.get(c.id))}</a></span>` : '<span class="s1-own open">Still out there</span>');
-      const packs = cards.packTypes(db).map((t) => [t, cards.packInfo(db, t)]).filter(([, P]) => P.season === S.n).sort((a, b) => a[1].cost - b[1].cost);
+      const packs = cards.packTypes(db).map((t) => [t, cards.packInfo(db, t)]).filter(([, P]) => P.season === S.n || P.allSeasons).sort((a, b) => a[1].cost - b[1].cost);
+      const top = packs.reduce((a, x) => (!a || x[1].cost > a[1].cost ? x : a), null);
       const big = card('s1-bigboy'), cov = card('s1-cover');
       res.send(layout(req, `Season ${S.n}: ${S.name}`, `<div class="wrap s1-page">${seasonHero('full')}
         <section class="s1-sec" id="s1-cover">
@@ -55,7 +56,7 @@ module.exports = function season(app, h) {
             <div class="s1-coverinfo">
               <p><b>${esc(S.nick)} 1/1</b> is a Zenith card worth ${big ? big.mult : 6}× fantasy points, with every skill maxed and the <b>${esc(big && big.perk ? big.perk.name : 'Big Boy Gravity')}</b> perk: ${esc(big && big.perk ? big.perk.text.charAt(0).toLowerCase() + big.perk.text.slice(1) : '')}.</p>
               <p><b>Cover Athlete</b> is a Mythic card worth ${cov ? cov.mult : 3.5}×, and more than one person can own it.</p>
-              <p>Both drop from any Season ${S.n} pack. The <a href="/pickem/packs#pk-s1p-cover">Cover Athlete Pack</a> only has his cards.</p>
+              <p>Both drop from any Season ${S.n} pack. The <a href="/pickem/packs#pk-s1p-cover">Cover Athlete Pack</a> only has cover athletes' cards, and it stays in the shop every season.</p>
             </div>
           </div>
         </section>
@@ -71,7 +72,7 @@ module.exports = function season(app, h) {
             <li><b>${zenLeft}<small>/${zen.length}</small></b><span>Zenith 1/1s still out there</span></li>
             <li><b>${onesLeft}<small>/${ones.length}</small></b><span>Season ${S.n} 1/1s still out there</span></li>
           </ul>
-          <p class="muted sm">Every Zenith card is a 1 of 1: once someone pulls one, nobody else can. They only drop from Season ${S.n} packs, and the <a href="/pickem/packs#pk-s1p-fullext">Full Extension Pack</a> is a coin flip for one.</p>
+          <p class="muted sm">Every Zenith card is a 1 of 1: once someone pulls one, nobody else can. They only drop from Season ${S.n} packs, and <a href="/pickem/packs#pk-${esc(top ? top[0] : '')}">${esc(top ? top[1].name : '')}</a> is a coin flip for one.</p>
         </section>
         <section class="s1-sec" id="s1-packs">
           <header class="s1-sh"><span class="s1-k">Packs</span><h2>Season ${S.n} packs</h2><p>From a free welcome pack to the best pack in the shop.</p></header>

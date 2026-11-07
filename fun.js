@@ -527,8 +527,8 @@ module.exports = function fun(app, h) {
     const t = P.team && db.teams[P.team], a = P.art || {};
     const [c1, c2] = t ? [t.color, t.color2] : a.c || P.colors || ['#2a3242', '#141821'];
     const title = o.title || P.name.replace(/^Flash Sale: .*/, 'Flash Sale').replace(/ Pack$/, '');
-    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''}${P.season ? ` pk-season pk-s${P.season}` : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}">
-      <div class="pk-body" aria-hidden="true"><span class="pk-pat"></span><span class="pk-brand">${P.season ? `Season ${P.season}` : 'MFL Cards'}</span><span class="pk-emo">${t ? logo(t, 44) : esc(a.e || '🏈')}</span><b class="pk-nm">${esc(title)}</b><i class="pk-n">${esc(cardCount(P))}</i><span class="pk-shine"></span></div>${o.badges || ''}</div>`;
+    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''}${P.season || P.allSeasons ? ` pk-season${P.season ? ` pk-s${P.season}` : ''}` : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}">
+      <div class="pk-body" aria-hidden="true"><span class="pk-pat"></span><span class="pk-brand">${esc(P.brand || (P.season ? `Season ${P.season}` : 'MFL Cards'))}</span><span class="pk-emo">${t ? logo(t, 44) : esc(a.e || '🏈')}</span><b class="pk-nm">${esc(title)}</b><i class="pk-n">${esc(cardCount(P))}</i><span class="pk-shine"></span></div>${o.badges || ''}</div>`;
   }
   const pct = (x) => (x >= 10 ? Math.round(x) : x >= 1 ? x.toFixed(1) : x >= 0.01 ? x.toFixed(2) : '<0.01') + '%';
   // "What's inside": guarantees, features, per-card rarity odds and the pool.
@@ -638,8 +638,9 @@ module.exports = function fun(app, h) {
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));
       const totalW = Object.entries(R).filter(([r]) => r !== 'zenith').reduce((s, [, x]) => s + x.weight, 0);
-      const paid = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => !P.free && !P.flash && !P.season).map((P) => P.cost);
-      const s1Costs = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => P.season && !P.free).map((P) => P.cost);
+      const paid = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => !P.free && !P.flash && !P.season && !P.allSeasons).map((P) => P.cost);
+      const s1Packs = cards.packTypes(db).map((t) => cards.packInfo(db, t, ctx)).filter((P) => (P.season || P.allSeasons) && !P.free), s1Costs = s1Packs.map((P) => P.cost);
+      const s1Top = s1Packs.reduce((a, P) => (!a || P.cost > a.cost ? P : a), null);
       const tierPrice = (lo, hi) => { const n = paid.filter((c) => c >= lo && c < hi); const a = Math.min(...n), b = Math.max(...n); return !n.length ? '' : a === b ? fmtN(a) : `${fmtN(a)} to ${fmtN(b)}`; };
       const ones = cards.catalog(db).filter((c) => c.one), left = ones.filter((c) => !taken.has(c.id)).length;
       res.send(layout(req, 'Packs', pickHead(user, acct, 'cards') + `<div class="wrap pshop">${pickNav('/pickem/packs', name)}${packMsg(req)}${h.seasonHero ? h.seasonHero('mini') : ''}
@@ -661,7 +662,7 @@ module.exports = function fun(app, h) {
           ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
           <li>Card sets: ${cards.SETS.length} themed sets with 5 versions of every player each (Base ${cards.PARALLELS[0].mult}×, Silver ${cards.PARALLELS[1].mult}×, Gold ${cards.PARALLELS[2].mult}×, Prism ${cards.PARALLELS[3].mult}×, Black ${cards.PARALLELS[4].mult}×). They only come from set packs.</li>
-          <li><b>Season ${S1.n} packs</b> run ${fmtN(Math.min(...s1Costs))} to ${fmtN(Math.max(...s1Costs))} coins. Their cards beat the older cards of the same rarity, and the Full Extension Pack is the best pack in the shop.</li>
+          <li><b>Season ${S1.n} packs</b> run ${fmtN(Math.min(...s1Costs))} to ${fmtN(Math.max(...s1Costs))} coins. Their cards beat the older cards of the same rarity, and ${esc(s1Top ? s1Top.name : '')} is the best pack in the shop.</li>
           <li>Mythic, Dark Matter and Zenith cards are 1 of 1: once someone pulls one, nobody else can. <b>${left} of ${ones.length}</b> are still out there.</li>
           <li>Collect more different cards to unlock free Collector Packs at ${cards.COLLECTOR_STEPS.join(', ')}.</li></ul></div></div>
         <div class="col"><div class="card"><div class="card-h"><h2>${icon('fire')} Big pulls</h2></div>${pulls.length ? `<ol class="lb">${pulls.map((x) => { const c = cards.cardInfo(db, x.id); return `<li><b>@${esc(x.u)}</b><small>${esc(c.p.name)} · ${esc(c.label)}</small><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span></li>`; }).join('')}</ol>` : '<p class="muted">No Legend-or-better pulls yet. Be the first.</p>'}</div></div></div>

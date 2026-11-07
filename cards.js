@@ -3,7 +3,7 @@
 // Every card also shifts its player's game attributes (see cardEffects): some up, some down.
 const crypto = require('crypto');
 const pk = require('./pickem');
-const { S1 } = require('./seasons');
+const { S1, SEASONS } = require('./seasons');
 
 // Rarity sets how often a card shows up in packs (and what an extra copy sells for).
 // Sell values stay far below pack prices: on average a pack's cards sell for well under
@@ -715,22 +715,25 @@ for (const id of ['halloween', 'super', 'galaxy', 'comic', 'pixel-plus', 'hot-sa
 }
 // ---------- Season 1 packs ----------
 // Season 1 cards only drop from these (packPool / packCanDrop check `season`). The odds use the same rarity weights as
-// every pack (Zenith weighs 1, half of Dark Matter) with boosts on the chase packs; the Full Extension Pack tops the shop.
+// every pack (Zenith weighs 1, half of Dark Matter) with boosts on the chase packs; Carson's Filet Dinner tops the shop.
+// `allSeasons` (the Cover Athlete Pack): season cards from every season. `retired`: out of the shop, kept for old packs.
 const S1_ADDED = '2026-11-07';
 const s1Pack = (o) => ({ group: 'season', season: 1, added: S1_ADDED, ...o });
 const S1_NAVY = '#0a1a3f';
 Object.assign(PACKS, {
-  's1p-welcome': s1Pack({ name: 'T-Time Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: "Two free Season 1 cards, once per account. It's T-Time." }),
-  's1p-ttime': s1Pack({ name: 'T-Time Pack', cards: 3, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '⏰', pat: 'stripes' }, desc: '3 Season 1 cards. The cheapest way into Season 1.' }),
-  's1p-23': s1Pack({ name: 'Number 23 Pack', cards: 5, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '2️⃣', pat: 'rays', foil: 'silver' }, desc: '5 Season 1 cards with a Gold or better guaranteed.' }),
-  's1p-chem': s1Pack({ name: 'Chemistry Box', cards: 4, cost: 70000, floor: 'epic', art: { c: ['#22c55e', S1_NAVY], e: '🧪', pat: 'dots' }, desc: '4 Season 1 cards and every one is Gold or better.' }),
-  's1p-mega': s1Pack({ name: 'Big Boy Mega', cards: 12, cost: 110000, min: 'epic', mins: 3, art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'confetti', foil: 'holo' }, desc: '12 Season 1 cards with three Gold or better guaranteed.' }),
-  's1p-cover': s1Pack({ name: 'Cover Athlete Pack', cards: 3, cost: 120000, min: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => c.pid === S1.cover, art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Only ${S1.coverName}'s Season 1 cards, including his Cover Athlete card and the ${S1.nick} 1/1.`, desc: `3 of ${S1.coverName}'s own Season 1 cards, with a Legend or better guaranteed.` }),
-  's1p-pick': s1Pack({ name: "CT's Pick", cards: 1, choose: 4, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '👆', pat: 'dots', foil: 'holo' }, desc: 'See 4 Season 1 cards, every one Legend or better, and keep the one you want.' }),
-  's1p-tabaka': s1Pack({ name: 'Tabaka Time Pack', cards: 3, cost: 240000, floor: 'legendary', art: { c: ['#c084fc', '#020617'], e: '⏳', pat: 'waves', foil: 'gold' }, desc: '3 Season 1 cards and every one is Legend or better.' }),
-  's1p-onehand': s1Pack({ name: 'One-Hand Chase', cards: 1, cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#ff3b6b', S1_NAVY], e: '✋', pat: 'stars', foil: 'gold' }, desc: 'One Mythic or better Season 1 card. About a 1 in 5 shot at a Zenith 1/1.' }),
-  's1p-fullext': s1Pack({ name: 'Full Extension Pack', cards: 1, cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🌠', pat: 'rays', foil: 'black' }, desc: 'One Mythic or better Season 1 card: a coin flip for a Zenith 1/1, the best cards in the game.' }),
-  's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'A T-Time Pack, a Number 23 Pack and a Chemistry Box: 12 Season 1 cards, about 12% off.' }),
+  's1p-welcome': s1Pack({ name: 'Tabaka Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Two free Season 1 cards, once per account.' }),
+  's1p-ttime': s1Pack({ name: 'Season 1: Carson Tabaka', cards: 3, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '🏈', pat: 'stripes' }, desc: '3 Season 1 cards. The cheapest way into Season 1.' }),
+  's1p-23': s1Pack({ name: 'T-Time - CT', cards: 5, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '⏰', pat: 'rays', foil: 'silver' }, desc: "It's T-Time: 5 Season 1 cards with a Gold or better guaranteed." }),
+  's1p-chem': s1Pack({ name: "Momma P's Cookies - CT", cards: 4, cost: 70000, floor: 'epic', art: { c: ['#d97706', S1_NAVY], e: '🍪', pat: 'dots' }, desc: 'Fresh out of the oven: 4 Season 1 cards, every one Gold or better.' }),
+  's1p-mega': s1Pack({ name: 'CT Team Chemistry - CT', cards: 12, cost: 110000, min: 'epic', mins: 3, art: { c: ['#22c55e', '#020617'], e: '🧪', pat: 'confetti', foil: 'holo' }, desc: 'Enough for the whole team: 12 Season 1 cards with three Gold or better guaranteed.' }),
+  's1p-pick': s1Pack({ name: 'Carson Charles Tabaka - CT', cards: 1, choose: 4, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '✍️', pat: 'dots', foil: 'holo' }, desc: 'See 4 Season 1 cards, every one Legend or better, and keep the one you want.' }),
+  's1p-tabaka': s1Pack({ name: 'BigBoyCT - CT', cards: 3, cost: 240000, floor: 'legendary', art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'waves', foil: 'gold' }, desc: '3 Season 1 cards and every one is Legend or better.' }),
+  // Every season's cover athlete, in one pack that stays in the shop for good (seasons.js lists them).
+  's1p-cover': { name: 'Cover Athlete Pack', group: 'season', allSeasons: true, brand: 'Cover Athletes', added: S1_ADDED, cards: 3, cost: 300000, floor: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Every cover athlete's season cards (Season 1: ${S1.coverName}, including his Cover Athlete card and the ${S1.nick} 1/1). New cover athletes join it each season.`, desc: 'The cover athletes only: 3 of their season cards, every one Legend or better.' },
+  's1p-onehand': s1Pack({ name: 'Tabaka Time Pack - CT', cards: 1, cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#c084fc', S1_NAVY], e: '⏳', pat: 'stars', foil: 'gold' }, desc: 'One Mythic or better Season 1 card. About a 1 in 5 shot at a Zenith 1/1.' }),
+  's1p-fullext': s1Pack({ name: "Carson's Filet Dinner - CT", cards: 1, cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🥩', pat: 'rays', foil: 'black' }, desc: 'The best pack in the shop: one Mythic or better Season 1 card, a coin flip for a Zenith 1/1.' }),
+  // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
+  's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, retired: true, off: true, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'Retired.' }),
 });
 for (const P of Object.values(PACKS)) if (P.bundle) {
   P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
@@ -765,7 +768,7 @@ function packInfo(db, type, ctx = {}) {
   return t ? { ...TEAM_PACK, name: `${`${t.city} ${t.name}`.trim()} Pack`, team: t.id, pool: (c) => c.t.id === t.id, desc: `3 cards, all ${t.name} players.` } : null;
 }
 function packTypes(db) {
-  return [...Object.keys(PACKS), ...Object.keys(db.teams).map((id) => 'team-' + id)];
+  return [...Object.keys(PACKS).filter((k) => !PACKS[k].retired), ...Object.keys(db.teams).map((id) => 'team-' + id)];
 }
 const nowOf = (ctx) => (ctx && ctx.now) || pk.nowLocal(process.env.TZ_LEAGUE || 'America/Chicago');
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -858,7 +861,7 @@ function rolePos(db, t, p) {
 // The cards a pack draws from. `ok` is false when its own pool is empty right now
 // (openPack then falls back to every card, and the shop shows the pack as restocking).
 function packPool(db, P, taken = new Set()) {
-  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.season || 0) === c.season);
+  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season));
   if (!P.pool) return { pool: base, base, ok: true };
   const f = base.filter(P.pool);
   return f.length ? { pool: f, base, ok: true } : { pool: base, base, ok: false };
@@ -894,7 +897,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (P.bundle) return P.bundle.some(([t]) => packCanDrop(db, t, c));
   if (type === 'starter') return c.variant === 'base';
   if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
-  if ((P.season || 0) !== c.season) return false; // season cards only come from that season's packs
+  if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; // season cards only come from season packs
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
   if (P.floor && c.rarity !== 'doh' && RARITY_ORDER.indexOf(c.rarity) < RARITY_ORDER.indexOf(P.floor)) return false;
