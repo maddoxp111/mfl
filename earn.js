@@ -94,7 +94,7 @@ module.exports = function earn(app, h) {
   const matchOf = (db, g) => (g && db.teams[g.home] && db.teams[g.away] ? `${db.teams[g.home].abbr} vs ${db.teams[g.away].abbr}` : 'a game');
   function coinHistory(db, user, acct, revert) {
     const P = acct.points || {}, A = h.arcade ? h.arcade() : null, rate = cards.COINS_PER_POINT || 1, out = [];
-    const add = (at, label, n, sub, kind) => { if (Math.round(n)) out.push({ at: at || '', label, n: Math.round(n), sub: sub || '', kind: kind || '' }); };
+    const add = (at, label, n, sub, kind, dayOnly) => { if (Math.round(n)) out.push({ at: at || '', label, n: Math.round(n), sub: sub || '', kind: kind || '', dayOnly: !!dayOnly }); };
     add(user.created, 'Signed up', pk.START_COINS, 'Everyone starts with these', 'other');
     for (const b of user.bonuses || []) add(b.at, b.reason === 'Daily' ? 'Daily bonus' : b.reason === 'Bailout' ? 'Bailout' : b.reason === 'Admin' ? 'From the commissioner' : String(b.reason || 'Bonus'), b.amount, '', 'other');
     for (const b of user.pointBonuses || []) { const m = /^Sold (.+)$/.exec(b.reason || ''); const c = m && cards.cardInfo(db, m[1]); add(b.at, m ? 'Sold a card' : String(b.reason || 'Card reward'), b.amount, m ? (c ? c.label || m[1] : m[1]) : '', 'cards'); }
@@ -114,8 +114,8 @@ module.exports = function earn(app, h) {
       const mode = m.versus ? `Head to Head vs @${m.versus.opp || '?'}` : m.run ? `${(E.RUNS && E.RUNS[m.run.mode] && E.RUNS[m.run.mode].name) || 'Run'} game ${m.run.step}` : m.career ? 'Career' : m.risk ? 'Risk mode' : '';
       add(m.at, n > 0 ? `${G} win` : `${G} loss`, n, [lv && (lv.name || lv), mode].filter(Boolean).join(' · '), 'arcade');
     }
-    if (A && A.challengeDays) for (const d of A.challengeDays(user)) add(localIso(d.day, '20:00'), 'Daily challenges', d.coins, `${d.n} done`, 'arcade');
-    for (const d of user.checkins || []) add(localIso(d, '12:00'), 'Game-day check-in', E.CHECKIN, '', 'arcade');
+    if (A && A.challengeDays) for (const d of A.challengeDays(user)) add(localIso(d.day, '23:59'), 'Daily challenges', d.coins, `${d.n} done`, 'arcade', true);
+    for (const d of user.checkins || []) add(localIso(d, '12:00'), 'Game-day check-in', E.CHECKIN, '', 'arcade', true);
     for (const r of (P.fan && P.fan.results) || []) add(gameEnd(r.g), 'Lineup', r.total * rate, `${matchOf(db, r.g)} · ${fmt(r.total)} points`, 'cards');
     for (const gp of P.playerGames || []) add(gameEnd(gp.game), 'Your player', gp.total, `${matchOf(db, gp.game)} · ${gp.won ? 'win' : 'loss'} ${gp.score || ''}`, 'player');
     add('', 'Achievements', P.achieve || 0, P.achieve ? plural(P.achieve / ACHIEVEMENT_COINS, 'achievement') : '', 'other');
@@ -132,8 +132,8 @@ module.exports = function earn(app, h) {
     let revert = null;
     try { revert = h.getDoc ? await h.getDoc(`reverts/20261106/${user.name}`) : null; } catch {}
     const { dated, ongoing } = coinHistory(db, user, acct, revert);
-    const when = (iso) => { if (!iso) return 'Ongoing'; const d = new Date(iso); return d.toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
-    const tr = (e) => `<tr class="${e.kind === 'note' ? 'cl-note' : ''}"><td class="l"><b>${esc(e.label)}</b><small>${esc([e.sub, when(e.at)].filter(Boolean).join(' · '))}</small></td><td class="${e.n > 0 ? 'up' : e.n < 0 ? 'down' : 'zero'}">${e.kind === 'note' ? '' : signed(e.n)}</td><td class="muted">${fmt(e.bal)}</td></tr>`;
+    const when = (iso, dayOnly) => { if (!iso) return 'Ongoing'; const d = new Date(iso); return d.toLocaleString('en-US', dayOnly ? { timeZone: TZ, month: 'short', day: 'numeric' } : { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+    const tr = (e) => `<tr class="${e.kind === 'note' ? 'cl-note' : ''}"><td class="l"><b>${esc(e.label)}</b><small>${esc([e.sub, when(e.at, e.dayOnly)].filter(Boolean).join(' · '))}</small></td><td class="${e.n > 0 ? 'up' : e.n < 0 ? 'down' : 'zero'}">${e.kind === 'note' ? '' : signed(e.n)}</td><td class="muted">${fmt(e.bal)}</td></tr>`;
     const rows = [...ongoing.slice().reverse(), ...dated.slice().reverse()], first = rows.slice(0, 40), more = rows.slice(40);
     const head = '<thead><tr><th class="l">What</th><th>Coins</th><th>Balance</th></tr></thead>';
     return breakdown(user, acct, own) + `<section class="card coin-log" id="coin-log"><div class="card-h"><h2>${icon('clock')} Coin history</h2><span class="muted sm">${fmt(rows.length)} changes</span></div>
