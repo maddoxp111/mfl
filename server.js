@@ -1562,6 +1562,25 @@ app.get('/pickem/me.json', async (req, res) => {
   res.set('Cache-Control', 'no-store').json({ name, balance: accountOf(load(), user, await survivorNow(load())).balance, offers });
 });
 // "Your player" popups are closed per account, not per device: remember which ones were seen.
+// Temporary, read-only: where named accounts' coins come from (for checking a balance that looks wrong). Needs the key; gone after Nov 9.
+app.get('/diag/coins/:key', async (req, res) => {
+  if (req.params.key !== '4d97385d414d9fea5d9aa0d3' || Date.now() > Date.parse('2026-11-09T00:00:00Z')) return res.status(404).send('Not found');
+  try {
+    const db = load(), sv0 = await survivorNow(db), out = {};
+    for (const n of String(req.query.u || '').toLowerCase().split(',').filter(pk.validName).slice(0, 8)) {
+      const user = await getDoc(userKey(n), { fresh: true });
+      if (!user) { out[n] = null; continue; }
+      const acct = accountOf(db, user, sv0), P = acct.points || {};
+      const ar = (user.arcade || []).map((m) => ({ id: m.id, game: m.game, level: m.level, mode: m.mode || (m.run && m.run.mode) || (m.risk ? 'risk' : ''), stake: m.stake, payout: m.payout, status: m.status, run: m.run ? { id: m.run.id, step: m.run.step, pending: m.run.pending, cashedOut: m.run.cashedOut } : null, versus: !!m.versus, at: m.at || m.started || m.created }));
+      const top = [...ar].sort((a, b) => Math.abs(b.payout || 0) - Math.abs(a.payout || 0)).slice(0, 15);
+      out[n] = { balance: acct.balance, picks: { profit: acct.profit, pending: acct.pending, openStake: (acct.bets || []).filter((b) => b.status === 'pending').reduce((t, b) => t + b.stake, 0) },
+        points: Object.fromEntries(Object.entries(P).filter(([, v]) => typeof v === 'number')), fanPoints: P.fan ? P.fan.total : null,
+        bonuses: (user.bonuses || []).slice(-10), pointBonuses: (user.pointBonuses || []).slice(-10), player: user.player || null,
+        packs: (user.packs || []).length, arcadeCount: ar.length, arcadeTop: top, keys: Object.keys(user) };
+    }
+    res.set('Cache-Control', 'no-store').json(out);
+  } catch (e) { res.status(500).json({ error: String(e && e.message || e) }); }
+});
 app.post('/pickem/player/seen', async (req, res) => {
   const name = currentUser(req);
   const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
