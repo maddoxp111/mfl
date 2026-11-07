@@ -88,6 +88,18 @@ const UPDATES = [
       'Head to Head: on defense you now play a defender live too, with the same buttons, on top of calling the play.',
     ],
   },
+  {
+    n: 9,
+    date: '2026-11-07',
+    title: 'Skill over luck',
+    items: [
+      "More live defense: 2 to 4 of every CPU drive's snaps are played live now (3rd and 4th downs, the red zone and the two-minute drill always).",
+      'A defensive playbook at the bottom of the screen, just like the offense: tabs (Suggested, Zone, Man, Blitz, Special) and play art for every call, showing where everyone lines up, the zones, the man assignments and the blitzers. Same in Head to Head.',
+      "Your call decides the simulated snaps too: each one is the CPU's kind of play (run, quick pass, deep shot, screen, play-action...) against your call. Cover 4 shuts down deep shots but gives up runs, Stack the Box stuffs runs but play-action burns it, and so on. Keep making the same call and they start running what beats it. The drive card shows what they ran.",
+      'Jukes, spins, stiff arms and hurdles are timed now, not rolled: hit the move just before the tackler gets there for a PERFECT move that beats him for sure. Too early and he adjusts, too late and the hit is on.',
+      'Catches, picks and breakups are decided by where the ball is thrown and who is open, not by dice: a good ball to an open receiver is caught, a ball on the defender\'s side can be picked. Throws go where you aim them; on the run they drift the way you are moving, and with a man in your face they sail.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
