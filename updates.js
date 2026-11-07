@@ -35,6 +35,16 @@ const UPDATES = [
       'Lineup players now pay 100 coins per fantasy point instead of 250. It counts for every past game too, so Lineup coins from earlier games went down to match.',
     ],
   },
+  {
+    n: 4,
+    date: '2026-11-07',
+    title: 'New pack prices, score panel',
+    items: [
+      'Pack prices now match how many coins are going around: a Lineup earns most players 30,000 to 40,000 coins a game, so a 1,000-coin pack was pocket change. Most packs cost 10 times what they did (Standard 10,000). The Rookie Rack and Snack Attack Single are 1,000, so a brand-new account can still buy one. The chase packs are 150,000 to 400,000 (Dark Matter 400,000). Packs you already bought keep the price you paid.',
+      'Score panel: the commissioner can let people score games. Scorers get a Score link in the menu to enter results, plays and who didn\'t play, and every save is logged with their name.',
+      'The admin panel now needs a PIN as well as the password.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
