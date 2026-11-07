@@ -1641,7 +1641,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // head to head: the same two kits the other way round, for when the opponent has the ball on this screen (their colours on
     // offense, ours on defense); swapped in and out with the squads (vsFlip in 77-versus.js)
     let OFFC2 = null, DEFC2 = null;
-    if (opts.versus) {
+    { // always: Head to Head and the key defensive plays (33-defplay.js) swap them in
       let A2 = O2; if (Math.abs(lum(O1) - lum(A2)) < 0.12) A2 = lum(O1) > 0.5 ? hex('#15171d') : hex('#f2f4f7');
       OFFC2 = { jer: O1, pad: shade(O1, 1.15), pant: A2, helm: A2, stripe: O1, num: lum(O1) > 0.5 ? shade(A2, 0.9) : mixc(A2, [1, 1, 1, 1], 0.5) };
       OFFC2.glove = A2; OFFC2.sock = O1; OFFC2.mask = lum(A2) < 0.4 ? A2 : hex('#8d93a0');
@@ -1728,7 +1728,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let { SQ, KR } = mkSquad(HOME, 0);
     // head to head: the opponent's real 11 (on offense on this screen when they have the ball)
     let SQ2 = null, KR2 = null;
-    if (opts.versus) ({ SQ: SQ2, KR: KR2 } = mkSquad(AWAY, 32));
+    ({ SQ: SQ2, KR: KR2 } = mkSquad(AWAY, 32)); // also the CPU's offense on a key defensive play
     const shortName = (s) => { const p = String(s).trim().split(/\s+/); return (p.length > 1 ? p[p.length - 1] : p[0]).slice(0, 12); };
 
     // ---------- stats ----------
@@ -1945,7 +1945,7 @@ gl_FragColor=vec4(c,1.0);}`;
       G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr, HOME.name), false, false, 8); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr, AWAY.name), false, false, 8); G.kitR = mkTex(kitCanvas(REFC, '', '', true), false, false, 8);
       G.crowdT = mkTex(crowdCanvas(), false, false, 4);
       G.texs.push(G.kitO, G.kitD, G.kitR, G.crowdT);
-      if (opts.versus) { G.kitO2 = mkTex(kitCanvas(OFFC2, AWAY.abbr, AWAY.name), false, false, 8); G.kitD2 = mkTex(kitCanvas(DEFC2, HOME.abbr, HOME.name), false, false, 8); G.texs.push(G.kitO2, G.kitD2); if (VS && VS.flipped) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; } }
+      { G.kitO2 = mkTex(kitCanvas(OFFC2, AWAY.abbr, AWAY.name), false, false, 8); G.kitD2 = mkTex(kitCanvas(DEFC2, HOME.abbr, HOME.name), false, false, 8); G.texs.push(G.kitO2, G.kitD2); if ((VS && VS.flipped) || DEFP.flipped) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; } }
       statics.length = 0;
       const W = buildWorld();
       for (const k of ['plain', 'seats', 'field', 'glow', 'board', 'ribbon', 'glass']) {
@@ -2691,9 +2691,9 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (isRunPlay(play)) for (const k of ['X', 'Z', 'S', 'Y']) if (k !== RK && (!play.routes[k] || play.routes[k] === 'B')) { OK[k].R = null; OK[k].blk = 'block'; }
       filmPrep(); // has the defense seen this play (and this receiver) too often?
-      dcall = VS ? vsDcall() : chooseDef(); // head to head: the other side's call
+      dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
       const sgn = OK.Y.x >= 0 ? 1 : -1, cush = DP.cush;
-      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, x, z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o)));
+      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, x, z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
       D('DL', 'DE1', -4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 91 }); D('DL', 'DT1', -1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
       D('DL', 'DT2', 1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 93 }); D('DL', 'DE2', 4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 99 });
       const slot = OK.S, nickel = Math.abs(slot.x) > 5.5;
@@ -3118,7 +3118,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const tArr = Math.max(0.06, threat ? Math.min(tl - 0.05, tD - 0.12) : tl - 0.05);
         let vx = (ax - p.x) / tArr, vz = (az - p.z) / tArr, need = Math.hypot(vx, vz);
         const late = need > vRun * (wasSpr ? 0.9 : 0.97) || threat;
-        staminaStep(p, dt, late || (p === ctrl && input.sprint)); // hunting a ball he would be late for: full sprint
+        staminaStep(p, dt, late || (p === ctrl && (DEFP.on || input.sprint))); // hunting a ball he would be late for: full sprint
         const top = p.sprint ? vSpr : vRun;
         const nl = need || 1, ux = vx / nl, uz = vz / nl;
         if (need > top) need = top;
@@ -3260,9 +3260,10 @@ gl_FragColor=vec4(c,1.0);}`;
         d.face2 = null;
         if (d.rag || d.rising > 0) continue;
         if (d.stun > 0) { d.vx *= Math.pow(0.05, dt); d.vz *= Math.pow(0.05, dt); continue; }
-        if (d === carrier) { returnRun(d, dt); continue; }
+        if (d === carrier) { if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; returnRun(d, dt); continue; } // a pick: you run it back yourself
         if (carrier && carrier.side === 1) { leadBlockDef(d, dt); continue; }
         if (d.eng) { engStep(d, dt); continue; }
+        if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; // the defender you control (33-defplay.js)
         d.look = ball ? (ball.holder ? [ball.holder.x, 1.5, ball.holder.z] : [ball.x, ball.y, ball.z]) : null;
         if (ball && ball.st === 'loose') { steer(d, ball.x, ball.z, effV(d), dt, 9); continue; }
         if (carrier) {
@@ -3431,7 +3432,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const FILM = { plays: {}, tgt: {}, passes: 0, snaps: 0, memo: null, rec: false, fav: null, log: [] };
     const filmWho = (p) => (p && p.sq && (p.sq.pid || p.sq.id || p.sq.name)) || (p && p.key) || '';
     const filmLv = () => 0.55 + 0.45 * clamp(KDEF, 0, 1.3);
-    const filmOn = () => !(VS && VS.mute) && !(DBG && DBG.noFilm);
+    const filmOn = () => !DEFP.on && !(VS && VS.mute) && !(DBG && DBG.noFilm);
     // how likely the defense is to recognize this play now (0 the first two times)
     function filmOdds(id) {
       const e = FILM.plays[id]; if (!e || e.n < 2) return 0;
@@ -3501,6 +3502,322 @@ gl_FragColor=vec4(c,1.0);}`;
       staminaStep(d, dt, r.vz > 4);
       steer(d, tx, tz, effV(d) * (r.vz > 4 ? 1.03 : 0.95), dt, 8);
     }
+    // ---------- live defense: key defensive plays, and a defender you control ----------
+    // Against the CPU its drives are simulated (70-flow.js), but two to four of the biggest snaps of a game are played live: 3rd and
+    // 4th downs, the red zone, the two-minute drill, a one-score game late. The player calls an actual defense (the Head to Head
+    // calls), picks a defender and plays him: arrows (or a drag) to move, SHIFT to sprint, SPACE to jump for the ball, X to dive
+    // (a tackle, or a hand on the pass), Q to switch to the defender nearest the ball. Left alone, he plays his assignment.
+    // The CPU runs a real play on the offense side of the engine: the two squads and kits swap sides (theirs on offense, ours on
+    // defense, the Head to Head trick), a CPU brain plays quarterback and the runners and receivers use the auto-running every
+    // offense player has. The result goes back into the simulated drive. In Head to Head the defending screen controls a defender
+    // the same way; its stick and buttons travel to the screen in charge (vsDefIn in 77-versus.js).
+    const DEFP = { on: false, flipped: false, used: 0, max: 4, drive: -1, ctl: null, manT: -9, call: null, st: null, cd: 0, res: null, log: [], brain: null, sug: 'c3' };
+    const DEF_ORDER = ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2'];
+    // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
+    const defpBrain = () => ({ hold: lerp(3.0, 2.1, clamp(DIFF_OFF, 0, 1)), err: lerp(1.5, 0.45, clamp(DIFF_OFF, 0, 1)), moveP: lerp(0.025, 0.08, clamp(DIFF_OFF, 0, 1)), scramble: 0.35, mvT: 0 });
+
+    // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
+    function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
+      if (DBG && DBG.defKey === 'every') return !VS; // tests: every CPU snap is played live
+      if (VS || DEFP.used >= DEFP.max || DEFP.drive === CPUS.drives) return false;
+      if (DBG && DBG.defKey != null) return DBG.defKey === 'always';
+      const togo = fd - spot, q = clk.q, prog = clamp(((Math.min(q, 4) - 1) * QS + (QS - clk.t)) / (QS * 4), 0, 1);
+      let L = 0;
+      if (dn >= 3) L += 2 + (togo <= 10 ? 0.4 : 0);
+      if (spot >= 80) L += 1.4 + (fd >= 100 ? 0.4 : 0);
+      if ((q === 2 || q >= 4) && clk.t < 120) L += 1;
+      if (q >= 4 && Math.abs(hs - as) <= 8) L += 1.4;
+      if (q >= 5) L += 1.4;
+      if (plays === 0) L -= 1;
+      // at least two a game: the bar drops in the second half if fewer have come up
+      const need = DEFP.used < 2 ? lerp(3.2, 1.9, clamp((prog - 0.45) / 0.45, 0, 1)) : DEFP.used < 3 ? 3.4 : 4.2;
+      return L >= need && rng() < 0.85;
+    }
+
+    // ---------- the key play: call, line up, snap ----------
+    function defpBegin(r, d) {
+      DEFP.used++; DEFP.drive = CPUS.drives;
+      DEFP.st = { start: d.start, call: d.call || 'base', spot: r.spot, dn: r.dn || 1, fd: r.fd || r.spot + 10, plays: r.plays, yds: r.spot - d.start, base: d.base || null };
+      DEFP.brain = defpBrain();
+      phase = 'dcall'; poss = 'away'; carrier = null; ctrl = null; mode = 'none'; kick = null; clockRun = false;
+      const S = DEFP.st, togo = S.fd - S.spot, dd = `${ORD[Math.min(S.dn, 4)] || S.dn} & ${S.fd >= 100 ? 'Goal' : Math.max(1, Math.round(togo))}`;
+      // the suggestion: the down, the distance and the score
+      const late = qtr >= 4 && clock < 75, lead = hs - as;
+      DEFP.sug = late && lead > 0 && lead <= 8 && togo > 5 ? 'prev' : togo <= 1.5 ? 'box' : S.dn >= 3 && togo >= 8 ? 'c3d' : S.spot >= 85 ? 'c1' : S.dn >= 3 ? 'c1b' : 'c3';
+      banner('KEY PLAY', `${dd} · ${esc(AWAY.name)} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)}`, '#ffc21a');
+      say(`<b>Key play.</b> ${dd} for <b>${esc(AWAY.name)}</b>. Call the defense, then play it yourself.`);
+      sfx.play('whistle'); excite = Math.max(excite, 0.5);
+      vsCard(`<h3>Key play · ${dd}</h3><p>${esc(AWAY.name)} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)}. Call the defense, then you play a defender:</p><div class="bz-dcall vs12">${VS_CALLS.map((c, i) => `<button type="button" data-k="${c.id}" class="${c.id === DEFP.sug ? 'sug' : ''}"><b>${c.name}</b><small>${c.sub}</small>${touchy ? '' : `<u>${VS_KEYS[i]}</u>`}</button>`).join('')}</div><p class="bz-dct">No pick and it's ${esc((VS_CALLS.find((c) => c.id === DEFP.sug) || VS_CALLS[1]).name)} in <b>10</b></p><div class="bz-dtm"><i style="width:100%"></i></div>`, 10, DEFP.sug, defpCall);
+      setControls(true);
+    }
+    function defpCall(id) {
+      if (phase !== 'dcall') return;
+      const C = VS_CALLS.find((c) => c.id === id) || VS_CALLS[1], S = DEFP.st;
+      vsHideCard(true); clearBanner(); sfx.play('tap');
+      DEFP.call = C; DEFP.on = true;
+      defpFlip(true);
+      los = S.spot; down = S.dn; fdz = Math.min(S.fd, 100); tryMode = false; hot = {};
+      play = defpPickPlay(S); flip = rng() < 0.5;
+      setupPlay();
+      // start on the free safety (a linebacker in the box calls, the corner on his man in press), Q switches
+      const first = C.kind === 'box' || C.kind === 'spy' ? 'LBM' : C.kind === 'press' ? 'CB1' : 'FS';
+      DEFP.ctl = DK[first] || def[0]; DEFP.manT = -9;
+      phase = 'dpre'; DEFP.cd = 3.4; poss = 'away';
+      say(`You're <b>${esc(nm(DEFP.ctl))}</b> (${DEFP.ctl.role === 'S' ? 'safety' : DEFP.ctl.role === 'CB' ? 'corner' : DEFP.ctl.role === 'LB' ? 'linebacker' : 'lineman'}) in <b>${esc(C.name)}</b>. Q / Switch to pick someone else.`);
+      setControls(true);
+    }
+    // the CPU's play for the situation
+    function defpPickPlay(S) {
+      const togo = S.fd - S.spot, rz = S.spot >= 82, lead = as - hs, hurry = qtr >= 4 && clock < 120 && lead < 0;
+      const pick = (ids) => { const L = PLAYS.filter((p) => ids.includes(p.id)); return L.length ? L[(rng() * L.length) | 0] : PLAYS[0]; };
+      const r = rng();
+      if (togo <= 1.5) return r < 0.55 ? pick(['power', 'zone', 'iso', 'hbdive', S.fd >= 100 ? 'qbpower' : 'sneak']) : r < 0.85 ? pick(['slant', 'stick', 'snag', 'texas']) : pick(['pacross', 'padig', 'boot']);
+      if (rz) return r < 0.35 ? pick(['power', 'zone', 'counter', 'draw']) : r < 0.75 ? pick(['slant', 'snag', 'mesh', 'stick', 'rzfade', 'spacing']) : pick(['pacross', 'boot', 'smash', 'flood']);
+      if (hurry || (S.dn >= 3 && togo >= 7)) return r < 0.5 ? pick(['dagger', 'levels', 'sail', 'flood', 'smash', 'comebacks', 'ycross', 'drive']) : r < 0.72 ? pick(['verts', 'postcorner', 'dblpost', 'deepcross', 'sluggo']) : r < 0.88 ? pick(['mesh', 'shallow', 'curl', 'spacing']) : pick(['rbscreen', 'tunnel', 'draw']);
+      if (S.dn >= 3) return r < 0.55 ? pick(['slant', 'stick', 'snag', 'mesh', 'spacing', 'texas', 'shallow', 'curl', 'outs']) : r < 0.8 ? pick(['smash', 'levels', 'flood', 'drive']) : pick(['draw', 'rbscreen', 'bubble']);
+      return r < 0.42 ? pick(['zone', 'ozone', 'stretch', 'power', 'counter', 'toss', 'trap']) : r < 0.68 ? pick(['slant', 'stick', 'mesh', 'curl', 'hitches', 'outs']) : r < 0.84 ? pick(['smash', 'flood', 'levels', 'comebacks']) : pick(['papost', 'padig', 'boot', 'verts']);
+    }
+    // swap the two squads and kits (their offense, our defense) and back; the Head to Head flip, for one key play
+    function defpFlip(on) {
+      if (DEFP.flipped === on || !SQ2) return;
+      [SQ, SQ2] = [SQ2, SQ]; [KR, KR2] = [KR2, KR]; [KQ, KQ2] = [KQ2, KQ]; [KK, KK2] = [KK2, KK];
+      [OFFC, OFFC2] = [OFFC2, OFFC]; [DEFC, DEFC2] = [DEFC2, DEFC];
+      if (G && G.kitO2) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; }
+      QBR = SQ.QB.r;
+      DEFP.flipped = on;
+    }
+    // our defenders wear our own players: names, numbers, faces and looks from the Lineup (their cards stay on offense)
+    const DEF_SQ = { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBW: 'QB', LBS: 'OL0', DE1: 'OL1', DT1: 'OL2', DT2: 'OL3', DE2: 'OL4' };
+    const defSq = (key) => { if (!(DEFP.flipped || VS) || !SQ2) return null; const q = SQ2[DEF_SQ[key]]; return q && (q.real !== false) ? q : null; };
+    function defSqOpts(key) {
+      const q = defSq(key); if (!q) return {};
+      const o = { sq: Object.assign({}, q, { fx: null }), num: q.num, face: q.cell };
+      if (q.look) o.lk = q.look;
+      return o;
+    }
+    function defpDcall() {
+      const C = DEFP.call || VS_CALLS[1];
+      return { cov: C.cov, blitz: C.blitz, stunt: !C.kind && rng() < 0.15, disguise: !!C.dis, name: C.name, kind: C.kind || '' };
+    }
+    function defpPreStep(dt) {
+      DEFP.cd -= dt;
+      const b = ctl.querySelector('.bz-dsnap b'); if (b) b.textContent = Math.max(1, Math.ceil(DEFP.cd));
+      if (DEFP.cd <= 0) { phase = 'pre'; snap(); if (phase === 'live') { DEFP.brain.mvT = 0; setControls(true); } }
+    }
+
+    // ---------- your defender ----------
+    // the stick for the defense camera (it looks back at the offense, so the screen is mirrored)
+    function defDir(raw) {
+      let ix, iz;
+      if (raw) { ix = raw[0]; iz = raw[1]; }
+      else if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.25) { ix = input.stick[0]; iz = input.stick[1]; }
+      else { ix = input.r - input.l; iz = input.u - input.d; }
+      if (!ix && !iz) return null;
+      const l = Math.hypot(ix, iz);
+      return raw ? [ix / l, iz / l] : [-ix / l, -iz / l];
+    }
+    const hdState = () => (DEFP.on ? DEFP : VS && VS.rc ? VS.rc : null);
+    const hdDir = () => (DEFP.on ? defDir() : VS && VS.rc && VS.rc.dir && performance.now() - VS.rc.at < 1500 ? defDir(VS.rc.dir) : null); // held until they let go (a null comes), or the line goes quiet
+    const hdSprint = () => (DEFP.on ? input.sprint : !!(VS && VS.rc && VS.rc.sprint));
+    const isHumanDef = (d) => !!d && ((DEFP.on && d === DEFP.ctl) || (VS && VS.auth && VS.rc && d === VS.rc.d));
+    // steering him by hand: returns true while the player is steering (or just was); otherwise the AI plays his assignment
+    function humanDef(d, dt, dir, sprint, H) {
+      if (dir) H.manT = tPlay;
+      if (!dir && tPlay - H.manT > 0.7) return false;
+      d.breakAt = 0; // he sees the ball the moment it is thrown
+      if (d.rag || d.rising > 0 || d.diveT > 0) return true;
+      staminaStep(d, dt, !!sprint && !!dir);
+      if (dir) steerDir(d, dir[0], dir[1], effV(d) * (d.spdK || 1) * 1.03, dt, 11);
+      else { d.vx *= Math.pow(0.03, dt); d.vz *= Math.pow(0.03, dt); }
+      // hands up for a ball coming his way
+      if (ball && ball.st === 'air' && ball.kind === 'pass' && ball.cp) {
+        const b = ball, tl = Math.max(0.02, b.cp.t), dd = Math.hypot(b.cp.x - d.x, b.cp.z - d.z);
+        if (dd < 2.6 && tl < 0.7) { const ahead = Math.min(tl, 0.1); d.reach = [b.x + b.vx * ahead, b.y + b.vy * ahead, b.z + b.vz * ahead]; if (d.pose !== 'jump' && d.pose !== 'dive') setPose(d, 'reach', true); } else d.reach = null;
+        d.face2 = Math.atan2(b.x - d.x, b.z - d.z);
+      } else if (ball) { const h = ball.holder || ball; d.face2 = Math.atan2(h.x - d.x, h.z - d.z); }
+      return true;
+    }
+    function defJump(d) { if (!d || d.rag) return; d.breakAt = 0; doJump(d); }
+    // dive: at the ball carrier if there is one close, else at the ball in the air, else the way he is going
+    function defDive(d, dir) {
+      if (!d || d.rag || d.diveT > 0 || d.jumpY > 0 || d.rising > 0) return;
+      const c = carrier && carrier.side === 0 ? carrier : null;
+      if (c && dist(d, c) < 5) { const T = Math.min(0.35, dist(d, c) / 9); d.h = Math.atan2(c.x + c.vx * T - d.x, c.z + c.vz * T - d.z); }
+      else if (!(ball && ball.st === 'air') && dir) d.h = Math.atan2(dir[0], dir[1]);
+      d.breakAt = 0; doDive(d);
+      if (c && dist(d, c) < 5) { const dx = c.x - d.x, dz = c.z - d.z, l = Math.hypot(dx, dz) || 1; d.vx = dx / l * (d.v + 3.5); d.vz = dz / l * (d.v + 3.5); d.ddx = dx / l; d.ddz = dz / l; }
+    }
+    // switch: before the snap the next man down the list; after it the defender nearest the ball
+    function nearestDefToBall(skip) {
+      const b = !ball ? { x: 0, z: los } : ball.st === 'air' && ball.cp ? ball.cp : ball.holder || ball;
+      let best = null, bd = 1e9;
+      for (const d of def) { if (d === skip || d.rag || d.rising > 0) continue; const dd = Math.hypot(d.x - b.x, d.z - b.z) + (d.eng ? 4 : 0); if (dd < bd) { bd = dd; best = d; } }
+      return best;
+    }
+    function defpSwitch() {
+      if (!DEFP.on || !(phase === 'dpre' || phase === 'live')) return;
+      let n;
+      if (phase === 'dpre') { const i = DEF_ORDER.indexOf(DEFP.ctl ? DEFP.ctl.key : 'FS'); n = DK[DEF_ORDER[(i + 1) % DEF_ORDER.length]]; }
+      else n = nearestDefToBall(DEFP.ctl);
+      if (!n) return;
+      DEFP.ctl = n; DEFP.manT = -9; sfx.play('tap');
+      if (phase === 'dpre') say(`You're <b>${esc(nm(n))}</b> (${n.role === 'S' ? 'safety' : n.role === 'CB' ? 'corner' : n.role === 'LB' ? 'linebacker' : 'lineman'}).`);
+      setControls(true);
+    }
+    function defpKey(c, e) {
+      if (phase === 'dcall') {
+        const kk = /^(Digit|Numpad)[0-9]$/.test(c) ? c.slice(-1) : c === 'Minus' || c === 'NumpadSubtract' ? '-' : c === 'Equal' || c === 'NumpadAdd' ? '=' : null;
+        if (kk != null && vsCardEl && vsCardEl.fn) { const it = VS_CALLS[VS_KEYS.indexOf(kk)]; if (it) { e.preventDefault(); vsCardEl.fn(it.id); } }
+        return;
+      }
+      if (c === 'KeyQ' || c === 'Tab' || c === 'KeyE') { e.preventDefault(); defpSwitch(); return; }
+      if (phase !== 'live') return;
+      if (c === 'Space' || c === 'Enter') { e.preventDefault(); defJump(DEFP.ctl); return; }
+      if (c === 'KeyX' || c === 'KeyC') { e.preventDefault(); defDive(DEFP.ctl, defDir()); }
+    }
+
+    // ---------- the CPU offense ----------
+    // the quarterback reads his receivers (separation now and where the ball would meet him), throws to the open man, throws it away
+    // or scrambles under pressure; the targeted receiver goes up or lays out for it; a runner tries a move on a defender closing in
+    function cpuBrain(dt) {
+      const B = DEFP.brain, qb = OK.QB; if (!B || !ball) return;
+      if (mode === 'aim' && qb && ball.holder === qb && !thrown && qb.throwT < 0 && !qb.rag && !qb.sackBy && tPlay > 0.6 && play.type !== 'qbdraw') {
+        const press = def.some((d) => !d.eng && !d.rag && d.stun <= 0 && Math.hypot(d.x - qb.x, d.z - qb.z) < 2.9);
+        let best = null, bs = -9;
+        for (const r of off) {
+          if (!isRec(r) || r.rag || r.blk === 'block' || (r.blk === 'chip' && tPlay < (r.R ? r.R.blk : 9))) continue;
+          const D0 = Math.hypot(r.x - qb.x, r.z - qb.z), arcT = D0 > 24 ? 2 : D0 > 12 ? 1 : 0;
+          let T = flightOf(D0, arcT), lp = leadPt(r, T);
+          for (let i = 0; i < 2; i++) { T = flightOf(Math.hypot(lp.x - qb.x, lp.z - qb.z), arcT); lp = leadPt(r, T); }
+          if (Math.hypot(lp.x - qb.x, lp.z - qb.z) > maxDist() || Math.abs(lp.x) > HW - 0.8 || lp.z > 109) continue;
+          let near = 99, atLp = 99;
+          for (const d of def) { if (d.rag) continue; near = Math.min(near, Math.hypot(d.x - r.x, d.z - r.z)); atLp = Math.min(atLp, Math.hypot(d.x + d.vx * T * 0.75 - lp.x, d.z + d.vz * T * 0.75 - lp.z)); }
+          const gain = lp.z - los, need = fdz - los;
+          const s = Math.min(near * 0.8, atLp) + clamp(gain / 12, -0.6, 1.1) + (gain >= need ? 0.7 : 0);
+          if (s > bs) { bs = s; best = { r, lp, arcT }; }
+        }
+        const late = tPlay > B.hold, open = best && bs > (tPlay < 1.3 ? 3.4 : 2.5);
+        if (best && (open || late || press)) {
+          if (bs < 1.4 && (late || press)) {
+            if (press && rng() < B.scramble && Math.abs(qb.x) < HW - 4) { scramble(); return; }
+            throwBall({ x: qb.x < 0 ? -HW - 4 : HW + 4, z: qb.z + 6 }, 0); return; // throw it away
+          }
+          throwBall({ x: best.lp.x + gauss() * B.err, z: best.lp.z + gauss() * B.err * 1.2 }, best.arcT);
+        } else if (!best && (late || press) && tPlay > 1.4) { if (rng() < B.scramble * dt * 4) scramble(); }
+        return;
+      }
+      if (mode === 'catch' && ctrl && ctrl.side === 0 && ball.st === 'air' && ball.cp) {
+        const c = ctrl, b = ball, tl = b.cp.t, d0 = Math.hypot(b.cp.x - c.x, b.cp.z - c.z);
+        if (tl < 0.42 && tl > 0.05 && d0 < 1.8 && b.cp.y > 2.3 && c.jumpY <= 0 && c.jumpT <= 0 && !c.jumped) { c.jumped = 1; doJump(c); }
+        else if (tl < 0.26 && d0 > 1.2 && d0 < 2.7 && !c.dove) { c.dove = 1; doDive(c); }
+        return;
+      }
+      if (mode === 'run' && carrier && carrier === ctrl && carrier.side === 0 && !carrier.rag) {
+        B.mvT -= dt; if (B.mvT > 0) return;
+        let near = null, nd = 99;
+        for (const d of def) { if (d.rag || d.eng || d.stun > 0) continue; const dd = dist(d, carrier); if (dd < nd && d.z > carrier.z - 1) { nd = dd; near = d; } }
+        if (near && nd < 2.6 && rng() < B.moveP * 10) { B.mvT = 1.2; const m = carrier.mass > 1.1 ? 'stiff' : ['juke', 'spin', 'stiff', 'juke'][(rng() * 4) | 0]; doMove(m); }
+        else B.mvT = 0.15;
+      }
+    }
+
+    // ---------- the play is over ----------
+    function defpEnd(kind, spot, extra, slid) {
+      phase = 'dead'; deadT = pile.length ? 3.0 : 2.4; mode = 'none'; ctrl = null;
+      input.stick = null; hideStick(); hideAim(); aim = null;
+      sfx.play('whistle'); closeP = null; clockRun = false;
+      const P = pr || {}, S = DEFP.st, endZ = kind === 'td' ? 100 : spot, gained = Math.round(endZ - los), who = nm(P.int || P.scoop || DEFP.ctl);
+      let head = '', sub = '', col = '#2bd46b', line = '', out = null;
+      const yd = (n) => (Math.abs(n) === 1 ? '1 yard' : Math.abs(n) + ' yards');
+      if (kind === 'td') { out = { k: 'cputd' }; head = `${AWAY.abbr} TOUCHDOWN`; col = '#ff3344'; line = `<b>${esc(AWAY.name)}</b> score from ${yd(gained)} out.`; sfx.play('boo'); }
+      else if (kind === 'pick6') { out = { k: 'pick6' }; head = P.scoop ? 'SCOOP AND SCORE!' : 'PICK SIX!'; line = `<b>${esc(who)}</b> takes it all the way back!`; sfx.play('cheer'); excite = 1; confetti(carrier ? carrier.x : 0, 0); }
+      else if (kind === 'intdown' || kind === 'fumlost') {
+        out = { k: 'ball', at: clamp(Math.round(100 - spot), 1, 99) };
+        head = kind === 'intdown' && !(P.scoop || P.fumble) ? 'INTERCEPTED!' : 'FUMBLE! YOUR BALL'; sub = 'Your ball at the ' + (out.at === 50 ? '50' : out.at < 50 ? 'your ' + out.at : 'their ' + (100 - out.at));
+        line = kind === 'intdown' && !(P.scoop || P.fumble) ? `<b>${esc(who)}</b> picks it off!` : 'Ball comes loose and your defense falls on it!'; sfx.play('cheer'); excite = 1;
+      } else if (kind === 'inc') {
+        S.dn++; head = extra && /batted|broken|swat/i.test(extra) ? 'BROKEN UP!' : 'INCOMPLETE'; sub = S.dn <= 4 ? `${ORD[Math.min(S.dn, 4)]} down` : ''; line = `Pass falls incomplete${extra ? ' (' + esc(extra.toLowerCase()) + ')' : ''}.`;
+      } else {
+        const ns = Math.round(spot * 2) / 2;
+        if (ns <= 0) { out = { k: 'safety' }; head = 'SAFETY!'; sub = `${HOME.abbr} +2`; line = 'Dropped in the end zone. Safety!'; sfx.play('cheer'); }
+        else {
+          S.spot = clamp(ns, 1, 99);
+          if (S.spot >= S.fd) { S.dn = 1; S.fd = Math.min(S.spot + 10, 100); head = `${AWAY.abbr} FIRST DOWN`; col = '#ff3344'; }
+          else { S.dn++; head = kind === 'sack' ? 'SACKED!' : gained <= 0 ? 'STUFFED!' : gained <= 3 ? 'STOPPED SHORT' : 'TACKLED'; col = gained <= 3 ? '#2bd46b' : '#c9ccd4'; }
+          sub = gained > 0 ? `+${yd(gained)}` : gained < 0 ? `${gained} yards` : 'No gain';
+          line = kind === 'sack' ? `<b>${esc(nm((OK.QB && OK.QB.sackBy) || DEFP.ctl))}</b> gets home for the sack!` : `${gained > 0 ? 'Gain of ' + yd(gained) : gained < 0 ? 'Loss of ' + yd(gained) : 'No gain'}.`;
+        }
+      }
+      if (!out && S.dn > 4) { out = { k: 'ball', at: clamp(Math.round(100 - S.spot), 1, 99) }; head = 'STOPPED ON DOWNS!'; col = '#2bd46b'; sub = 'Your ball'; sfx.play('cheer'); excite = 1; }
+      if (col === '#2bd46b' && !out) sfx.play('good');
+      S.plays++; CPUS.plays++; if (kind !== 'inc' && kind !== 'intdown' && kind !== 'pick6') CPUS.yards += gained;
+      DEFP.res = out; DEFP.log.push({ kind, gained, call: DEFP.call ? DEFP.call.id : '', stop: !out ? (S.dn > 1 || kind === 'inc') : out.k !== 'cputd' });
+      banner(head, sub, col); say(line); setControls(true);
+    }
+    // back to the drive (simulated), or the drive is over
+    function defpAfter() {
+      const S = DEFP.st, out = DEFP.res;
+      DEFP.on = false; DEFP.ctl = null; DEFP.res = null; defpFlip(false);
+      clearBanner(); closeP = null; carrier = null; kick = null; pend = null; poss = 'away';
+      let cont;
+      if (!out) cont = () => defpResume();
+      else if (out.k === 'cputd') {
+        const two = cpuTry(); addPts('away', two ? (two.good ? 8 : 6) : 7); dramaCpu('TD');
+        if (two) { banner(two.good ? '2-PT TRY GOOD' : '2-PT TRY NO GOOD', '', two.good ? '#ff3344' : '#2bd46b'); }
+        cont = () => goHome(null, true);
+      } else if (out.k === 'pick6') { addPts('home', 6); dramaCpu('INT'); poss = 'home'; cont = () => startPAT(); }
+      else if (out.k === 'safety') { addPts('home', 2); dramaCpu('DOWNS'); cont = () => goHome(35); }
+      else { dramaCpu('INT'); cont = () => goHome(out.at); }
+      boardDirty = true; setControls(true);
+      if (clock <= 0 && !(out && out.k === 'pick6')) endQuarter(out ? cont : () => startCpuDrive(clamp(Math.round(S.spot), 1, 99))); else cont();
+    }
+    function defpResume() {
+      const S = DEFP.st, clk = { q: qtr, t: clock };
+      const r = simCpu(S.spot, clk, null, S.call, { dn: S.dn, fd: S.fd, key: defpKeyCheck });
+      phase = 'cpu'; poss = 'away'; los = clamp(100 - S.spot, 1, 99); down = 1; fdz = Math.min(100, los + 10);
+      setupPlay(); hideTags();
+      CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
+      cpuD = { r, start: S.start, c0: clock, t: 0, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1), shown: false, el: el('div', 'bz-dcard'), pick: false, call: S.call, base: { plays: S.plays, yds: Math.round(S.spot - S.start) } };
+      cpuD.el.style.setProperty('--oc', OPPCSS);
+      fx.appendChild(cpuD.el); drawCard(); setControls(true);
+    }
+
+    // ---------- the defense camera: behind our defense, looking back at the offense ----------
+    function defpCam(dd, pre) {
+      if (pre || phase === 'dpre' || phase === 'dcall') return [[0, 10.5 + 5 * por, los + 17 + 3 * por], [0, 0.3, los - 3]];
+      const d = dd || DEFP.ctl, h = ball ? (ball.st === 'air' && ball.cp ? ball.cp : ball.holder || ball) : { x: 0, z: los };
+      const fx = d ? d.x * 0.45 + h.x * 0.55 : h.x, far = Math.max(d ? d.z : los, h.z), near = Math.min(d ? d.z : los, h.z);
+      return [[fx * 0.8, 8.8 + 4 * por + 0.12 * Math.min(14, far - near), far + 10.5 + 3 * por], [fx, 0.6, Math.max(near - 3, h.z - 6)]];
+    }
+    // the ring under your defender
+    function defpMarks() {
+      const d = DEFP.on ? DEFP.ctl : VS && !VS.auth && phase === 'vsw' && VS.rcIdx >= 0 && (VS.oPh === 'pre' || VS.oPh === 'live') ? everyone[VS.rcIdx] : null;
+      if (!d || d.rag) return;
+      const t = performance.now() / 1000, pulse = 0.82 + 0.18 * Math.sin(t * 6);
+      tr.ring(d.x, d.z, 0.62 * pulse, 0.86 * pulse, [0.3, 0.85, 1, 0.95], 0.05, 24);
+    }
+
+    // ---------- the controls ----------
+    function defpControls() {
+      if (phase === 'dcall') { msg('<span><b>Key play</b> · call the defense on the card</span>'); return true; }
+      if (phase === 'dpre') {
+        msg(`<span>You: <b>${esc(nm(DEFP.ctl))}</b> · ${touchy ? 'drag to move · Switch to change' : 'arrows move · Q switch'} · snap in <span class="bz-dsnap"><b>${Math.max(1, Math.ceil(DEFP.cd))}</b></span></span>`);
+        btn('bz-y', `Switch${K('Q')}`, defpSwitch, 'pointerdown').style.flex = '0 0 96px';
+        return true;
+      }
+      if (phase === 'live') {
+        msg(touchy ? '<span>Drag to move · Jump for the ball · Dive to tackle</span>' : '<span>Arrows move · SPACE jump · X dive · Q switch · SHIFT sprint</span>');
+        if (!touchy) mkSprint();
+        const g = el('div', 'bz-catch'); ctl.appendChild(g);
+        const s = el('button', 'bz-btn', `Switch${K('Q')}`); s.type = 'button'; s.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defpSwitch(); }); g.appendChild(s);
+        const d = el('button', 'bz-btn bz-r', `Dive${K('X')}`); d.type = 'button'; d.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defDive(DEFP.ctl, defDir()); }); g.appendChild(d);
+        const j = el('button', 'bz-btn bz-g', `Jump${K('SPACE')}`); j.type = 'button'; j.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defJump(DEFP.ctl); }); g.appendChild(j);
+        if (touchy) mkSprint();
+        return true;
+      }
+      if (phase === 'dead') { msg('<span>Back to the drive…</span>'); return true; }
+      return false;
+    }
 
     // ---------- snap, handoff, pitch ----------
     function snap() {
@@ -3512,7 +3829,7 @@ gl_FragColor=vec4(c,1.0);}`;
       ball = { st: 'snap', x: 0, y: 0.3, z: los, t: 0, T: under ? 0.08 : 0.24, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
       pr = { type: play.type, start: los, down, togo: fdz - los, third: down === 3, cov: dcall.name, kind: isPassPlay(play) ? 'pass' : 'rush', passer: null, tgt: null, rec: null, rusher: null, catchZ: null, yac: 0, notes: [] };
       if (play.type === 'sneak') pr.rusher = qb;
-      hist.push({ id: play.id, cat: play.cat, blitz: dcall ? dcall.blitz : 0 }); if (hist.length > 6) hist.shift();
+      if (!DEFP.on) { hist.push({ id: play.id, cat: play.cat, blitz: dcall ? dcall.blitz : 0 }); if (hist.length > 6) hist.shift(); }
       filmTell(true); filmSnap();
       for (const p of everyone) setPose(p, 'run');
       setControls(true); drivePlays++;
@@ -3556,7 +3873,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
 
     // ---------- passing: arm strength, accuracy, pressure ----------
-    const QBR = SQ.QB.r;
+    let QBR = SQ.QB.r; // swapped with the squads on a key defensive play (defpFlip)
     const maxDist = () => 26 + (QBR.thr - 30) * 0.52 - WET * 3;
     const bulletV = () => 17 + (QBR.thr - 30) * 0.13;
     function pressure() {
@@ -3882,12 +4199,12 @@ gl_FragColor=vec4(c,1.0);}`;
       const qO = clamp(1 - wO / RO, 0, 1), qD = clamp(1 - wD / (RD + 0.42), 0, 1);
       const side = clamp((Math.hypot(b.x - d.x, b.z - d.z) - Math.hypot(b.x - r.x, b.z - r.z)) / 0.9, -1, 1);
       const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.12 : 0) : 0;
-      const sees = facesBall(d);
+      const hum = isHumanDef(d), sees = hum || facesBall(d);
       const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - 0.1 * KDEF;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
-      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
       b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
       if (rng() < W) {
         const hv = Math.hypot(b.vx, b.vz);
@@ -3898,7 +4215,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       // the defender wins it: a pick if the ball was on his side and he sees it, otherwise he breaks it up
       const pI = clamp(DP.intSkill * 0.55 * (plc < -0.3 ? 1.7 : plc < 0.3 ? 0.85 : 0.4) * (sees ? 1 : 0.4) * (crowd >= 2 ? 1.7 : 1) * (b.arc === 2 ? 1.2 : b.arc === 0 ? 0.8 : 1) * (1 - WET * 0.2) * (b.y > topReach(d) - 0.1 ? 0.4 : 1) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1), 0, crowd >= 2 ? 0.5 : 0.36);
-      if (rng() < pI) { intercept(d, 'contest'); return; }
+      if (rng() < pI * (hum ? 1.3 : 1)) { intercept(d, 'contest'); return; }
       if (!b.helmet && funRoll('helmet', 0.22)) { helmetCarom(rng() < 0.5 ? d : r); return; }
       if (rng() < 0.38) tipBall(d, 'TIPPED!'); else knockDown2(d.jumpY > 0.15 ? 'SWATTED!' : 'BROKEN UP!');
     }
@@ -3906,11 +4223,11 @@ gl_FragColor=vec4(c,1.0);}`;
     function defAttempt(d) {
       const b = ball;
       d.lastTouch = tPlay; if (pr) pr.cpath = (pr.cpath ? pr.cpath + '>' : '') + 'def';
-      const ok = b.y < topReach(d) - 0.05, sees = facesBall(d), looking = tPlay >= (d.breakAt || 0);
+      const hum = isHumanDef(d), ok = b.y < topReach(d) - 0.05, sees = hum || facesBall(d), looking = hum || tPlay >= (d.breakAt || 0);
       let pI = DP.intSkill * 0.95 * (b.arc === 2 ? 1.25 : b.arc === 0 ? 0.75 : 1) * (ok ? 1 : 0.35) * (1 - WET * 0.15) * (sees ? 1 : 0.35);
       if (!target || dist(target, b) > 4) pI = pI * 1.6 + 0.1;
       if (!looking) pI *= 0.3;
-      pI = Math.min(0.45, pI) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1);
+      pI = Math.min(hum ? 0.55 : 0.45, pI * (hum ? 1.3 : 1)) * (PK.laser ? 0.5 : 1) * (PK.rainbow ? 0.3 : 1);
       if (rng() < pI) { intercept(d, 'undercut'); return; }
       if (rng() < DP.deflect * 1.6 * (looking ? 1 : 0.5) * (sees ? 1 : 0.6) + (d.jumpY > 0.2 ? 0.2 : 0)) { if (rng() < 0.4) tipBall(d, 'TIPPED!'); else knockDown2('SWATTED!'); return; }
     }
@@ -4012,6 +4329,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- user input direction ----------
     function userDir() {
+      if (DEFP.on) return null; // a key defensive play: the stick is for your defender (defDir), their offense runs itself
       if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.25) { const l = Math.hypot(input.stick[0], input.stick[1]); return [input.stick[0] / l, input.stick[1] / l]; }
       const ix = input.r - input.l; let iz = input.u - input.d;
       if (!ix && !iz) return null;
@@ -4116,7 +4434,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function carrierStep(c, dt) {
       for (const k in c.mvCd) if (c.mvCd[k] > 0) c.mvCd[k] -= dt;
       if (c.mvT > 0) c.mvT -= dt; else c.mv = null;
-      if (c === ctrl) staminaStep(c, dt, input.sprint);
+      if (c === ctrl) staminaStep(c, dt, DEFP.on || input.sprint);
       let spd = effV(c);
       if (c.rag) { if (c.downAt && tPlay >= c.downAt) { c.downAt = 0; resolveDown(c); } return; } // on the ground: no steering, the play ends when he is ruled down
       // a dive ends on the ground: he is down where the ball lands (the integrate step counts diveT down; it used to be ticked
@@ -4721,11 +5039,12 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function addHL(s) { if (HL.length < 10) HL.push(s); }
     function celebrate(c) { funCelebrate(c); }
-    function nm(p) { return p && p.sq ? shortName(p.sq.name) : p && p.side === 1 ? AWAY.abbr + ' #' + p.num : 'he'; }
+    function nm(p) { return p && p.sq ? shortName(p.sq.name) : p && p.side === 1 ? (DEFP.flipped ? HOME.abbr : AWAY.abbr) + ' #' + p.num : 'he'; }
 
     // ---------- end of a play ----------
     function endPlay(kind, spot, extra, slid) {
       if (phase !== 'live' || finished) return;
+      if (DEFP.on) { defpEnd(kind, spot, extra, slid); return; } // a key defensive play: the result goes back into their drive
       phase = 'dead'; deadT = pile.length ? 3.1 : 2.2; mode = 'none'; ctrl = null;
       input.stick = null; hideStick(); hideAim(); aim = null; input.sprint = false;
       sfx.play('whistle');
@@ -4950,9 +5269,10 @@ gl_FragColor=vec4(c,1.0);}`;
     // drives a game, more when the player's drives stall)
     // (curve retuned: about 1.4 / 2.7 / 4.3 / 5.2 points per full drive, so roughly 10 / 18 / 27 / 33 a game at Rookie / Pro / All-Pro / Legend)
     // (the play table now comes from cpuTable in 71-drama.js, per drive: the comeback logic, a hot CPU and the defensive call)
-    function simCpu(spot, clk, log, call) {
+    // o: { dn, fd } to pick a drive up mid-way (after a key play), key(spot, dn, fd, clk, lead, plays) to stop it before a key play
+    function simCpu(spot, clk, log, call, o) {
       const CD = cpuTable(call), RZ = CD.rz ? Object.assign({}, CD, { g: CD.g * CD.rz.g, big: CD.big * CD.rz.big, loss: CD.loss * CD.rz.loss, inc: CD.inc * CD.rz.inc }) : CD; // a call that changes inside the 20
-      const start = spot; let dn = 1, fd = spot + 10, plays = 0, used = 0, yds = 0;
+      const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || spot + 10, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
       const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t) });
       const tick = (t) => { t = Math.min(t, clk.t); used += t; clk.t -= t; };
@@ -4964,6 +5284,7 @@ gl_FragColor=vec4(c,1.0);}`;
           return fin(rng() < clamp(CD.fg * (1.25 - (d - 20) * 0.012), 0.2, 0.97) ? 'FG' : 'MISS');
         }
         if (dn === 4 && !(fd - spot <= CD.go4 && spot >= 40) && !(clk.q >= 4 && lead < 0 && clk.t < QS * 1.2)) { tick(6); plays++; return fin('PUNT'); }
+        if (o && o.key && o.key(spot, dn, fd, clk, lead, plays)) return Object.assign(fin('KEY'), { dn, fd }); // a key play: played live (33-defplay.js)
         const r = rng(), T = spot >= 80 ? RZ : CD;
         let g, stop = false;
         if (r < T.loss) g = -1 - Math.floor(rng() * 5);
@@ -5007,7 +5328,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function chooseCall(call) {
       const d = cpuD; if (!d || !d.pick) return;
       d.pick = false; call = DEFCALL[call] ? call : 'base'; DRAMA.call = call; DRAMA.calls[call] = (DRAMA.calls[call] || 0) + 1;
-      const clk = { q: qtr, t: clock }, r = simCpu(d.start, clk, null, call);
+      const clk = { q: qtr, t: clock }, r = simCpu(d.start, clk, null, call, { key: defpKeyCheck });
       if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = 100; } // tests: force the drive's result
       CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       Object.assign(d, { r, c0: clock, t: 0, call, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1) }); // clutch: the drive plays out slower
@@ -5025,7 +5346,7 @@ gl_FragColor=vec4(c,1.0);}`;
       return { good: DBG && DBG.cpuTwoGood != null ? !!DBG.cpuTwoGood : rng() < p };
     }
     function drawCard() {
-      const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, n = Math.max(1, Math.round(r.plays * k)), y = Math.round(r.yds * k);
+      const d = cpuD, k = Math.min(1, d.t / d.dur), r = d.r, B = d.base || { plays: 0, yds: 0 }, n = Math.max(1, B.plays + Math.round(r.plays * k)), y = B.yds + Math.round(r.yds * k);
       const res = d.shown ? RES[r.res] : null;
       const label = r.res === 'CLOCK' ? (qtr === 2 ? 'END OF HALF' : qtr >= 4 ? 'TIME RUNS OUT' : 'END OF QUARTER') : res ? res[0] : '';
       d.el.innerHTML = `<h3>${esc(AWAY.name)} drive</h3><p>Plays <b>${n}</b> · Yards <b>${y}</b></p><p>Started at their ${d.start} · your defense: <b>${DEFCALL[d.call || 'base'].name}</b></p>` +
@@ -5036,6 +5357,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (d.pick) { const was = Math.ceil(d.pickT); d.pickT -= dt; if (d.pickT <= 0) chooseCall(d.sug); else { if (Math.ceil(d.pickT) !== was) { const b = d.el.querySelector('.bz-dct b'); if (b) b.textContent = Math.ceil(d.pickT); } const bar = d.el.querySelector('.bz-dtm i'); if (bar) bar.style.width = (d.pickT / PICK_T * 100).toFixed(1) + '%'; } return; }
       d.t += dt;
       clock = d.c0 + (d.r.t - d.c0) * Math.min(1, d.t / d.dur);
+      if (!d.shown && d.t >= d.dur && d.r.res === 'KEY') { clock = d.r.t; d.el.remove(); cpuD = null; defpBegin(d.r, d); return; } // the drive stops for a key play
       if (!d.shown && d.t >= d.dur) {
         d.shown = true; clock = d.r.t;
         if (d.r.res === 'TD') { const two = cpuTry(); d.r.two = two; addPts('away', two ? (two.good ? 8 : 6) : 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
@@ -6189,6 +6511,8 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (phase === 'vsw') { vsStep(dt); return; } // head to head: watching the other side's possession
       if (phase === 'vsk') { vsCardStep(dt); vsOnsStep(dt); idle(dt); return; } // head to head: picking our kickoff
+      if (phase === 'dcall') { vsCardStep(dt); idle(dt); return; } // a key defensive play: the call
+      if (phase === 'dpre') { defpPreStep(dt); idle(dt); return; } // lined up: they snap it in a moment
       if (phase === 'pre') {
         if (VS && VS.waitD) { VS.waitT -= dt; if (VS.waitT <= 0) vsNoCall(); }
         if (intro > 0) { intro -= dt; if (intro <= 0) clearBanner(); }
@@ -6205,6 +6529,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (closeP && deadTot - deadT > 0.5 && closeP.celType == null && !closeP.leap) { const c = closeP; if (c.rag) riseUp(c); c.rising = 0; c.face2 = 0; setPose(c, 'celebrate', true); c.celType = 2; }
         if (ball && (ball.st === 'dead' || ball.st === 'loose' || ball.st === 'kick')) groundStep(ball, dt);
         deadT -= dt;
+        if (deadT <= 0 && DEFP.on) { defpAfter(); return; }
         if (deadT <= 0) { if (!VS && lastBig && (lastBig.kind === 'td' || lastBig.want) && !lastBig.played && replayBuf.length > 20) startReplay(); else nextPlay(); }
         return;
       }
@@ -6220,6 +6545,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function idle(dt) { for (const p of everyone) { if (p.rag) continue; p.vx *= 0.8; p.vz *= 0.8; integrate(p, dt); } }
     function liveStep(dt) {
       tPlay += dt;
+      if (DEFP.on) cpuBrain(dt); // a key defensive play: the CPU plays the offense
       if (tPlay < 1.2) for (const d of def) if (d.whiff > 0 && tPlay > 0.15 && !thrown) { d.stun = Math.max(d.stun || 0, d.whiff); d.whiff = 0; } // Press Man: a corner who lost the jam stumbles off the line
       // no clock on a try (two-point plays are untimed), and on a kickoff it starts only when the returner has the ball (not while
       // it is in the air, on a touchback, or on an onside kick, timing bar included)
@@ -6344,7 +6670,7 @@ gl_FragColor=vec4(c,1.0);}`;
       { id: 'onside', name: 'Onside kick', sub: 'Time it: a better kick, better odds' },
     ];
     const VS_PH = ['pre', 'live', 'dead', 'kick', 'pat', 'break', 'replay', 'koc', 'over'];
-    const VS_HDR = 22, VS_DELAY = 140, VS_CALL_T = 5, VS_KICK_T = 8;
+    const VS_HDR = 23, VS_DELAY = 140, VS_CALL_T = 5, VS_KICK_T = 8;
     const vsT0 = performance.now();
     let vsCardEl = null, vsBadgeEl = null;
 
@@ -6400,6 +6726,7 @@ gl_FragColor=vec4(c,1.0);}`;
       setControls(true);
     }
     function vsSetup(kind, extra) {
+      vsRcSetup(kind);
       VS.lastSetup = Object.assign({ kind, form: play.form, flip: flip ? 1 : 0, los, down, fdz, try: tryMode ? 1 : 0, n: everyone.length }, extra || {});
       vsSend('setup', Object.assign({ kind, form: play.form, flip: flip ? 1 : 0, los, down, fdz, try: tryMode ? 1 : 0, n: everyone.length }, extra || {}));
       VS.sendT = 0;
@@ -6489,6 +6816,7 @@ gl_FragColor=vec4(c,1.0);}`;
       f[4] = cam.e[0]; f[5] = cam.e[1]; f[6] = cam.e[2]; f[7] = cam.c[0]; f[8] = cam.c[1]; f[9] = cam.c[2]; f[10] = cam.shake; f[11] = cam.kick;
       f[12] = qtr; f[13] = clock; f[14] = (phase === 'live' && !kick && ball && (ball.st === 'air' && ball.kind === 'pass' || OK.QB && OK.QB.throwT >= 0 && ball.holder === OK.QB) ? 1 : 0) | (VS.waitD ? 2 : 0);
       f[15] = down; f[16] = los; f[17] = fdz; f[18] = hs; f[19] = as; f[20] = playClock; f[21] = toLeft;
+      f[22] = VS.rc && VS.rc.d && (phase === 'pre' || phase === 'live' || phase === 'dead') ? everyone.indexOf(VS.rc.d) : -1; // the defender the other side controls
       let o = VS_HDR;
       for (const p of everyone) {
         f[o] = p.x; f[o + 1] = p.jumpY; f[o + 2] = p.z; f[o + 3] = p.h; f[o + 4] = POSES.indexOf(p.pose); f[o + 5] = p.poseT; f[o + 6] = p.vx; f[o + 7] = p.vz;
@@ -6534,6 +6862,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = a.h, k = b.h, L = (j) => h[j] + (k[j] - h[j]) * u;
       VS.cam = { e: [L(4), L(5), L(6)], c: [L(7), L(8), L(9)], sh: h[10], kick: h[11] };
       qtr = h[12]; clock = L(13); down = h[15]; los = h[16]; fdz = h[17]; hs = h[19]; as = h[18]; playClock = h[20];
+      { const ri = h[22] != null ? h[22] | 0 : -1; if (ri !== VS.rcIdx) { VS.rcIdx = ri; setControls(true); } }
+      vsDefIn(dt);
       const ph = VS_PH[h[3]] || '', air = !!(h[14] & 1);
       if (ph !== VS.oPh || air !== VS.air) { VS.oPh = ph; VS.air = air; setControls(true); if (ph === 'live') vsHideCard(true); }
     }
@@ -6573,6 +6903,38 @@ gl_FragColor=vec4(c,1.0);}`;
       if (everyone.length !== d.n) console.warn('versus: line-up size', everyone.length, 'vs', d.n, d.kind);
       if (d.kind !== 'scrim') { VS.reacted = false; vsHideCard(); }
     }
+
+    // ---------- on defense: you play a defender (33-defplay.js) ----------
+    // In charge (our ball): the other side controls one of our defenders: its stick, sprint and buttons arrive as 'din' / 'dact'.
+    // Every snap starts on the man they had last (the free safety at first); the frames carry his index so their screen can ring him.
+    function vsRcSetup(kind) {
+      if (kind !== 'scrim') { VS.rc = null; return; }
+      VS.rc = { d: DK[VS.rcKey || 'FS'] || DK.FS || def[0] || null, dir: null, sprint: false, at: 0, manT: -9 };
+    }
+    function vsDefAct(a) {
+      const R = VS.rc; if (!R) return;
+      if (a === 'switch') {
+        let n = null;
+        if (phase === 'pre' || phase === 'dead') { const i = DEF_ORDER.indexOf(R.d ? R.d.key : 'FS'); n = DK[DEF_ORDER[(i + 1) % DEF_ORDER.length]]; if (n) VS.rcKey = n.key; }
+        else if (phase === 'live') n = nearestDefToBall(R.d);
+        if (n) { R.d = n; R.manT = -9; R.dir = null; }
+        return;
+      }
+      if (phase !== 'live' || !R.d) return;
+      if (a === 'jump') defJump(R.d);
+      else if (a === 'dive') defDive(R.d, R.dir);
+    }
+    // watching their ball: send our stick (in field terms: this screen uses the defense camera) and buttons
+    function vsDefIn(dt) {
+      if (VS.auth || phase !== 'vsw' || !(VS.oPh === 'live' || VS.oPh === 'pre')) { VS.dinT = 0; return; }
+      const d = defDir(), q = d ? [Math.round(d[0] * 10) / 10, Math.round(d[1] * 10) / 10] : null, key = (q ? q.join(',') : '-') + (input.sprint ? 's' : '');
+      VS.dinT = (VS.dinT || 0) - dt;
+      if (key !== VS.dinK) { if (VS.dinT > 0.2) return; } // a change: send it (at most every 50 ms)
+      else if (!q || VS.dinT > 0) return; // held: refresh every 250 ms so the other screen knows we are still on it
+      VS.dinK = key; VS.dinT = 0.25;
+      vsSend('din', { d: q, s: input.sprint ? 1 : 0 });
+    }
+    function vsDefTap(a) { if (phase !== 'vsw' || !(VS.oPh === 'live' || VS.oPh === 'pre')) return; vsSend('dact', { a }); sfx.play('tap'); }
 
     // ---------- on defense: the call ----------
     const vsSpot = (z) => (z === 50 ? 'midfield' : z > 50 ? 'your ' + Math.round(100 - z) : 'their ' + Math.round(z));
@@ -6644,6 +7006,8 @@ gl_FragColor=vec4(c,1.0);}`;
           if (phase === 'pre') { VS.waitD = false; setupPlay(); setControls(true); }
           break;
         case 'react': if (VS.auth) vsJump(); break;
+        case 'din': if (VS.auth && VS.rc) { VS.rc.dir = Array.isArray(d.d) ? [clamp(+d.d[0] || 0, -1, 1), clamp(+d.d[1] || 0, -1, 1)] : null; VS.rc.sprint = !!d.s; VS.rc.at = performance.now(); } break;
+        case 'dact': if (VS.auth && VS.rc) vsDefAct(String(d.a || '')); break;
         case 'to': if (VS.auth) vsTheirTimeout(); break;
       }
     }
@@ -6710,12 +7074,16 @@ gl_FragColor=vec4(c,1.0);}`;
         return [[p.x * 0.85 + vx * 0.1, hgt, p.z - dir * bk + vz * 0.05], [p.x * 0.95 + vx * 0.2, 0.9, p.z + dir * (6 - 2 * por) + vz * 0.12]];
       };
       replayCam = 0;
-      if (phase === 'vsw' && VS && VS.cam) { // head to head: the other side's own camera
+      if (phase === 'vsw' && VS && VS.rcIdx >= 0 && everyone[VS.rcIdx] && (VS.oPh === 'pre' || VS.oPh === 'live')) { // head to head on defense: behind our defense, on the man we play
+        [e, c] = defpCam(everyone[VS.rcIdx], VS.oPh === 'pre'); rate = 4.5;
+      } else if (phase === 'vsw' && VS && VS.cam) { // head to head: the other side's own camera
         e = VS.cam.e; c = VS.cam.c; rate = 12; cdk = 1; cam.shake = Math.max(cam.shake, VS.cam.sh || 0); cam.kick = Math.max(cam.kick, VS.cam.kick || 0);
       } else if (phase === 'replay' && replay && ball) {
         const a = replay.orbit + replay.t * 0.35, bx = ball.x || 0, bz = ball.z || los;
         e = [bx + Math.sin(a) * (5.5 + 3 * por), 1.6 + 2.0 * por, bz + Math.cos(a) * (5.5 + 3 * por) - 1.5]; c = [bx, 1.0, bz]; rate = 5; cdk = LENSK * 0.8; replayCam = 1;
-      } else if (phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'over' || phase === 'box' || phase === 'vsw') {
+      } else if (DEFP.on && (phase === 'dpre' || phase === 'live' || phase === 'dead')) { // a key defensive play: behind our defense
+        [e, c] = defpCam(); rate = phase === 'live' ? 4.2 : 3;
+      } else if (phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'over' || phase === 'box' || phase === 'vsw' || phase === 'dcall') {
         const t = performance.now() / 1000 * 0.07, z0 = phase === 'splash' ? los : 50;
         e = [Math.sin(t) * 26, 14 + 8 * por, z0 - 4 - Math.cos(t) * 30]; c = [0, 0.5, z0 + 4];
       } else if (closeP && phase === 'dead' && deadTot - deadT > 0.35) {
@@ -7130,7 +7498,8 @@ gl_FragColor=vec4(c,1.0);}`;
       else drawBall(dyn, ball.x, Math.max(0.15, ball.y), ball.z, 0.6, ball.rolling ? 1.57 : 0.9, ball.spin || 0, true);
     }
     function drawMarks(now) {
-      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat' || phase === 'koc';
+      defpMarks();
+      const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat' || phase === 'koc' || phase === 'dpre';
       const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && phase !== 'koc';
       if (scrim && !tryMode) {
         tr.seg(-HW, los, HW, los, 0.26, [0.25, 0.55, 1, 0.7], 0.03);
@@ -7224,6 +7593,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     function updTags() {
+      if (DEFP.on || phase === 'dcall') { hideTags(); return; } // a key defensive play: their receivers carry no tags
       const pre = phase === 'pre' && !sheetOpen && intro <= 0, aiming = phase === 'live' && mode === 'aim';
       tagL.classList.toggle('live', phase !== 'pre');
       for (const k of tagKeys) {
@@ -7788,9 +8158,10 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function msg(h) { const m = el('div', 'bz-msg', h); ctl.appendChild(m); return m; }
     function setControls(force) {
-      let key = (VS ? [VS.air, VS.reacted, VS.oPh, VS.waitD, VS.picked, toLeft].join(',') + '|' : '') + phase + '|' + mode + '|' + sheetOpen + '|' + (down === 4 && !go4) + '|' + tryMode + '|' + (kick ? kick.type + kick.st + (kick.tbOK ? 1 : 0) : '') + '|' + (lastBig ? lastBig.kind : '');
+      let key = (VS ? [VS.air, VS.reacted, VS.oPh, VS.waitD, VS.picked, toLeft, VS.rcIdx].join(',') + '|' : '') + (DEFP.on ? 'D' + (DEFP.ctl ? DEFP.ctl.key : '') + '|' : '') + phase + '|' + mode + '|' + sheetOpen + '|' + (down === 4 && !go4) + '|' + tryMode + '|' + (kick ? kick.type + kick.st + (kick.tbOK ? 1 : 0) : '') + '|' + (lastBig ? lastBig.kind : '');
       if (key === ctlKey && !force) return;
       ctlKey = key; ctl.innerHTML = ''; mvBtns = null; sprintBtn = null; staCache = -1;
+      if ((DEFP.on || phase === 'dcall') && defpControls()) return; // a key defensive play (33-defplay.js)
       if (phase === 'pre') {
         if (sheetOpen) return;
         if (down === 4 && !go4 && !tryMode) {
@@ -7852,7 +8223,15 @@ gl_FragColor=vec4(c,1.0);}`;
         if (lastBig && lastBig.kind !== 'td' && !lastBig.played) btn('', 'Replay', () => { if (lastBig) lastBig.want = true; sfx.play('tap'); }).style.flex = '0 0 86px';
         if (poss === 'home' && pend && !pend.next) btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
       } else if (phase === 'vsw') { // head to head: their ball, our defense
-        if (VS.air && !VS.reacted) btn('bz-r bz-wide', `Jump the route!<small>send the nearest defender after it</small>${K('J')}`, vsJumpTap, 'pointerdown');
+        if (VS.rcIdx >= 0 && (VS.oPh === 'live' || VS.oPh === 'pre')) { // you play a defender: move, jump, dive, switch
+          msg(VS.oPh === 'pre' ? `<span>You: <b>${esc(nm(everyone[VS.rcIdx]))}</b> · ${touchy ? 'Switch to change' : 'Q switch'}${VS.picked ? ' · <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>` : (touchy ? '<span>Drag to move · Jump · Dive</span>' : '<span>Arrows move · SPACE jump · X dive · Q switch · J jump the route</span>'));
+          if (!touchy && VS.oPh === 'live') mkSprint();
+          const g = el('div', 'bz-catch'); ctl.appendChild(g);
+          const mk = (cls, html, a) => { const b = el('button', 'bz-btn ' + cls, html); b.type = 'button'; b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); vsDefTap(a); }); g.appendChild(b); };
+          mk('', `Switch${K('Q')}`, 'switch');
+          if (VS.oPh === 'live') { mk('bz-r', `Dive${K('X')}`, 'dive'); mk('bz-g', `Jump${K('SPACE')}`, 'jump'); }
+          if (touchy && VS.oPh === 'live') mkSprint();
+        } else if (VS.air && !VS.reacted) btn('bz-r bz-wide', `Jump the route!<small>send the nearest defender after it</small>${K('J')}`, vsJumpTap, 'pointerdown');
         else msg(`<span><b>${esc(AWAY.name)}</b> ${VS.oPh === 'live' ? 'run a play' : 'have the ball'}${VS.picked ? ' · your call: <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>`);
         if (VS.oPh === 'pre' || VS.oPh === 'dead') btn('bz-to' + (toLeft > 0 ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, vsTimeout);
       } else if (phase === 'vsk') {
@@ -8073,7 +8452,7 @@ gl_FragColor=vec4(c,1.0);}`;
       phase = 'box'; setControls(true); hideTags();
       const vw = VS ? vsWon() : null, won = vw != null ? vw : hs > as, tie = vw == null && hs === as;
       const rows = (keys, f) => keys.map((k) => f(k)).filter(Boolean).join('');
-      const mine = VS ? Object.values(VS.flipped ? SQ2 : SQ) : SQL, myK = VS && VS.flipped ? KR2 : KR; // head to head: only our own players
+      const mine = VS ? Object.values(VS.flipped ? SQ2 : SQ) : Object.values(DEFP.flipped ? SQ2 : SQ), myK = VS && VS.flipped ? KR2 : KR; // head to head: only our own players
       const pl = mine.filter((q, i, A) => q.pid && ST[q.pid] && A.findIndex((x) => x.pid === q.pid) === i);
       const S = (q) => ST[q.pid];
       const pass = rows(pl, (q) => S(q).passAtt ? `<tr><td>${esc(q.name)}</td><td>${S(q).passCmp}/${S(q).passAtt}</td><td>${S(q).passYds}</td><td>${S(q).passTD}</td><td>${S(q).passInt}</td><td>${S(q).sacked}</td></tr>` : '');
@@ -8172,12 +8551,16 @@ gl_FragColor=vec4(c,1.0);}`;
       if (e.key === 'Shift') { input.sprint = dn; e.preventDefault(); return; }
       if (!dn) return;
       const c = e.code;
+      if (DEFP.on || phase === 'dcall') { defpKey(c, e); return; } // a key defensive play: your defender's buttons
       if (c === 'KeyT' && phase === 'pre') { callTimeout(); return; }
       if (VS && (phase === 'vsw' || phase === 'vsk')) { // head to head: the defense call or the kick by number, J to jump the route, T timeout
         if (phase === 'vsk' && VS.ons && (c === 'Space' || c === 'Enter')) { e.preventDefault(); vsOnsideTap(false); return; }
         const kk = /^(Digit|Numpad)[0-9]$/.test(c) ? c.slice(-1) : c === 'Minus' || c === 'NumpadSubtract' ? '-' : c === 'Equal' || c === 'NumpadAdd' ? '=' : null; // 1-9, 0, - and = along the number row
         if (kk != null && vsCardEl && vsCardEl.fn) { const ids = phase === 'vsk' ? VS_KICKS : VS_CALLS, it = ids[VS_KEYS.indexOf(kk)]; if (it) { e.preventDefault(); vsCardEl.fn(it.id); } return; }
         if (c === 'KeyJ') { e.preventDefault(); vsJumpTap(); return; }
+        if (phase === 'vsw' && (c === 'Space' || c === 'Enter')) { e.preventDefault(); vsDefTap('jump'); return; }
+        if (phase === 'vsw' && (c === 'KeyX' || c === 'KeyC')) { e.preventDefault(); vsDefTap('dive'); return; }
+        if (phase === 'vsw' && (c === 'KeyQ' || c === 'Tab' || c === 'KeyE')) { e.preventDefault(); vsDefTap('switch'); return; }
         if (c === 'KeyT') { vsTimeout(); return; }
         return;
       }
@@ -8228,7 +8611,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // edge, an app switch mid-drag. So the finger is forgotten whenever its lift can't come: the page hides or loses focus,
     // its capture is lost, a new play is snapped, or it no longer fits what is happening on the field.
     function resetPtr() { if (aim) { aim = null; try { hideAim(); } catch (e) {} } pid = null; origin = null; ptype = ''; input.stick = null; try { hideStick(); } catch (e) {} }
-    const ptrStale = () => pid != null && (ptype === 'aim' ? !(phase === 'live' && mode === 'aim') : ptype === 'stick' ? !(phase === 'live' && (mode === 'run' || mode === 'catch')) : true);
+    const ptrStale = () => pid != null && (ptype === 'aim' ? !(phase === 'live' && mode === 'aim') : ptype === 'stick' ? !(DEFP.on ? phase === 'live' || phase === 'dpre' : phase === 'vsw' ? true : phase === 'live' && (mode === 'run' || mode === 'catch')) : true);
     stage.addEventListener('pointerdown', (e) => {
       if (finished) return;
       if (touchy && !aligned()) { scrollIn(); e.preventDefault(); return; } // first touch while the game is scrolled out of view: bring it back, nothing else
@@ -8239,6 +8622,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'replay') { endReplay(); return; }
       if (pid != null && (e.pointerId === pid || ptrStale() || performance.now() - ptT > 8000)) resetPtr(); // the old finger is gone
       if (pid != null) { if (ptype === 'aim' && e.pointerId !== pid) { setArc(arc === 0 ? 1 : 0); e.preventDefault(); } return; } // second finger while aiming: Touch <-> Bullet only (Lob -> Bullet); Lob is its own button or the 3 key
+      if ((DEFP.on && (phase === 'live' || phase === 'dpre')) || (phase === 'vsw' && VS && VS.rcIdx >= 0 && VS.oPh === 'live')) { // a key defensive play, or Head to Head on defense: drag to move your defender
+        pid = e.pointerId; ptype = 'stick'; ptT = performance.now(); origin = [x, y]; input.stick = [0, 0];
+        try { stage.setPointerCapture(e.pointerId); } catch (er) {}
+        stickEl.style.display = 'block'; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.firstChild.style.transform = '';
+        e.preventDefault(); return;
+      }
       if (phase === 'live' && mode === 'aim') {
         pid = e.pointerId; ptype = 'aim'; ptT = performance.now();
         aim = { ax: x, ay: y, px: x, py: y, dur: 0, spot: null, tgt: null };
@@ -8397,6 +8786,9 @@ gl_FragColor=vec4(c,1.0);}`;
       swipe(ux, uz, k) { if (mode !== 'aim') return false; const D = Math.max(3, Math.min(1, k || 1) * maxDist()); return throwBall({ x: OK.QB.x + ux * D, z: OK.QB.z + uz * D, D }, arc); },
       kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } }, pat() { if (phase === 'pre') { closeSheet(); startPAT(); } }, get pendLos() { return pend ? pend.los : null; }, get film() { return FILM; }, simDrives(call, n, start) { const R = { n, pts: 0, TD: 0, FG: 0, INT: 0, FUMBLE: 0, PUNT: 0, DOWNS: 0, MISS: 0, CLOCK: 0, used: 0, plays: 0, yds: 0 }; for (let i = 0; i < n; i++) { const r = simCpu(start || 25, { q: 1, t: 9999 }, null, call); R[r.res]++; R.pts += r.res === 'TD' ? 7 : r.res === 'FG' ? 3 : 0; R.used += r.used; R.plays += r.plays; R.yds += r.yds; } return R; },
       get playClock() { return playClock; }, set playClock(v) { playClock = v; }, get cpuStats() { return CPUS; }, get cpuCS() { return CS; },
+      get defp() { return DEFP; }, defpCall(id) { if (phase === 'dcall') defpCall(id); }, defpSwitch() { defpSwitch(); }, defJump() { defJump(DEFP.ctl); }, defDive() { defDive(DEFP.ctl, defDir()); }, // key defensive plays (tests)
+      vsDefTap(a) { vsDefTap(a); }, get everyone() { return everyone; },
+      get dbgHuman() { const R = VS && VS.rc; return R && R.d ? { hum: isHumanDef(R.d), dir: hdDir(), age: Math.round(performance.now() - R.at), key: R.d.key, z: R.d.z, vz: R.d.vz, eng: !!R.d.eng, stun: R.d.stun, rag: !!R.d.rag, rising: R.d.rising, phase, t: tPlay, inDef: def.includes(R.d) } : null; },
       cpuSim(start, q, t) { const log = [], r = simCpu(start, { q: q || 1, t: t == null ? QS : t }, log); return { r, log }; },
       fumble() { if (phase === 'live' && carrier && ball && ball.holder === carrier) { fumble(carrier); return true; } return false; },
       get cssW() { return cssW; }, get cssH() { return cssH; }, project(x, y, z) { return project(x, y, z); },

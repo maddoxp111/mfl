@@ -76,6 +76,18 @@ const UPDATES = [
       'Pack boxes: buy 5, 10 or 20 of the same pack for 5%, 10% or 15% off. They open back to back: flip the pack, press Next for the next one, and see the whole box at the end.',
     ],
   },
+  {
+    n: 8,
+    date: '2026-11-07',
+    title: 'Play defense in 3D Blitz',
+    items: [
+      "Key defensive plays: 2 to 4 times a game the CPU's biggest snaps are played live instead of simulated (3rd and 4th downs, the red zone, the two-minute drill, a one-score game late).",
+      'You call a real defense (Cover 2, Cover 3, Cover 4, Man, Man Blitz, Zone Blitz, All-Out Blitz, Disguise, Prevent, Press Man, QB Spy, Stack the Box), then play a defender yourself: arrows or drag to move, SHIFT to sprint, SPACE to jump for the ball, X to dive at a runner or a pass, Q to switch to the defender nearest the ball. Leave the stick alone and he plays his assignment.',
+      'The CPU runs a real play against you: its quarterback reads the field and throws to the open man, scrambles or throws it away, and its runners juke and spin. A stop, a sack or a pick goes straight back into the drive.',
+      'Your defenders are your own Lineup players, and a defender you steer reads the ball better than the AI: time your jump and the pick is yours.',
+      'Head to Head: on defense you now play a defender live too, with the same buttons, on top of calling the play.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
