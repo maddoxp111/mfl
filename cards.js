@@ -488,6 +488,23 @@ const TIERS = {
 };
 TIERS.zenith = { name: 'Peak', lv: 7, top: [6, 5, 4], rest: 2, shrink: 99, text: '+6 / +5 / +4 to the top three skills, +2 to every other skill, every downside shrinks by 1. Perk level 7: maxed out, always on.' };
 const tierOf = (rarity) => ({ id: rarity, rarity: (RARITIES[rarity] || RARITIES.common).name, ...(TIERS[rarity] || TIERS.common) });
+// ---------- card overall ----------
+// Every card has its own overall (OVR), and it is the number that says how good the card is. Each rarity covers a
+// band of overalls; where a card lands in its band follows the player's own rating (40-99), so a better player's
+// card of the same rarity is higher. Within a rarity, the stronger versions (a bigger fantasy multiplier than the
+// rarity's own) sit up to 3 higher and the weaker ones up to 2 lower, and a 1 of 1 adds 1 more. In the games a
+// card plays at its overall (arcade.js cardAttrs). A variant's own `rating` (Big Doh Mi) wins.
+const OVR_BAND = { common: [50, 89], rare: [55, 93], epic: [61, 95], legendary: [69, 97], mythic: [77, 98], dark: [86, 99], zenith: [91, 99] };
+function cardOvr(card, rating) {
+  if (!card) return null;
+  if (card.rating) return card.rating;
+  const [lo, hi] = OVR_BAND[card.rarity] || OVR_BAND.common;
+  const q = Math.max(0, Math.min(1, ((Number(rating) || 60) - 40) / 59));
+  const R = RARITIES[card.rarity] || RARITIES.common;
+  const step = Math.max(-2, Math.min(3, Math.round(((card.mult || R.mult) / R.mult - 1) * 10))) + (card.one ? 1 : 0);
+  return Math.max(40, Math.min(99, Math.round(lo + (hi - lo) * q + step)));
+}
+
 // A card's perk: { id, name, text, when, lv }. Set cards use their set's perk.
 function perkOf(card) {
   if (typeof card === 'string') card = { variant: card.includes(':') ? card.slice(card.indexOf(':') + 1) : card };
@@ -1111,4 +1128,4 @@ function fantasy(db, user, mvpOf) {
 }
 
 module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
-  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf };
+  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr };

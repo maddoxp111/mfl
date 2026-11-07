@@ -197,6 +197,26 @@ function playerAttrs(db, team, player) {
   out.ovr = has('ovr') ? clampN(Math.round(+a.ovr), 0, 99) : attrOvr(base, out);
   return out;
 }
+// A player on a card plays at the card's overall (cards.cardOvr): on average the player's skills sit as far above (or
+// below) their own ratings as the card's overall is from the player's rating. The card's own changes (cards.cardEffects) only decide which
+// skills sit higher or lower than that, so they never stack on top of the overall. `shift` is the move every skill gets
+// before the card's own changes. Returns { base, attr, shift, ovr, eff }.
+function cardAttrs(db, team, player, card) {
+  const t = typeof team === 'string' ? db.teams[team] : team;
+  const p = typeof player === 'string' ? t && t.roster.find((x) => x.id === player) : player;
+  const base = t && p ? playerAttrs(db, t, p) : null;
+  if (!base) return null;
+  if (!card) return { base, attr: base, shift: 0, ovr: base.ovr, eff: null };
+  const rating = rateFn ? rateFn(db, t, p) : base.ovr;
+  const ovr = cards.cardOvr(card, rating);
+  const eff = cards.cardEffects(card), d = (eff && eff.attr) || {}, dv = (k) => Math.round(+d[k]) || 0;
+  const avgD = SKILL_KEYS.reduce((s, k) => s + dv(k), 0) / SKILL_KEYS.length;
+  const shift = Math.round(ovr - rating - avgD);
+  const attr = {};
+  for (const k of ATTR_KEYS) attr[k] = clampAttr(k, Math.round(base[k] + (SKILL_KEYS.includes(k) ? shift : 0) + dv(k)), 30);
+  attr.ovr = ovr;
+  return { base, attr, shift, ovr, eff };
+}
 
 // ---------- coins ----------
 // Same seeded generator as public/arcade/arcade.js and engines.js.
@@ -299,22 +319,13 @@ module.exports = function arcade(app, h) {
 
   // ---------- Modern Bowl / 3D Blitz rosters ----------
   rateFn = ratingOf;
-  // A player in a game: base attributes (playerAttrs) plus the card's deltas, clamped to game ranges.
+  // A player in a game: on a card, the player plays at the card's overall (cardAttrs); with no card, at their own attributes.
   function bowlPlayer(db, t, p, pos, card) {
     const base = playerAttrs(db, t, p);
-    const eff = card && typeof cards.cardEffects === 'function' ? cards.cardEffects(card) : null;
+    const ca = card ? cardAttrs(db, t, p, card) : null;
+    const eff = ca ? ca.eff : null;
     const g = (k, v) => clampAttr(k, Math.round(v), 30);
-    const r = {};
-    if (eff) {
-      const d = eff.attr || {}, dv = (k) => Math.round(+d[k]) || 0;
-      for (const k of ATTR_KEYS) r[k] = g(k, base[k] + dv(k));
-      // The overall moves by the average skill change (each change kept within 0-99).
-      r.ovr = g('ovr', base.ovr + SKILL_KEYS.reduce((s, k) => s + clampN(base[k] + dv(k), 0, 99) - base[k], 0) / SKILL_KEYS.length);
-    } else { // no card effects available: the flat boost by card multiplier
-      const boost = card ? (card.mult - 1) * 14 + (card.variant === 'pixel' ? 6 : 0) : 0;
-      for (const k of ATTR_KEYS) r[k] = g(k, base[k] + (ATTR_RANGE[k] ? 0 : boost));
-      r.ovr = g('ovr', base.ovr + boost);
-    }
+    const r = ca ? { ...ca.attr } : Object.fromEntries([...ATTR_KEYS, 'ovr'].map((k) => [k, g(k, base[k])]));
     const build = (eff && BUILD_IDS.includes(eff.build) && eff.build) || (p.look && BUILD_IDS.includes(p.look.build) && p.look.build) || null;
     return { pos, id: p.id, name: p.name, num: p.number || '', ...r, stars: clampN(Math.round(r.ovr / 20), 1, 5), card: card ? card.label : null, look: p.look || null, photo: p.photo ? '/media/' + p.photo : null, build, fx: (eff && eff.fx) || null };
   }
@@ -970,5 +981,6 @@ module.exports.ATTR_RANGE = ATTR_RANGE;
 module.exports.BUILDS = BUILDS;
 module.exports.playerAttrs = playerAttrs;
 module.exports.derivedAttrs = derivedAttrs;
+module.exports.cardAttrs = cardAttrs;
 // For the /coins page (earn.js): what everything pays, read from the values above.
 module.exports.EARN = { LEVELS, LEVEL_ORDER, RISK_MULT, ORDER, CHALLENGES, CHECKIN, RUNS, RUN_LEVELS, RUN_MAIN, RUN_FACTOR, matchNet };

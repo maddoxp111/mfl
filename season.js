@@ -52,17 +52,17 @@ module.exports = function season(app, h) {
         <section class="s1-sec" id="s1-cover">
           <header class="s1-sh"><span class="s1-k">Cover athlete</span><h2>${esc(S.coverName)}</h2><p>#${S.number} · ${esc(S.nick)}. Two cards in the game are his alone.</p></header>
           <div class="s1-coverrow">
-            ${[cov, big].filter(Boolean).map((c) => `<div class="s1-cc">${art(c)}<div class="s1-cap"><b>${esc(c.label)}</b><span><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span> ${c.mult}× points</span>${who(c)}</div></div>`).join('')}
+            ${[cov, big].filter(Boolean).map((c) => `<div class="s1-cc">${art(c)}<div class="s1-cap"><b>${esc(c.label)}</b><span><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span> <b class="s1-ovr">${h.cardOvr(db, c)}</b> OVR · ${c.mult}× points</span>${who(c)}</div></div>`).join('')}
             <div class="s1-coverinfo">
-              <p><b>${esc(S.nick)} 1/1</b> is a Zenith card worth ${big ? big.mult : 6}× fantasy points, with every skill maxed and the <b>${esc(big && big.perk ? big.perk.name : 'Big Boy Gravity')}</b> perk: ${esc(big && big.perk ? big.perk.text.charAt(0).toLowerCase() + big.perk.text.slice(1) : '')}.</p>
-              <p><b>Cover Athlete</b> is a Mythic card worth ${cov ? cov.mult : 3.5}×, and more than one person can own it.</p>
+              <p><b>${esc(S.nick)} 1/1</b> is a ${big ? h.cardOvr(db, big) : 99} overall Zenith card worth ${big ? big.mult : 6}× fantasy points, with every skill maxed and the <b>${esc(big && big.perk ? big.perk.name : 'Big Boy Gravity')}</b> perk: ${esc(big && big.perk ? big.perk.text.charAt(0).toLowerCase() + big.perk.text.slice(1) : '')}.</p>
+              <p><b>Cover Athlete</b> is a ${cov ? h.cardOvr(db, cov) : 95} overall Mythic card worth ${cov ? cov.mult : 3.5}×, and more than one person can own it.</p>
               <p>Both drop from any Season ${S.n} pack. The <a href="/pickem/packs#pk-s1p-cover">Cover Athlete Pack</a> only has cover athletes' cards, and it stays in the shop every season.</p>
             </div>
           </div>
         </section>
         <section class="s1-sec" id="s1-cards">
           <header class="s1-sh"><span class="s1-k">New cards</span><h2>${everyone.length} new cards for every player</h2><p>${fmtN(nCards)} Season ${S.n} cards in all, shown here as ${esc(S.coverName.split(' ')[0])}'s. Each one beats the older cards of its rarity, and they only drop from Season ${S.n} packs.</p></header>
-          <div class="mgrid s1-grid">${everyone.map((v) => { const c = card(v.id); return c ? `<div class="mcell">${art(c)}<div class="s1-cap"><b>${esc(v.label)}</b><span><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span> ${c.mult}×${c.perk ? ` · ⚡ ${esc(c.perk.name)}` : ''}</span></div></div>` : ''; }).join('')}</div>
+          <div class="mgrid s1-grid">${everyone.map((v) => { const c = card(v.id); return c ? `<div class="mcell">${art(c)}<div class="s1-cap"><b>${esc(v.label)}</b><span><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span> <b class="s1-ovr">${h.cardOvr(db, c)}</b> OVR · ${c.mult}×</span></div></div>` : ''; }).join('')}</div>
         </section>
         <section class="s1-sec s1-zen" id="s1-zenith">
           <header class="s1-sh"><span class="s1-k">New rarity</span><h2>Zenith</h2><p>The new top of the card game, above Dark Matter.</p></header>

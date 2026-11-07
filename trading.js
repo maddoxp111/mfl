@@ -28,7 +28,7 @@ module.exports = function trading(app, h) {
     for (const id of Object.keys(own)) { const c = cards.cardInfo(db, id); if (c) s += SCORE[c.rarity] || 0; }
     return s;
   }
-  const rank = (c) => cards.RARITY_ORDER.indexOf(c.rarity) * 1000 + h.ratingOf(h.load(), c.t, c.p);
+  const rank = (c) => h.cardOvr(h.load(), c) * 100 + cards.RARITY_ORDER.indexOf(c.rarity); // best overall first
   const sorted = (db, own) => Object.keys(own).map((id) => cards.cardInfo(db, id)).filter(Boolean).sort((a, b) => rank(b) - rank(a));
 
   // Drop cards the user no longer owns from their current Lineup.

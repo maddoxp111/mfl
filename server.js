@@ -427,7 +427,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=75">
+<link rel="stylesheet" href="/static/style.css?v=76">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1680,7 +1680,8 @@ function cardEffectsHelp() {
   const tiers = cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<tr><td class="n"><span class="rar-tag r-${r}">${esc(cards.RARITIES[r].name)}</span></td><td class="n"><b>${esc(T.name)}</b></td><td>${esc(T.text)}</td></tr>`; }).join('');
   const classic = cards.VARIANTS.filter((v) => !v.set && !v.hidden).map((v) => `<tr><td class="n"><b>${esc(v.spec === 'own' ? 'Signature' : v.label)}</b><br><span class="rar-tag r-${v.rarity}">${esc(cards.RARITIES[v.rarity].name)}</span></td><td>${perkCell(cards.perkOf(v.id))}</td><td>${fxCell(v.id)}</td></tr>`).join('');
   const sets = cards.SETS.map((st) => `<tr><td class="n"><b>${st.emoji} ${esc(st.name)}</b><br><span class="muted">${esc(st.seriesName)}</span></td><td>${perkCell(cards.PERKS[st.id])}</td><td>${cards.PARALLELS.map((x) => `<div><b>${esc(x.label || 'Base')}</b> (${esc(cards.tierOf(x.rarity).name)}): ${fxCell(`set-${st.id}-${x.id}`)}</div>`).join('')}</td></tr>`).join('');
-  return `<h3 id="what-rarity-does">What each rarity does</h3><p>Every card has a <b>perk</b> (a quirk you see on the field in the Arcade) and changes its player's ratings: some go up, some go down. Its rarity adds a boost of its own on top and makes the perk stronger or happen more often (perk level). Only 1 of 1 cards are all upside.</p>
+  return `<h3 id="card-overall">Card overall</h3><p>Every card has its own <b>overall</b> (OVR), the big number on the front: the better the card, the higher it is. Each rarity covers a range (${cards.SHOWN_RARITIES.filter((r) => cards.OVR_BAND[r]).map((r) => `${cards.RARITIES[r].name} ${cards.OVR_BAND[r][0]}–${cards.OVR_BAND[r][1]}`).join(', ')}). Better players are higher in it, the stronger versions of a rarity (a bigger multiplier) are up to 3 higher, and 1 of 1s 1 more. In the Arcade a card plays at its overall: on average the player's ratings move by the gap between the card's overall and the player's own rating, and the card's changes below decide which ratings end up higher or lower.</p>
+    <h3 id="what-rarity-does">What each rarity does</h3><p>Every card has a <b>perk</b> (a quirk you see on the field in the Arcade) and changes its player's ratings: some go up, some go down. Its rarity adds a boost of its own on top and makes the perk stronger or happen more often (perk level). Only 1 of 1 cards are all upside.</p>
     <div class="fx-table-wrap"><table class="fx-table"><thead><tr><th>Rarity</th><th>Tier</th><th>What the tier adds</th></tr></thead><tbody>${tiers}</tbody></table></div>
     <h3 id="card-effects">Card effects</h3><p>Every classic card, then every card set with its five parallels (Base, Silver, Gold, Prism, Black). The numbers already include the rarity boost. Flip any card to see the same thing on its back.</p>
     <div class="fx-table-wrap"><table class="fx-table"><thead><tr><th>Card</th><th>Perk</th><th>Ratings in game</th></tr></thead><tbody>${classic}</tbody></table></div>

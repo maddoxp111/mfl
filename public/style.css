@@ -2775,3 +2775,18 @@ body.arc-playing .ticker{display:none}
   .mcard.s1c.ph-cut .mc-photo .av.photo{width:72px!important;height:72px!important}
 }
 .slot .mc-s1tag{font-size:10px;padding-top:1px}
+
+/* ===== card overall (OVR): the big number on the front ===== */
+.mc-rt{display:flex;flex-direction:column;align-items:center;flex:none;min-width:30px;font:900 27px/.86 var(--disp);letter-spacing:-.01em}
+.mc-rt b{font:inherit}
+.mc-rt small{margin-top:2px;font:800 7.5px/1 Inter;letter-spacing:.16em;opacity:.85}
+.slot .mc-rt{font-size:16px;min-width:0}.slot .mc-rt small{font-size:5.5px;letter-spacing:.08em}
+@media(max-width:760px){.mc-rt{font-size:24px;min-width:26px}.mc-rt small{font-size:7px}}
+/* the back: the card's overall and what it means in game */
+.mb-ovr{display:flex;align-items:center;gap:8px;margin:0;padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--rc) 16%,rgba(0,0,0,.35));box-shadow:0 0 0 1px color-mix(in srgb,var(--rc) 40%,transparent) inset}
+.mb-ovr>b{font:900 30px/1 var(--disp);color:var(--ink)}
+.mb-ovr span{font-size:9.5px;line-height:1.3;color:var(--ink2)}
+.mb-ovr small{display:block;font:700 7.5px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--rc)}
+/* Lineup picker and captions */
+.lu-ovr{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 4px;border-radius:6px;background:var(--card2);box-shadow:0 0 0 1px var(--line2) inset;font:900 15px/1 var(--disp);color:var(--ink)}
+.s1-cap .s1-ovr{font:900 15px/1 var(--disp)}

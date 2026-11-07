@@ -109,6 +109,17 @@ const UPDATES = [
       'Every Season 1 card now says SEASON 1 near the bottom, in the Season 1 lettering.',
     ],
   },
+  {
+    n: 11,
+    date: '2026-11-07',
+    title: 'Every card has its own overall',
+    items: [
+      "Every card now has its own overall (OVR), the big number on the front, and it's the number that says how good the card is. The better the card, the higher it is: one player's Base card might be a 79 and the same player's Zenith a 98. Better players are higher at every rarity, and Season 1 cards and 1 of 1s beat the other cards of their rarity.",
+      'Card fronts are cleaner: just the overall, the name, the card, its perk and its rarity. The multiplier and the rating changes moved to the back (tap ↻ to flip any card, now on the Season page too).',
+      'In the Arcade, a card plays at its overall: a 95 card plays like a 95 in 3D Blitz, Modern Bowl and Career. The back shows every rating the card plays at.',
+      'My Cards, the Lineup picker, auto-pick and collections all sort by overall now, best first.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

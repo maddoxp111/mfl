@@ -14,6 +14,10 @@ module.exports = function fun(app, h) {
   // The Lineup groups (the same order as POS_COL) and the ones a player likes, set in admin as p.pref.
   const LU_GROUPS = ['QB', 'RB', 'WR', 'TE', 'UTIL', 'OL'];
   const prefOf = (p) => (Array.isArray(p && p.pref) ? LU_GROUPS.filter((k) => p.pref.includes(k)) : []);
+  // A card's own overall (cards.cardOvr): the number that says how good the card is, from its rarity, how strong a
+  // version it is and the player's rating. The front shows it; the back shows what it does in game.
+  const ovrOf = (db, c) => cards.cardOvr(c, h.ratingOf(db, c.t, c.p));
+  h.cardOvr = ovrOf;
 
   // ---------- card artwork ----------
   // How each card type shows the player photo.
@@ -33,7 +37,7 @@ module.exports = function fun(app, h) {
   const S1 = require('./seasons').S1;
   const COVER_ART = new Set(['s1-cover', 's1-bigboy']);
   function cardArt(db, c, opts = {}) {
-    const rt = c.rating || h.ratingOf(db, c.t, c.p);
+    const rt = ovrOf(db, c);
     const spec = c.spec ? cards.SPECIALTIES[c.spec] : null;
     // Each kind of card (Base, Holo, Gold...) has its own pattern, photo frame and hue; every card of that kind matches.
     // Set cards look like their set (colors, pattern, photo style) with a parallel finish on top.
@@ -44,11 +48,11 @@ module.exports = function fun(app, h) {
     const photo = COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
     return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
-      <div class="mc-top"><span class="mc-rt">${rt}</span><span class="mc-mult">${c.mult}×</span>${c.season ? `<span class="mc-season" title="Season ${c.season}">S${c.season}</span>` : ''}${logo(c.t, 22)}</div>
+      <div class="mc-top"><span class="mc-rt" title="Card overall: how good this card is"><b>${rt}</b><small>OVR</small></span>${c.season ? `<span class="mc-season" title="Season ${c.season}">S${c.season}</span>` : ''}${logo(c.t, 22)}</div>
       <div class="mc-photo">${photo}</div>
       <div class="mc-name">${esc(c.p.name)}</div>
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
-      ${cardPerkFront(c, spec)}
+      ${cardPerkFront(c)}
       ${c.season ? `<div class="mc-s1tag">Season ${c.season}</div>` : ''}
       <div class="mc-foot"><span class="mc-rar" title="${esc(tierWords(c))}">${esc(c.rarityName)}${c.rarity === 'common' ? '' : ` · ${esc(tierOfCard(c).name)}`}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
@@ -56,42 +60,38 @@ module.exports = function fun(app, h) {
   }
   h.cardArt = cardArt;
   // Every card does something: its perk (an on-field quirk), its rating changes and its rarity tier.
-  // The front shows the perk name and the biggest changes; the back and the Card Book say it all.
+  // The front shows the card's overall and its perk name; the back and the Card Book say it all.
   const perkOfCard = (c) => (cards.perkOf ? attempt(() => cards.perkOf(c)) : null);
   const tierOfCard = (c) => (cards.tierOf ? cards.tierOf(c.rarity) : { name: c.rarityName, text: '' });
   const tierWords = (c) => { const t = tierOfCard(c); return `${t.rarity || c.rarityName} tier, ${t.name}: ${t.text}`; };
-  // "+6 AGI +5 STA −3 STR": the top two ups and the biggest down, short enough for the card front.
-  function fxShort(c) {
-    const e = cards.cardEffects ? attempt(() => cards.cardEffects(c)) : null;
-    if (!e) return '';
-    const sk = Object.entries(e.attr).filter(([k, v]) => v && k !== 'hgt' && k !== 'wgt');
-    const ups = sk.filter(([, v]) => v > 0).sort((x, y) => y[1] - x[1]), downs = sk.filter(([, v]) => v < 0).sort((x, y) => x[1] - y[1]);
-    const lab = (k) => (cards.ATTR_SHORT && cards.ATTR_SHORT[k]) || k.toUpperCase();
-    const bit = ([k, v]) => `<i class="${v > 0 ? 'up' : 'down'}">${v > 0 ? '+' : '−'}${Math.abs(v)} ${lab(k)}</i>`;
-    return [...ups.slice(0, downs.length ? 2 : 3), ...downs.slice(0, 1)].map(bit).join(' ');
-  }
-  function cardPerkFront(c, spec) {
+  // The front keeps the perk name; the skill changes, the fantasy multiplier and scoring are on the back.
+  function cardPerkFront(c) {
     const P = perkOfCard(c);
-    const sub = spec ? esc(spec.desc) : c.flat ? `+${c.flat} pts every game` : '';
-    return `<div class="mc-fxs">${fxShort(c)}</div>${P ? `<div class="mc-perk" title="${esc(`${P.name}: ${P.text} (${P.when}).`)}"><span aria-hidden="true">⚡</span> ${esc(P.name)}</div>` : ''}${sub ? `<div class="mc-spec">${sub}</div>` : ''}`;
+    return P ? `<div class="mc-perk" title="${esc(`${P.name}: ${P.text} (${P.when}).`)}"><span aria-hidden="true">⚡</span> ${esc(P.name)}</div>` : '';
   }
   // The Lineup's cards together: total rating ups and downs, and every perk with its position.
   function lineupFx(db, ids, title = 'What your saved Lineup does in game') {
     const cs = ids.map((id, i) => ({ c: id && cards.cardInfo(db, id), pos: POS[i] })).filter((x) => x.c);
     if (!cs.length || !cards.cardEffects) return '';
     const tot = {};
-    for (const { c } of cs) { const e = attempt(() => cards.cardEffects(c)); if (e) for (const [k, v] of Object.entries(e.attr)) tot[k] = (tot[k] || 0) + v; }
+    const arc = attempt(() => require('./arcade'));
+    let ovrSum = 0;
+    for (const { c } of cs) {
+      const ca = arc && typeof arc.cardAttrs === 'function' ? attempt(() => arc.cardAttrs(db, c.t, c.p, c)) : null;
+      ovrSum += ovrOf(db, c);
+      if (ca) { for (const [k, v] of Object.entries(ca.attr)) if (k !== 'ovr') tot[k] = (tot[k] || 0) + v - ca.base[k]; continue; }
+      const e = attempt(() => cards.cardEffects(c)); if (e) for (const [k, v] of Object.entries(e.attr)) tot[k] = (tot[k] || 0) + v;
+    }
     const lab = (k) => (k === 'hgt' ? 'in' : k === 'wgt' ? 'lb' : (cards.ATTR_SHORT && cards.ATTR_SHORT[k]) || k);
     const bits = Object.entries(tot).filter(([, v]) => v).sort((x, y) => y[1] - x[1]).map(([k, v]) => `<i class="${v > 0 ? 'up' : 'down'}" title="${esc(attrName(k))}">${v > 0 ? '+' : '−'}${Math.abs(v)} ${lab(k)}</i>`);
     const perks = cs.map(({ c, pos }) => { const P = perkOfCard(c); return P ? `<li><b>${esc(pos)} · ${esc(P.name)}</b>${P.lv > 1 ? ` <span class="muted sm">level ${P.lv}</span>` : ''} <span class="muted sm">${esc(c.p.name)}, ${esc(c.label)}</span><small>${esc(P.text)} (${esc(P.when)}).</small></li>` : ''; }).join('');
     return `<details class="lineup-fx" open><summary><b>${esc(title)}</b></summary>
-      <p class="muted sm">All ${cs.length} cards added up (ratings change in the Arcade):</p><div class="fx-tot">${bits.join(' ') || '<span class="muted">No changes</span>'}</div>
+      <p class="muted sm">Lineup overall <b>${Math.round(ovrSum / cs.length)}</b>. Every card plays at its overall in the Arcade; all ${cs.length} added up, your players' ratings change by:</p><div class="fx-tot">${bits.join(' ') || '<span class="muted">No changes</span>'}</div>
       <ul class="perk-list">${perks}</ul></details>`;
   }
   h.lineupFx = lineupFx;
   h.cardPerk = perkOfCard;
   h.tierWords = tierWords;
-  h.fxShort = fxShort;
 
   // ---------- card backs ----------
   // Every card flips (CARD_FLIP below) to a back with the full card: who, which card, base
@@ -136,19 +136,25 @@ module.exports = function fun(app, h) {
   function cardBack(db, c) {
     const st = c.set && cards.SET_MAP.get(c.set), par = c.par && cards.PARALLELS.find((x) => x.id === c.par);
     const fx = cards.cardEffects ? attempt(() => cards.cardEffects(c)) : null;
-    const { a, est } = baseAttrs(db, c);
+    // The card plays at its overall (arcade cardAttrs): the Card column is the move to the card's overall plus its own changes.
+    const arc = attempt(() => require('./arcade'));
+    const ca = arc && typeof arc.cardAttrs === 'function' ? attempt(() => arc.cardAttrs(db, c.t, c.p, c)) : null;
+    const { a, est } = ca ? { a: ca.base, est: false } : baseAttrs(db, c);
     const d = (fx && fx.attr) || {};
+    const ovr = ovrOf(db, c), pr = h.ratingOf(db, c.t, c.p), sh = ca ? ca.shift : 0;
+    const body = (k) => k === 'hgt' || k === 'wgt';
     const rows = ATTRS.filter((k) => a[k] != null || d[k]).map((k) => {
-      const b = a[k] != null ? Number(a[k]) : null, dv = Math.round(d[k] || 0), v = b != null ? clampAttr(k, b + dv) : null;
+      const b = a[k] != null ? Number(a[k]) : null, dv = Math.round(d[k] || 0) + (body(k) ? 0 : sh);
+      const v = ca && ca.attr[k] != null ? ca.attr[k] : b != null ? clampAttr(k, b + dv) : null;
       return `<div class="mb-a"><span title="${esc(attrName(k))}">${ATTR_NAME[k] || esc(attrName(k))}</span><i>${b != null ? fmtAttr(k, b) : '–'}</i><em class="${dv > 0 ? 'up' : dv < 0 ? 'down' : ''}">${dv ? (dv > 0 ? '+' : '−') + Math.abs(dv) : ''}</em><b>${v != null ? fmtAttr(k, v) : '–'}</b></div>`;
     }).join('');
-    const rt = c.rating || (a.ovr != null ? a.ovr : h.ratingOf(db, c.t, c.p));
     const pos = c.p.position || (cards.packInfo.role ? attempt(() => cards.packInfo.role(db, c.t, c.p)) : '');
     const build = (fx && fx.build) || c.p.look?.build || 'normal';
     const meta = [...(st ? [['Set', `${st.emoji} ${esc(st.name)}`], ['Series', esc(st.seriesName)], ['Parallel', esc(par?.label || 'Base')]] : []),
-      ['Overall', esc(rt)], ['Build', esc(BUILD_NAME[build] || build)], ...(c.one || c.rarity === 'doh' ? [['Serial', '1 of 1']] : [])];
+      ['Player rating', esc(pr)], ['Build', esc(BUILD_NAME[build] || build)], ...(c.one || c.rarity === 'doh' ? [['Serial', '1 of 1']] : [])];
     return `<div class="mb"><div class="mb-h">${logo(c.t, 18)}<div><b>${esc(c.p.name)}</b><small>${esc(c.t.name)}${pos ? ' · ' + esc(pos) : ''}${c.p.number ? ' · #' + esc(c.p.number) : ''}</small></div></div>
       <div class="mb-lab"><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span><span>${esc(c.label)}</span></div>
+      <p class="mb-ovr"><b>${ovr}</b><span><small>Overall</small>Plays at ${ovr} in the Arcade. ${esc(c.p.name.split(' ')[0])} is ${/^(8|11|18)/.test(String(pr)) && String(pr).length === 2 ? 'an' : 'a'} ${pr}: skills ${ovr === pr ? 'about the same' : `${ovr > pr ? '+' : '−'}${Math.abs(ovr - pr)} on average`}.</span></p>
       <dl class="mb-meta">${meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
       <div class="mb-attrs"><div class="mb-a mb-ah"><span>${est ? 'Ratings (est.)' : 'Ratings'}</span><i>Base</i><em>Card</em><b>Now</b></div>${rows}</div>
       ${(() => { const P = perkOfCard(c); return P ? `<p class="mb-perk"><b>Perk · ${esc(P.name)}${P.lv > 1 ? ` · level ${P.lv}` : ''}</b>${esc(P.text)}. <span class="muted">When: ${esc(P.when)}.</span></p>` : ''; })()}
@@ -178,7 +184,7 @@ module.exports = function fun(app, h) {
       if(t.closest('.mc-flip')||(card.classList.contains('show-back')&&t.closest('.mc-back'))||tappable(card,t)){e.preventDefault();e.stopPropagation();flip(card);}},true);
     document.addEventListener('pointerover',(e)=>{const b=e.target.closest&&e.target.closest('.mc-flip');if(b)load(b.closest('.mcard'));},{passive:true});
     document.addEventListener('focusin',(e)=>{if(e.target.classList&&e.target.classList.contains('mc-flip'))load(e.target.closest('.mcard'));});})();</script>`;
-  app.use('/pickem', (req, res, next) => {
+  app.use(['/pickem', '/season'], (req, res, next) => {
     const send = res.send.bind(res);
     res.send = (body) => {
       if (typeof body !== 'string' || !body.includes('class="mc-flip"') || body.includes('id="mcflip-js"')) return send(body);
@@ -239,16 +245,16 @@ module.exports = function fun(app, h) {
       const et = pk.effTend(db);
       // Real player attributes when the Arcade provides them (optional).
       const arc = require('./arcade');
-      const attrsOf = (c) => { try { const a = typeof arc.playerAttrs === 'function' && arc.playerAttrs(db, c.t, c.p); return a && Number.isFinite(a.str) ? a : null; } catch { return null; } };
+      const attrsOf = (c) => { try { const a = typeof arc.cardAttrs === 'function' && arc.cardAttrs(db, c.t, c.p, c); return a && a.attr && Number.isFinite(a.attr.str) ? a.attr : null; } catch { return null; } };
       // How well a card fits each position column (QB, RB, WR, TE, UTIL, OL), used by auto-pick.
       // The card's own effects count too: a Pizza Friday card blocks better and catches worse.
       const fitArr = (c) => {
-        const r = h.ratingOf(db, c.t, c.p), td = et.player(c.t, c.p, 'td'), ps = et.player(c.t, c.p, 'pass'), m = c.mult;
-        const d = cards.cardEffects(c).attr, b = attrsOf(c);
+        const r = ovrOf(db, c), td = et.player(c.t, c.p, 'td'), ps = et.player(c.t, c.p, 'pass'), m = c.mult;
+        const d = cards.cardEffects(c).attr, b = attrsOf(c); // b: the ratings the card plays at (arcade cardAttrs)
         let f = [ps * 0.75 + r * 0.25 + (d.thr + d.acc) / 2, td * 0.6 + r * 0.4 + (d.spd + d.agi) / 2, td * 0.5 + r * 0.5 + (d.spd + d.cat) / 2,
           r * 0.6 + td * 0.4 + (d.cat + d.str) / 2, r + (d.str + d.kick + d.def) / 3, r * 0.8 + (d.str + d.def) / 2 + d.wgt / 5];
         if (b) {
-          const v = (k) => (b[k] || 0) + d[k], heft = Math.max(0, Math.min(99, ((b.wgt || 120) + d.wgt - 70) / 1.8));
+          const v = (k) => b[k] || 0, heft = Math.max(0, Math.min(99, ((b.wgt || 120) - 70) / 1.8));
           const g = [(v('thr') + v('acc')) / 2, (v('spd') + v('agi')) / 2, (v('spd') + v('cat')) / 2, (v('cat') + v('str')) / 2, (v('str') + v('kick') + v('def')) / 3, v('str') * 0.6 + v('def') * 0.1 + heft * 0.3];
           f = f.map((x, i) => (x + g[i]) / 2);
         }
@@ -257,7 +263,7 @@ module.exports = function fun(app, h) {
       const fit = (c) => fitArr(c).join(',');
       const fan = acct.points.fan;
       const last = fan.results.at(-1);
-      const sortKey = (c) => -cards.RARITY_ORDER.indexOf(c.rarity) * 1000 - h.ratingOf(db, c.t, c.p);
+      const sortKey = (c) => -ovrOf(db, c) * 100 - cards.RARITY_ORDER.indexOf(c.rarity);
       const mine = all.filter((c) => own[c.id]).sort((a, b) => sortKey(a) - sortKey(b));
       const uniq = mine.length, total = Object.values(own).reduce((s, n) => s + n, 0);
       const slot = (id) => { const c = id && cards.cardInfo(db, id); return c ? cardArt(db, c, { small: true }) : '<div class="slot-empty">+</div>'; };
@@ -267,7 +273,7 @@ module.exports = function fun(app, h) {
       for (const c of mine) {
         let P = byPid.get(c.pid);
         if (!P) byPid.set(c.pid, (P = { pid: c.pid, n: c.p.name, t: c.t.abbr || c.t.name, av: avatar(c.t, c.p, 44), pref: prefOf(c.p), cards: [] }));
-        P.cards.push({ id: c.id, l: c.label, r: c.rarity, rn: c.rarityName, m: c.mult, f: fitArr(c) });
+        P.cards.push({ id: c.id, l: c.label, r: c.rarity, rn: c.rarityName, o: ovrOf(db, c), m: c.mult, f: fitArr(c) });
       }
       const roster = [...byPid.values()].map((P) => ({ ...P, auto: LU_GROUPS.map((gp, k) => [gp, Math.max(...P.cards.map((x) => x.f[k]))]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([gp]) => gp) }));
       const shown = (view === 'all' ? all.filter((c) => !c.set).sort((a, b) => sortKey(a) - sortKey(b)) : mine).filter((c) => !R[req.query.r] || c.rarity === req.query.r || (view === 'mine' && lineup.includes(c.id)));
@@ -282,7 +288,7 @@ module.exports = function fun(app, h) {
         ${total ? '' : `<a class="card promo" href="/pickem/packs"><div>${icon('star')}</div><div><b>Open your free Starter Pack</b><span>${cards.LINEUP_SIZE} cards: a full Lineup that earns coins every game.</span></div>${icon('arrow')}</a>`}
         <section class="card lineup-card" id="lineupCard">
           <div class="card-h"><h2>Lineup</h2><span class="muted sm">${g ? `Plays in ${esc(h.matchName(db, g))} · ${esc(h.shortDate(g.date))} · locks ${h.time12(pk.lockTime(g))}` : 'No game scheduled'}</span></div>
-          <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier, paid in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card changes its player's ratings (some up, some down). Your Lineup carries over until you change it.</p>
+          <p class="muted sm">Pick ${cards.LINEUP_SIZE} cards of different players, one per position. Every game they play, your cards score fantasy points × their multiplier, paid in coins (the same coins as Pick'em). In the Arcade your QB throws, the RB runs, WRs and the TE catch, UTIL and OL block, and every card plays at its overall (the big number on the front; flip a card to see its exact ratings). Your Lineup carries over until you change it.</p>
           <p class="lu-score sm"><b>Points</b> ${scoreLine}. Every point pays ${cards.COINS_PER_POINT} coins: a QB with 10 TD passes on a Base card scores ${10 * S.pass} points, ${(10 * S.pass * cards.COINS_PER_POINT).toLocaleString('en-US')} coins.</p>
           <p class="lu-how sm"><b>Tap a spot</b>, then pick a player. Tap a filled spot, then another spot to swap them (or drag on a computer). Tap a spot twice to empty it.</p>
           <form method="post" action="/pickem/lineup" id="lineupForm"><input type="hidden" name="cards" id="lineupInput" value="${esc(lineup.join(','))}">
@@ -377,11 +383,11 @@ module.exports = function fun(app, h) {
             return '<div class="lu-row'+(at>=0?' in':'')+(lv===2?' liked':'')+'" data-pid="'+esc(P.pid)+'" draggable="true">'
               +'<span class="lu-av">'+P.av+'</span>'
               +'<div class="lu-main"><b class="lu-n">'+esc(P.n)+'</b><span class="lu-meta">'+esc(P.t)+' · '+(lv===2?'<em>★ '+esc(likesTxt)+'</em>':esc(likesTxt))+'</span>'
-              +'<span class="lu-card"><span class="rar-tag r-'+esc(c.r)+'">'+esc(c.rn)+'</span> <span class="lu-cl">'+esc(c.l)+' · '+c.m+'×</span>'+more+'</span>'
+              +'<span class="lu-card"><span class="lu-ovr">'+c.o+'</span><span class="rar-tag r-'+esc(c.r)+'">'+esc(c.rn)+'</span> <span class="lu-cl">'+esc(c.l)+' · '+c.m+'×</span>'+more+'</span>'
               +(at>=0?'<span class="lu-in">✓ In Lineup · '+POS[at]+'</span>':'')+'</div>'
               +'<div class="lu-side">'+(g?'<span class="lu-fit" title="How well his best card fits '+g+'"><b>'+c.f[k]+'</b><small>fit '+g+'</small></span>':'')
               +'<button type="button" class="btn sm lu-go'+(go==='Remove'?' ghost':'')+'" data-id="'+esc(c.id)+'"'+(go==='In this spot'?' disabled':'')+'>'+go+'</button></div>'
-              +(open[P.pid]?'<div class="lu-cards">'+P.cards.map(x=>'<button type="button" class="lu-cc'+(ids.includes(x.id)?' on':'')+'" data-id="'+esc(x.id)+'"><span class="rar-tag r-'+esc(x.r)+'">'+esc(x.rn)+'</span> '+esc(x.l)+' · '+x.m+'×'+(k>=0?' · fit '+x.f[k]:'')+'</button>').join('')+'</div>':'')
+              +(open[P.pid]?'<div class="lu-cards">'+P.cards.map(x=>'<button type="button" class="lu-cc'+(ids.includes(x.id)?' on':'')+'" data-id="'+esc(x.id)+'"><span class="lu-ovr">'+x.o+'</span><span class="rar-tag r-'+esc(x.r)+'">'+esc(x.rn)+'</span> '+esc(x.l)+' · '+x.m+'×'+(k>=0?' · fit '+x.f[k]:'')+'</button>').join('')+'</div>':'')
               +'</div>';};
           const renderList=()=>{if(!list)return;const g=groupNow(),k=g?GROUPS.indexOf(g):-1;
             let rows=ROSTER.filter(P=>(filt==='ALL'||likes(P,filt))&&(!q||P.n.toLowerCase().includes(q)||P.t.toLowerCase().includes(q)));
@@ -664,6 +670,7 @@ module.exports = function fun(app, h) {
           <li>${cards.SHOWN_RARITIES.filter((r) => r !== 'zenith').map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${(R[r].weight / totalW * 100).toFixed(R[r].weight < 100 ? 2 : 0)}%`).join(' · ')} per card in a regular pack. <span class="rar-tag r-zenith">Zenith</span> cards only come from Season ${S1.n} packs. Every pack's own odds are under "What's inside".</li>
           <li><b>Prices follow the odds.</b> Everyday packs ${tierPrice(0, 7500)} coins · bigger packs with guarantees ${tierPrice(7500, 20000)} · Legend-or-better packs, 1 of 1 hunts and Prism or Black set packs ${tierPrice(20000, 100000)} · Dark Matter, The Vault and the Black Label Box ${tierPrice(100000, Infinity)}. The best packs take a real grind.</li>
           <li>Extra copies sell for ${cards.SHOWN_RARITIES.map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${fmtN(R[r].sell)}`).join(' · ')} coins (on <a href="/pickem/cards">My cards</a>). A pack's cards sell for far less than the pack costs.</li>
+          <li><b>Every card has its own overall (OVR)</b>, the big number on the front: the better the card, the higher it is. Each rarity has its range (${cards.SHOWN_RARITIES.filter((r) => cards.OVR_BAND[r]).map((r) => `<span class="rar-tag r-${r}">${R[r].name}</span> ${cards.OVR_BAND[r][0]}–${cards.OVR_BAND[r][1]}`).join(' · ')}); better players sit higher in it, the stronger versions of a rarity up to 3 higher, and 1 of 1s 1 more. In the Arcade a card plays at its overall. Flip a card (↻) for its skill changes, perk and fantasy multiplier.</li>
           <li>Better cards multiply fantasy points more: ${cards.VARIANTS.filter((v) => !v.set && !v.hidden && (!v.id.startsWith('spec-') || v.id === 'spec-td')).map((v) => `${esc(v.id === 'spec-td' ? 'Specialists' : v.label)} ${v.mult || R[v.rarity].mult}×`).join(' · ')}.</li>
           ${cards.tierOf ? `<li><b>What each rarity does:</b> every card has a perk (an on-field quirk) and changes its player's ratings, and its rarity adds a boost on top. ${cards.SHOWN_RARITIES.map((r) => { const T = cards.tierOf(r); return `<span class="rar-tag r-${r}">${R[r].name}</span> <b>${esc(T.name)}</b>: ${esc(T.text)}`; }).join(' ')} <a href="/pickem/rules#card-effects">Every card's effect →</a></li>` : ''}
           <li>Specialist cards score ${cards.SPECIAL_BOOST}× on their specialty (TDs, TD passes, interceptions, defense or notable plays). Clutch cards score ${cards.SPECIAL_BOOST}× on wins and MVPs.</li>
