@@ -156,6 +156,18 @@ const UPDATES = [
       'Stadium pulse on kicks: the place gets loud for your field goals and extra points (louder for long ones and late in a close game), and a loud crowd makes the kick meter harder. Kickoffs and punts get the crowd going too.',
     ],
   },
+  {
+    n: 15,
+    date: '2026-11-07',
+    title: '3D Blitz: shorter games, you pick how much defense',
+    items: [
+      'Pick how much defense you play live on the 3D Blitz setup screen: None (their drives are simulated), Quick (clutch time and goal-line stands), Medium (1-2 snaps a drive plus those, the new default), High (2-4 a drive, how it was) or Full (every snap). It remembers your pick.',
+      'Live defensive snaps are quicker: the snap comes 1.5 seconds after you line up (was 3.4), and the next play comes 1.5 seconds after the whistle (was 2.5).',
+      'Running clock on defense: after a play that ends in bounds, the clock keeps running while you call the next one, the same as on offense. Call a timeout to stop it (the T/O button on the call card, or T).',
+      'Three timeouts a half instead of two.',
+      "Games are a lot shorter: in our test games Medium ran about a third shorter than before, and Quick or None are back near the old length.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

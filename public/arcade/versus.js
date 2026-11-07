@@ -373,7 +373,7 @@
     let p;
     try {
       if (!window.MFLBlitz || !window.MFLBlitz.play) throw new Error('The game did not load. Refresh and try again.');
-      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, seed: M.seed, quarterSecs: M.qs, timeouts: 2, noTies: true, difficulty: 1, offense: 1, weather: 'night',
+      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, seed: M.seed, quarterSecs: M.qs, timeouts: 3, noTies: true, difficulty: 1, offense: 1, weather: 'night',
         label: `Head to Head · ${M.wager ? fmt(M.wager) + ' coins' : 'Friendly'}` });
     } catch (e) { console.error(e); p = Promise.resolve({ quit: true, error: String((e && e.message) || e) }); }
     Promise.resolve(p).then((r) => engineDone(mine, r), (e) => engineDone(mine, { quit: true, error: String(e) }));

@@ -2790,3 +2790,16 @@ body.arc-playing .ticker{display:none}
 /* Lineup picker and captions */
 .lu-ovr{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 4px;border-radius:6px;background:var(--card2);box-shadow:0 0 0 1px var(--line2) inset;font:900 15px/1 var(--disp);color:var(--ink)}
 .s1-cap .s1-ovr{font:900 15px/1 var(--disp)}
+
+/* 3D Blitz setup: how much defense you play live */
+.bz-defmode{border:0;margin:6px 0 10px;padding:0;min-width:0}
+.bz-defmode legend{padding:0;margin-bottom:6px;font:800 13px Inter;color:var(--ink)}
+.bz-defmode legend small{font-weight:500;color:var(--muted);margin-left:6px}
+.bz-dm-opts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.bz-dm-opts label{position:relative;cursor:pointer}
+.bz-dm-opts input{position:absolute;opacity:0;pointer-events:none}
+.bz-dm-opts span{display:flex;flex-direction:column;gap:2px;height:100%;padding:8px 9px;border-radius:10px;background:var(--card2);box-shadow:0 0 0 1px var(--line2) inset;font-size:12px;line-height:1.25}
+.bz-dm-opts small{color:var(--muted);font-size:10.5px}
+.bz-dm-opts input:checked+span{box-shadow:0 0 0 2px #ffc21a inset;background:color-mix(in srgb,#ffc21a 10%,var(--card2))}
+.bz-dm-opts input:focus-visible+span{outline:2px solid #ffc21a;outline-offset:2px}
+@media(max-width:620px){.bz-dm-opts{grid-template-columns:repeat(3,minmax(0,1fr))}}
