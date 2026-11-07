@@ -2605,3 +2605,7 @@ body.arc-playing .ticker{display:none}
 .coin-log .cl-tbl td.zero{color:var(--muted)}.coin-log .cl-tbl .nw{white-space:nowrap}
 .coin-log .cl-note td{background:rgba(255,194,26,.07)}
 .coin-log .cl-more summary{cursor:pointer;color:var(--muted);font-size:13px;padding:10px 0}
+
+/* the read-me notice (SITE_NOTICE): wider, and the button shows the countdown */
+.mpop-notice .mpop-box{max-width:520px}.mpop-notice .mpop-b p{margin:0 0 10px}.mpop-notice .mpop-b ul{margin:0 0 12px}
+.mpop .btn:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.4)}

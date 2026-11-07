@@ -370,6 +370,14 @@ const updatePop = (() => {
   return `<script>window.mflPopup(${JSON.stringify({ id: 'update-' + u.n, title: 'UPDATE ' + u.n, html, button: 'Nice', cls: 'mpop-upd' }).replace(/</g, '\\u003c')})</script>`;
 })();
 
+// A notice everyone reads once (it waits 5 seconds before it can be closed), before any other popup: fixing plays for
+// picks, and the Nov 6 admin hack and rollback.
+const SITE_NOTICE = { id: 'notice-nov6-fairplay', first: true, wait: 5, button: 'I understand', cls: 'mpop-notice', title: "Please read: Pick'em and Nov 6",
+  html: `<p><b>Fixing plays is not allowed.</b> Some players threw interceptions on purpose so the people who picked them would win their picks. That's cheating. Pick'em only uses fake coins, but fixing plays for picks breaks the rules here, and in real sports it's illegal (it's called match fixing).</p>
+<ul><li>Every pick on the Nov 6 game was cancelled and refunded.</li><li>Interception picks are off.</li><li>Accounts that fix plays, or pick on plays they know are fixed, can be suspended from Pick'em.</li></ul>
+<p><b>The admin hack.</b> On Nov 6, someone got into the admin panel and handed out fake coins, billions to some accounts. Every fake coin was removed, and the site was put back to how it was at 10:55 AM on Nov 6, before the first fake coins:</p>
+<ul><li>Every pack opened after that is gone, with its cards, and the coins spent on it came back.</li><li>Every pick, card sale, card trade and Lineup change after that was undone.</li><li>The admin password was changed and everyone was signed out of admin.</li></ul>
+<p>If your Lineup went back, set it again before the next game. The coin history on your profile shows exactly what changed.</p>` };
 function layout(req, title, body, opts = {}) {
   const db = load();
   const teams = Object.values(db.teams);
@@ -384,7 +392,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=70">
+<link rel="stylesheet" href="/static/style.css?v=71">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -440,9 +448,11 @@ ${req.popups && req.popups.length ? `<script>window.MFL_POPS=${JSON.stringify(re
 // { id } instead, for popups the server keeps track of per account.
 (()=>{const Q=[];let open=false;const el=document.getElementById('mpop'),T=document.getElementById('mpopT'),B=document.getElementById('mpopB'),ok=document.getElementById('mpopOk'),disc=document.getElementById('disc');
 const local=(p)=>!p.seen||p.seen==='local',done=(p)=>{try{return local(p)&&localStorage.getItem('mfl-pop-'+p.id)==='1'}catch(e){return false}};
-function next(){if(open||!Q.length)return;if(disc&&!disc.hidden){setTimeout(next,400);return}const p=Q.shift();open=true;el.className='mpop '+(p.cls||'');T.textContent=p.title||'';B.innerHTML=p.html||'';ok.textContent=p.button||'Got it';el.hidden=false;document.documentElement.classList.add('disc-on');ok.focus();
-ok.onclick=()=>{el.hidden=true;open=false;document.documentElement.classList.remove('disc-on');try{if(local(p))localStorage.setItem('mfl-pop-'+p.id,'1');else fetch(p.seen,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).catch(()=>{})}catch(e){}setTimeout(next,250)}}
-window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;Q.push(p);next()};
+function next(){if(open||!Q.length)return;if(disc&&!disc.hidden){setTimeout(next,400);return}const p=Q.shift();open=true;el.className='mpop '+(p.cls||'');T.textContent=p.title||'';B.innerHTML=p.html||'';const lbl=p.button||'Got it';ok.textContent=lbl;el.hidden=false;document.documentElement.classList.add('disc-on');
+let wait=Math.max(0,p.wait|0);ok.disabled=wait>0;if(wait){ok.textContent=lbl+' ('+wait+')';const t=setInterval(()=>{wait--;if(wait>0){ok.textContent=lbl+' ('+wait+')';return}clearInterval(t);ok.disabled=false;ok.textContent=lbl;ok.focus()},1000)}else ok.focus();
+ok.onclick=()=>{if(ok.disabled)return;el.hidden=true;open=false;document.documentElement.classList.remove('disc-on');try{if(local(p))localStorage.setItem('mfl-pop-'+p.id,'1');else fetch(p.seen,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).catch(()=>{})}catch(e){}setTimeout(next,250)}}
+window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;if(p.first)Q.unshift(p);else Q.push(p);next()};
+window.mflPopup(${JSON.stringify(SITE_NOTICE).replace(/</g, '\\u003c')});
 (window.MFL_POPS||[]).forEach(window.mflPopup);})();
 </script>
 ${updatePop}
