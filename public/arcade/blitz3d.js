@@ -6331,9 +6331,9 @@ gl_FragColor=vec4(c,1.0);}`;
     };
     // Season 1 cards (all named for the cover athlete): their own names, played out like an older perk (PK_ALIAS)
     Object.assign(PKN, {
-      's1-ttime': ['T-Time Burst', 'T-Time'], 's1-23': ['Sure Hands', 'Twenty-Three'], 's1-cars': ['Car-se Turbo', 'Cars'], 's1-chem': ['Chemistry', 'Team Chemistry'],
-      's1-onehand': ['One-Handed Snag', 'One-Hand CT'], 's1-tabaka': ['Tabaka Time', 'Tabaka Grab'], 's1-bbmode': ['Big Boy Block', 'Big Boy Mode'],
-      's1-shoot': ['Flashbulbs', 'Cover Shoot 1/1'], 's1-fullext': ['Full Extension', 'Full Extension 1/1'], 's1-cover': ['Camera Ready', 'Cover Athlete'], 's1-bigboy': ['BigBoyCT Aura', 'BigBoyCT 1/1'],
+      's1-ttime': ['T-Time Burst', 'Tabaka Welcome'], 's1-23': ['Sure Hands', 'T-Time'], 's1-cars': ['Car-se Turbo', "Momma P's Cookies"], 's1-chem': ['Chemistry', 'Full Extension Essentials'],
+      's1-onehand': ['One-Handed Snag', 'CT Team Chemistry'], 's1-tabaka': ['Hang Time', 'Carson Charles Tabaka'], 's1-bbmode': ['Big Boy Block', 'Tabaka Time'],
+      's1-shoot': ['Flashbulbs', 'Season 1: Carson Tabaka 1/1'], 's1-fullext': ['Full Extension', "Carson's Filet Dinner 1/1"], 's1-cover': ['Camera Ready', 'Cover Athlete'], 's1-bigboy': ['BigBoyCT Aura', 'BigBoyCT 1/1'],
     });
     const PK_ALIAS = { 's1-ttime': 'action', 's1-23': 'silver', 's1-cars': 'pocket', 's1-chem': 'team', 's1-onehand': 'tall', 's1-tabaka': 'mythic', 's1-bbmode': 'built', 's1-shoot': 'icon', 's1-fullext': 'dark', 's1-cover': 'allstar', 's1-bigboy': 'goat' };
     const PK_RAR = { common: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, dark: 6, zenith: 7, doh: 7 }, PK_PAR = { base: 1, silver: 2, gold: 3, prism: 4, black: 5 };

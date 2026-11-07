@@ -100,6 +100,14 @@ const UPDATES = [
       'Catches, picks and breakups are decided by where the ball is thrown and who is open, not by dice: a good ball to an open receiver is caught, a ball on the defender\'s side can be picked. Throws go where you aim them; on the run they drift the way you are moving, and with a man in your face they sail.',
     ],
   },
+  {
+    n: 10,
+    date: '2026-11-07',
+    title: 'Season 1 card names',
+    items: [
+      "The Season 1 cards are named after the Season 1 packs now: Tabaka Welcome, T-Time, Momma P's Cookies, Full Extension Essentials, CT Team Chemistry, Carson Charles Tabaka, Tabaka Time, Season 1: Carson Tabaka 1/1 and Carson's Filet Dinner 1/1, plus Carson's own Cover Athlete and BigBoyCT 1/1. Cards you already have keep everything but the old name.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

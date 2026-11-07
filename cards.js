@@ -186,15 +186,16 @@ VARIANTS.push(...BODY_VARIANTS);
 // Season cards only drop from Season 1 packs, and each one beats the older cards of its rarity. Added last so every
 // older card keeps its artwork.
 const S1_VARIANTS = [
-  { id: 's1-ttime', rarity: 'rare', label: 'T-Time', mult: 1.4, quote: "It's T-Time." },
-  { id: 's1-23', rarity: 'rare', label: 'Twenty-Three', mult: 1.45, quote: 'Wears 23. Plays like it.' },
-  { id: 's1-cars', rarity: 'epic', label: 'Cars', mult: 1.8, quote: 'Say it right: car-se.' },
-  { id: 's1-chem', rarity: 'epic', label: 'Team Chemistry', mult: 1.9, quote: 'Makes everybody around him better.' },
-  { id: 's1-onehand', rarity: 'legendary', label: 'One-Hand CT', mult: 2.4, quote: 'Only needed the one.' },
-  { id: 's1-tabaka', rarity: 'legendary', label: 'Tabaka Grab', mult: 2.6, quote: 'A catch with his name on it.' },
-  { id: 's1-bbmode', rarity: 'mythic', label: 'Big Boy Mode', mult: 3.2, quote: 'Big boy mode: on.' },
-  { id: 's1-shoot', rarity: 'mythic', label: 'Cover Shoot 1/1', mult: 3.8, one: true, quote: 'One take. Nailed it.' },
-  { id: 's1-fullext', rarity: 'zenith', label: 'Full Extension 1/1', mult: 5, one: true, quote: 'The catch that named a season.' },
+  // each one carries the name of a Season 1 pack, the cheapest pack's name on the most common card, the best pack's on the best
+  { id: 's1-ttime', rarity: 'rare', label: 'Tabaka Welcome', mult: 1.4, quote: 'Welcome to Season 1.' },
+  { id: 's1-23', rarity: 'rare', label: 'T-Time', mult: 1.45, quote: "It's T-Time." },
+  { id: 's1-cars', rarity: 'epic', label: "Momma P's Cookies", mult: 1.8, quote: 'Fresh out of the oven.' },
+  { id: 's1-chem', rarity: 'epic', label: 'Full Extension Essentials', mult: 1.9, quote: 'Everything you need.' },
+  { id: 's1-onehand', rarity: 'legendary', label: 'CT Team Chemistry', mult: 2.4, quote: 'Makes everybody around him better.' },
+  { id: 's1-tabaka', rarity: 'legendary', label: 'Carson Charles Tabaka', mult: 2.6, quote: 'Full name. Full effort.' },
+  { id: 's1-bbmode', rarity: 'mythic', label: 'Tabaka Time', mult: 3.2, quote: "Clock's running. It's Tabaka Time." },
+  { id: 's1-shoot', rarity: 'mythic', label: 'Season 1: Carson Tabaka 1/1', mult: 3.8, one: true, quote: 'The face of the season, one of one.' },
+  { id: 's1-fullext', rarity: 'zenith', label: "Carson's Filet Dinner 1/1", mult: 5, one: true, quote: 'The finest thing on the menu.' },
   // The cover athlete's own two.
   { id: 's1-cover', rarity: 'mythic', label: 'Cover Athlete', mult: 3.5, only: S1.cover, quote: 'The face of Season 1.' },
   { id: 's1-bigboy', rarity: 'zenith', label: `${S1.nick} 1/1`, mult: 6, one: true, only: S1.cover, quote: 'Big boy. Bigger hands.' },
@@ -462,7 +463,7 @@ const PERK_ROWS = [
   ['s1-cars', 'Car-se Turbo', 'He goes from standing still to full speed instantly', 'his first step after stopping or cutting'],
   ['s1-chem', 'Chemistry', 'Sparks jump to the nearest teammate, who gets a quick speed boost', 'every time he makes a catch or a block'],
   ['s1-onehand', 'One-Handed Snag', 'He sticks one hand up and snags high passes no one else can reach', 'passes thrown above head height'],
-  ['s1-tabaka', 'Tabaka Time', 'Time slows down for a beat so he can pick the perfect lane', 'his first cut on each drive'],
+  ['s1-tabaka', 'Hang Time', 'Time slows down for a beat so he can pick the perfect lane', 'his first cut on each drive'],
   ['s1-bbmode', 'Big Boy Block', 'Defenders he blocks get shoved back 2 yards and fall over', 'every block he makes'],
   ['s1-shoot', 'Flashbulbs', 'Cameras flash and the first defender who tries to tackle him freezes for a beat', 'the first tackle attempt on him each play'],
   ['s1-fullext', 'Full Extension', 'Passes thrown near him bend toward his hands, and defenders right next to him move in slow motion', 'any pass within 5 yards, and always within 2 yards'],
