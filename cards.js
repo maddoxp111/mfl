@@ -594,47 +594,47 @@ const isSpec = (...ks) => (c) => !!c.spec && ks.includes(c.spec);
 //   same for everyone, and a purchase keeps the price it was bought at (user.packs[].cost).
 const PACKS = {
   starter: { name: 'Starter Pack', cards: LINEUP_SIZE, cost: 0, free: 'once', group: 'free', desc: `${LINEUP_SIZE} Base cards of different players: a full Lineup. Free, once.` },
-  daily: { name: 'Daily Pack', cards: 1, cost: 0, free: 'daily', group: 'free', desc: 'One free card every day.' },
-  gameday: { name: 'Game Day Pack', cards: 2, cost: 0, free: 'gameday', group: 'free', desc: 'Free on every day there\'s an MFL game.' },
-  weekly: { name: 'Weekly Pack', cards: 3, cost: 0, free: 'weekly', group: 'free', min: 'rare', desc: '3 cards free every week, Silver or better guaranteed.' },
-  prize: { name: 'Champion Pack', cards: 5, cost: 0, free: 'prize', group: 'free', min: 'epic', desc: 'Premium pack for the Picker of the Week.' },
-  arcade: { name: 'Arcade Champ Pack', cards: 3, cost: 0, free: 'arcade', group: 'free', min: 'epic', desc: 'Win 3 Arcade games in a day to unlock it.' },
-  milestone: { name: 'Collector Pack', cards: 4, cost: 0, free: 'milestone', group: 'free', min: 'epic', desc: 'Reward for collecting more different cards.' },
-  standard: { name: 'Standard Pack', cards: 3, cost: 10000, group: 'core', desc: '3 cards. Any rarity can drop.' },
-  value: { name: 'Value Pack', cards: 6, cost: 20500, group: 'core', desc: '6 cards for the price of 5.' },
-  premium: { name: 'Premium Pack', cards: 5, cost: 29500, group: 'core', min: 'epic', desc: '5 cards, with at least one Gold or better guaranteed.' },
-  mega: { name: 'Mega Pack', cards: 12, cost: 76000, group: 'core', min: 'epic', mins: 2, desc: '12 cards with two Gold or better guaranteed.' },
-  offense: { name: 'Offense Pack', cards: 3, cost: 16500, group: 'theme', pool: isSpec('td', 'pass', 'play'), desc: 'Only Touchdown Machine, Gunslinger and Playmaker cards.' },
-  defense: { name: 'Defense Pack', cards: 3, cost: 16500, group: 'theme', pool: isSpec('int', 'def'), desc: 'Only Interception Specialist and Pass Rusher cards.' },
-  specialist: { name: 'Specialist Pack', cards: 4, cost: 28500, group: 'theme', pool: (c) => !!c.spec, min: 'epic', desc: '4 specialist cards with a Signature or better guaranteed.' },
-  shine: { name: 'Shine Pack', cards: 3, cost: 21000, group: 'theme', pool: (c) => ['action', 'holo', 'allstar', 'icon', 'dark'].includes(c.variant), desc: 'Only Action Shot, Holo, All-Star, Icon and Dark Matter cards.' },
-  leaders: { name: 'Captains Pack', cards: 3, cost: 9750, group: 'theme', pool: (c) => ['C', 'TR'].includes(c.p.tag), desc: 'Only captains and team reps.' },
-  draft: { name: 'Draft Class Pack', cards: 3, cost: 10000, group: 'theme', pool: (c) => /^Rd/.test(c.p.tag || ''), desc: 'Only drafted players, any round.' },
-  sleeper: { name: 'Sleeper Pack', cards: 4, cost: 13500, group: 'theme', pool: (c) => c.p.tag === 'FA' || /Rd [3-9]/.test(c.p.tag || ''), desc: 'Free agents and late-round picks. Cheap, and sneaky good.' },
-  lunch: { name: 'Lunch Money Pack', cards: 2, cost: 6750, group: 'core', desc: '2 cards for your lunch money.' },
-  mystery: { name: 'Mystery Box', cards: 4, cost: 17500, group: 'core', mystery: [1, 9], desc: 'Could be 1 card. Could be 9. Nobody knows.' },
-  meme: { name: 'Meme Pack', cards: 3, cost: 8750, group: 'fun', pool: (c) => ['bench', 'trophy', 'pizza', 'cutout', 'bobble', 'upside', 'duck', 'built'].includes(c.variant), desc: 'Benchwarmers, trophies, rubber duckies and other weird ones.' },
-  bitpack: { name: '8-Bit Pack', cards: 3, cost: 19500, group: 'fun', pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant), desc: '8-Bit, Throwback and Glitch cards. Built for Modern Bowl.' },
-  spooky: { name: 'Spooky Pack', cards: 3, cost: 22500, group: 'fun', pool: (c) => ['spooky', 'glitch', 'snow'].includes(c.variant), min: 'epic', desc: 'Spooky cards, with a Gold or better guaranteed.' },
-  cafeteria: { name: 'Cafeteria Pack', cards: 4, cost: 5250, group: 'fun', pool: (c) => ['pizza', 'trophy', 'bench', 'cutout', 'base', 'team'].includes(c.variant), desc: 'Pizza Friday and friends. Cheap and cheerful.' },
-  bobble: { name: 'Bobblehead Box', cards: 2, cost: 8000, group: 'fun', pool: (c) => c.variant === 'bobble', desc: 'Two bobbleheads. Nod nod.' },
-  snowday: { name: 'Snow Day Pack', cards: 3, cost: 16500, group: 'fun', pool: (c) => ['snow', 'upside', 'throwback'].includes(c.variant), desc: 'Snow Day, Upside Down and Throwback cards.' },
-  bodyshop: { name: 'Body Shop Pack', cards: 3, cost: 16500, group: 'fun', pool: (c) => BODY_TYPES.includes(c.variant), desc: 'Body-type cards: Skinny, Heavyweight, Tall Order, Short King, Beanpole, Stout, Giant and Pocket Rocket. They change how tall and heavy your players are in the Arcade.' },
-  goat: { name: 'GOAT Hunt', cards: 1, cost: 200000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 2 }, pool: (c) => ['goat', 'glitch', 'icon', 'mythic', 'allstar', 'legend'].includes(c.variant), desc: 'One Legend-or-better card with a real shot at The GOAT 1/1.' },
-  elite: { name: 'Elite Pack', cards: 3, cost: 150000, group: 'chase', min: 'legendary', desc: '3 cards with a Legend or better guaranteed.' },
-  hunt: { name: 'Mythic Hunt', cards: 1, cost: 200000, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'One Gold-or-better card with 15× the usual Mythic and Dark Matter drop rate.' },
-  void: { name: 'Dark Matter Pack', cards: 1, cost: 400000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 6, dark: 30 }, desc: 'One Legend or better. About a 1 in 3 shot at Dark Matter.' },
+  daily: { name: 'Daily Pack', cards: 3, cost: 0, free: 'daily', group: 'free', desc: '3 free cards every day.' },
+  gameday: { name: 'Game Day Pack', cards: 4, cost: 0, free: 'gameday', group: 'free', desc: 'Free on every day there\'s an MFL game.' },
+  weekly: { name: 'Weekly Pack', cards: 5, cost: 0, free: 'weekly', group: 'free', min: 'rare', desc: '5 cards free every week, Silver or better guaranteed.' },
+  prize: { name: 'Champion Pack', cards: 8, cost: 0, free: 'prize', group: 'free', min: 'epic', desc: 'Premium pack for the Picker of the Week.' },
+  arcade: { name: 'Arcade Champ Pack', cards: 5, cost: 0, free: 'arcade', group: 'free', min: 'epic', desc: 'Win 3 Arcade games in a day to unlock it.' },
+  milestone: { name: 'Collector Pack', cards: 7, cost: 0, free: 'milestone', group: 'free', min: 'epic', desc: 'Reward for collecting more different cards.' },
+  standard: { name: 'Standard Pack', cards: 5, cost: 10000, group: 'core', desc: '5 cards. Any rarity can drop.' },
+  value: { name: 'Value Pack', cards: 12, cost: 20500, group: 'core', desc: '12 cards for about the price of 10.' },
+  premium: { name: 'Premium Pack', cards: 8, cost: 29500, group: 'core', min: 'epic', desc: '8 cards, with at least one Gold or better guaranteed.' },
+  mega: { name: 'Mega Pack', cards: 15, cost: 76000, group: 'core', min: 'epic', mins: 3, desc: '15 cards with three Gold or better guaranteed.' },
+  offense: { name: 'Offense Pack', cards: 5, cost: 16500, group: 'theme', pool: isSpec('td', 'pass', 'play'), desc: 'Only Touchdown Machine, Gunslinger and Playmaker cards.' },
+  defense: { name: 'Defense Pack', cards: 5, cost: 16500, group: 'theme', pool: isSpec('int', 'def'), desc: 'Only Interception Specialist and Pass Rusher cards.' },
+  specialist: { name: 'Specialist Pack', cards: 7, cost: 28500, group: 'theme', pool: (c) => !!c.spec, min: 'epic', desc: '7 specialist cards with a Signature or better guaranteed.' },
+  shine: { name: 'Shine Pack', cards: 5, cost: 21000, group: 'theme', pool: (c) => ['action', 'holo', 'allstar', 'icon', 'dark'].includes(c.variant), desc: 'Only Action Shot, Holo, All-Star, Icon and Dark Matter cards.' },
+  leaders: { name: 'Captains Pack', cards: 5, cost: 9750, group: 'theme', pool: (c) => ['C', 'TR'].includes(c.p.tag), desc: 'Only captains and team reps.' },
+  draft: { name: 'Draft Class Pack', cards: 5, cost: 10000, group: 'theme', pool: (c) => /^Rd/.test(c.p.tag || ''), desc: 'Only drafted players, any round.' },
+  sleeper: { name: 'Sleeper Pack', cards: 7, cost: 13500, group: 'theme', pool: (c) => c.p.tag === 'FA' || /Rd [3-9]/.test(c.p.tag || ''), desc: 'Free agents and late-round picks. Cheap, and sneaky good.' },
+  lunch: { name: 'Lunch Money Pack', cards: 4, cost: 6750, group: 'core', desc: '4 cards for your lunch money.' },
+  mystery: { name: 'Mystery Box', cards: 7, cost: 17500, group: 'core', mystery: [3, 15], desc: 'Could be 3 cards. Could be 15. Nobody knows.' },
+  meme: { name: 'Meme Pack', cards: 5, cost: 8750, group: 'fun', pool: (c) => ['bench', 'trophy', 'pizza', 'cutout', 'bobble', 'upside', 'duck', 'built'].includes(c.variant), desc: 'Benchwarmers, trophies, rubber duckies and other weird ones.' },
+  bitpack: { name: '8-Bit Pack', cards: 5, cost: 19500, group: 'fun', pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant), desc: '8-Bit, Throwback and Glitch cards. Built for Modern Bowl.' },
+  spooky: { name: 'Spooky Pack', cards: 5, cost: 22500, group: 'fun', pool: (c) => ['spooky', 'glitch', 'snow'].includes(c.variant), min: 'epic', desc: 'Spooky cards, with a Gold or better guaranteed.' },
+  cafeteria: { name: 'Cafeteria Pack', cards: 7, cost: 5250, group: 'fun', pool: (c) => ['pizza', 'trophy', 'bench', 'cutout', 'base', 'team'].includes(c.variant), desc: 'Pizza Friday and friends. Cheap and cheerful.' },
+  bobble: { name: 'Bobblehead Box', cards: 4, cost: 8000, group: 'fun', pool: (c) => c.variant === 'bobble', desc: 'Four bobbleheads. Nod nod.' },
+  snowday: { name: 'Snow Day Pack', cards: 5, cost: 16500, group: 'fun', pool: (c) => ['snow', 'upside', 'throwback'].includes(c.variant), desc: 'Snow Day, Upside Down and Throwback cards.' },
+  bodyshop: { name: 'Body Shop Pack', cards: 5, cost: 16500, group: 'fun', pool: (c) => BODY_TYPES.includes(c.variant), desc: 'Body-type cards: Skinny, Heavyweight, Tall Order, Short King, Beanpole, Stout, Giant and Pocket Rocket. They change how tall and heavy your players are in the Arcade.' },
+  goat: { name: 'GOAT Hunt', cards: 3, hits: 1, cost: 200000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 2 }, pool: (c) => ['goat', 'glitch', 'icon', 'mythic', 'allstar', 'legend'].includes(c.variant), desc: 'Three Legend-or-better cards. The last one has a real shot at The GOAT 1/1.' },
+  elite: { name: 'Elite Pack', cards: 5, cost: 150000, group: 'chase', min: 'legendary', desc: '5 cards with a Legend or better guaranteed.' },
+  hunt: { name: 'Mythic Hunt', cards: 3, hits: 1, cost: 200000, group: 'chase', boost: { common: 0, rare: 0, mythic: 15, dark: 15 }, desc: 'Three Gold-or-better cards. The last gets 15× the usual Mythic and Dark Matter drop rate.' },
+  void: { name: 'Dark Matter Pack', cards: 3, hits: 1, cost: 400000, group: 'chase', boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 6, dark: 30 }, desc: 'Three Legend-or-better cards. The last is about a 1 in 3 shot at Dark Matter.' },
 };
 // Set packs: one per series, plus packs across every set.
 const SET_COLORS = { school: ['#0369a1', '#0c2133'], spirit: ['#be185d', '#2a0717'], bowls: ['#b45309', '#1c1105'], wild: ['#4338ca', '#0b0a24'], art: ['#0f766e', '#04201d'], arcade: ['#7e22ce', '#13041f'], weather: ['#475569', '#0b1220'], snacks: ['#dc2626', '#2a0606'], legends: ['#a16207', '#1a1203'] };
 for (const [series, seriesName, sets] of SERIES) {
-  PACKS['series-' + series] = { name: `${seriesName} Pack`, cards: 4, cost: 13500, group: 'sets', sets: true, colors: SET_COLORS[series], pool: (c) => SET_MAP.get(c.set)?.series === series, desc: `4 cards from the ${seriesName} sets: ${sets.map((x) => x[1]).join(', ')}.` };
+  PACKS['series-' + series] = { name: `${seriesName} Pack`, cards: 7, cost: 13500, group: 'sets', sets: true, colors: SET_COLORS[series], pool: (c) => SET_MAP.get(c.set)?.series === series, desc: `7 cards from the ${seriesName} sets: ${sets.map((x) => x[1]).join(', ')}.` };
 }
 Object.assign(PACKS, {
-  'set-hunter': { name: 'Set Hunter Pack', cards: 6, cost: 20500, group: 'sets', sets: true, colors: ['#0e7490', '#05161c'], desc: '6 cards from any of the 54 card sets.' },
-  'set-gold': { name: 'Golden Ticket', cards: 3, cost: 35000, group: 'sets', sets: true, min: 'epic', mins: 2, colors: ['#ca8a04', '#1f1503'], desc: '3 set cards with two Gold or better guaranteed.' },
-  'set-prism': { name: 'Prism Chase', cards: 1, cost: 200000, group: 'sets', sets: true, boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 4 }, colors: ['#db2777', '#1e1b4b'], desc: 'One Prism or Black set card. About 1 in 4 is Black.' },
-  'set-black': { name: 'Black Label', cards: 1, cost: 250000, group: 'sets', sets: true, pool: (c) => c.par === 'black', colors: ['#18181b', '#000000'], desc: 'One guaranteed Black parallel from any set.' },
+  'set-hunter': { name: 'Set Hunter Pack', cards: 10, cost: 20500, group: 'sets', sets: true, colors: ['#0e7490', '#05161c'], desc: '10 cards from any of the 54 card sets.' },
+  'set-gold': { name: 'Golden Ticket', cards: 5, cost: 35000, group: 'sets', sets: true, min: 'epic', mins: 2, colors: ['#ca8a04', '#1f1503'], desc: '5 set cards with two Gold or better guaranteed.' },
+  'set-prism': { name: 'Prism Chase', cards: 3, hits: 1, cost: 200000, group: 'sets', sets: true, boost: { common: 0, rare: 0, epic: 0, legendary: 1, mythic: 4 }, colors: ['#db2777', '#1e1b4b'], desc: 'Three Prism or Black set cards. The last is about a 1 in 4 shot at Black.' },
+  'set-black': { name: 'Black Label', cards: 3, cost: 250000, group: 'sets', sets: true, pool: (c) => c.par === 'black', colors: ['#18181b', '#000000'], desc: 'Three guaranteed Black parallels from any set.' },
 });
 
 // ---------- more packs ----------
@@ -657,61 +657,61 @@ const rotating = (db, ctx, P) => rotation(P.rotate, nowOf(ctx));
 const PATTERNS = ['stripes', 'dots', 'grid', 'zig', 'check', 'rays', 'stars', 'waves', 'diamond', 'confetti'];
 Object.assign(PACKS, {
   // Core
-  rookie: { name: 'Rookie Rack', cards: 1, cost: 1000, group: 'core', added: NEW_PACK, art: { c: ['#64748b', '#0f172a'], e: '🧢', pat: 'dots' }, desc: 'One card, any rarity. The cheapest way into the shop.' },
-  'silver-stack': { name: 'Silver Stack', cards: 5, cost: 48000, group: 'core', floor: 'rare', added: NEW_PACK, art: { c: ['#cbd5e1', '#1e293b'], e: '🥈', pat: 'stripes', foil: 'silver' }, desc: '5 cards and every one is Silver or better.' },
-  'mystery-mega': { name: 'Mystery Mega', cards: 12, cost: 51000, group: 'core', mixed: true, mystery: [5, 20], added: NEW_PACK, art: { c: ['#7c3aed', '#14052b'], e: '🎁', pat: 'confetti', foil: 'holo' }, desc: 'Somewhere between 5 and 20 cards, classic and set cards mixed together.' },
+  rookie: { name: 'Rookie Rack', cards: 3, cost: 1000, group: 'core', added: NEW_PACK, art: { c: ['#64748b', '#0f172a'], e: '🧢', pat: 'dots' }, desc: '3 cards, any rarity. The cheapest way into the shop.' },
+  'silver-stack': { name: 'Silver Stack', cards: 8, cost: 48000, group: 'core', floor: 'rare', added: NEW_PACK, art: { c: ['#cbd5e1', '#1e293b'], e: '🥈', pat: 'stripes', foil: 'silver' }, desc: '8 cards and every one is Silver or better.' },
+  'mystery-mega': { name: 'Mystery Mega', cards: 12, cost: 51000, group: 'core', mixed: true, mystery: [9, 15], added: NEW_PACK, art: { c: ['#7c3aed', '#14052b'], e: '🎁', pat: 'confetti', foil: 'holo' }, desc: 'Somewhere between 9 and 15 cards, classic and set cards mixed together.' },
   // Themes: positions, the other team, last game's scorers
-  'pos-qb': { name: 'QB Room', cards: 3, cost: 9750, group: 'theme', added: NEW_PACK, live: atPos('QB'), inside: 'Quarterbacks: a saved QB position, or each team\'s top passer.', art: { c: ['#b91c1c', '#1f0505'], e: '🎯', pat: 'rays' }, desc: '3 quarterback cards. Your QB throws in the games.' },
-  'pos-rb': { name: 'Backfield Pack', cards: 3, cost: 10500, group: 'theme', added: NEW_PACK, live: atPos('RB'), inside: 'Running backs: a saved RB position, or each team\'s top scorer after the QB.', art: { c: ['#ea580c', '#260c02'], e: '💨', pat: 'zig' }, desc: '3 running back cards. Speed and strength up the middle.' },
-  'pos-wr': { name: 'Wideout Pack', cards: 3, cost: 10000, group: 'theme', added: NEW_PACK, live: atPos('WR'), inside: 'Wide receivers: a saved WR position, or each team\'s next three scorers.', art: { c: ['#0284c7', '#03192b'], e: '🙌', pat: 'waves' }, desc: '3 wide receiver cards. Hands, speed and big plays.' },
-  'pos-te': { name: 'Tight End Pack', cards: 2, cost: 6750, group: 'theme', added: NEW_PACK, live: atPos('TE'), inside: 'Tight ends: a saved TE position, or one more pass catcher per team.', art: { c: ['#0d9488', '#03201d'], e: '🧤', pat: 'grid' }, desc: '2 tight end cards. Half blocker, half receiver.' },
-  'pos-line': { name: 'Trenches Pack', cards: 3, cost: 10000, group: 'theme', added: NEW_PACK, live: atPos('OL'), inside: 'Linemen and utility players: everyone who is not a QB, RB, WR or TE.', art: { c: ['#57534e', '#0c0a09'], e: '🛡️', pat: 'check' }, desc: '3 linemen and utility players. They block for everyone else.' },
-  rival: { name: 'Rival Pack', cards: 3, cost: 10000, group: 'theme', added: NEW_PACK, live: (db, ctx) => rivalPack(db, ctx), art: { c: ['#dc2626', '#1e1b4b'], e: '⚔️', pat: 'diamond' }, desc: '3 cards from the other MFL team: the one your collection is up against.' },
-  'hot-hand': { name: 'Hot Hand', cards: 3, cost: 10000, group: 'theme', added: NEW_PACK, live: (db) => hotHandPack(db), art: { c: ['#f97316', '#3b0a02'], e: '🔥', pat: 'rays', foil: 'gold' }, desc: '3 cards of players who scored in the latest final game.' },
+  'pos-qb': { name: 'QB Room', cards: 5, cost: 9750, group: 'theme', added: NEW_PACK, live: atPos('QB'), inside: 'Quarterbacks: a saved QB position, or each team\'s top passer.', art: { c: ['#b91c1c', '#1f0505'], e: '🎯', pat: 'rays' }, desc: '5 quarterback cards. Your QB throws in the games.' },
+  'pos-rb': { name: 'Backfield Pack', cards: 5, cost: 10500, group: 'theme', added: NEW_PACK, live: atPos('RB'), inside: 'Running backs: a saved RB position, or each team\'s top scorer after the QB.', art: { c: ['#ea580c', '#260c02'], e: '💨', pat: 'zig' }, desc: '5 running back cards. Speed and strength up the middle.' },
+  'pos-wr': { name: 'Wideout Pack', cards: 5, cost: 10000, group: 'theme', added: NEW_PACK, live: atPos('WR'), inside: 'Wide receivers: a saved WR position, or each team\'s next three scorers.', art: { c: ['#0284c7', '#03192b'], e: '🙌', pat: 'waves' }, desc: '5 wide receiver cards. Hands, speed and big plays.' },
+  'pos-te': { name: 'Tight End Pack', cards: 4, cost: 6750, group: 'theme', added: NEW_PACK, live: atPos('TE'), inside: 'Tight ends: a saved TE position, or one more pass catcher per team.', art: { c: ['#0d9488', '#03201d'], e: '🧤', pat: 'grid' }, desc: '4 tight end cards. Half blocker, half receiver.' },
+  'pos-line': { name: 'Trenches Pack', cards: 5, cost: 10000, group: 'theme', added: NEW_PACK, live: atPos('OL'), inside: 'Linemen and utility players: everyone who is not a QB, RB, WR or TE.', art: { c: ['#57534e', '#0c0a09'], e: '🛡️', pat: 'check' }, desc: '5 linemen and utility players. They block for everyone else.' },
+  rival: { name: 'Rival Pack', cards: 5, cost: 10000, group: 'theme', added: NEW_PACK, live: (db, ctx) => rivalPack(db, ctx), art: { c: ['#dc2626', '#1e1b4b'], e: '⚔️', pat: 'diamond' }, desc: '5 cards from the other MFL team: the one your collection is up against.' },
+  'hot-hand': { name: 'Hot Hand', cards: 5, cost: 10000, group: 'theme', added: NEW_PACK, live: (db) => hotHandPack(db), art: { c: ['#f97316', '#3b0a02'], e: '🔥', pat: 'rays', foil: 'gold' }, desc: '5 cards of players who scored in the latest final game.' },
   // Body Shop: the body-type card variants (skinny, heavy, tall, short, beanpole, stout, giant, pocket)
-  'body-skinny': { name: 'Noodle Pack', cards: 3, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'pocket', 'beanpole'), inside: 'Skinny, Pocket and Beanpole cards: slim builds.', art: { c: ['#facc15', '#422006'], e: '🍜', pat: 'waves' }, desc: 'Slim builds only: Skinny, Pocket and Beanpole cards.' },
-  'body-beanpole': { name: 'Beanpole Box', cards: 2, cost: 21000, group: 'body', added: NEW_PACK, pool: inVariants('beanpole'), inside: 'Beanpole cards only: tall and slim.', art: { c: ['#4ade80', '#052e16'], e: '🌱', pat: 'stripes' }, desc: '2 Beanpole cards: tall and slim.' },
-  'body-big': { name: 'Big Boy Pack', cards: 3, cost: 17500, group: 'body', added: NEW_PACK, pool: inVariants('heavy', 'stout', 'giant'), inside: 'Heavy, Stout and Giant cards: the big builds.', art: { c: ['#b45309', '#1c0a00'], e: '🍔', pat: 'check' }, desc: 'Heavy, Stout and Giant cards. Hard to move.' },
-  'body-short': { name: 'Short Stack', cards: 3, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('short', 'stout', 'pocket'), inside: 'Short, Stout and Pocket cards: low to the ground.', art: { c: ['#f59e0b', '#451a03'], e: '🥞', pat: 'dots' }, desc: 'Short, Stout and Pocket cards. Low to the ground.' },
-  'body-tall': { name: 'Tall Order', cards: 3, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('tall', 'beanpole', 'giant'), inside: 'Tall, Beanpole and Giant cards: the tall builds.', art: { c: ['#38bdf8', '#082f49'], e: '🦒', pat: 'stripes' }, desc: 'Tall, Beanpole and Giant cards. Over the top of everyone.' },
-  'body-giant': { name: 'Giant Box', cards: 1, cost: 10500, group: 'body', added: NEW_PACK, pool: inVariants('giant'), inside: 'Giant cards only: tall and built like a tank.', art: { c: ['#a8a29e', '#1c1917'], e: '🗿', pat: 'grid', foil: 'silver' }, desc: 'One Giant card: tall and built like a tank.' },
-  'body-mega': { name: 'Body Shop Mega', cards: 8, cost: 51500, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'heavy', 'tall', 'short', 'beanpole', 'stout', 'giant', 'pocket'), inside: 'Every body type: Skinny, Heavy, Tall, Short, Beanpole, Stout, Giant and Pocket.', art: { c: ['#ec4899', '#2e0a1f'], e: '🏋️', pat: 'confetti', foil: 'holo' }, desc: '8 cards of every body type in one big pack.' },
+  'body-skinny': { name: 'Noodle Pack', cards: 5, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'pocket', 'beanpole'), inside: 'Skinny, Pocket and Beanpole cards: slim builds.', art: { c: ['#facc15', '#422006'], e: '🍜', pat: 'waves' }, desc: 'Slim builds only: Skinny, Pocket and Beanpole cards.' },
+  'body-beanpole': { name: 'Beanpole Box', cards: 4, cost: 21000, group: 'body', added: NEW_PACK, pool: inVariants('beanpole'), inside: 'Beanpole cards only: tall and slim.', art: { c: ['#4ade80', '#052e16'], e: '🌱', pat: 'stripes' }, desc: '4 Beanpole cards: tall and slim.' },
+  'body-big': { name: 'Big Boy Pack', cards: 5, cost: 17500, group: 'body', added: NEW_PACK, pool: inVariants('heavy', 'stout', 'giant'), inside: 'Heavy, Stout and Giant cards: the big builds.', art: { c: ['#b45309', '#1c0a00'], e: '🍔', pat: 'check' }, desc: 'Heavy, Stout and Giant cards. Hard to move.' },
+  'body-short': { name: 'Short Stack', cards: 5, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('short', 'stout', 'pocket'), inside: 'Short, Stout and Pocket cards: low to the ground.', art: { c: ['#f59e0b', '#451a03'], e: '🥞', pat: 'dots' }, desc: 'Short, Stout and Pocket cards. Low to the ground.' },
+  'body-tall': { name: 'Tall Order', cards: 5, cost: 16500, group: 'body', added: NEW_PACK, pool: inVariants('tall', 'beanpole', 'giant'), inside: 'Tall, Beanpole and Giant cards: the tall builds.', art: { c: ['#38bdf8', '#082f49'], e: '🦒', pat: 'stripes' }, desc: 'Tall, Beanpole and Giant cards. Over the top of everyone.' },
+  'body-giant': { name: 'Giant Box', cards: 3, cost: 10500, group: 'body', added: NEW_PACK, pool: inVariants('giant'), inside: 'Giant cards only: tall and built like a tank.', art: { c: ['#a8a29e', '#1c1917'], e: '🗿', pat: 'grid', foil: 'silver' }, desc: 'Three Giant cards: tall and built like a tank.' },
+  'body-mega': { name: 'Body Shop Mega', cards: 13, cost: 51500, group: 'body', added: NEW_PACK, pool: inVariants('skinny', 'heavy', 'tall', 'short', 'beanpole', 'stout', 'giant', 'pocket'), inside: 'Every body type: Skinny, Heavy, Tall, Short, Beanpole, Stout, Giant and Pocket.', art: { c: ['#ec4899', '#2e0a1f'], e: '🏋️', pat: 'confetti', foil: 'holo' }, desc: '13 cards of every body type in one big pack.' },
   // Sets: one-set minis are generated below
-  'snack-single': { name: 'Snack Attack Single', cards: 1, cost: 1000, group: 'sets', sets: true, added: NEW_PACK, pool: inSeries('snacks'), inside: 'The Snack Attack series: Cereal Box, Nacho Day, Donut Run, Hot Sauce, Popcorn and Smoothie.', art: { c: ['#ef4444', '#2a0606'], e: '🍿', pat: 'dots' }, desc: 'One Snack Attack set card. A cheap snack.' },
-  'double-feature': { name: 'Double Feature', cards: 4, cost: 13000, group: 'sets', sets: true, pairs: 2, added: NEW_PACK, art: { c: ['#e11d48', '#1c1917'], e: '🎞️', pat: 'grid' }, desc: '2 pairs of set cards: each pair is the same player in two versions.' },
+  'snack-single': { name: 'Snack Attack Bite', cards: 3, cost: 1000, group: 'sets', sets: true, added: NEW_PACK, pool: inSeries('snacks'), inside: 'The Snack Attack series: Cereal Box, Nacho Day, Donut Run, Hot Sauce, Popcorn and Smoothie.', art: { c: ['#ef4444', '#2a0606'], e: '🍿', pat: 'dots' }, desc: 'Three Snack Attack set cards. A cheap snack.' },
+  'double-feature': { name: 'Double Feature', cards: 6, cost: 13000, group: 'sets', sets: true, pairs: 3, added: NEW_PACK, art: { c: ['#e11d48', '#1c1917'], e: '🎞️', pat: 'grid' }, desc: '3 pairs of set cards: each pair is the same player in two versions.' },
   // Fun
-  'pick-one': { name: 'Pick One', cards: 1, choose: 3, floor: 'rare', cost: 21000, group: 'fun', added: NEW_PACK, art: { c: ['#06b6d4', '#082f49'], e: '👆', pat: 'dots' }, desc: 'See 3 Silver-or-better cards and keep the one you want.' },
-  'draft-day': { name: 'Draft Day', cards: 2, choose: 5, min: 'epic', cost: 26500, group: 'fun', added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '📝', pat: 'grid' }, desc: 'See 5 cards (one Gold or better) and draft the 2 you like best.' },
-  doubles: { name: 'Doubles', cards: 6, pairs: 3, cost: 20500, group: 'fun', added: NEW_PACK, art: { c: ['#a855f7', '#1e0b3a'], e: '👯', pat: 'diamond' }, desc: '3 pairs: each pair is one player in two different cards.' },
-  'coin-flip': { name: 'Coin Flip', cards: 1, cost: 9000, group: 'fun', boost: { rare: 0, epic: 6.2, legendary: 6.2, mythic: 6.2, dark: 6.2 }, added: NEW_PACK, art: { c: ['#eab308', '#1f1503'], e: '🪙', pat: 'rays', foil: 'gold' }, desc: 'One card. Heads it\'s a Base card, tails it\'s Gold or better. 50/50.' },
-  sparkle: { name: 'Sparkle Pack', cards: 3, cost: 9500, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['holo', 'action', 'allstar'].includes(c.variant) || ['hologram', 'rainbow', 'stained-glass'].includes(c.set) || c.par === 'prism', inside: 'Holo, Action Shot and All-Star cards, the Hologram, Rainbow and Stained Glass sets, and Prism parallels of any set.', art: { c: ['#f0abfc', '#3b0764'], e: '✨', pat: 'stars', foil: 'holo' }, desc: 'Only the shiny ones: Holo, Prism, Hologram and friends.' },
-  'fire-ice': { name: 'Fire & Ice', cards: 4, cost: 13000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => c.variant === 'snow' || ['volcano', 'hot-sauce', 'desert', 'sunshine', 'arctic', 'blizzard'].includes(c.set), inside: 'Fire: Volcano, Hot Sauce, Desert Storm and Sunshine. Ice: Arctic, Blizzard and Snow Day.', art: { c: ['#f97316', '#0ea5e9'], e: '🔥🧊', pat: 'zig' }, desc: 'Hot and cold cards in one pack: Volcano, Hot Sauce, Arctic, Blizzard, Snow Day.' },
-  galaxy: { name: 'Galaxy Pack', cards: 3, cost: 10000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['allstar', 'icon', 'dark'].includes(c.variant) || ['galaxy', 'neon', 'new-year'].includes(c.set), inside: 'All-Star, Icon and Dark Matter cards plus the Galaxy, Neon Nights and New Year\'s Bowl sets.', art: { c: ['#4338ca', '#020617'], e: '🌌', pat: 'stars' }, desc: 'Starry cards from deep space, with a tiny shot at Dark Matter.' },
-  retro: { name: 'Retro Arcade', cards: 3, cost: 10000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant) || ['pixel-plus', 'high-score', 'vhs', 'circuit'].includes(c.set), inside: '8-Bit, Throwback and Glitch cards plus the Pixel Pro, High Score, VHS Tape and Circuit Board sets.', art: { c: ['#22c55e', '#020617'], e: '🕹️', pat: 'grid' }, desc: 'Pixels, VHS tapes and glitches. Press start.' },
+  'pick-one': { name: 'Pick Three', cards: 3, choose: 9, floor: 'rare', cost: 21000, group: 'fun', added: NEW_PACK, art: { c: ['#06b6d4', '#082f49'], e: '👆', pat: 'dots' }, desc: 'See 9 Silver-or-better cards and keep the 3 you want.' },
+  'draft-day': { name: 'Draft Day', cards: 4, choose: 10, min: 'epic', cost: 26500, group: 'fun', added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '📝', pat: 'grid' }, desc: 'See 10 cards (one Gold or better) and draft the 4 you like best.' },
+  doubles: { name: 'Doubles', cards: 10, pairs: 5, cost: 20500, group: 'fun', added: NEW_PACK, art: { c: ['#a855f7', '#1e0b3a'], e: '👯', pat: 'diamond' }, desc: '5 pairs: each pair is one player in two different cards.' },
+  'coin-flip': { name: 'Coin Flip', cards: 3, hits: 1, cost: 9000, group: 'fun', boost: { rare: 0, epic: 6.2, legendary: 6.2, mythic: 6.2, dark: 6.2 }, added: NEW_PACK, art: { c: ['#eab308', '#1f1503'], e: '🪙', pat: 'rays', foil: 'gold' }, desc: 'Three cards. The last is a coin flip: heads it\'s a Base card, tails it\'s Gold or better.' },
+  sparkle: { name: 'Sparkle Pack', cards: 5, cost: 9500, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['holo', 'action', 'allstar'].includes(c.variant) || ['hologram', 'rainbow', 'stained-glass'].includes(c.set) || c.par === 'prism', inside: 'Holo, Action Shot and All-Star cards, the Hologram, Rainbow and Stained Glass sets, and Prism parallels of any set.', art: { c: ['#f0abfc', '#3b0764'], e: '✨', pat: 'stars', foil: 'holo' }, desc: 'Only the shiny ones: Holo, Prism, Hologram and friends.' },
+  'fire-ice': { name: 'Fire & Ice', cards: 7, cost: 13000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => c.variant === 'snow' || ['volcano', 'hot-sauce', 'desert', 'sunshine', 'arctic', 'blizzard'].includes(c.set), inside: 'Fire: Volcano, Hot Sauce, Desert Storm and Sunshine. Ice: Arctic, Blizzard and Snow Day.', art: { c: ['#f97316', '#0ea5e9'], e: '🔥🧊', pat: 'zig' }, desc: 'Hot and cold cards in one pack: Volcano, Hot Sauce, Arctic, Blizzard, Snow Day.' },
+  galaxy: { name: 'Galaxy Pack', cards: 5, cost: 10000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['allstar', 'icon', 'dark'].includes(c.variant) || ['galaxy', 'neon', 'new-year'].includes(c.set), inside: 'All-Star, Icon and Dark Matter cards plus the Galaxy, Neon Nights and New Year\'s Bowl sets.', art: { c: ['#4338ca', '#020617'], e: '🌌', pat: 'stars' }, desc: 'Starry cards from deep space, with a tiny shot at Dark Matter.' },
+  retro: { name: 'Retro Arcade', cards: 5, cost: 10000, group: 'fun', mixed: true, added: NEW_PACK, pool: (c) => ['pixel', 'throwback', 'glitch'].includes(c.variant) || ['pixel-plus', 'high-score', 'vhs', 'circuit'].includes(c.set), inside: '8-Bit, Throwback and Glitch cards plus the Pixel Pro, High Score, VHS Tape and Circuit Board sets.', art: { c: ['#22c55e', '#020617'], e: '🕹️', pat: 'grid' }, desc: 'Pixels, VHS tapes and glitches. Press start.' },
   // Chase
-  'gold-rush': { name: 'Gold Rush', cards: 3, cost: 86000, group: 'chase', floor: 'epic', added: NEW_PACK, art: { c: ['#facc15', '#3f2a05'], e: '💰', pat: 'rays', foil: 'gold' }, desc: '3 cards and every one is Gold or better.' },
-  vault: { name: 'The Vault', cards: 3, cost: 350000, group: 'chase', floor: 'legendary', boost: { mythic: 3, dark: 3 }, added: NEW_PACK, art: { c: ['#94a3b8', '#020617'], e: '🔐', pat: 'grid', foil: 'silver' }, desc: '3 cards, every one Legend or better, with triple the Mythic and Dark Matter odds.' },
-  'black-box': { name: 'Black Label Box', cards: 3, cost: 350000, group: 'chase', sets: true, pool: (c) => c.par === 'black', added: NEW_PACK, art: { c: ['#27272a', '#000000'], e: '🎩', pat: 'diamond', foil: 'black' }, desc: '3 Black parallels from any set.' },
+  'gold-rush': { name: 'Gold Rush', cards: 5, cost: 86000, group: 'chase', floor: 'epic', added: NEW_PACK, art: { c: ['#facc15', '#3f2a05'], e: '💰', pat: 'rays', foil: 'gold' }, desc: '5 cards and every one is Gold or better.' },
+  vault: { name: 'The Vault', cards: 5, hits: 3, cost: 350000, group: 'chase', floor: 'legendary', boost: { mythic: 3, dark: 3 }, added: NEW_PACK, art: { c: ['#94a3b8', '#020617'], e: '🔐', pat: 'grid', foil: 'silver' }, desc: '5 cards, every one Legend or better. The last 3 get triple the Mythic and Dark Matter odds.' },
+  'black-box': { name: 'Black Label Box', cards: 5, cost: 350000, group: 'chase', sets: true, pool: (c) => c.par === 'black', added: NEW_PACK, art: { c: ['#27272a', '#000000'], e: '🎩', pat: 'diamond', foil: 'black' }, desc: '5 Black parallels from any set.' },
   // Bundles (cards and list price are added up below)
-  'bundle-locker': { name: 'Locker Room', cost: 40500, group: 'bundle', bundle: [['premium', 1], ['standard', 1], ['lunch', 1]], added: NEW_PACK, art: { c: ['#16a34a', '#052e16'], e: '🎒', pat: 'check' }, desc: 'A Premium, a Standard and a Lunch Money pack: 10 cards for less.' },
-  'bundle-season': { name: 'Season Ticket', cost: 100000, group: 'bundle', bundle: [['mega', 1], ['premium', 1], ['standard', 1]], added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '🎟️', pat: 'stripes', foil: 'gold' }, desc: 'A Mega, a Premium and a Standard pack: 20 cards for the whole season.' },
-  'bundle-sets': { name: 'Set Collector', cost: 61000, group: 'bundle', bundle: [['set-hunter', 1], ['set-gold', 1], ['series-bowls', 1]], added: NEW_PACK, art: { c: ['#0e7490', '#05161c'], e: '🗂️', pat: 'diamond' }, desc: 'Set Hunter, Golden Ticket and Bowl Season packs: 13 set cards.' },
-  'bundle-body': { name: 'Body Shop Bundle', cost: 44500, group: 'bundle', bundle: [['body-big', 1], ['body-short', 1], ['body-tall', 1]], added: NEW_PACK, art: { c: ['#ec4899', '#2e0a1f'], e: '💪', pat: 'zig' }, desc: 'Big Boy, Short Stack and Tall Order packs: 9 body-type cards.' },
+  'bundle-locker': { name: 'Locker Room', cost: 40500, group: 'bundle', bundle: [['premium', 1], ['standard', 1], ['lunch', 1]], added: NEW_PACK, art: { c: ['#16a34a', '#052e16'], e: '🎒', pat: 'check' }, desc: 'A Premium, a Standard and a Lunch Money pack: 17 cards for less.' },
+  'bundle-season': { name: 'Season Ticket', cost: 100000, group: 'bundle', bundle: [['mega', 1], ['premium', 1], ['standard', 1]], added: NEW_PACK, art: { c: ['#2563eb', '#0b1437'], e: '🎟️', pat: 'stripes', foil: 'gold' }, desc: 'A Mega, a Premium and a Standard pack: 28 cards for the whole season.' },
+  'bundle-sets': { name: 'Set Collector', cost: 61000, group: 'bundle', bundle: [['set-hunter', 1], ['set-gold', 1], ['series-bowls', 1]], added: NEW_PACK, art: { c: ['#0e7490', '#05161c'], e: '🗂️', pat: 'diamond' }, desc: 'Set Hunter, Golden Ticket and Bowl Season packs: 22 set cards.' },
+  'bundle-body': { name: 'Body Shop Bundle', cost: 44500, group: 'bundle', bundle: [['body-big', 1], ['body-short', 1], ['body-tall', 1]], added: NEW_PACK, art: { c: ['#ec4899', '#2e0a1f'], e: '💪', pat: 'zig' }, desc: 'Big Boy, Short Stack and Tall Order packs: 15 body-type cards.' },
   // Limited: rotating packs and the daily Flash Sale
   flash: { name: 'Flash Sale', cards: 5, cost: 4500, group: 'limited', limit: 'day', flash: { from: ['premium', 'shine', 'specialist', 'silver-stack', 'set-gold', 'sparkle', 'elite'], drop: 0.1, every: 4, steps: 5 }, live: (db, ctx, P) => flashDeal(db, ctx, P), added: NEW_PACK, art: { c: ['#fde047', '#7c2d12'], e: '⚡', pat: 'rays', foil: 'gold' }, desc: 'A different pack on sale every day. 10% off at midnight, 10% more every 4 hours.' },
-  fnl: { name: 'Friday Night Lights', cards: 4, cost: 26500, group: 'limited', min: 'epic', rotate: { days: [5, 6] }, live: rotating, added: NEW_PACK, art: { c: ['#1e3a8a', '#020617'], e: '🏟️', pat: 'rays' }, desc: '4 cards with a Gold or better guaranteed. Fridays and Saturdays only.' },
-  weekend: { name: 'Weekend Warrior', cards: 6, cost: 19500, group: 'limited', rotate: { days: [6, 0] }, live: rotating, added: NEW_PACK, art: { c: ['#16a34a', '#022c22'], e: '🛹', pat: 'zig' }, desc: '6 cards for less than a Value Pack. Saturdays and Sundays only.' },
-  monday: { name: 'Monday Blues', cards: 3, cost: 11500, group: 'limited', min: 'rare', rotate: { days: [1] }, live: rotating, added: NEW_PACK, art: { c: ['#3b82f6', '#0b1437'], e: '😴', pat: 'waves' }, desc: '3 cards with a Silver or better, cheap. Mondays only.' },
-  humpday: { name: 'Hump Day Holo', cards: 2, cost: 13500, group: 'limited', rotate: { days: [3] }, live: rotating, pool: inVariants('holo', 'action', 'allstar', 'icon'), inside: 'Holo, Action Shot, All-Star and Icon cards.', added: NEW_PACK, art: { c: ['#f472b6', '#4c0519'], e: '🐫', pat: 'stars', foil: 'holo' }, desc: '2 shiny cards: Holo, Action Shot, All-Star or Icon. Wednesdays only.' },
-  'throwback-week': { name: 'Throwback Week', cards: 3, cost: 9750, group: 'limited', mixed: true, rotate: { weeks: 2, phase: 0 }, live: rotating, pool: (c) => ['throwback', 'pixel', 'cutout'].includes(c.variant) || ['vhs', 'chalkboard', 'film-room'].includes(c.set), inside: 'Throwback, 8-Bit and Cardboard Cutout cards plus the VHS Tape, Chalkboard and Film Room sets.', added: NEW_PACK, art: { c: ['#a16207', '#1c1917'], e: '📼', pat: 'stripes' }, desc: 'Old-school cards. On sale every other week.' },
-  'turkey-feast': { name: 'Turkey Bowl Feast', cards: 4, cost: 13000, group: 'limited', sets: true, rotate: { months: [11] }, live: rotating, pool: (c) => c.set === 'turkey' || SET_MAP.get(c.set)?.series === 'snacks', inside: 'The Turkey Bowl set plus the whole Snack Attack series.', added: NEW_PACK, art: { c: ['#d97706', '#431407'], e: '🦃', pat: 'check' }, desc: '4 Turkey Bowl and Snack Attack set cards. November only.' },
-  'trick-treat': { name: 'Trick or Treat', cards: 3, cost: 10000, group: 'limited', mixed: true, rotate: { months: [10] }, live: rotating, pool: (c) => c.variant === 'spooky' || c.set === 'halloween', inside: 'Spooky cards and the Halloween Bowl set.', added: NEW_PACK, art: { c: ['#fb923c', '#1c1917'], e: '🎃', pat: 'zig' }, desc: 'Spooky cards and Halloween Bowl set cards. October only.' },
-  frosty: { name: 'Frosty Pack', cards: 3, cost: 10000, group: 'limited', mixed: true, rotate: { months: [12, 1, 2] }, live: rotating, pool: (c) => c.variant === 'snow' || ['arctic', 'blizzard', 'christmas', 'new-year'].includes(c.set), inside: 'Snow Day cards plus the Arctic, Blizzard, Christmas Bowl and New Year\'s Bowl sets.', added: NEW_PACK, art: { c: ['#e0f2fe', '#1e40af'], e: '⛄', pat: 'dots' }, desc: 'Snow Day, Arctic, Blizzard and holiday bowl cards. December to February.' },
+  fnl: { name: 'Friday Night Lights', cards: 7, cost: 26500, group: 'limited', min: 'epic', rotate: { days: [5, 6] }, live: rotating, added: NEW_PACK, art: { c: ['#1e3a8a', '#020617'], e: '🏟️', pat: 'rays' }, desc: '7 cards with a Gold or better guaranteed. Fridays and Saturdays only.' },
+  weekend: { name: 'Weekend Warrior', cards: 10, cost: 19500, group: 'limited', rotate: { days: [6, 0] }, live: rotating, added: NEW_PACK, art: { c: ['#16a34a', '#022c22'], e: '🛹', pat: 'zig' }, desc: '10 cards for less than a Value Pack. Saturdays and Sundays only.' },
+  monday: { name: 'Monday Blues', cards: 5, cost: 11500, group: 'limited', min: 'rare', rotate: { days: [1] }, live: rotating, added: NEW_PACK, art: { c: ['#3b82f6', '#0b1437'], e: '😴', pat: 'waves' }, desc: '5 cards with a Silver or better, cheap. Mondays only.' },
+  humpday: { name: 'Hump Day Holo', cards: 4, cost: 13500, group: 'limited', rotate: { days: [3] }, live: rotating, pool: inVariants('holo', 'action', 'allstar', 'icon'), inside: 'Holo, Action Shot, All-Star and Icon cards.', added: NEW_PACK, art: { c: ['#f472b6', '#4c0519'], e: '🐫', pat: 'stars', foil: 'holo' }, desc: '4 shiny cards: Holo, Action Shot, All-Star or Icon. Wednesdays only.' },
+  'throwback-week': { name: 'Throwback Week', cards: 5, cost: 9750, group: 'limited', mixed: true, rotate: { weeks: 2, phase: 0 }, live: rotating, pool: (c) => ['throwback', 'pixel', 'cutout'].includes(c.variant) || ['vhs', 'chalkboard', 'film-room'].includes(c.set), inside: 'Throwback, 8-Bit and Cardboard Cutout cards plus the VHS Tape, Chalkboard and Film Room sets.', added: NEW_PACK, art: { c: ['#a16207', '#1c1917'], e: '📼', pat: 'stripes' }, desc: 'Old-school cards. On sale every other week.' },
+  'turkey-feast': { name: 'Turkey Bowl Feast', cards: 7, cost: 13000, group: 'limited', sets: true, rotate: { months: [11] }, live: rotating, pool: (c) => c.set === 'turkey' || SET_MAP.get(c.set)?.series === 'snacks', inside: 'The Turkey Bowl set plus the whole Snack Attack series.', added: NEW_PACK, art: { c: ['#d97706', '#431407'], e: '🦃', pat: 'check' }, desc: '7 Turkey Bowl and Snack Attack set cards. November only.' },
+  'trick-treat': { name: 'Trick or Treat', cards: 5, cost: 10000, group: 'limited', mixed: true, rotate: { months: [10] }, live: rotating, pool: (c) => c.variant === 'spooky' || c.set === 'halloween', inside: 'Spooky cards and the Halloween Bowl set.', added: NEW_PACK, art: { c: ['#fb923c', '#1c1917'], e: '🎃', pat: 'zig' }, desc: 'Spooky cards and Halloween Bowl set cards. October only.' },
+  frosty: { name: 'Frosty Pack', cards: 5, cost: 10000, group: 'limited', mixed: true, rotate: { months: [12, 1, 2] }, live: rotating, pool: (c) => c.variant === 'snow' || ['arctic', 'blizzard', 'christmas', 'new-year'].includes(c.set), inside: 'Snow Day cards plus the Arctic, Blizzard, Christmas Bowl and New Year\'s Bowl sets.', added: NEW_PACK, art: { c: ['#e0f2fe', '#1e40af'], e: '⛄', pat: 'dots' }, desc: 'Snow Day, Arctic, Blizzard and holiday bowl cards. December to February.' },
 });
 // One-set mini packs for the most popular sets.
 for (const id of ['halloween', 'super', 'galaxy', 'comic', 'pixel-plus', 'hot-sauce', 'all-mfl', 'rainbow']) {
   const st = SET_MAP.get(id);
-  PACKS['mini-' + id] = { name: `${st.name} Mini`, cards: 2, cost: 6750, group: 'sets', sets: true, pool: inSets(id), added: NEW_PACK, art: { c: [st.c1, st.c2], e: st.emoji, pat: PATTERNS[st.pat] }, desc: `2 cards from the ${st.name} set only. “${st.quote}”` };
+  PACKS['mini-' + id] = { name: `${st.name} Mini`, cards: 4, cost: 6750, group: 'sets', sets: true, pool: inSets(id), added: NEW_PACK, art: { c: [st.c1, st.c2], e: st.emoji, pat: PATTERNS[st.pat] }, desc: `4 cards from the ${st.name} set only. “${st.quote}”` };
 }
 // ---------- Season 1 packs ----------
 // Season 1 cards only drop from these (packPool / packCanDrop check `season`). The odds use the same rarity weights as
@@ -721,18 +721,18 @@ const S1_ADDED = '2026-11-07';
 const s1Pack = (o) => ({ group: 'season', season: 1, added: S1_ADDED, ...o });
 const S1_NAVY = '#0a1a3f';
 Object.assign(PACKS, {
-  's1p-welcome': s1Pack({ name: 'Season 1: Carson Tabaka - Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Two free Season 1 cards, once per account.' }),
-  's1p-ttime': s1Pack({ name: 'Season 1: Carson Tabaka', cards: 3, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '🏈', pat: 'stripes' }, desc: '3 Season 1 cards. The cheapest way into Season 1.' }),
-  's1p-23': s1Pack({ name: 'T-Time - CT', cards: 5, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '⏰', pat: 'rays', foil: 'silver' }, desc: "It's T-Time: 5 Season 1 cards with a Gold or better guaranteed." }),
-  's1p-chem': s1Pack({ name: "Momma P's Cookies - CT", cards: 4, cost: 70000, floor: 'epic', art: { c: ['#d97706', S1_NAVY], e: '🍪', pat: 'dots' }, desc: 'Fresh out of the oven: 4 Season 1 cards, every one Gold or better.' }),
-  's1p-essentials': s1Pack({ name: 'Full Extension Essentials - CT', cards: 6, cost: 90000, min: 'legendary', art: { c: ['#f8fafc', '#0a1a3f'], e: '🎒', pat: 'grid', foil: 'silver' }, desc: 'Everything you need to start Season 1: 6 cards with a Legend or better guaranteed.' }),
-  's1p-mega': s1Pack({ name: 'CT Team Chemistry - CT', cards: 12, cost: 110000, min: 'epic', mins: 3, art: { c: ['#22c55e', '#020617'], e: '🧪', pat: 'confetti', foil: 'holo' }, desc: 'Enough for the whole team: 12 Season 1 cards with three Gold or better guaranteed.' }),
-  's1p-pick': s1Pack({ name: 'Carson Charles Tabaka - CT', cards: 1, choose: 4, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '✍️', pat: 'dots', foil: 'holo' }, desc: 'See 4 Season 1 cards, every one Legend or better, and keep the one you want.' }),
-  's1p-tabaka': s1Pack({ name: 'BigBoyCT - CT', cards: 3, cost: 240000, floor: 'legendary', art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'waves', foil: 'gold' }, desc: '3 Season 1 cards and every one is Legend or better.' }),
+  's1p-welcome': s1Pack({ name: 'Season 1: Carson Tabaka - Welcome Pack', cards: 4, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Four free Season 1 cards, once per account.' }),
+  's1p-ttime': s1Pack({ name: 'Season 1: Carson Tabaka', cards: 5, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '🏈', pat: 'stripes' }, desc: '5 Season 1 cards. The cheapest way into Season 1.' }),
+  's1p-23': s1Pack({ name: 'T-Time - CT', cards: 8, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '⏰', pat: 'rays', foil: 'silver' }, desc: 'It\'s T-Time: 8 Season 1 cards with a Gold or better guaranteed.' }),
+  's1p-chem': s1Pack({ name: "Momma P's Cookies - CT", cards: 7, cost: 70000, floor: 'epic', art: { c: ['#d97706', S1_NAVY], e: '🍪', pat: 'dots' }, desc: 'Fresh out of the oven: 7 Season 1 cards, every one Gold or better.' }),
+  's1p-essentials': s1Pack({ name: 'Full Extension Essentials - CT', cards: 10, cost: 90000, min: 'legendary', art: { c: ['#f8fafc', '#0a1a3f'], e: '🎒', pat: 'grid', foil: 'silver' }, desc: 'Everything you need to start Season 1: 10 cards with a Legend or better guaranteed.' }),
+  's1p-mega': s1Pack({ name: 'CT Team Chemistry - CT', cards: 15, cost: 110000, min: 'epic', mins: 3, art: { c: ['#22c55e', '#020617'], e: '🧪', pat: 'confetti', foil: 'holo' }, desc: 'Enough for the whole team: 15 Season 1 cards with three Gold or better guaranteed.' }),
+  's1p-pick': s1Pack({ name: 'Carson Charles Tabaka - CT', cards: 3, choose: 12, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '✍️', pat: 'dots', foil: 'holo' }, desc: 'See 12 Season 1 cards, every one Legend or better, and keep the 3 you want.' }),
+  's1p-tabaka': s1Pack({ name: 'BigBoyCT - CT', cards: 5, cost: 240000, floor: 'legendary', art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'waves', foil: 'gold' }, desc: '5 Season 1 cards and every one is Legend or better.' }),
   // Every season's cover athlete, in one pack that stays in the shop for good (seasons.js lists them).
-  's1p-cover': { name: 'Cover Athlete Pack', group: 'season', allSeasons: true, brand: 'Cover Athletes', added: S1_ADDED, cards: 3, cost: 300000, floor: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Every cover athlete's season cards (Season 1: ${S1.coverName}, including his Cover Athlete card and the ${S1.nick} 1/1). New cover athletes join it each season.`, desc: 'The cover athletes only: 3 of their season cards, every one Legend or better.' },
-  's1p-onehand': s1Pack({ name: 'Tabaka Time Pack - CT', cards: 1, cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#c084fc', S1_NAVY], e: '⏳', pat: 'stars', foil: 'gold' }, desc: 'One Mythic or better Season 1 card. About a 1 in 5 shot at a Zenith 1/1.' }),
-  's1p-fullext': s1Pack({ name: "Carson's Filet Dinner - CT", cards: 1, cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🥩', pat: 'rays', foil: 'black' }, desc: 'The best pack in the shop: one Mythic or better Season 1 card, a coin flip for a Zenith 1/1.' }),
+  's1p-cover': { name: 'Cover Athlete Pack', group: 'season', allSeasons: true, brand: 'Cover Athletes', added: S1_ADDED, cards: 5, hits: 3, cost: 300000, floor: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Every cover athlete's season cards (Season 1: ${S1.coverName}, including his Cover Athlete card and the ${S1.nick} 1/1). New cover athletes join it each season.`, desc: 'The cover athletes only: 5 of their season cards, every one Legend or better.' },
+  's1p-onehand': s1Pack({ name: 'Tabaka Time Pack - CT', cards: 3, hits: 1, fillFloor: 'legendary', cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#c084fc', S1_NAVY], e: '⏳', pat: 'stars', foil: 'gold' }, desc: 'Three Legend-or-better Season 1 cards. The last is Mythic or better, with about a 1 in 5 shot at a Zenith 1/1.' }),
+  's1p-fullext': s1Pack({ name: "Carson's Filet Dinner - CT", cards: 3, hits: 1, fillFloor: 'legendary', cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🥩', pat: 'rays', foil: 'black' }, desc: 'The best pack in the shop: three Legend-or-better Season 1 cards. The last is Mythic or better, a coin flip for a Zenith 1/1.' }),
   // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
   's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, retired: true, off: true, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'Retired.' }),
 });
@@ -757,7 +757,7 @@ for (const [k, [c, e, pat, foil]] of Object.entries(PACK_ART)) if (PACKS[k] && !
 for (const [series, , sets] of SERIES) if (PACKS['series-' + series] && !PACKS['series-' + series].art) PACKS['series-' + series].art = { c: SET_COLORS[series], e: sets[0][2], pat: 'diamond' };
 
 // One pack per team: only that team's cards.
-const TEAM_PACK = { cards: 3, cost: 10000, group: 'team' };
+const TEAM_PACK = { cards: 5, cost: 10000, group: 'team' };
 const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
 // `ctx` (optional): { now: 'YYYY-MM-DD HH:MM' league time, own: collection, lineup: card ids }.
 // Packs with `live` get their per-request fields (price, pool, on-sale state) merged in.
@@ -766,7 +766,7 @@ function packInfo(db, type, ctx = {}) {
   if (P) return P.live ? { ...P, ...P.live(db, ctx || {}, P) } : P;
   const m = /^team-(.+)$/.exec(type || '');
   const t = m && db.teams[m[1]];
-  return t ? { ...TEAM_PACK, name: `${`${t.city} ${t.name}`.trim()} Pack`, team: t.id, pool: (c) => c.t.id === t.id, desc: `3 cards, all ${t.name} players.` } : null;
+  return t ? { ...TEAM_PACK, name: `${`${t.city} ${t.name}`.trim()} Pack`, team: t.id, pool: (c) => c.t.id === t.id, desc: `5 cards, all ${t.name} players.` } : null;
 }
 function packTypes(db) {
   return [...Object.keys(PACKS).filter((k) => !PACKS[k].retired), ...Object.keys(db.teams).map((id) => 'team-' + id)];
@@ -888,6 +888,13 @@ function packOdds(db, type, ctx = {}) {
   const total = rs.reduce((s, r) => s + w(r), 0) || 1;
   const res = { ok, size: pool.length, players: new Set(pool.map((c) => c.pid)).size, sets: new Set(pool.map((c) => c.set).filter(Boolean)).size,
     odds: type === 'starter' ? [{ r: 'common', pct: 100 }] : rs.map((r) => ({ r, pct: (w(r) / total) * 100 })).filter((x) => x.pct > 0), doh: type !== 'starter' && have.has('doh') };
+  if (P.hits && type !== 'starter') {
+    const fmin = P.fillFloor || P.floor || 'common', wf = (r) => (P.boost?.[r] === 0 ? 0 : RARITIES[r].weight);
+    const fr = RARITY_ORDER.filter((r) => r !== 'doh' && have.has(r) && RARITY_ORDER.indexOf(r) >= RARITY_ORDER.indexOf(fmin));
+    const ft = fr.reduce((s, r) => s + wf(r), 0) || 1;
+    res.hits = P.hits;
+    res.fill = fr.map((r) => ({ r, pct: (wf(r) / ft) * 100 })).filter((x) => x.pct > 0);
+  }
   if (oddsCache.size > 400) oddsCache.clear();
   oddsCache.set(key, res);
   return res;
@@ -901,11 +908,17 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; // season cards only come from season packs
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
-  if (P.floor && c.rarity !== 'doh' && RARITY_ORDER.indexOf(c.rarity) < RARITY_ORDER.indexOf(P.floor)) return false;
+  const floor = P.hits && P.fillFloor ? P.fillFloor : P.floor;
+  if (floor && c.rarity !== 'doh' && RARITY_ORDER.indexOf(c.rarity) < RARITY_ORDER.indexOf(floor)) return false;
   return true;
 }
+// Boxes: the same pack 5, 10 or 20 times for less (the discount), opened one after another. Each pack in a box is its
+// own pack (cost = the box price per pack), tagged with the box. Not for free, choose, bundle or once-a-day packs.
+const BOXES = { 5: 0.05, 10: 0.1, 20: 0.15 };
+const boxOk = (P) => !!P && !P.free && !P.choose && !P.bundle && !P.flash && P.limit !== 'day' && !P.off && !P.retired;
+const boxPrice = (cost, n) => Math.round((cost * (1 - (BOXES[n] || 0))) / 5) * 5;
 // Shop helpers ride on packInfo so the export list stays as it is.
-Object.assign(packInfo, { odds: packOdds, canDrop: packCanDrop, role: rolePos, rotation, NEW: NEW_PACK });
+Object.assign(packInfo, { odds: packOdds, canDrop: packCanDrop, role: rolePos, rotation, NEW: NEW_PACK, BOXES, boxOk, boxPrice });
 
 // Which specialty a player's Signature card gets: their strongest tendency,
 // or Pass Rusher / Playmaker for players without a scoring/passing/pick strength.
@@ -991,7 +1004,12 @@ function openPack(db, type, taken = new Set(), ctx = {}) {
   const n = P.choose || (P.mystery ? P.mystery[0] + rint(P.mystery[1] - P.mystery[0] + 1) : P.cards);
   const drop = (id) => { if (cardInfo(db, id).one) pool = pool.filter((c) => c.id !== id); return id; };
   // A pool can run dry when it was only 1/1s: refill it with everything that isn't one.
-  const pick = (min) => { if (!pool.length) pool = base.filter((c) => !c.one); return drop(rollCard(pool, P, min)); };
+  const pick = (min, PP = P) => { if (!pool.length) pool = base.filter((c) => !c.one); return drop(rollCard(pool, PP, min)); };
+  // Hit packs (P.hits): only the last `hits` cards get the pack's boosted odds. The others are regular cards from the same
+  // pool: the boosts' exclusions (a boost of 0) still apply, the multipliers don't, and P.fillFloor can lower their floor.
+  const hits = P.hits ? Math.min(P.hits, n) : n;
+  const fillP = P.hits ? { ...P, boost: P.boost ? Object.fromEntries(Object.entries(P.boost).filter(([, v]) => v === 0)) : undefined } : P;
+  const fillMin = P.hits ? P.fillFloor || P.floor : P.floor;
   if (P.pairs) {
     // Each pair: a card, then another version of the same player (from the pack's pool if it has one).
     for (let i = 0; i < P.pairs; i++) {
@@ -1003,7 +1021,7 @@ function openPack(db, type, taken = new Set(), ctx = {}) {
     return out;
   }
   // Choose packs show different cards; everything else can repeat.
-  for (let i = 0, tries = 0; i < n; tries++) { const id = pick(P.floor); if (P.choose && out.includes(id) && tries < n * 25) continue; out.push(id); i++; }
+  for (let i = 0, tries = 0; i < n; tries++) { const id = i < n - hits ? pick(fillMin, fillP) : pick(P.floor); if (P.choose && out.includes(id) && tries < n * 25) continue; out.push(id); i++; }
   // Guarantees: swap random slots for cards of at least `min` rarity.
   if (P.min && pool.some((c) => RARITY_ORDER.indexOf(c.rarity) >= RARITY_ORDER.indexOf(P.min))) {
     const ok = (id) => RARITY_ORDER.indexOf(cardInfo(db, id).rarity) >= RARITY_ORDER.indexOf(P.min);

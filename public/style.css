@@ -2742,3 +2742,19 @@ body.arc-playing .ticker{display:none}
 .s1-pk-c{font:800 15px Inter;color:#bae6fd;white-space:nowrap}
 .mcard.s1c.ph-full .mc-photo::after{background:linear-gradient(180deg,rgba(2,6,23,.5) 0%,transparent 20%,transparent 36%,rgba(8,21,48,.86) 60%,#030817 82%)}
 .mcard.s1c.ph-full .mc-photo .av{opacity:1}
+/* pack boxes: 5, 10 or 20 of a pack for less */
+.psi-boxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:5px;width:100%;margin-top:8px}
+.psi-boxes small{grid-column:1/-1;font:700 9.5px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pbx{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:6px 2px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);color:var(--ink);cursor:pointer;font:600 10.5px Inter;letter-spacing:-.01em;transition:.15s}
+.pbx b{font:800 14px/1 var(--disp)}
+.pbx span{white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.pbx i{font-style:normal;font-weight:800;font-size:10px;color:#4ade80}
+.pbx:hover:not(:disabled){border-color:#4ade80;transform:translateY(-1px)}
+.pbx.poor,.pbx:disabled{opacity:.45;cursor:not-allowed}
+.rv-box{display:inline-block;font:800 11px Inter;letter-spacing:.12em;text-transform:uppercase;color:#4ade80;margin-bottom:2px}
+.rv-next{box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+.box-grid{margin-top:16px}
+.box-go{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:20px 0}
+.box-packs{margin-top:10px}
+.box-packs ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink2);font-size:13px}
+.rv-t .rar-tag{display:inline-block;white-space:nowrap;margin:2px 0}

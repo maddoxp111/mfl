@@ -66,6 +66,16 @@ const UPDATES = [
       'New Season 1 pack: Full Extension Essentials - CT. 6 Season 1 cards with a Legend or better guaranteed, for 90,000 coins.',
     ],
   },
+  {
+    n: 7,
+    date: '2026-11-07',
+    title: 'Bigger packs, pack boxes',
+    items: [
+      'Every pack has more cards now: at least 3 and up to 15 (Standard 5, Premium 8, Mega 15, the free Daily Pack 3). Same prices.',
+      'Chase packs like Dark Matter, The GOAT Hunt and Carson\'s Filet Dinner got extra cards too. The big chance is still on one card, the hit, and it is always the last one you flip.',
+      'Pack boxes: buy 5, 10 or 20 of the same pack for 5%, 10% or 15% off. They open back to back: flip the pack, press Next for the next one, and see the whole box at the end.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

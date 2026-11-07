@@ -538,21 +538,24 @@ module.exports = function fun(app, h) {
     if (P.choose) L.push(`You see ${P.choose} different cards and keep ${P.cards}. The others go back in the box.`);
     if (P.pairs) L.push(`${P.pairs} pairs: each pair is one player in two different cards.`);
     if (P.mystery) L.push(`Anywhere from ${P.mystery[0]} to ${P.mystery[1]} cards.`);
-    if (P.floor) L.push(`Every card is ${R[P.floor].name} or better.`);
+    if (P.hits) L.push(`The last ${P.hits === 1 ? 'card is the hit' : `${P.hits} cards are the hits`}: ${P.floor ? `${R[P.floor].name} or better, ` : ''}with the boosted odds below. The other ${P.cards - P.hits} ${P.cards - P.hits === 1 ? 'is a regular card' : 'are regular cards'} from the same pool${P.fillFloor ? ` (${R[P.fillFloor].name} or better)` : ''}.`);
+    else if (P.floor) L.push(`Every card is ${R[P.floor].name} or better.`);
     if (P.min) L.push(`${(P.mins || 1) > 1 ? P.mins : 'At least one'} ${R[P.min].name} or better guaranteed${P.choose ? ' to choose from' : ''}.`);
     if (P.boost && !P.floor) { const z = cards.RARITY_ORDER.filter((r) => P.boost[r] === 0).map((r) => R[r].name); if (z.length) L.push(`No ${z.join(' or ')} cards.`); }
     if (P.rotate) L.push(P.off ? `Not on sale today. Back ${esc(P.back)}.` : `On sale until ${P.until === 'tonight' ? 'tonight' : esc(P.until)}.`);
     if (P.flash) L.push(`${Math.round(P.discount * 100)}% off the ${fmtN(P.list)} coin price right now. ${P.nextDrop != null ? `Drops another 10% at ${h.time12(String(P.nextDrop).padStart(2, '0') + ':00')}.` : "That's as low as it goes today."} One per day, and a new pack tomorrow.`);
     if (P.free) L.push('Free. It refills on its own schedule.');
     if (P.mixed) L.push('Classic cards and set cards both drop.'); else if (P.sets && !P.bundle) L.push('Set cards only.');
-    const bars = odds && odds.odds.length ? `<small class="po-k">Odds for each card${P.min && !P.floor ? ' (before the guarantee)' : ''}</small><div class="po-bars">${odds.odds.map((x) => `<div class="po-r r-${x.r}"><span>${esc(R[x.r].name)}</span><i><u style="width:${Math.max(2, x.pct).toFixed(1)}%"></u></i><b>${pct(x.pct)}</b></div>`).join('')}</div>` : '';
+    const fillBars = odds && odds.fill && odds.fill.length ? `<small class="po-k">Odds for the other ${P.cards - odds.hits} card${P.cards - odds.hits === 1 ? '' : 's'}</small><div class="po-bars">${odds.fill.map((x) => `<div class="po-r r-${x.r}"><span>${esc(R[x.r].name)}</span><i><u style="width:${Math.max(2, x.pct).toFixed(1)}%"></u></i><b>${pct(x.pct)}</b></div>`).join('')}</div>` : '';
+    const bars = odds && odds.odds.length ? `<small class="po-k">${odds.hits ? `Odds for the ${odds.hits === 1 ? 'hit (the last card)' : `${odds.hits} hits (the last cards)`}` : `Odds for each card${P.min && !P.floor ? ' (before the guarantee)' : ''}`}</small><div class="po-bars">${odds.odds.map((x) => `<div class="po-r r-${x.r}"><span>${esc(R[x.r].name)}</span><i><u style="width:${Math.max(2, x.pct).toFixed(1)}%"></u></i><b>${pct(x.pct)}</b></div>`).join('')}</div>` : '';
     const pool = !odds ? '' : !odds.ok ? 'None of these cards are out yet. Restocking soon.' : `${P.bundle ? 'Drops from up to' : 'Drops from'} ${fmtN(odds.size)} different cards of ${odds.players} player${odds.players === 1 ? '' : 's'}${odds.sets ? ` in ${odds.sets} set${odds.sets > 1 ? 's' : ''}` : ''}.`;
-    return `<details class="po"><summary>What's inside</summary><div class="po-in">${L.length ? `<ul>${L.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}${bars}<p class="po-pool">${pool}${P.inside ? ` ${esc(P.inside)}` : ''}</p></div></details>`;
+    return `<details class="po"><summary>What's inside</summary><div class="po-in">${L.length ? `<ul>${L.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}${bars}${fillBars}<p class="po-pool">${pool}${P.inside ? ` ${esc(P.inside)}` : ''}</p></div></details>`;
   }
   // Short feature tags under each pack's name.
   function packTags(P) {
     const t = [];
-    if (P.floor) t.push(`All ${R[P.floor].name}+`);
+    if (P.hits) t.push(P.fillFloor ? `All ${R[P.fillFloor].name}+` : `${P.hits > 1 ? P.hits + ' hits' : '1 hit'}`);
+    else if (P.floor) t.push(`All ${R[P.floor].name}+`);
     else if (P.min) t.push(`${(P.mins || 1) > 1 ? P.mins + '× ' : ''}${R[P.min].name}+ guaranteed`);
     if (P.choose) t.push('You choose');
     if (P.pairs) t.push(`${P.pairs} pairs`);
@@ -572,18 +575,20 @@ module.exports = function fun(app, h) {
     const sale = !free && P.list > P.cost;
     const badges = [free && ['free', 'Free'], isNew && ['new', 'New'], o.hot && ['hot', 'Hot'], sale && ['sale', `Sale −${Math.round((1 - P.cost / P.list) * 100)}%`], off && ['back', `Back ${P.back}`], soon && ['soon', 'Restocking']].filter(Boolean);
     const btn = free ? 'Open free' : off ? `Back ${esc(P.back)}` : soon ? 'Restocking' : can ? `Open · ${icon('coin')}${fmtN(cost)}` : `Need ${fmtN(cost - o.bal)} more`;
+    // Boxes: 5, 10 or 20 of this pack for less, opened back to back.
+    const BX = cards.packInfo.BOXES, boxes = !free && !soon && !off && cards.packInfo.boxOk(P) ? `<div class="psi-boxes"><small>Box of 5, 10 or 20 · coins</small>${Object.keys(BX).map(Number).map((n) => { const tot = cards.packInfo.boxPrice(cost, n) * n, ok = tot <= o.bal; return `<button name="box" value="${n}" class="pbx${ok ? '' : ' poor'}"${ok ? '' : ' disabled'} title="${n} ${esc(P.name)} packs, ${Math.round(BX[n] * 100)}% off"><b>×${n}</b><span>${fmtN(tot)}</span><i>−${Math.round(BX[n] * 100)}%</i></button>`; }).join('')}</div>` : '';
     return { can, html: `<article class="psi${can ? ' can' : ''}${off || soon ? ' off' : ''}" id="pk-${esc(type)}" data-g="${esc(o.g)}" data-cost="${cost}" data-n="${P.choose ? P.cards : P.mystery ? Math.round((P.mystery[0] + P.mystery[1]) / 2) : P.cards}" data-new="${isNew ? 1 : 0}" data-i="${o.i}">
       ${packArt(db, P, { badges: badges.length ? `<span class="pk-badges">${badges.map(([k, v]) => `<b class="pkb-${k}">${esc(v)}</b>`).join('')}</span>` : '' })}
       <div class="psi-b"><div class="psi-h"><h3>${esc(P.name)}</h3><span class="psi-price">${free ? '<b>Free</b>' : `${sale ? `<s>${fmtN(P.list)}</s>` : ''}<b>${icon('coin')}${fmtN(cost)}</b>`}</span></div>
         <p class="psi-d">${esc(o.note || P.desc)}</p>
         <div class="psi-tags"><span>${esc(cardCount(P))}</span>${packTags(P)}</div>
         ${oddsPanel(db, P, odds, o.ctx)}
-        <form method="post" action="/pickem/packs/open" class="psi-buy"><input type="hidden" name="type" value="${esc(type)}">${o.key ? `<input type="hidden" name="key" value="${esc(o.key)}">` : ''}<button class="btn${can ? '' : ' ghost'}"${can ? '' : ' disabled'}>${btn}</button></form></div>
+        <form method="post" action="/pickem/packs/open" class="psi-buy"><input type="hidden" name="type" value="${esc(type)}">${o.key ? `<input type="hidden" name="key" value="${esc(o.key)}">` : ''}<button class="btn${can ? '' : ' ghost'}"${can ? '' : ' disabled'}>${btn}</button>${boxes}</form></div>
     </article>` };
   }
   const packMsg = (req) => {
-    const m = { closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
-    return m ? `<div class="toast ${/isn't|restocking|One a day|Someone|right number/.test(m) ? 'bad' : ''}">${m}</div>` : flash(req);
+    const m = { nobox: "That pack doesn't come in boxes.", closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
+    return m ? `<div class="toast ${/isn't|restocking|One a day|Someone|right number|doesn't come/.test(m) ? 'bad' : ''}">${m}</div>` : flash(req);
   };
   // Where a user's coins came from: picks and the card game are one currency.
   function pointsBreakdown(acct) {
@@ -693,6 +698,9 @@ module.exports = function fun(app, h) {
     const user = await freshUser(name);
     const packs = (user.packs = user.packs || []);
     const ctx = packCtx(user), P = cards.packInfo(db, type, ctx);
+    const BX = cards.packInfo.BOXES, boxN = !P.free && BX[+req.body.box] != null ? +req.body.box : 0;
+    if (boxN && !cards.packInfo.boxOk(P)) return res.redirect('/pickem/packs?m=nobox');
+    const per = boxN ? cards.packInfo.boxPrice(P.cost, boxN) : P.cost;
     let key = null;
     if (P.free) {
       const want = String(req.body.key || '');
@@ -705,7 +713,20 @@ module.exports = function fun(app, h) {
       if (odds && !odds.ok) return res.redirect('/pickem/packs?m=soon');
       if (P.limit === 'day' && packs.some((p) => p.type === type && p.local?.slice(0, 10) === ctx.now.slice(0, 10))) return res.redirect('/pickem/packs?m=limit');
       const bal = h.accountOf(db, user, await h.survivorNow(db)).balance;
-      if (bal < P.cost) return res.redirect('/pickem/packs?m=poor');
+      if (bal < per * (boxN || 1)) return res.redirect('/pickem/packs?m=poor');
+    }
+    if (boxN) {
+      // A box: boxN packs at the box price each, opened now and shown one after another. A 1/1 pulled early in the box can't drop again later in it.
+      const taken = await takenOnes(db), boxId = crypto.randomBytes(5).toString('hex'), t0 = Date.now(), made = [];
+      for (let i = 0; i < boxN; i++) {
+        const ids = cards.openPack(db, type, taken, ctx);
+        for (const id of ids) if (cards.cardInfo(db, id)?.one) taken.add(id);
+        const pk1 = { id: crypto.randomBytes(6).toString('hex'), type, cost: per, currency: 'coins', at: new Date(t0 + i).toISOString(), local: ctx.now, cards: ids, box: { id: boxId, i, n: boxN },
+          ...(cards.PACKS[type] && P.name !== cards.PACKS[type].name ? { name: P.name } : {}), ...(P.base ? { base: P.base } : {}) };
+        packs.push(pk1); made.push(pk1);
+      }
+      await h.putDoc(h.userKey(name), user);
+      return res.redirect(`/pickem/packs/${made[0].id}`);
     }
     const ids = cards.openPack(db, type, await takenOnes(db), ctx);
     // Choose packs keep the options in `choices` until the user picks (POST .../pick).
@@ -741,6 +762,31 @@ module.exports = function fun(app, h) {
     } catch (e) { next(e); }
   });
 
+  // The whole box at once: every card from its packs, best first.
+  app.get('/pickem/packs/box/:id', async (req, res, next) => {
+    try {
+      const db = h.load();
+      const name = h.currentUser(req);
+      if (!name) return res.redirect('/pickem/login?next=/pickem/packs');
+      const { user, acct } = await h.loadAccount(db, name);
+      const box = (user.packs || []).filter((p) => p.box && p.box.id === req.params.id).sort((a, b) => a.box.i - b.box.i);
+      if (!box.length) return res.redirect('/pickem/packs');
+      const P = cards.packInfo(db, box[0].type, packCtx(user)) || { name: 'Pack' };
+      const n = {}; for (const p of box) for (const id of p.cards) n[id] = (n[id] || 0) + 1;
+      const cs = Object.keys(n).map((id) => cards.cardInfo(db, id)).filter(Boolean)
+        .sort((a, b) => cards.RARITY_ORDER.indexOf(b.rarity) - cards.RARITY_ORDER.indexOf(a.rarity) || b.mult - a.mult || a.p.name.localeCompare(b.p.name));
+      const total = box.reduce((s, p) => s + (p.cost || 0), 0), nCards = box.reduce((s, p) => s + p.cards.length, 0);
+      const byR = cards.RARITY_ORDER.map((r) => [r, cs.filter((c) => c.rarity === r).reduce((s, c) => s + n[c.id], 0)]).filter(([r, k]) => k && !(R[r].hidden && !cs.some((c) => c.rarity === r)));
+      const Pnow = cards.packInfo(db, box[0].type, packCtx(user)), again = Pnow && cards.packInfo.boxOk(Pnow) ? cards.packInfo.boxPrice(Pnow.cost, box.length) * box.length : 0;
+      res.send(layout(req, 'Box', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/packs', name)}
+        <div class="rv-head">${packArt(db, P, { cls: 'pkart-sm', title: String(P.name).replace(/ Pack$/, '') })}<div class="rv-t"><span class="rv-box">Box of ${box.length}</span><h2>${esc(P.name)}</h2><p class="muted">${nCards} cards from ${box.length} packs · ${icon('coin')}${fmtN(total)} · ${byR.map(([r, k]) => `<span class="rar-tag r-${r}">${k} ${esc(R[r].name)}</span>`).join(' ')}</p></div></div>
+        <div class="mgrid box-grid">${cs.map((c) => `<div class="mcell">${h.cardArt(db, c, { count: n[c.id] })}</div>`).join('')}</div>
+        <div class="reveal-go box-go"><a class="btn" href="/pickem/cards">Go to my cards</a>${again ? `<form method="post" action="/pickem/packs/open" class="rv-again"><input type="hidden" name="type" value="${esc(box[0].type)}"><input type="hidden" name="box" value="${box.length}"><button class="btn ghost"${again > acct.balance ? ' disabled' : ''}>Another box of ${box.length} · ${icon('coin')}${fmtN(again)}</button></form>` : ''}<a class="btn ghost" href="/pickem/packs#pk-${esc(box[0].type)}">Back to the shop</a></div>
+        <details class="card box-packs"><summary>Pack by pack</summary><ol>${box.map((p) => { const b = p.cards.map((id) => cards.cardInfo(db, id)).filter(Boolean).reduce((m, c) => (cards.RARITY_ORDER.indexOf(c.rarity) > cards.RARITY_ORDER.indexOf(m.rarity) ? c : m), { rarity: 'common' }); return `<li><a href="/pickem/packs/${esc(p.id)}">Pack ${p.box.i + 1}</a> · ${p.cards.length} cards${b.p ? ` · best: <span class="rar-tag r-${b.rarity}">${esc(b.rarityName)}</span> ${esc(b.p.name)}, ${esc(b.label)}` : ''}</li>`; }).join('')}</ol></details>
+      </div>`));
+    } catch (e) { next(e); }
+  });
+
   app.get('/pickem/packs/:id', async (req, res, next) => {
     try {
       const db = h.load();
@@ -760,19 +806,27 @@ module.exports = function fun(app, h) {
         : choose ? `You kept ${keep === 1 ? '1 card' : keep + ' cards'}. The others went back in the box.`
           : `${cs.length} card${cs.length === 1 ? '' : 's'} · best pull <span class="rar-tag r-${bestR}">${esc(R[bestR].name)}</span>`;
       const Pnow = cards.packInfo(db, pack.type, packCtx(user));
-      const again = Pnow && !Pnow.free && !Pnow.off && Pnow.limit !== 'day' ? `<form method="post" action="/pickem/packs/open" class="rv-again"><input type="hidden" name="type" value="${esc(pack.type)}"><button class="btn ghost"${Pnow.cost > acct.balance ? ' disabled' : ''}>Open another · ${icon('coin')}${fmtN(Pnow.cost)}</button></form>` : '';
+      // A pack from a box: "Pack 3 of 10", then Next (or the whole box after the last one).
+      const box = pack.box ? (user.packs || []).filter((p) => p.box && p.box.id === pack.box.id).sort((a, b) => a.box.i - b.box.i) : null;
+      const next = box ? box[box.indexOf(pack) + 1] : null, boxN = box ? box.length : 0, boxAt = box ? box.indexOf(pack) + 1 : 0;
+      const boxCost = box && Pnow && cards.packInfo.boxOk(Pnow) ? cards.packInfo.boxPrice(Pnow.cost, boxN) * boxN : 0;
+      const again = Pnow && !Pnow.free && !Pnow.off && Pnow.limit !== 'day' ? (box ? (boxCost ? `<form method="post" action="/pickem/packs/open" class="rv-again"><input type="hidden" name="type" value="${esc(pack.type)}"><input type="hidden" name="box" value="${boxN}"><button class="btn ghost"${boxCost > acct.balance ? ' disabled' : ''}>Another box of ${boxN} · ${icon('coin')}${fmtN(boxCost)}</button></form>` : '')
+        : `<form method="post" action="/pickem/packs/open" class="rv-again"><input type="hidden" name="type" value="${esc(pack.type)}"><button class="btn ghost"${Pnow.cost > acct.balance ? ' disabled' : ''}>Open another · ${icon('coin')}${fmtN(Pnow.cost)}</button></form>`) : '';
+      const goBtns = box && next ? `<a class="btn rv-next" href="/pickem/packs/${esc(next.id)}">Next pack (${boxAt + 1} of ${boxN}) →</a><a class="btn ghost" href="/pickem/packs/box/${esc(pack.box.id)}">Skip to the whole box</a>`
+        : box ? `<a class="btn rv-next" href="/pickem/packs/box/${esc(pack.box.id)}">See the whole box (${boxN} packs) →</a>${again}<a class="btn ghost" href="/pickem/packs#pk-${esc(pack.type)}">Back to the shop</a>`
+          : `<a class="btn" href="/pickem/cards">Go to my cards</a>${again}<a class="btn ghost" href="/pickem/packs#pk-${esc(pack.type)}">Back to the shop</a>`;
       res.send(layout(req, 'Pack', pickHead(user, acct, 'cards') + `<div class="wrap">${pickNav('/pickem/packs', name)}${packMsg(req)}
-        <div class="rv-head">${packArt(db, P, { cls: 'pkart-sm', title: String(title).replace(/^Flash Sale: /, '').replace(/ Pack$/, '') })}<div class="rv-t"><h2>${esc(title)}</h2><p class="muted">${sub}</p></div><button class="btn ghost sm" id="flipAll" type="button">Reveal all</button></div>
+        <div class="rv-head">${packArt(db, P, { cls: 'pkart-sm', title: String(title).replace(/^Flash Sale: /, '').replace(/ Pack$/, '') })}<div class="rv-t">${box ? `<span class="rv-box">Box · pack ${boxAt} of ${boxN}</span>` : ''}<h2>${esc(title)}</h2><p class="muted">${sub}</p></div><button class="btn ghost sm" id="flipAll" type="button">Reveal all</button></div>
         <div class="reveal best-${bestR}${pending ? ' choose' : ''}"${pending ? ` data-notap data-keep="${keep}"` : ''} style="--p1:${esc(c1)};--p2:${esc(c2)}">
           ${cs.map((c, i) => `<div class="flip r-${c.rarity}${choose && !pending ? (kept.has(c.id) ? ' kept' : ' gone') : ''}" data-id="${esc(c.id)}" style="--d:${i * 70}ms" tabindex="0" role="button" aria-label="${pending ? `Card ${i + 1}: reveal it, then press to keep it` : `Reveal card ${i + 1}`}"><div class="flip-in"><div class="flip-back"><span class="fb-e">${t ? logo(t, 40) : esc(art.e || '🏈')}</span><span class="fb-l">MFL</span></div><div class="flip-front">${cardArt(db, c, { back: true })}</div></div>${pending ? '<span class="rv-keep">✓ Keep</span>' : choose && !kept.has(c.id) ? '<span class="rv-gone">Back in the box</span>' : ''}</div>`).join('')}
         </div>
         ${pending ? `<form method="post" action="/pickem/packs/${esc(pack.id)}/pick" class="rv-pick"><input type="hidden" name="cards" id="pickIn"><span id="pickMsg">Tap ${keep === 1 ? 'a card' : keep + ' cards'} to keep.</span><button class="btn" id="pickBtn" disabled>Keep</button></form>` : ''}
-        <div class="reveal-go" hidden>${pending ? '' : `<a class="btn" href="/pickem/cards">Go to my cards</a>${again}<a class="btn ghost" href="/pickem/packs#pk-${esc(pack.type)}">Back to the shop</a>`}</div>
+        <div class="reveal-go" hidden>${pending ? '' : goBtns}</div>
         <p class="muted sm center rv-tip">Tap a card (or its ↻ button) to flip it over and read the back.</p>
         <script>(()=>{const rv=document.querySelector('.reveal'),fl=[...rv.querySelectorAll('.flip')],go=document.querySelector('.reveal-go'),all=document.getElementById('flipAll'),choose=rv.classList.contains('choose');
           const ORDER=${JSON.stringify(cs.some((c) => c.hidden) ? cards.RARITY_ORDER : cards.SHOWN_RARITIES)},tier=(f)=>ORDER.findIndex((r)=>f.classList.contains('r-'+r)),calm=matchMedia('(prefers-reduced-motion: reduce)').matches,key='mfl-rv-${esc(pack.id)}';
           let seen=${req.query.m === 'kept' ? 'true' : 'false'},timer=0;try{seen=seen||!!sessionStorage.getItem(key);}catch(e){}
-          const done=()=>{if(!fl.every((f)=>f.classList.contains('on')))return;go.hidden=false;all.hidden=true;rv.classList.add('all-on');try{sessionStorage.setItem(key,'1');}catch(e){}};
+          const done=()=>{if(!fl.every((f)=>f.classList.contains('on')))return;go.hidden=false;all.hidden=true;rv.classList.add('all-on');try{sessionStorage.setItem(key,'1');}catch(e){}const nx=go.querySelector('.rv-next');if(nx)nx.focus({preventScroll:true});};
           const open=(f)=>{if(f.classList.contains('on'))return;f.classList.remove('tease');f.classList.add('on');done();};
           const auto=()=>{const q=fl.filter((f)=>!f.classList.contains('on'));const step=()=>{const f=q.shift();if(!f)return;if(f.classList.contains('on'))return step();
             if(tier(f)>=3&&!calm){f.classList.add('tease');timer=setTimeout(()=>{open(f);timer=setTimeout(step,700);},950);}else{open(f);timer=setTimeout(step,calm?30:tier(f)>=2?560:360);}};timer=setTimeout(step,calm?0:450);};
