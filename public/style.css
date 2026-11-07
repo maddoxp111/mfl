@@ -2597,3 +2597,11 @@ body.arc-playing .ticker{display:none}
 .pp-pick select{max-width:170px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:6px 8px;font:13px Inter}
 .tbl .nw{white-space:nowrap}
 #player-pay form{margin-top:18px}
+
+/* coin history on profiles (earn.js coinProfile) */
+.coin-log .cl-tbl td{vertical-align:top}
+.coin-log .cl-tbl td small{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:2px}
+.coin-log .cl-tbl td.up{color:#4ade80;font-weight:700;white-space:nowrap}.coin-log .cl-tbl td.down{color:#ff6b7a;font-weight:700;white-space:nowrap}
+.coin-log .cl-tbl td.zero{color:var(--muted)}.coin-log .cl-tbl .nw{white-space:nowrap}
+.coin-log .cl-note td{background:rgba(255,194,26,.07)}
+.coin-log .cl-more summary{cursor:pointer;color:var(--muted);font-size:13px;padding:10px 0}

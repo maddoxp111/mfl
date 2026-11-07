@@ -36,7 +36,7 @@ module.exports = function earn(app, h) {
   }
 
   // Where a user's coins came from: one row per source, adding up to the balance.
-  function breakdown(user, acct) {
+  function breakdown(user, acct, own = true) {
     const P = acct.points || {}, rate = cards.COINS_PER_POINT || 1;
     const bonus = user.bonuses || [], pb = user.pointBonuses || [], arc = user.arcade || [];
     const net = (f) => arc.filter(f).reduce((s, m) => s + E.matchNet(m), 0);
@@ -72,11 +72,75 @@ module.exports = function earn(app, h) {
     // Anything the rows above don't name yet (a new way to earn) still shows, so the rows always add up to the balance.
     const rest = acct.balance - rows.reduce((s, r) => s + r[1], 0);
     if (Math.round(rest)) rows.push(['Other', rest, 'Everything else', '#other']);
-    const row = ([label, n, sub, href, keep]) => (!keep && !Math.round(n) ? '' : `<div><span><a href="${href}">${esc(label)}</a>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="${n > 0 ? 'up' : n < 0 ? 'down' : 'zero'}">${signed(n)}</b></div>`);
-    return `<section class="card pts-break earn-me"><div class="card-h"><h2>${icon('coin')} Your coins so far</h2><b class="big">${fmt(acct.balance)}</b></div>
-      <p class="muted sm">Where every coin you have came from, @${esc(user.name)}. Tap a row to see how it works.</p>
+    const row = ([label, n, sub, href, keep]) => (!keep && !Math.round(n) ? '' : `<div><span><a href="${own === 'page' ? href : '/coins' + href}">${esc(label)}</a>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="${n > 0 ? 'up' : n < 0 ? 'down' : 'zero'}">${signed(n)}</b></div>`);
+    return `<section class="card pts-break earn-me"><div class="card-h"><h2>${icon('coin')} ${own ? 'Your coins so far' : 'Where the coins came from'}</h2><b class="big">${fmt(acct.balance)}</b></div>
+      <p class="muted sm">${own ? `Where every coin you have came from, @${esc(user.name)}.` : `Every coin @${esc(user.name)} has, by where it came from.`} Tap a row to see how it works on the Earn coins page.</p>
       <div class="pb-rows">${rows.map(row).join('')}<div class="tot"><span>Balance</span><b>${fmt(acct.balance)}</b></div></div></section>`;
   }
+
+  // ---------- a profile's coins: the breakdown, and every change in order ----------
+  // Built from the same records the balance is worked out from, so the last running balance is the balance. Things the
+  // site doesn't date (achievements, Survivor) are listed as "ongoing"; anything not named still shows as "Other".
+  const TZ = h.TZ || 'America/Chicago';
+  // a local "YYYY-MM-DD HH:MM" in the league's time zone as an ISO time
+  function localIso(day, hm) {
+    if (!day) return '';
+    const guess = new Date(`${day}T${hm || '12:00'}:00Z`);
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(guess).map((p) => [p.type, p.value]));
+    const asLocal = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+    return new Date(guess.getTime() - (asLocal - guess.getTime())).toISOString();
+  }
+  const gameEnd = (g) => { const t = localIso(g.date, g.time || '12:35'); return t ? new Date(Date.parse(t) + 45 * 60000).toISOString() : ''; };
+  const matchOf = (db, g) => (g && db.teams[g.home] && db.teams[g.away] ? `${db.teams[g.home].abbr} vs ${db.teams[g.away].abbr}` : 'a game');
+  function coinHistory(db, user, acct, revert) {
+    const P = acct.points || {}, A = h.arcade ? h.arcade() : null, rate = cards.COINS_PER_POINT || 1, out = [];
+    const add = (at, label, n, sub, kind) => { if (Math.round(n)) out.push({ at: at || '', label, n: Math.round(n), sub: sub || '', kind: kind || '' }); };
+    add(user.created, 'Signed up', pk.START_COINS, 'Everyone starts with these', 'other');
+    for (const b of user.bonuses || []) add(b.at, b.reason === 'Daily' ? 'Daily bonus' : b.reason === 'Bailout' ? 'Bailout' : b.reason === 'Admin' ? 'From the commissioner' : String(b.reason || 'Bonus'), b.amount, '', 'other');
+    for (const b of user.pointBonuses || []) { const m = /^Sold (.+)$/.exec(b.reason || ''); const c = m && cards.cardInfo(db, m[1]); add(b.at, m ? 'Sold a card' : String(b.reason || 'Card reward'), b.amount, m ? (c ? c.label || m[1] : m[1]) : '', 'cards'); }
+    const packName = (t) => (cards.PACKS[t] && cards.PACKS[t].name) || (/^team-/.test(t) && db.teams[t.slice(5)] ? `${db.teams[t.slice(5)].name} team pack` : t);
+    for (const p of user.packs || []) if (p.currency === 'coins' && p.cost) add(p.at, 'Bought a pack', -p.cost, packName(p.type), 'cards');
+    for (const b of acct.bets || []) {
+      const what = b.legs.length > 1 ? `${b.legs.length}-pick combo` : (b.legs[0] && b.legs[0].label) || 'Pick';
+      add(b.placed, 'Made a pick', -b.stake, what, 'pickem');
+      if (b.status === 'won' || b.status === 'void') {
+        const end = b.legs.map((l) => db.games.find((g) => g.id === l.game)).filter(Boolean).map(gameEnd).sort().pop() || b.placed;
+        add(end, b.status === 'won' ? 'Pick won' : 'Pick refunded', b.payout, what, 'pickem');
+      }
+    }
+    for (const m of user.arcade || []) {
+      const n = E.matchNet(m); if (!n) continue;
+      const G = (GAMES[m.game] || {}).name || m.game, lv = E.LEVELS && E.LEVELS[m.level];
+      const mode = m.versus ? `Head to Head vs @${m.versus.opp || '?'}` : m.run ? `${(E.RUNS && E.RUNS[m.run.mode] && E.RUNS[m.run.mode].name) || 'Run'} game ${m.run.step}` : m.career ? 'Career' : m.risk ? 'Risk mode' : '';
+      add(m.at, n > 0 ? `${G} win` : `${G} loss`, n, [lv && (lv.name || lv), mode].filter(Boolean).join(' · '), 'arcade');
+    }
+    if (A && A.challengeDays) for (const d of A.challengeDays(user)) add(localIso(d.day, '20:00'), 'Daily challenges', d.coins, `${d.n} done`, 'arcade');
+    for (const d of user.checkins || []) add(localIso(d, '12:00'), 'Game-day check-in', E.CHECKIN, '', 'arcade');
+    for (const r of (P.fan && P.fan.results) || []) add(gameEnd(r.g), 'Lineup', r.total * rate, `${matchOf(db, r.g)} · ${fmt(r.total)} points`, 'cards');
+    for (const gp of P.playerGames || []) add(gameEnd(gp.game), 'Your player', gp.total, `${matchOf(db, gp.game)} · ${gp.won ? 'win' : 'loss'} ${gp.score || ''}`, 'player');
+    add('', 'Achievements', P.achieve || 0, P.achieve ? plural(P.achieve / ACHIEVEMENT_COINS, 'achievement') : '', 'other');
+    add('', 'Survivor rounds won', P.survivor || 0, '', 'other');
+    if (revert) out.push({ at: revert.cutoff, label: 'Nov 6 rollback', n: 0, kind: 'note', sub: `Admin-panel coins removed${[['packs', 'pack'], ['bets', 'pick'], ['sales', 'card sale'], ['lineups', 'Lineup change']].map(([k, w]) => (revert[k] || []).length ? `, ${plural(revert[k].length, w)} undone` : '').join('')}` });
+    const dated = out.filter((e) => e.at).sort((a, b) => a.at.localeCompare(b.at)), ongoing = out.filter((e) => !e.at);
+    let run = 0;
+    for (const e of [...dated, ...ongoing]) { run += e.n; e.bal = run; }
+    const rest = acct.balance - run;
+    if (Math.round(rest)) { run += rest; ongoing.push({ at: '', label: 'Other', n: Math.round(rest), sub: 'Everything else', kind: 'other', bal: run }); }
+    return { dated, ongoing };
+  }
+  h.coinProfile = async (db, user, acct, own) => {
+    let revert = null;
+    try { revert = h.getDoc ? await h.getDoc(`reverts/20261106/${user.name}`) : null; } catch {}
+    const { dated, ongoing } = coinHistory(db, user, acct, revert);
+    const when = (iso) => { if (!iso) return 'Ongoing'; const d = new Date(iso); return d.toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+    const tr = (e) => `<tr class="${e.kind === 'note' ? 'cl-note' : ''}"><td class="l"><b>${esc(e.label)}</b><small>${esc([e.sub, when(e.at)].filter(Boolean).join(' · '))}</small></td><td class="${e.n > 0 ? 'up' : e.n < 0 ? 'down' : 'zero'}">${e.kind === 'note' ? '' : signed(e.n)}</td><td class="muted">${fmt(e.bal)}</td></tr>`;
+    const rows = [...ongoing.slice().reverse(), ...dated.slice().reverse()], first = rows.slice(0, 40), more = rows.slice(40);
+    const head = '<thead><tr><th class="l">What</th><th>Coins</th><th>Balance</th></tr></thead>';
+    return breakdown(user, acct, own) + `<section class="card coin-log" id="coin-log"><div class="card-h"><h2>${icon('clock')} Coin history</h2><span class="muted sm">${fmt(rows.length)} changes</span></div>
+      <p class="muted sm">Every change to ${own ? 'your' : `@${esc(user.name)}'s`} coins, newest first, with the balance after it. Lineup, player and pick results land when the game ends.</p>
+      <div class="scroll"><table class="tbl cl-tbl">${head}<tbody>${first.map(tr).join('')}</tbody></table></div>
+      ${more.length ? `<details class="cl-more"><summary>Show the other ${fmt(more.length)}</summary><div class="scroll"><table class="tbl cl-tbl">${head}<tbody>${more.map(tr).join('')}</tbody></table></div></details>` : ''}</section>`;
+  };
 
   app.get('/coins', async (req, res, next) => {
     try {

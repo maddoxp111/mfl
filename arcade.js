@@ -271,12 +271,15 @@ module.exports = function arcade(app, h) {
     return challengesFor(day).map((c) => { const n = c.count(f); return { ...c, n: Math.min(n, c.need), done: n >= c.need }; });
   }
   // Every day since challenges started: coins for each one completed.
-  function challengeCoins(user) {
+  // Challenge coins by day (for the coin history), and the total.
+  function challengeDays(user) {
     const days = new Set([...(user.arcade || []).map((m) => m.local?.slice(0, 10)), ...(user.bets || []).map((b) => localDay(b.placed)), ...(user.packs || []).map((p) => p.local?.slice(0, 10)), ...(user.lineups || []).map((l) => l.local?.slice(0, 10))]);
-    let total = 0;
-    for (const d of days) if (d && d >= CH_START) for (const c of challengeStatus(user, d)) if (c.done) total += c.reward;
-    return total;
+    const out = [];
+    for (const d of [...days].sort()) if (d && d >= CH_START) { const done = challengeStatus(user, d).filter((c) => c.done); const coins = done.reduce((t, c) => t + c.reward, 0); if (coins) out.push({ day: d, coins, n: done.length }); }
+    return out;
   }
+  function challengeCoins(user) { return challengeDays(user).reduce((t, x) => t + x.coins, 0); }
+
   function canCheckIn(db, user) {
     const day = today(), now = pk.nowLocal(TZ).slice(11, 16);
     const game = db.games.find((g) => g.date === day && g.status !== 'postponed');
@@ -954,7 +957,7 @@ module.exports = function arcade(app, h) {
     res.redirect('/admin/arcade' + (req.body.u ? '?u=' + encodeURIComponent(name) : ''));
   });
 
-  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData };
+  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, challengeDays, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData };
 };
 const ASSET_V = Date.now().toString(36);
 module.exports.GAMES = GAMES;

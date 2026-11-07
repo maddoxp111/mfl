@@ -384,7 +384,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=69">
+<link rel="stylesheet" href="/static/style.css?v=70">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1567,26 +1567,6 @@ app.get('/pickem/me.json', async (req, res) => {
   res.set('Cache-Control', 'no-store').json({ name, balance: accountOf(load(), user, await survivorNow(load())).balance, offers });
 });
 // "Your player" popups are closed per account, not per device: remember which ones were seen.
-// Temporary, read-only: where named accounts' coins come from (for checking a balance that looks wrong). Needs the key; gone after Nov 9.
-app.get('/diag/coins/:key', async (req, res) => {
-  if (req.params.key !== '4d97385d414d9fea5d9aa0d3' || Date.now() > Date.parse('2026-11-09T00:00:00Z')) return res.status(404).send('Not found');
-  try {
-    const db = load(), sv0 = await survivorNow(db), out = {};
-    if (req.query.report) return res.set('Cache-Control', 'no-store').json({ fix: (db.fixes || {}).revertGifts20261106 || null, report: await getDoc('reverts/20261106/_report', { fresh: true }) });
-    for (const n of String(req.query.u || '').toLowerCase().split(',').filter(pk.validName).slice(0, 8)) {
-      const user = await getDoc(userKey(n), { fresh: true });
-      if (!user) { out[n] = null; continue; }
-      const acct = accountOf(db, user, sv0), P = acct.points || {};
-      const ar = (user.arcade || []).map((m) => ({ id: m.id, game: m.game, level: m.level, mode: m.mode || (m.run && m.run.mode) || (m.risk ? 'risk' : ''), stake: m.stake, payout: m.payout, status: m.status, run: m.run ? { id: m.run.id, step: m.run.step, pending: m.run.pending, cashedOut: m.run.cashedOut } : null, versus: !!m.versus, at: m.at || m.started || m.created }));
-      const top = [...ar].sort((a, b) => Math.abs(b.payout || 0) - Math.abs(a.payout || 0)).slice(0, 15);
-      out[n] = { balance: acct.balance, picks: { profit: acct.profit, pending: acct.pending, openStake: (acct.bets || []).filter((b) => b.status === 'pending').reduce((t, b) => t + b.stake, 0) },
-        points: Object.fromEntries(Object.entries(P).filter(([, v]) => typeof v === 'number')), fanPoints: P.fan ? P.fan.total : null,
-        bonuses: (user.bonuses || []).slice(-10), adminGifts: (user.bonuses || []).filter((b) => b.reason === 'Admin'), pointBonuses: (user.pointBonuses || []).slice(-10), player: user.player || null,
-        packs: (user.packs || []).length, arcadeCount: ar.length, arcadeTop: top, keys: Object.keys(user) };
-    }
-    res.set('Cache-Control', 'no-store').json(out);
-  } catch (e) { res.status(500).json({ error: String(e && e.message || e) }); }
-});
 app.post('/pickem/player/seen', async (req, res) => {
   const name = currentUser(req);
   const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
@@ -2572,6 +2552,8 @@ function shareBtn(owner, b) {
   return `<button type="button" class="tkt-share" onclick="mflShare('${betLink(owner, b)}','My MFL ${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'pick'}')">${icon('arrow')} Share</button>`;
 }
 
+// The coins page module; it also builds the coin breakdown and history on every profile (earnH.coinProfile).
+const earnH = {};
 app.get('/pickem/u/:name', async (req, res, next) => {
   try {
     const db = load();
@@ -2589,6 +2571,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
     const { user: viewer, acct: vAcct } = await loadAccount(db, me);
     const tile = (k, v, cls = '') => `<div class="card"><small>${k}</small><b class="${cls}">${v}</b></div>`;
     const canBail = mine && canBailout(user, acct);
+    const coinSec = earnH.coinProfile ? await earnH.coinProfile(db, user, acct, mine) : '';
     res.send(layout(req, `@${uname}`, pickHead(viewer, vAcct) + `<div class="wrap">${pickNav(mine ? '/pickem/me' : '', me)}
       <div class="prof card">
         <div class="prof-av">${esc(uname.slice(0, 2).toUpperCase())}</div>
@@ -2597,6 +2580,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
         <div class="prof-bal">${coins(acct.balance)}<small>coins</small></div>
         <div class="prof-acts"><a class="btn sm ghost" href="/pickem/collection/${esc(uname)}">${icon('star')} See their cards</a>${me && !mine ? `<a class="btn sm" href="/pickem/trade/${esc(uname)}">${icon('swap')} Offer a trade</a>` : ''}</div>
       </div>
+      ${coinSec}
       ${ubadges.length ? `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${ubadges.length} of ${badges.USER_BADGES.length}</span></div><div class="achv">${ubadges.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div></div>` : ''}
       ${mine ? dailyCard(user) : ''}
       ${mine ? playerCard(db, acct) : ''}
@@ -3495,7 +3479,8 @@ arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, 
 // Head to Head (3D Blitz, live): its WebSocket is attached to each server app.listen() starts, below.
 const versusApi = require('./versus')(app, { esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
 // Every way to earn coins (/coins).
-require('./earn')(app, { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS, dailyInfo, addDays, today, packPrices, arcade: () => arcadeApi });
+Object.assign(earnH, { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS, dailyInfo, addDays, today, packPrices, arcade: () => arcadeApi, TZ, getDoc });
+require('./earn')(app, earnH);
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
 app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });

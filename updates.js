@@ -17,6 +17,16 @@ const UPDATES = [
       'Fair play: every pick on the Nov 6 game was voided and interception picks are off, after players threw interceptions on purpose.',
     ],
   },
+  {
+    n: 2,
+    date: '2026-11-07',
+    title: 'Coin history on every profile',
+    items: [
+      "Every profile now shows where that account's coins came from (Pick'em, Lineup, Arcade, packs and the rest) and a coin history: every change, newest first, with the balance after it.",
+      'Nov 6 rollback: coins handed out from the admin panel on Nov 6 were removed, and every pack, pick, card sale, trade and Lineup change made after 10:55 AM that day was undone, site wide. Coins spent on those packs and picks came back. If your Lineup changed back, set it again before the next game.',
+      'The admin password was reset and every admin login was signed out.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
