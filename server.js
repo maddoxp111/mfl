@@ -1575,7 +1575,7 @@ app.get('/diag/coins/:key', async (req, res) => {
       const top = [...ar].sort((a, b) => Math.abs(b.payout || 0) - Math.abs(a.payout || 0)).slice(0, 15);
       out[n] = { balance: acct.balance, picks: { profit: acct.profit, pending: acct.pending, openStake: (acct.bets || []).filter((b) => b.status === 'pending').reduce((t, b) => t + b.stake, 0) },
         points: Object.fromEntries(Object.entries(P).filter(([, v]) => typeof v === 'number')), fanPoints: P.fan ? P.fan.total : null,
-        bonuses: (user.bonuses || []).slice(-10), pointBonuses: (user.pointBonuses || []).slice(-10), player: user.player || null,
+        bonuses: (user.bonuses || []).slice(-10), adminGifts: (user.bonuses || []).filter((b) => b.reason === 'Admin'), pointBonuses: (user.pointBonuses || []).slice(-10), player: user.player || null,
         packs: (user.packs || []).length, arcadeCount: ar.length, arcadeTop: top, keys: Object.keys(user) };
     }
     res.set('Cache-Control', 'no-store').json(out);
