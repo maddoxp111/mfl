@@ -58,6 +58,14 @@ const UPDATES = [
       'The Cover Athlete Pack: only cover athletes\' cards, starting with Carson. It stays in the shop for good, and every new season adds its cover athlete.',
     ],
   },
+  {
+    n: 6,
+    date: '2026-11-07',
+    title: 'Full Extension Essentials',
+    items: [
+      'New Season 1 pack: Full Extension Essentials - CT. 6 Season 1 cards with a Legend or better guaranteed, for 90,000 coins.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
