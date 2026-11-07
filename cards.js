@@ -721,7 +721,7 @@ const S1_ADDED = '2026-11-07';
 const s1Pack = (o) => ({ group: 'season', season: 1, added: S1_ADDED, ...o });
 const S1_NAVY = '#0a1a3f';
 Object.assign(PACKS, {
-  's1p-welcome': s1Pack({ name: 'Tabaka Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Two free Season 1 cards, once per account.' }),
+  's1p-welcome': s1Pack({ name: 'Season 1: Carson Tabaka - Welcome Pack', cards: 2, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Two free Season 1 cards, once per account.' }),
   's1p-ttime': s1Pack({ name: 'Season 1: Carson Tabaka', cards: 3, cost: 15000, art: { c: ['#38bdf8', S1_NAVY], e: '🏈', pat: 'stripes' }, desc: '3 Season 1 cards. The cheapest way into Season 1.' }),
   's1p-23': s1Pack({ name: 'T-Time - CT', cards: 5, cost: 35000, min: 'epic', art: { c: ['#e0f2fe', S1_NAVY], e: '⏰', pat: 'rays', foil: 'silver' }, desc: "It's T-Time: 5 Season 1 cards with a Gold or better guaranteed." }),
   's1p-chem': s1Pack({ name: "Momma P's Cookies - CT", cards: 4, cost: 70000, floor: 'epic', art: { c: ['#d97706', S1_NAVY], e: '🍪', pat: 'dots' }, desc: 'Fresh out of the oven: 4 Season 1 cards, every one Gold or better.' }),

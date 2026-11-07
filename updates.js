@@ -54,7 +54,7 @@ const UPDATES = [
       'Nine new cards for every player, all named for Carson: T-Time, Twenty-Three, Cars, Team Chemistry, One-Hand CT, Tabaka Grab, Big Boy Mode, Cover Shoot 1/1 and Full Extension 1/1. Each one beats the older cards of its rarity.',
       "Carson's own two: the Cover Athlete card and the BigBoyCT 1/1, worth 6x fantasy points with every skill maxed.",
       'A new top rarity, Zenith, above Dark Matter: 5x points, every skill maxed and perk level 7. Every Zenith is a 1 of 1.',
-      "Season 1 packs, from a free Tabaka Welcome Pack (two free cards for everyone) through Season 1: Carson Tabaka, T-Time, Momma P's Cookies, CT Team Chemistry, Carson Charles Tabaka and BigBoyCT, up to Tabaka Time and Carson's Filet Dinner, the best pack in the shop and a coin flip for a Zenith. Season 1 cards only come from Season 1 packs.",
+      "Season 1 packs, from the free Season 1: Carson Tabaka - Welcome Pack (two free cards for everyone) through Season 1: Carson Tabaka, T-Time, Momma P's Cookies, CT Team Chemistry, Carson Charles Tabaka and BigBoyCT, up to Tabaka Time and Carson's Filet Dinner, the best pack in the shop and a coin flip for a Zenith. Season 1 cards only come from Season 1 packs.",
       'The Cover Athlete Pack: only cover athletes\' cards, starting with Carson. It stays in the shop for good, and every new season adds its cover athlete.',
     ],
   },
