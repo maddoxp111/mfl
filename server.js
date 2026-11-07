@@ -3592,6 +3592,52 @@ async function revertGiftsOnce(db) {
   }
   await save();
 }
+// Nov 7, 2026, part 2: the commissioner also had the Arcade put back for every account that got admin-panel coins: every
+// Arcade game they played from the cutoff on is removed. A Double or Nothing / Double or Double run that started before
+// the cutoff goes back to how it stood then (a won step they had played on from gets its cash-out choice back). A Head to
+// Head game is removed for both players. Removed records are kept in reverts/20261106-arcade/<name>. Runs once.
+async function revertArcadeOnce(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.revertArcade20261106) return;
+  const g0 = db.fixes.revertGifts20261106;
+  if (!g0 || !g0.done) return; // only after the gift rollback has finished
+  db.fixes.revertArcade20261106 = { at: new Date().toISOString(), started: true };
+  await save();
+  const T = g0.cutoff || REVERT_FROM, report = { cutoff: T, accounts: {} };
+  try {
+    const gifted = new Set((await listDocs('reverts/20261106/')).filter((d) => d && d.name && (d.gifts || []).length).map((d) => d.name));
+    const users = await listDocs('users/');
+    // Head to Head games from the cutoff on that a gifted account played: gone for both players
+    const vsIds = new Set();
+    for (const u of users) if (gifted.has(u.name)) for (const m of u.arcade || []) if (m.versus && (m.at || '') >= T) vsIds.add(m.versus.id);
+    for (const u0 of users) {
+      const mine = gifted.has(u0.name), arc = u0.arcade || [];
+      const hit = arc.filter((m) => (m.at || '') >= T && (mine || (m.versus && vsIds.has(m.versus.id))));
+      if (!hit.length) continue;
+      const user = await getDoc(userKey(u0.name), { fresh: true });
+      const ids = new Set(hit.map((m) => m.id));
+      const removed = (user.arcade || []).filter((m) => ids.has(m.id));
+      user.arcade = (user.arcade || []).filter((m) => !ids.has(m.id));
+      // runs that started before the cutoff: the last step left goes back to how it stood
+      const runs = new Set(removed.filter((m) => m.run).map((m) => m.run.id)), restored = [];
+      for (const rid of runs) {
+        const left = user.arcade.filter((m) => m.run && m.run.id === rid).sort((a, b) => a.run.step - b.run.step);
+        const last = left[left.length - 1];
+        if (last && last.status === 'won' && last.run.rolled && !last.run.cashedOut) { delete last.run.rolled; last.run.pending = true; last.payout = 0; restored.push(`${rid} step ${last.run.step}`); }
+      }
+      await putDoc(`reverts/20261106-arcade/${user.name}`, { name: user.name, cutoff: T, at: new Date().toISOString(), removed, restored });
+      await putDoc(userKey(user.name), user);
+      report.accounts[user.name] = { removed: removed.length, net: removed.reduce((t, m) => t + require('./arcade').EARN.matchNet(m), 0), restored, gifted: mine };
+    }
+    db.fixes.revertArcade20261106 = { at: new Date().toISOString(), done: true, cutoff: T, accounts: Object.keys(report.accounts).length };
+    await putDoc('reverts/20261106-arcade/_report', report);
+    console.log('arcade rollback for gifted accounts:', JSON.stringify(report));
+  } catch (e) {
+    db.fixes.revertArcade20261106 = { ...db.fixes.revertArcade20261106, error: String(e && e.message || e) };
+    console.error('arcade rollback failed', e);
+  }
+  await save();
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3607,7 +3653,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
