@@ -221,6 +221,15 @@ const UPDATES = [
       "Double or Nothing and Double or Double games now say what happened in your coin history. A game you won with the cash-out still waiting says \"win · cash out … waiting on the 3D Blitz page\", a game you won and played on says so, and a game with no result yet says \"in progress\". Before, all of these showed as a loss because their coins were negative: a run's win pays nothing until you cash out, and playing on puts more at risk.",
     ],
   },
+  {
+    n: 21,
+    date: '2026-11-08',
+    title: '3D Blitz: kickoff coverage has safeties',
+    items: [
+      "Kickoff returns for a touchdown are rare now. The kicking team keeps two safeties back behind the wave of tacklers as the last line. They stay in front of the returner and come up to make the tackle once the returner gets close. Before, the slow kicker was the only one back, so a fast returner who got through the first wave usually scored.",
+      'Great returners still get good field position: about 31 yards a return with a top lineup in our tests, against about 24 for an average one. Touchdowns went from about 1 in 7 kickoffs (Rookie, top lineup) to about 1 in 100.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

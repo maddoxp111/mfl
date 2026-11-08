@@ -4019,6 +4019,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; // the defender you control (33-defplay.js)
         d.look = ball ? (ball.holder ? [ball.holder.x, 1.5, ball.holder.z] : [ball.x, ball.y, ball.z]) : null;
         if (ball && ball.st === 'loose') { steer(d, ball.x, ball.z, effV(d), dt, 9); continue; }
+        if (carrier && d.koSafe && kick && kick.type === 'ko' && carrier.side === 0 && koSafety(d, dt)) continue;
         if (carrier) {
           const readT = (d.role === 'DL' ? 0 : d.role === 'LB' ? DP.read : DP.read * 1.2) * (dcall && dcall.kind === 'box' ? 0.45 : 1); // a stacked box reads the run fast
           if (!runMode || tPlay - runSeen > readT || dist(d, carrier) < 4 || carrier.z > los + 1) { pursue(d, dt); continue; }
@@ -4193,6 +4194,19 @@ gl_FragColor=vec4(c,1.0);}`;
       staminaStep(d, dt, scrambling || tPlay > 2.2 || d.role !== 'DL');
       steer(d, tx, tz, effV(d) * (d.role === 'DL' ? 1 : 0.95), dt, 8);
       if (!d.eng && !(d.imm > 0)) for (const b of off) { if ((b.role === 'OL' || b.blk) && !b.eng && b !== ctrl && !b.rag && dist(b, d) < b.rad + d.rad + 0.2 && b.z <= d.z + 0.3) { if (engage(b, d, false)) break; } }
+    }
+    // a kickoff safety: the last line. He stays 8 yards or so in front of the returner, inside out (between him and the middle of
+    // the end zone), going back with him at his pace instead of running into the wave; once the returner gets within 9 yards
+    // (or past him) he comes up and makes the play like anybody else
+    function koSafety(d, dt) {
+      const c = carrier, dd = dist(d, c);
+      if (dd < 9 || d.z < c.z + 3) return false;
+      const look = 0.6, px = clamp(c.x + (c.vx || 0) * look, -HW + 2, HW - 2), pz = c.z + (c.vz || 0) * look;
+      const tx = lerp(px, 0, 0.18), tz = Math.max(pz + 8, c.z + 6);
+      staminaStep(d, dt, true);
+      steer(d, tx, tz, effV(d) * (d.spdK || 1), dt, 8);
+      d.look = [c.x, 1.4, c.z];
+      return true;
     }
     // pursuit: an angle that meets the runner (cut him off, don't chase his tail), shaded inside-out so a cutback doesn't beat
     // him; the man outside and in front keeps contain (turns it back inside); close in front of the runner he breaks down (shorter,
@@ -6305,6 +6319,8 @@ gl_FragColor=vec4(c,1.0);}`;
       others.forEach((k, i) => addOff(offPlayer(k, [-12, -5, 5, 12][i], 22 + (i % 2) * 3)));
       for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * 6, 31, { v: 6 }));
       for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), 64, { v: Math.max(7.5, DP.sV) * (1.02 + 0.03 * (i % 3)), lane: -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF, agi: 50 + 40 * KDEF, spd: 60 + 30 * KDEF, ko: 1 }));
+      // two of the middle men are the safeties: they trail the wave as the last line instead of running into the blocks
+      DK.KC4.koSafe = 1; DK.KC5.koSafe = 1; DK.KC4.tackle = DK.KC5.tackle = Math.max(DP.tackle + 6, 64);
       addDef(mkP(1, 'K', 'KK', 0, 66, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
       finalizePlayers();
       for (const p of everyone) setPose(p, 'stance2');
@@ -6335,7 +6351,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const cpz = b.tz, cpx = b.tx, tl = Math.max(0.05, b.T - b.t), dd = Math.hypot(cpx - R.x, cpz - R.z);
         steer(R, cpx, cpz, Math.min(R.v, Math.max(dd / tl * 1.1, 2.5)), dt, 12); R.face2 = Math.PI; R.look = [b.x, b.y, b.z];
         if (tl < 0.6 && dd < 3) { R.reach = [b.x + b.vx * 0.1, b.y + b.vy * 0.1, b.z + b.vz * 0.1]; setPose(R, 'reach', true); } else R.reach = null;
-        for (const d of def) steer(d, lerp(d.lane || 0, b.tx, 0.35), Math.max(b.tz + 6, d.z - 20), d.v, dt, 7);
+        for (const d of def) { if (d.koSafe) steer(d, lerp(d.lane || 0, b.tx, 0.2), Math.max(b.tz + 20, d.z - 14), d.v * 0.8, dt, 7); else steer(d, lerp(d.lane || 0, b.tx, 0.35), Math.max(b.tz + 6, d.z - 20), d.v, dt, 7); }
         for (const p of off) if (p !== R) { steer(p, p.x * 0.8, Math.max(b.tz + 12, p.z - 6), p.v * 0.7, dt); p.face2 = Math.PI; }
         const hL = handPos(R, -1), hR = handPos(R, 1), near = Math.min(Math.hypot(hL[0] - b.x, hL[1] - b.y, hL[2] - b.z), Math.hypot(hR[0] - b.x, hR[1] - b.y, hR[2] - b.z)) < 0.5 || (Math.hypot(R.x - b.x, R.z - b.z) < 0.6 && b.y < 1.9);
         if (near && b.vy < 0 || b.y < 0.3) {
