@@ -15262,11 +15262,11 @@ gl_FragColor=vec4(col,1.0);}`;
         const home = { name: String(t0.team || 'MFL Stars'), abbr: String(t0.abbr || t0.team || 'MFL').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MFL', color: t0.color || '#ffc21a', color2: t0.color2 || '#1b1e27', ovrOff: 66, ovrDef: 60, players };
         const away = pickOpponent(lvl, home, ctx.seed); // a different team every game, at the level's strength
         // the setup screen's choices (the server checks them and fixes a run's): where, Metcalf's settings, time of day, weather.
-        // A run at Metcalf always has the crowd and plays tackle (the true-size or the big field, as picked). The stadium's usual look (a clear night) goes
+        // A run at Metcalf always has the crowd (the field size and two-hand touch are picked). The stadium's usual look (a clear night) goes
         // to the engine as the legacy weather 'night'.
         const api = window.MFLBlitz, venue = data.venue === 'metcalf' ? 'metcalf' : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
         const tod = api.tods.indexOf(data.tod) >= 0 ? data.tod : met ? 'noon' : 'night', wx = api.weathers.indexOf(data.weather) >= 0 ? data.weather : 'clear';
-        const crowd = met && (runMet || !!data.crowd), big = met && !!data.big, touch = met && !runMet && !!data.touch;
+        const crowd = met && (runMet || !!data.crowd), big = met && !!data.big, touch = met && !!data.touch;
         const where = met ? ['Metcalf', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
         const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
         window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
