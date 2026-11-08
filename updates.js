@@ -253,6 +253,24 @@ const UPDATES = [
       'Logging out of the admin panel takes it off all of that account\'s devices.',
     ],
   },
+  {
+    n: 24,
+    date: '2026-11-08',
+    title: '3D Blitz: Metcalf for real, crowds, weather, tougher defense',
+    items: [
+      "Metcalf fixes from your list: the field is now just the real football field (the west one, with the red yard ticks on both sidelines), the fence between the blacktop and the parking lot is the real black fence, and everything north and south of the blacktop was rebuilt from the aerial photos: the big grass field with its curved path, the pads, the trees, College Ave, the real campus buildings, the parking lots with real cars, and a flat-town skyline instead of hills. Things that aren't really there were removed.",
+      "At Metcalf nobody wears helmets or uniforms: everyone plays in a plain T-shirt in their team's color, with their own sweats, joggers or shorts, sneakers, and real hair and faces.",
+      "Cars, buses and trucks drive by on Main Street and College Ave, with engine and tire sounds. People walk by on the sidewalks.",
+      "Throw the ball over a fence at Metcalf and everyone lines up at the fence yelling for someone walking by to get it; they toss it back and the game goes on. Skip it after 3 seconds.",
+      "New Metcalf settings: Crowd (a ton of people all around the field and across the blacktop and playground, cheering like a real stadium crowd, with the pulse to match), Big field (the whole map scaled up so the field is a full 100-yard field) and Two-hand touch (two hands on the ball carrier ends the play, no tackles; Dive becomes Touch on defense).",
+      "On the true-size Metcalf field there are no first downs: you get four downs to score from wherever the drive starts. The big field has normal 10-yard first downs.",
+      "Double or Nothing and Double or Double can be played at Metcalf now, always with the crowd and the big field on and tackle football.",
+      "Pick the time of day (morning, noon, sunset, night) and the weather (sunny, partly cloudy, overcast, rain, thunderstorm, snow, fog) in every mode, at both venues. Snow covers the grass and roofs, rain makes everything wet, storms have lightning and thunder, and Metcalf at night has its real streetlights.",
+      "Catching it short and sprinting no longer outruns the whole defense: after a catch every defender runs to the ball, takes an angle to cut you off, breaks down in front of you and can arm-tackle you. Jukes, cutbacks and great cards still break big plays.",
+      "Deep balls into tight or double coverage are now the hardest throw in the game: defenders find the ball and play it, and two defenders on it usually means broken up or picked. To win one you need the ball put away from the defender AND a well-timed jump; a bad jump says so (JUMPED TOO SOON / TOO LATE / NO JUMP). The CPU's quarterback stops forcing deep balls too.",
+      "Onside kicks are much harder (a perfect tap works about 1 in 3 at Rookie and 1 in 7 at the top level) and the onside bar now has the green in the middle with a TAP! prompt and a PERFECT/GOOD/OK/MISS flash. CPU onside kicks land at realistic rates.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

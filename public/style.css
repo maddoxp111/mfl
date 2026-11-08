@@ -2806,3 +2806,23 @@ body.arc-playing .ticker{display:none}
 .bz-vn-opts span{padding:10px 12px}
 .bz-vn-opts b{font-size:13px}
 @media(max-width:620px){.bz-dm-opts{grid-template-columns:repeat(3,minmax(0,1fr))}.bz-vn-opts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* 3D Blitz setup: Metcalf settings (on/off toggles) and the time of day / weather chips */
+.bz-togs,.bz-chips{display:grid;gap:6px}
+.bz-togs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.bz-tod{grid-template-columns:repeat(5,minmax(0,1fr))}
+.bz-wx{grid-template-columns:repeat(8,minmax(0,1fr))}
+.bz-togs label,.bz-chips label{position:relative;cursor:pointer;min-width:0}
+.bz-togs input,.bz-chips input{position:absolute;opacity:0;pointer-events:none}
+.bz-togs span,.bz-chips span{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;height:100%;padding:7px 4px;border-radius:10px;background:var(--card2);box-shadow:0 0 0 1px var(--line2) inset;line-height:1.2;position:relative}
+.bz-togs i,.bz-chips i{font-style:normal;font-size:17px;line-height:1.1}
+.bz-togs b,.bz-chips b{font-size:11.5px;font-weight:700;hyphens:manual}
+.bz-togs small,.bz-chips small{color:var(--muted);font-size:10px}
+.bz-togs span{padding:8px 6px 8px}
+.bz-togs span::after{content:'OFF';margin-top:4px;padding:1px 7px;border-radius:99px;font:800 9.5px Inter;letter-spacing:.06em;background:var(--card3);color:var(--muted)}
+.bz-togs input:checked+span::after{content:'ON';background:#ffc21a;color:#1b1e27}
+.bz-togs input:checked+span,.bz-chips input:checked+span{box-shadow:0 0 0 2px #ffc21a inset;background:color-mix(in srgb,#ffc21a 10%,var(--card2))}
+.bz-togs input:focus-visible+span,.bz-chips input:focus-visible+span{outline:2px solid #ffc21a;outline-offset:2px}
+.bz-togs label.locked{cursor:not-allowed}.bz-togs label.locked span{opacity:.8}
+.bz-togs label.locked input:not(:checked)+span{opacity:.55}
+.bz-met .bz-lock{margin:6px 0 0;font-size:12px;line-height:1.35;color:var(--muted)}
+@media(max-width:620px){.bz-wx{grid-template-columns:repeat(4,minmax(0,1fr))}.bz-togs small{display:none}}

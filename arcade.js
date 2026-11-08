@@ -38,13 +38,25 @@ const GAMES = {
 //   don: nothing up front; the cash-out starts at the first game's prize and grows with every win. One loss and the run pays nothing.
 //   dod: the first game's prize is at risk for its Risk payout; the risk and the cash-out grow together. The risk is never capped
 //        by the balance (each step charges the difference), so a loss can take an account into debt.
-// Each game of a run is an ordinary arcade match with m.run = { id, mode, step, level, cash, atRisk, v, pending?, rolled?, cashedOut? }.
+// Each game of a run is an ordinary arcade match with m.run = { id, mode, step, level, cash, atRisk, v, opts, pending?, rolled?, cashedOut? }.
 // A won step pays nothing until the player cashes out (pending), or is rolled into the next step; its stake stays spent, so
 // the coin totals always add up: cashing out at step n nets cash - atRisk, losing at step n loses atRisk.
 const RUNS = {
   don: { name: 'Double or Nothing', emoji: '🎲', stake: () => 0, cash: (level) => GAMES.blitz3d.prizes[level] },
   dod: { name: 'Double or Double', emoji: '🔥', stake: (level) => GAMES.blitz3d.prizes[level], cash: (level) => GAMES.blitz3d.prizes[level] * RISK_MULT[level] },
 };
+// 3D Blitz setup choices: where (The Stadium or Metcalf), Metcalf's three settings (crowd, big field, two-hand touch) and the
+// time of day and weather (every mode). A run (Double or Nothing / Double or Double) at Metcalf always has the crowd and the big
+// field and plays tackle, whatever the client sends; a run keeps the choices it started with for every game (m.run.opts).
+// "Usual" (anything not on the lists) is the venue's own look: the stadium on a clear night, Metcalf on a sunny noon.
+const BLITZ_TODS = ['morning', 'noon', 'sunset', 'night'], BLITZ_WX = ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'];
+const BLITZ_USUAL = { stadium: { tod: 'night', weather: 'clear' }, metcalf: { tod: 'noon', weather: 'clear' } };
+function blitzSetup(b, run) {
+  b = b || {};
+  const venue = b.venue === 'metcalf' ? 'metcalf' : 'stadium', met = venue === 'metcalf', on = (v) => [true, 1, '1', 'true', 'on'].includes(v);
+  return { venue, crowd: met && (!!run || on(b.crowd)), big: met && (!!run || on(b.big)), touch: met && !run && on(b.touch),
+    tod: BLITZ_TODS.includes(b.tod) ? b.tod : BLITZ_USUAL[venue].tod, weather: BLITZ_WX.includes(b.weather) ? b.weather : BLITZ_USUAL[venue].weather };
+}
 const RUN_LEVELS = [3, 5, 4], RUN_MAIN = 5, RUN_FACTOR = { 3: 1.5, 5: 2, 4: 2.5 }, RUN_V = 2;
 const runLevel = (v) => (RUN_LEVELS.includes(+v) ? +v : RUN_MAIN);
 const runFirst = (mode, level) => { const R = RUNS[mode]; return { step: 1, level, cash: R.cash(level), atRisk: R.stake(level), charge: R.stake(level) }; };
@@ -486,7 +498,7 @@ module.exports = function arcade(app, h) {
         data = { questions: quiz.map(({ q, opts }) => ({ q, opts })), secs: TRIVIA.secs[level], need: TRIVIA.need[level], ...(practice ? { answers: secret } : {}) };
       } else if (req.body.game === 'blitz3d') {
         data = blitzData(db, user);
-        if (!runMode && req.body.venue === 'metcalf') data.venue = 'metcalf'; // the Metcalf blacktop (runs are always at the stadium)
+        if (!career) Object.assign(data, blitzSetup(req.body, !!runMode)); // where, Metcalf's settings, time of day and weather (Career plays its own way)
       } else if (req.body.game === 'memory') {
         data = { players: Object.values(db.teams).flatMap((t) => t.roster.map((p) => ({ name: p.name, team: t.name, color: t.color, color2: t.color2, photo: p.photo ? '/media/' + p.photo : null, number: p.number || '' }))) };
       }
@@ -505,7 +517,7 @@ module.exports = function arcade(app, h) {
       const m = { id: crypto.randomBytes(6).toString('hex'), game: req.body.game, level, risk, stake, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0 };
       if (secret) m.secret = secret;
       if (career) m.career = true;
-      if (runMode) m.run = { id: crypto.randomBytes(4).toString('hex'), mode: runMode, step: 1, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V };
+      if (runMode) m.run = { id: crypto.randomBytes(4).toString('hex'), mode: runMode, step: 1, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(data, true) };
       user.arcade.push(m);
       if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
       await putDoc(userKey(name), user);
@@ -539,11 +551,11 @@ module.exports = function arcade(app, h) {
     m.run.rolled = true;
     for (const x of user.arcade) if (x.status === 'open' && !x.versus && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
-    const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V } };
+    const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(m.run.opts, true) } }; // every game of a run keeps the run's setup (a run from before had the stadium)
     user.arcade.push(n);
     if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
     await putDoc(userKey(name), user);
-    json(res, { ok: true, id: n.id, seed, level, levelName: LEVELS[level], risk: false, stake: n.stake, data: blitzData(db, user), run: runInfo(n) });
+    json(res, { ok: true, id: n.id, seed, level, levelName: LEVELS[level], risk: false, stake: n.stake, data: { ...blitzData(db, user), ...n.run.opts }, run: runInfo(n) });
   }
   app.post('/arcade/run/cashout', (req, res) => runChoice(req, res, 'cashout').catch((e) => { console.error(e); json(res, { ok: false, error: 'Could not cash out.' }); }));
   app.post('/arcade/run/double', (req, res) => runChoice(req, res, 'double').catch((e) => { console.error(e); json(res, { ok: false, error: 'Could not start the next game.' }); }));
@@ -754,8 +766,23 @@ module.exports = function arcade(app, h) {
             ${user && !lineupOk ? `<p class="muted sm">To play for coins you need a full Lineup (all 11 positions). <a href="/pickem/cards">Set it up →</a></p>` : ''}` : ''}
           ${id === 'blitz3d' ? `<fieldset class="bz-defmode"><legend>Defense <small>how many of their snaps you play yourself</small></legend><div class="bz-dm-opts">${[['none', 'None', 'Their drives are simulated'], ['quick', 'Quick', 'Clutch time and goal-line stands'], ['medium', 'Medium', '1-2 snaps a drive, plus clutch and goal line'], ['high', 'High', '2-4 snaps a drive, plus clutch and goal line'], ['full', 'Full', 'Every snap']].map(([v, n, d]) => `<label><input type="radio" name="defmode" value="${v}" ${v === 'medium' ? 'checked' : ''}><span><b>${n}</b><small>${d}</small></span></label>`).join('')}</div></fieldset>
           <script>(function(){var K='mfl-blitz-def',f=document.getElementById('arcSetup');try{var m=localStorage.getItem(K),r=m&&f.querySelector('input[name=defmode][value="'+m+'"]');if(r)r.checked=true;}catch(e){}f.addEventListener('change',function(e){if(e.target&&e.target.name==='defmode'){try{localStorage.setItem(K,e.target.value);}catch(x){}}});})();</script>
-          <fieldset class="bz-defmode bz-venue" data-norun><legend>Where <small>pick the field</small></legend><div class="bz-dm-opts bz-vn-opts">${[['stadium', '🏟️ The Stadium', 'The big stadium: 100 yards, kickoffs, punts and field goals'], ['metcalf', '🏫 Metcalf', 'The real blacktop at Thomas Metcalf School, life size: throw-offs, no punts, a TD is 7']].map(([v, n, d]) => `<label><input type="radio" name="venue" value="${v}" ${v === 'stadium' ? 'checked' : ''}><span><b>${n}</b><small>${d}</small></span></label>`).join('')}</div></fieldset>
-          <script>(function(){var K='mfl-blitz-venue',f=document.getElementById('arcSetup');try{var q=new URLSearchParams(location.search).get('venue'),m=q||localStorage.getItem(K),r=m&&f.querySelector('input[name=venue][value="'+m+'"]');if(r)r.checked=true;}catch(e){}f.addEventListener('change',function(e){if(e.target&&e.target.name==='venue'){try{localStorage.setItem(K,e.target.value);}catch(x){}}});})();</script>` : ''}
+          <fieldset class="bz-defmode bz-venue"><legend>Where <small>pick the field</small></legend><div class="bz-dm-opts bz-vn-opts">${[['stadium', '🏟️ The Stadium', 'The big stadium: 100 yards, kickoffs, punts and field goals'], ['metcalf', '🏫 Metcalf', 'The real blacktop at Thomas Metcalf School: throw-offs, no punts, a TD is 7']].map(([v, n, d]) => `<label><input type="radio" name="venue" value="${v}" ${v === 'stadium' ? 'checked' : ''}><span><b>${n}</b><small>${d}</small></span></label>`).join('')}</div></fieldset>
+          <fieldset class="bz-defmode bz-met" data-met hidden><legend>Metcalf settings</legend><div class="bz-togs">${[['crowd', '👥', 'Crowd', 'A crowd all around the field'], ['big', '📏', 'Big field', 'Scaled up to a real field'], ['touch', '✋', 'Two-hand touch', 'Instead of tackle']].map(([v, e, n, d]) => `<label class="bz-tog"><input type="checkbox" name="${v}" value="1"><span><i>${e}</i><b>${n}</b><small>${d}</small></span></label>`).join('')}</div>
+            <p class="bz-lock" data-metlock hidden>🔒 Locked in Double or Nothing and Double or Double: crowd and big field on, tackle.</p></fieldset>
+          <fieldset class="bz-defmode bz-sky"><legend>Time of day</legend><div class="bz-chips bz-tod">${[['', '✨', 'Usual'], ['morning', '🌄', 'Morning'], ['noon', '☀️', 'Noon'], ['sunset', '🌇', 'Sunset'], ['night', '🌙', 'Night']].map(([v, e, n]) => `<label><input type="radio" name="tod" value="${v}" ${v === '' ? 'checked' : ''}><span><i>${e}</i><b>${n}</b>${v === '' ? '<small data-usual="tod">Night</small>' : ''}</span></label>`).join('')}</div></fieldset>
+          <fieldset class="bz-defmode bz-sky"><legend>Weather</legend><div class="bz-chips bz-wx">${[['', '✨', 'Usual'], ['clear', '☀️', 'Sunny'], ['cloudy', '⛅', 'Partly cloudy'], ['overcast', '☁️', 'Overcast'], ['rain', '🌧️', 'Rain'], ['storm', '⛈️', 'Thunder&shy;storm'], ['snow', '❄️', 'Snow'], ['fog', '🌫️', 'Fog']].map(([v, e, n]) => `<label><input type="radio" name="weather" value="${v}" ${v === '' ? 'checked' : ''}><span><i>${e}</i><b ${v === 'clear' ? 'data-sunny' : ''}>${n}</b>${v === '' ? '<small data-usual="wx">Clear</small>' : ''}</span></label>`).join('')}</div></fieldset>
+          <script>(function(){var f=document.getElementById('arcSetup'),RUN=${JSON.stringify(runs)},K='mfl-blitz-',TODS=${JSON.stringify(BLITZ_TODS)},WX=${JSON.stringify(BLITZ_WX)},USUAL={stadium:'Night',metcalf:'Noon'},MK=['crowd','big','touch'],LOCK={crowd:true,big:true,touch:false};
+            var get=function(k){try{return localStorage.getItem(K+k);}catch(e){return null;}},put=function(k,v){try{localStorage.setItem(K+k,v);}catch(e){}},pick=function(n,v){var r=v!=null&&f.querySelector('input[name='+n+'][value="'+v+'"]');if(r)r.checked=true;};
+            var q;try{q=new URLSearchParams(location.search);}catch(e){q={get:function(){return null;}};}
+            pick('venue',q.get('venue')||get('venue'));
+            var t=q.get('tod')!=null?q.get('tod'):get('tod');if(t===''||TODS.indexOf(t)>=0)pick('tod',t);
+            var w=q.get('weather')!=null?q.get('weather'):get('weather');if(w===''||WX.indexOf(w)>=0)pick('weather',w);
+            var mine={};try{mine=JSON.parse(get('met')||'{}')||{};}catch(e){}MK.forEach(function(k){var v=q.get(k);if(v!=null)mine[k]=v==='1'||v==='true'||v==='on';});
+            var sync=function(){var m=f.mode?f.mode.value:'coins',run=RUN.indexOf(m)>=0,met=f.venue&&f.venue.value==='metcalf',u=USUAL[met?'metcalf':'stadium'];
+              f.querySelectorAll('[data-met]').forEach(function(e){e.hidden=!met;});f.querySelectorAll('[data-metlock]').forEach(function(e){e.hidden=!run;});
+              MK.forEach(function(k){var i=f.querySelector('input[name='+k+']');if(!i)return;i.disabled=run;i.checked=run?LOCK[k]:!!mine[k];i.closest('label').classList.toggle('locked',run);});
+              var tv=f.tod?f.tod.value:'',clr=(tv||u.toLowerCase())==='night'?'Clear':'Sunny';f.querySelectorAll('[data-usual=tod]').forEach(function(e){e.textContent=u;});f.querySelectorAll('[data-usual=wx],[data-sunny]').forEach(function(e){e.textContent=clr;});};
+            f.addEventListener('change',function(e){var n=e.target&&e.target.name;if(n==='venue'||n==='tod'||n==='weather')put(n,e.target.value);if(MK.indexOf(n)>=0&&!e.target.disabled){mine[n]=e.target.checked;put('met',JSON.stringify(mine));}sync();});sync();})();</script>` : ''}
           ${id === 'blitz3d' ? `<p class="muted sm">${fullLineup ? 'Your Lineup takes the field: all 11 (QB, RB, three WRs, TE and five linemen).' : `Set a full Lineup (all 11 positions) to play with your own cards. <a href="/pickem/cards">Set it up →</a> Until then you play as the ${esc(db.teams[teamsIds[0]]?.name || 'MFL')}.`}</p>` : ''}
           <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for ${RISK_MULT[0]}× to ${Math.max(...RISK_MULT.slice(0, G.prizes.length))}× back when you win. Lose it all when you don't.</small></span></label>
           ${user ? `<p class="muted sm" data-coins>Every win pays. Leaving mid-game counts as a loss.</p>` : ''}

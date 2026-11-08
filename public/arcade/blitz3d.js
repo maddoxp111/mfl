@@ -158,6 +158,19 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-macc.on{opacity:1}
 .bz-macc i{position:absolute;top:-3px;bottom:-3px;width:4px;margin-left:-2px;background:#fff;box-shadow:0 0 6px #fff}
 .bz-meter p{margin:6px 0 0;font:600 11px Inter,sans-serif;color:#9aa0ad;text-align:center}
+.bz-ons{padding:8px 12px 12px}
+.bz-otap{text-align:center;font:900 26px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:1px;color:#fff;margin:0 0 7px;animation:bz-otap .45s ease-in-out infinite alternate}
+.bz-otap small{font:700 11px Inter,sans-serif;letter-spacing:0;color:#9aa0ad;vertical-align:middle;margin-left:4px}
+@keyframes bz-otap{from{transform:scale(1);opacity:.8}to{transform:scale(1.12);opacity:1}}
+.bz-ons.done .bz-otap{animation:bz-pulse .25s 2;font-size:32px;text-shadow:0 0 12px currentColor}
+.bz-obar{position:relative;height:34px}
+.bz-ozn{position:absolute;inset:0;border-radius:8px;overflow:hidden;border:2px solid #000;background:#111}
+.bz-ozn span{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.bz-ozn em{font:800 10px/1 'Barlow Condensed',Inter,sans-serif;font-style:normal;letter-spacing:.3px;color:rgba(0,0,0,.72);white-space:nowrap;overflow:hidden}
+.bz-ozn .g3 em{font-size:12px;color:#04230f}
+.bz-ons.done .bz-ozn span{opacity:.35}.bz-ons.done .bz-ozn span.hit{opacity:1;box-shadow:inset 0 0 0 3px #fff}
+.bz-obar b{position:absolute;left:50%;top:-8px;bottom:-8px;width:2px;margin-left:-1px;background:linear-gradient(#fff 0 6px,transparent 6px calc(100% - 6px),#fff calc(100% - 6px))}
+.bz-obar i{position:absolute;top:-7px;bottom:-7px;width:6px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 0 2px #000,0 0 10px #fff}
 .bz-dcard{position:absolute;left:50%;top:50%;z-index:5;transform:translate(-50%,-50%);min-width:240px;width:max-content;max-width:90%;padding:14px 18px;background:rgba(15,17,23,.95);border:2px solid var(--oc,#ffc21a);border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6);animation:bz-zoom .45s cubic-bezier(.2,1.4,.4,1) both}
 .bz-dcard h3{margin:0 0 8px;font:900 22px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--oc,#ffc21a)}
 .bz-dcard p{margin:5px 0;font:400 9px/1.6 'Press Start 2P',monospace;color:#c9ccd4}
@@ -744,7 +757,7 @@ vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 n=normalize(skinN(b0,aN)*w0+skinN(b1,a
 bool num=(s==8||s==16);
 vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
 vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
-  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[23];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
+  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[25];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
 varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
 #LIB#
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -757,13 +770,14 @@ if(kit){t=texture2D(uKit,vT);base=toLin(t.rgb);}
 else if(s==9){t=texture2D(uTex,vT);base=toLin(t.rgb);}
 else if(numS||s==11){t=texture2D(uTex,vT);if(t.a<0.45)discard;base=toLin(c*t.rgb);}
 else base=toLin(c);
-if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11){ // fabrics: woven normal map, roughness from the kit alpha
+if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11||s==24){ // fabrics: woven normal map, roughness from the kit alpha
   float scale=(s==1?7.0:(s==13?9.0:5.0));vec3 nm=texture2D(uNrm,vT*scale).rgb;N=perturb(N,vW,vT,nm,s==1?0.35:0.55);
   rough=(s==1?0.55:(s==13?0.85:0.72))*(0.75+0.5*t.a);
   if(numS||s==11){rough=0.42;N=normalize(vN);}
   if(s==10){rough=0.7;}
+  if(s==24){base*=0.93+0.14*noise(vT*vec2(420.0,260.0));} // casual cotton / fleece: a faint heather
   // grass and mud stains build up on players who have been tackled
-  if(uDirt>0.0&&(s==0||s==1||s==13||numS)){float n=noise(vT*18.0+uSeed)*0.6+noise(vT*47.0+uSeed*3.0)*0.4;float st=smoothstep(0.62-uDirt*0.3,0.9,n)*uDirt*(s==1?1.0:0.6)*(1.0-smoothstep(0.1,0.85,vT.y)*0.3);base=mix(base,uDirtC*(0.6+0.4*n),st);rough=mix(rough,0.95,st);}
+  if(uDirt>0.0&&(s==0||s==1||s==13||s==24||numS)){float n=noise(vT*18.0+uSeed)*0.6+noise(vT*47.0+uSeed*3.0)*0.4;float st=smoothstep(0.62-uDirt*0.3,0.9,n)*uDirt*(s==1?1.0:0.6)*(1.0-smoothstep(0.1,0.85,vT.y)*0.3);base=mix(base,uDirtC*(0.6+0.4*n),st);rough=mix(rough,0.95,st);}
 }
 if(s==2||s==9){mode=1;rough=mix(0.55,0.3,uSweat);specOcc=0.6+0.5*uSweat;if(s==9){ // face: photo blended into skin at the edges
   vec2 q=(vT-uFaceUV.xy)/uFaceUV.zw;float m=1.0-smoothstep(0.44,0.8,length((q-vec2(0.5,0.5))*vec2(1.0,0.8))*2.0);base=mix(toLin(uCol[2]),base,m*t.a);}}
@@ -778,12 +792,14 @@ if(s==14){rough=0.8;}
 if(s==6){rough=0.5;}
 if(s==17||s==19){rough=0.78;}
 if(s==22){rough=0.25;specOcc=1.5;}
+if(s==23){ // hair: fine streaks along the strands, soft sheen
+  float a=atan(vP.x,vP.z);float st=noise(vec2(a*34.0,vP.y*70.0))*0.6+noise(vec2(a*90.0,vP.y*160.0))*0.4;base*=0.72+0.5*st;rough=0.5;specOcc=0.55;}
 if(s==15){rough=0.05;base=mix(base,vec3(0.02,0.025,0.03),0.7);alpha=uAlpha;specOcc=2.0;metal=0.3;}
 if(s==20){rough=0.9;}
 if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
 // card effects (uFx: mode, strength, time, seed; uFxC: colour)
 vec3 emis=vec3(0.0);float fm=uFx.x,fk=uFx.y,ft=uFx.z;
-if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18);
+if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23);
  if(fm>19.5){float rim=pow(fres,1.5);gl_FragColor=vec4(uFxC*fk*(0.1+rim*1.8),clamp(rim*1.3,0.0,1.0)*min(fk,1.0));return;}
  else if(fm<1.5){base=mix(base,vec3(0.2,0.14,0.08)+lum*vec3(1.15,0.92,0.62),0.85*fk);}
  else if(fm<2.5){base=mix(base,vec3(0.62,0.45,0.26)*(0.6+0.6*lum),0.85*fk);rough=1.0;specOcc=0.2;
@@ -799,7 +815,7 @@ if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float
  else if(fm<8.5){base=floor(base*5.0+0.5)/5.0;vec2 g=fract(vT*48.0);base*=1.0-0.35*step(0.86,max(g.x,g.y))*fk;}
  else if(fm<9.5){float gl=step(0.86,fract(ft*2.3+uSeed));base=mix(base,base.gbr,gl*fk);emis+=vec3(1.0,0.1,0.9)*gl*0.5*fk*step(0.5,fract(vW.y*12.0+ft*20.0));}
  else if(fm<10.5){vec3 rb=0.5+0.5*cos(6.2832*(fract(vP.y*1.2-ft*0.4)+vec3(0.0,0.33,0.67)));if(!skinS)base=mix(base,rb,0.6*fk);emis+=rb*0.12*fk;}
- else if(fm<11.5){if(skinS&&s!=18)emis+=uFxC*(0.5+0.45*sin(ft*5.0))*fk;}
+ else if(fm<11.5){if(skinS&&s!=18&&s!=23)emis+=uFxC*(0.5+0.45*sin(ft*5.0))*fk;}
  else if(fm<12.5){base*=mix(1.0,0.28,fk);emis+=uFxC*fres*1.4*fk;}
  else if(fm<13.5){vec3 ir=0.5+0.5*cos(6.2832*(fres*1.5+vP.y*0.6+ft*0.15+vec3(0.0,0.33,0.67)));if(!skinS){base=mix(base,ir,0.45*fk);metal=0.55;rough=0.2;}emis+=ir*fres*0.5*fk;}
  else if(fm<14.5){base=mix(base,vec3(lum),0.9*fk);}
@@ -1456,8 +1472,8 @@ gl_FragColor=vec4(c,1.0);}`;
   // Athlete mesh: one smooth skinned surface per body type (two bone weights per vertex), lofted from anatomical
   // cross-sections, with the gear modelled as geometry over the body. Vertex: pos3 nrm3 bone2 weight slot uv2 ao (13 floats)
   // =====================================================================================
-  const SL = { jer: 0, pant: 1, skin: 2, helm: 3, trim: 4, cleat: 5, pad: 6, mask: 7, num: 8, face: 9, arm: 10, name: 11, glove: 12, sock: 13, sole: 14, visor: 15, snum: 16, wht: 17, eye: 18, tape: 19, towel: 20, stripes: 21, mouth: 22 };
-  const NSL = 23;
+  const SL = { jer: 0, pant: 1, skin: 2, helm: 3, trim: 4, cleat: 5, pad: 6, mask: 7, num: 8, face: 9, arm: 10, name: 11, glove: 12, sock: 13, sole: 14, visor: 15, snum: 16, wht: 17, eye: 18, tape: 19, towel: 20, stripes: 21, mouth: 22, hair: 23, cloth: 24 };
+  const NSL = 25;
   // kit texture layout (fractions of the kit canvas), shared by the mesh UVs and the painter in Game
   const KIT = { torso: [0, 0, 1, 0.34], sleeve: [0, 0.34, 0.5, 0.47], glove: [0.5, 0.34, 1, 0.47], pant: [0, 0.47, 0.5, 0.72], sock: [0.5, 0.47, 1, 0.6], helm: [0, 0.72, 1, 1], stripes: [0.5, 0.6, 1, 0.72] };
   const HELM_TH = 2.62; // polar extent of the helmet shell (radians) -> v = theta / HELM_TH in the helmet region
@@ -1491,7 +1507,13 @@ gl_FragColor=vec4(c,1.0);}`;
     tall: { hs: 1.07 },
     short: { hs: 0.93 },
   };
-  const bodyKey = (s) => [s.bulk, s.belly, s.sw, s.legs, s.arms, s.neck, s.ll || 1, s.cap ? 1 : 0, s.noGear ? 1 : 0, s.headset ? 1 : 0].map((v) => Math.round(v * 100)).join(',');
+  const bodyKey = (s) => [s.bulk, s.belly, s.sw, s.legs, s.arms, s.neck, s.ll || 1, s.cap ? 1 : 0, s.noGear ? 1 : 0, s.headset ? 1 : 0].map((v) => Math.round(v * 100)).join(',') + (s.cas ? ',c' + s.cas.hair + s.cas.bot + s.cas.sock : '');
+  // casual clothes (Metcalf): the same skeleton and body numbers, dressed as kids at lunch: a plain T-shirt, their own sweats or
+  // shorts, socks, sneakers and real hair. c = { hair: CAS_HAIR index, bot: CAS_BOT index, sock: 0 crew / 1 ankle }; mesh only
+  const CAS_HAIR = ['buzz', 'short', 'fade', 'curly', 'long', 'capback', 'beanie'];
+  const CAS_BOT = ['sweats', 'joggers', 'shorts', 'midshorts', 'hoops'];
+  const HEADK = 1.1; // casual head scale (see buildBody)
+  const casSpec = (spec, c) => (c ? Object.assign({}, spec, { cas: c }) : spec);
   // a player's body: the position spec, shaped by his build (look.build) and his weight for his height; quantized so players share meshes
   const q20 = (v) => Math.round(v * 20) / 20;
   function bodySpec(base, lk, wgt) {
@@ -1603,7 +1625,8 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     const uvOf = (k, u0, u1, v0, v1) => { const r = KIT[k]; return [r[0] + (r[2] - r[0]) * (u0 || 0), r[0] + (r[2] - r[0]) * (u1 == null ? 1 : u1), r[1] + (r[3] - r[1]) * (v0 || 0), r[1] + (r[3] - r[1]) * (v1 == null ? 1 : v1)]; };
-    const W = S.bulk, W2 = 0.6 + 0.4 * S.bulk, BEL = S.belly, gear = !S.noGear;
+    const CAS = S.cas || null; // casual clothes (Metcalf): no pads, no helmet, a slimmer natural build in the mesh only
+    const W = S.bulk * (CAS ? 0.93 : 1), W2 = 0.6 + 0.4 * S.bulk * (CAS ? 0.93 : 1), BEL = S.belly, gear = !S.noGear && !CAS;
     const torsoW = (y) => { // weights along the spine: hips -> spine (0.16) -> chest (0.40) -> neck (0.70)
       if (y < 0.16) return wt(y, 0, 0.16, B.hips, B.spine, 0.06);
       if (y < 0.40) return wt(y, 0.16, 0.40, B.spine, B.chest, 0.07);
@@ -1619,6 +1642,16 @@ gl_FragColor=vec4(c,1.0);}`;
       T(0.24, 0.218, 0.153, { v: 0.72 }), T(0.15, 0.212, 0.148, { v: 0.84, ao: 0.92 }), T(0.085, 0.212, 0.148, { v: 0.94, ao: 0.75 }), T(0.05, 0.205, 0.144, { v: 1, ao: 0.6 })];
     // pectoral / lat shaping: a little fuller at the front top and at the back for the lats
     for (const r of torso) { if (r.y > 0.45 && r.y < 0.65) r.f = (an) => 1 + 0.035 * Math.max(0, Math.sin(an)) * Math.abs(Math.cos(an)) * 2; }
+    if (CAS) { // a T-shirt: natural shoulders (no pads) and an untucked hem that hangs straight over the waistband
+      // the shoulder line slopes from the neck down to the deltoids instead of the pads' flat shelf
+      torso.length = 0;
+      for (const [y, rx, rz, v, ao] of [[0.745, 0.075, 0.066, 0, 0.5], [0.735, 0.11, 0.09, 0.02, 0.68], [0.72, 0.16, 0.12, 0.05, 0.82], [0.7, 0.207, 0.148, 0.09, 1], [0.68, 0.242, 0.17, 0.13, 1], [0.655, 0.264, 0.186, 0.17, 1],
+        [0.625, 0.274, 0.195, 0.22, 0.95], [0.58, 0.272, 0.2, 0.28, 0.95], [0.5, 0.26, 0.193, 0.38, 0.9], [0.42, 0.245, 0.178, 0.48, 1], [0.33, 0.232, 0.166, 0.6, 1], [0.24, 0.225, 0.159, 0.72, 1], [0.15, 0.222, 0.156, 0.84, 0.95]]) torso.push(T(y, rx, rz, { v, ao }));
+      for (const r of torso) { if (r.y > 0.45 && r.y < 0.65) r.f = (an) => 1 + 0.03 * Math.max(0, Math.sin(an)) * Math.abs(Math.cos(an)) * 2; }
+      const pk = (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL) * 1.04, pz = W2 * (1 + 0.12 * BEL) * 1.04;
+      const hem = (y, ex, v, ao) => ({ y, rx: Math.max(0.212 * W * 0.97, 0.226 * pk) + ex, rz: Math.max(0.148 * W2, 0.158 * pz) + ex, cz: 0.02 * BEL, w: torsoW(Math.max(0, y)), v, ao });
+      torso.push(hem(0.09, 0.01, 0.9, 0.95), hem(0.03, 0.02, 0.96, 0.9), hem(-0.02, 0.022, 0.99, 0.85), hem(-0.026, 0.008, 1, 0.55));
+    }
     loft({ s: S.noGear && S.cap ? SL.stripes : SL.jer, seg: SG(28), uv: uvOf('torso'), ao: (i, an) => (i >= 4 && i <= 7 && Math.abs(Math.cos(an)) > 0.9 ? 0.72 : 1) }, torso);
     // decal patches (numbers / name plate) ride a hair above the jersey
     const patch = (s, y0, y1, aC, aW, scale) => {
@@ -1636,9 +1669,10 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!lod) patch(SL.name, 0.645, 0.585, -HPI, 0.75, 1.012); // name plate
     }
     // ---- neck + collar ----
-    const NK = S.neck;
+    const NK = S.neck * (CAS ? 1.1 : 1);
     loft({ s: SL.skin, seg: SG(12) }, [{ y: 0.69, rx: 0.068 * NK, rz: 0.062 * NK, w: [B.chest, B.neck, 0.7], ao: 0.5, cz: -0.005 }, { y: 0.745, rx: 0.062 * NK, rz: 0.058 * NK, w: [B.neck, B.chest, 0.8], ao: 0.6, cz: -0.004 }, { y: 0.8, rx: 0.06 * NK, rz: 0.057 * NK, w: [B.neck, B.head, 0.6], ao: 0.62 }, { y: 0.85, rx: 0.062 * NK, rz: 0.06 * NK, w: [B.head, B.neck, 0.85], ao: 0.6, cz: 0.004 }]);
-    loft({ s: SL.trim, seg: SG(14) }, [{ y: 0.735, rx: 0.095 * W, rz: 0.082 * W2, w: torsoW(0.72), ao: 0.8 }, { y: 0.752, rx: 0.115 * W, rz: 0.098 * W2, w: torsoW(0.72) }, { y: 0.74, rx: 0.132 * W, rz: 0.112 * W2, w: torsoW(0.72) }]);
+    if (CAS) loft({ s: SL.jer, seg: SG(14), uv: uvOf('torso', 0, 1, 0, 0.03) }, [{ y: 0.738, rx: 0.074 * W, rz: 0.064 * W2, w: torsoW(0.72), ao: 0.7 }, { y: 0.749, rx: 0.084 * W, rz: 0.072 * W2, w: torsoW(0.72) }, { y: 0.741, rx: 0.098 * W, rz: 0.082 * W2, w: torsoW(0.72) }]); // a slim crew-neck rib
+    else loft({ s: SL.trim, seg: SG(14) }, [{ y: 0.735, rx: 0.095 * W, rz: 0.082 * W2, w: torsoW(0.72), ao: 0.8 }, { y: 0.752, rx: 0.115 * W, rz: 0.098 * W2, w: torsoW(0.72) }, { y: 0.74, rx: 0.132 * W, rz: 0.112 * W2, w: torsoW(0.72) }]);
     // ---- head (human scale: ~0.2 yd wide, 0.26 tall): jaw, cheekbones, brow, crown; eye sockets; nose; ears ----
     const HW = [B.head, B.neck, 1];
     const faceF = (y) => (an) => { // radius modulation around the ring: eye sockets, cheekbones, chin, occipital bulge
@@ -1699,6 +1733,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!lod) loft({ s: SL.trim, seg: SG(8), w: HW, capBot: true }, [{ y: 0.875, rx: 0.056, rz: 0.01, cz: -0.175, w: HW, ao: 0.8 }, { y: 0.848, rx: 0.052, rz: 0.01, cz: -0.167, w: HW, ao: 0.8 }]);
       // mouthguard dangling from the mask (between plays, some players)
       if (!lod) { tube({ s: SL.mouth, w: HW }, [[0.03, 0.862, 0.2], [0.035, 0.84, 0.205], [0.03, 0.815, 0.2]], 0.006, 4); loft({ s: SL.mouth, seg: SG(6), w: HW, capBot: true, m: mMul(mT(IDM, 0.03, 0.8, 0.2), mRX(IDM, 0.3)) }, [{ y: 0.012, rx: 0.028, rz: 0.012, w: HW }, { y: -0.012, rx: 0.026, rz: 0.01, w: HW }]); }
+    } else if (CAS) {
+      casHair(CAS.hair);
     } else {
       // cap: crown + bill
       ellipsoid({ s: SL.cleat, seg: SG(16), w: HW, ring: () => ({ w: HW, ao: 0.9 }) }, [0, 0.975, -0.004], 0.108, 0.105, 0.112, 0, 1.75, 6);
@@ -1710,26 +1746,133 @@ gl_FragColor=vec4(c,1.0);}`;
     const vi0 = I.length;
     if (!lod && gear) ellipsoid({ s: SL.visor, seg: SG(12), a0: HPI - 1.0, a1: HPI + 1.0, w: HW, ring: () => ({ ao: 1, w: HW }) }, [0, 0.958, -0.004], 0.142, 0.148, 0.162, 1.15, 1.68, 3);
     const vin = I.length - vi0;
+    // ---- casual clothes: hair and hats, sweats / joggers / shorts, socks (Metcalf) ----
+    // grid surface: P(i, j) for rows i = 0..nr and columns j = 0..nc (j wraps when closed); normals from the grid's own tangents
+    function grid(o, nr, nc, P) {
+      const pts = [];
+      for (let i = 0; i <= nr; i++) { const row = []; for (let j = 0; j <= nc; j++) row.push(P(i, j)); pts.push(row); }
+      const base = nv, w = o.w || HW;
+      for (let i = 0; i <= nr; i++) for (let j = 0; j <= nc; j++) {
+        const jm = o.closed ? (j === 0 ? nc - 1 : j - 1) : Math.max(0, j - 1), jp = o.closed ? (j === nc ? 1 : j + 1) : Math.min(nc, j + 1);
+        const im = Math.max(0, i - 1), ip = Math.min(nr, i + 1);
+        let n = v3c(v3s(pts[ip][j], pts[im][j]), v3s(pts[i][jp], pts[i][jm]));
+        if (Math.hypot(n[0], n[1], n[2]) < 1e-10) n = o.pole || [0, 1, 0];
+        n = v3n(n); const c = o.c || [0, 0.96, 0], out = v3s(pts[i][j], c); if (v3d(n, out) < 0) n = [-n[0], -n[1], -n[2]];
+        push(pts[i][j], n, w[0], w[1], w[2], o.s, j / nc, i / nr, o.ao ? o.ao(i / nr, j / nc) : 1);
+      }
+      for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const a = base + i * (nc + 1) + j, c = a + nc + 1; I.push(a, c, a + 1, a + 1, c, c + 1); }
+    }
+    // a point on the scalp at height y, angle an (0 = +X, a quarter turn = the face), pushed out by th along the skull's normal;
+    // hang: long hair falls straight from the widest part of the head instead of following the skull in to the nape
+    function scalp(y, an, th, hang) {
+      const raw = (y) => {
+        let rx, rz, cz;
+        if (y >= 1.066) { const u = clamp((y - 1.066) / 0.018, 0, 1), k = Math.sqrt(Math.max(0, 1 - u * u)); rx = 0.05 * k; rz = 0.051 * k; cz = -0.005; }
+        else { let i = 0; while (i < HR.length - 2 && HR[i + 1].y < y) i++; const a = HR[i], b = HR[i + 1], t = clamp((y - a.y) / (b.y - a.y), 0, 1); rx = lerp(a.rx, b.rx, t); rz = lerp(a.rz, b.rz, t); cz = lerp(a.cz, b.cz, t); }
+        const k = faceF(clamp(y, 0.83, 1.08))(an);
+        return [rx * k * Math.cos(an), Math.min(y, 1.084), cz + rz * k * Math.sin(an)];
+      };
+      let p = raw(y);
+      if (hang && y < 0.95) { // straight down from the ring at 0.95, drawn in a touch toward the collar
+        const h = clamp((0.2 - Math.sin(an)) / 0.4, 0, 1), q = raw(0.95), s = 1 - 0.35 * (0.95 - y);
+        p = [lerp(p[0], q[0] * s, h), y, lerp(p[2], q[2] * s, h)];
+      }
+      const n = v3n([p[0] / 0.0102, (p[1] - 0.955) / 0.0156, (p[2] + 0.004) / 0.0118]);
+      return v3a(p, n, th);
+    }
+    // hair: a shell over the scalp from the crown down to a hairline that sits high at the forehead, above the ears and low at the
+    // nape; its edge folds back onto the scalp so it has a little thickness. Styles: buzz, short, fade (tall top, short sides),
+    // curly, long (over the ears, down to the collar), a cap worn backwards, a beanie
+    function casHair(st) {
+      const name = CAS_HAIR[st] || 'short', nc = SG(name === 'curly' ? 26 : 20), nr = lod ? 6 : name === 'curly' ? 12 : 9;
+      const shell = (s, line, thick, o) => grid({ s, closed: true, c: [0, 0.955, -0.004], pole: [0, 1, 0], ao: (v) => (o && o.ao ? o.ao(v) : 1 - 0.25 * v * v) }, nr + 1, nc, (i, j) => {
+        const an = -HPI + TAU * j / nc, last = i > nr, v = Math.min(1, i / nr), jag = s === SL.hair ? 0.009 * (0.4 + 0.6 * Math.max(0, Math.sin(an))) * (0.5 + 0.5 * Math.sin(an * 17 + 0.7) * Math.sin(an * 7)) : 0; // a ragged edge: tufts, not a swim cap
+        const y = 1.084 - (1.084 - line(an) + jag) * Math.pow(v, 1.5);
+        return scalp(y, an, last ? 0.0042 : Math.max(0.0062, thick(v, an)), o && o.hang); // the edge stays proud of the face decal
+      });
+      const hl = (f, sd, bk) => (an) => { const s = Math.sin(an); return s > 0 ? sd + (f - sd) * s * s : sd + (bk - sd) * Math.pow(-s, 1.2); };
+      const taper = (v, k) => (v < 0.8 ? 1 : 1 - (1 - k) * (v - 0.8) / 0.2);
+      if (name === 'buzz') shell(SL.hair, hl(1.032, 0.972, 0.885), (v) => 0.0045 * taper(v, 0.6));
+      else if (name === 'fade') shell(SL.hair, hl(1.034, 0.975, 0.89), (v) => (0.004 + 0.026 * (1 - smo(clamp((v - 0.3) / 0.3, 0, 1)))) * taper(v, 0.7));
+      else if (name === 'curly') shell(SL.hair, hl(1.028, 0.962, 0.875), (v, an) => (0.024 + 0.008 * Math.sin(an * 7 + v * 9) * Math.sin(an * 4 - v * 13 + 1.3) + 0.004 * Math.sin(an * 13 + v * 21)) * taper(v, 0.45));
+      else if (name === 'long') shell(SL.hair, hl(1.025, 0.9, 0.84), (v, an) => (0.016 + 0.006 * (1 - Math.max(0, Math.sin(an)))) * taper(v, 0.6), { hang: 1 });
+      else shell(SL.hair, hl(1.034, 0.972, 0.887), (v) => (name === 'short' ? 0.012 - 0.004 * v : 0.008) * taper(v, 0.5));
+      if (name === 'capback') { // a ball cap turned backwards: the crown, then the bill over the nape
+        const cl = hl(1.0, 0.982, 0.97);
+        shell(SL.tape, cl, (v) => 0.02 - 0.004 * v, { ao: (v) => 1 - 0.15 * v });
+        const nb = SG(10), bill = (side) => grid({ s: SL.tape, c: [0, side > 0 ? 0.85 : 1.25, -0.02], pole: [0, side, 0] }, 2, nb, (i, j) => {
+          const an = -HPI + (j / nb - 0.5) * 1.9, e = scalp(cl(an), an, 0.02), dir = [Math.cos(an), 0, Math.sin(an)], L = 0.085 * Math.sqrt(Math.max(0, Math.cos((j / nb - 0.5) * Math.PI))) * i / 2;
+          return [e[0] + dir[0] * L, e[1] - 0.004 - L * 0.12 - (side < 0 ? 0.006 : 0), e[2] + dir[2] * L];
+        });
+        bill(1); bill(-1);
+        if (!lod) ellipsoid({ s: SL.tape, seg: SG(6), w: HW, ring: () => ({ w: HW }) }, [0, 1.09, -0.005], 0.009, 0.006, 0.009, 0, Math.PI, 3); // button
+      } else if (name === 'beanie') { // a knit beanie with a folded cuff, sitting over the tops of the ears
+        const bl = hl(1.006, 0.955, 0.925);
+        shell(SL.tape, bl, (v) => 0.02 + 0.012 * (1 - v) + (v > 0.72 ? 0.007 : 0), { ao: (v) => (v > 0.72 ? 0.9 : 1) });
+      }
+    }
+    // a casual leg: sweats (loose to the shoe), joggers (tapered into a cuff) or shorts (three lengths) over a bare knee and calf, then
+    // crew or ankle socks. Radii are a lean natural leg (no thigh or knee pads)
+    function casLeg(sd, hp, kn, ft, X, inner) {
+      const LW = S.legs * 0.96, kind = CAS_BOT[CAS.bot] || 'sweats', KY = -0.53;
+      const LT = [[-0.02, 0.134, 0.012], [-0.14, 0.126, 0.02], [-0.27, 0.113, 0.018], [-0.4, 0.097, 0.01], [-0.49, 0.087, 0.014], [-0.555, 0.081, 0.01], [-0.63, 0.075, 0], [-0.7, 0.079, -0.012], [-0.78, 0.071, -0.008], [-0.88, 0.061, -0.004], [-0.95, 0.054, 0], [-1.0, 0.05, 0], [-1.04, 0.046, -0.006]];
+      const at = (y) => { let i = 0; while (i < LT.length - 2 && LT[i + 1][0] > y) i++; const a = LT[i], b = LT[i + 1], t = clamp((a[0] - y) / (a[0] - b[0]), 0, 1); return [lerp(a[1], b[1], t) * LW, lerp(a[2], b[2], t)]; };
+      const wL = (y) => (y > -0.05 ? [hp, B.hips, 0.75] : y > KY + 0.07 ? [hp, kn, 1] : y > KY - 0.07 ? wt(y, 0, KY, hp, kn, 0.07) : y > -0.76 ? [kn, hp, 1] : y > -0.92 ? [kn, ft, 1] : [kn, ft, 1 - smo(clamp((-0.92 - y) / 0.12, 0, 1))]);
+      const ring = (y, r, e) => { const q = at(y); return Object.assign({ y: legY(y), rx: r, rz: r * 1.03, cx: X, cz: q[1], w: wL(y) }, e || {}); };
+      const calf = (an) => 1 + 0.1 * Math.max(0, -Math.sin(an)), knee = (an) => 1 + 0.04 * Math.max(0, Math.sin(an));
+      const cloth = [], skin = [], sock = [];
+      const shorts = kind === 'shorts' || kind === 'midshorts' || kind === 'hoops';
+      if (shorts) {
+        const yH = kind === 'shorts' ? -0.33 : kind === 'midshorts' ? -0.43 : -0.54, lo = kind === 'hoops' ? 1.2 : kind === 'midshorts' ? 1.12 : 1.1;
+        for (const y of [-0.02, -0.14, -0.24, -0.33, -0.43, -0.54]) if (y > yH + 0.01) cloth.push(ring(y, at(y)[0] * lo + 0.014, { ao: y < -0.05 ? 1 : 0.85 }));
+        const rH = at(yH)[0] * lo + 0.016;
+        cloth.push(ring(yH, rH, { ao: 0.95 }), ring(yH + 0.008, at(yH)[0] + 0.006, { ao: 0.45 }));
+        const sockTop = CAS.sock ? -0.972 : -0.8;
+        for (const y of [yH + 0.004, -0.4, -0.49, -0.53, -0.57, -0.63, -0.7, -0.78, -0.8]) if (y <= yH + 0.004 && y > sockTop + 0.005) skin.push(ring(y, at(y)[0], { f: y < -0.66 && y > -0.75 ? calf : y < -0.5 && y > -0.56 ? knee : null, ao: y > yH - 0.03 ? 0.7 : 1 }));
+        skin.push(ring(sockTop + 0.004, at(sockTop)[0], { ao: 0.9 }));
+        sock.push(ring(sockTop + 0.006, at(sockTop)[0] + 0.006, { ao: 0.9 }), ring(sockTop - 0.012, at(sockTop - 0.012)[0] + 0.007));
+        for (const y of [-0.88, -0.95, -1.0, -1.04]) if (y < sockTop - 0.03) sock.push(ring(y, at(y)[0] + 0.004, { ao: y < -0.99 ? 0.75 : 1 }));
+        if (sock[sock.length - 1].y > legY(-1.04) + 0.001) sock.push(ring(-1.04, at(-1.04)[0] + 0.004, { ao: 0.7 }));
+      } else if (kind === 'joggers') {
+        for (const y of [-0.02, -0.14, -0.27, -0.4, -0.49, -0.57, -0.66, -0.75, -0.84]) cloth.push(ring(y, at(y)[0] * 1.08 + 0.014, { f: y === -0.49 ? knee : null }));
+        cloth.push(ring(-0.9, 0.068 * LW + 0.004), ring(-0.925, 0.06 * LW + 0.004, { ao: 0.8 }), ring(-0.975, 0.054 * LW + 0.004), ring(-0.99, 0.05 * LW, { ao: 0.5 }));
+        sock.push(ring(-0.97, at(-0.97)[0] + 0.002), ring(-1.0, at(-1.0)[0] + 0.004), ring(-1.04, at(-1.04)[0] + 0.004, { ao: 0.7 }));
+      } else { // sweats: straight and roomy, bunched over the shoe
+        for (const y of [-0.02, -0.14, -0.27, -0.4, -0.49, -0.57, -0.66, -0.75, -0.84]) cloth.push(ring(y, Math.max(at(y)[0] * 1.12 + 0.016, 0.082 * LW + 0.004), { f: y === -0.49 ? knee : null }));
+        cloth.push(ring(-0.9, 0.084 * LW + 0.004), ring(-0.935, 0.089 * LW + 0.004, { ao: 0.9 }), ring(-0.965, 0.083 * LW + 0.004), ring(-0.995, 0.08 * LW + 0.004, { ao: 0.8 }), ring(-1.003, 0.058 * LW, { ao: 0.4 }));
+      }
+      loft({ s: SL.cloth, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, cloth);
+      if (skin.length > 1) loft({ s: SL.skin, seg: SG(14) }, skin);
+      if (sock.length > 1) loft({ s: SL.wht, seg: SG(12) }, sock);
+    }
     // ---- arms: deltoid -> biceps -> elbow -> forearm -> wrist as one surface ----
     for (const sd of [-1, 1]) {
       const sh = sd < 0 ? B.shL : B.shR, el = sd < 0 ? B.elL : B.elR, ha = sd < 0 ? B.haL : B.haR, X = BIND[sh][0], AW = S.arms, mir = sd < 0;
       const SY = 0.64, EY = 0.28, HY = -0.04; // joint heights
       const aw = (y) => (y > EY + 0.06 ? [sh, el, 1] : y < EY - 0.06 ? [el, sh, 1] : wt(y, SY, EY, sh, el, 0.06));
-      const sleeve = gear ? SL.jer : SL.stripes, armS = S.sleeves ? SL.arm : SL.skin;
-      const rings = [
+      const sleeve = gear || CAS ? SL.jer : SL.stripes, armS = S.sleeves ? SL.arm : SL.skin;
+      let rings = [
         { y: 0.705, rx: 0.075 * AW, rz: 0.072 * AW, cx: X + sd * 0.025, s: sleeve, ao: 0.85, w: [sh, B.chest, 0.6] }, { y: 0.675, rx: 0.118 * AW, rz: 0.11 * AW, cx: X + sd * 0.03, s: sleeve, w: [sh, B.chest, 0.8] }, { y: 0.62, rx: 0.125 * AW, rz: 0.118 * AW, cx: X + sd * 0.022, s: sleeve, w: [sh, el, 1] },
         { y: 0.55, rx: 0.112 * AW, rz: 0.106 * AW, cx: X + sd * 0.012, s: sleeve, ao: 0.9, w: [sh, el, 1] }, { y: 0.5, rx: 0.1 * AW, rz: 0.095 * AW, cx: X + sd * 0.006, s: sleeve, ao: 0.85, w: [sh, el, 1] },
         { y: 0.5, rx: 0.092 * AW, rz: 0.088 * AW, cx: X + sd * 0.004, s: armS, ao: 0.8, w: [sh, el, 1] }, { y: 0.44, rx: 0.088 * AW, rz: 0.09 * AW, cx: X + sd * 0.002, cz: 0.004, s: armS, w: [sh, el, 1], f: (an) => 1 + 0.06 * Math.max(0, Math.sin(an)) }, // biceps
         { y: 0.37, rx: 0.08 * AW, rz: 0.08 * AW, cx: X, s: armS, w: [sh, el, 1] }, { y: 0.31, rx: 0.071 * AW, rz: 0.069 * AW, cx: X, s: armS, w: aw(0.31) }, { y: 0.28, rx: 0.068 * AW, rz: 0.066 * AW, cx: X, cz: -0.004, s: armS, w: aw(0.28) },
         { y: 0.25, rx: 0.069 * AW, rz: 0.067 * AW, cx: X, s: armS, w: aw(0.25) }, { y: 0.19, rx: 0.074 * AW, rz: 0.072 * AW, cx: X, s: armS, w: [el, sh, 1] }, { y: 0.11, rx: 0.062 * AW, rz: 0.058 * AW, cx: X, s: armS, w: [el, sh, 1] },
         { y: 0.03, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, s: armS, w: [el, ha, 1] }, { y: 0.0, rx: 0.05 * AW, rz: 0.043 * AW, cx: X, s: armS, w: [el, ha, 0.85] }];
+      if (CAS) { // a T-shirt's short sleeve: loose over the deltoid, hemmed at mid upper arm; slimmer arms without the pads' bulk
+        // the upper arm hangs a little inside the (wide) shoulder joint, so the shoulders read as a kid's, not a padded player's
+        const A2 = AW * 0.88, ix = (y) => -sd * 0.024 * clamp((y - 0.36) / 0.26, 0, 1);
+        rings = [{ y: 0.662, rx: 0.045 * A2, rz: 0.045 * A2, cx: X + ix(0.662), s: sleeve, ao: 0.9, w: [sh, B.chest, 0.6] }, { y: 0.642, rx: 0.094 * A2, rz: 0.09 * A2, cx: X + ix(0.642) + sd * 0.006, s: sleeve, w: [sh, B.chest, 0.8] }, { y: 0.6, rx: 0.108 * A2, rz: 0.103 * A2, cx: X + ix(0.6) + sd * 0.008, s: sleeve, w: [sh, el, 1] },
+          { y: 0.55, rx: 0.106 * A2, rz: 0.101 * A2, cx: X + ix(0.55) + sd * 0.006, s: sleeve, w: [sh, el, 1] }, { y: 0.475, rx: 0.104 * A2, rz: 0.1 * A2, cx: X + ix(0.475) + sd * 0.005, s: sleeve, ao: 0.9, w: [sh, el, 1] }, { y: 0.47, rx: 0.094 * A2, rz: 0.09 * A2, cx: X + ix(0.47) + sd * 0.004, s: sleeve, ao: 0.6, w: [sh, el, 1] },
+          { y: 0.47, rx: 0.086 * A2, rz: 0.084 * A2, cx: X + ix(0.47) + sd * 0.003, s: armS, ao: 0.62, w: [sh, el, 1] }, { y: 0.42, rx: 0.086 * A2, rz: 0.088 * A2, cx: X + ix(0.42) + sd * 0.002, cz: 0.004, s: armS, w: [sh, el, 1], f: (an) => 1 + 0.05 * Math.max(0, Math.sin(an)) },
+          { y: 0.36, rx: 0.078 * A2, rz: 0.078 * A2, cx: X, s: armS, w: [sh, el, 1] }].concat(rings.slice(8).map((r) => Object.assign({}, r, { rx: r.rx * 0.92, rz: r.rz * 0.92 })));
+      }
       loft({ s: sleeve, seg: SG(16), uv: uvOf('sleeve'), mirrorU: mir, capTop: true, ao: (i, an) => (i >= 2 && i <= 5 && Math.cos(an) * sd < -0.5 ? 0.72 : 1) }, rings);
       if (!lod && gear) { // sleeve number
         const rs = []; for (let i = 0; i <= 2; i++) { const y = 0.645 - 0.08 * i; rs.push({ y, rx: (0.127 - 0.011 * i) * AW, rz: (0.119 - 0.011 * i) * AW, cx: X + sd * 0.024, v: i / 2, ao: 0.95, w: [sh, el, 1] }); }
         loft({ s: SL.snum, seg: SG(6), a0: (sd > 0 ? 0 : Math.PI) - 0.5, a1: (sd > 0 ? 0 : Math.PI) + 0.5 }, rs);
       }
       // wrist tape
-      if (!lod) loft({ s: SL.tape, seg: SG(10) }, [{ y: 0.015, rx: 0.054 * AW, rz: 0.048 * AW, cx: X, w: [el, ha, 0.7] }, { y: -0.02, rx: 0.054 * AW, rz: 0.047 * AW, cx: X, w: [ha, el, 0.9] }, { y: -0.045, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, w: [ha, el, 1] }]);
+      if (!lod && !CAS) loft({ s: SL.tape, seg: SG(10) }, [{ y: 0.015, rx: 0.054 * AW, rz: 0.048 * AW, cx: X, w: [el, ha, 0.7] }, { y: -0.02, rx: 0.054 * AW, rz: 0.047 * AW, cx: X, w: [ha, el, 0.9] }, { y: -0.045, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, w: [ha, el, 1] }]);
       // hand: gloved palm with knuckles, four fingers and a thumb (fingers only at full detail)
       const HWt = [ha, el, 1], GS = gear ? SL.glove : SL.skin;
       loft({ s: GS, seg: SG(10), uv: uvOf('glove'), capBot: true, w: HWt }, [{ y: -0.035, rx: 0.048, rz: 0.03, cx: X, w: HWt }, { y: -0.09, rx: 0.06, rz: 0.032, cx: X, cz: 0.004, w: HWt }, { y: -0.14, rx: 0.062, rz: 0.03, cx: X, cz: 0.006, w: HWt }, { y: -0.175, rx: 0.058, rz: 0.028, cx: X, cz: 0.006, w: HWt, ao: 0.85 }]);
@@ -1739,14 +1882,16 @@ gl_FragColor=vec4(c,1.0);}`;
       } else loft({ s: GS, seg: SG(8), w: HWt, capBot: true }, [{ y: -0.175, rx: 0.055, rz: 0.028, cx: X, cz: 0.012, w: HWt }, { y: -0.245, rx: 0.042, rz: 0.024, cx: X, cz: 0.03, w: HWt }, { y: -0.27, rx: 0.02, rz: 0.012, cx: X, cz: 0.04, w: HWt }]);
     }
     // ---- pelvis + legs: hip -> thigh (pads) -> knee -> calf -> ankle as one surface; socks; cleats ----
-    const pel = (y, rx, rz, e) => Object.assign({ y: y < -0.03 ? legY(y) : y, rx: rx * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
-    const PS = gear ? SL.pant : SL.pant;
-    loft({ s: PS, seg: SG(24), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [pel(0.17, 0.205, 0.142, { v: 0 }), pel(0.1, 0.212, 0.148, { v: 0.3 }), pel(0.0, 0.228, 0.16, { v: 0.6, f: (an) => 1 + 0.05 * Math.max(0, -Math.sin(an)) }), pel(-0.1, 0.212, 0.155, { v: 0.85, ao: 0.82, w: [B.hips, B.hips, 1], f: (an) => 1 + 0.08 * Math.max(0, -Math.sin(an)) }), pel(-0.18, 0.165, 0.13, { v: 1, ao: 0.62, w: [B.hips, B.hips, 1] })]);
+    const PLX = CAS ? 1.04 : 1; // casual bottoms sit a little looser than game pants
+    const pel = (y, rx, rz, e) => Object.assign({ y: y < -0.03 ? legY(y) : y, rx: rx * PLX * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * PLX * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
+    const PS = CAS ? SL.cloth : SL.pant;
+    loft({ s: PS, seg: SG(24), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [CAS ? pel(0.07, 0.19, 0.13, { v: 0 }) : pel(0.17, 0.205, 0.142, { v: 0 }), CAS ? pel(0.04, 0.208, 0.145, { v: 0.3 }) : pel(0.1, 0.212, 0.148, { v: 0.3 }), pel(0.0, 0.228, 0.16, { v: 0.6, f: (an) => 1 + 0.05 * Math.max(0, -Math.sin(an)) }), pel(-0.1, 0.212, 0.155, { v: 0.85, ao: 0.82, w: [B.hips, B.hips, 1], f: (an) => 1 + 0.08 * Math.max(0, -Math.sin(an)) }), pel(-0.18, 0.165, 0.13, { v: 1, ao: 0.62, w: [B.hips, B.hips, 1] })]);
     for (const sd of [-1, 1]) {
       const hp = sd < 0 ? B.hipL : B.hipR, kn = sd < 0 ? B.knL : B.knR, ft = sd < 0 ? B.ftL : B.ftR, X = sd * 0.15, LW = S.legs;
       const KY = -0.53, FY = -1.0;
       const lw = (y) => (y > KY + 0.07 ? [hp, kn, 1] : y < KY - 0.07 ? [kn, hp, 1] : wt(y, 0, KY, hp, kn, 0.07));
       const inner = (i, an) => (i <= 2 && Math.cos(an) * sd < -0.6 ? 0.7 : 1);
+      if (CAS) casLeg(sd, hp, kn, ft, X, inner); else {
       const legR = [
         { y: -0.02, rx: 0.14 * LW, rz: 0.135 * LW, cx: X, cz: 0.012, v: 0, ao: 0.8, w: [hp, B.hips, 0.75], s: PS }, { y: -0.14, rx: 0.135 * LW, rz: 0.135 * LW, cx: X, cz: 0.02, v: 0.2, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.03 * Math.max(0, Math.sin(an)) },
         { y: -0.27, rx: 0.122 * LW, rz: 0.125 * LW, cx: X, cz: 0.018, v: 0.42, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.05 * Math.max(0, Math.sin(an)) }, // thigh pad
@@ -1760,19 +1905,24 @@ gl_FragColor=vec4(c,1.0);}`;
       loft({ s: PS, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, legR.filter((r) => r.s === PS));
       loft({ s: SL.skin, seg: SG(16) }, legR.filter((r) => r.s === SL.skin));
       loft({ s: SL.sock, seg: SG(12), uv: uvOf('sock') }, legR.filter((r) => r.s === SL.sock));
+      }
       // shoe: heel counter -> arch -> ball -> toe box, lofted along +Z; sole plate; studs at full detail
       const FW = [ft, ft, 1];
       const shoeM = mMul(mT(IDM, X, legY(-1.05), -0.012), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
       const shoe = [{ y: 0.1, rx: 0.03, rz: 0.024, w: FW }, { y: 0.075, rx: 0.046, rz: 0.034, w: FW }, { y: 0.02, rx: 0.052, rz: 0.04, cz: 0.008, w: FW, ao: 0.85 }, { y: -0.05, rx: 0.054, rz: 0.038, cz: 0.012, w: FW, f: (an) => 1 + 0.08 * Math.max(0, Math.sin(an)) }, { y: -0.12, rx: 0.056, rz: 0.03, cz: 0.004, w: FW }, { y: -0.18, rx: 0.05, rz: 0.024, w: FW }, { y: -0.225, rx: 0.028, rz: 0.012, w: FW }];
+      if (CAS) for (const r of shoe) { r.rx *= 1.07; r.rz *= 1.12; if (r.y > 0.05) r.rz += 0.006; } // sneakers: roomier, a padded collar, a thick cupsole and no studs
       loft({ s: SL.cleat, seg: SG(12), m: shoeM, capTop: true, capBot: true }, shoe);
-      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, legY(-1.074), -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + 0.004, rz: 0.008, cz: 0, w: FW })));
-      if (!lod) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, legY(-1.082), sz], [X + sx, legY(-1.1), sz]], 0.006, 4, (t) => 1 - 0.4 * t);
+      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, legY(CAS ? -1.07 : -1.074), -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + (CAS ? 0.006 : 0.004), rz: CAS ? 0.016 : 0.008, cz: 0, w: FW })));
+      if (!lod && !CAS) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, legY(-1.082), sz], [X + sx, legY(-1.1), sz]], 0.006, 4, (t) => 1 - 0.4 * t);
     }
     // ---- belt towel (hidden for players who do not carry one) ----
     if (gear) {
       const TW = [B.hips, B.hips, 1], tx = -0.13, pts = [];
       for (let i = 0; i <= 4; i++) pts.push({ y: 0.1 - i * 0.095, rx: 0.062 - 0.005 * i, rz: 0.005, cx: tx, cz: 0.19 * (0.85 + 0.15 * S.bulk) + 0.006 * i, w: TW, v: i / 4 });
       loft({ s: SL.towel, seg: SG(6), capBot: true, w: TW }, pts);
+    }
+    if (CAS) { // a schoolkid's head is big for his body: the head (face, ears, hair, hat) scaled 1.1 about the top of the neck
+      for (let k = 0; k < nv; k++) { const o = k * VSTRIDE; if (V[o + 6] === B.head && V[o + 8] === 1 && V[o + 1] > 0.8) { V[o] *= HEADK; V[o + 1] = 0.8 + (V[o + 1] - 0.8) * HEADK; V[o + 2] *= HEADK; } }
     }
     return { v: new Float32Array(V), i: new Uint16Array(I), n: I.length, nv, vi0, vin, bind: BIND, sw: S.sw, ll: LL };
   }
@@ -1798,14 +1948,19 @@ gl_FragColor=vec4(c,1.0);}`;
     // plays defense a little past Legend and offense a little short of GOAT).
     const DIFF = clamp(+opts.difficulty || 0, 0, 1.3);
     const DIFF_OFF = clamp(opts.offense != null ? +opts.offense : DIFF, 0, 1.3);
-    const WX = ['clear', 'rain', 'snow', 'night'].indexOf(opts.weather) >= 0 ? opts.weather : 'night';
-    const WET = WX === 'rain' ? 1 : WX === 'snow' ? 0.8 : 0;
     const rng = mkRng(opts.seed || 'blitz-' + Date.now());
     const DBG = window.__blitzDebug || null;
+    // weather (opts.weather; tests set __blitzDebug.weather): 'clear' | 'cloudy' | 'overcast' | 'rain' | 'storm' | 'snow' | 'fog'; the old
+    // 'night' (and nothing at all) is a clear night. WXK is the sky's own key (13-sky.js); WET is gameplay: rain and a storm 1, snow 0.8,
+    // the rest 0. WX (below, once the time of day is known) is the old four-way key the rest of the game reads.
+    const WXO = DBG && DBG.weather !== undefined ? DBG.weather : opts.weather;
+    const WXK = ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'].indexOf(WXO) >= 0 ? WXO : 'clear';
+    const WET = WXK === 'rain' || WXK === 'storm' ? 1 : WXK === 'snow' ? 0.8 : 0;
     // ---------- the venue: field size and field rules (the stadium is the regulation 100-yard field) ----------
     // Engine units are yards; z runs from your goal line (0) to theirs (FL), x is across the field (|x| <= HW in bounds).
     // Metcalf: the blacktop at Thomas Metcalf School, measured in meters (origin at the field's center, +x east, +z north):
-    // red goal lines at z = +/-13.77 m, white end lines at +/-15.68 m, white sidelines at x = +/-11.20 m; the home offense attacks north.
+    // red goal lines at z = +/-13.77 m, white end lines at +/-15.68 m; the field is the west one, between the white line at x = -11.20 m
+    // and the ticked inner line at x = +3.42 m (14.62 m wide, centre x = -3.89 m); the home offense attacks north.
     const M2Y = 1.0936133;
     const VENUES = {
       stadium: { id: 'stadium', name: 'The Stadium',
@@ -1823,7 +1978,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // a lunch-time school game: throw-offs (no kicking), no punts, field goals or tries (a touchdown is 7), no chain crew,
       // benches or officials; asphalt (no grass, no divots)
       metcalf: { id: 'metcalf', name: 'Metcalf',
-        FL: 27.54 * M2Y, EZ: 1.91 * M2Y, HW: 11.20 * M2Y, FD: 10,
+        FL: 27.54 * M2Y, EZ: 1.91 * M2Y, HW: 7.31 * M2Y, FD: 0, // FD 0: no first downs (four downs to score from wherever the ball is taken over)
         TB: 4, KO: 0, SAFE: 4, PAT: 3, TWO: 2,
         RZ: 10, GL: 5, NEAR: 7, G5: 3, G3: 2, CPUFG: 0, CPUGO: 0,
         RESTART: { missMin: 4, toMin: 2, toMax: 26, puntLo: 4, puntLoR: 6, puntHi: 10, puntHiR: 4, fgMissMin: 4 },
@@ -1832,15 +1987,44 @@ gl_FragColor=vec4(c,1.0);}`;
         world: 'metcalf', tex: null,
         // the throw-off: the thrower on the CPU's goal line, the ball out of his hand about 2 yards up, flight time T, landing
         // between lzMin and lzMax (yards from your goal line); your returner at R, blockers at B, the line at OL (x spread olx)
-        ko: { R: 2, B: [9, 11], bx: [-8, -3.5, 3.5, 8], OL: 15, olx: 4.5, y0: 2, T: 1.75, lzMax: 6 },
+        // (lz: the landing spot is round((-1 + 7u - 1.5 DIFF) * MET_K + lzOff), u uniform; across it is within +/- min(6, HW - 3.5))
+        ko: { R: 2, B: [9, 11], bx: [-5.2, -2.2, 2.2, 5.2], OL: 15, olx: 2.6, y0: 2, T: 1.75, lzMax: 6 },
         // play geometry on the small field (see LX / DZ below): dk = how much of a route stem past 6 yards is kept, zoneK = zone
         // tightness from Rookie to Legend (a crowded field magnifies the gap between them), qbSep = the CPU quarterback's "open"
-        // thresholds, cam = camera distance
-        play: { dk: 0.45, zoneK: [0.95, 0.72], qbSep: 0.7, cam: 0.62 } },
+        // thresholds, cam = camera distance, core / wide / edge = the lateral map (LX below: the core's scale, where the wide
+        // receiver and the stadium sideline land, in yards inside this sideline)
+        play: { dk: 0.45, zoneK: [0.95, 0.72], qbSep: 0.7, cam: 0.62, core: 0.75, wide: 1.95, edge: 0.75 } },
     };
     // Head to Head always plays the stadium (both screens must run the same field); tests can pick one with __blitzDebug.venue
-    const VN = VENUES[opts.versus ? 'stadium' : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
-    const FL = VN.FL, EZ = VN.EZ, HW = VN.HW, FD = VN.FD, TB = VN.TB; // HW shadows the module-level stadium half width
+    const VN0 = VENUES[opts.versus ? 'stadium' : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
+    // Metcalf settings from the setup screen (false at the stadium): crowd = spectators around the blacktop who act like a stadium
+    // crowd; big = the whole map scaled up by MET_K so the field is about the size of a real one; touch = two-hand touch instead of
+    // tackle. Double or Nothing / Double or Double force crowd and big on and touch off (the site and the server enforce it).
+    // Tests set __blitzDebug.crowd / .big / .touch.
+    const MOPT = (() => { const on = VN0.world === 'metcalf', d = DBG || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]); return { crowd: b('crowd'), big: b('big'), touch: b('touch') }; })();
+    const MET_K = MOPT.big ? 3.32 : 1; // 27.54 m goal to goal x 3.32 = 100 yards; 14.62 m wide x 3.32 = 53 yards (a regulation field)
+    // the big Metcalf field: every distance scaled by MET_K, first downs and the play geometry as at the stadium (house rules stay)
+    // (the throw-off: a kid can't throw the length of a real field, so on the big field it comes from the thrower's own 40, KO,
+    // and lands between about your 1 and your 24: a 40-55 yard lob; the yard-line calls are real on a 100-yard field)
+    const VN = !MOPT.big ? VN0 : Object.assign({}, VN0, {
+      FL: VN0.FL * MET_K, EZ: VN0.EZ * MET_K, HW: VN0.HW * MET_K, FD: 10, TB: 13, SAFE: 13, PAT: 10, TWO: 3, KO: 40,
+      RZ: 20, GL: 10, NEAR: 15, G5: 5, G3: 3,
+      RESTART: { missMin: 13, toMin: 8, toMax: 80, puntLo: 13, puntLoR: 15, puntHi: 33, puntHiR: 12, fgMissMin: 13 },
+      yardK: 1, mapLine: 10, mapStep: 20, big: true, yardCalls: true,
+      ko: Object.assign({}, VN0.ko, { R: VN0.ko.R * MET_K, B: VN0.ko.B.map((v) => v * MET_K), bx: VN0.ko.bx.map((v) => v * MET_K), OL: VN0.ko.OL * MET_K, olx: VN0.ko.olx * MET_K, T: 2.9, lzMax: 24, lzOff: 4 }),
+      play: null });
+    // time of day ('morning' | 'noon' | 'sunset' | 'night'; opts.tod, tests __blitzDebug.tod); the default is the venue's usual look: Metcalf
+    // at noon, the stadium at night unless a weather was named (the old clear / rain / snow days were daytime games)
+    const TODO = DBG && DBG.tod !== undefined ? DBG.tod : opts.tod;
+    const TOD = ['morning', 'noon', 'sunset', 'night'].indexOf(TODO) >= 0 ? TODO : VN.world === 'metcalf' ? 'noon' : WXK === WXO ? 'noon' : 'night';
+    // the old weather key: 'rain' (a storm too), 'snow', else 'night' for a night game and 'clear' for a day one (cloudy, overcast and
+    // fog are clear days as far as the field, the turf and the gameplay go; 13-sky.js does their skies)
+    const WX = WXK === 'rain' || WXK === 'storm' ? 'rain' : WXK === 'snow' ? 'snow' : TOD === 'night' ? 'night' : 'clear';
+    const FL = VN.FL, EZ = VN.EZ, HW = VN.HW, TB = VN.TB; // HW shadows the module-level stadium half width
+    // no first downs (Metcalf on its true-size field, FD 0): every possession gets four downs to score from wherever it starts, so
+    // the line to gain is the goal line (fdAt) and the down-and-distance reads "& Goal"; FD stays 10 for the stadium's arithmetic
+    const NOFD = !VN.FD, FD = VN.FD || 10;
+    const fdAt = (spot) => (NOFD ? FL : Math.min(spot + FD, FL)); // the line to gain for a first down at this spot
     const MID = FL / 2, ZEND = FL + EZ, ZBACK = -EZ; // midfield, their end line, your end line
     const emg = (m) => Math.min(m, EZ * 0.2); // an end-zone margin: m at the stadium (every margin used is <= 2), less in a shallow end zone
     const xin = (x, m) => clamp(x, -(HW - m), HW - m); // a spot kept m yards inside the sideline (never binds at the stadium)
@@ -1849,10 +2033,17 @@ gl_FragColor=vec4(c,1.0);}`;
     // body widths) stays at real size and everything outside it is squeezed so the stadium sideline lands on this sideline (LX).
     // Route stems and defensive depths keep the first 6 yards and compress deeper ones by dk (DZ). Decisions stay in stadium terms:
     // LXI / DZI map a real spot back to where the play's design thinks it is.
+    // Across (LX) it is three straight pieces through knots [stadium x, x here]: the core (the line, the backs, the tight end:
+    // |x| <= 4.6) shrinks by core (shoulder-to-shoulder splits, still body widths), the next piece takes the slot and the wide
+    // receivers (14 yards out lands wide = 2 yards inside the sideline), the last one squeezes the rest of the stadium width into
+    // the strip along the sideline; past the stadium sideline it keeps a little slope so the inverse (LXI) never blows up.
     const VPL = VN.play || null, SMALL = !!VPL;
-    const CORE = 4.6, LK = (HW - CORE) / (26.65 - CORE), KX = HW / 26.65, DK0 = 6, DKN = VPL ? VPL.dk : 1;
-    const LX = (x) => (!SMALL || Math.abs(x) <= CORE ? x : Math.sign(x) * (CORE + (Math.abs(x) - CORE) * LK));
-    const LXI = (x) => (!SMALL || Math.abs(x) <= CORE ? x : Math.sign(x) * (CORE + (Math.abs(x) - CORE) / LK));
+    const CORE = 4.6, DK0 = 6, DKN = VPL ? VPL.dk : 1;
+    const XK = SMALL ? [[0, 0], [CORE, CORE * VPL.core], [14, HW - VPL.wide], [26.65, HW - VPL.edge]] : null;
+    const xmap = (x, a, b) => { const ax = Math.abs(x), n = XK.length; let i = 1; while (i < n - 1 && ax > XK[i][a]) i++; const k0 = XK[i - 1], k1 = XK[i], u = (ax - k0[a]) / (k1[a] - k0[a]); return Math.sign(x) * (ax > k1[a] && i === n - 1 ? k1[b] + (ax - k1[a]) * (a ? 1 / 0.12 : 0.12) : k0[b] + u * (k1[b] - k0[b])); };
+    const LX = (x) => (!SMALL ? x : xmap(x, 0, 1));
+    const LXI = (x) => (!SMALL ? x : xmap(x, 1, 0));
+    const LK = SMALL ? (XK[3][1] - XK[1][1]) / (XK[3][0] - XK[1][0]) : 1, KX = HW / 26.65; // the outside squeeze on average; the plain width ratio
     const DZ = (u) => (!SMALL || u <= DK0 ? u : DK0 + (u - DK0) * DKN);
     const DZI = (u) => (!SMALL || u <= DK0 ? u : DK0 + (u - DK0) / DKN);
     const KXS = (v) => (SMALL ? v * KX : v); // a plain lateral distance scaled to the field width
@@ -2058,12 +2249,13 @@ gl_FragColor=vec4(c,1.0);}`;
       return t;
     }
     // light rig, sky and fog per weather (linear HDR values)
-    const SKY = {
+    const SKYP = {
       night: { top: [0.004, 0.006, 0.016], hor: [0.05, 0.07, 0.13], fog: [0.012, 0.016, 0.03], fogR: [50, 330, 0.55], amb: [0.07, 0.085, 0.14], gnd: [0.04, 0.055, 0.04], sun: [2.4, 2.25, 1.95], L: [0.36, 0.78, -0.34], night: 1, cloud: 0.3, glow: 1.0, tower: 1.15, exp: 0.9, soft: 1.0, env: 1.0 },
       clear: { top: [0.1, 0.28, 0.75], hor: [0.55, 0.68, 0.85], fog: [0.5, 0.62, 0.82], fogR: [110, 520, 0.4], amb: [0.42, 0.55, 0.85], gnd: [0.22, 0.28, 0.16], sun: [2.7, 2.5, 2.2], L: [-0.48, 0.72, 0.42], night: 0, cloud: 0.5, glow: 0.0, tower: 0.0, exp: 0.52, soft: 0.7, env: 1.0 },
       rain: { top: [0.08, 0.09, 0.11], hor: [0.26, 0.28, 0.31], fog: [0.22, 0.24, 0.27], fogR: [30, 220, 0.8], amb: [0.36, 0.38, 0.42], gnd: [0.12, 0.14, 0.12], sun: [0.75, 0.77, 0.8], L: [0.22, 0.9, -0.3], night: 0, cloud: 1.4, glow: 0.6, tower: 0.55, exp: 0.85, soft: 2.2, env: 0.8 },
       snow: { top: [0.3, 0.33, 0.4], hor: [0.62, 0.64, 0.7], fog: [0.6, 0.62, 0.68], fogR: [28, 190, 0.85], amb: [0.6, 0.62, 0.7], gnd: [0.42, 0.42, 0.45], sun: [1.1, 1.1, 1.15], L: [0.22, 0.9, -0.3], night: 0, cloud: 1.3, glow: 0.4, tower: 0.4, exp: 0.7, soft: 2.4, env: 0.9 },
-    }[WX];
+    };
+    const SKY = Object.assign({}, SKYP[WX]); // 12-venue.js and 13-sky.js reshape it for the venue, the time of day and the weather
     const LDIR = v3n(SKY.L);
     // the four light banks: position + intensity, colour (slightly cool metal-halide white)
     const TOWERS = [[-50, 36, 18], [50, 36, 18], [-50, 36, 82], [50, 36, 82]];
@@ -2166,15 +2358,16 @@ gl_FragColor=vec4(c,1.0);}`;
       const ncasc = NCASC();
       shadowPacked = !X.depthTex;
       const defs = (extra) => X.derivExt + FS_PRE + (X.deriv ? '#define DERIV\n' : '') + (shadowPacked ? '#define SHADOW_PACKED\n' : '') + (extra || '');
-      const lib = (fs) => fs.replace('#LIB#', SH_LIB);
+      const lib = (fs) => skyShader(fs.replace('#LIB#', SH_LIB)); // 13-sky.js adds its lights, snow and wet looks (only when they are on)
       G.world = mkProg(VS_WORLD, lib(FS_WORLD), defs()); G.worldHi = mkProg(VS_WORLD, lib(FS_WORLD), defs('#define PCF_HI\n'));
       G.skin = mkProg(VS_SKIN, lib(FS_SKIN), defs()); G.skinHi = mkProg(VS_SKIN, lib(FS_SKIN), defs('#define PCF_HI\n'));
       G.depthW = mkProg(VS_DEPTH_W, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE); G.depthS = mkProg(VS_DEPTH_S, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE);
-      G.sky = mkProg(VS_QUAD, FS_SKY, FS_PRE); G.crowd = mkProg(VS_CROWD, FS_CROWD, FS_PRE);
+      G.sky = mkProg(VS_QUAD, SKX.on ? FS_SKY2 : FS_SKY, FS_PRE); G.crowd = mkProg(VS_CROWD, FS_CROWD, FS_PRE);
       G.grass = X.inst && VN.grass ? mkProg(VS_GRASS, FS_GRASS, FS_PRE) : null;
       G.ao = mkProg(VS_QUAD, FS_AO, FS_PRE); G.blur4 = mkProg(VS_QUAD, FS_BLUR4, FS_PRE);
       G.extract = mkProg(VS_QUAD, FS_EXTRACT, FS_PRE); G.blur = mkProg(VS_QUAD, FS_BLUR, FS_PRE); G.dofmb = mkProg(VS_QUAD, FS_DOFMB, FS_PRE); G.final = mkProg(VS_QUAD, FS_FINAL, FS_PRE);
       for (const k of ['world', 'worldHi', 'skin', 'skinHi', 'depthW', 'depthS', 'sky', 'crowd', 'grass', 'ao', 'blur4', 'extract', 'blur', 'dofmb', 'final']) if (G[k]) G.progs.push(G[k].pr);
+      skyGL(); // the sky's fixed uniforms (13-sky.js)
       G.white = mkTex(new Uint8Array([255, 255, 255, 255]));
       G.black = mkTex(new Uint8Array([0, 0, 0, 255]));
       G.flatN = mkTex(new Uint8Array([128, 128, 255, 128]));
@@ -2190,11 +2383,11 @@ gl_FragColor=vec4(c,1.0);}`;
       G.fxTex = mkTex(spriteCanvas(), false, false, 1); G.texs.push(G.fxTex);
       gl.bindBuffer(gl.ARRAY_BUFFER, G.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       G.bufs.push(G.dyn, G.tr, G.quad);
-      for (const k in BODY) if (!BODY[k].noGear) meshFor(BODY[k]);
-      G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr, HOME.name), false, false, 8); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr, AWAY.name), false, false, 8); G.kitR = mkTex(kitCanvas(REFC, '', '', true), false, false, 8);
+      if (METCALF) casPrebuild(); else for (const k in BODY) if (!BODY[k].noGear) meshFor(BODY[k]);
+      G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr, HOME.name, false, METCALF), false, false, 8); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr, AWAY.name, false, METCALF), false, false, 8); G.kitR = mkTex(kitCanvas(REFC, '', '', true), false, false, 8);
       G.crowdT = mkTex(crowdCanvas(), false, false, 4);
       G.texs.push(G.kitO, G.kitD, G.kitR, G.crowdT);
-      { G.kitO2 = mkTex(kitCanvas(OFFC2, AWAY.abbr, AWAY.name), false, false, 8); G.kitD2 = mkTex(kitCanvas(DEFC2, HOME.abbr, HOME.name), false, false, 8); G.texs.push(G.kitO2, G.kitD2); if ((VS && VS.flipped) || DEFP.flipped) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; } }
+      { G.kitO2 = mkTex(kitCanvas(OFFC2, AWAY.abbr, AWAY.name, false, METCALF), false, false, 8); G.kitD2 = mkTex(kitCanvas(DEFC2, HOME.abbr, HOME.name, false, METCALF), false, false, 8); G.texs.push(G.kitO2, G.kitD2); if ((VS && VS.flipped) || DEFP.flipped) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; } }
       statics.length = 0;
       const W = buildWorld();
       for (const k of ['plain', 'seats', 'field', 'glow', 'board', 'ribbon', 'glass']) {
@@ -2205,7 +2398,7 @@ gl_FragColor=vec4(c,1.0);}`;
         S.mat = k === 'field' ? [0.85, 0, 1, 0] : k === 'plain' ? [0.7, 0, 0, 0] : k === 'seats' ? [0.75, 0, 0, 0] : k === 'glow' ? [0.5, 0, 0, 6.0 * (0.25 + 0.75 * SKY.glow)] : k === 'board' ? [0.4, 0, 0, 1.6] : k === 'ribbon' ? [0.4, 0, 0, 2.2] : [0.08, 0.6, 0, 0];
         statics.push(S);
       }
-      if (W.defs) metStatics(W);
+      if (W.defs) { skyLamps(W); metStatics(W); }
       G.crowdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.bufferData(gl.ARRAY_BUFFER, W.crowd.f.subarray(0, W.crowd.n * 12), gl.STATIC_DRAW); G.crowdN = W.crowd.n; G.bufs.push(G.crowdB);
       // grass blade mesh + instance ids
       if (G.grass) {
@@ -2403,10 +2596,22 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     const REFC = { jer: hex('#f2f2f2'), pad: hex('#f2f2f2'), pant: hex('#f6f6f6'), helm: hex('#111111'), stripe: hex('#111111'), num: hex('#111111'), glove: hex('#111111'), sock: hex('#111111'), mask: hex('#111111') };
     // ---------- per-team kit texture (2048): jersey, sleeves, gloves, pants, socks, helmet; alpha carries a roughness variation ----------
-    function kitCanvas(C, abbr, teamName, refs) {
+    function kitCanvas(C, abbr, teamName, refs, cas) {
       const c = document.createElement('canvas'); c.width = c.height = 2048; const g = c.getContext('2d');
       const S = 2048, reg = (k) => { const r = KIT[k]; return { x: r[0] * S, y: r[1] * S, w: (r[2] - r[0]) * S, h: (r[3] - r[1]) * S }; };
       const box = (r, u0, u1, v0, v1, col) => { g.fillStyle = typeof col === 'string' ? col : css(col); g.fillRect(r.x + r.w * u0, r.y + r.h * v0, r.w * (u1 - u0) + 0.6, r.h * (v1 - v0) + 0.6); };
+      if (cas) { // Metcalf: a plain T-shirt in the team colour (no numbers, stripes or logos): ribbed crew collar, side seams, hems
+        let r = reg('torso'); box(r, 0, 1, 0, 1, C.jer); box(r, 0, 1, 0, 0.03, shade(C.jer, 0.92)); box(r, 0, 1, 0.965, 1, shade(C.jer, 0.9));
+        g.fillStyle = 'rgba(0,0,0,0.12)'; for (const u of [0.25, 0.75]) g.fillRect(r.x + r.w * u - 1.5, r.y + r.h * 0.12, 3, r.h * 0.88);
+        g.fillStyle = 'rgba(0,0,0,0.06)'; for (let i = 0; i < 6; i++) g.fillRect(r.x, r.y + r.h * (0.003 + i * 0.0045), r.w, 2);
+        r = reg('sleeve'); box(r, 0, 1, 0, 1, C.jer); box(r, 0, 1, 0.9, 1, shade(C.jer, 0.88)); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(r.x, r.y + r.h * 0.1, r.w, 3);
+        try { // cotton: matte all over
+          const img = g.getImageData(0, 0, S, S), d = img.data;
+          for (const k of ['torso', 'sleeve']) { const q = reg(k); for (let y = Math.round(q.y); y < Math.round(q.y + q.h); y++) for (let x = Math.round(q.x); x < Math.round(q.x + q.w); x++) d[(y * S + x) * 4 + 3] = 215; }
+          g.putImageData(img, 0, 0);
+        } catch (e) {}
+        return c;
+      }
       const white = [0.94, 0.95, 0.96, 1], dark = [0.08, 0.085, 0.1, 1];
       const contrast = (a, b) => (cdist(a, b) < 0.28 ? (lum(b) > 0.5 ? dark : white) : a);
       const stripeC = contrast(C.stripe, C.jer);
@@ -2815,9 +3020,21 @@ gl_FragColor=vec4(c,1.0);}`;
   // =====================================================================================
   const METCALF = VN.world === 'metcalf'; // the venue table decides (Head to Head, runs and Franchise are always the stadium)
   const MZ0 = 13.77; // M2Y (meters to yards) comes from the venue table in 10-setup.js
+  // the playing field is the WEST field: the white line at xF = -11.20 to the ticked inner line at xF = +3.42 (the strip from 3.42 to
+  // the divider at 11.20 is not part of it). Engine x = 0 is that field's centre line, so engine x = (xF - MX0) * M2Y
+  const MX0 = -3.89;
+  // frame F (metres) <-> engine units (yards) on the ground plane. Everything that converts between the two (cars, people, the ball
+  // over a fence, cameras) goes through these, so the big-field option (MET_K) can rescale the map in one place.
+  // With the big field (MOPT.big) the map is spread by MET_K about the field's south goal-line centre (see sprInstall below), so
+  // these scale by MET_K too: a frame F point lands where the spread map drew it. Heights are never scaled (metres * M2Y). Code
+  // that places things at run time (cars, people, the ball over the fence) takes the anchor from metE and keeps sizes, spacing
+  // between people or cars and offsets from a lane or a fence in real units: metres * M2Y after metE, not frame F metres (a
+  // 1.5 m gap in F would come out MET_K times wider). The fence, the curbs and the lane line sit at metE of their F positions.
+  const metE = (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K];
+  const metF = (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0];
   const MET = {
-    envEye: [0, 2.0, MZ0 * M2Y],       // reflections are baked from midfield at head height
-    centre: [10 * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
+    envEye: MOPT.big ? [metE(0, 0)[0], 2.0, metE(0, 0)[1]] : [-MX0 * M2Y, 2.0, MZ0 * M2Y], // reflections are baked from midfield at head height
+    centre: MOPT.big ? [metE(10, 2)[0], 0, metE(10, 2)[1]] : [(10 - MX0) * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
     texBase: '/static/arcade/venue/metcalf/',
     verts: 0,
     keep: [], // camera keep-out volumes in metres (frame F): [x0,y0,z0,x1,y1,z1] boxes, [x,z,r,y0,y1] cylinders, [x,y,z,r] spheres
@@ -2825,10 +3042,13 @@ gl_FragColor=vec4(c,1.0);}`;
   // ---------- metKeepOut(e): moves an engine-unit camera eye [x, y, z] (mutated, and returned) out of the venue's solids: the
   // school's walls and roofs, the shed, tree trunks and crowns, the fence line and its pillars, the hoops' boards and poles, the
   // playground structures and the buildings across the street, and keeps it at least 0.6 units above the ground. A no-op at the
-  // stadium. Each solid is padded by 0.35 m; the eye leaves a box through its nearest side (never downward through the ground). ----------
+  // stadium. Each solid is padded by 0.35 m; the eye leaves a box through its nearest side (never downward through the ground).
+  // The solids are stored in the BUILT frame: metres after the big field's spread (MET.keep.push runs every solid through the current
+  // spread mode, see sprInstall), so the plain M2Y / MX0 / MZ0 conversion below is the right one at both sizes; going through
+  // metF here would scale the big field twice. ----------
   function metKeepOut(e) {
     if (!METCALF || !e || !MET.keep.length) return e;
-    let x = e[0] / M2Y, y = e[1] / M2Y, z = e[2] / M2Y - MZ0; const m = 0.35;
+    let x = e[0] / M2Y + MX0, y = e[1] / M2Y, z = e[2] / M2Y - MZ0; const m = 0.35;
     for (let pass = 0; pass < 3; pass++) {
       let moved = false;
       for (const k of MET.keep) {
@@ -2852,11 +3072,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!moved) break;
     }
     y = Math.max(y, 0.6 / M2Y);
-    e[0] = x * M2Y; e[1] = y * M2Y; e[2] = (z + MZ0) * M2Y; return e;
+    e[0] = (x - MX0) * M2Y; e[1] = y * M2Y; e[2] = (z + MZ0) * M2Y; return e;
   }
   // ---- sky and light: a clear lunch hour (about 12:15 local, early October) at Normal, IL. The sun stands about 45 deg high a
   // little east of south (true azimuth 164 deg; the site frame is turned 2 deg, so 166 deg in F), so shadows fall north toward
-  // the playground and nothing shades the field. A schoolyard has no lights: a night game becomes the same lunch hour. ----
+  // the playground and nothing shades the field. That is the default (noon, clear); the other times of day and weathers are built on
+  // it in 13-sky.js (MET.day), night with the real street lights and the school's wall lights. ----
   if (METCALF) {
     const el = 45.3 * Math.PI / 180, az = 166 * Math.PI / 180;
     // the references are midday photos: lit pavement reads neutral-warm light grey, shade a little blue, so the sky fill is
@@ -2865,13 +3086,18 @@ gl_FragColor=vec4(c,1.0);}`;
     // pavement as it does at noon; walls facing away from the sun still get the bounce off the bright pavement (gnd)
     const day = { top: [0.16, 0.36, 0.76], hor: [0.66, 0.76, 0.89], fog: [0.68, 0.75, 0.85], fogR: [60, 420, 0.72], amb: [0.17, 0.19, 0.235], gnd: [0.36, 0.35, 0.32],
       sun: [4.45, 4.25, 3.88], L: [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)], night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
+    MET.day = day;
     if (WX === 'clear' || WX === 'night') Object.assign(SKY, day);
     else Object.assign(SKY, { gnd: [0.14, 0.14, 0.135], tower: 0, glow: 0, L: day.L });
     const l = v3n(SKY.L); LDIR[0] = l[0]; LDIR[1] = l[1]; LDIR[2] = l[2];
     for (const p of LPOS) p[3] = 0;
+    // the big field: the map is MET_K times as wide, so the haze starts and thickens MET_K times as far out (whatever sets the sky
+    // later, a time of day or weather preset, scales its fogR the same way when MOPT.big)
+    if (MOPT.big) SKY.fogR = [SKY.fogR[0] * MET_K * 0.7, SKY.fogR[1] * MET_K, SKY.fogR[2]];
   }
   // ---- sound: a schoolyard, not a stadium. The crowd bed drops to a murmur, no stomp-clap, the horn is a whistle, and a soft
-  // layer of traffic on Main Street, kids and the odd bird plays under the game. ----
+  // layer of traffic on Main Street, kids and the odd bird plays under the game. With the crowd setting (MOPT.crowd) the crowd
+  // sounds exactly as at the stadium (full bed, cheers, boos, stomp-clap, the heartbeat), the kids on top. ----
   if (METCALF) {
     const play0 = sfx.play, crowd0 = sfx.crowd, close0 = sfx.close;
     let amb = null, dead = false; // dead: the game has closed its audio, so late timers never reopen it
@@ -2895,14 +3121,14 @@ gl_FragColor=vec4(c,1.0);}`;
       src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random()); src.stop(t + d + 0.05); } catch (e) {} };
     let birdT = 0;
     sfx.play = (n) => {
-      if (n === 'stomp' || n === 'clap' || n === 'beat') return;
+      if (!MOPT.crowd && (n === 'stomp' || n === 'clap' || n === 'beat')) return;
       if (n === 'horn') n = 'whistle';
-      if (n === 'cheer') { ambient(); kids(0.5, 1.2); return; }
-      if (n === 'boo' || n === 'ooh') { ambient(); kids(0.22, 0.8); return; }
+      if (n === 'cheer') { ambient(); kids(0.5, 1.2); if (!MOPT.crowd) return; }
+      if (n === 'boo' || n === 'ooh') { ambient(); kids(0.22, 0.8); if (!MOPT.crowd) return; }
       play0(n); ambient();
       const now = performance.now(); if (now > birdT) { birdT = now + 9000 + Math.random() * 14000; if (birdT > now + 9000) setTimeout(chirp, 400); }
     };
-    sfx.crowd = (v) => crowd0(v * 0.22);
+    sfx.crowd = (v) => crowd0(MOPT.crowd ? v : v * 0.22);
   }
   // commentary variants that talk about the night, the stadium, the crowd, grass or uprights are left out at the schoolyard
   const MET_VSKIP = { intro: [1, 2, 3, 4, 7, 9], cpu_td: [4], cpu_fg: [2], cpu_fumble: [2], halftime: [4], final_loss: [7], overtime: [2], incomplete: [6], fumble: [6], catch_diving: [6], stiff_arm: [3], big_hit: [3], third_down: [5], fg_good: [2, 4], doink: [0, 2, 5], doink_in: [1], leap: [0, 1], comeback: [3], tackle_live: [7], situation_long: [7], situation_fourth: [6], player_tds: [0, 1, 2, 3, 4, 5], halftime_color: [0, 6], pregame_color: [0, 1, 5] };
@@ -3023,9 +3249,24 @@ gl_FragColor=vec4(c,1.0);}`;
   // ---------- the blacktop canvas (power-of-two square over the whole pad; canvas row 0 = south) ----------
   const GB = { x0: -12.55, x1: 30.8, z0: -17.1, z1: 17.15 };
   const LOT = { x0: -12.55, x1: 34.2, z0: -53.5, z1: -17.1 }; // east of x 30.8 only south of the hedge bed (z < -31)
-  function stroke(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); }
+  // the big field: the ground canvases keep their frame F layout (the quad that shows them spreads by MET_K), but painted line
+  // widths stay about natural (CLW, never under CLM, both set per canvas) and the small painted games (the basketball keys round
+  // the hoops, four-squares, hopscotches, the target) keep their real size round a spread centre (natC)
+  let CLW = 1, CLM = 0;
+  const lwF = (w) => (CLW === 1 && !CLM ? w : Math.max(w * CLW, CLM));
+  // metPaint(SX, k, fn): paints one frame F canvas (SX = canvas pixels per F metre) that a spread quad shows: inside, stroke / rectW /
+  // arcW lines come out k times their natural width (never under 0.8 px); MET_BK is the factor a photo tile size in F is divided by
+  // so the photo keeps its real scale (1 at true size)
+  const MET_BK = MOPT.big ? MET_K : 1;
+  function metPaint(SX, k, fn) { if (!MOPT.big) return fn(); const c0 = CLW, m0 = CLM; CLW = k / MET_K; CLM = 0.8 / SX; try { return fn(); } finally { CLW = c0; CLM = m0; } }
+  function natC(g, cx, cz, fn) {
+    if (!MOPT.big) return fn();
+    const c0 = CLW, m0 = CLM; g.save(); g.translate(cx, cz); g.scale(1 / MET_K, 1 / MET_K); g.translate(-cx, -cz); CLW = 1; CLM = m0 * MET_K;
+    try { fn(); } finally { g.restore(); CLW = c0; CLM = m0; }
+  }
+  function stroke(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = lwF(w); g.lineCap = 'butt'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); }
   function rectW(g, x0, z0, x1, z1, w, col) { stroke(g, [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], w, col); }
-  function arcW(g, cx, cz, r, a0, a1, w, col) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(cx, cz, r, a0, a1); g.stroke(); }
+  function arcW(g, cx, cz, r, a0, a1, w, col) { g.strokeStyle = col; g.lineWidth = lwF(w); g.beginPath(); g.arc(cx, cz, r, a0, a1); g.stroke(); }
   // wear: cut paint away with a blotchy mask plus pixel grain (dst canvas in pixel space)
   function wear(dst, seed, blotch, grain, scale) {
     if (!realCv()) return; const g = dst.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out';
@@ -3041,11 +3282,15 @@ gl_FragColor=vec4(c,1.0);}`;
     const c = mkCv(N, N); if (!realCv()) return c;
     const g = c.getContext('2d'), SX = N / (GB.x1 - GB.x0), SZ = N / (GB.z1 - GB.z0);
     const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -GB.x0 * SX, -GB.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    metPaint(SX, 1.4, () => metGroundPaint(c, N, g, SX, SZ, Wt, It, MET_BK)); // real-size paint on the spread pad
+    return c;
+  }
+  function metGroundPaint(c, N, g, SX, SZ, Wt, It, BK) {
     // 1. weathered light-grey asphalt, the photo's aggregate overlaid at its real scale (about 2.2 m per tile). The base is the
     // aerials' clean pavement (#c2c3c1-#c6c7c2) pulled a touch warm, as it reads at eye level in sun
     g.fillStyle = '#bdbbb4'; g.fillRect(0, 0, N, N);
     const tile = grainTile(vimg('asphalt.jpg'), 512, 1.25, 31);
-    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.75; const T = 2.2;
+    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.75; const T = 2.2 / BK;
     for (let x = GB.x0; x < GB.x1; x += T) for (let z = GB.z0; z < GB.z1; z += T) g.drawImage(tile, x, z, T, T);
     // 2. mottling at two scales (procedural) and faint east-west paving passes (the references' smears run east-west)
     const nz = vnoise(5);
@@ -3084,9 +3329,9 @@ gl_FragColor=vec4(c,1.0);}`;
     { // scuffs: a few short, straight, faint rubber marks from shoes and balls, crowded where kids play (keys, four-squares, the
       // middle of the field, along the north edge), plus a few bleached pale patches
       const sr = mrng(4711), zones = [[25.0, 10.4, 3.2, 8], [25.0, -3.6, 3.2, 8], [14.0, 13.9, 2.2, 4], [14.0, -1.3, 2.2, 4], [14.0, -8.2, 2.2, 4], [0, 0, 9, 12], [-5, 8, 5, 4], [5, -8, 6, 5], [8, 15.6, 9, 4], [17, 3.4, 2.5, 3], [17, -13, 2.5, 3]];
-      for (const [cx, cz, rad, n] of zones) for (let k = 0; k < n; k++) {
-        const a = sr() * 6.2832, d = Math.sqrt(sr()) * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, l = 0.3 + sr() * 0.5, h = sr() * 6.2832, al = 0.05 + sr() * 0.07;
-        g.strokeStyle = `rgba(58,56,53,${al.toFixed(3)})`; g.lineWidth = 0.04 + sr() * 0.05; g.lineCap = 'round'; g.beginPath();
+      for (const [cx, cz, rad, n] of zones) for (let k = 0; k < n * (BK > 1 ? 3 : 1); k++) {
+        const a = sr() * 6.2832, d = Math.sqrt(sr()) * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, l = (0.3 + sr() * 0.5) * (BK > 1 ? 1.5 / BK : 1), h = sr() * 6.2832, al = 0.05 + sr() * 0.07;
+        g.strokeStyle = `rgba(58,56,53,${al.toFixed(3)})`; g.lineWidth = lwF(0.04 + sr() * 0.05); g.lineCap = 'round'; g.beginPath();
         g.moveTo(x, z); g.lineTo(x + Math.cos(h) * l, z + Math.sin(h) * l); g.stroke();
       }
       for (let k = 0; k < 18; k++) { const x = GB.x0 + 2 + sr() * (GB.x1 - GB.x0 - 4), z = GB.z0 + 2 + sr() * (GB.z1 - GB.z0 - 4), r = 0.6 + sr() * 1.4, gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, 'rgba(214,212,204,0.16)'); gr.addColorStop(1, 'rgba(214,212,204,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); }
@@ -3097,7 +3342,7 @@ gl_FragColor=vec4(c,1.0);}`;
     edge(GB.x0, GB.z1 - 0.9, GB.x1, GB.z1, 0, GB.z1, 0, GB.z1 - 0.9, 0.12); edge(GB.x0, GB.z0, GB.x1, GB.z0 + 1.1, 0, GB.z0, 0, GB.z0 + 1.1, 0.18);
     g.fillStyle = 'rgba(60,62,60,0.55)'; g.fillRect(GB.x0, GB.z0, GB.x1 - GB.x0, 0.06); // the asphalt/concrete seam
     // scuffing in the keys and at the hoop poles
-    for (const [x, z, r, a] of [[25.6, 10.45, 2.2, 0.06], [25.6, -3.6, 2.2, 0.06], [28.1, 11.6, 0.9, 0.1], [28.1, -2.5, 0.9, 0.1], [-3.2, -10.2, 1.6, 0.05]]) { const gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, `rgba(60,60,58,${a})`); gr.addColorStop(1, 'rgba(60,60,58,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); }
+    for (const [x, z, r, a, nx, nz] of [[25.6, 10.45, 2.2, 0.06, 27.9, 10.46], [25.6, -3.6, 2.2, 0.06, 27.9, -3.59], [28.1, 11.6, 0.9, 0.1, 27.9, 10.46], [28.1, -2.5, 0.9, 0.1, 27.9, -3.59], [-3.2, -10.2, 1.6, 0.05, -3.2, -10.2]]) natC(g, nx, nz, () => { const gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, `rgba(60,60,58,${a})`); gr.addColorStop(1, 'rgba(60,60,58,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); });
     // 4. hairline cracks: the measured ones plus the long wavy one in the middle column
     const cr = MET_CRACKS.concat([[[5.35, 15.55], [5.5, 14.4], [5.6, 12.4], [5.75, 10.8], [5.85, 9.2], [5.95, 7.4], [6.05, 5.3], [6.0, 4.2], [6.15, 2.6], [6.2, 1.0]]]);
     for (const p of cr) { const q = p.map(([x, z], i) => [x + Math.sin(i * 2.1 + x) * 0.03, z + Math.cos(i * 1.7 + z) * 0.03]); stroke(g, q, 0.02, 'rgba(96,98,94,0.3)'); stroke(g, q, 0.008, 'rgba(74,76,72,0.38)'); }
@@ -3124,7 +3369,7 @@ gl_FragColor=vec4(c,1.0);}`;
       stroke(h, [[3.45, 1.38], [3.95, 1.38]], RW, RED);
     }, 101, 0.55, 0.35, 0.82, 0.8);
     layer((h) => {
-      drawPaw(h, -2.68, 7.16, 136.75 * Math.PI / 180, 1, '#ad2d33'); drawPaw(h, 25.67, 10.48, 0, 1, '#ad2d33'); drawPaw(h, 25.6, -3.52, -0.6 * Math.PI / 180, 1, '#ad2d33');
+      drawPaw(h, -2.68, 7.16, 136.75 * Math.PI / 180, 1, '#ad2d33'); natC(h, 27.9, 10.46, () => drawPaw(h, 25.67, 10.48, 0, 1, '#ad2d33')); natC(h, 27.9, -3.59, () => drawPaw(h, 25.6, -3.52, -0.6 * Math.PI / 180, 1, '#ad2d33'));
     }, 202, 0.3, 0.3, 0.82, 0.9);
     layer((h) => { // the small red paws: worn at a coarse scale so the toe ovals stay whole
       for (const [x, z, n] of [[8.57, 16.1, 1], [12.81, 16.13, 1], [17.06, 16.17, 1], [5.33, 15.15, 1], [9.82, 15.18, 1], [-7.59, -15.25, -1], [-0.31, -15.2, -1]]) drawPaw(h, x, z, n * Math.PI / 2, 0.46, '#ad2d33');
@@ -3135,7 +3380,7 @@ gl_FragColor=vec4(c,1.0);}`;
       stroke(h, [[-11.23, -15.71], [-11.23, 0.96]], WW, WH); stroke(h, [[-11.17, 0.96], [-11.17, 15.62]], WW, WH);
       // the north border stops at x 24.2 where the arc meets it (the arc carries on to x 28.0); then a gap and the separate
       // 1.0 m L return at the north-east corner, which turns south down the east boundary
-      stroke(h, [[-11.25, 15.68 - 0.0054 * 11.2], [24.2, 15.68 + 0.0054 * 24.2]], WW, WH);
+      { const xe = BK > 1 ? 28.35 : 24.2; stroke(h, [[-11.25, 15.68 - 0.0054 * 11.2], [xe, 15.68 + 0.0054 * xe]], WW, WH); } // (the natural-size arc no longer reaches it on the big field)
       stroke(h, [[-11.28, -15.65 - 0.0068 * 11.2], [29.4, -15.65 + 0.0068 * 29.35]], WW, WH);
       stroke(h, [[28.35, 15.7], [29.35, 15.7], [29.35, -15.6]], WW, WH);
       stroke(h, [[3.4, -15.72], [3.4, 0]], WW, WH); stroke(h, [[3.45, 0], [3.45, 15.75]], WW, WH);
@@ -3143,7 +3388,7 @@ gl_FragColor=vec4(c,1.0);}`;
       stroke(h, [[-11.2, 0.95], [3.45, 0.97]], WW, WH);
       h.fillStyle = WH; for (const [x, z] of [[-10.97, 15.42], [3.29, 15.53], [-11.02, 1.11], [3.24, 1.21]]) h.fillRect(x - 0.24, z - 0.24, 0.48, 0.48);
       // four-squares
-      for (const [x0, x1, z0, z1, dx, dz] of [[12.17, 15.86, 12.07, 15.76, 14.01, 13.92], [12.21, 15.77, -3.1, 0.52, 13.98, -1.27], [12.16, 15.75, -9.99, -6.31, 13.95, -8.16]]) { rectW(h, x0, z0, x1, z1, WW, WH); stroke(h, [[dx, z0], [dx, z1]], WW, WH); stroke(h, [[x0, dz], [x1, dz]], WW, WH); }
+      for (const [x0, x1, z0, z1, dx, dz] of [[12.17, 15.86, 12.07, 15.76, 14.01, 13.92], [12.21, 15.77, -3.1, 0.52, 13.98, -1.27], [12.16, 15.75, -9.99, -6.31, 13.95, -8.16]]) natC(h, dx, dz, () => { rectW(h, x0, z0, x1, z1, WW, WH); stroke(h, [[dx, z0], [dx, z1]], WW, WH); stroke(h, [[x0, dz], [x1, dz]], WW, WH); });
       // hopscotches: [x0, x1, pair?] from the start end; the home half-circle last
       const hop = (cz, cells, home, dir) => {
         const hw = 0.08; let n = 1;
@@ -3158,40 +3403,43 @@ gl_FragColor=vec4(c,1.0);}`;
         h.save(); h.translate(hx0 - dir * hr * 0.32, cz); h.transform(0, dir, dir, 0, 0, 0); h.font = '700 0.2px Arial, sans-serif'; h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = WH; h.fillText('10', 0, 0); h.restore();
       };
       const H1 = [[19.0, 18.4], [18.4, 17.84], [17.84, 17.4], [17.4, 16.81, 1], [16.81, 16.34], [16.34, 15.75, 1], [15.75, 15.22]];
-      hop(3.45, H1, [15.22, 0.53], 1); hop(-12.97, H1, [15.22, 0.53], 1);
-      hop(-12.97, [[25.06, 25.53], [25.53, 26.06], [26.06, 26.66], [26.66, 27.25, 1], [27.25, 27.75], [27.75, 28.31, 1], [28.31, 28.75]], [28.75, 0.47], -1);
+      natC(h, 17.1, 3.45, () => hop(3.45, H1, [15.22, 0.53], 1)); natC(h, 17.1, -12.97, () => hop(-12.97, H1, [15.22, 0.53], 1));
+      natC(h, 26.9, -12.97, () => hop(-12.97, [[25.06, 25.53], [25.53, 26.06], [26.06, 26.66], [26.66, 27.25, 1], [27.25, 27.75], [27.75, 28.31, 1], [28.31, 28.75]], [28.75, 0.47], -1));
       // the target and its throw lines
-      for (const r of [0.34, 0.59, 0.85, 1.09]) arcW(h, 12.4, -11.85, r, 0, 6.2832, 0.08, WH);
-      stroke(h, [[11.9, -13.05], [12.95, -13.05]], 0.09, WH); for (const z of [-13.58, -14.06, -14.54, -15.04]) { stroke(h, [[11.95, z], [12.37, z]], 0.09, WH); stroke(h, [[12.53, z], [12.92, z]], 0.09, WH); }
+      natC(h, 12.4, -13.0, () => { for (const r of [0.34, 0.59, 0.85, 1.09]) arcW(h, 12.4, -11.85, r, 0, 6.2832, 0.08, WH);
+        stroke(h, [[11.9, -13.05], [12.95, -13.05]], 0.09, WH); for (const z of [-13.58, -14.06, -14.54, -15.04]) { stroke(h, [[11.95, z], [12.37, z]], 0.09, WH); stroke(h, [[12.53, z], [12.92, z]], 0.09, WH); } });
       // basketball: lanes, free-throw circles (solid outside, 5 dashes inside), lane marks, three-point arcs
       // lane-space marks (measured): a 0.3 m block 7-8 ft from the key end, thin marks at 11, 14 and 17 ft; the south sides are worn
       const LM = [{ n: [[25.56, 25.81], [24.545, 24.595], [23.595, 23.645], [22.635, 22.685]], s: [[24.975, 25.025], [24.025, 24.075]] }, { n: [[25.49, 25.79], [24.495, 24.545], [23.535, 23.585], [22.575, 22.625]], s: [[23.975, 24.025], [22.575, 22.625]] }];
-      for (const [x0, x1, z0, z1, ki] of [[22.13, 27.93, 8.65, 12.27, 0], [22.12, 27.88, -5.41, -1.77, 1]]) {
+      for (const [x0, x1, z0, z1, ki] of [[22.13, 27.93, 8.65, 12.27, 0], [22.12, 27.88, -5.41, -1.77, 1]]) natC(h, 27.9, ki ? -3.59 : 10.46, () => {
         rectW(h, x0, z0, x1, z1, WW, WH); const cz = (z0 + z1) / 2;
         arcW(h, 22.08, cz, 1.8, Math.PI / 2, Math.PI * 1.5, WW, WH);
         for (const a of [-50, -24, 0, 24, 50]) arcW(h, 22.08, cz, 1.8, (a - 7) * Math.PI / 180, (a + 7) * Math.PI / 180, WW, WH);
         h.fillStyle = WH;
         for (const [a, b] of LM[ki].n) h.fillRect(a, z1, b - a, 0.15);
         for (const [a, b] of LM[ki].s) h.fillRect(a, z0 - 0.15, b - a, 0.15);
-      }
-      stroke(h, [[27.9, 4.55], [26.3, 4.64], [25.31, 4.85], [24.38, 5.17], [23.5, 5.6], [22.67, 6.12], [21.92, 6.78], [21.27, 7.55], [20.77, 8.44], [20.43, 9.42], [20.42, 10.45], [20.43, 11.48], [20.77, 12.46], [21.28, 13.35], [21.94, 14.11], [22.7, 14.75], [23.53, 15.24], [24.4, 15.62], [25.33, 15.94], [26.3, 16.06], [27.3, 16.1], [28.0, 16.15]], WW, WH);
-      stroke(h, [[27.9, 2.55], [27.37, 2.42], [26.3, 2.29], [25.3, 2.03], [24.36, 1.67], [23.48, 1.23], [22.67, 0.68], [21.92, 0.03], [21.26, -0.74], [20.76, -1.63], [20.41, -2.61], [20.39, -3.65], [20.39, -4.69], [20.72, -5.68], [21.22, -6.58], [21.85, -7.38], [22.6, -8.06], [23.43, -8.63], [24.32, -9.08], [25.28, -9.43], [26.3, -9.67], [27.39, -9.81], [27.9, -9.89]], WW, WH);
+      });
+      natC(h, 27.9, 10.46, () => stroke(h, [[27.9, 4.55], [26.3, 4.64], [25.31, 4.85], [24.38, 5.17], [23.5, 5.6], [22.67, 6.12], [21.92, 6.78], [21.27, 7.55], [20.77, 8.44], [20.43, 9.42], [20.42, 10.45], [20.43, 11.48], [20.77, 12.46], [21.28, 13.35], [21.94, 14.11], [22.7, 14.75], [23.53, 15.24], [24.4, 15.62], [25.33, 15.94], [26.3, 16.06], [27.3, 16.1], [28.0, 16.15]], WW, WH));
+      natC(h, 27.9, -3.59, () => stroke(h, [[27.9, 2.55], [27.37, 2.42], [26.3, 2.29], [25.3, 2.03], [24.36, 1.67], [23.48, 1.23], [22.67, 0.68], [21.92, 0.03], [21.26, -0.74], [20.76, -1.63], [20.41, -2.61], [20.39, -3.65], [20.39, -4.69], [20.72, -5.68], [21.22, -6.58], [21.85, -7.38], [22.6, -8.06], [23.43, -8.63], [24.32, -9.08], [25.28, -9.43], [26.3, -9.67], [27.39, -9.81], [27.9, -9.89]], WW, WH));
       // the white small paws
       for (const [x, z, n] of [[10.66, 16.27, 1], [14.92, 16.32, 1], [19.17, 16.18, 1], [-7.77, 15.21, 1], [-0.28, 15.25, 1], [5.23, -15.17, -1], [8.94, -15.1, -1]]) drawPaw(h, x, z, n * Math.PI / 2, 0.46, WH);
     }, 303, 0.1, 0.22, 0.97, 0.35);
     // the target's dark centre disc
-    g.fillStyle = 'rgba(38,38,36,0.85)'; g.beginPath(); g.arc(12.4, -11.85, 0.15, 0, 6.2832); g.fill();
+    natC(g, 12.4, -13.0, () => { g.fillStyle = 'rgba(38,38,36,0.85)'; g.beginPath(); g.arc(12.4, -11.85, 0.15, 0, 6.2832); g.fill(); });
     It(g);
-    return c;
   }
   // ---------- the drop-off lot south of the blacktop: old asphalt, lighter than the blacktop, block-cracked, no joint grid ----------
   function metLotCanvas(N) {
     const c = mkCv(N, N); if (!realCv()) return c;
     const g = c.getContext('2d'), SX = N / (LOT.x1 - LOT.x0), SZ = N / (LOT.z1 - LOT.z0);
     const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -LOT.x0 * SX, -LOT.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    metPaint(SX, 1.2, () => metLotPaint(c, N, g, SX, SZ, Wt, It, MET_BK));
+    return c;
+  }
+  function metLotPaint(c, N, g, SX, SZ, Wt, It, BK) {
     g.fillStyle = '#c3c2bb'; g.fillRect(0, 0, N, N);
     const tile = grainTile(vimg('asphalt.jpg'), 512, 1.0, 41);
-    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.7; const T = 3.0;
+    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.7; const T = 3.0 / BK;
     for (let x = LOT.x0; x < LOT.x1; x += T) for (let z = LOT.z0; z < LOT.z1; z += T) g.drawImage(tile, x, z, T, T);
     const nz = vnoise(9); It(g); g.globalAlpha = 0.2; g.drawImage(noiseCanvas(256, 256, (x, y) => 0.5 + (nz(x / 7, y / 7) - 0.5) * 0.6 + (nz(x * 0.8, y * 0.8) - 0.5) * 0.3), 0, 0, N, N);
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; Wt(g);
@@ -3215,22 +3463,23 @@ gl_FragColor=vec4(c,1.0);}`;
     layer((h) => {
       h.fillStyle = '#f6f6f2';
       const arrow = (x, z, deg) => { h.save(); h.translate(x, z); h.rotate(deg * D2R); h.beginPath(); h.moveTo(-0.95, -0.14); h.lineTo(0.15, -0.14); h.lineTo(0.15, -0.475); h.lineTo(0.95, 0); h.lineTo(0.15, 0.475); h.lineTo(0.15, 0.14); h.lineTo(-0.95, 0.14); h.closePath(); h.fill(); h.restore(); };
-      for (const [x, z, d] of [[9.4, -19.9, 180], [9.4, -23.85, 180], [-3.9, -21.4, 225], [-1.2, -25.0, 225], [-7.65, -29.3, 270], [-7.75, -38.2, 270], [-9.6, -45.0, 225], [5.9, -42.6, 0], [6.5, -46.5, 0], [17.3, -39.4, 45], [19.0, -43.0, 45], [21.9, -33.0, 90], [25.8, -33.0, 90], [20.7, -22.0, 135], [18.6, -25.3, 135]]) arrow(x, z, d);
-      const div = (x, z, len, head) => { const dx = Math.sin(head * D2R) * len / 2, dz = Math.cos(head * D2R) * len / 2; stroke(h, [[x - dx, z - dz], [x + dx, z + dz]], 0.18, '#f0f0ea'); };
+      for (const [x, z, d] of [[9.4, -19.9, 180], [9.4, -23.85, 180], [-3.9, -21.4, 225], [-1.2, -25.0, 225], [-7.65, -29.3, 270], [-7.75, -38.2, 270], [-9.6, -45.0, 225], [5.9, -42.6, 0], [6.5, -46.5, 0], [17.3, -39.4, 45], [19.0, -43.0, 45], [21.9, -33.0, 90], [25.8, -33.0, 90], [20.7, -22.0, 135], [18.6, -25.3, 135]]) natC(h, x, z, () => arrow(x, z, d));
+      const div = (x, z, len, head) => { const dx = Math.sin(head * D2R) * len / 2, dz = Math.cos(head * D2R) * len / 2; natC(h, x, z, () => stroke(h, [[x - dx, z - dz], [x + dx, z + dz]], 0.18, '#f0f0ea')); };
       div(9.95, -21.75, 3.15, 90); div(-2.6, -23.5, 3.9, 57); div(5.8, -44.6, 3.1, 79); div(18.3, -41.2, 3.5, 66); div(23.8, -32.6, 3.5, 0); div(19.6, -23.6, 3.2, 120);
-      for (const z of [-22.9, -28.5]) { h.beginPath(); h.arc(28.0, z, 0.13, 0, 6.2832); h.fill(); }
-      for (const x of [14, 17, 20, 23]) stroke(h, [[x, -48.2], [x + 2.3, -53.1]], 0.11, '#f0f0ea');
+      for (const z of [-22.9, -28.5]) natC(h, 28.0, z, () => { h.fillStyle = '#f6f6f2'; h.beginPath(); h.arc(28.0, z, 0.13, 0, 6.2832); h.fill(); });
+      // the angled stalls along the south edge (3 m apart: more of them on the big field), each line from the edge
+      if (BK > 1) { for (let x = 14; x <= 25.3; x += 3.0 / BK) natC(h, x + 2.3, -53.1, () => stroke(h, [[x, -48.2], [x + 2.3, -53.1]], 0.11, '#f0f0ea')); }
+      else for (const x of [14, 17, 20, 23]) stroke(h, [[x, -48.2], [x + 2.3, -53.1]], 0.11, '#f0f0ea');
     }, 404, 0.2, 0.2, 1.0);
     layer((h) => {
       const Y = '#d8bf5a';
       stroke(h, [[29.15, -17.3], [29.15, -47.5]], 0.11, Y);
-      h.save(); h.beginPath(); h.rect(29.15, -47.5, 1.65, 30.2); h.clip(); for (let z = -47.5; z < -16; z += 1.24) stroke(h, [[29.15, z + 1.65], [30.85, z]], 0.11, Y); h.restore();
-      stroke(h, [[29.15, -32.0], [31.9, -32.0], [31.9, -47.5]], 0.11, Y); h.save(); h.beginPath(); h.rect(30.85, -47.5, 1.05, 15.5); h.clip(); for (let z = -47.5; z < -30; z += 1.24) stroke(h, [[30.2, z + 1.65], [31.9, z]], 0.11, Y); h.restore(); // wider south of the hedge
+      h.save(); h.beginPath(); h.rect(29.15, -47.5, 1.65, 30.2); h.clip(); for (let z = -47.5; z < -16; z += 1.24 / BK) stroke(h, [[29.15, z + 1.65], [30.85, z]], 0.11, Y); h.restore();
+      stroke(h, [[29.15, -32.0], [31.9, -32.0], [31.9, -47.5]], 0.11, Y); h.save(); h.beginPath(); h.rect(30.85, -47.5, 1.05, 15.5); h.clip(); for (let z = -47.5; z < -30; z += 1.24 / BK) stroke(h, [[30.2, z + 1.65], [31.9, z]], 0.11, Y); h.restore(); // wider south of the hedge
       // the newer no-parking zones along the south edge (as in the owner's screenshots), and the older south-east one
-      for (const [x0, x1] of [[0.0, 10.0], [11.0, 16.0], [23.0, 30.8]]) { rectW(h, x0, -53.4, x1, -47.6, 0.11, Y); h.save(); h.beginPath(); h.rect(x0, -53.4, x1 - x0, 5.8); h.clip(); for (let x = x0 - 6; x < x1; x += 1.1) stroke(h, [[x, -53.4], [x + 5.8, -47.6]], 0.1, Y); h.restore(); }
+      for (const [x0, x1] of [[0.0, 10.0], [11.0, 16.0], [23.0, 30.8]]) { rectW(h, x0, -53.4, x1, -47.6, 0.11, Y); h.save(); h.beginPath(); h.rect(x0, -53.4, x1 - x0, 5.8); h.clip(); for (let x = x0 - 6; x < x1; x += 1.1 / BK) stroke(h, [[x, -53.4], [x + 5.8, -47.6]], 0.1, Y); h.restore(); }
     }, 505, 0.32, 0.3, 0.95);
     It(g);
-    return c;
   }
   // ---------- flat roof membrane over the west wing and the main block: grey-green, a seam grid, dark ponding ----------
   const ROOF = { x0: 33.5, x1: 71.5, z0: -52, z1: 18 };
@@ -3497,6 +3746,7 @@ gl_FragColor=vec4(c,1.0);}`;
   };
   // a hip-roofed box (walls batch wb, roof batch rb): centre, length along ang, width, eave and ridge heights
   function hipHouse(wb, rb, cx, cz, len, wid, ang, eave, ridge, wc, rc, wk, over) {
+    if (MSPR.on && MSPR.m.kind === 'plan') { const c = sprP(MSPR.m, cx, cz); return metReal(() => hipHouse(wb, rb, c[0], c[1], len * MET_K, wid * MET_K, ang, eave, eave + (ridge - eave) * 2, wc, rc, wk, over)); } // big field: a spread footprint under a roof as steep as it can stay
     const ca = Math.cos(ang), sa = Math.sin(ang), P = (u, v) => [cx + u * ca - v * sa, cz + u * sa + v * ca], hl = len / 2, hw = wid / 2, o = over == null ? 0.4 : over;
     const ft = [P(-hl, -hw), P(hl, -hw), P(hl, hw), P(-hl, hw)];
     wb.extrude(ft, 0, eave, wc, wk || 0, false);
@@ -3510,6 +3760,7 @@ gl_FragColor=vec4(c,1.0);}`;
   // a gable-roofed building (walls batch wb, roof batch rb with metre UVs * rk, trim batch tb): centre, length along ang (the ridge
   // runs along it), width, eave and ridge heights, overhang; brick gable triangles at both ends, fascia boards on eaves and rakes
   function gableHouse(wb, rb, tb, cx, cz, len, wid, ang, eave, ridge, wc, rc, trim, wk, rk, over) {
+    if (MSPR.on && MSPR.m.kind === 'plan') { const c = sprP(MSPR.m, cx, cz); return metReal(() => gableHouse(wb, rb, tb, c[0], c[1], len * MET_K, wid * MET_K, ang, eave, eave + (ridge - eave) * 2, wc, rc, trim, wk, rk, over)); }
     const ca = Math.cos(ang), sa = Math.sin(ang), P = (u, v) => [cx + u * ca - v * sa, cz + u * sa + v * ca], hl = len / 2, hw = wid / 2, o = over == null ? 0.45 : over;
     wb.extrude([P(-hl, -hw), P(hl, -hw), P(hl, hw), P(-hl, hw)], 0, eave, wc, wk || 0, false);
     for (const su of [-1, 1]) { const a = P(su * hl, -hw), b = P(su * hl, hw), m = P(su * hl, 0), n = [su * ca, 0, su * sa], k = wk || 0; wb.grow(3);
@@ -3542,10 +3793,120 @@ gl_FragColor=vec4(c,1.0);}`;
   // ---------- the playground's posts with dome caps and white clamps ----------
   function ppost(pb, x, z, h, clampYs) { pb.cyl(x, z, 0, h, 0.065, 0.065, [0.08, 0.08, 0.08, 1], 7); pb.lathe(x, z, [[0.066, h], [0.045, h + 0.06], [0.0, h + 0.085]], [0.08, 0.08, 0.08, 1], 6); for (const y of (clampYs || []).slice(-1)) pb.wbox(x - 0.085, y - 0.05, z - 0.085, x + 0.085, y + 0.05, z + 0.085, [0.8, 0.82, 0.84, 1]); }
 
+  // =====================================================================================
+  // The big field (MOPT.big): the whole map spreads by MET_K around the field, so the painted field lands on the regulation-size
+  // gameplay field (goal lines at engine z 0 and FL, sidelines at +/-HW), while things with a human size keep it.
+  // Everything stays authored in frame F metres. While buildMetcalf runs with the big field on, every Batch primitive passes its
+  // input through the current spread mode before it builds (so UVs come out in real metres), and MET.keep.push does the same:
+  //  * plan mode (the default): ground positions (x, z) spread by MET_K about the field's south goal-line centre; heights stay.
+  //    Point primitives (v, quad, poly, extrude, wall, tube ends, trough paths, seg ends) spread every point: walls, roads, lawns
+  //    and paint get MET_K longer. Radii (cyl, lathe, tube, blobby, clump, crown, disc, ring) and seg's width stay natural. Box
+  //    primitives (box, wbox, obox, tbox) spread their centre and each horizontal extent of MSP_T (0.5 m) or more; thinner ones
+  //    (rails, trims, posts, coping) keep their natural size.
+  //  * metObj(x, z, fn, s): fn builds ONE thing that must keep its size (a car, a hoop, a bench, a sign, a playground piece, a
+  //    lamp, a window, a tree): its points move rigidly with (x, z) and scale by s (default 1) in all three axes.
+  //  * metRun(x0, z0, x1, z1, fn): a long thin thing along that line (a fence, a hedge, a curb, a painted strip): the length
+  //    spreads, the cross-section and the heights stay.
+  //  * metPitch(p): the F-metre step of a repeated thing that comes out p real metres apart in the current mode (posts, pickets,
+  //    window bays, stalls, joints): repeat instead of stretch. metS(x, z) is the current mode's point (for hand-made UVs).
+  //  * MET.keep.push takes frame F metres everywhere: during the build it goes through the current mode (so a solid pushed inside
+  //    metObj follows its object); one pushed after the build (people at run time) is spread like the plan. metKeepOut works in the
+  //    built (spread) metres. metFar / metLift / metFull / metReal / metPaint / natC: see their own notes below.
+  // With the default field size none of this is installed (the helpers hand back their input) and the build is as before.
+  // =====================================================================================
+  const MSP_T = 0.5, MSPR = { on: false, d: 0, m: null, lift: null };
+  // metLift(t, d, fn): a building section gets a storey: everything built higher than t metres moves up by d (walls stretch, the
+  // ground floor's doors and windows stay, the upper windows, roofs and what sits on them ride up)
+  const mLY = (y) => (MSPR.lift && y > MSPR.lift[0] ? y + MSPR.lift[1] : y);
+  function metLift(t, d, fn) { if (!MSPR.on) return fn(); const p0 = MSPR.lift; MSPR.lift = [t, d]; try { return fn(); } finally { MSPR.lift = p0; } }
+  const sprMode = (cx, cz, tx, tz, a, b, c, d, sy, sr, thr, kind) => { const det = a * d - b * c; return { cx, cz, tx, tz, a, b, c, d, ia: d / det, ib: -b / det, ic: -c / det, id: a / det, sy, sr, thr, kind }; };
+  const sprPlan = () => sprMode(MX0, -MZ0, MX0, -MZ0, MET_K, 0, 0, MET_K, 1, 1, true, 'plan');
+  const sprP = (m, x, z) => { const dx = x - m.cx, dz = z - m.cz; if (m.kind === 'far') { const r = Math.hypot(dx, dz), f = r > 1e-6 ? (r + m.G) / r : 1; return [m.tx + dx * f, m.tz + dz * f]; } return [m.tx + m.a * dx + m.b * dz, m.tz + m.c * dx + m.d * dz]; };
+  const sprI = (m, x, z) => { const dx = x - m.tx, dz = z - m.tz; if (m.kind === 'far') { const r = Math.hypot(dx, dz), f = r > m.G ? (r - m.G) / r : 0; return [m.cx + dx * f, m.cz + dz * f]; } return [m.cx + m.ia * dx + m.ib * dz, m.cz + m.ic * dx + m.id * dz]; };
+  const metS = (x, z) => (MSPR.on ? sprP(MSPR.m, x, z) : [x, z]);
+  const metPitch = (p) => (!MSPR.on ? p : MSPR.m.kind === 'obj' ? p / MSPR.m.sr : MSPR.m.kind === 'real' || MSPR.m.kind === 'far' ? p : p / MET_K);
+  // metFar(cx, cz, fn): the far surroundings (a horizon tree line, a skyline): instead of spreading MET_K times further out, every
+  // point is pushed straight out from (cx, cz) by what the site grew, (MET_K - 1) * 110 m, so it stays well inside the far clip; sizes
+  // and heights stay (wrap a house in metObj inside it so it is not widened along the ring)
+  function metFar(cx, cz, fn) {
+    if (!MSPR.on || MSPR.m.kind !== 'plan') return fn();
+    const pm = MSPR.m, t = sprP(pm, cx, cz); MSPR.m = Object.assign(sprMode(cx, cz, t[0], t[1], 1, 0, 0, 1, 1, 1, false, 'far'), { G: (MET_K - 1) * 110 });
+    try { return fn(); } finally { MSPR.m = pm; }
+  }
+  // metReal(fn): fn builds in real (already spread) metres: no transform (the houses compute their spread footprint themselves)
+  function metReal(fn) { if (!MSPR.on) return fn(); const pm = MSPR.m; MSPR.m = sprMode(0, 0, 0, 0, 1, 0, 0, 1, 1, 1, false, 'real'); try { return fn(); } finally { MSPR.m = pm; } }
+  function metObj(x, z, fn, s) {
+    if (!MSPR.on) return fn();
+    const pm = MSPR.m, t = sprP(pm, x, z), k = (s || 1) * pm.sr; MSPR.m = sprMode(x, z, t[0], t[1], k, 0, 0, k, (s || 1) * pm.sy, k, false, 'obj');
+    try { return fn(); } finally { MSPR.m = pm; }
+  }
+  function metRun(x0, z0, x1, z1, fn) {
+    if (!MSPR.on || MSPR.m.kind !== 'plan') return fn();
+    const pm = MSPR.m, l = Math.hypot(x1 - x0, z1 - z0) || 1, ux = (x1 - x0) / l, uz = (z1 - z0) / l, t = sprP(pm, x0, z0), e = MET_K - 1;
+    MSPR.m = sprMode(x0, z0, t[0], t[1], 1 + e * ux * ux, e * ux * uz, e * ux * uz, 1 + e * uz * uz, 1, 1, true, 'run');
+    try { return fn(); } finally { MSPR.m = pm; }
+  }
+  // metFull(fn): plan mode where thin boxes spread too (a curb that has to fill the strip between two spread edges)
+  function metFull(fn) { if (!MSPR.on || MSPR.m.kind !== 'plan') return fn(); const pm = MSPR.m; MSPR.m = Object.assign({}, pm, { thr: false }); try { return fn(); } finally { MSPR.m = pm; } }
+  // the spread of one point (x, y, z), a normal, and a box half-axis (h = [x, y, z] half extent vector)
+  const sprV3 = (m, p) => { const q = sprP(m, p[0], p[2]); return [q[0], mLY(p[1] * m.sy), q[1]]; };
+  const sprN = (m, n) => { if (!n[0] && !n[1] && !n[2]) return n; const x = m.ia * n[0] + m.ic * n[2], z = m.ib * n[0] + m.id * n[2], y = n[1] / m.sy, l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+  const sprAx = (m, h) => { const hl = Math.hypot(h[0], h[2]); if (m.thr && 2 * hl < MSP_T) return [h[0] * m.sr, h[1] * m.sy, h[2] * m.sr]; return [m.a * h[0] + m.b * h[2], h[1] * m.sy, m.c * h[0] + m.d * h[2]]; };
+  function sprKeep(k, m) { // a camera keep-out solid (frame F) into the spread frame
+    if (k.length === 6) { const c = sprP(m, (k[0] + k[3]) / 2, (k[2] + k[5]) / 2), hx = sprAx(m, [(k[3] - k[0]) / 2, 0, 0]), hz = sprAx(m, [0, 0, (k[5] - k[2]) / 2]), ex = Math.abs(hx[0]) + Math.abs(hz[0]), ez = Math.abs(hx[2]) + Math.abs(hz[2]);
+      return [c[0] - ex, mLY(k[1] * m.sy), c[1] - ez, c[0] + ex, mLY(k[4] * m.sy), c[1] + ez]; }
+    if (k.length === 5) { const c = sprP(m, k[0], k[1]); return [c[0], c[1], k[2] * m.sr, mLY(k[3] * m.sy), mLY(k[4] * m.sy)]; }
+    if (k.length === 4) { const c = sprP(m, k[0], k[2]); return [c[0], mLY(k[1] * m.sy), c[1], k[3] * m.sr]; }
+    return k;
+  }
+  // installs the spread on the Batch primitives for one build; returns the function that puts the originals back
+  function sprInstall() {
+    const BP = Batch.prototype, saved = {};
+    const wrap = (name, fn) => { const o = BP[name]; if (typeof o !== 'function') return; saved[name] = o; BP[name] = function () { if (!MSPR.on || MSPR.d) return o.apply(this, arguments); MSPR.d++; try { return fn.call(this, o, MSPR.m, arguments); } finally { MSPR.d--; } }; };
+    const P3 = (m, p) => sprV3(m, p), Y = (m, y) => mLY(y * m.sy), uvInv = (m, f) => (typeof f === 'function' ? (x, z) => { const q = sprI(m, x, z); return f(q[0], q[1]); } : f);
+    wrap('v', function (o, m, A) { const q = sprP(m, A[0], A[2]), n = sprN(m, [A[3], A[4], A[5]]); return o.call(this, q[0], mLY(A[1] * m.sy), q[1], n[0], n[1], n[2], A[6], A[7], A[8]); });
+    wrap('quad', function (o, m, A) { return o.call(this, P3(m, A[0]), P3(m, A[1]), P3(m, A[2]), P3(m, A[3]), sprN(m, A[4]), A[5], A[6]); });
+    wrap('poly', function (o, m, A) { return o.call(this, A[0].map((p) => sprP(m, p[0], p[1])), Y(m, A[1]), A[2], A[3], uvInv(m, A[4])); });
+    wrap('extrude', function (o, m, A) { return o.call(this, A[0].map((p) => sprP(m, p[0], p[1])), Y(m, A[1]), Y(m, A[2]), A[3], A[4], A[5], uvInv(m, A[6])); });
+    wrap('wall', function (o, m, A) { const a = sprP(m, A[0], A[1]), b = sprP(m, A[2], A[3]); return o.call(this, a[0], a[1], b[0], b[1], Y(m, A[4]), Y(m, A[5]), A[6], sprN(m, A[7]), A[8], A[9]); });
+    wrap('box', function (o, m, A) { // general box: the centre spreads, each half-axis by the box rule; rebuilt with unit axes
+      const M = A[0], cx = A[1], cy0 = A[2], cz = A[3], h = [A[4] / 2, A[5] / 2, A[6] / 2];
+      const C = sprV3(m, [M[0] * cx + M[1] * cy0 + M[2] * cz + M[3], M[4] * cx + M[5] * cy0 + M[6] * cz + M[7], M[8] * cx + M[9] * cy0 + M[10] * cz + M[11]]);
+      const ax = [0, 1, 2].map((i) => sprAx(m, [M[i] * h[i], M[4 + i] * h[i], M[8 + i] * h[i]]));
+      if (MSPR.lift) { const cy = M[4] * cx + M[5] * cy0 + M[6] * cz + M[7], hy = Math.abs(ax[0][1]) + Math.abs(ax[1][1]) + Math.abs(ax[2][1]), y0 = mLY((cy - hy) * m.sy), y1 = mLY((cy + hy) * m.sy), vi = ax.findIndex((v) => Math.abs(v[1]) > 0.9 * Math.hypot(v[0], v[1], v[2]));
+        C[1] = (y0 + y1) / 2; if (vi >= 0 && hy > 0) { const k = (y1 - y0) / 2 / hy; ax[vi] = ax[vi].map((q) => q * k); } } // a storey lift stretches an upright box from its own ends
+      const L = ax.map((v) => Math.hypot(v[0], v[1], v[2]) || 1e-6);
+      const N = [ax[0][0] / L[0], ax[1][0] / L[1], ax[2][0] / L[2], C[0], ax[0][1] / L[0], ax[1][1] / L[1], ax[2][1] / L[2], C[1], ax[0][2] / L[0], ax[1][2] / L[1], ax[2][2] / L[2], C[2], 0, 0, 0, 1];
+      return o.call(this, N, 0, 0, 0, L[0] * 2, L[1] * 2, L[2] * 2, A[7]);
+    });
+    wrap('tbox', function (o, m, A) { const c = sprP(m, (A[0] + A[3]) / 2, (A[2] + A[5]) / 2), hx = sprAx(m, [(A[3] - A[0]) / 2, 0, 0]), hz = sprAx(m, [0, 0, (A[5] - A[2]) / 2]), ex = Math.hypot(hx[0], hx[2]), ez = Math.hypot(hz[0], hz[2]);
+      return o.call(this, c[0] - ex, Y(m, A[1]), c[1] - ez, c[0] + ex, Y(m, A[4]), c[1] + ez, A[6], A[7]); });
+    wrap('cyl', function (o, m, A) { const q = sprP(m, A[0], A[1]); return o.call(this, q[0], q[1], Y(m, A[2]), Y(m, A[3]), A[4] * m.sr, A[5] * m.sr, A[6], A[7], A[8], A[9], A[10]); });
+    wrap('tube', function (o, m, A) { return o.call(this, P3(m, A[0]), P3(m, A[1]), A[2] * m.sr, A[3], A[4]); });
+    wrap('lathe', function (o, m, A) { const q = sprP(m, A[0], A[1]); return o.call(this, q[0], q[1], A[2].map((p) => [p[0] * m.sr, mLY(p[1] * m.sy)]), A[3], A[4]); });
+    wrap('blobby', function (o, m, A) { const q = sprP(m, A[0], A[2]); return o.call(this, q[0], mLY(A[1] * m.sy), q[1], A[3] * m.sr, A[4] * m.sy, A[5] * m.sr, A[6], A[7], A[8], A[9], A[10], A[11]); });
+    wrap('clump', function (o, m, A) { const q = sprP(m, A[0], A[2]); return o.call(this, q[0], mLY(A[1] * m.sy), q[1], A[3] * m.sr, A[4] * m.sy, A[5], A[6], A[7], A[8]); });
+    wrap('crown', function (o, m, A) { const q = sprP(m, A[0], A[2]); return o.call(this, q[0], mLY(A[1] * m.sy), q[1], A[3] * m.sr, A[4] * m.sy, A[5], A[6], A[7], A[8], A[9]); });
+    wrap('trough', function (o, m, A) { return o.call(this, A[0].map((p) => P3(m, p)), A[1] * m.sr, A[2] * m.sy, A[3]); });
+    wrap('disc', function (o, m, A) { const q = sprP(m, A[0], A[1]); return o.call(this, q[0], q[1], A[2] * m.sr, A[3], A[4] === undefined ? A[4] : A[4] * m.sy, A[5]); });
+    wrap('blob', function (o, m, A) { const q = sprP(m, A[0], A[1]); return o.call(this, q[0], q[1], A[2] * m.sr, A[3], A[4] === undefined ? A[4] : A[4] * m.sy, A[5]); });
+    wrap('ring', function (o, m, A) { const q = sprP(m, A[0], A[1]); return o.call(this, q[0], q[1], A[2] * m.sr, A[3] * m.sr, A[4], A[5] === undefined ? A[5] : A[5] * m.sy, A[6]); });
+    wrap('seg', function (o, m, A) { const a = sprP(m, A[0], A[1]), b = sprP(m, A[2], A[3]); return o.call(this, a[0], a[1], b[0], b[1], A[4] * m.sr, A[5], A[6] === undefined ? A[6] : A[6] * m.sy); });
+    MSPR.on = true; MSPR.d = 0; MSPR.m = sprPlan(); MSPR.lift = null;
+    return () => { for (const k in saved) BP[k] = saved[k]; MSPR.on = false; MSPR.m = null; MSPR.lift = null; };
+  }
+
   // ---------- build the whole venue (metres, frame F), then convert to engine units ----------
   function buildMetcalf() {
+    const unspr = MOPT.big ? sprInstall() : null;
+    try { return buildMetcalf0(); } finally { if (unspr) unspr(); }
+  }
+  function buildMetcalf0() {
     const t0 = performance.now();
     const R = mrng(19550101); MET.keep = [];
+    // keep-out solids follow the spread: while building, through the current mode; pushed later (people, at run time), as plain
+    // frame F metres through the plan spread
+    if (MSPR.on) MET.keep.push = function () { const m = MSPR.on ? MSPR.m : sprPlan(); for (const k of arguments) Array.prototype.push.call(this, sprKeep(k, m)); return this.length; };
     const W = { plain: new Batch(40000), seats: new Batch(6), field: new Batch(6), glow: new Batch(6), board: new Batch(6), ribbon: new Batch(6), glass: new Batch(6), crowd: { f: new Float32Array(0), n: 0 } };
     const B = {};
     const nb = (k, cap) => (B[k] = new Batch(cap || 2000));
@@ -3553,7 +3914,8 @@ gl_FragColor=vec4(c,1.0);}`;
       brick = nb('mbrick', 6000), panel = nb('mpanel', 2000), corr = nb('mcorr', 600), bark = nb('mbark', 8000), leaf = nb('mleaf', 60000), atl = nb('matlas', 2000), roof = nb('mroof', 3000), flat = nb('mflat', 12000),
       glassB = nb('mglass', 3000), pick = nb('mpick', 200), asph = nb('masph', 300), shing = nb('mshing', 3000), needle = nb('mneedle', 8000);
     const up = [0, 1, 0], hedge = leaf;
-    const atlW = (k, a, b, y0, y1, n) => { const r = atlUV(k); atl.quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], n, [1, 1, 1, 1], [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]); }; // a = the viewer's left
+    const atlW = (k, a, b, y0, y1, n) => { const r = atlUV(k), f = () => atl.quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], n, [1, 1, 1, 1], [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]);
+      return MSPR.on && MSPR.m.kind === 'plan' ? metObj((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, f) : f(); }; // a = the viewer's left; a decal (window, door, sign) keeps its size on the big field
     const SEC = [], tot = () => { let n = pb.n; for (const k in B) n += B[k].n; return n; }, mark = (k) => SEC.push([k, tot()]);
     // ===== ground =====
     // the blacktop (its own canvas) and the drop-off lot (its own canvas)
@@ -3563,14 +3925,15 @@ gl_FragColor=vec4(c,1.0);}`;
     // grass everywhere else (patchy vertex colours), with a hole for South Main Street
     {
       const xs = [], zs = []; for (let x = -320; x < -70; x += 50) xs.push(x); for (let x = -70; x < 100; x += 10) xs.push(x); for (let x = 100; x <= 320; x += 44) xs.push(x);
-      xs.push(-31.55, -20.6, -12.55, -13.25); xs.sort((a, b) => a - b); for (let z = -320; z < -90; z += 46) zs.push(z); for (let z = -90; z < 110; z += 10) zs.push(z); for (let z = 110; z <= 320; z += 42) zs.push(z);
+      xs.push(-31.55, -20.6, -12.55, -13.25); xs.sort((a, b) => a - b); for (let z = -320; z < -90; z += 46) zs.push(z); for (let z = -90; z < 17; z += 10) zs.push(z); zs.push(17.15); // north of the blacktop's north edge the ground is built in 13-metnorth.js
+      // (on the big field the lawn sits a little lower: depth precision over the long views)
       // a Midwest lawn in October: muted olive, mottled with dry yellow-brown and darker patches; worn bare along the pavement's west edge
       const nz = vnoise(71), gc = (x, z) => { const n = nz(x / 9, z / 9) * 0.6 + nz(x / 3 + 30, z / 3) * 0.4, dry = nz(x / 23 + 7, z / 23), worn = x > -12.6 && x < -12.5 && z > -53.5 && z < 17.2 ? 0.75 : 0;
         return mixC(mixC(mixC(tc('#373f2b'), tc('#465039'), n), tc('#57563c'), Math.max(0, dry - 0.55) * 1.6), tc('#5e5743'), worn); };
       for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
         const x0 = xs[i], x1 = xs[i + 1], z0 = zs[j], z1 = zs[j + 1], cx = (x0 + x1) / 2; if (cx > -31.55 && cx < -20.6) continue;
-        const K = 0.4, y = -0.03; grass.grow(6); const V = [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]];
-        for (const [x, z] of V) grass.v(x, y, z, 0, 1, 0, gc(x, z), x * K, z * K);
+        const K = 0.4, y = MSPR.on ? -0.1 : -0.03; grass.grow(6); const V = [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]];
+        for (const [x, z] of V) { const q = metS(x, z); grass.v(x, y, z, 0, 1, 0, gc(x, z), q[0] * K, q[1] * K); }
       }
     }
     // concrete, grass and mulch patches
@@ -3578,47 +3941,49 @@ gl_FragColor=vec4(c,1.0);}`;
     const slab = (pts, y, col, k) => { conc.extrude(pts, -0.04, y, col, k || cK, col, k || cK); };
     // NW apron and the walk north along the playground's west side, curving away at the far end
     slab([[-12.9, 17.15], [-5.6, 17.15], [-5.6, 20.25], [-12.9, 20.25]], 0.02, cc('#bdbdb6'));
-    slab([[-8.1, 20.25], [-5.6, 20.25], [-5.6, 44.0], [-8.1, 44.0]], 0.02, cc('#bfbfb8'));
-    { const p = [[-6.9, 44.0], [-8.6, 44.2], [-11.1, 46.4], [-10.7, 49.0], [-10.0, 51.9], [-9.1, 53.7], [-6.7, 54.7], [-4.6, 58.3], [-4.7, 62.5]]; for (let i = 0; i < p.length - 1; i++) { const [ax, az] = p[i], [bx, bz] = p[i + 1], dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz), px = -dz / l * 1.25, pz = dx / l * 1.25; slab([[ax - px, az - pz], [bx - px, bz - pz], [bx + px, bz + pz], [ax + px, az + pz]], 0.02, cc('#bfbfb8')); } }
+    // (the walk north from the apron, round the lawn and to College Avenue, is measured and built in 13-metnorth.js)
     // the NE walk from the blacktop corner round the school's NW corner and east along its north side
     { const o = [[28.6, 17.15], [28.8, 19.0], [29.3, 19.6], [30.3, 20.8], [31.8, 21.6], [33.0, 21.9], [61.0, 21.9]], i2 = [[31.0, 17.15], [31.2, 18.3], [31.6, 18.6], [32.3, 19.3], [33.3, 19.6], [61.0, 19.6]];
       slab(o.concat(i2.slice().reverse()), 0.02, cc('#c3c3bc')); }
-    for (let z = 18; z < 44; z += 1.5) flat.quad([-8.1, 0.025, z - 0.01], [-5.6, 0.025, z - 0.01], [-5.6, 0.025, z + 0.01], [-8.1, 0.025, z + 0.01], up, [0.42, 0.42, 0.4, 1]);
     // planting bed along the school wall (dark mulch) and the mulch strip in front of the shed
     dirt.poly([[30.8, -31.0], [34.05, -31.0], [34.05, 5.0], [33.8, 5.0], [33.8, 17.15], [30.8, 17.15]], 0.005, tc('#5b5040'), true, 0.5);
     dirt.poly([[30.8, 4.0], [31.62, 4.0], [31.62, 17.15], [30.8, 17.15]], 0.008, tc('#7f745f'), true, 0.5);
     // the west lawn strip, the fence's mulch line
-    dirt.poly([[-16.2, -41.6], [-15.7, -41.6], [-15.7, 89], [-16.2, 89]], -0.02, tc('#6d6656'), true, 0.5);
+    metRun(-15.95, -41.6, -15.95, 17.15, () => dirt.poly([[-16.2, -41.6], [-15.7, -41.6], [-15.7, 17.15], [-16.2, 17.15]], -0.02, tc('#6d6656'), true, 0.5)); // (north of z 17 it is painted into the lawn canvas)
     // the playground: wood chips with a dark timber edge
-    const PG = [[-3.4, 43.0], [28.6, 43.1], [28.7, 40.3], [45.5, 38.8], [59.5, 37.1], [59.6, 23.3], [57.7, 21.9], [32.2, 21.9], [30.1, 20.9], [29.1, 19.6], [28.7, 18.3], [28.6, 17.3], [-3.4, 17.3]];
-    chips.poly(PG, 0.0, tc('#c49a68'), true, 0.45);
-    for (let i = 0; i < PG.length; i++) { const a = PG[i], b = PG[(i + 1) % PG.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, 0.04, (a[1] + b[1]) / 2, l, 0.12, 0.16, Math.atan2(b[1] - a[1], b[0] - a[0]), [0.24, 0.2, 0.17, 1]); }
+    // (as on the aerials: the sand runs from x -3.4 to the tree belt at x 42 and to z 43; no timber border, the edge is ragged where
+    // the sand thins out into the lawn; east of x 42 the trees stand in mulch)
+    const PG = [[-3.4, 43.0], [28.6, 43.1], [28.7, 40.3], [42.0, 39.2], [42.0, 21.9], [32.2, 21.9], [30.1, 20.9], [29.1, 19.6], [28.7, 18.3], [28.6, 17.3], [-3.4, 17.3]];
+    { const er = mrng(4301), P2 = []; for (let i = 0; i < PG.length; i++) { const a = PG[i], b = PG[(i + 1) % PG.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), soft = (a[1] > 17.5 || b[1] > 17.5) && !(a[0] > 28 && a[1] < 22 && b[1] < 22), n = soft ? Math.max(1, Math.round(l / 0.9)) : 1;
+        for (let k = 0; k < n; k++) { const t = k / n, nx = -(b[1] - a[1]) / l, nz = (b[0] - a[0]) / l, j = soft && k > 0 ? (er() - 0.5) * 0.5 : 0; P2.push([a[0] + (b[0] - a[0]) * t + nx * j, a[1] + (b[1] - a[1]) * t + nz * j]); } }
+      chips.poly(P2, 0.0, tc('#c49a68'), true, 0.45); }
     mark('South Main Street');
     // ===== South Main Street (one-way northbound, 2 lanes, 10.65 m curb to curb) =====
     {
-      const ZA = -320, ZB = 320, y = -0.15, prof = [[-31.4, '#b3b3ad'], [-30.8, '#b3b3ad'], [-30.75, '#a9aaa3'], [-29.9, '#a7a8a2'], [-29.2, '#95968f'], [-28.5, '#a6a7a1'], [-27.6, '#93948d'], [-26.9, '#a5a6a0'], [-26.3, '#a7a8a2'], [-25.6, '#a5a6a0'], [-24.9, '#94958e'], [-24.1, '#a6a7a1'], [-23.0, '#93948d'], [-22.2, '#a6a7a1'], [-21.4, '#a8a9a3'], [-21.35, '#b3b3ad'], [-20.75, '#b3b3ad']];
+      const ZA = -320, ZB = 120, y = -0.15, prof = [[-31.4, '#b3b3ad'], [-30.8, '#b3b3ad'], [-30.75, '#a9aaa3'], [-29.9, '#a7a8a2'], [-29.2, '#95968f'], [-28.5, '#a6a7a1'], [-27.6, '#93948d'], [-26.9, '#a5a6a0'], [-26.3, '#a7a8a2'], [-25.6, '#a5a6a0'], [-24.9, '#94958e'], [-24.1, '#a6a7a1'], [-23.0, '#93948d'], [-22.2, '#a6a7a1'], [-21.4, '#a8a9a3'], [-21.35, '#b3b3ad'], [-20.75, '#b3b3ad']];
       for (let z = ZA; z < ZB; z += 20) for (let i = 0; i < prof.length - 1; i++) {
         const [x0, h0] = prof[i], [x1, h1] = prof[i + 1], c0 = tc(h0), c1 = tc(h1), K = 0.3; street.grow(6);
-        for (const [x, zz, cl] of [[x0, z, c0], [x1, z, c1], [x1, z + 20, c1], [x0, z, c0], [x1, z + 20, c1], [x0, z + 20, c0]]) street.v(x, y, zz, 0, 1, 0, cl, x * K, zz * K);
+        for (const [x, zz, cl] of [[x0, z, c0], [x1, z, c1], [x1, z + 20, c1], [x0, z, c0], [x1, z + 20, c1], [x0, z + 20, c0]]) { const q = metS(x, zz); street.v(x, y, zz, 0, 1, 0, cl, q[0] * K, q[1] * K); }
       }
       const yl = y + 0.004;
       // the white dashed lane line (3 m dashes on a 12.3 m pitch, measured), joints and gutter seams
-      const d0 = [32.52, 20.32, 7.88, -4.38, -16.58, -28.8, -41.03]; const dz = []; for (let k = -24; k <= 24; k++) dz.push(7.88 + k * -12.27);
-      for (const z of dz) { const zz = d0.find((v) => Math.abs(v - z) < 2) || z; flat.quad([-26.36, yl, zz], [-26.24, yl, zz], [-26.24, yl, zz + 2.95], [-26.36, yl, zz + 2.95], up, [0.93, 0.93, 0.9, 1]); }
-      for (let z = ZA; z < ZB; z += 4.6) flat.quad([-31.4, yl, z - 0.008], [-20.75, yl, z - 0.008], [-20.75, yl, z + 0.008], [-31.4, yl, z + 0.008], up, [0.36, 0.36, 0.35, 1]);
-      for (const x of [-30.8, -21.35]) flat.quad([x - 0.008, yl, ZA], [x + 0.008, yl, ZA], [x + 0.008, yl, ZB], [x - 0.008, yl, ZB], up, [0.42, 0.42, 0.4, 1]);
+      const d0 = [32.52, 20.32, 7.88, -4.38, -16.58, -28.8, -41.03]; const dz = []; if (!MSPR.on) for (let k = -24; k <= 24; k++) dz.push(7.88 + k * -12.27); else for (let k = -80; k <= 80; k++) dz.push(7.88 + k * -metPitch(12.27));
+      for (const z of dz) { if (z > ZB - 3) continue; const zz = MSPR.on ? z : d0.find((v) => Math.abs(v - z) < 2) || z; metObj(-26.3, zz + 1.475, () => flat.quad([-26.36, yl, zz], [-26.24, yl, zz], [-26.24, yl, zz + 2.95], [-26.36, yl, zz + 2.95], up, [0.93, 0.93, 0.9, 1])); }
+      for (let z = ZA; z < ZB; z += metPitch(4.6)) metRun(-31.4, z, -20.75, z, () => flat.quad([-31.4, yl, z - 0.008], [-20.75, yl, z - 0.008], [-20.75, yl, z + 0.008], [-31.4, yl, z + 0.008], up, [0.36, 0.36, 0.35, 1]));
+      for (const x of [-30.8, -21.35]) metRun(x, ZA, x, ZB, () => flat.quad([x - 0.008, yl, ZA], [x + 0.008, yl, ZA], [x + 0.008, yl, ZB], [x - 0.008, yl, ZB], up, [0.42, 0.42, 0.4, 1]));
       for (let k = 0; k < 18; k++) { const z = -150 + R() * 300, x = -30 + R() * 8.5, w = 0.3 + R() * 0.7; flat.quad([x, yl, z], [x + w, yl, z], [x + w, yl, z + 0.9 + R()], [x, yl, z + 0.9 + R()], up, [0.5, 0.5, 0.48, 1]); } // patches
       // curbs (lowered at the two driveways)
       const curb = (x0, x1, za, zb) => conc.tbox(x0, y, za, x1, 0.0, zb, cc('#c9c8bf'), cK);
-      curb(-20.75, -20.6, ZA, -53.6); curb(-20.75, -20.6, -42.6, ZB); conc.tbox(-20.75, y, -53.6, -20.6, -0.11, -42.6, cc('#c9c8bf'), cK);
-      curb(-31.55, -31.4, ZA, -6.5); curb(-31.55, -31.4, 10.2, ZB); conc.tbox(-31.55, y, -6.5, -31.4, -0.11, 10.2, cc('#c9c8bf'), cK);
+      metFull(() => { // on the big field the curb fills the spread strip between the street and the lawn (no gap to see through)
+      curb(-20.75, -20.6, ZA, -129.2); curb(-20.75, -20.6, -122.6, -53.6); curb(-20.75, -20.6, -42.6, ZB); conc.tbox(-20.75, y, -53.6, -20.6, -0.11, -42.6, cc('#c9c8bf'), cK);
+      curb(-31.55, -31.4, ZA, -77.2); curb(-31.55, -31.4, -68.0, -6.5); curb(-31.55, -31.4, 10.2, ZB); conc.tbox(-31.55, y, -6.5, -31.4, -0.11, 10.2, cc('#c9c8bf'), cK); });
       // sidewalks with joints every 1.5 m, the parkway's utility vaults
-      for (const [x0, x1] of [[-18.25, -16.45], [-35.97, -34.2]]) { conc.extrude([[x0, ZA], [x1, ZA], [x1, ZB], [x0, ZB]], -0.05, 0.03, cc('#cfcbbd'), cK, cc('#cfcbbd'), cK); for (let z = -130; z < 130; z += 1.52) flat.quad([x0, 0.034, z - 0.006], [x1, 0.034, z - 0.006], [x1, 0.034, z + 0.006], [x0, 0.034, z + 0.006], up, [0.5, 0.49, 0.45, 1]); }
-      for (const z of [0.85, -6.75]) atl.quad([-19.8, 0.01, z - 0.45], [-18.9, 0.01, z - 0.45], [-18.9, 0.01, z + 0.45], [-19.8, 0.01, z + 0.45], up, [1, 1, 1, 1], (() => { const r = atlUV('vault'); return [r[0], r[1], r[2], r[1], r[2], r[3], r[0], r[3]]; })());
+      for (const [x0, x1, zE] of [[-18.25, -16.45, 60.5], [-35.97, -34.2, 100]]) { conc.extrude([[x0, ZA], [x1, ZA], [x1, zE], [x0, zE]], -0.05, 0.03, cc('#cfcbbd'), cK, cc('#cfcbbd'), cK); for (let z = -130; z < zE; z += metPitch(1.52)) metRun(x0, z, x1, z, () => flat.quad([x0, 0.034, z - 0.006], [x1, 0.034, z - 0.006], [x1, 0.034, z + 0.006], [x0, 0.034, z + 0.006], up, [0.5, 0.49, 0.45, 1])); }
+      for (const z of [0.85, -6.75]) metObj(-19.35, z, () => atl.quad([-19.8, 0.01, z - 0.45], [-18.9, 0.01, z - 0.45], [-18.9, 0.01, z + 0.45], [-19.8, 0.01, z + 0.45], up, [1, 1, 1, 1], (() => { const r = atlUV('vault'); return [r[0], r[1], r[2], r[1], r[2], r[3], r[0], r[3]]; })()));
       // driveways: into the drop-off lot (south-west) and the church lot across the street
       slab([[-20.6, -53.6], [-12.55, -53.6], [-12.55, -42.6], [-20.6, -42.6]], 0.0, cc('#c4c4bd'));
       slab([[-46, -6.5], [-31.55, -6.5], [-31.55, 10.2], [-46, 10.2]], 0.0, cc('#b9b9b2'));
-      for (let x = -45; x < -33; x += 2.7) flat.quad([x - 0.05, 0.004, 4.9], [x + 0.05, 0.004, 4.9], [x + 0.05, 0.004, 10.1], [x - 0.05, 0.004, 10.1], up, [0.92, 0.92, 0.9, 1]);
+      for (let x = -45; x < -33; x += metPitch(2.7)) metObj(x, 10.1, () => flat.quad([x - 0.05, 0.004, 4.9], [x + 0.05, 0.004, 4.9], [x + 0.05, 0.004, 10.1], [x - 0.05, 0.004, 10.1], up, [0.92, 0.92, 0.9, 1]));
       // a few houses/apartments further along the far side of Main, beyond the campus buildings
     }
     mark('the west edge');
@@ -3630,46 +3995,52 @@ gl_FragColor=vec4(c,1.0);}`;
         // 1.2 m ornamental pickets (the south-west fence's 1.0 m shadow at 49 deg sun gives 1.1-1.2 m; it reads half the pillar)
         pb.wbox(x - 0.02, 0.1, z0, x + 0.02, 0.14, z1, blk); pb.wbox(x - 0.02, 1.02, z0, x + 0.02, 1.06, z1, blk);
         // the pickets (0.115 m pitch) are one see-through quad with the picket texture, so they fade to a dark veil with distance
-        pick.quad([x, 0.05, z0 + 0.003], [x, 0.05, z1], [x, 1.2, z1], [x, 1.2, z0 + 0.003], [0, 0, 0], PKC, [z0 / 0.115, 1, z1 / 0.115, 1, z1 / 0.115, 0, z0 / 0.115, 0]);
-        for (let z = z0; z <= z1; z += 2.44) { pb.quad([x - 0.035, 0, z], [x + 0.035, 0, z], [x + 0.035, 1.22, z], [x - 0.035, 1.22, z], [0, 0, 1], blk); pb.quad([x, 0, z - 0.035], [x, 0, z + 0.035], [x, 1.22, z + 0.035], [x, 1.22, z - 0.035], [1, 0, 0], blk); }
+        const u0 = metS(x, z0)[1] / 0.115, u1 = metS(x, z1)[1] / 0.115; // the picket pitch in real metres
+        pick.quad([x, 0.05, z0 + 0.003], [x, 0.05, z1], [x, 1.2, z1], [x, 1.2, z0 + 0.003], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+        for (let z = z0; z <= z1; z += metPitch(2.44)) metObj(x, z, () => { pb.quad([x - 0.035, 0, z], [x + 0.035, 0, z], [x + 0.035, 1.22, z], [x - 0.035, 1.22, z], [0, 0, 1], blk); pb.quad([x, 0, z - 0.035], [x, 0, z + 0.035], [x, 1.22, z + 0.035], [x, 1.22, z - 0.035], [1, 0, 0], blk); });
         MET.keep.push([x - 0.12, 0, z0, x + 0.12, 1.3, z1]);
       };
       const fenceRunX = (xa, xb, z) => { const x0 = Math.min(xa, xb), x1 = Math.max(xa, xb); pb.wbox(x0, 0.1, z - 0.02, x1, 0.14, z + 0.02, blk); pb.wbox(x0, 1.02, z - 0.02, x1, 1.06, z + 0.02, blk);
-        pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, 1.2, z], [x0, 1.2, z], [0, 0, 0], PKC, [x0 / 0.115, 1, x1 / 0.115, 1, x1 / 0.115, 0, x0 / 0.115, 0]);
-        for (let x = x0; x <= x1; x += 2.44) pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, 1.22, z + 0.035, blk); MET.keep.push([x0, 0, z - 0.12, x1, 1.3, z + 0.12]); };
-      const PIL = [89.0, 70.5, 52.0, 34.0, 15.0, -3.9, -22.9, -41.6]; // the fence runs on north past the lawn (WGLT 01)
-      for (let i = 0; i < PIL.length - 1; i++) fenceRun(PIL[i] - 0.36, PIL[i + 1] + 0.36, FX);
-      for (const z of PIL) { // red brick pillar with a light grey precast cap
+        const u0 = metS(x0, z)[0] / 0.115, u1 = metS(x1, z)[0] / 0.115;
+        pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, 1.2, z], [x0, 1.2, z], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+        for (let x = x0; x <= x1; x += metPitch(2.44)) pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, 1.22, z + 0.035, blk); MET.keep.push([x0, 0, z - 0.12, x1, 1.3, z + 0.12]); };
+      let PIL = [52.0, 34.0, 15.0, -3.9, -22.9, -41.6]; // north of the pillar at z 52 the fence turns north-east along the walk (13-metnorth.js)
+      if (MSPR.on) { const P2 = []; for (let i = 0; i < PIL.length - 1; i++) { const n = Math.max(1, Math.round((PIL[i] - PIL[i + 1]) * MET_K / 18.5)); for (let k = 0; k < n; k++) P2.push(PIL[i] + (PIL[i + 1] - PIL[i]) * k / n); } P2.push(PIL[PIL.length - 1]); PIL = P2; } // a pillar every 18.5 m as in life
+      for (let i = 0; i < PIL.length - 1; i++) fenceRun(PIL[i] - metPitch(0.36), PIL[i + 1] + metPitch(0.36), FX);
+      for (const z of PIL) metObj(FX, z, () => { // red brick pillar with a light grey precast cap
         brick.tbox(FX - 0.34, 0, z - 0.34, FX + 0.34, 1.86, z + 0.34, tc('#8b4a3b'), 1.1);
         conc.tbox(FX - 0.42, 1.86, z - 0.42, FX + 0.42, 1.95, z + 0.42, cc('#d9d6cc'), 1);
         conc.extrude([[FX - 0.38, z - 0.38], [FX + 0.38, z - 0.38], [FX + 0.38, z + 0.38], [FX - 0.38, z + 0.38]], 1.95, 2.0, cc('#d4d1c7'), 1);
         pb.lathe(FX, z, [[0.38 * 1.0, 2.0], [0.12, 2.12], [0.0, 2.13]], hx3('#d4d1c7'), 4);
         MET.keep.push([FX - 0.45, 0, z - 0.45, FX + 0.45, 2.15, z + 0.45]);
-      }
+      });
       // the short gate run at the south-west corner and the post with the white globe
       fenceRunX(-15.95, -12.5, -17.4); // one low fence between the west lawn and the lot
       // black acorn post lamp with a clear globe and finial
-      { const x = -16.1, z = -16.0; pb.lathe(x, z, [[0.16, 0], [0.13, 0.3], [0.07, 0.4], [0.06, 3.2], [0.09, 3.3], [0.09, 3.36]], blk, 10); glassB.lathe(x, z, [[0.09, 3.36], [0.2, 3.55], [0.22, 3.75], [0.16, 3.98], [0.06, 4.08]], [0.85, 0.88, 0.9, 1], 12); pb.lathe(x, z, [[0.07, 4.06], [0.1, 4.12], [0.02, 4.32], [0, 4.4]], blk, 8); }
+      metObj(-16.1, -16.0, () => { const x = -16.1, z = -16.0; pb.lathe(x, z, [[0.16, 0], [0.13, 0.3], [0.07, 0.4], [0.06, 3.2], [0.09, 3.3], [0.09, 3.36]], blk, 10); glassB.lathe(x, z, [[0.09, 3.36], [0.2, 3.55], [0.22, 3.75], [0.16, 3.98], [0.06, 4.08]], [0.85, 0.88, 0.9, 1], 12); pb.lathe(x, z, [[0.07, 4.06], [0.1, 4.12], [0.02, 4.32], [0, 4.4]], blk, 8); });
       // street lights (galvanised poles, single arms, cobra heads over the street)
       // bases from the aerial shadows at z 42.8, 10.4 and -20.6 (about 31.6 m apart); poles about 8.3 m (7.0 m shadow)
-      for (const [x, z] of [[-20.2, 42.8], [-20.2, 10.4], [-20.2, -20.6], [-20.1, -52.2], [-20.2, 74.4]]) {
+      let SL = [[-20.2, 42.8], [-20.2, 10.4], [-20.2, -20.6], [-20.1, -52.2], [-20.2, 74.4]];
+      if (MSPR.on) { SL = []; for (let z = 74.4; z > -60; z -= metPitch(31.6)) SL.push([-20.2, z]); } // the same 31.6 m apart along the spread street
+      for (const [x, z] of SL) metObj(x, z, () => {
         const gal = [0.6, 0.62, 0.63, 1]; pb.cyl(x, z, 0, 8.3, 0.13, 0.08, gal, 10); pb.cyl(x, z, 0, 0.5, 0.2, 0.17, gal, 10);
         pb.tubes([[x, 7.9, z], [x - 0.8, 8.35, z], [x - 2.4, 8.55, z]], 0.045, gal, 6);
         pb.blobby(x - 2.75, 8.5, z, 0.42, 0.12, 0.2, [0.55, 0.57, 0.58, 1], 8, 5); flat.quad([x - 3.05, 8.38, z - 0.14], [x - 2.5, 8.38, z - 0.14], [x - 2.5, 8.38, z + 0.14], [x - 3.05, 8.38, z + 0.14], [0, 0, 0], [1.6, 1.55, 1.4, 1]);
         MET.keep.push([x, z, 0.4, 0, 8.6]);
-      }
+      });
       // wooden utility poles with crossarms on the far side, and the wires between them
-      const poles = [-113.8, -82.4, -52.0, -21.4, 10.4, 41.8, 73.2, 104.6];
-      for (const z of poles) { const x = -32.15; bark.cyl(x, z, 0, 10.6, 0.16, 0.12, tc('#7a6a55'), 8, false, 1, 3); bark.tbox(x - 0.06, 9.6, z - 1.2, x + 0.06, 9.74, z + 1.2, tc('#6e5f4c'), 1); for (const s of [-1.05, -0.35, 1.05]) pb.cyl(x, z + s, 9.74, 9.92, 0.04, 0.04, [0.75, 0.78, 0.8, 1], 6); }
-      for (let i = 0; i < poles.length - 1; i++) for (const s of [-1.05, -0.35, 1.05]) { const a = [-32.15, 9.92, poles[i] + s], b = [-32.15, 9.92, poles[i + 1] + s], pts = []; for (let k = 0; k <= 4; k++) { const t = k / 4; pts.push([a[0], a[1] - Math.sin(t * Math.PI) * 0.6, a[2] + (b[2] - a[2]) * t]); } flat.tubes(pts, 0.026, [0.17, 0.17, 0.17, 1], 3); } // thick enough to stay at least a pixel wide from the field
+      let poles = [-113.8, -82.4, -52.0, -21.4, 10.4, 41.8, 73.2, 104.6];
+      if (MSPR.on) { poles = []; for (let z = -113.8; z < 105; z += metPitch(31.4)) poles.push(z); }
+      for (const z of poles) metObj(-32.15, z, () => { const x = -32.15; bark.cyl(x, z, 0, 10.6, 0.16, 0.12, tc('#7a6a55'), 8, false, 1, 3); bark.tbox(x - 0.06, 9.6, z - 1.2, x + 0.06, 9.74, z + 1.2, tc('#6e5f4c'), 1); for (const s of [-1.05, -0.35, 1.05]) pb.cyl(x, z + s, 9.74, 9.92, 0.04, 0.04, [0.75, 0.78, 0.8, 1], 6); });
+      for (let i = 0; i < poles.length - 1; i++) for (const s0 of [-1.05, -0.35, 1.05]) { const s = metPitch(s0), a = [-32.15, 9.92, poles[i] + s], b = [-32.15, 9.92, poles[i + 1] + s], pts = []; for (let k = 0; k <= 4; k++) { const t = k / 4; pts.push([a[0], a[1] - Math.sin(t * Math.PI) * 0.6, a[2] + (b[2] - a[2]) * t]); } flat.tubes(pts, 0.026, [0.17, 0.17, 0.17, 1], 3); } // thick enough to stay at least a pixel wide from the field
       // SPEED LIMIT 30 over NO PARKING, facing the northbound traffic
-      { const x = -19.7, z = -30.0; pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.75, z + 0.03, [0.6, 0.62, 0.62, 1]);
+      metObj(-19.7, -30.0, () => { const x = -19.7, z = -30.0; pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.75, z + 0.03, [0.6, 0.62, 0.62, 1]);
         const q = (k, y0, y1, w) => { const r = atlUV(k); atl.quad([x - w / 2, y0, z - 0.04], [x + w / 2, y0, z - 0.04], [x + w / 2, y1, z - 0.04], [x - w / 2, y1, z - 0.04], [0, 0, -1], [1, 1, 1, 1], [r[2], r[3], r[0], r[3], r[0], r[1], r[2], r[1]]); pb.wbox(x - w / 2, y0, z - 0.035, x + w / 2, y1, z - 0.02, [0.7, 0.72, 0.72, 1]); };
-        q('speed', 2.0, 2.76, 0.6); q('nopark', 1.45, 1.92, 0.3); }
+        q('speed', 2.0, 2.76, 0.6); q('nopark', 1.45, 1.92, 0.3); });
     }
     mark('the school');
-    // ===== the school =====
-    {
+    // ===== the school (on the big field one storey taller, so it reads in proportion with the spread site) =====
+    metLift(3.45, 3.6, () => {
       const brickC = tc('#a65b44'), cap = [0.73, 0.74, 0.72, 1], RK = 1 / (ROOF.x1 - ROOF.x0), RZ = 1 / (ROOF.z1 - ROOF.z0), ruv = (x, z) => [(x - ROOF.x0) * RK, (z - ROOF.z0) * RZ];
       const roofTop = (pts, y) => roof.poly(pts, y, [1, 1, 1, 1], true, ruv);
       const coping = (pts, y, w) => { for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; const x0 = Math.min(a[0], b[0]) - w, x1 = Math.max(a[0], b[0]) + w, z0 = Math.min(a[1], b[1]) - w, z1 = Math.max(a[1], b[1]) + w; pb.wbox(x0, y, z0, x1, y + 0.2, z1, cap); } };
@@ -3680,59 +4051,62 @@ gl_FragColor=vec4(c,1.0);}`;
       // the connector: recessed, dark, the likely entrance
       const Cn = [[34.6, 1.7], [49.75, 1.7], [49.75, -2.1], [34.6, -2.1]];
       pb.extrude(Cn, 0, 3.9, hx3('#3a3540'), 0, false); roofTop(Cn, 3.9); coping([[34.6, 1.7], [49.75, 1.7], [49.75, -2.1], [34.6, -2.1]], 3.9, 0.1);
-      pb.wbox(33.8, 3.6, -2.1, 34.6, 3.9, 1.7, hx3('#2d2937')); // canopy edge
+      metFull(() => pb.wbox(33.8, 3.6, -2.1, 34.6, 3.9, 1.7, hx3('#2d2937'))); // canopy edge
       // a glass sidelight, then the steel door pair (about 2.1 m, with a transom) that the aerial shows as the dark doorway at z
       // 0.2-2.0, its concrete landing step, the brown paver squares north of it and the white box by the wall
-      { const z0 = -1.55; glassB.wall(34.58, z0, 34.58, z0 + 1.4, 0.02, 2.2, [0.14, 0.17, 0.2, 1], [-1, 0, 0]); pb.wbox(34.54, 0, z0 - 0.05, 34.6, 2.3, z0, hx3('#8d939a')); pb.wbox(34.54, 0, z0 + 1.4, 34.6, 2.3, z0 + 1.45, hx3('#8d939a')); pb.wbox(34.54, 2.2, z0, 34.6, 2.3, z0 + 1.4, hx3('#8d939a')); }
+      metObj(34.58, 0.0, () => { const z0 = -1.55; glassB.wall(34.58, z0, 34.58, z0 + 1.4, 0.02, 2.2, [0.14, 0.17, 0.2, 1], [-1, 0, 0]); pb.wbox(34.54, 0, z0 - 0.05, 34.6, 2.3, z0, hx3('#8d939a')); pb.wbox(34.54, 0, z0 + 1.4, 34.6, 2.3, z0 + 1.45, hx3('#8d939a')); pb.wbox(34.54, 2.2, z0, 34.6, 2.3, z0 + 1.4, hx3('#8d939a'));
       atlW('door', [34.585, 0.2], [34.585, 1.65], 0.12, 2.45, [-1, 0, 0]);
-      slab([[32.5, -0.15], [34.6, -0.15], [34.6, 2.05], [32.5, 2.05]], 0.13, cc('#c4c3bc')); MET.keep.push([32.5, 0, -0.15, 34.6, 0.13, 2.05]);
-      for (const [x0, x1] of [[31.2, 32.4], [32.6, 33.4]]) for (let z = 2.4; z < 4.79; z += 0.6) flat.quad([x0 + 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.59], [x0 + 0.01, 0.02, z + 0.59], up, hx3(((z * 10) | 0) % 2 ? '#8a6a56' : '#7d604e'));
-      pb.wbox(33.2, 0, 2.6, 33.62, 0.78, 3.0, hx3('#ecebe6')); pb.wbox(33.18, 0.78, 2.58, 33.64, 0.82, 3.02, hx3('#d8d8d2'));
+      slab([[32.5, -0.15], [34.6, -0.15], [34.6, 2.05], [32.5, 2.05]], 0.13, cc('#c4c3bc')); MET.keep.push([32.5, 0, -0.15, 34.6, 0.13, 2.05]); });
+      metObj(33.8, 3.6, () => { for (const [x0, x1] of [[31.2, 32.4], [32.6, 33.4]]) for (let z = 2.4; z < 4.79; z += 0.6) flat.quad([x0 + 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.59], [x0 + 0.01, 0.02, z + 0.59], up, hx3(((z * 10) | 0) % 2 ? '#8a6a56' : '#7d604e'));
+        pb.wbox(33.2, 0, 2.6, 33.62, 0.78, 3.0, hx3('#ecebe6')); pb.wbox(33.18, 0.78, 2.58, 33.64, 0.82, 3.02, hx3('#d8d8d2')); });
       // the white downspout at the north wing's south-west corner
-      pb.cyl(33.86, 1.5, 0, hA + 0.1, 0.075, 0.075, hx3('#eeeeea'), 8); pb.tube([33.86, 0.25, 1.5], [33.5, 0.05, 1.5], 0.075, hx3('#eeeeea'), 8);
+      metObj(33.8, 1.7, () => { pb.cyl(33.86, 1.5, 0, hA + 0.1, 0.075, 0.075, hx3('#eeeeea'), 8); pb.tube([33.86, 0.25, 1.5], [33.5, 0.05, 1.5], 0.075, hx3('#eeeeea'), 8); });
       // B: the two-storey south wing (7.6 m), blue-grey panels between light pilasters every 3.22 m, over a dark base
       const hB = 7.6, Bf = [[34.05, -2.1], [49.75, -2.1], [49.75, -32.5], [34.05, -32.5]];
       roofTop(Bf, hB); coping(Bf, hB, 0.12);
       pb.extrude([[34.15, -2.15], [49.75, -2.15], [49.75, -32.5], [34.15, -32.5]], 0, hB, hx3('#6f7884'), 0, false); // sides/back
       panel.wall(34.04, -2.1, 34.04, -32.5, 1.0, hB, tc('#a4bddb'), [-1, 0, 0], 0.45);
-      for (let z = -2.6; z > -32.2; z -= 0.805) pb.quad([34.032, 1.0, z - 0.02], [34.032, 1.0, z + 0.02], [34.032, hB, z + 0.02], [34.032, hB, z - 0.02], [-1, 0, 0], hx3('#93a9c3')); // faint vertical ribs of the opaque panels
+      for (let z = -2.6; z > -32.2; z -= metPitch(0.805)) metObj(34.04, z, () => pb.quad([34.032, 1.0, z - 0.02], [34.032, 1.0, z + 0.02], [34.032, hB, z + 0.02], [34.032, hB, z - 0.02], [-1, 0, 0], hx3('#93a9c3'))); // faint vertical ribs of the opaque panels
       brick.wall(34.03, -2.1, 34.03, -32.5, 0, 1.0, tc('#7d4a3c'), [-1, 0, 0], 1.1);
-      for (let z = -2.05; z > -32.6; z -= 3.22) pb.wbox(33.95, 0.9, z - 0.125, 34.06, hB, z + 0.125, hx3('#b8c2cf'));
+      for (let z = -2.05; z > -32.6; z -= metPitch(3.22)) pb.wbox(33.95, 0.9, z - 0.125, 34.06, hB, z + 0.125, hx3('#b8c2cf'));
       panel.wall(34.05, -2.1, 49.75, -2.1, 4.0, hB, tc('#a4bddb'), [0, 0, 1], 0.45); // north face above the connector
       // C: the tall main block with the skylights (7.6 m) and its west wall over the north wing: brick, then a band of windows
       const Cb = [[49.75, 11.7], [62.7, 11.7], [62.7, -31.0], [49.75, -31.0]];
       // seen over the north wing's roof: a maroon wall, solid at the north end, then pale window stripes between maroon piers
       brick.extrude(Cb, 0, 7.6, tc('#6c3340'), 1.1, false); roofTop(Cb, 7.6); coping(Cb, 7.6, 0.12);
-      for (let z = 6.6; z > -1.7; z -= 2.0) { glassB.wall(49.73, z, 49.73, z - 1.45, 4.3, 7.15, [0.7, 0.68, 0.72, 1], [-1, 0, 0]); for (const zz of [z + 0.02, z - 1.47]) pb.wbox(49.69, 4.25, zz - 0.05, 49.75, 7.2, zz + 0.05, hx3('#d9d1cc')); pb.wbox(49.69, 5.68, z - 1.45, 49.74, 5.74, z, hx3('#d9d1cc')); }
+      for (let z = 6.6; z > -1.7; z -= metPitch(2.0)) metObj(49.75, z - 0.725, () => { glassB.wall(49.73, z, 49.73, z - 1.45, 4.3, 7.15, [0.7, 0.68, 0.72, 1], [-1, 0, 0]); for (const zz of [z + 0.02, z - 1.47]) pb.wbox(49.69, 4.25, zz - 0.05, 49.75, 7.2, zz + 0.05, hx3('#d9d1cc')); pb.wbox(49.69, 5.68, z - 1.45, 49.74, 5.74, z, hx3('#d9d1cc')); });
       // the low south block with the white duct, the rest of the school as plain masses
       const Sb = [[34.2, -32.5], [62.7, -32.5], [62.7, -45.0], [34.2, -45.0]];
       brick.extrude(Sb, 0, 5.0, brickC, 1.1, false); roofTop(Sb, 5.0); coping(Sb, 5.0, 0.12);
       brick.extrude([[34.27, -45.0], [62.2, -45.0], [62.2, -51.2], [34.27, -51.2]], 0, 4.5, brickC, 1.1, hx3('#4d5654'));
-      for (const [x0, x1, z0, z1, h] of [[62.7, 85.3, -32.1, 11.7, 7.6], [61.9, 85.3, 11.7, 74.8, 5.0], [45.2, 77.3, 74.7, 96.0, 5.2], [77.3, 93.3, 59.9, 79.3, 6.0], [85.2, 89.3, 0.7, 27.0, 5.0], [62.2, 98.5, -51.2, -32.1, 6.0], [43.4, 63.3, -86.7, -51.2, 8.5], [34.3, 43.4, -55.7, -51.2, 4.5]]) {
+      for (const [x0, x1, z0, z1, h] of [[62.7, 85.3, -32.1, 11.7, 7.6], [61.9, 85.3, 11.7, 74.8, 5.0], [45.2, 77.3, 74.7, 97.6, 5.2], [77.3, 93.3, 59.9, 79.3, 6.0], [85.2, 89.3, 0.7, 27.0, 5.0], [62.2, 98.5, -51.2, -32.1, 6.0], [43.4, 63.3, -86.7, -51.2, 8.5], [34.3, 43.4, -55.7, -51.2, 4.5]]) {
         brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc('#8e5446'), 1.1, false);
         if (x0 < ROOF.x1 && z0 > ROOF.z0) roofTop([[x0, z0], [Math.min(x1, ROOF.x1), z0], [Math.min(x1, ROOF.x1), z1], [x0, z1]], h); if (x1 > ROOF.x1 || z0 <= ROOF.z0) pb.poly([[Math.max(x0, z0 > ROOF.z0 ? ROOF.x1 : x0), z0], [x1, z0], [x1, z1], [Math.max(x0, z0 > ROOF.z0 ? ROOF.x1 : x0), z1]], h, hx3('#4f5a58'));
         coping([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h, 0.1); MET.keep.push([x0, 0, z0, x1, h + 0.3, z1]);
       }
       // the facades of the far wings that can be seen from the blacktop and the playground: the 1950s school's tall white-framed
       // windows in groups with brick piers, steel door pairs, and the gym's row of half-round fan windows near the top
-      const winsX = (x, za, zb, y0, y1, w, pitch, n, k, skip) => { const s2 = Math.sign(zb - za); let i = 0; for (let z = za; s2 * (zb - z) > w; z += s2 * pitch, i++) { if (skip && skip(i)) continue; const zl = Math.min(z, z + s2 * w), zh = Math.max(z, z + s2 * w); atlW(k, n[0] < 0 ? [x, zl] : [x, zh], n[0] < 0 ? [x, zh] : [x, zl], y0, y1, n); } };
-      const winsZ = (z, xa, xb, y0, y1, w, pitch, n, k, skip) => { let i = 0; for (let x = xa; x < xb - w; x += pitch, i++) { if (skip && skip(i)) continue; atlW(k, n[2] > 0 ? [x, z] : [x + w, z], n[2] > 0 ? [x + w, z] : [x, z], y0, y1, n); } };
-      winsX(61.88, 18.5, 74.0, 0.9, 3.4, 1.3, 1.55, [-1, 0, 0], 'winW', (i) => i % 6 === 5); atlW('door', [61.87, 44.6], [61.87, 46.1], 0.0, 2.3, [-1, 0, 0]);
+      // (each window keeps its size; on the big field the bays repeat at their real pitch along the spread wall)
+      const winsX = (x, za, zb, y0, y1, w, pitch, n, k, skip) => { const s2 = Math.sign(zb - za), wF = metPitch(w); let i = 0; for (let z = za; s2 * (zb - z) > wF; z += s2 * metPitch(pitch), i++) { if (skip && skip(i)) continue; const zl = Math.min(z, z + s2 * w), zh = Math.max(z, z + s2 * w); metObj(x, z, () => atlW(k, n[0] < 0 ? [x, zl] : [x, zh], n[0] < 0 ? [x, zh] : [x, zl], y0, y1, n)); } };
+      const winsZ = (z, xa, xb, y0, y1, w, pitch, n, k, skip) => { let i = 0; const wF = metPitch(w); for (let x = xa; x < xb - wF; x += metPitch(pitch), i++) { if (skip && skip(i)) continue; metObj(x, z, () => atlW(k, n[2] > 0 ? [x, z] : [x + w, z], n[2] > 0 ? [x + w, z] : [x, z], y0, y1, n)); } };
+      const doorX = (x, za, zb, y0, y1, n, k) => metObj(x, (za + zb) / 2, () => atlW(k || 'door', [x, za], [x, zb], y0, y1, n));
+      winsX(61.88, 18.5, 74.0, 0.9, 3.4, 1.3, 1.55, [-1, 0, 0], 'winW', (i) => i % 6 === 5); doorX(61.87, 44.6, 46.1, 0.0, 2.3, [-1, 0, 0]);
       winsZ(74.68, 46.5, 77.0, 0.9, 3.5, 1.3, 1.55, [0, 0, -1], 'winW', (i) => i % 5 === 4);
       winsZ(-51.18, 44.6, 62.6, 6.2, 7.9, 3.4, 4.4, [0, 0, 1], 'fan'); winsX(43.38, -52.4, -86.0, 6.2, 7.9, 3.4, 4.4, [-1, 0, 0], 'fan');
-      winsX(43.38, -60.0, -84.0, 1.0, 2.6, 1.2, 3.0, [-1, 0, 0], 'winD', (i) => i % 4 === 3); atlW('door', [43.37, -56.2], [43.37, -54.7], 0.0, 2.3, [-1, 0, 0]);
-      winsX(34.18, -34.5, -44.5, 1.0, 2.7, 1.25, 2.6, [-1, 0, 0], 'winW'); atlW('door', [34.25, -49.3], [34.25, -47.8], 0.0, 2.3, [-1, 0, 0]); atlW('vent', [34.25, -46.6], [34.25, -45.6], 2.6, 3.3, [-1, 0, 0]);
+      winsX(43.38, -60.0, -84.0, 1.0, 2.6, 1.2, 3.0, [-1, 0, 0], 'winD', (i) => i % 4 === 3); doorX(43.37, -56.2, -54.7, 0.0, 2.3, [-1, 0, 0]);
+      winsX(34.18, -34.5, -44.5, 1.0, 2.7, 1.25, 2.6, [-1, 0, 0], 'winW'); doorX(34.25, -49.3, -47.8, 0.0, 2.3, [-1, 0, 0]); doorX(34.25, -46.6, -45.6, 2.6, 3.3, [-1, 0, 0], 'vent');
       winsX(34.28, -52.0, -55.4, 1.0, 2.6, 1.2, 1.7, [-1, 0, 0], 'winW');
       // skylights (raised white domes) and the blue-grey ones on the low roof
-      for (const x of [53.24, 61.16]) for (const z of [7.25, -1.5, -10.2, -18.9, -25.6]) { pb.wbox(x - 0.85, 7.6, z - 1.3, x + 0.85, 7.85, z + 1.3, hx3('#d9dcd8')); pb.blobby(x, 7.85, z, 0.78, 0.22, 1.22, hx3('#f2f3f0'), 6, 3); }
-      for (const z of [-1.7, -10.2, -19.1, -25.6]) { pb.wbox(69.08 - 0.85, 7.6, z - 1.3, 69.08 + 0.85, 7.85, z + 1.3, hx3('#d9dcd8')); pb.blobby(69.08, 7.85, z, 0.78, 0.22, 1.22, hx3('#f2f3f0'), 6, 3); }
-      for (const x of [52.6, 60.6]) pb.wbox(x - 0.85, 5.0, -33.1 - 1.0, x + 0.85, 5.3, -33.1 + 1.0, hx3('#7c8ea0'));
+      const sky = (x, z) => metObj(x, z, () => { pb.wbox(x - 0.85, 7.6, z - 1.3, x + 0.85, 7.85, z + 1.3, hx3('#d9dcd8')); pb.blobby(x, 7.85, z, 0.78, 0.22, 1.22, hx3('#f2f3f0'), 6, 3); });
+      if (!MSPR.on) { for (const x of [53.24, 61.16]) for (const z of [7.25, -1.5, -10.2, -18.9, -25.6]) sky(x, z); for (const z of [-1.7, -10.2, -19.1, -25.6]) sky(69.08, z); }
+      else { for (let x = 51.4; x < 62; x += metPitch(9)) for (let z = 8.6; z > -29; z -= metPitch(9)) sky(x, z); for (let z = 8.6; z > -29; z -= metPitch(9)) sky(69.08, z); } // the same rows, at their real spacing
+      for (const x of [52.6, 60.6]) metObj(x, -33.1, () => pb.wbox(x - 0.85, 5.0, -33.1 - 1.0, x + 0.85, 5.3, -33.1 + 1.0, hx3('#7c8ea0')));
       // the cream-white roof duct on low supports: north-south on the main block, diagonal, west along the wing, down and south
       const duct = (pts, r) => { for (let i = 0; i < pts.length - 1; i++) pb.tube(pts[i], pts[i + 1], r, hx3('#f0efe6'), 12); for (const p of pts.slice(1, -1)) pb.blobby(p[0], p[1], p[2], r * 1.02, r * 1.02, r * 1.02, hx3('#f0efe6'), 7, 4); };
       duct([[65.9, 8.3, 24], [65.9, 8.3, -22.6], [59.0, 8.3, -29.6], [41.0, 8.3, -30.6], [40.75, 8.3, -32.2], [40.75, 5.7, -32.9], [40.75, 5.7, -48.6]], 0.5);
       duct([[65.9, 8.3, 21.4], [68.5, 8.3, 19.6]], 0.4); duct([[62.6, 8.2, -27.5], [63.0, 8.2, -31.0]], 0.35);
-      for (const [x, z] of [[65.9, 15], [65.9, 5], [65.9, -5], [65.9, -15], [55, -30.2], [47, -30.5], [43, -30.6]]) pb.wbox(x - 0.4, 7.6, z - 0.12, x + 0.4, 7.82, z + 0.12, hx3('#8a8f90'));
-      for (let y = 7.6; y < 8.8; y += 0.3) pb.wbox(55.0, y, -31.5, 56.2, y + 0.05, -30.0, hx3('#9aa0a2'));
+      for (const [x, z] of [[65.9, 15], [65.9, 5], [65.9, -5], [65.9, -15], [55, -30.2], [47, -30.5], [43, -30.6]]) metObj(x, z, () => pb.wbox(x - 0.4, 7.6, z - 0.12, x + 0.4, 7.82, z + 0.12, hx3('#8a8f90')));
+      metObj(55.6, -30.75, () => { for (let y = 7.6; y < 8.8; y += 0.3) pb.wbox(55.0, y, -31.5, 56.2, y + 0.05, -30.0, hx3('#9aa0a2')); });
       for (const [x, z] of [[63.7, 5.6], [63.4, 4.4], [63.5, 3.7]]) pb.cyl(x, z, 7.6, 7.95, 0.17, 0.17, hx3('#202224'), 8, true);
       for (const [x, z] of [[69.6, 9.5], [70.0, 8.5]]) pb.blobby(x, 7.95, z, 0.3, 0.3, 0.3, hx3('#e8e8e4'), 8, 5);
       for (const [x, cl] of [[59.3, '#e2741d'], [60.2, '#e8c21f'], [61.0, '#e2741d']]) pb.blobby(x, 5.2, -35.6, 0.2, 0.2, 0.2, hx3(cl), 8, 5);
@@ -3740,7 +4114,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // with a flat-ish top and near-vertical faces, lumpy at 0.3-0.5 m; the dark shrub at the shed's south end where the planting starts
       {
         const hn = vnoise(3301), prof = [[31.0, 0.0], [30.93, 0.45], [30.9, 1.0], [30.93, 1.5], [31.05, 1.82], [31.35, 1.98], [31.95, 2.05], [32.55, 1.99], [32.88, 1.8], [32.98, 1.2], [33.0, 0.0]];
-        const za = 0.0, zb = -31.8, nzs = 128, np = prof.length, G2 = [];
+        const za = 0.0, zb = -31.8, nzs = 128, np = prof.length, G2 = []; metRun(31.95, za, 31.95, zb, () => {
         const pn = prof.map((p, i) => { const a = prof[Math.max(0, i - 1)], b = prof[Math.min(np - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dy / l, -dx / l]; }); // outward (west face points -x)
         for (let k = 0; k <= nzs; k++) {
           const z = za + (zb - za) * k / nzs, row = [];
@@ -3757,13 +4131,14 @@ gl_FragColor=vec4(c,1.0);}`;
           hedge.v(p[0], p[1], p[2], n[0], n[1], n[2], [hc[0] * sh * j, hc[1] * sh * j, hc[2] * sh * j, 1], p[2] * 1.4, (p[1] + (p[0] - 30.9) * 0.8) * 1.4); };
         for (let k = 0; k < nzs; k++) for (let i = 0; i < np - 1; i++) { V(k, i); V(k + 1, i); V(k + 1, i + 1); V(k, i); V(k + 1, i + 1); V(k, i + 1); }
         for (const [k, sz] of [[0, 1], [nzs, -1]]) for (let i = 1; i < np - 1; i++) { const r = G2[k]; for (const p of [r[0], r[i], r[i + 1]]) hedge.v(p[0], p[1], p[2], 0, 0, sz, shadeC(hc, 0.8), p[0] * 1.4, p[1] * 1.4); }
+        MET.keep.push([30.85, 0, -31.9, 33.1, 2.15, 0.1]); });
       }
-      hedge.blobby(31.15, 0.62, 6.0, 0.55, 0.65, 1.35, tc('#2c3722'), 7, 4, 1.4, 0.4, R); MET.keep.push([30.85, 0, -31.9, 33.1, 2.15, 0.1], [30.55, 0, 4.6, 31.75, 1.3, 7.4]);
+      hedge.blobby(31.15, 0.62, 6.0, 0.55, 0.65, 1.35, tc('#2c3722'), 7, 4, 1.4, 0.4, R); metObj(31.15, 6.0, () => MET.keep.push([30.55, 0, 4.6, 31.75, 1.3, 7.4]));
 
-    }
+    });
     mark('the red lean-to');
-    // ===== the red lean-to shed against the north wing, and what stands in front of it =====
-    {
+    // ===== the red lean-to shed against the north wing, and what stands in front of it (one thing that keeps its size) =====
+    metObj(33.8, 10.65, () => {
       const xF = 31.62, xB = 33.8, z0 = 5.1, z1 = 16.2, yF = 2.2, yB = 3.1, sF = atlUV('shedF'), sS = atlUV('shedS');
       atl.quad([xF, 0, z0], [xF, 0, z1], [xF, yF, z1], [xF, yF, z0], [-1, 0, 0], [1, 1, 1, 1], [sF[0], sF[3], sF[2], sF[3], sF[2], sF[1], sF[0], sF[1]]);
       for (const [z, n] of [[z0, -1], [z1, 1]]) { atl.grow(6); const c = [1, 1, 1, 1], V = [[xF, 0, sS[0], sS[3]], [xB, 0, sS[2], sS[3]], [xB, yB, sS[2], sS[1]], [xF, 0, sS[0], sS[3]], [xB, yB, sS[2], sS[1]], [xF, yF, sS[0], sS[1] + (sS[3] - sS[1]) * (1 - yF / yB)]]; for (const v of V) atl.v(v[0], v[1], z, 0, 0, n, c, v[2], v[3]); }
@@ -3786,10 +4161,10 @@ gl_FragColor=vec4(c,1.0);}`;
       rbin(31.25, 7.0); rbin(31.2, 17.2);
       pb.wbox(31.65, 0.05, 17.75, 32.25, 1.05, 18.5, hx3('#e8e8e6')); pb.wbox(31.62, 1.05, 17.72, 32.28, 1.12, 18.53, hx3('#d2d2cf'));
       pb.obox(30.9, 0.03, 18.2, 0.45, 0.04, 0.45, Math.PI / 4, hx3('#e8e8e4'));
-    }
+    });
     mark('on the blacktop');
     // ===== on the blacktop: the two gooseneck goals =====
-    for (const [px, pz, bx] of [[28.58, 10.46, 26.76], [28.52, -3.59, 26.68]]) {
+    for (const [px, pz, bx] of [[28.58, 10.46, 26.76], [28.52, -3.59, 26.68]]) metObj(27.9, pz, () => { // (the same centre as its painted key: natC)
       const gal = hx3('#a9b0b3'), r = 0.057;
       pb.wbox(px - 0.2, 0, pz - 0.2, px + 0.2, 0.03, pz + 0.2, hx3('#7d8284'));
       const path = [[px, 0, pz], [px, 2.45, pz]]; for (let k = 1; k <= 6; k++) { const t = (k / 6) * Math.PI / 2; path.push([px - 0.65 + 0.65 * Math.cos(t), 2.45 + 0.65 * Math.sin(t), pz]); }
@@ -3805,44 +4180,11 @@ gl_FragColor=vec4(c,1.0);}`;
       const rim = []; for (let k = 0; k <= 16; k++) { const t = (k / 16) * 6.2832; rim.push([rx + Math.cos(t) * 0.2286, ry, pz + Math.sin(t) * 0.2286]); } pb.tubes(rim, 0.01, org, 4);
       pb.wbox(rx + 0.2, ry - 0.06, pz - 0.08, bx, ry + 0.01, pz + 0.08, org);
       const net = hx3('#f4f4f2'); for (let k = 0; k < 12; k++) { const t0 = (k / 12) * 6.2832, t1 = ((k + 0.5) / 12) * 6.2832, t2 = ((k + 1) / 12) * 6.2832; const A = [rx + Math.cos(t0) * 0.225, ry - 0.01, pz + Math.sin(t0) * 0.225], M = [rx + Math.cos(t1) * 0.19, ry - 0.22, pz + Math.sin(t1) * 0.19], Bt = [rx + Math.cos(t2) * 0.155, ry - 0.42, pz + Math.sin(t2) * 0.155], Bt0 = [rx + Math.cos(t0) * 0.155, ry - 0.42, pz + Math.sin(t0) * 0.155]; flat.tube(A, M, 0.005, net, 3); flat.tube(M, Bt, 0.005, net, 3); }
-    }
-    mark('the low barrier');
-    // ===== the bike-rack row along the south edge (each unit a 3.3 x 1.0 m base frame with an upright teal lattice, about 0.9 m,
-    // double-sided) and what sits by it =====
-    {
-      const z = -16.95, teal = hx3('#3f8f86'), gal = hx3('#8a8f8f');
-      for (const [x0, x1] of [[-12.5, -6.6], [-0.75, 17.4], [25.3, 28.3]]) {
-        const n = Math.max(1, Math.round((x1 - x0) / 3.3)), u = (x1 - x0) / n;
-        for (let i = 0; i < n; i++) {
-          const a = x0 + i * u + 0.05, b = a + u - 0.1;
-          for (const dz of [-0.5, 0.5]) pb.tube([a, 0.04, z + dz], [b, 0.04, z + dz], 0.024, teal, 5);
-          for (const xx of [a, b]) { pb.tube([xx, 0.04, z - 0.5], [xx, 0.04, z + 0.5], 0.024, teal, 5); pb.tube([xx, 0.04, z - 0.5], [xx, 0.9, z], 0.024, teal, 5); pb.tube([xx, 0.04, z + 0.5], [xx, 0.9, z], 0.024, teal, 5); }
-          pb.tube([a, 0.9, z], [b, 0.9, z], 0.026, teal, 6); pb.tube([a, 0.3, z], [b, 0.3, z], 0.02, teal, 5);
-          for (let xx = a + 0.3; xx < b - 0.1; xx += 0.33) pb.tube([xx, 0.3, z], [xx, 0.9, z], 0.012, teal, 4);
-        }
-        MET.keep.push([x0, 0, z - 0.6, x1, 1.0, z + 0.6]);
-      }
-      // red cones (as in the newer capture) and a dark round trash can
-      const cone = (x, zz) => { pb.cyl(x, zz, 0.03, 0.7, 0.16, 0.02, hx3('#e0451f'), 8); pb.wbox(x - 0.2, 0, zz - 0.2, x + 0.2, 0.03, zz + 0.2, hx3('#c23a1a')); pb.cyl(x, zz, 0.36, 0.46, 0.106, 0.086, hx3('#f2f2f0'), 8); };
-      for (const [x, zz] of [[-11.8, -17.0], [27.3, -16.6], [24.6, -17.1], [25.0, -17.1], [13.5, -17.9], [5.9, -18.1], [29.0, -23.4], [29.1, -29.6], [29.4, -36.8], [28.5, -37.7], [29.2, -43.8], [24.0, -47.8], [13.3, -49.1], [8.6, -50.3]]) cone(x, zz);
-      pb.cyl(-0.3, -17.7, 0, 0.95, 0.3, 0.32, hx3('#2a2d30'), 12, true);
-      // the lot's south fence, the drain lid and the post
-      for (let x = 3.8; x < 33.8; x += 2.44) { pb.wbox(x, 0, -53.55, x + 0.05, 1.2, -53.45, hx3('#141414')); } pb.wbox(3.8, 1.1, -53.53, 33.8, 1.14, -53.47, hx3('#141414')); pb.wbox(3.8, 0.15, -53.53, 33.8, 0.19, -53.47, hx3('#141414'));
-      for (let x = 3.9; x < 33.8; x += 0.2) pb.quad([x, 0.05, -53.5], [x + 0.02, 0.05, -53.5], [x + 0.02, 1.15, -53.5], [x, 1.15, -53.5], [0, 0, 1], hx3('#141414'));
-      flat.poly((() => { const p = []; for (let k = 0; k < 12; k++) { const t = k / 12 * 6.2832; p.push([27.0 + Math.cos(t) * 0.35, -49.1 + Math.sin(t) * 0.35]); } return p; })(), 0.004, hx3('#3d3b37'));
-      pb.wbox(26.07, 0, -52.13, 26.13, 2.2, -52.07, hx3('#8a8f8f'));
-      // parked cars in the angled stalls
-      const hd = Math.atan2(-4.9, 2.3);
-      for (const [x, cl] of [[15.8, '#b9bcc0'], [18.9, '#f2f2f0'], [22.0, '#6b1d24']]) car(pb, glassB, x, -50.4, hd, hx3(cl));
-    }
-    mark('the far lot');
-    // ===== the far lot (dark asphalt) south of the driveway =====
-    {
-      asph.poly([[-14.78, -55.33], [-15.36, -116.39], [3.43, -117.12], [3.61, -107.86], [0.64, -107.76], [0.49, -81.6], [3.95, -81.79], [3.81, -55.48]], 0.0, tc('#55575a'), true, 0.4);
-      for (let z = -56.3; z > -114; z -= 2.74) flat.quad([-13.0, 0.004, z - 0.05], [-9.6, 0.004, z - 0.05], [-9.6, 0.004, z + 0.05], [-13.0, 0.004, z + 0.05], up, [0.85, 0.85, 0.83, 1]);
-      for (let z = -59.3; z > -114; z -= 5.4) flat.quad([-4.78, 0.004, z], [-4.66, 0.004, z], [-4.66, 0.004, z - 2.4], [-4.78, 0.004, z - 2.4], up, [0.85, 0.85, 0.83, 1]);
-      car(pb, glassB, -11.3, -62.6, 0, hx3('#2f3d57')); car(pb, glassB, -11.3, -70.8, Math.PI, hx3('#8d9196'));
-    }
+    });
+    mark('south of the blacktop');
+    // ===== the black fence row, the drop-off lot's south edge, the courtyard, the staff lot, Fairchild Hall, Dry Grove Street,
+    // the parked cars, the buildings and trees to the south and the skyline all round: 13-metsouth.js =====
+    metSouth({ pb, B, R, atlW, slab, cc, up });
     mark('across Main Street');
     // ===== across Main Street =====
     {
@@ -3856,53 +4198,44 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const z of [11.5, 16.2, 31.6]) brick.tbox(-40.55, 0, z - 0.45, -39.95, 3.9, z + 0.45, wC, 1.1); // brick piers on the street front
       atlW('wittE', [-40.25, 30.6], [-40.25, 24.8], 1.9, 3.08, [1, 0, 0]);
       atlW('wittR', [-44.6, 9.78], [-47.0, 9.78], 2.3, 3.1, [0, 0, -1]);
-      for (const z of [13.2, 14.6, 18.0, 19.4]) glassB.wall(-40.27, z, -40.27, z + 1.0, 0.9, 2.6, win, [1, 0, 0]);
-      for (const [x, z] of [[-41.6, 9.2], [-43.6, 9.2]]) { pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.0, z + 0.03, hx3('#8a8f8f')); atl.quad([x - 0.15, 1.5, z - 0.04], [x + 0.15, 1.5, z - 0.04], [x + 0.15, 1.95, z - 0.04], [x - 0.15, 1.95, z - 0.04], [0, 0, -1], [1, 1, 1, 1], (() => { const r = atlUV('nopark'); return [r[2], r[3], r[0], r[3], r[0], r[1], r[2], r[1]]; })()); }
+      for (const z of [13.2, 14.6, 18.0, 19.4]) metObj(-40.27, z + 0.5, () => glassB.wall(-40.27, z, -40.27, z + 1.0, 0.9, 2.6, win, [1, 0, 0]));
+      for (const [x, z] of [[-41.6, 9.2], [-43.6, 9.2]]) metObj(x, z, () => { pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.0, z + 0.03, hx3('#8a8f8f')); atl.quad([x - 0.15, 1.5, z - 0.04], [x + 0.15, 1.5, z - 0.04], [x + 0.15, 1.95, z - 0.04], [x - 0.15, 1.95, z - 0.04], [0, 0, -1], [1, 1, 1, 1], (() => { const r = atlUV('nopark'); return [r[2], r[3], r[0], r[3], r[0], r[1], r[2], r[1]]; })()); });
       leaf.clump(-41.2, 1.0, 27.4, 1.3, 1.1, tc('#3d5a2e'), R, 1, 0.4); leaf.clump(-41.0, 0.9, 22.0, 1.0, 0.9, tc('#40602f'), R, 0, 0.4); // the bed in front
       // the patio wing with its red-brick patio and two orange umbrella tables
       gableHouse(brick, shing, pb, -46.1, -13.0, 15.0, 8.2, Math.PI / 2, 3.2, 6.6, tc('#8f5f4c'), shC, trimW, 1.1, 0.45, 0.45);
       brick.poly([[-42.0, -19.5], [-36.5, -19.5], [-36.5, -6.5], [-42.0, -6.5]], 0.01, tc('#9a4a36'), true, 1.2);
       for (const z of [-17.6, -15.2, -10.8, -8.4]) atlW('winD', [-42.0, z + 0.55], [-42.0, z - 0.55], 0.9, 2.5, [1, 0, 0]);
-      for (const [x, z] of [[-40.0, -8.4], [-39.7, -16.4]]) { pb.cyl(x, z, 0, 0.74, 0.45, 0.45, hx3('#3a3a3a'), 12, true); pb.cyl(x, z, 0.74, 2.3, 0.025, 0.025, hx3('#dddddd'), 6); pb.cyl(x, z, 2.0, 2.35, 1.3, 0.05, hx3('#e8762b'), 12); }
+      for (const [x, z] of [[-40.0, -8.4], [-39.7, -16.4]]) metObj(x, z, () => { pb.cyl(x, z, 0, 0.74, 0.45, 0.45, hx3('#3a3a3a'), 12, true); pb.cyl(x, z, 0.74, 2.3, 0.025, 0.025, hx3('#dddddd'), 6); pb.cyl(x, z, 2.0, 2.35, 1.3, 0.05, hx3('#e8762b'), 12); });
       // ISU's Center for Mathematics, Science and Technology: one storey of tan brick, a low hip roof with white gutters, bronze windows
       hipHouse(brick, shing, -63.7, -11.95, 26.9, 9.8, 0, 3.9, 5.6, tc('#a4775f'), shC, 1.1, 0.5);
-      for (let x = -75.5; x < -52; x += 2.4) atlW('winD', [x + 1.0, -7.08], [x, -7.08], 0.9, 2.6, [0, 0, 1]);
-      for (let z = -15.5; z < -8; z += 2.4) atlW('winD', [-50.23, z + 1.2], [-50.23, z], 0.9, 2.6, [1, 0, 0]);
+      for (let x = -75.5; x < -52; x += metPitch(2.4)) atlW('winD', [x + 1.0, -7.08], [x, -7.08], 0.9, 2.6, [0, 0, 1]);
+      for (let z = -15.5; z < -8; z += metPitch(2.4)) atlW('winD', [-50.23, z + 1.2], [-50.23, z], 0.9, 2.6, [1, 0, 0]);
       // the Honors Program Building: an old two-storey house of red-brown brick with white trim, white-sided gables, a grey roof
       // with round-topped dormers, and its sign by the walk
       gableHouse(brick, shing, pb, -46.3, -41.6, 37.6, 16.6, Math.PI / 2, 6.2, 11.4, tc('#8e5442'), tc('#6f7071'), trimW, 1.1, 0.45, 0.5);
-      for (let z = -58; z < -25; z += 3.1) for (const y of [1.0, 4.0]) atlW('winW', [-37.98, z + 1.2], [-37.98, z], y, y + 1.75, [1, 0, 0]);
-      for (const z of [-54, -46, -38, -30]) { const xr = -38.2 - 2.0, y0 = 6.2 + 1.2; pb.wbox(xr - 0.4, y0 - 1.3, z - 0.75, xr + 0.6, y0 + 0.4, z + 0.75, hx3('#e9e8e3')); atlW('dormer', [xr + 0.62, z + 0.6], [xr + 0.62, z - 0.6], y0 - 1.2, y0 + 0.3, [1, 0, 0]); }
-      atl.quad([-36.4, 0.5, -29.0], [-36.4, 0.5, -30.6], [-36.4, 1.2, -30.6], [-36.4, 1.2, -29.0], [1, 0, 0], [1, 1, 1, 1], (() => { const r = atlUV('honors'); return [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]; })()); for (const z of [-29.05, -30.55]) pb.wbox(-36.47, 0, z - 0.04, -36.39, 1.25, z + 0.04, hx3('#3b3b3b'));
+      for (let z = -58; z < -25; z += metPitch(3.1)) for (const y of [1.0, 4.0]) atlW('winW', [-37.98, z + 1.2], [-37.98, z], y, y + 1.75, [1, 0, 0]);
+      for (const z of [-54, -46, -38, -30]) metObj(-40.2, z, () => { const xr = -38.2 - 2.0, y0 = 6.2 + 1.2; pb.wbox(xr - 0.4, y0 - 1.3, z - 0.75, xr + 0.6, y0 + 0.4, z + 0.75, hx3('#e9e8e3')); atlW('dormer', [xr + 0.62, z + 0.6], [xr + 0.62, z - 0.6], y0 - 1.2, y0 + 0.3, [1, 0, 0]); });
+      metObj(-36.4, -29.8, () => { atl.quad([-36.4, 0.5, -29.0], [-36.4, 0.5, -30.6], [-36.4, 1.2, -30.6], [-36.4, 1.2, -29.0], [1, 0, 0], [1, 1, 1, 1], (() => { const r = atlUV('honors'); return [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]; })()); for (const z of [-29.05, -30.55]) pb.wbox(-36.47, 0, z - 0.04, -36.39, 1.25, z + 0.04, hx3('#3b3b3b')); });
       // further west: campus buildings and apartments as simple masses
-      // the four-storey brick apartment house west-south-west (WGLT 14, 19): white trim, balconies, a grey mansard with dormers
-      { const x0 = -104, x1 = -84, z0 = -40, z1 = -8, h = 10.4; brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc('#8a4e3c'), 1.1, false); pb.wbox(x0 - 0.1, h - 0.3, z0 - 0.1, x1 + 0.1, h, z1 + 0.1, trimW);
-        const m = 1.4, top = 13.2, P2 = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], I2 = [[x0 + m, z0 + m], [x1 - m, z0 + m], [x1 - m, z1 - m], [x0 + m, z1 - m]];
-        for (let k2 = 0; k2 < 4; k2++) { const a = P2[k2], b = P2[(k2 + 1) % 4], c = I2[(k2 + 1) % 4], d = I2[k2]; let n = v3n(v3c(v3s([b[0], h, b[1]], [a[0], h, a[1]]), v3s([d[0], top, d[1]], [a[0], h, a[1]]))); if (n[1] < 0) n = [-n[0], -n[1], -n[2]]; shing.quad([a[0], h, a[1]], [b[0], h, b[1]], [c[0], top, c[1]], [d[0], top, d[1]], n, tc('#77797b'), [0, 0, 8, 0, 8, 1.5, 0, 1.5]); }
-        pb.poly(I2, top, hx3('#5c605f'));
-        for (let z = z0 + 1.6; z < z1 - 1.6; z += 3.2) { for (let y = 1.0; y < h - 1; y += 2.85) atlW('winB', [x1 + 0.02, z + 1.2], [x1 + 0.02, z], y, y + 1.6, [1, 0, 0]); atlW('dormer', [x1 - 0.6, z + 1.3], [x1 - 0.6, z - 0.1], h + 0.3, h + 2.0, [1, 0, 0]); }
-        for (let z = z0 + 4; z < z1 - 3; z += 6.4) for (let y = 3.6; y < h - 1; y += 2.85) { pb.wbox(x1, y - 0.12, z - 1.2, x1 + 1.3, y, z + 1.2, hx3('#d8d8d2')); pb.wbox(x1 + 1.25, y, z - 1.2, x1 + 1.3, y + 1.0, z + 1.2, hx3('#2a2a2a')); }
-        MET.keep.push([x0, 0, z0, x1 + 1.4, top + 0.3, z1]); }
-      for (const [x0, x1, z0, z1, h, col] of [[-110, -84, 8, 44, 11, '#9a6a54'], [-96, -70, 55, 82, 9, '#a07c66'], [-104, -78, -95, -60, 12, '#7f5244'], [-75, -58, 52, 70, 6.5, '#b3a28c']]) {
+      // (The Summit, the apartment house west-south-west, stands on its real footprint now: 13-metsouth.js; no blocks west of Main north of
+      // the Wittenberg Center: that is Kingsley Street and the ISU lot)
+      for (const [x0, x1, z0, z1, h, col] of []) {
         brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc(col), 1.1, hx3('#5c605f'));
-        for (let y = 1.2; y < h - 1; y += 3.3) for (let z = z0 + 1.5; z < z1 - 1.5; z += 2.8) atlW('winB', [x1 + 0.02, z + 1.4], [x1 + 0.02, z], y, y + 1.6, [1, 0, 0]);
+        for (let y = 1.2; y < h - 1; y += 3.3) for (let z = z0 + 1.5; z < z1 - 1.5; z += metPitch(2.8)) atlW('winB', [x1 + 0.02, z + 1.4], [x1 + 0.02, z], y, y + 1.6, [1, 0, 0]);
       }
-      // the three-storey brick hall to the south-south-east (limestone base, white windows)
-      brick.extrude([[22, -132], [70, -132], [70, -112], [22, -112]], 1.0, 13, tc('#93503e'), 1.1, hx3('#5c605f'));
-      conc.extrude([[22, -132], [70, -132], [70, -112], [22, -112]], 0, 1.0, cc('#cfc7b4'), 0.3, false);
-      for (let x = 24; x < 68; x += 2.6) for (const y of [2.0, 5.6, 9.2]) { glassB.wall(x, -111.98, x + 1.3, -111.98, y, y + 2.0, [0.24, 0.27, 0.3, 1], [0, 0, 1]); pb.wbox(x - 0.08, y - 0.08, -111.99, x + 1.38, y + 2.08, -111.97, hx3('#efefea')); }
       // north: more of the campus beyond the lawn
-      for (const [x0, x1, z0, z1, h, col] of [[-40, -10, 92, 120, 10, '#7d4a3c'], [5, 40, 110, 135, 12, '#86523f'], [100, 140, 40, 80, 9, '#7a4d3e'], [105, 150, -40, 10, 11, '#835243'], [110, 150, -120, -70, 8, '#8c5f50']]) {
+      for (const [x0, x1, z0, z1, h, col] of []) { // (north of the school: 13-metnorth.js; south: 13-metsouth.js; University St runs at x 110-118)
         brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc(col), 1.1, hx3('#575b5a'));
-        for (let y = 1.2; y < h - 1; y += 3.3) for (let x = x0 + 1.5; x < x1 - 1.5; x += 2.8) atlW('winW', [x + 1.4, z0 - 0.02], [x, z0 - 0.02], y, y + 1.6, [0, 0, -1]);
+        for (let y = 1.2; y < h - 1; y += 3.3) for (let x = x0 + 1.5; x < x1 - 1.5; x += metPitch(2.8)) atlW('winW', [x + 1.4, z0 - 0.02], [x, z0 - 0.02], y, y + 1.6, [0, 0, -1]);
       }
     }
     mark('the new (2025) playground');
-    // ===== the new (2025) playground =====
+    // ===== the new (2025) playground (on the big field the chips spread, the equipment keeps its size round its own centres) =====
     {
       const red = hx3('#d5232f'), blk = hx3('#141414'), char = hx3('#3f474e'), slU = atlUV('slats'), dk = atlUV('deck');
       const deck = (x0, z0, x1, z1, y) => { atl.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, [1, 1, 1, 1], [dk[0], dk[1], dk[2], dk[1], dk[2], dk[3], dk[0], dk[3]]); pb.wbox(x0, y - 0.06, z0, x1, y - 0.005, z1, char); };
       const slat = (x0, z0, x1, z1, y, n) => { const u = slU, uv = [u[0], u[3], u[2], u[3], u[2], u[1], u[0], u[1]]; atl.quad([x0, y + 0.08, z0], [x1, y + 0.08, z1], [x1, y + 0.9, z1], [x0, y + 0.08 + 0.82, z0], n, [1, 1, 1, 1], uv); const ox = -n[0] * 0.03, oz = -n[2] * 0.03; atl.quad([x1 + ox, y + 0.08, z1 + oz], [x0 + ox, y + 0.08, z0 + oz], [x0 + ox, y + 0.9, z0 + oz], [x1 + ox, y + 0.9, z1 + oz], [-n[0], 0, -n[2]], [1, 1, 1, 1], uv); };
+      metObj(15.6, 27.6, () => { // the main structure: towers, decks, bridges, slides, climbers, panels
       // towers: [x0, z0, size, deck height, roof?]
       const T = [[10.6, 26.6, 1.8, 1.5, 0], [14.6, 28.6, 1.9, 2.1, 1], [18.8, 26.6, 1.8, 1.5, 0], [13.4, 23.9, 1.5, 0.9, 0]];
       for (const [x0, z0, s, y, rf] of T) {
@@ -3937,24 +4270,24 @@ gl_FragColor=vec4(c,1.0);}`;
       // red disc steps and climbing balls near the east tower
       for (const [x, z, y] of [[21.3, 25.6, 0.35], [21.9, 25.1, 0.6], [22.5, 25.6, 0.85]]) { ppost(pb, x, z, y - 0.05, []); pb.cyl(x, z, y - 0.05, y, 0.22, 0.22, red, 12, true); }
       for (const [x, z] of [[17.2, 25.6], [17.7, 25.1]]) pb.blobby(x, 0.3, z, 0.3, 0.3, 0.3, red, 10, 6);
-      // gaga pit (white walls ~0.9 m, red posts with white paws) at the west edge of the mulch: WGLT 06 looks west-south-west from
+      });
+      // gaga pit (white walls ~0.9 m, red posts with white paws) at its spot on the aerials, just east of the spruce: WGLT 06 looks west-south-west from
       // under the track ride over it at Wittenberg's cross, with the blue spruce just to its left and behind its south end
-      { const cx = -0.3, cz = 38.6, r = 3.0, gp = atlUV('gagaPaw'), wp = atlUV('postPaw'); MET.keep.push([cx - 3.2, 0, cz - 3.2, cx + 3.2, 1.1, cz + 3.2]);
+      metObj(5.6, 39.3, () => { const cx = 5.6, cz = 39.3, r = 3.0, gp = atlUV('gagaPaw'), wp = atlUV('postPaw'); MET.keep.push([cx - 3.2, 0, cz - 3.2, cx + 3.2, 1.1, cz + 3.2]);
         for (let k = 0; k < 8; k++) { const a0 = (k + 0.5) / 8 * 6.2832, a1 = (k + 1.5) / 8 * 6.2832, x0 = cx + Math.cos(a0) * r, z0 = cz + Math.sin(a0) * r, x1 = cx + Math.cos(a1) * r, z1 = cz + Math.sin(a1) * r, am = (a0 + a1) / 2, n = [Math.cos(am), 0, Math.sin(am)];
           if (k % 3 === 0) atl.quad([x1, 0, z1], [x0, 0, z0], [x0, 0.9, z0], [x1, 0.9, z1], n, [1, 1, 1, 1], [gp[0], gp[3], gp[2], gp[3], gp[2], gp[1], gp[0], gp[1]]); else pb.quad([x1, 0, z1], [x0, 0, z0], [x0, 0.9, z0], [x1, 0.9, z1], n, hx3('#efeeef'));
           { const ix = -n[0] * 0.03, iz = -n[2] * 0.03; pb.quad([x0 + ix, 0, z0 + iz], [x1 + ix, 0, z1 + iz], [x1 + ix, 0.9, z1 + iz], [x0 + ix, 0.9, z0 + iz], [-n[0], 0, -n[2]], hx3('#e4e3e4')); }
-          pb.wbox(x0 - 0.07, 0, z0 - 0.07, x0 + 0.07, 1.02, z0 + 0.07, hx3('#e32545')); atl.quad([x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [Math.cos(a0), 0, Math.sin(a0)], [1, 1, 1, 1], [wp[0], wp[3], wp[2], wp[3], wp[2], wp[1], wp[0], wp[1]]); } }
+          pb.wbox(x0 - 0.07, 0, z0 - 0.07, x0 + 0.07, 1.02, z0 + 0.07, hx3('#e32545')); atl.quad([x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [Math.cos(a0), 0, Math.sin(a0)], [1, 1, 1, 1], [wp[0], wp[3], wp[2], wp[3], wp[2], wp[1], wp[0], wp[1]]); } });
       // track ride: red overhead beam on black A-frames, a black rope-and-disc seat on its trolley, along the north edge of the mulch
       // with the lawn beyond (WGLT 01 looks north-west under it at the lawn, the Main Street fence and its spruces)
-      { const z = 41.2, x0 = 15.0, x1 = 25.0; MET.keep.push([x0 - 0.3, 2.3, z - 0.4, x1 + 0.3, 3.0, z + 0.4]); pb.tube([x0, 2.7, z], [x1, 2.7, z], 0.07, red, 10); for (const x of [x0, x1]) for (const s of [-1, 1]) pb.tube([x, 2.7, z], [x + 0, 0, z + s * 0.9], 0.06, blk, 8); pb.wbox(19.4, 2.55, z - 0.1, 19.8, 2.66, z + 0.1, blk); flat.tube([19.6, 2.55, z], [19.6, 0.75, z], 0.015, blk, 4); pb.cyl(19.6, z, 0.68, 0.75, 0.16, 0.16, blk, 10, true); }
+      metObj(20.0, 41.2, () => { const z = 41.2, x0 = 15.0, x1 = 25.0; MET.keep.push([x0 - 0.3, 2.3, z - 0.4, x1 + 0.3, 3.0, z + 0.4]); pb.tube([x0, 2.7, z], [x1, 2.7, z], 0.07, red, 10); for (const x of [x0, x1]) for (const s of [-1, 1]) pb.tube([x, 2.7, z], [x + 0, 0, z + s * 0.9], 0.06, blk, 8); pb.wbox(19.4, 2.55, z - 0.1, 19.8, 2.66, z + 0.1, blk); flat.tube([19.6, 2.55, z], [19.6, 0.75, z], 0.015, blk, 4); pb.cyl(19.6, z, 0.68, 0.75, 0.16, 0.16, blk, 10, true); });
       // log steppers beside the decks by the airplane panel (WGLT 14), the charcoal table between the track ride and the gaga pit
       // (WGLT 06), a bench; the tetherball pole (3.3 m, its 3 m shadow at (12.0, 40.3)); the raised timber garden bed by the walk.
       // (The red posts with numbered plates in the 2025 photos are portable line-up markers for the event, so they are left out.)
-      for (let k = 0; k < 7; k++) { const a = 2.2 + k * 0.38, x = 11.2 + Math.cos(a) * 2.0, z = 25.6 + Math.sin(a) * 1.5, hh = 0.2 + (k % 3) * 0.12; bark.cyl(x, z, 0, hh, 0.2, 0.19, tc('#8a6a4a'), 10, false, 1, 0.6); pb.cyl(x, z, hh - 0.005, hh, 0.19, 0.19, hx3('#c9a77d'), 10, true); }
-      { const tx = 7.4, tz = 40.2; pb.wbox(tx - 0.9, 0.72, tz - 0.4, tx + 0.9, 0.76, tz + 0.4, char); pb.wbox(tx - 0.08, 0, tz - 0.08, tx + 0.08, 0.72, tz + 0.08, char); for (const z of [tz - 0.75, tz + 0.75]) { pb.wbox(tx - 0.9, 0.42, z - 0.15, tx + 0.9, 0.46, z + 0.15, char); pb.wbox(tx - 0.06, 0, z - 0.06, tx + 0.06, 0.42, z + 0.06, char); } MET.keep.push([tx - 1, 0, tz - 1, tx + 1, 0.8, tz + 1]); }
-      pb.wbox(33.6, 0.42, 22.5, 35.5, 0.47, 22.9, hx3('#3a3a3a'));
-      { const x = 12.0, z = 40.3; pb.cyl(x, z, 0, 3.3, 0.04, 0.035, hx3('#a9b0b3'), 8, true); pb.cyl(x, z, 0, 0.12, 0.2, 0.18, hx3('#8d9092'), 10, true); flat.tube([x + 0.03, 3.2, z], [x + 0.18, 1.6, z + 0.05], 0.006, hx3('#e8e4d8'), 3); pb.blobby(x + 0.19, 1.5, z + 0.05, 0.11, 0.11, 0.11, hx3('#e8c21f'), 8, 6); MET.keep.push([x, z, 0.3, 0, 3.4]); }
-      { const x0 = -8.0, x1 = -4.0, z0 = 47.0, z1 = 50.0; for (const [a, b, c, d] of [[x0, z0, x1, z0 + 0.1], [x0, z1 - 0.1, x1, z1], [x0, z0, x0 + 0.1, z1], [x1 - 0.1, z0, x1, z1]]) bark.tbox(a, 0, b, c, 0.4, d, tc('#8a6a4a'), 1); dirt.poly([[x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z1 - 0.1]], 0.33, tc('#4a3c30'), true, 0.6); }
+      metObj(15.6, 27.6, () => { for (let k = 0; k < 7; k++) { const a = 2.2 + k * 0.38, x = 11.2 + Math.cos(a) * 2.0, z = 25.6 + Math.sin(a) * 1.5, hh = 0.2 + (k % 3) * 0.12; bark.cyl(x, z, 0, hh, 0.2, 0.19, tc('#8a6a4a'), 10, false, 1, 0.6); pb.cyl(x, z, hh - 0.005, hh, 0.19, 0.19, hx3('#c9a77d'), 10, true); } }); // (with the main structure)
+      metObj(10.0, 42.0, () => { const tx = 10.0, tz = 42.0; pb.wbox(tx - 0.9, 0.72, tz - 0.4, tx + 0.9, 0.76, tz + 0.4, char); pb.wbox(tx - 0.08, 0, tz - 0.08, tx + 0.08, 0.72, tz + 0.08, char); for (const z of [tz - 0.75, tz + 0.75]) { pb.wbox(tx - 0.9, 0.42, z - 0.15, tx + 0.9, 0.46, z + 0.15, char); pb.wbox(tx - 0.06, 0, z - 0.06, tx + 0.06, 0.42, z + 0.06, char); } MET.keep.push([tx - 1, 0, tz - 1, tx + 1, 0.8, tz + 1]); });
+      metObj(34.55, 22.7, () => pb.wbox(33.6, 0.42, 22.5, 35.5, 0.47, 22.9, hx3('#3a3a3a')));
+      metObj(12.0, 40.3, () => { const x = 12.0, z = 40.3; pb.cyl(x, z, 0, 3.3, 0.04, 0.035, hx3('#a9b0b3'), 8, true); pb.cyl(x, z, 0, 0.12, 0.2, 0.18, hx3('#8d9092'), 10, true); flat.tube([x + 0.03, 3.2, z], [x + 0.18, 1.6, z + 0.05], 0.006, hx3('#e8e4d8'), 3); pb.blobby(x + 0.19, 1.5, z + 0.05, 0.11, 0.11, 0.11, hx3('#e8c21f'), 8, 6); MET.keep.push([x, z, 0.3, 0, 3.4]); });
     }
     mark('trees (measured');
     // ===== trees: deciduous shade trees built from a trunk, limbs and branches with several leafy crown clusters on the branch
@@ -3962,7 +4295,8 @@ gl_FragColor=vec4(c,1.0);}`;
     {
       const barkC = tc('#5f554a'), keepT = (x, z, tr, cy, cr) => { MET.keep.push([x, z, tr + 0.25, 0, cy]); MET.keep.push([x, cy, z, cr]); };
       // sp: 'maple' (dense, rounded), 'locust' (airy, fine, lighter), 'oak' (broad, heavy limbs); lod 1 = far tree (fewer parts)
-      const decid = (x, z, d, h, sp, lod, cl) => {
+      const TS = 1.5; // the big field: trees grow half as big again (and there are more of them), never MET_K times
+      const decid = (x, z, d, h, sp, lod, cl) => metObj(x, z, () => {
         const r0 = R, tr = 0.12 + d * 0.019, th = h * (sp === 'oak' ? 0.24 : sp === 'locust' ? 0.34 : 0.28), lean = (r0() - 0.5) * 0.25, la = r0() * 6.28;
         const top = [x + Math.cos(la) * lean, th, z + Math.sin(la) * lean], base = cl || (sp === 'locust' ? '#62763a' : sp === 'oak' ? '#475a30' : '#4a5e32');
         bark.cyl(x, z, 0, th + 0.1, tr * 1.35, tr * 0.92, barkC, lod ? 6 : 9, false, 1, 3);
@@ -3982,9 +4316,9 @@ gl_FragColor=vec4(c,1.0);}`;
         if (!lod) ends.forEach((e, ei) => { if (!main[ei]) return; const dx = e[0] - x, dz = e[2] - z, dl = Math.hypot(dx, dz) || 1, rc = cr * (0.26 + r0() * 0.08);
           leaf.clump(x + dx / dl * cr * 0.6, Math.min(h - rc * 1.5, Math.max(th + rc, e[1] - 0.6)), z + dz / dl * cr * 0.6, rc, rc * 0.8, tc(base, 0.9 + r0() * 0.2), r0, 1, 0.34); });
         keepT(x, z, tr * 1.4, yc, Math.max(cr * 0.95, ryc));
-      };
+      }, TS);
       // blue spruce: a conical stack of drooping, ragged skirts (needle texture), the lowest sweeping close to the ground
-      const spruce = (x, z, d, h, col) => {
+      const spruce = (x, z, d, h, col) => metObj(x, z, () => {
         bark.cyl(x, z, 0, h * 0.85, 0.24, 0.05, tc('#4d4339'), 7); const nT = 15, cB = col || '#566c66';
         for (let k = 0; k < nT; k++) {
           const t = k / nT, yb = 0.3 + t * (h - 1.2), r = d / 2 * Math.pow(1 - t, 1.0) * (0.92 + R() * 0.16) + 0.15, yt = yb + (h - 0.3) / nT * 2.6, n = 13, ph = R() * 6.28;
@@ -3995,62 +4329,37 @@ gl_FragColor=vec4(c,1.0);}`;
             const ui = [x, yb + 0.25, z]; for (const q of [ui, p1, p0]) needle.v(q[0], q[1], q[2], 0, -1, 0, shadeC(c, 0.45), (q[0] - x) * 0.7, (q[2] - z) * 0.7); }
         }
         MET.keep.push([x, z, d / 2 + 0.2, 0, h * 0.35], [x, z, d / 3 + 0.1, h * 0.35, h * 0.7], [x, z, d / 6 + 0.1, h * 0.7, h]);
-      };
+      }, TS);
       // the measured ones: the blue spruce by the gaga pit (12.5-13 m from its 11.5 m shadow, visible crown about 5.5 m), the big
       // maples on the west lawn by the fence, the trees east and south, the big tree in front of Wittenberg
-      spruce(0.4, 32.6, 5.6, 12.8, '#5a6f6b');
-      decid(-12.8, 38.0, 11.5, 13, 'maple'); decid(-13.2, 27.0, 10.0, 12, 'maple', 0, '#4d6234'); decid(-14.0, 57.0, 10.0, 12, 'oak');
-      decid(50.0, 30.0, 13.0, 14, 'locust'); decid(52.0, 55.0, 14.0, 15, 'maple', 0, '#4e6335'); decid(12.0, -60.0, 15.0, 14, 'oak');
+      // (the play area's spruce, the west strip, the tree belt and everything else north of the blacktop: 13-metnorth.js; the big oak
+      // and the courtyard trees: 13-metsouth.js)
       decid(-44.0, 44.0, 12, 13, 'maple', 0, '#4a5d33');
-      // the spruces along the Main Street fence north of the playground (WGLT photo 01: two blue and one green spruce at the fence)
-      spruce(-12.2, 61.5, 4.6, 10.5, '#5e726e'); spruce(-11.4, 67.8, 4.2, 9.5, '#5b706b'); spruce(-12.6, 75.5, 5.2, 11.5, '#3b5640');
       // more trees around the site, kept off buildings, streets and the play areas
-      const blocked = (x, z) => (x > -38 && x < -14 && z > -60 && z < 200) || (x > -16 && x < 34 && z > -56 && z < 46) || (x > 33 && x < 99 && z > -88 && z < 97) || (x > -80 && x < -36 && z > -62 && z < 42) || (x > -16 && x < 4 && z > -118 && z < -54) || Math.abs(x + 26) < 12 || (x > -16 && x < -9 && z > 58 && z < 80) || (x > -112 && x < -80 && z > -42 && z < -6);
+      const blocked = (x, z) => (x > -38 && x < -14 && z > -60 && z < 200) || (x > -16 && x < 34 && z > -56 && z < 46) || (x > 33 && x < 99 && z > -88 && z < 97) || (x > -80 && x < -36 && z > -62 && z < 42) || (x > -16 && x < 4 && z > -118 && z < -54) || Math.abs(x + 26) < 12 || (x > -16 && x < -9 && z > 58 && z < 80) || (x > -112 && x < -80 && z > -42 && z < -6) || (z > 17.15 && x > -170 && x < 180) || z < -46; // north: measured trees only (13-metnorth.js); south of the lot: 13-metsouth.js
       let placed = 0, tries = 0;
-      while (placed < 16 && tries++ < 4000) { const a = R() * 6.28, rad = 45 + R() * 150, x = 12 + Math.cos(a) * rad, z = Math.sin(a) * rad; if (blocked(x, z)) continue; const d = 8 + R() * 7, h = 10 + R() * 6, q = R(); decid(x, z, d, h, q < 0.2 ? 'locust' : q < 0.45 ? 'oak' : 'maple', 1, R() < 0.12 ? '#7a7a38' : null); placed++; }
-      // street trees on the far side of Main
-      for (let z = -95; z < 110; z += 21 + R() * 6) { if (z > -8 && z < 12) continue; decid(-37.6 - R(), z, 7 + R() * 3, 9 + R() * 3, R() < 0.5 ? 'maple' : 'locust', 1); }
+      while (placed < (MSPR.on ? 44 : 16) && tries++ < 4000) { const a = R() * 6.28, rad = 45 + R() * 150, x = 12 + Math.cos(a) * rad, z = Math.sin(a) * rad; if (blocked(x, z)) continue; const d = 8 + R() * 7, h = 10 + R() * 6, q = R(); decid(x, z, d, h, q < 0.2 ? 'locust' : q < 0.45 ? 'oak' : 'maple', 1, R() < 0.12 ? '#7a7a38' : null); placed++; }
+      // street trees on the far side of Main (south of the Wittenberg Center's north end; none on Dry Grove)
+      for (let z = -95; z < 17; z += metPitch(21 + R() * 6)) { if ((z > -8 && z < 12) || (z > -80 && z < -64)) continue; decid(-37.6 - R(), z, 7 + R() * 3, 9 + R() * 3, R() < 0.5 ? 'maple' : 'locust', 1); }
+      mark('north of the blacktop');
+      buildMetNorth({ pb, B, nb, up, slab, cc, cK, atlW, decid, spruce }); // 13-metnorth.js
     }
-      // the campus and the town beyond: a ragged ring of tree canopy 140-250 m out (two staggered rows, 9-18 m, gaps where
-      // South Main Street runs through), with roofs of houses showing in the gaps, so the horizon is not an empty plain
-      {
-        const hn = vnoise(911), cx0 = 12, cz0 = 0, NS = 150, rows = [[150, 9, 15, 0], [215, 11, 18, 0.5]];
-        for (const [r0, h0, h1, off] of rows) {
-          const pts = [];
-          for (let i = 0; i <= NS; i++) {
-            const th = (i + off) / NS * 6.2832, rr = r0 + (hn(th * 3 + r0, 5) - 0.5) * 50, x = cx0 + Math.cos(th) * rr, z = cz0 + Math.sin(th) * rr;
-            const gap = Math.max(0, Math.min(1, (hn(th * 4.5 + r0 * 0.1, 9) - 0.3) * 4)), road = x > -48 && x < -6 ? 0 : 1;
-            const h = (h0 + (h1 - h0) * hn(th * 9 + r0, 17) + (hn(th * 40 + r0, 23) - 0.5) * 3.2) * gap * road;
-            pts.push([x, z, Math.max(0, h), th]);
-          }
-          leaf.grow(NS * 12);
-          for (let i = 0; i < NS; i++) {
-            const a = pts[i], b = pts[i + 1]; if (a[2] < 0.5 && b[2] < 0.5) continue;
-            const na = [-Math.cos(a[3]), 0.35, -Math.sin(a[3])], nb = [-Math.cos(b[3]), 0.35, -Math.sin(b[3])], ca = tc(hn(a[3] * 13, 31) < 0.5 ? '#3d4a30' : '#56603f', 0.9 + hn(a[3] * 21, 7) * 0.2), cb = tc(hn(b[3] * 13, 31) < 0.5 ? '#3d4a30' : '#56603f', 0.9 + hn(b[3] * 21, 7) * 0.2);
-            const ya = a[2] * 0.62, yb = b[2] * 0.62, ua = a[3] * r0 * 0.12, ub = b[3] * r0 * 0.12, lo = (c) => shadeC(c, 0.62);
-            const Q = (p0, y0, n0, c0, u0, p1, y1, n1, c1, u1, y2a, y2b, c2a, c2b, v0, v1) => { for (const [p, y, n, c, u, v] of [[p0, y0, n0, c0, u0, v0], [p1, y1, n1, c1, u1, v0], [p1, y2b, n1, c2b, u1, v1], [p0, y0, n0, c0, u0, v0], [p1, y2b, n1, c2b, u1, v1], [p0, y2a, n0, c2a, u0, v1]]) leaf.v(p[0], y, p[1], n[0], n[1], n[2], c, u, v); };
-            Q(a, -0.05, na, lo(ca), ua, b, -0.05, nb, lo(cb), ub, ya, yb, ca, cb, 0, ya * 0.12);
-            Q(a, ya, na, ca, ua, b, yb, nb, cb, ub, a[2], b[2], shadeC(ca, 1.08), shadeC(cb, 1.08), ya * 0.12, a[2] * 0.12);
-          }
-          // roofs and walls of houses in the gaps
-          for (let i = 3; i < NS; i += 7) { const p = pts[i]; if (p[2] > 4 || (p[0] > -50 && p[0] < -4)) continue; const th = p[3], rr = Math.hypot(p[0] - cx0, p[1] - cz0) - 12;
-            hipHouse(brick, shing, cx0 + Math.cos(th) * rr, cz0 + Math.sin(th) * rr, 11 + hn(i, 3) * 6, 8 + hn(i, 4) * 3, th + Math.PI / 2, 3.0 + hn(i, 5) * 2.8, 6.0 + hn(i, 6) * 2.5, tc(hn(i, 8) < 0.5 ? '#8e5446' : '#b9b2a2'), tc('#5d5a55'), 0.5); }
-        }
-      }
+      // (the skyline all round is built in 13-metsouth.js)
     mark('done: metres');
     // ===== done: metres -> engine units, and the per-batch materials =====
-    const conv = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] *= M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } };
+    const conv = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } };
     conv(pb); for (const k in B) if (B[k].n) conv(B[k]);
     const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
     W.defs = {
       mground: T1('mground', 0.88, 1, false, false, 'ground'), mlot: T1('mlot', 0.85, 1, false, false, 'lot'), masph: T1('masph', 0.88, 1, false, false, 'asphalt.jpg'),
-      mgrass: T1('mgrass', 0.95, 0, false, false, 'grass.jpg'), mconc: T1('mconc', 0.82, 0, true, false, 'concrete.jpg'), mstreet: T1('mstreet', 0.85, 0, false, false, 'concrete.jpg'),
+      mgrass: T1('mgrass', 0.95, 0, false, false, 'grass.jpg'), mlawn: T1('mlawn', 0.95, 0, false, false, 'lawn'), mconc: T1('mconc', 0.82, 0, true, false, 'concrete.jpg'), mstreet: T1('mstreet', 0.85, 0, false, false, 'concrete.jpg'),
       mchips: T1('mchips', 0.95, 0, false, false, 'woodchips.jpg'), mdirt: T1('mdirt', 0.95, 0, false, false, 'dirt.jpg'), mbrick: T1('mbrick', 0.85, 0, true, true, 'brick.jpg'),
       mpanel: T1('mpanel', 0.9, 0, true, true, 'panel_blue.jpg'), mcorr: T1('mcorr', 0.6, 0, true, true, 'corrugated.jpg'), mbark: T1('mbark', 0.9, 0, true, true, 'bark.jpg'),
       mleaf: T1('mleaf', 0.88, 0, true, true, 'leaves.jpg'), mshing: T1('mshing', 0.85, 0, true, true, 'shingle.jpg'), mneedle: T1('mneedle', 0.9, 0, true, true, 'needles.jpg'), matlas: T1('matlas', 0.7, 0, true, true, 'atlas'), mroof: T1('mroof', 0.8, 0, true, true, 'roof'),
       mflat: T1('mflat', 0.75, 0, false, false, null), mglass: { b: B.mglass, tex: null, mat: [0.06, 0, 0, 0], kind: 0, cast: false, c0: false },
       mpick: Object.assign(T1('mpick', 0.9, 8, false, false, 'pickets'), { blend: true }), // last: drawn see-through over what is behind it
     };
+    { const pk = W.defs.mpick; delete W.defs.mpick; Object.assign(W.defs, metSouthDefs(B, T1)); W.defs.mpick = pk; }
     let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
     if (DBG) DBG.metKeepOut = metKeepOut; // for the screenshot and camera tests
     if (DBG) DBG.metStats = { sec: SEC.map((q, i) => [q[0], q[1] - (i ? SEC[i - 1][1] : 0)]), verts: nv, ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))) };
@@ -4087,27 +4396,2468 @@ gl_FragColor=vec4(c,1.0);}`;
     metTex.lot = ctex(metLotCanvas(quality >= 2 ? 2048 : 1024), false, 16);
     metTex.roof = ctex(metRoofCanvas(quality >= 2 ? 1024 : 512, quality >= 2 ? 2048 : 1024), false, 8);
     metTex.atlas = ctex(metAtlasCanvas(), false, 8);
+    metTex.lawn = ctex(metLawnCanvas(quality >= 1 ? 1024 : 512), false, 8); // 13-metnorth.js
     metTex.pickets = metPicketTex();
+    metSouthTex(metTex, ctex, reupload);
     if (DBG && DBG.metStats) DBG.metStats.texMs = Math.round(performance.now() - tq);
     // once the photos arrive, the ground canvases redraw with the real aggregate in them
     const redo = (name, fn, key, size) => { const r = vimg(name); const f = () => { if (!G || !metTex || glLost) return; try { reupload(metTex[key], fn(size), false, 16); } catch (e) {} }; if (!r.ok) r.cbs.push(() => setTimeout(f, 0)); };
     redo('asphalt.jpg', metLotCanvas, 'lot', quality >= 2 ? 2048 : 1024);
+    redo('grass.jpg', metLawnCanvas, 'lawn', quality >= 1 ? 1024 : 512);
     for (const k in W.defs) {
       const d = W.defs[k]; if (!d.b || !d.b.n) continue;
       const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d.b.f.subarray(0, d.b.n * 12), gl.STATIC_DRAW); G.bufs.push(b);
       const tex = !d.tex ? G.white : metTex[d.tex] ? metTex[d.tex] : vtex(d.tex);
       statics.push({ k, b, n: d.b.n, tex, cast: d.cast, c0: d.c0, kind: d.kind, mat: d.mat, blend: !!d.blend });
     }
+    metTrafficGL(); // the moving cars' buffer goes in before the see-through layers (13-mettraffic.js)
   }
   // ---------- shadow cascades sized for the schoolyard: near box on the play, then fixed boxes over the site ----------
   function metCasc(mid, nearR) {
+    if (MOPT.big) { // the spread site: the middle box follows the view, the far one holds the blacktop, the school and the playground
+      if (NCASC() >= 3) return [[cam.c, nearR], [mid, 60], [MET.centre, 64 * MET_K * 0.75]];
+      return [[cam.c, nearR], [mid, 90], [MET.centre, 64 * MET_K * 0.75]];
+    }
     if (NCASC() >= 3) return [[cam.c, nearR], [mid, 30], [MET.centre, 64]];
     return [[cam.c, nearR], [MET.centre, 50], [MET.centre, 64]];
+  }
+  // =====================================================================================
+  // Metcalf, north of the blacktop (frame F, metres; built through the Batch primitives and moved to engine units with the rest of
+  // the venue by buildMetcalf's conv). Everything here was measured on the georeferenced aerials (the z21 mosaic rectified to frame F,
+  // the summer orthophoto for leaf-on crowns) and the street map: the sand play area with the spruce at its west end, the open lawn
+  // beyond it with its worn diagonal desire lines, the walk that winds up its west side and turns east along its north side, the two
+  // salmon-coloured pads, the school fence that leaves Main Street at z 52 and follows that walk, the plaza and the trail at the
+  // College Avenue corner, the shade trees and evergreens where they stand, West College Avenue (five lanes, yellow centre lines),
+  // the Main Street / Kingsley Street / College Avenue intersection, and across College Avenue the Student Health Services building,
+  // the parking lot and the trees that are really there.
+  // =====================================================================================
+  // the lawn canvas covers the school grounds from the Main Street curb to the school's main block, blacktop to College Avenue
+  const MNL = { x0: -20.6, x1: 62.0, z0: 17.15, z1: 136.8 };
+  // ---- West College Avenue: the south and north curb faces and the yellow centre line, west to east (measured on the mosaic) ----
+  const MN_CS = [[-8, 136.9], [0, 136.3], [15, 135.7], [30, 135.3], [40, 135.05], [70, 134.3], [100, 133.4], [135, 132.5], [200, 130.9]];
+  const MN_CN = [[-10, 157.6], [0, 157.15], [15, 156.8], [30, 156.3], [40, 156.0], [70, 154.3], [100, 152.3], [135, 151.6], [200, 150.2]];
+  const MN_CY = [[-9.5, 144.9], [0, 144.62], [10, 144.35], [30, 143.83], [40, 143.55], [50, 143.38], [60, 143.88], [70, 144.42], [80, 144.88], [90, 144.28], [100, 143.53], [135, 142.6], [200, 141.1]];
+  // the College Avenue arm west of the intersection (bends south-west past the ISU lot)
+  const MN_WS = [[-45.5, 139.5], [-60, 141.4], [-75, 137.6], [-90, 132.0], [-105, 125.3], [-125, 115.5], [-160, 96]];
+  const MN_WN = [[-46, 155.0], [-60, 153.2], [-75, 150.0], [-90, 145.0], [-105, 138.4], [-125, 128.5], [-160, 109]];
+  // Kingsley Street (one-way south, two lanes, 8 m) from the intersection down past the Wittenberg Center to the frame's z 17
+  const MN_KS = [[-40.2, 129], [-40.1, 120], [-40.3, 108], [-41.2, 99], [-43.0, 91.5], [-47.8, 78.5], [-54.8, 65.6], [-63.1, 54.2], [-73.6, 42.9], [-91.6, 25.1], [-99.6, 16.9]];
+  // North Main Street north of College: three lanes south (west half), a painted median, two lanes north
+  const MN_NM = { x0: -41.75, x1: -19.75, med0: -29.75, med1: -27.5, z0: 162, z1: 320 };
+  const mnLerpZ = (P, x) => { if (x <= P[0][0]) return P[0][1]; for (let i = 0; i < P.length - 1; i++) if (x <= P[i + 1][0]) { const t = (x - P[i][0]) / (P[i + 1][0] - P[i][0]); return P[i][1] + (P[i + 1][1] - P[i][1]) * t; } return P[P.length - 1][1]; };
+  // ---- the road contract for the traffic: centre lines and lane centre lines (frame F metres; points in the direction of travel) ----
+  const MN_ROADS = (() => {
+    const xs = []; for (let x = -9.5; x <= 200; x += 5) xs.push(x);
+    const lane = (f) => xs.map((x) => [x, f(x)].map((v) => Math.round(v * 100) / 100));
+    const S = (x) => mnLerpZ(MN_CS, x), N = (x) => mnLerpZ(MN_CN, x), Y = (x) => mnLerpZ(MN_CY, x);
+    const eb1 = lane((x) => S(x) + 0.25 * (Y(x) - S(x))), eb2 = lane((x) => S(x) + 0.75 * (Y(x) - S(x)));
+    const wbL = lane((x) => Y(x) + 2.2), wb1 = lane((x) => Y(x) + 4.4 + 0.25 * (N(x) - Y(x) - 4.4)), wb2 = lane((x) => Y(x) + 4.4 + 0.75 * (N(x) - Y(x) - 4.4));
+    const rev = (p) => p.slice().reverse();
+    const wC = rev(MN_WS.map((p, i) => [p[0], (p[1] + MN_WN[i][1]) / 2])), wq = (t) => MN_WS.map((p, i) => [p[0], p[1] + (MN_WN[i][1] - p[1]) * t]);
+    const kOff = (d) => MN_KS.map((p, i) => { const a = MN_KS[Math.max(0, i - 1)], b = MN_KS[Math.min(MN_KS.length - 1, i + 1)], tx = b[0] - a[0], tz = b[1] - a[1], l = Math.hypot(tx, tz) || 1; return [p[0] - tz / l * d, p[1] + tx / l * d]; });
+    return [
+      { name: 'W College Ave', pts: lane(Y), width: 21, lanes: 5, oneWay: false, speed: 13.4,
+        lanePts: [{ dir: 'E', pts: eb1 }, { dir: 'E', pts: eb2 }, { dir: 'W', pts: rev(wb1), right: true }, { dir: 'W', pts: rev(wb2) }, { dir: 'W', pts: rev(wbL), turn: 'left' }] },
+      { name: 'W College Ave (west arm)', pts: wC, width: 14, lanes: 4, oneWay: false, speed: 13.4,
+        lanePts: [{ dir: 'E', pts: rev(wq(0.18)) }, { dir: 'E', pts: rev(wq(0.38)) }, { dir: 'W', pts: wq(0.62) }, { dir: 'W', pts: wq(0.82) }] }, // (the arm's points run east to west)
+      { name: 'N Main St', pts: [[-30.6, MN_NM.z0], [-30.6, MN_NM.z1]], width: 22, lanes: 5, oneWay: false, speed: 13.4,
+        lanePts: [{ dir: 'S', pts: [[-39.75, 320], [-39.75, 162]] }, { dir: 'S', pts: [[-35.75, 320], [-35.75, 162]] }, { dir: 'S', pts: [[-31.75, 320], [-31.75, 162]] }, { dir: 'N', pts: [[-25.5, 162], [-25.5, 320]] }, { dir: 'N', pts: [[-21.7, 162], [-21.7, 320]] }] },
+      { name: 'S/N University St', pts: [[113.8, 17.15], [113.8, 300]], width: 8.4, lanes: 2, oneWay: false, speed: 11.2,
+        lanePts: [{ dir: 'N', pts: [[115.9, 17.15], [115.9, 300]] }, { dir: 'S', pts: [[111.7, 300], [111.7, 17.15]] }] },
+      { name: 'Kingsley St', pts: MN_KS.map((p) => p.slice()), width: 8, lanes: 2, oneWay: true, speed: 13.4,
+        lanePts: [{ dir: 'S', pts: kOff(1.9) }, { dir: 'S', pts: kOff(-1.9) }] },
+    ];
+  })();
+  function metNorthRoads() { // MET.roads: the array above plus keyed entries { college, university } for the traffic (y = road surface height, m)
+    const prev = MET.roads || [], out = prev.filter ? prev.filter((r) => !MN_ROADS.some((q) => q.name === r.name)).concat(MN_ROADS) : MN_ROADS.slice();
+    for (const k of Object.keys(prev)) if (isNaN(+k)) out[k] = prev[k];
+    out.college = Object.assign({}, out.college || {}, { y: 0, curbS: MN_CS, curbN: MN_CN, centre: MN_CY, lanes: MN_ROADS[0].lanePts, westArm: MN_ROADS[1] });
+    out.university = Object.assign({}, out.university || {}, { y: 0, x0: 109.6, x1: 118.0, z0: 17.15, lanes: MN_ROADS[3].lanePts });
+    MET.roads = out;
+  }
+  if (METCALF) metNorthRoads();
+
+  // the sector north of the blacktop that is built from the measurements here (the far horizon ring leaves it out: College Avenue,
+  // the health building, the lot and the campus buildings stand there)
+  function metNorthOwns(x, z) { return (z > 118 && z < 300 && x > -130 && x < 150) || (z > 17 && z < 300 && x > 102 && x < 126); } // (and University St)
+  // ---------- polyline helpers ----------
+  function mnSmooth(pts, step) { // a Catmull-Rom curve through pts, points about step m apart
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)], n = step < 0 ? -step : Math.max(1, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / step)); // (a negative step: that many points per segment)
+      for (let k = 0; k < n; k++) { const t = k / n, t2 = t * t, t3 = t2 * t; out.push([0, 1].map((j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3))); }
+    }
+    out.push(pts[pts.length - 1].slice()); return out;
+  }
+  function mnOffset(pts, d) { // mitred offset, + = left of the direction of the points
+    const n = pts.length, nr = [];
+    for (let i = 0; i < n - 1; i++) { const tx = pts[i + 1][0] - pts[i][0], tz = pts[i + 1][1] - pts[i][1], l = Math.hypot(tx, tz) || 1; nr.push([-tz / l, tx / l]); }
+    return pts.map((p, i) => { const a = nr[Math.max(0, i - 1)], b = nr[Math.min(n - 2, i)]; let mx = a[0] + b[0], mz = a[1] + b[1]; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml; const k = 1 / Math.max(0.5, mx * b[0] + mz * b[1]); return [p[0] + mx * d * k, p[1] + mz * d * k]; });
+  }
+  const mnLen = (p) => { let s = 0; for (let i = 0; i < p.length - 1; i++) s += Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]); return s; };
+  // clip a polygon to z >= zc (Sutherland-Hodgman against one line)
+  function mnClipZ(P, zc) {
+    const out = []; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], ia = a[1] >= zc, ib = b[1] >= zc; if (ia) out.push(a); if (ia !== ib) { const t = (zc - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, zc]); } }
+    return out;
+  }
+
+  // ---------- the lawn canvas (canvas row 0 = south, N wide x 2N tall over MNL): an early-autumn schoolyard lawn, olive and mottled,
+  // drier and thinner under the big trees, the mulch beds, and the wear measured on the aerials: the fan of diagonal desire lines from
+  // the lawn's north-east corner toward the west walk, the worn strip along the east edge to the orange tables, the bare patches by
+  // the north walk, the worn band along the play area's edge, and the paths' worn shoulders ----------
+  function metLawnCanvas(N) {
+    const Wc = N, Hc = N * 2, c = mkCv(Wc, Hc); if (!realCv()) return c;
+    const g = c.getContext('2d'), SX = Wc / (MNL.x1 - MNL.x0), SZ = Hc / (MNL.z1 - MNL.z0);
+    const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -MNL.x0 * SX, -MNL.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    // 1. colour field at 0.5 m: olive greens mottled with dry yellow-brown and darker patches, thinner and browner under the crowns
+    const cw = Math.ceil((MNL.x1 - MNL.x0) * 2), ch = Math.ceil((MNL.z1 - MNL.z0) * 2), col = mkCv(cw, ch), cg = col.getContext('2d'), im = cg.createImageData(cw, ch), d = im.data;
+    const nz = vnoise(1771), shade = MN_TREES.filter((t) => t[0] > MNL.x0 - 6 && t[0] < MNL.x1 + 6 && t[1] > MNL.z0 - 6 && t[1] < MNL.z1 + 6);
+    const C0 = [55, 63, 43], C1 = [72, 82, 57], DRY = [92, 88, 60], THIN = [86, 78, 60];
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      const x = MNL.x0 + (i + 0.5) / 2, z = MNL.z0 + (j + 0.5) / 2;
+      const n = nz(x / 9, z / 9) * 0.6 + nz(x / 3 + 30, z / 3) * 0.4, dry = Math.max(0, nz(x / 23 + 7, z / 23) - 0.52) * 1.7;
+      let th = 0; for (const t of shade) { const r = t[2] * 0.5, dd = Math.hypot(x - t[0], z - t[1]); if (dd < r) th = Math.max(th, (1 - dd / r) * (t[4] ? 0.35 : 0.6)); }
+      // the lawn north of the play area: drier towards its north walk, greener in the middle (as on the aerials)
+      const fld = x > -3 && x < 42 && z > 43 && z < 112 ? Math.max(0, (z - 92) / 20) * 0.45 + Math.max(0, (8 - x) / 14) * Math.max(0, (70 - z) / 20) * 0.35 : 0;
+      const o = (j * cw + i) * 4;
+      for (let k = 0; k < 3; k++) { let v = C0[k] + (C1[k] - C0[k]) * n; v += (DRY[k] - v) * Math.min(1, dry + fld); v += (THIN[k] - v) * th; d[o + k] = v; }
+      d[o + 3] = 255;
+    }
+    cg.putImageData(im, 0, 0);
+    g.imageSmoothingEnabled = true; g.drawImage(col, 0, 0, Wc, Hc);
+    // 2. the grass photo's grain, overlaid at about 1.6 m a tile, and a finer speckle
+    const tile = grainTile(vimg('grass.jpg'), 256, 1.25, 77);
+    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.6; const T = 1.6 / MET_BK; // (the photo at its real scale on the big field)
+    for (let x = MNL.x0; x < MNL.x1; x += T) for (let z = MNL.z0; z < MNL.z1; z += T) g.drawImage(tile, x, z, T + 0.02, T + 0.02);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    // 3. mulch beds: dark brown with leaf litter (the planting beds by the fence and the plaza, the tree belt by the school, the bed
+    // with the boulders in the north-east corner, the strip under the fence)
+    const fillP = (pts, cl, a) => { g.globalAlpha = a; g.fillStyle = cl; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.closePath(); g.fill(); g.globalAlpha = 1; };
+    const MUL = '#4f4234';
+    fillP(MN_BED_NW, MUL, 1); fillP(MN_BED_PK, MUL, 0.92); fillP(MN_BED_NE, MUL, 1); fillP(MN_BELT, '#54463a', 1);
+    { const f = mnSmooth(MN_FENCE, 0.8); stroke(g, f, 0.7, 'rgba(78,66,52,0.85)'); }
+    const rr = mrng(912);
+    for (const B2 of [MN_BED_NW, MN_BED_NE, MN_BELT, MN_BED_PK]) { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const p of B2) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+      g.save(); g.beginPath(); g.moveTo(B2[0][0], B2[0][1]); for (const p of B2.slice(1)) g.lineTo(p[0], p[1]); g.closePath(); g.clip();
+      const n2 = Math.round((x1 - x0) * (z1 - z0) * 1.6); for (let k = 0; k < n2; k++) { const x = x0 + rr() * (x1 - x0), z = z0 + rr() * (z1 - z0), r = 0.08 + rr() * 0.22; g.fillStyle = rr() < 0.5 ? 'rgba(120,92,60,0.5)' : rr() < 0.5 ? 'rgba(40,32,24,0.45)' : 'rgba(150,120,70,0.35)'; g.fillRect(x - r, z - r * 0.5, r * 2, r); }
+      g.restore(); }
+    // 4. wear, drawn into a layer, broken up by a blotchy mask, then laid over the lawn
+    const L = mkCv(Wc, Hc), lg = L.getContext('2d');
+    const layer = (draw, seed, blotch, grain, alpha) => { lg.setTransform(1, 0, 0, 1, 0, 0); lg.clearRect(0, 0, Wc, Hc); Wt(lg); draw(lg); wear(L, seed, blotch, grain, 0.5); It(g); g.globalAlpha = alpha; g.drawImage(L, 0, 0); g.globalAlpha = 1; Wt(g); };
+    const WORN = 'rgb(112,100,74)', BARE = 'rgb(122,106,80)';
+    lg.lineCap = 'round'; lg.lineJoin = 'round';
+    layer((h) => { // the desire lines (the brightest is the one from the corner by the school to the upper pad)
+      h.lineCap = 'round'; h.lineJoin = 'round';
+      for (const [pts, w] of MN_DESIRE) { h.strokeStyle = WORN; h.lineWidth = w; h.beginPath(); const s = mnSmooth(pts, 1.5); h.moveTo(s[0][0], s[0][1]); for (const p of s.slice(1)) h.lineTo(p[0], p[1]); h.stroke(); }
+    }, 1811, 0.38, 0.5, 0.44);
+    layer((h) => { // worn patches and strips: east edge to the tables, the bare spots by the north walk, the play area's edge, around the pads
+      const blob = (x, z, rx, rz, a) => { h.save(); h.translate(x, z); h.scale(rx, rz); const gr = h.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(122,106,80,${a})`); gr.addColorStop(0.65, `rgba(118,102,76,${a * 0.7})`); gr.addColorStop(1, 'rgba(118,102,76,0)'); h.fillStyle = gr; h.beginPath(); h.arc(0, 0, 1, 0, 6.2832); h.fill(); h.restore(); };
+      for (const [x, z, rx, rz, a] of MN_WORNP) blob(x, z, rx, rz, a);
+      h.fillStyle = BARE; h.globalAlpha = 0.55; h.beginPath(); h.moveTo(37.6, 47); h.lineTo(41.8, 47); h.lineTo(42.2, 74); h.lineTo(38.4, 74); h.closePath(); h.fill(); h.globalAlpha = 1;
+      // the edge of the play area: kids run out onto the lawn all along it
+      h.strokeStyle = 'rgba(118,104,78,0.75)'; h.lineWidth = 2.2; h.beginPath(); h.moveTo(-4.6, 17.4); h.lineTo(-4.6, 44.2); h.lineTo(28.6, 44.4); h.lineTo(29.8, 41.4); h.lineTo(41.5, 40.4); h.stroke();
+      // worn shoulders along the walks
+      h.lineWidth = 0.9; h.strokeStyle = 'rgba(110,98,74,0.6)'; for (const p of [MN_PATH_W, MN_PATH_N]) { for (const s2 of [-1, 1]) { const q = mnOffset(mnSmooth(p, 1), s2 * 1.45); h.beginPath(); h.moveTo(q[0][0], q[0][1]); for (const pp of q.slice(1)) h.lineTo(pp[0], pp[1]); h.stroke(); } }
+    }, 1907, 0.4, 0.5, 0.75);
+    It(g);
+    return c;
+  }
+
+  // ---------- measured layout ----------
+  // trees: [x, z, crown diameter, height, evergreen?, kind, lod, colour]. kind: maple / oak / locust (deciduous), spruce, pine (a broad dark cone)
+  const MN_TREES = [
+    // the west strip between Main Street and the walk: big maples and an oak, a locust, then the evergreens at the walk's north bend
+    [-12.6, 25.0, 10, 12, 0, 'maple', 0, '#4d6234'], [-12.4, 39.5, 12, 13, 0, 'maple', 0], [-12.0, 61.0, 13, 14, 0, 'oak', 1], [-11.5, 76.0, 10, 12, 0, 'maple', 1, '#4e6335'],
+    [-10.0, 86.0, 8, 11, 0, 'locust', 1], [-15.8, 108.5, 9, 11, 0, 'maple', 1], [-17.2, 118.5, 6, 8, 0, 'locust', 1],
+    [-5.6, 95.0, 6.2, 13.5, 1, 'spruce', 0, '#3d5a45'], [-6.2, 103.6, 5.6, 12.5, 1, 'spruce', 0, '#58706c'],
+    // the small blue and green spruces in the bed between the fence and the plaza
+    [4.1, 114.2, 3.0, 4.6, 1, 'spruce', 0, '#6a827f'], [8.6, 117.3, 3.0, 4.2, 1, 'spruce', 0, '#6a827f'], [15.6, 117.8, 3.2, 5.5, 1, 'spruce', 0, '#3b5440'], [4.6, 119.8, 2.4, 3.6, 1, 'spruce', 0, '#3b5440'],
+    // the play area's tall blue spruce (its 11.5 m shadow), at the west end of the sand
+    [-0.6, 33.4, 5.8, 12.8, 1, 'spruce', 0, '#5a6f6b'],
+    // the pines and shade trees along the trail by College Avenue and in the north-east corner
+    [14.0, 127.6, 11, 15, 1, 'pine', 1], [44.5, 124.8, 9, 13, 1, 'pine', 1], [66.5, 118.0, 10, 14, 1, 'pine', 1], [70.8, 108.6, 8, 12, 1, 'pine', 1],
+    [58.0, 107.6, 4.6, 6.5, 1, 'spruce', 1, '#6a827f'], [57.6, 112.4, 4.0, 7.0, 1, 'spruce', 1, '#3b5440'],
+    [-4.0, 131.8, 7, 9, 0, 'locust', 1], [3.5, 132.0, 7, 9, 0, 'locust', 1], [32.4, 124.8, 11, 12, 0, 'oak', 1], [52.5, 125.5, 8, 10, 0, 'locust', 1],
+    [80.5, 122.0, 8, 10, 0, 'maple', 1], [86.0, 112.5, 7, 9, 0, 'locust', 1], [96.0, 121.0, 8, 10, 0, 'maple', 1], [100.5, 109.5, 9, 11, 0, 'maple', 1],
+    // the belt of big shade trees in the mulch between the play area and the school's main block
+    [45.5, 27.0, 12, 14, 0, 'maple', 0], [54.0, 31.0, 12, 14, 0, 'oak', 1], [48.0, 40.5, 11, 14, 0, 'maple', 0], [55.5, 46.0, 12, 15, 0, 'locust', 1],
+    [46.0, 52.5, 11, 14, 0, 'oak', 1], [53.5, 58.5, 12, 14, 0, 'maple', 1], [47.5, 65.0, 11, 13, 0, 'locust', 1], [55.0, 69.5, 10, 13, 0, 'maple', 1],
+    // west of Main Street on the church's lawn by Kingsley Street
+    [-37.0, 81.0, 11, 12, 0, 'maple', 1], [-53.0, 83.0, 10, 12, 0, 'oak', 1], [-47.0, 60.0, 7, 9, 0, 'locust', 1],
+    // across College Avenue: the lot's south edge and the College Avenue walk, the North Main Street strips, by the health building
+    [2, 166, 10, 12, 0, 'maple', 1], [10, 170, 9, 11, 0, 'oak', 1], [25, 177.5, 8, 10, 0, 'maple', 1], [35, 181, 8, 10, 0, 'locust', 1], [44, 177, 7, 9, 0, 'maple', 1],
+    [50, 165, 8, 10, 0, 'locust', 1], [62, 164, 7, 9, 0, 'maple', 1], [75, 162, 7, 9, 0, 'locust', 1], [88, 160.5, 7, 9, 0, 'maple', 1],
+    [-11, 185, 9, 11, 0, 'maple', 1], [-10, 205, 9, 11, 0, 'oak', 1], [-12.5, 224, 8, 10, 0, 'maple', 1],
+    [-55, 190, 10, 12, 0, 'oak', 1], [-60, 172, 9, 11, 0, 'maple', 1], [-52, 215, 9, 11, 0, 'locust', 1], [105, 190, 8, 10, 0, 'maple', 1], [108, 205, 8, 10, 0, 'oak', 1],
+  ];
+  // the walk from the blacktop's north-west corner up the west side of the lawn (round the lower pad, two S-bends), then north-east
+  // to the corner of the fence and east along the north side to the junction by the school (centre lines; 2.3 m and 2.1 m wide)
+  const MN_PATH_W = [[-6.75, 20.2], [-6.65, 30], [-6.7, 40], [-7.0, 43.2], [-8.6, 44.6], [-10.6, 46.3], [-11.1, 48.3], [-10.7, 50.4], [-9.5, 52.2], [-7.4, 54.0], [-5.3, 55.6], [-4.3, 57.6], [-4.3, 60.2],
+    [-5.0, 62.6], [-6.4, 64.8], [-7.5, 67.0], [-7.6, 69.0], [-7.0, 71.2], [-6.0, 73.6], [-4.9, 76.3], [-3.8, 79.5], [-2.7, 83.2], [-1.2, 87.6], [0.4, 92], [2.0, 96.3], [3.6, 100.6], [5.0, 104.6], [6.1, 107.8], [6.9, 110.4], [7.9, 112.2]];
+  const MN_PATH_N = [[6.6, 112.6], [9.0, 112.75], [14, 113.9], [20, 115.2], [26, 116.4], [30, 117.0], [34, 117.35], [37.6, 117.1], [40.4, 116.3], [42.3, 114.8], [43.2, 112.6], [43.35, 109]];
+  // the walk along the school wing (1.5 m) down to the tree belt, east along it and south past the main block to the north wing's walk
+  const MN_PATH_E = [[43.35, 109.2], [43.3, 98], [43.25, 75.0], [44.2, 72.6], [58.8, 72.4], [60.15, 71.2], [60.15, 22.4]];
+  // Main Street's sidewalk leaves the curb at z 62 and swings north-east (3 m wide) to the plaza at the corner
+  const MN_SIDE_M = [[-17.35, 60.5], [-17.1, 64], [-16.4, 68], [-15.5, 72], [-14.7, 76], [-13.7, 80], [-12.4, 84.5], [-11.2, 88.5], [-10.5, 92], [-10.3, 96], [-10.0, 100], [-9.8, 104.5]];
+  // the plaza and the trail at the College Avenue corner (its south-east edge is the low wall), and the trail along College Avenue
+  const MN_PLAZA = [[-11.25, 104.2], [-11.6, 110], [-11.5, 116], [-12.1, 121.5], [-13.6, 125.6], [-15.8, 129.0], [-18.3, 131.4], [-20.5, 132.4], [-19.4, 134.4], [-17.5, 136.0], [-15.0, 137.0], [-12.0, 137.3], [-9.2, 137.1],
+    [-7.6, 133.2], [-6.6, 130.6], [-4.0, 129.2], [0, 128.0], [6, 127.0], [12, 126.8], [20, 127.5], [28, 128.5], [40, 130.3], [48, 131.2], [56, 131.0], [62.2, 130.8],
+    [62.2, 129.4], [56, 129.3], [48, 128.3], [40, 127.2], [30, 125.3], [20, 123.7], [10, 122.8], [4, 120.2], [0, 116.5], [-3, 112], [-5.5, 108.5], [-8.35, 104.6]];
+  const MN_WALL_SE = [[-8.6, 104.3], [-5.5, 108.5], [-3, 112], [0, 116.5], [4, 120.2], [10, 122.8], [20, 123.7], [30, 125.3], [37.5, 126.7]];
+  const MN_WALL_W = [[-11.4, 116.5], [-12.1, 121.5], [-13.6, 125.6], [-15.8, 129.0], [-18.3, 131.4], [-20.3, 132.3]];
+  // the school fence: off Main Street's line at the pillar at z 52, through the trees to the walk, along its outer side round the
+  // north-west bend and east along the north walk, then (as mapped) to College Avenue's trail and University Street
+  const MN_FENCE = [[-15.95, 52.4], [-14.4, 57], [-12.6, 62], [-11.0, 67], [-9.9, 72], [-8.0, 77], [-5.9, 82], [-4.4, 86], [-3.6, 90], [-2.6, 96], [-1.6, 100], [-0.4, 104], [1.6, 108], [3.8, 111.2], [5.6, 113.5],
+    [8.0, 114.45], [14, 115.45], [20, 116.65], [28, 118.3], [34, 119.1], [38.6, 119.5], [48, 122.6], [58, 125.6], [69.0, 128.1], [88, 127.0], [106.7, 126.0], [106.4, 107.8]];
+  // mulch beds (painted into the lawn canvas): between the fence and the plaza wall, the parkway bed west of the plaza, the bed with
+  // the boulders in the north-east corner, the tree belt between the sand and the school's main block
+  const MN_BED_NW = [[-1.0, 104.5], [1.6, 108.3], [3.9, 111.6], [5.6, 113.9], [8.0, 114.9], [14, 115.9], [20, 117.1], [28, 118.8], [34, 119.6], [38.6, 120.0], [37.5, 126.6], [30, 125.2], [20, 123.6], [10, 122.7], [4, 120.1], [0, 116.4], [-3, 111.9], [-5.4, 108.4], [-3.4, 105.6]];
+  const MN_BED_PK = [[-20.6, 104], [-11.4, 104.3], [-11.6, 110], [-11.5, 116.5], [-12.1, 121.5], [-13.6, 125.6], [-15.8, 129.0], [-18.3, 131.4], [-20.6, 132.4]];
+  const MN_BED_NE = [[38.8, 119.6], [41.5, 117.2], [43.6, 115.0], [46.5, 114.5], [50, 115.0], [56, 116.5], [62.2, 117.5], [62.2, 129.2], [56, 129.1], [48, 128.1], [40, 127.0], [37.6, 126.5]];
+  const MN_BELT = [[42.0, 21.9], [59.4, 21.9], [59.4, 71.7], [44.0, 71.9], [42.0, 70.5], [41.6, 40.4]];
+  // desire lines [points, width m] and worn patches [x, z, rx, rz, strength]
+  const MN_DESIRE = [
+    [[[41.6, 97.6], [36, 94.3], [30, 91.1], [24, 87.6], [19, 84.6], [13.5, 81.2], [9, 78.4], [5.2, 76.4]], 0.8],
+    [[[41.6, 95.8], [35, 92.0], [28.5, 88.3], [22.5, 85.0], [16.5, 81.6]], 0.6],
+    [[[40.8, 99.6], [35.5, 96.6], [30, 93.4], [25.5, 90.8]], 0.55],
+    [[[37.5, 97.2], [31.5, 93.4], [25.5, 89.6], [19.5, 86.2], [14.0, 83.2]], 0.45],
+    [[[41.6, 93.6], [34, 89.6], [27, 86.0]], 0.4],
+    [[[4.6, 76.2], [1.5, 74.0], [-2.6, 71.6], [-5.6, 70.2]], 0.6],
+    [[[6.0, 44.4], [4.0, 50], [0.8, 56.5], [-3.2, 60.4]], 0.4],
+  ];
+  const MN_WORNP = [[25.5, 105.6, 2.6, 1.6, 0.7], [14.5, 104.2, 2.0, 1.3, 0.5], [32.5, 106.2, 2.2, 1.4, 0.55], [20, 107.5, 3.5, 1.4, 0.4], [37.6, 108.0, 2.0, 1.6, 0.4],
+    [-6.6, 49.9, 4.4, 3.8, 0.5], [3.4, 86.4, 5.0, 5.0, 0.42], [13.6, 106.6, 3.2, 2.0, 0.5], [39.6, 71.6, 3.0, 2.6, 0.65], [38.2, 60, 2.2, 6, 0.4], [-4.8, 22.0, 1.6, 4.0, 0.4],
+    [7.5, 64, 6, 5, 0.18], [0, 60, 5, 4, 0.22], [27, 70, 6, 6, 0.12]];
+  // the two salmon rubber-surface pads at the lawn's west side (as mapped; light edge)
+  const MN_PAD1 = [[-7.84, 52.74], [-3.4, 52.17], [-4.0, 46.74], [-9.41, 47.18], [-9.86, 48.32], [-9.58, 50.11], [-8.95, 51.43]];
+  const MN_PAD2 = [[1.66, 91.17], [8.17, 88.57], [5.77, 81.34], [-1.1, 83.83]];
+  // the parking lot across College Avenue and the ISU lot west of Kingsley Street (as mapped; clipped to the frame's z 17)
+  const MN_LOTN = [[-3, 237], [45, 237], [45, 174.8], [35, 174.0], [25, 175.5], [15, 178.5], [6, 183], [0, 189], [-3, 195]];
+  const MN_LOTW = [[-48.46, 128.2], [-66.83, 125.18], [-84.78, 119.55], [-104.15, 110.05], [-122.55, 98.69], [-138.67, 85.42], [-157.21, 70.15], [-154.21, 66.14], [-159.48, 65.02], [-160.54, -2.79], [-149.72, -14.39], [-144.88, -10.12], [-141.06, -12.86], [-131.37, -4.34], [-134.09, -0.06], [-119.75, 14.57], [-115.42, 11.55], [-87.33, 39.0], [-92.36, 44.29], [-88.86, 47.31], [-84.32, 42.82], [-71.16, 53.58], [-57.69, 72.93], [-49.6, 96.6], [-45.6, 116.82], [-46.4, 125.48]];
+
+  // ---------- build (called from buildMetcalf with its batches and tree builders) ----------
+  function buildMetNorth(K) {
+    const { pb, B, nb, up, slab, cc, cK, atlW, decid, spruce } = K;
+    const conc = B.mconc, flat = B.mflat, chips = B.mchips, dirt = B.mdirt, grass = B.mgrass, street = B.mstreet, brick = B.mbrick, shing = B.mshing, glassB = B.mglass, bark = B.mbark, leaf = B.mleaf, needle = B.mneedle, pick = B.mpick, asph = B.masph, atl = B.matlas;
+    const lawn = nb('mlawn', 12), R2 = mrng(20260411); metNorthRoads();
+    const keep = (k) => MET.keep.push(k);
+    // ===== ground: the lawn canvas over the school grounds; plain lawn elsewhere north of the blacktop =====
+    { const U = (x) => (x - MNL.x0) / (MNL.x1 - MNL.x0), V = (z) => (z - MNL.z0) / (MNL.z1 - MNL.z0);
+      lawn.quad([MNL.x0, -0.03, MNL.z0], [MNL.x1, -0.03, MNL.z0], [MNL.x1, -0.03, MNL.z1], [MNL.x0, -0.03, MNL.z1], up, [1, 1, 1, 1], [U(MNL.x0), V(MNL.z0), U(MNL.x1), V(MNL.z0), U(MNL.x1), V(MNL.z1), U(MNL.x0), V(MNL.z1)]); }
+    {
+      const xs = [], zs = []; for (let x = -320; x < -70; x += 50) xs.push(x); for (let x = -70; x < 120; x += 10) xs.push(x); for (let x = 120; x <= 320; x += 40) xs.push(x);
+      xs.push(-31.55, -20.6, MNL.x1); xs.sort((a, b) => a - b);
+      zs.push(17.15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 128, MNL.z1, 150, 165, 180, 200, 225, 250, 285, 320);
+      const nz = vnoise(71), gc = (x, z) => { const n = nz(x / 9, z / 9) * 0.6 + nz(x / 3 + 30, z / 3) * 0.4, dry = nz(x / 23 + 7, z / 23); return mixC(mixC(tc('#373f2b'), tc('#465039'), n), tc('#57563c'), Math.max(0, dry - 0.55) * 1.6); };
+      for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
+        const x0 = xs[i], x1 = xs[i + 1], z0 = zs[j], z1 = zs[j + 1], cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+        if (cx > MNL.x0 && cx < MNL.x1 && cz < MNL.z1) continue; // the lawn canvas
+        if (cx > -31.55 && cx < -20.6 && cz < 128) continue; // Main Street's sunken roadway
+        const K2 = 0.4, y = MSPR.on ? -0.1 : -0.03; grass.grow(6); // (lower on the big field, as in 12-venue.js)
+        for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]]) { const q = metS(x, z); grass.v(x, y, z, 0, 1, 0, gc(x, z), q[0] * K2, q[1] * K2); }
+      }
+    }
+    // ===== walks, the plaza, the trail =====
+    const ribbon = (b, pts, w, y0, y1, col, k) => { // a slab along a centre line (top + both side faces)
+      const wf = typeof w === 'function' ? w : () => w, Lp = mnOffset(pts, 0.5).map((q, i) => { const p = pts[i], k = wf(i); return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k]; }), Rp = Lp.map((q, i) => [2 * pts[i][0] - q[0], 2 * pts[i][1] - q[1]]); b.grow((pts.length - 1) * (y1 - y0 > 0.1 ? 18 : 6));
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = Lp[i], bb = Lp[i + 1], c2 = Rp[i + 1], d2 = Rp[i];
+        b.quad([d2[0], y1, d2[1]], [c2[0], y1, c2[1]], [bb[0], y1, bb[1]], [a[0], y1, a[1]], up, col, [d2[0] * k, d2[1] * k, c2[0] * k, c2[1] * k, bb[0] * k, bb[1] * k, a[0] * k, a[1] * k]);
+        if (y1 - y0 > 0.1) for (const [p, q] of [[a, bb], [c2, d2]]) { const nx = q[1] - p[1], nz2 = -(q[0] - p[0]), l = Math.hypot(nx, nz2) || 1; b.quad([p[0], y0, p[1]], [q[0], y0, q[1]], [q[0], y1, q[1]], [p[0], y1, p[1]], [nx / l, 0, nz2 / l], col); }
+      }
+    };
+    const joints = (pts, w, step, col) => { const s = mnSmooth(pts, 0.25); let acc = 0; for (let i = 0; i < s.length - 1; i++) { const dl = Math.hypot(s[i + 1][0] - s[i][0], s[i + 1][1] - s[i][1]); acc += dl; if (acc >= step) { acc = 0; const o = mnOffset([s[i], s[i + 1]], w / 2 - 0.02), o2 = mnOffset([s[i], s[i + 1]], -w / 2 + 0.02); flat.quad([o[0][0], 0.026, o[0][1]], [o2[0][0], 0.026, o2[0][1]], [o2[0][0] + (s[i + 1][0] - s[i][0]) * 0.03, 0.026, o2[0][1] + (s[i + 1][1] - s[i][1]) * 0.03], [o[0][0] + (s[i + 1][0] - s[i][0]) * 0.03, 0.026, o[0][1] + (s[i + 1][1] - s[i][1]) * 0.03], up, col); } } };
+    const cW = cc('#bfbfb8'), cW2 = cc('#c4c4bd'), JC = [0.44, 0.44, 0.42, 1];
+    { const p = mnSmooth(MN_PATH_W, 1.1); ribbon(conc, p, 2.3, -0.04, 0.02, cW, cK); joints(MN_PATH_W, 2.3, 1.5, JC); }
+    { const p = mnSmooth(MN_PATH_N, 1.2); ribbon(conc, p, 2.1, -0.04, 0.021, cW, cK); joints(MN_PATH_N, 2.1, 1.5, JC); }
+    { const p = mnSmooth(MN_PATH_E, 1.5); ribbon(conc, p, 1.5, -0.04, 0.019, cW2, cK); joints(MN_PATH_E, 1.5, 1.5, JC); }
+    { const p = mnSmooth(MN_SIDE_M, 1.2); ribbon(conc, p, (i) => Math.min(3.0, 1.85 + i * 0.12), -0.05, 0.03, cc('#cfcbbd'), cK); joints(MN_SIDE_M, 2.6, 1.52, [0.5, 0.49, 0.45, 1]); } // widens from 1.85 m to 3 m round the bend
+    // the plaza: one slab (its joints a 2.4 m grid), the trail beyond it along College Avenue
+    conc.extrude(MN_PLAZA, -0.05, 0.03, cc('#c9c7bd'), cK, cc('#c9c7bd'), cK);
+    // brick paver band along the College Avenue curb east of the trail's bend
+    { const band = []; for (let x = 47; x <= 108; x += 3) band.push([x, mnLerpZ(MN_CS, x) - 0.75]); ribbon(brick, band, 1.1, -0.05, 0.035, tc('#8a4b3d'), 1.1); }
+    { const tr = []; for (let x = 62; x <= 108; x += 3) tr.push([x, mnLerpZ(MN_CS, x) - 2.6]); ribbon(conc, tr, 2.9, -0.05, 0.03, cc('#c9c7bd'), cK); }
+    // the low concrete walls (0.45 m) along the plaza's south-east edge and round its west side
+    for (const W2 of [MN_WALL_SE, MN_WALL_W]) { const p = mnSmooth(W2, 1.0); ribbon(conc, p, 0.36, 0, 0.47, cc('#bdbbb2'), cK); for (let i = 0; i < p.length - 1; i += 2) keep([Math.min(p[i][0], p[i + 1][0]) - 0.2, 0, Math.min(p[i][1], p[i + 1][1]) - 0.2, Math.max(p[i][0], p[i + 1][0]) + 0.2, 0.5, Math.max(p[i][1], p[i + 1][1]) + 0.2]); }
+    // ===== the play area: sand, its soft edge, the gaga pit's measured spot is handled in buildMetcalf; the pads =====
+    for (const P of [MN_PAD1, MN_PAD2]) {
+      dirt.poly(P, 0.012, tc('#a8786a'), true, 0.6);
+      for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, 0.01, (a[1] + b[1]) / 2, l, 0.05, 0.12, Math.atan2(b[1] - a[1], b[0] - a[0]), hx3('#d8d2c8')); }
+    }
+    { const st = hx3('#7b8085'); // a low steel beam with two posts on the lower pad, a post with two short bars on the upper one (plausible play items)
+      for (const [x, z] of [[-7.4, 49.65], [-5.0, 49.4]]) pb.cyl(x, z, 0, 0.5, 0.045, 0.045, st, 8, true); pb.tube([-7.4, 0.5, 49.65], [-5.0, 0.5, 49.4], 0.05, st, 8); pb.cyl(-7.4, 51.5, 0, 1.5, 0.05, 0.05, st, 8, true);
+      pb.cyl(3.9, 87.9, 0, 2.2, 0.055, 0.05, st, 8, true); for (const y of [1.4, 1.9]) pb.tube([3.4, y, 88.0], [4.4, y, 87.8], 0.03, st, 6); pb.tube([2.3, 0.45, 86.6], [5.3, 0.45, 85.9], 0.05, st, 8); for (const [x, z] of [[2.3, 86.6], [5.3, 85.9]]) pb.cyl(x, z, 0, 0.45, 0.045, 0.045, st, 8, true);
+      keep([-7.6, 0, 49.2, -4.8, 0.6, 49.9]); keep([3.9, 87.9, 0.25, 0, 2.3]); }
+    // ===== the school fence (black ornamental pickets, no pillars on this run) =====
+    {
+      const blk = [0.07, 0.07, 0.075, 1], PKC = [0.1, 0.1, 0.105, 1], F = mnSmooth(MN_FENCE, 2.0); let run = 0, sincePost = 0;
+      for (let i = 0; i < F.length - 1; i++) {
+        const a = F[i], b = F[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), ang = Math.atan2(dz, dx), mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+        const nn = [-dz / l, 0, dx / l]; for (const y of [0.12, 1.04]) pb.quad([a[0], y - 0.02, a[1]], [b[0], y - 0.02, b[1]], [b[0], y + 0.02, b[1]], [a[0], y + 0.02, a[1]], nn, blk); void mx; void mz; void ang;
+        const sa = metS(a[0], a[1]), sb = metS(b[0], b[1]), lr = MSPR.on ? Math.hypot(sb[0] - sa[0], sb[1] - sa[1]) : l; // (real metres on the big field)
+        pick.quad([a[0], 0.05, a[1]], [b[0], 0.05, b[1]], [b[0], 1.2, b[1]], [a[0], 1.2, a[1]], [0, 0, 0], PKC, [run / 0.115, 1, (run + lr) / 0.115, 1, (run + lr) / 0.115, 0, run / 0.115, 0]);
+        sincePost += lr; if (sincePost >= 2.44 || i === 0) { sincePost = 0; metObj(a[0], a[1], () => { const nn = [-dz / l, 0, dx / l]; pb.quad([a[0] - nn[2] * 0.035, 0, a[1] + nn[0] * 0.035], [a[0] + nn[2] * 0.035, 0, a[1] - nn[0] * 0.035], [a[0] + nn[2] * 0.035, 1.22, a[1] - nn[0] * 0.035], [a[0] - nn[2] * 0.035, 1.22, a[1] + nn[0] * 0.035], nn, blk); pb.quad([a[0] - nn[0] * 0.035, 0, a[1] - nn[2] * 0.035], [a[0] + nn[0] * 0.035, 0, a[1] + nn[2] * 0.035], [a[0] + nn[0] * 0.035, 1.22, a[1] + nn[2] * 0.035], [a[0] - nn[0] * 0.035, 1.22, a[1] - nn[2] * 0.035], [dx / l, 0, dz / l], blk); }); }
+        run += lr; keep([Math.min(a[0], b[0]) - 0.12, 0, Math.min(a[1], b[1]) - 0.12, Math.max(a[0], b[0]) + 0.12, 1.3, Math.max(a[1], b[1]) + 0.12]);
+      }
+    }
+    // ===== odds and ends on the grounds =====
+    { const char = hx3('#2f3438'), wood = hx3('#7a5a40');
+      // the bench on its slab by the north walk, and a trash can
+      slab([[11.3, 105.6], [15.6, 105.6], [15.6, 107.8], [11.3, 107.8]], 0.03, cc('#c4c3bc'));
+      pb.wbox(12.5, 0.42, 106.3, 14.4, 0.47, 106.75, wood); pb.wbox(12.5, 0.5, 106.85, 14.4, 0.85, 106.92, wood); for (const x of [12.7, 14.2]) pb.wbox(x - 0.04, 0, 106.3, x + 0.04, 0.85, 106.95, char); keep([12.3, 0, 106.1, 14.6, 0.9, 107.1]);
+      pb.cyl(11.8, 103.3, 0, 0.9, 0.28, 0.3, hx3('#1d2124'), 12, true);
+      // the garden bed with its timber frame and the round seating area by the school wing, picnic tables
+      { const x0 = 39.3, x1 = 42.5, z0 = 106.2, z1 = 112.8; for (const [a, b2, c2, d2] of [[x0, z0, x1, z0 + 0.15], [x0, z1 - 0.15, x1, z1], [x0, z0, x0 + 0.15, z1], [x1 - 0.15, z0, x1, z1]]) bark.tbox(a, 0, b2, c2, 0.35, d2, tc('#8a6a4a'), 1); dirt.poly([[x0 + 0.15, z0 + 0.15], [x1 - 0.15, z0 + 0.15], [x1 - 0.15, z1 - 0.15], [x0 + 0.15, z1 - 0.15]], 0.28, tc('#4a3c30'), true, 0.6); keep([x0, 0, z0, x1, 0.4, z1]); }
+      { const cx = 52.6, cz = 109.4, r = 5.0, ring = []; for (let k = 0; k <= 40; k++) { const t = k / 40 * 6.2832; ring.push([cx + Math.cos(t) * r, cz + Math.sin(t) * r * 0.95]); } ribbon(conc, ring, 0.3, -0.04, 0.06, cc('#c9c7bd'), cK); dirt.poly(ring.slice(0, 40), 0.01, tc('#6a5a48'), true, 0.5);
+        const table = (x, z, ang) => metObj(x, z, () => { pb.obox(x, 0.74, z, 1.8, 0.05, 0.75, ang, char); pb.obox(x, 0.36, z, 0.14, 0.72, 0.6, ang, char); for (const s of [-1, 1]) { const ox = -Math.sin(ang) * 0.68 * s, oz = Math.cos(ang) * 0.68 * s; pb.obox(x + ox, 0.44, z + oz, 1.8, 0.04, 0.3, ang, char); } keep([x - 1.1, 0, z - 1.1, x + 1.1, 0.8, z + 1.1]); });
+        table(51.4, 111.4, 0.15); table(53.6, 107.6, 0.15);
+        ribbon(conc, mnSmooth([[44.6, 113.6], [47.8, 113.4], [50.3, 112.9], [51.8, 113.6]], 0.6), 1.4, -0.04, 0.02, cW2, cK); }
+      // boulders in the north-east bed
+      for (let k = 0; k < 13; k++) { const x = 43.8 + R2() * 6.5, z = 115.4 + R2() * 4.6, r = 0.3 + R2() * 0.32; pb.blobby(x, r * 0.35, z, r * 1.15, r * 0.7, r, hx3(R2() < 0.5 ? '#c9c6bd' : '#a9a49a'), 7, 4, 1, 0.35, R2); }
+      // the porch with the brown roof on the north side of the school wing
+      { const x0 = 55.6, x1 = 63.4, z0 = 97.6, z1 = 103.5; for (const [x, z] of [[x0 + 0.2, z1 - 0.2], [x1 - 0.2, z1 - 0.2]]) pb.wbox(x - 0.1, 0, z - 0.1, x + 0.1, 2.9, z + 0.1, hx3('#d9d6cc')); shing.tbox(x0, 2.9, z0, x1, 3.25, z1, tc('#6a4a36'), 0.45); keep([x0, 0, z0, x1, 3.3, z1]); }
+      // two orange round tables by the east edge of the lawn, on and by the little slab
+      slab([[40.5, 66.5], [43.0, 66.5], [43.0, 73.0], [40.5, 73.0]], 0.025, cc('#c4c3bc'));
+      for (const [x, z] of [[37.6, 70.1], [40.6, 72.6]]) { const o = hx3('#d9542a'); pb.cyl(x, z, 0.72, 0.76, 0.75, 0.75, o, 14, true); pb.cyl(x, z, 0, 0.72, 0.06, 0.06, hx3('#3a3a3a'), 8); for (let k = 0; k < 3; k++) { const t = k / 3 * 6.2832 + 0.4; pb.cyl(x + Math.cos(t) * 1.05, z + Math.sin(t) * 1.05, 0.42, 0.46, 0.24, 0.24, o, 10, true); pb.cyl(x + Math.cos(t) * 1.05, z + Math.sin(t) * 1.05, 0, 0.42, 0.04, 0.04, hx3('#3a3a3a'), 6); } keep([x, z, 1.3, 0, 0.8]); }
+      // lamps along the trail: black posts with a lantern
+      for (const [x, z] of [[-4.2, 129.3], [25.0, 128.6], [53.6, 129.9]]) { const bk = hx3('#1e2124'); pb.cyl(x, z, 0, 4.2, 0.07, 0.055, bk, 8, false); pb.cyl(x, z, 4.2, 4.85, 0.16, 0.2, bk, 8, true); glassB.cyl(x, z, 4.3, 4.75, 0.17, 0.17, [0.9, 0.9, 0.86, 1], 8, false); keep([x, z, 0.25, 0, 5]); }
+      // the bus stop sign by University Street
+      { const x = 96.6, z = 130.9; pb.cyl(x, z, 0, 2.9, 0.035, 0.035, hx3('#8a8f8f'), 6); pb.wbox(x - 0.3, 2.3, z - 0.02, x + 0.3, 2.9, z + 0.02, hx3('#1f5fae')); }
+    }
+    // ===== the streets: Main Street's last block (it widens to three lanes and rises to the intersection), the intersection, West
+    // College Avenue and its west arm, North Main Street, Kingsley Street; curbs, lane lines, the yellow centre lines, stop bars =====
+    {
+      const RC = tc('#a2a39d'), RC2 = tc('#9a9b95'), LW = [0.93, 0.93, 0.9, 1], LY = [0.86, 0.72, 0.28, 1], yl = 0.012, KS = 0.3;
+      const sq = (b, pts, y, col) => b.poly(pts, y, col, true, KS);
+      // Main Street from z 120 (where the sunken roadway ends) up to the intersection, rising 0.15 m over 8 m
+      { const yA = -0.15, x0 = -31.4, x1 = -20.75; for (let z = 120; z < 129; z += 1) { const ya = Math.min(0, yA + (z - 120) / 8 * 0.15), yb = Math.min(0, yA + (z + 1 - 120) / 8 * 0.15); street.quad([x0, ya, z], [x1, ya, z], [x1, yb, z + 1], [x0, yb, z + 1], up, RC, [x0 * KS, z * KS, x1 * KS, z * KS, x1 * KS, (z + 1) * KS, x0 * KS, (z + 1) * KS]); }
+        conc.tbox(-20.75, -0.15, 120, -20.6, 0.12, 130.6, cc('#c9c8bf'), cK); conc.tbox(-31.55, -0.15, 120, -31.4, 0.12, 128.6, cc('#c9c8bf'), cK);
+        for (const x of [-28.5, -25.3]) for (let z = 120.5; z < 128; z += 6) flat.quad([x - 0.06, Math.min(0, -0.15 + (z - 120) / 8 * 0.15) + yl, z], [x + 0.06, Math.min(0, -0.15 + (z - 120) / 8 * 0.15) + yl, z], [x + 0.06, Math.min(0, -0.15 + (z + 3 - 120) / 8 * 0.15) + yl, z + 3], [x - 0.06, Math.min(0, -0.15 + (z + 3 - 120) / 8 * 0.15) + yl, z + 3], up, LW);
+        flat.quad([-31.3, yl, 130.2], [-20.85, yl, 130.2], [-20.85, yl, 130.65], [-31.3, yl, 130.65], up, LW); } // NB stop bar
+      // the island between Main and Kingsley (raised, concrete), from where Kingsley comes alongside to the intersection
+      conc.extrude([[-36.0, 100], [-31.55, 100], [-31.55, 128.6], [-33.0, 129.4], [-36.2, 128.4]], -0.05, 0.12, cc('#bdbcb4'), cK, cc('#bdbcb4'), cK);
+      // the intersection
+      const IX = [[-8, 136.9], [-12, 137.4], [-15, 137.1], [-17.5, 136.0], [-19.4, 134.4], [-20.5, 132.4], [-20.75, 129], [-31.4, 129], [-32.6, 129.6], [-36.3, 129.6], [-44.2, 129], [-44.4, 133], [-45.0, 137], [-45.5, 139.5], [-46, 155], [-44.5, 157.6], [-42.6, 159.6], [-41.75, 162], [-19.75, 162], [-18.5, 160.3], [-16, 158.4], [-12.5, 157.8], [-10, 157.6]];
+      sq(street, IX, 0.004, RC);
+      // College Avenue east of the intersection, its west arm, North Main Street, Kingsley Street
+      { const P = []; for (let x = -10; x <= 200; x += 5) P.push(x); const S = P.map((x) => [x, mnLerpZ(MN_CS, x)]), Nn = P.map((x) => [x, mnLerpZ(MN_CN, x)]);
+        for (let i = 0; i < P.length - 1; i++) street.quad([S[i][0], 0, S[i][1]], [S[i + 1][0], 0, S[i + 1][1]], [Nn[i + 1][0], 0, Nn[i + 1][1]], [Nn[i][0], 0, Nn[i][1]], up, RC, [S[i][0] * KS, S[i][1] * KS, S[i + 1][0] * KS, S[i + 1][1] * KS, Nn[i + 1][0] * KS, Nn[i + 1][1] * KS, Nn[i][0] * KS, Nn[i][1] * KS]);
+        // curbs (0.12 m), the north sidewalk along the curb east of x 48 and the walk that curves away west of it
+        const curb = (pts, side) => { const o = mnOffset(pts, side * 0.16); for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], c2 = o[i + 1], d2 = o[i]; conc.quad([a[0], 0.12, a[1]], [b[0], 0.12, b[1]], [c2[0], 0.12, c2[1]], [d2[0], 0.12, d2[1]], up, cc('#c9c8bf')); const nx = -(b[1] - a[1]) * side, nz2 = (b[0] - a[0]) * side, l = Math.hypot(nx, nz2) || 1; conc.quad([a[0], 0, a[1]], [b[0], 0, b[1]], [b[0], 0.12, b[1]], [a[0], 0.12, a[1]], [-nx / l, 0, -nz2 / l], cc('#c9c8bf')); } };
+        curb(S.filter((p) => p[0] < 109.6), -1); curb(S.filter((p) => p[0] > 118), -1); curb(Nn.filter((p) => p[0] < 109.6), 1); curb(Nn.filter((p) => p[0] > 118), 1);
+        const nsw = []; for (let x = 48; x <= 108; x += 4) nsw.push([x, mnLerpZ(MN_CN, x) + 1.75]); ribbon(conc, nsw, 3.1, -0.05, 0.12, cc('#c9c7bd'), cK);
+        ribbon(conc, mnSmooth([[-17.6, 159.8], [-11.5, 167.5], [-5.5, 174.2], [3.0, 172.2], [13.6, 170.0], [23.3, 168.4], [35.7, 164.6], [43.6, 161.6], [48.2, 159.6], [50.5, 158.4]], 1.2), 2.4, -0.05, 0.1, cc('#c9c7bd'), cK);
+        ribbon(conc, mnSmooth([[-5.55, 174.2], [-6.57, 184.8], [-6.74, 202.55], [-8.05, 217.2], [-12.72, 233.02], [-16.97, 245.69], [-17.35, 267.37], [-16.63, 275.71], [-15.13, 297.65], [-14.87, 321.48]], 2), 2.0, -0.05, 0.1, cc('#c9c7bd'), cK);
+        ribbon(conc, mnSmooth([[-46, 157.5], [-55, 164], [-60.03, 170.45], [-58.76, 181.87], [-57.84, 199.05], [-56.07, 215.49], [-45.53, 247.89], [-44.35, 253.55], [-42.61, 286.49], [-42.0, 320]], 2), 2.0, -0.05, 0.1, cc('#c9c7bd'), cK);
+        // markings: the double yellow centre line, lane lines, the solid line of the westbound left-turn lane, arrows, stop bars
+        const along = (fz, x0, x1, w, col, dash, gap) => { for (let x = x0; x < x1; x += dash + gap) { if (x > 108.6 && x < 118.5) continue; const xa = x, xb = Math.min(x1, x + dash), za = fz(xa), zb = fz(xb); flat.quad([xa, yl, za - w / 2], [xb, yl, zb - w / 2], [xb, yl, zb + w / 2], [xa, yl, za + w / 2], up, col); } };
+        const Y = (x) => mnLerpZ(MN_CY, x), S2 = (x) => mnLerpZ(MN_CS, x), N2 = (x) => mnLerpZ(MN_CN, x);
+        along((x) => Y(x) - 0.11, -9.5, 200, 0.1, LY, 5, 0); along((x) => Y(x) + 0.11, -9.5, 200, 0.1, LY, 5, 0);
+        along((x) => S2(x) + 0.5 * (Y(x) - S2(x)), -6, 74, 0.11, LW, 3, 9);
+        along((x) => Y(x) + 4.4, -9.5, 55, 0.13, LW, 5, 0); along((x) => Y(x) + 4.4, 55, 76, 0.13, LW, 0.6, 0.9);
+        along((x) => Y(x) + 4.4 + 0.5 * (N2(x) - Y(x) - 4.4), -6, 200, 0.11, LW, 3, 9);
+        along((x) => Y(x) - 4.0, 76, 106, 0.13, LW, 5, 0);
+        flat.quad([-9.75, yl, Y(-9.5) + 0.25], [-9.3, yl, Y(-9.5) + 0.25], [-9.3, yl, N2(-9.5) - 0.2], [-9.75, yl, N2(-9.5) - 0.2], up, LW); // WB stop bar
+        flat.quad([-41.5, yl, 162.6], [-29.9, yl, 162.6], [-29.9, yl, 163.05], [-41.5, yl, 163.05], up, LW); // SB stop bar
+        const arrow = (x, z, dir, turn) => { const s = dir; flat.quad([x - 1.6 * s, yl, z - 0.09], [x + 0.6 * s, yl, z - 0.09], [x + 0.6 * s, yl, z + 0.09], [x - 1.6 * s, yl, z + 0.09], up, LW);
+          const tz = turn * 0.9; flat.quad([x + 0.5 * s, yl, z - 0.09 * turn], [x + 0.68 * s, yl, z - 0.09 * turn], [x + 0.68 * s, yl, z + tz], [x + 0.5 * s, yl, z + tz], up, LW); flat.grow(3); for (const [ax, az] of [[x + 0.25 * s, z + tz], [x + 0.93 * s, z + tz], [x + 0.59 * s, z + tz + 0.55 * turn]]) flat.v(ax, yl, az, 0, 1, 0, LW, 0.5, 0.5); };
+        for (const x of [-4.5, 20.5, 40.0]) arrow(x, Y(x) + 2.2, -1, -1); for (const x of [82, 97]) arrow(x, Y(x) - 2.0, 1, 1);
+        // the west arm
+        const WS = mnSmooth(MN_WS, -5), WN = mnSmooth(MN_WN, -5);
+        for (let i = 0; i < Math.min(WS.length, WN.length) - 1; i++) street.quad([WS[i][0], 0, WS[i][1]], [WS[i + 1][0], 0, WS[i + 1][1]], [WN[i + 1][0], 0, WN[i + 1][1]], [WN[i][0], 0, WN[i][1]], up, RC2, [WS[i][0] * KS, WS[i][1] * KS, WS[i + 1][0] * KS, WS[i + 1][1] * KS, WN[i + 1][0] * KS, WN[i + 1][1] * KS, WN[i][0] * KS, WN[i][1] * KS]);
+        curb(WS, 1); curb(WN, -1);
+        { const WC = WS.map((p, i) => [(p[0] + WN[i][0]) / 2, (p[1] + WN[i][1]) / 2]); for (const off of [-0.11, 0.11]) { const o = mnOffset(WC, off); for (let i = 0; i < o.length - 1; i++) { const a = mnOffset([o[i], o[i + 1]], 0.05), b2 = mnOffset([o[i], o[i + 1]], -0.05); flat.quad([a[0][0], yl, a[0][1]], [a[1][0], yl, a[1][1]], [b2[1][0], yl, b2[1][1]], [b2[0][0], yl, b2[0][1]], up, LY); } } }
+        // North Main Street
+        { const M2 = MN_NM; street.quad([M2.x0, 0, M2.z0], [M2.x1, 0, M2.z0], [M2.x1, 0, M2.z1], [M2.x0, 0, M2.z1], up, RC, [M2.x0 * KS, M2.z0 * KS, M2.x1 * KS, M2.z0 * KS, M2.x1 * KS, M2.z1 * KS, M2.x0 * KS, M2.z1 * KS]);
+          curb([[M2.x0, M2.z1], [M2.x0, M2.z0]], -1); curb([[M2.x1, M2.z0], [M2.x1, M2.z1]], -1);
+          for (const x of [M2.med0 + 0.1, M2.med1 - 0.1]) flat.quad([x - 0.06, yl, M2.z0], [x + 0.06, yl, M2.z0], [x + 0.06, yl, M2.z1], [x - 0.06, yl, M2.z1], up, LY);
+          for (const x of [-37.75, -33.75, -23.6]) for (let z = M2.z0 + 4; z < M2.z1; z += 12) flat.quad([x - 0.06, yl, z], [x + 0.06, yl, z], [x + 0.06, yl, z + 3], [x - 0.06, yl, z + 3], up, LW); }
+        // University Street (curbs x 109.6 / 118.0) from the frame's z 17 north, across College Avenue
+        { const ux0 = 109.6, ux1 = 118.0; street.quad([ux0, 0.006, 17.15], [ux1, 0.006, 17.15], [ux1, 0.006, 300], [ux0, 0.006, 300], up, RC, [ux0 * KS, 17.15 * KS, ux1 * KS, 17.15 * KS, ux1 * KS, 300 * KS, ux0 * KS, 300 * KS]);
+          const cS = mnLerpZ(MN_CS, 113.8), cN = mnLerpZ(MN_CN, 113.8); for (const [za, zb] of [[17.15, cS - 6], [cN + 6, 300]]) { curb([[ux0, zb], [ux0, za]], -1); curb([[ux1, za], [ux1, zb]], -1); }
+          for (const x of [113.69, 113.91]) for (const [za, zb] of [[17.15, cS - 1], [cN + 1, 300]]) flat.quad([x - 0.05, yl, za], [x + 0.05, yl, za], [x + 0.05, yl, zb], [x - 0.05, yl, zb], up, LY); }
+        // Kingsley Street down to z 17 (the rest is the south side's)
+        { const k = mnSmooth(MN_KS, 3), kl = mnOffset(k, 4.0), kr = mnOffset(k, -4.0);
+          for (let i = 0; i < k.length - 1; i++) street.quad([kr[i][0], 0, kr[i][1]], [kr[i + 1][0], 0, kr[i + 1][1]], [kl[i + 1][0], 0, kl[i + 1][1]], [kl[i][0], 0, kl[i][1]], up, RC2, [kr[i][0] * KS, kr[i][1] * KS, kr[i + 1][0] * KS, kr[i + 1][1] * KS, kl[i + 1][0] * KS, kl[i + 1][1] * KS, kl[i][0] * KS, kl[i][1] * KS]);
+          curb(kl.slice(2), 1); curb(kr.filter((p) => p[1] < 99), -1);
+          let acc = 0; for (let i = 0; i < k.length - 1; i++) { const l = Math.hypot(k[i + 1][0] - k[i][0], k[i + 1][1] - k[i][1]); if ((acc % 12) < 3) { const a = mnOffset([k[i], k[i + 1]], 0.06), b2 = mnOffset([k[i], k[i + 1]], -0.06); flat.quad([a[0][0], yl, a[0][1]], [a[1][0], yl, a[1][1]], [b2[1][0], yl, b2[1][1]], [b2[0][0], yl, b2[0][1]], up, LW); } acc += l; } }
+      }
+      // traffic signal masts: on the island for northbound Main, at the south-east corner over westbound College, north of the
+      // intersection over North Main (each a galvanised pole, an arm and black three-lamp heads)
+      const gal = hx3('#8d9396'), headC = hx3('#1b1d1f');
+      const mast = (x, z, ax, az) => { pb.cyl(x, z, 0, 6.6, 0.16, 0.12, gal, 10, true); pb.tube([x, 6.2, z], [ax, 6.45, az], 0.07, gal, 8); const L2 = Math.hypot(ax - x, az - z);
+        for (let t = 0.45; t <= 1.0; t += 0.27) { const hx = x + (ax - x) * t, hz = z + (az - z) * t; pb.wbox(hx - 0.17, 5.25, hz - 0.17, hx + 0.17, 6.3, hz + 0.17, headC); } keep([x, z, 0.4, 0, 6.8]); void L2; };
+      mast(-35.6, 128.8, -21.8, 128.8); mast(-11.4, 137.9, -11.4, 150.5); mast(-18.6, 176.0, -31.5, 176.0);
+      // the wooden utility pole line continues up the west side of Main to the corner
+    }
+    // ===== the lots: across College Avenue (north) and west of Kingsley Street, with parked cars (cheap far cars) =====
+    {
+      const AC = tc('#8f908b'), AC2 = tc('#7c7d79');
+      asph.poly(MN_LOTN, 0.006, AC, true, 0.4);
+      const W2 = mnClipZ(MN_LOTW, 17.15); asph.poly(W2, 0.005, AC2, true, 0.4);
+      const CARC = ['#e6e6e2', '#b9bcc0', '#1d1f22', '#55595e', '#7e1d22', '#2f3d57', '#d8d6cf', '#8d9196', '#3b3f45', '#f0f0ec', '#5a2a2a', '#304a3a'];
+      const farCar = (x, z, ang) => { const c = hx3(CARC[(R2() * CARC.length) | 0]); metObj(x, z, () => { pb.obox(x, 0.62, z, 4.5, 0.78, 1.8, ang, c); pb.obox(x - Math.cos(ang) * 0.25, 1.22, z - Math.sin(ang) * 0.25, 2.3, 0.5, 1.6, ang, [0.12, 0.14, 0.16, 1]); }); };
+      const row = (x0, z0, x1, z1, ang, pitch, fill) => { const L2 = Math.hypot(x1 - x0, z1 - z0), n = Math.floor(L2 / pitch); for (let i = 0; i <= n; i++) { if (R2() > fill) continue; const t = n ? i / n : 0; farCar(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, ang + (R2() - 0.5) * 0.05); } };
+      // stall lines on the north lot
+      for (const z of [213.0, 222.5]) for (let x = 2; x < 44; x += 2.7) flat.quad([x - 0.05, 0.012, z - 2.7], [x + 0.05, 0.012, z - 2.7], [x + 0.05, 0.012, z + 2.7], [x - 0.05, 0.012, z + 2.7], up, [0.88, 0.88, 0.85, 1]);
+      row(3.4, 219.8, 43, 219.8, Math.PI / 2, 2.7, 0.85); row(3.4, 215.7, 43, 215.7, Math.PI / 2, 2.7, 0.8); row(10, 198.6, 43, 198.6, Math.PI / 2, 2.7, 0.75); row(0.2, 196, 0.2, 234, 0, 2.7, 0.8);
+      row(1.5, 191, 13.5, 181.5, Math.PI * 0.27, 2.75, 0.85); row(15.5, 180.3, 31, 176.5, Math.PI * 0.42, 2.75, 0.8);
+      // the ISU lot: two rows along Kingsley's west side
+      { const k = mnSmooth(MN_KS.filter((p) => p[1] > 30 && p[1] < 126), 3); for (const off of [9.5, 16.2]) { const o = mnOffset(k, -off); for (let i = 0; i < o.length - 1; i += 1) { if (R2() > 0.7) continue; const a = o[i], b2 = o[i + 1], ang = Math.atan2(b2[1] - a[1], b2[0] - a[0]) + Math.PI / 2; farCar(a[0], a[1], ang); } } }
+    }
+    // ===== buildings across College Avenue and beyond the school =====
+    {
+      const trimW = hx3('#e9e8e3'), cap = hx3('#cfcdc5');
+      // ISU Student Health Services: three storeys of red-brown brick with white-framed windows in pairs and a light band at the top,
+      // a flat roof and a taller middle block (its shadow on the roof)
+      { const P = [[51.86, 169.16], [98.29, 168.71], [98.74, 215.36], [52.31, 215.82]], h = 11.6;
+        brick.extrude(P, 0, h, tc('#8b4b3c'), 1.1, false); pb.poly(P, h, hx3('#8a8d8c')); pb.extrude(P.map((p) => p), h - 0.6, h + 0.25, cap, 0, false);
+        const Pc = [[64, 179.5], [92, 179.2], [92.3, 206], [64.2, 206.3]]; brick.extrude(Pc, h, 15.6, tc('#94584a'), 1.1, false); pb.poly(Pc, 15.6, hx3('#7d8180')); pb.extrude(Pc, 15.3, 15.8, cap, 0, false);
+        for (let x = 53.2; x < 96.6; x += metPitch(3.1)) for (const y of [1.0, 4.7, 8.3]) { atlW('winW', [x, 169.1 - (x - 51.86) * 0.0097], [x + 1.2, 169.1 - (x + 1.2 - 51.86) * 0.0097], y, y + 1.9, [0, 0, -1]); atlW('winW', [x + 1.35, 169.1 - (x + 1.35 - 51.86) * 0.0097], [x + 2.55, 169.1 - (x + 2.55 - 51.86) * 0.0097], y, y + 1.9, [0, 0, -1]); }
+        for (let z = 171; z < 213; z += metPitch(3.1)) for (const y of [1.0, 4.7, 8.3]) atlW('winW', [51.82 + (z - 169.16) * 0.0097, z + 1.2], [51.82 + (z - 169.16) * 0.0097, z], y, y + 1.9, [-1, 0, 0]);
+        for (let x = 66; x < 90; x += metPitch(3.1)) atlW('winW', [x, 179.44 - (x - 64) * 0.0107], [x + 1.2, 179.44 - (x + 1.2 - 64) * 0.0107], 12.4, 14.4, [0, 0, -1]);
+        keep([51.86, 0, 168.7, 98.74, 16, 215.8]); }
+      // Classroom Building #2 and the ROTC headquarters further north (low brick masses at their mapped footprints)
+      { const P = [[-9.62, 288.2], [-9.73, 281.05], [-0.97, 280.91], [-1.37, 256.85], [29.72, 256.36], [30.08, 278.37], [41.2, 278.19], [41.35, 287.39]]; brick.extrude(P, 0, 8.2, tc('#a58a72'), 1.1, false); pb.poly(P, 8.2, hx3('#7f8483')); for (let x = 1; x < 28; x += 3.0) for (const y of [1.1, 4.8]) atlW('winD', [x, 256.8 - (x + 1.37) * 0.0158], [x + 1.6, 256.8 - (x + 2.97) * 0.0158], y, y + 2.0, [0, 0, -1]); keep([-9.7, 0, 256.3, 41.4, 8.5, 288.2]); }
+      { const P = [[95.74, 265.45], [63.58, 265.55], [63.53, 251.83], [79.1, 251.77], [79.09, 247.81], [87.81, 247.78], [87.82, 251.88], [95.7, 251.86]]; brick.extrude(P, 0, 4.8, tc('#8e5446'), 1.1, false); pb.poly(P, 4.8, hx3('#6e7372')); keep([63.5, 0, 247.8, 95.8, 5, 265.6]); }
+      // the university's heating plant across University Street (mapped footprint; a tall brick block)
+      { const P = [[135.41, 104.16], [135.22, 62.81], [164.57, 62.23], [164.62, 67.01], [175.7, 67.03], [175.62, 76.19], [164.64, 76.57], [164.85, 96.84], [161.04, 96.73], [160.9, 103.74]]; brick.extrude(P, 0, 10.5, tc('#8a5244'), 1.1, false); pb.poly(P, 10.5, hx3('#5c605f')); for (let z = 66; z < 102; z += 3.4) atlW('winD', [135.1, z + 1.4], [135.1, z], 4.0, 8.0, [-1, 0, 0]); keep([135.2, 0, 62.2, 175.7, 11, 104.2]); }
+    }
+    // ===== trees =====
+    {
+      for (const t of MN_TREES) {
+        const [x, z, dd, h, ev, kind, lod, cl] = t;
+        if (kind === 'spruce') spruce(x, z, dd, h, cl); else if (kind === 'pine') spruce(x, z, dd, h, cl || '#3f5a3c'); else decid(x, z, dd, h, kind, lod, cl); // (the broad pines read best as dark, wide spruce cones)
+      }
+      // dark yews in the bed by the fence's north-west bend
+      for (const [x, z, r] of [[-3.0, 108.0, 0.9], [-0.6, 107.6, 0.7], [17.8, 120.6, 0.8]]) leaf.blobby(x, r * 0.8, z, r, r * 0.85, r, tc('#2e3d26'), 8, 5, 1.2, 0.35, R2);
+    }
+  }
+  // =====================================================================================
+  // Metcalf people (Metcalf only: nothing in here runs at the stadium or in Head to Head)
+  //  - the crowd (MOPT.crowd): spectators all round the field, packed rows along the sidelines and the end lines (outside a margin
+  //    so runs out of bounds and the default cameras stay clear) and more scattered over the blacktop, the playground and the
+  //    lawns, a few sitting. They follow the ball and react like a stadium crowd (cheer, groan, clap, jump, rush in after a TD).
+  //  - people walking by on the Main Street sidewalks and the school walk at all times, some with a dog or a backpack.
+  //  - the ball over the fence: after the play, the players line up at the fence and call to someone passing by, who picks the
+  //    ball up and throws it back to one of ours (skippable after 3 s). It never touches the score, the clock or the game RNG.
+  // Drawing: every person is one instance of a low-poly body made of rigid parts posed in the vertex shader from 16 joint angles
+  // (one instanced draw, a far LOD and the dogs), lit like the rest of the world, with instanced blob shadows (no shadow-map cost).
+  // Positions are authored in frame F metres and go through metE, so the big-field option moves them with the map.
+  // =====================================================================================
+  const PPL_ON = METCALF && !VS;
+  // joint angles per person (radians): torso bend forward, twist, side roll, head nod down, head turn; per arm: shoulder pitch
+  // (forward/up), roll (out to the side), elbow; per leg: hip pitch (forward), knee; arm yaw (both arms in toward the middle)
+  const J_TB = 0, J_TY = 1, J_TR = 2, J_HP = 3, J_HY = 4, J_LP = 5, J_LR = 6, J_LE = 7, J_RP = 8, J_RR = 9, J_RE = 10, J_LH = 11, J_LK = 12, J_RH = 13, J_RK = 14, J_AY = 15;
+  // body flags (iB.y): 1 long sleeves, 2 long pants, 4 hoodie hood, 8 backpack, 16 long hair, 32 cap
+  const PPL = { clk: 0, init: false, all: [], crowd: [], walk: [], dogs: [], paths: [], buf: null, R: { n: 0, nn: 0, nh: 0 }, hs0: 0, as0: 0, look: [0, 0, MID], ms: 0, tris: 0, rush: 0 };
+  const FW = { ph: '', bp: null, hit: null }; // the ball over a fence: last phase, last ball spot, the crossing this play
+  const FETCH = { on: false, t: 0, cam: null, skipOK: false };
+  if (METCALF) MET.fetch = FETCH; // other Metcalf modules can see the cutscene (e.g. hold the traffic near the ball)
+  const pR = mrng(73191); // cosmetic only (never the game RNG)
+  const pkc = (c) => (Math.round(clamp(c[0], 0, 1) * 255) << 16) | (Math.round(clamp(c[1], 0, 1) * 255) << 8) | Math.round(clamp(c[2], 0, 1) * 255);
+  const pkh = (h) => parseInt(h.slice(1), 16);
+  const pick = (R, a) => a[(R() * a.length) | 0];
+
+  // ---------- the fences a ball can go over (frame F metres), read when first needed (after the world is built): the Main
+  // Street picket fence on the west (its straight run, from the lot to the pillar at z 52), the low run between the west lawn and
+  // the drop-off lot, and the black fence runs between the blacktop and the lot (MET.southFence, [{x0, x1, z, h}], when the world
+  // publishes it; else the same three runs). A ball through an open gap between runs is not over the fence. n = the far side;
+  // fp = where someone on the far side walks (a walking path index in PPL.paths, or -1: anywhere beyond, e.g. in the lot).
+  // Another module can replace the whole list with MET.fences = [{ a: [x, z], b: [x, z], n: [nx, nz], fp }].
+  function fenceList() {
+    if (MET.fences) return MET.fences;
+    const S = Array.isArray(MET.southFence) && MET.southFence.length ? MET.southFence : [{ x0: -12.6, x1: -6.6, z: -16.95 }, { x0: -0.65, x1: 17.45, z: -16.95 }, { x0: 25.25, x1: 28.35, z: -16.95 }];
+    return [{ a: [-15.95, -41.6], b: [-15.95, 52.0], n: [-1, 0], fp: 0 }, { a: [-15.95, -17.4], b: [-12.55, -17.4], n: [0, -1], fp: -1 }]
+      .concat(S.map((r) => ({ a: [Math.min(r.x0, r.x1), r.z], b: [Math.max(r.x0, r.x1), r.z], n: [0, -1], fp: -1 })));
+  }
+
+  // ---------- looks ----------
+  const P_SKIN = ['#f3cfae', '#ecc29d', '#e2b48c', '#d4a27a', '#c48f66', '#b07a52', '#9a6643', '#7f5034', '#653f27', '#4f311e'];
+  const P_HAIR = ['#17110d', '#21170f', '#2e2015', '#3d2a1b', '#4e3522', '#664629', '#83603a', '#a98250', '#c9a66b', '#d8bb83', '#7a3b1e', '#5a2a16'];
+  const P_GREY = ['#7d7a75', '#a19d96', '#c4c1bb', '#5b5955'];
+  const P_TEE = ['#f2f2ef', '#e9e9e4', '#1d1f24', '#2a2c31', '#9aa0a8', '#c3c7cc', '#2c4f8a', '#1f3a68', '#b22a2a', '#8b1e2d', '#2f7a43', '#245c36', '#e2c13a', '#6a3d8f', '#e77f2a', '#47b2d6', '#c94f7c', '#7d8b5a', '#d8cbb0', '#f4a6b8', '#5ea67a', '#3f6fb5', '#7a4a2a'];
+  const P_HOOD = ['#3a3f47', '#2a2d33', '#1d1f24', '#7f858c', '#9ca2a8', '#24345c', '#1f3a68', '#6b1e2a', '#2f5e3f', '#4a3b5c', '#c2b8a3', '#5d6f87', '#8a2f3b'];
+  const P_SWEAT = ['#2b2d31', '#3a3c40', '#6f747a', '#8a8f95', '#1f2a44', '#24345c', '#4a4e55', '#1b1c1f'];
+  const P_JEAN = ['#2e4a72', '#3c5d8a', '#22364f', '#5a7aa0', '#283b57', '#1e2836'];
+  const P_SHORT = ['#1e1f22', '#2c3e64', '#7a6a50', '#5c6168', '#b9ab8a', '#3d4f3a', '#8f7f5f', '#22252b', '#6e2430'];
+  const P_KHAKI = ['#b9a77f', '#a8956c', '#8f7f5f', '#575a5e', '#2f3238'];
+  const P_SHOE = ['#f2f2f0', '#e6e6e2', '#ececec', '#1a1a1c', '#2a2b2e', '#3a3d42', '#9aa0a6', '#c22b2b', '#2c58a8', '#d9cbb0', '#6b4a2c'];
+  const P_PACK = ['#24345c', '#b22a2a', '#1d1f24', '#2f7a43', '#6a3d8f', '#e2c13a', '#47b2d6', '#e77f2a', '#4a4e55', '#c94f7c'];
+  const P_CAP = ['#1d1f24', '#b22a2a', '#24345c', '#e8e8e4', '#2f7a43', '#6b1e2a', '#c2b8a3'];
+  const P_FUR = ['#c8a06a', '#3a2a1e', '#efe7d4', '#7a5a3a', '#1e1a17', '#a88050', '#d9c7a0', '#8a8580'];
+  const P_COLLAR = ['#c0282d', '#2c58a8', '#2f7a43', '#e2c13a', '#e77f2a'];
+  const P_COLD = WX === 'snow' || WX === 'rain' || TOD === 'night' || TOD === 'morning';
+  // age: 'little' (a younger brother or sister), 'kid' (the middle schoolers), 'teen', 'adult' (parents), 'teacher'
+  function pplLook(R, age, fan) {
+    const H = age === 'little' ? 1.12 + R() * 0.22 : age === 'kid' ? 1.42 + R() * 0.3 : age === 'teen' ? 1.6 + R() * 0.24 : 1.56 + R() * 0.34;
+    const q = { age, H, sz: M2Y * H / 1.6, wid: age === 'adult' || age === 'teacher' ? 0.94 + R() * 0.3 : 0.86 + R() * 0.24, fl: 0, fan: fan || 0 };
+    const skin = pick(R, P_SKIN); let hair = pick(R, P_HAIR); if ((age === 'adult' || age === 'teacher') && R() < 0.2) hair = pick(R, P_GREY);
+    let shirt, pants, cap = pick(R, P_CAP), acc = pick(R, P_PACK);
+    const hoodie = R() < (P_COLD ? 0.55 : 0.28) && age !== 'teacher';
+    if (hoodie) { shirt = pick(R, P_HOOD); q.fl |= 1 | (R() < 0.85 ? 4 : 0); } else { shirt = age === 'teacher' ? pick(R, ['#2c4f8a', '#8b1e2d', '#f2f2ef', '#3a3f47', '#7d8b5a', '#d8cbb0']) : pick(R, P_TEE); if (R() < (P_COLD ? 0.35 : 0.12) || age === 'teacher') q.fl |= 1; }
+    const lower = R();
+    if (age === 'teacher' || (age === 'adult' && lower < 0.45)) { pants = R() < 0.5 ? pick(R, P_KHAKI) : pick(R, P_JEAN); q.fl |= 2; }
+    else if (lower < (P_COLD ? 0.55 : 0.36)) { pants = pick(R, P_SWEAT); q.fl |= 2; } // sweats
+    else if (lower < (P_COLD ? 0.8 : 0.58)) { pants = pick(R, P_JEAN); q.fl |= 2; }
+    else pants = pick(R, P_SHORT); // shorts
+    if (fan > 0 && R() < 0.85) shirt = '#' + pkc(TEAM).toString(16).padStart(6, '0'); // a home fan in the team's colour
+    else if (fan < 0) shirt = '#' + pkc(O1).toString(16).padStart(6, '0');
+    if (R() < (age === 'kid' || age === 'little' ? 0.3 : 0.18)) q.fl |= 16; // long hair
+    if (R() < (age === 'adult' ? 0.18 : age === 'teen' ? 0.14 : 0.07)) q.fl |= 32; // a cap
+    q.c = [pkh(skin), pkh(shirt), pkh(pants), pkh(pick(R, P_SHOE))]; q.c2 = [pkh(hair), pkh(acc), pkh(cap), 0];
+    return q;
+  }
+
+  // ---------- meshes (metres, a 1.60 m body; each vertex: position relative to its part's pivot + part id, normal + colour slot) ----------
+  // parts: 0 pelvis, 1 torso, 2 head, 3 hair, 4/5 left upper arm/forearm, 6/7 right, 8/9 left thigh/shin, 10/11 right, 12 long hair,
+  // 13 backpack, 14 hood, 15 cap; dogs 20 body, 21 head, 22-25 legs (FL FR BL BR), 26 tail
+  // slots: 0 skin, 1 shirt, 2 pants, 3 shoes, 4 hair, 5 backpack, 6 forearm (shirt or skin), 7 shin (pants or skin), 8 cap, 9 sole,
+  // 10 eyes, 11 fur, 12 dark fur / nose, 13 collar
+  function pplMeshData(kind, lod) {
+    const V = [], I = [];
+    const vt = (p, n, part, slot) => { V.push(p[0], p[1], p[2], part, n[0], n[1], n[2], slot); return V.length / 8 - 1; };
+    const quad = (a, b, c, d, part, slot) => { const u = v3s(b, a), w = v3s(d, a), n = v3n(v3c(u, w)); const i = vt(a, n, part, slot); vt(b, n, part, slot); vt(c, n, part, slot); vt(d, n, part, slot); I.push(i, i + 1, i + 2, i, i + 2, i + 3); };
+    const box = (part, slot, x0, x1, y0, y1, z0, z1) => {
+      const P = (x, y, z) => [x, y, z];
+      quad(P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1), part, slot); quad(P(x1, y0, z0), P(x0, y0, z0), P(x0, y1, z0), P(x1, y1, z0), part, slot);
+      quad(P(x1, y0, z1), P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), part, slot); quad(P(x0, y0, z0), P(x0, y0, z1), P(x0, y1, z1), P(x0, y1, z0), part, slot);
+      quad(P(x0, y1, z1), P(x1, y1, z1), P(x1, y1, z0), P(x0, y1, z0), part, slot); quad(P(x0, y0, z0), P(x1, y0, z0), P(x1, y0, z1), P(x0, y0, z1), part, slot);
+    };
+    // a tube along y through rings [y, rx, rz, cz], smooth radial normals; map() turns it (the dog's body and tail lie along z)
+    const loft = (part, slot, rings, segs, capT, capB, map, x0) => {
+      const M = map || ((p) => p), base = V.length / 8; x0 = x0 || 0;
+      for (const [y, rx, rz, cz] of rings) for (let s = 0; s < segs; s++) { const a = (s / segs) * 6.2832 + 0.39, c = Math.cos(a), sn = Math.sin(a); vt(M([x0 + c * rx, y, (cz || 0) + sn * rz]), M(v3n([c / rx, 0, sn / rz]), 1), part, slot); }
+      for (let r = 0; r < rings.length - 1; r++) for (let s = 0; s < segs; s++) { const a = base + r * segs + s, b = base + r * segs + (s + 1) % segs, c = a + segs, d = b + segs; I.push(a, b, d, a, d, c); }
+      const cap = (ri, up) => { const [y, , , cz] = rings[ri]; const ci = vt(M([x0, y + (up ? 0.012 : -0.012), cz || 0]), M([0, up ? 1 : -1, 0], 1), part, slot); for (let s = 0; s < segs; s++) I.push(ci, base + ri * segs + s, base + ri * segs + (s + 1) % segs); };
+      if (capT) cap(rings.length - 1, true); if (capB) cap(0, false);
+    };
+    const ell = (part, slot, cx, cy, cz, rx, ry, rz, segs, rows, phMax) => {
+      const base = V.length / 8, pm = phMax || Math.PI;
+      for (let r = 0; r <= rows; r++) { const ph = (r / rows) * pm; for (let s = 0; s < segs; s++) { const th = (s / segs) * 6.2832, nx = Math.sin(ph) * Math.cos(th), ny = Math.cos(ph), nz = Math.sin(ph) * Math.sin(th); vt([cx + nx * rx, cy + ny * ry, cz + nz * rz], v3n([nx / rx, ny / ry, nz / rz]), part, slot); } }
+      for (let r = 0; r < rows; r++) for (let s = 0; s < segs; s++) { const a = base + r * segs + s, b = base + r * segs + (s + 1) % segs, c = a + segs, d = b + segs; I.push(a, b, d, a, d, c); }
+    };
+    const S = lod ? 3 : 6;
+    if (kind === 'person') { // the far one (lod 1) keeps the silhouette and the colours: prisms for limbs, no hands, face, cap or long hair
+      loft(0, 2, lod ? [[0.72, 0.13, 0.088], [0.94, 0.132, 0.088]] : [[0.72, 0.13, 0.088], [0.84, 0.14, 0.092], [0.94, 0.132, 0.088]], lod ? 4 : 6, false, true);
+      loft(1, 1, lod ? [[-0.08, 0.13, 0.087], [0.3, 0.165, 0.1], [0.42, 0.16, 0.088]] : [[-0.08, 0.13, 0.087], [0.12, 0.138, 0.092], [0.3, 0.165, 0.1], [0.42, 0.16, 0.088]], lod ? 4 : 7, true, false);
+      if (!lod) loft(2, 0, [[-0.03, 0.043, 0.043], [0.07, 0.04, 0.042]], S, false, false);
+      ell(2, 0, 0, 0.155, 0.012, 0.086, 0.112, 0.097, lod ? 4 : 8, lod ? 3 : 5);
+      if (!lod) { for (const sx of [-1, 1]) quad([sx * 0.045 - 0.014, 0.148, 0.098], [sx * 0.045 + 0.014, 0.148, 0.098], [sx * 0.045 + 0.014, 0.166, 0.096], [sx * 0.045 - 0.014, 0.166, 0.096], 2, 10); box(2, 0, -0.012, 0.012, 0.12, 0.155, 0.095, 0.118); }
+      ell(3, 4, 0, 0.168, -0.008, 0.094, 0.104, 0.104, lod ? 4 : 8, 2, Math.PI * 0.56);
+      if (!lod) { box(12, 4, -0.085, 0.085, 0.02, 0.2, -0.108, -0.03); ell(15, 8, 0, 0.19, -0.004, 0.097, 0.075, 0.104, 7, 2, Math.PI * 0.5); box(15, 8, -0.078, 0.078, 0.183, 0.197, 0.05, 0.175); }
+      for (const sd of [1, -1]) {
+        const ua = sd > 0 ? 4 : 6, fa = ua + 1, th = sd > 0 ? 8 : 10, sh = th + 1;
+        loft(ua, 1, [[0.035, 0.054, 0.054], [-0.27, 0.045, 0.045]], S, !lod, false);
+        loft(fa, 6, [[0.0, 0.045, 0.045], [-0.235, 0.036, 0.036]], S, false, !!lod);
+        if (!lod) loft(fa, 0, [[-0.235, 0.036, 0.024], [-0.33, 0.03, 0.02]], 4, false, true);
+        loft(th, 2, [[0.07, 0.08, 0.084], [-0.4, 0.058, 0.062]], lod ? 4 : S, false, false);
+        loft(sh, 7, [[0.0, 0.058, 0.06], [-0.355, 0.043, 0.046]], S, false, false);
+        box(sh, 3, -0.05, 0.05, -0.405, -0.33, -0.065, 0.15); if (!lod) box(sh, 9, -0.052, 0.052, -0.42, -0.4, -0.068, 0.155);
+      }
+      box(13, 5, -0.125, 0.125, 0.05, 0.4, -0.215, -0.085);
+      if (!lod) box(14, 1, -0.11, 0.11, 0.33, 0.47, -0.165, -0.055);
+    } else { // a medium dog, about 0.55 m at the shoulder
+      const along = (p, nrm) => (nrm ? [p[0], p[2], p[1]] : [p[0], 0.42 + p[2], p[1]]);
+      loft(20, 11, [[-0.27, 0.07, 0.075], [-0.12, 0.095, 0.1], [0.08, 0.1, 0.11], [0.22, 0.085, 0.095]], lod ? 5 : 7, true, true, along);
+      ell(21, 11, 0, 0.06, 0.06, 0.075, 0.075, 0.095, lod ? 5 : 7, 4); ell(21, 11, 0, 0.03, 0.16, 0.042, 0.04, 0.065, 5, 3);
+      box(21, 12, -0.018, 0.018, 0.04, 0.07, 0.215, 0.235);
+      for (const sx of [-1, 1]) box(21, 12, sx * 0.07 - 0.015, sx * 0.07 + 0.015, 0.02, 0.12, 0.02, 0.05);
+      loft(21, 13, [[-0.06, 0.064, 0.064], [-0.03, 0.064, 0.064]], 6, false, false, (p, nrm) => (nrm ? p : [p[0], p[1], p[2] - 0.02]));
+      for (let k = 0; k < 4; k++) { loft(22 + k, 11, [[0.03, 0.034, 0.034], [-0.34, 0.025, 0.027]], 5, false, false); box(22 + k, 12, -0.028, 0.028, -0.36, -0.33, -0.03, 0.04); }
+      loft(26, 11, [[0.0, 0.022, 0.022], [0.22, 0.012, 0.012]], 4, true, false, (p, nrm) => (nrm ? [p[0], p[1] * 0.6 + p[2] * 0.8, p[2] * 0.6 - p[1] * 0.8] : [p[0], p[1] * 0.6 + p[2] * 0.8, p[2] * 0.6 - p[1] * 0.8]));
+    }
+    return { v: new Float32Array(V), i: new Uint16Array(I) };
+  }
+
+  // ---------- shaders ----------
+  const VS_PPL = `attribute vec4 aP;attribute vec4 aN;attribute vec4 iA;attribute vec4 iB;attribute vec4 iC;attribute vec4 iD;attribute vec4 iE;attribute vec4 iF;attribute vec4 iG;attribute vec4 iH;
+uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;
+varying vec3 vW;varying vec3 vN;varying float vVD;varying vec3 vC;varying float vSk;
+vec3 rx(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,v.y*c+v.z*s,v.z*c-v.y*s);}
+vec3 ry(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x*c+v.z*s,v.y,v.z*c-v.x*s);}
+vec3 rz(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x*c-v.y*s,v.x*s+v.y*c,v.z);}
+vec3 rgbU(float v){float r=floor(v/65536.0);float g=floor((v-r*65536.0)/256.0);return vec3(r,g,v-r*65536.0-g*256.0)/255.0;}
+float bitF(float f,float k){return mod(floor(f/k+0.001),2.0);}
+vec3 torso(vec3 v){return ry(rz(rx(v,-iE.x),iE.z),iE.y);}
+void main(){float part=aP.w;vec3 p=aP.xyz;vec3 n=aN.xyz;float sl=aN.w;float fl=iB.y;
+float hide=0.0;
+if(part>11.5&&part<12.5)hide=1.0-bitF(fl,16.0);else if(part>12.5&&part<13.5)hide=1.0-bitF(fl,8.0);else if(part>13.5&&part<14.5)hide=1.0-bitF(fl,4.0);else if(part>14.5&&part<15.5)hide=1.0-bitF(fl,32.0);
+if(hide>0.5)p=vec3(0.0);
+if(part>19.5){
+  if(part>20.5&&part<21.5){p=ry(rx(p,-iE.w),iF.x)+vec3(0.0,0.46,0.2);n=ry(rx(n,-iE.w),iF.x);}
+  else if(part>21.5&&part<25.5){float a=part<22.5?iF.y:(part<23.5?iG.x:(part<24.5?iG.w:iH.y));float sx=(part<22.5||(part>23.5&&part<24.5))?0.065:-0.065;float sz=part<23.5?0.16:-0.2;p=rx(p,a)+vec3(sx,0.36,sz);n=rx(n,a);}
+  else if(part>25.5){p=ry(p,iH.w)+vec3(0.0,0.47,-0.26);n=ry(n,iH.w);}
+}else if(part>0.5&&part<7.5||part>11.5){
+  if(part>1.5&&part<3.5||part>11.5&&part<12.5||part>14.5){p=ry(rx(p,-iE.w),iF.x)+vec3(0.0,0.44,0.0);n=ry(rx(n,-iE.w),iF.x);}
+  else if(part>3.5&&part<7.5){float sd=part<5.5?1.0:-1.0;float pt=sd>0.0?iF.y:iG.x;float rl=sd>0.0?iF.z:iG.y;float el=sd>0.0?iF.w:iG.z;
+    if(part>4.5&&part<5.5||part>6.5){p=rx(p,el)+vec3(0.0,-0.27,0.0);n=rx(n,el);}
+    p=ry(rz(rx(p,pt),sd*rl),-sd*iH.w)+vec3(sd*0.17,0.4,0.0);n=ry(rz(rx(n,pt),sd*rl),-sd*iH.w);}
+  p=torso(p)+vec3(0.0,0.88,0.0);n=torso(n);
+}else if(part>7.5){float sd=part<9.5?1.0:-1.0;float hp=sd>0.0?iG.w:iH.y;float kn=sd>0.0?iH.x:iH.z;
+  if(part>8.5&&part<9.5||part>10.5){p=rx(p,-kn)+vec3(0.0,-0.4,0.0);n=rx(n,-kn);}
+  p=rx(p,hp)+vec3(sd*0.085,0.82,0.0);n=rx(n,hp);}
+p.x*=iB.x;p.z*=mix(1.0,iB.x,0.6);p.y+=iB.z;n.x/=iB.x;
+vec3 w=vec3(iA.x,iB.w,iA.y)+ry(p*iA.w,iA.z);
+vW=w;vN=normalize(ry(n,iA.z));
+vec3 c=sl<0.5?rgbU(iC.x):sl<1.5?rgbU(iC.y):sl<2.5?rgbU(iC.z):sl<3.5?rgbU(iC.w):sl<4.5?rgbU(iD.x):sl<5.5?rgbU(iD.y):sl<6.5?(bitF(fl,1.0)>0.5?rgbU(iC.y):rgbU(iC.x)):sl<7.5?(bitF(fl,2.0)>0.5?rgbU(iC.z):rgbU(iC.x)):sl<8.5?rgbU(iD.z):sl<9.5?vec3(0.86,0.86,0.84):sl<10.5?vec3(0.05,0.04,0.04):sl<11.5?rgbU(iC.x):sl<12.5?rgbU(iC.y):rgbU(iC.z);
+vC=c;vSk=(sl<0.5||(sl>5.5&&sl<6.5&&bitF(fl,1.0)<0.5)||(sl>6.5&&sl<7.5&&bitF(fl,2.0)<0.5))&&part<19.5?1.0:0.0;
+gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
+  const FS_PPL = `varying vec3 vC;varying float vSk;
+#LIB#
+void main(){vec3 N=normalize(vN);vec3 base=toLin(vC);vec3 col=shadePBR(base,N,vSk>0.5?0.62:0.88,0.0,1.0,1.0,vSk>0.5?1:0,0.45);gl_FragColor=vec4(fogIt(col),1.0);}`;
+  const VS_PBLOB = `attribute vec2 aQ;attribute vec4 iA;attribute vec4 iB;uniform mat4 uVP;varying vec2 vQ;varying float vK;
+void main(){float up=max(iB.z,0.0);float k=clamp(1.0-up*2.5,0.3,1.0);float r=iA.w*(iB.y>63.5?0.26:0.3)*(0.85+0.3*iB.x)*(2.0-k);vQ=aQ;vK=k;
+gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
+  const FS_PBLOB = `varying vec2 vQ;varying float vK;void main(){float d=dot(vQ,vQ);if(d>1.0)discard;float a=1.0-d;gl_FragColor=vec4(0.0,0.0,0.0,a*a*0.42*vK);}`;
+  function pplProg(vs, fs, a0) {
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const hpd = '#define HP ' + X.hp + '\n'; let vsrc = hpd + vs, fsrc = hpd + X.derivExt + FS_PRE + (X.deriv ? '#define DERIV\n' : '') + (shadowPacked ? '#define SHADOW_PACKED\n' : '') + fs.replace('#LIB#', SH_LIB);
+    if (GL2) { vsrc = es3(vsrc, false); fsrc = es3(fsrc, true); }
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vsrc)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fsrc));
+    gl.bindAttribLocation(pr, 0, a0); gl.linkProgram(pr); // attribute 0 is never instanced (WebGL1 instancing needs that)
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    const P = { pr, a: {}, u: {} };
+    const na = gl.getProgramParameter(pr, gl.ACTIVE_ATTRIBUTES); for (let i = 0; i < na; i++) { const n = gl.getActiveAttrib(pr, i).name; P.a[n] = gl.getAttribLocation(pr, n); }
+    const nu = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS); for (let i = 0; i < nu; i++) { const n = gl.getActiveUniform(pr, i).name.replace(/\[0\]$/, ''); P.u[n] = gl.getUniformLocation(pr, n); }
+    G.progs.push(pr); return P;
+  }
+  // GL objects live on G (rebuilt after a lost context); null when instancing or enough vertex attributes are missing
+  function pplGL() {
+    if (!G) return null;
+    if (G.ppl !== undefined) return G.ppl;
+    G.ppl = null;
+    try {
+      if (!X.inst || (gl.getParameter(gl.MAX_VERTEX_ATTRIBS) | 0) < 11) return null;
+      const mesh = (k, lod) => { const d = pplMeshData(k, lod), vb = gl.createBuffer(), ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, d.v, gl.STATIC_DRAW); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, d.i, gl.STATIC_DRAW); G.bufs.push(vb, ib); return { vb, ib, n: d.i.length }; };
+      const Q = { pr: pplProg(VS_PPL, FS_PPL, 'aP'), pb: pplProg(VS_PBLOB, FS_PBLOB, 'aQ'), hi: mesh('person', 0), lo: mesh('person', 1), dog: mesh('dog', 0), inst: gl.createBuffer(), quad: gl.createBuffer() };
+      gl.bindBuffer(gl.ARRAY_BUFFER, Q.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
+      G.bufs.push(Q.inst, Q.quad); G.ppl = Q;
+    } catch (e) { try { console.error('metcalf people: no GL', e); } catch (e2) {} G.ppl = null; }
+    return G.ppl;
+  }
+
+  // ---------- where people go ----------
+  // a spot is free of the venue's solids (MET.keep: walls, trunks, poles, fences, play structures), off the street, outside the
+  // field of play and its margin, and not on top of someone else (real distance, in engine units)
+  function pplFree(xF, zF, mF) {
+    if (xF > -31.6 && xF < -20.6) return false; // Main Street
+    if (xF > -11.2 - 2.4 && xF < 3.42 + 2.4 && zF > -15.68 - 1.6 && zF < 15.68 + 1.8) return false; // the field and its margin
+    // the solids are stored in the built (spread) frame: with the big field the spot is tested where the plan spread puts it
+    if (MOPT.big) { const s = sprP(sprPlan(), xF, zF); xF = s[0]; zF = s[1]; }
+    for (const k of MET.keep) {
+      if (k.length === 6) { if (k[1] < 1.9 && k[4] > 0.15 && xF > k[0] - mF && xF < k[3] + mF && zF > k[2] - mF && zF < k[5] + mF) return false; }
+      else if (k.length === 5) { if (k[3] < 1.9 && Math.hypot(xF - k[0], zF - k[1]) < k[2] + mF) return false; }
+      else if (k.length === 4) { const dy = k[1] - clamp(k[1], 0, 1.8); if (Math.abs(dy) < k[3] && Math.hypot(xF - k[0], zF - k[2]) < Math.sqrt(k[3] * k[3] - dy * dy) + mF * 0.5) return false; }
+    }
+    return true;
+  }
+  const PG_POLY = [[-3.4, 43.0], [28.6, 43.1], [28.7, 40.3], [45.5, 38.8], [59.5, 37.1], [59.6, 23.3], [57.7, 21.9], [32.2, 21.9], [30.1, 20.9], [29.1, 19.6], [28.7, 18.3], [28.6, 17.3], [-3.4, 17.3]];
+  const inPoly = (x, z, P) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const a = P[i], b = P[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+  const gyF = (xF) => (xF > -31.4 && xF < -20.75 ? -0.15 : xF < -12.55 && xF > -16.3 ? -0.03 : 0) * M2Y; // street, lawn, pavement
+  function pplNew(R, age, fan, xF, zF, h, kind) {
+    const q = pplLook(R, age, fan), e = metE(xF, zF);
+    Object.assign(q, { kind, x: e[0], z: e[1], h, hx: e[0], hz: e[1], hh: h, gy: gyF(xF), y: 0, A: new Float32Array(16), T: new Float32Array(16), mode: 'stand', arms: 0, ph: R() * 6.28, en: 0.35 + R() * 0.6,
+      rank: R(), rx: null, act: null, tx: null, tz: null, v: 0, wph: R() * 6.28, lookK: 0.4 + R() * 0.6, lh: 0, lt: 0, front: false, idleT: R() * 5, idleK: 0 });
+    return q;
+  }
+  function pplInit() {
+    PPL.init = true; const R = pR;
+    // walking paths (frame F polylines) -> engine
+    const Pth = [
+      [[-17.35, -125], [-17.35, 125]], // Main Street, east sidewalk (along the fence)
+      [[-35.1, -125], [-35.1, 125]], // Main Street, west sidewalk
+      [[-12.4, 18.7], [-6.85, 18.7], [-6.85, 44.0], [-9.6, 46.6], [-10.4, 50.4], [-8.6, 54.2], [-5.7, 57.0], [-4.7, 62.5]], // the school walk by the playground
+    ];
+    PPL.paths = Pth.map((pl) => { const pts = pl.map(([x, z]) => metE(x, z)), L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, L, len: L[L.length - 1], f: pl }; });
+    const placed = [], near = (x, z, m) => { for (const q of placed) if (Math.abs(q.x - x) < m && Math.abs(q.z - z) < m && Math.hypot(q.x - x, q.z - z) < m) return true; return false; };
+    const ageOf = (r) => (r < 0.62 ? 'kid' : r < 0.74 ? 'teen' : r < 0.9 ? 'adult' : r < 0.95 ? 'teacher' : 'little');
+    // the field's nearest point (frame F), for facing it
+    const facing = (xF, zF, jit) => { const fx = clamp(xF, -11.2, 3.42), fz = clamp(zF, -15.68, 15.68), e = metE(xF, zF), f = metE(fx, fz); return Math.atan2(f[0] - e[0], f[1] - e[1]) + (R() - 0.5) * jit; };
+    const add = (n, gen, opt) => {
+      let made = 0;
+      for (let t = 0; t < n * 30 && made < n; t++) {
+        const [xF, zF] = gen(); if (!pplFree(xF, zF, 0.32)) continue;
+        const e = metE(xF, zF); if (near(e[0], e[1], opt.sp || 0.62)) continue;
+        const fan = R() < 0.24 ? 1 : R() < 0.08 ? -1 : 0, age = opt.little && R() < 0.3 ? 'little' : ageOf(R());
+        const h = opt.face === 'any' ? R() * 6.28 : facing(xF, zF, opt.jit || 0.5);
+        const q = pplNew(R, age, fan, xF, zF, h, 'crowd'); q.rank = opt.rank != null ? opt.rank + R() * (1 - opt.rank) : R() * 0.92;
+        const dl = Math.min(Math.abs(xF + 11.2), Math.abs(xF - 3.42), Math.abs(zF + 15.68), Math.abs(zF - 15.68)); q.front = !!opt.row && dl < 4.2;
+        const m = R(), young = q.age === 'kid' || q.age === 'little'; // front rows: some kids down on one knee or sitting
+        q.mode = opt.sit != null && m < opt.sit ? 'sit' : q.front && young && m < 0.14 ? 'kneel' : q.front && young && m < 0.22 ? 'sit' : 'stand';
+        q.arms = R() < 0.18 ? 1 : R() < 0.22 ? 2 : R() < 0.1 ? 3 : 0; // crossed, pockets, phone
+        placed.push(q); PPL.crowd.push(q); made++;
+      }
+    };
+    if (MOPT.crowd) {
+      const U = (a, b) => a + R() * (b - a);
+      // rows along the lines: west on the lawn, east on the painted strip, north at the playground edge, south behind the fence
+      add(48, () => [U(-15.45, -13.65), U(-15.2, 15.6)], { row: true, jit: 0.4 });
+      add(74, () => [U(5.85, 9.8), U(-15.2, 15.6)], { row: true, jit: 0.4 });
+      add(38, () => [U(-12.4, 4.4), U(17.55, 20.6)], { row: true, jit: 0.5, little: true });
+      add(34, () => [U(-12.2, 4.6), U(-20.7, -17.75)], { row: true, jit: 0.5 });
+      add(18, () => [U(4.4, 11.0), R() < 0.55 ? U(16.4, 20.4) : U(-20.4, -17.75)], { row: true, jit: 0.6 }); // the corners
+      add(8, () => [U(-15.5, -12.7), U(16.5, 22.0)], { row: true, jit: 0.6 });
+      // scattered: the four-square and basketball side, the playground, the lawns, the lot; some sitting
+      add(30, () => [U(11.6, 29.6), U(-15.8, 16.4)], { face: 'field', jit: 1.6, sit: 0.18, rank: 0.25 });
+      add(32, () => { for (let k = 0; k < 20; k++) { const x = U(-3.2, 40), z = U(21.5, 42.5); if (inPoly(x, z, PG_POLY)) return [x, z]; } return [999, 999]; }, { face: 'field', jit: 1.4, sit: 0.3, rank: 0.25, little: true });
+      add(10, () => [U(-15.4, -8.4), U(21.0, 44.0)], { face: 'field', jit: 1.2, sit: 0.4, rank: 0.3 });
+      add(10, () => [U(-10.5, 28.0), U(-45.0, -22.5)], { face: 'field', jit: 1.2, rank: 0.35 });
+      add(8, () => [U(-17.9, -16.7), U(-22, 24)], { face: 'field', jit: 0.6, rank: 0.2 }); // on the sidewalk outside the fence, watching
+      PPL.crowd.sort((a, b) => a.rank - b.rank);
+    }
+    // walkers: Main Street (both sides) and the school walk, a few at once all the time
+    const NW = [7, 3, 2];
+    for (let pi = 0; pi < 3; pi++) for (let k = 0; k < NW[pi]; k++) pplWalker(R, pi, R() * PPL.paths[pi].len, R() < 0.5 ? 1 : -1);
+    PPL.all = PPL.crowd.concat(PPL.walk);
+    PPL.hs0 = hs; PPL.as0 = as;
+    const W0 = Math.max(16, PPL.all.length + 16) * 32; PPL.buf = new Float32Array(W0);
+    // camera keep-out: the eye never ends up inside a spectator (only where the camera keep-out runs, the small field)
+    if (MOPT.crowd) for (const q of PPL.crowd) { const f = metF(q.x, q.z); MET.keep.push([f[0], f[1], 0.28, 0, q.H + 0.05]); }
+  }
+  function pplWalker(R, pi, s, dir) {
+    const path = PPL.paths[pi], age = pi === 2 ? (R() < 0.8 ? 'kid' : 'teacher') : R() < 0.45 ? 'adult' : R() < 0.6 ? 'teen' : 'kid';
+    const q = pplNew(R, age, 0, path.f[0][0], path.f[0][1], 0, 'walk');
+    Object.assign(q, { pi, s, dir, spd: (1.15 + R() * 0.4) * M2Y * (age === 'kid' ? 1.05 : 1), side: (R() - 0.5) * 0.9, rank: k01(R), mode: 'stand' });
+    if (age === 'kid' || age === 'teen' || pi === 2) { if (R() < 0.6) q.fl |= 8; }
+    if ((age === 'adult' || age === 'teen') && pi < 2 && R() < 0.35) { // a dog on a lead
+      const d = { kind: 'dog', x: 0, z: 0, h: 0, gy: 0, sz: M2Y * (0.8 + R() * 0.45), wid: 0.9 + R() * 0.25, c: [pkh(pick(R, P_FUR)), pkh(pick(R, ['#1a1410', '#3a2a1e', '#5a4030'])), pkh(pick(R, P_COLLAR)), 0], A: new Float32Array(16), T: new Float32Array(16), wph: 0, ph: R() * 6, owner: q, sn: 0 };
+      q.dog = d; PPL.dogs.push(d);
+    }
+    PPL.walk.push(q); pplWalkPos(q, 0); q.x = q.tx0; q.z = q.tz0;
+    return q;
+  }
+  const k01 = (R) => R();
+  // where a walker is along its path (with his own lateral offset), and which way he faces
+  function pplWalkPos(q) {
+    const P = PPL.paths[q.pi], s = clamp(q.s, 0, P.len); let i = 1; while (i < P.L.length - 1 && P.L[i] < s) i++;
+    const a = P.pts[i - 1], b = P.pts[i], L = P.L[i] - P.L[i - 1] || 1, t = (s - P.L[i - 1]) / L, dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L;
+    q.tx0 = a[0] + (b[0] - a[0]) * t - dz * q.side; q.tz0 = a[1] + (b[1] - a[1]) * t + dx * q.side; q.th0 = Math.atan2(dx * q.dir, dz * q.dir);
+  }
+
+  // ---------- poses ----------
+  function pplPose(q, t, dt, mv) {
+    const T = q.T; T.fill(0); let y = 0;
+    const sitting = q.mode === 'sit' || q.mode === 'kneel';
+    // base: standing (arms down, a little out), sitting with knees up, or down on one knee
+    if (q.mode === 'sit') { y = -0.66; T[J_LH] = T[J_RH] = 1.95; T[J_LK] = T[J_RK] = 2.25; T[J_TB] = -0.12; T[J_LP] = T[J_RP] = 0.95; T[J_LE] = T[J_RE] = 0.55; T[J_AY] = 0.25; }
+    else if (q.mode === 'kneel') { y = -0.4; T[J_LH] = 1.5; T[J_LK] = 1.5; T[J_RH] = -0.12; T[J_RK] = 1.62; T[J_TB] = 0.12; T[J_LP] = 0.55; T[J_LE] = 0.7; T[J_RP] = 0.1; T[J_RR] = 0.1; }
+    else {
+      T[J_LR] = T[J_RR] = 0.09; T[J_LE] = T[J_RE] = 0.16;
+      const sway = Math.sin(t * 0.8 + q.ph); T[J_TR] = 0.025 * sway; T[J_LH] = 0.03 * sway; T[J_RH] = -0.03 * sway;
+      if (q.arms === 1) { T[J_LP] = T[J_RP] = 0.85; T[J_LE] = T[J_RE] = 1.95; T[J_AY] = 0.62; T[J_LR] = T[J_RR] = -0.05; }
+      else if (q.arms === 2) { T[J_LP] = T[J_RP] = -0.16; T[J_LR] = T[J_RR] = 0.16; T[J_LE] = T[J_RE] = 0.45; }
+      else if (q.arms === 3) { T[J_RP] = 0.55; T[J_RE] = 1.7; T[J_AY] = 0.3; T[J_HP] = 0.35; }
+      if (q.lean > 0) { const k = q.lean; T[J_TB] += 0.55 * k; T[J_LH] += 0.42 * k; T[J_RH] += 0.42 * k; T[J_LK] += 0.72 * k; T[J_RK] += 0.72 * k; y -= 0.08 * k; T[J_LP] = lerp(T[J_LP], 0.95, k); T[J_RP] = lerp(T[J_RP], 0.95, k); T[J_LE] = lerp(T[J_LE], 0.12, k); T[J_RE] = lerp(T[J_RE], 0.12, k); T[J_AY] *= 1 - k; }
+    }
+    // walking or jogging: the legs and arms swing with the distance covered
+    if (mv > 0.05 && !sitting) {
+      const amp = clamp(mv / (1.35 * M2Y), 0.5, 2.3), s = Math.sin(q.wph), c = Math.cos(q.wph), jog = clamp((amp - 1.25) / 0.8, 0, 1);
+      T[J_LH] = 0.4 * s * Math.min(amp, 1.5); T[J_RH] = -T[J_LH];
+      T[J_LK] = 0.08 + (0.55 + 0.6 * jog) * Math.max(0, c); T[J_RK] = 0.08 + (0.55 + 0.6 * jog) * Math.max(0, -c);
+      if (!q.carry) { T[J_LP] = -0.36 * s * Math.min(amp, 1.6); T[J_RP] = -T[J_LP]; T[J_LE] = T[J_RE] = 0.22 + 1.1 * jog; T[J_LR] = T[J_RR] = 0.07; T[J_AY] = 0; }
+      T[J_TB] = 0.04 + 0.16 * jog; y = -0.012 + (0.035 * jog + 0.012) * Math.abs(c);
+      if (q.lead) { T[J_LP] = 0.5; T[J_LE] = 0.6; } // the hand with the dog's lead
+    }
+    // a reaction to the play
+    const r = q.rx;
+    if (r && t >= r.t0) {
+      const u = t - r.t0, f = Math.min(1, u * 5) * Math.min(1, Math.max(0, (r.d - u) * 3));
+      if (u > r.d) q.rx = null;
+      else if (f > 0) {
+        const W = q.W || (q.W = new Float32Array(16)); W.set(T); let wy = y;
+        if (r.k === 'cheer' || r.k === 'pump') {
+          if (sitting && r.up) wy = 0;
+          if (r.k === 'cheer') { W[J_LP] = W[J_RP] = 2.85 + 0.14 * Math.sin(t * 9 + q.ph); W[J_LR] = W[J_RR] = 0.32 + 0.12 * Math.sin(t * 7.3 + q.ph); W[J_LE] = W[J_RE] = 0.22; W[J_AY] = 0; }
+          else { W[J_RP] = 2.5 + 0.45 * Math.sin(t * 11 + q.ph); W[J_RR] = 0.3; W[J_RE] = 1.1; W[J_LP] = 0.3; }
+          W[J_HP] = -0.25; if (!sitting || r.up) { W[J_LH] = W[J_RH] = W[J_LK] = W[J_RK] = 0; W[J_TB] = -0.08; }
+          if (r.jump && (!sitting || r.up)) { const k = (u * 1.75 + q.ph) % 1, hop = 4 * k * (1 - k); wy = 0.2 * hop * Math.min(1, u * 3); W[J_LK] = W[J_RK] = 0.5 * (1 - hop); W[J_LH] = W[J_RH] = 0.25 * (1 - hop); }
+        } else if (r.k === 'clap') {
+          W[J_LP] = W[J_RP] = 1.0; W[J_LR] = W[J_RR] = 0; W[J_LE] = W[J_RE] = 1.0; W[J_AY] = 0.5 + 0.2 * Math.sin(t * 15.5 + q.ph); W[J_HP] = -0.1;
+        } else if (r.k === 'groan') {
+          if (r.v < 0.6) { W[J_LP] = W[J_RP] = 2.45; W[J_LR] = W[J_RR] = 1.0; W[J_LE] = W[J_RE] = 2.3; W[J_AY] = 0; W[J_HP] = -0.2 + 0.1 * Math.sin(u * 2); W[J_TB] = 0.05; }
+          else { W[J_TB] = 0.35; W[J_HP] = 0.6; W[J_LP] = W[J_RP] = 0.2; W[J_LE] = W[J_RE] = 0.2; W[J_AY] = 0; W[J_TY] = 0.4 * (r.v - 0.8); }
+        } else if (r.k === 'ooh') {
+          W[J_LP] = W[J_RP] = 2.3; W[J_LR] = W[J_RR] = 0.85; W[J_LE] = W[J_RE] = 2.35; W[J_AY] = 0; W[J_TB] = 0.15;
+        } else if (r.k === 'stomp') {
+          if (!sitting) { const k = Math.sin(Math.min(1, u / r.d) * Math.PI); W[r.v < 0.5 ? J_LH : J_RH] = 0.55 * k; W[r.v < 0.5 ? J_LK : J_RK] = 0.9 * k; wy = 0; }
+        }
+        for (let i = 0; i < 16; i++) T[i] += (W[i] - T[i]) * f; y += (wy - y) * f;
+      }
+    }
+    // a scripted action (the cutscene's passer-by): bend to pick up, throw, wave
+    const a = q.act;
+    if (a) {
+      const u = (t - a.t0) / a.d;
+      if (u >= 1) q.act = null;
+      else if (u >= 0) {
+        if (a.k === 'bend') { const k = Math.sin(u * Math.PI); T[J_TB] = 1.15 * k; T[J_LK] = T[J_RK] = 0.45 * k; T[J_LH] = T[J_RH] = 0.3 * k; T[J_LP] = T[J_RP] = 1.25 * k; T[J_LE] = T[J_RE] = 0.15; y = -0.06 * k; T[J_HP] = 0.3 * k; }
+        else if (a.k === 'throw') { const w = u < 0.55, k = w ? Math.min(1, u / 0.3) : clamp((u - 0.55) / 0.2, 0, 1);
+          if (w) { T[J_RP] = lerp(T[J_RP], 2.75, k); T[J_RR] = 0.55 * k; T[J_RE] = 1.75 * k; T[J_TY] = -0.5 * k; T[J_LP] = 1.1 * k; T[J_LE] = 0.4; T[J_LH] = 0.3 * k; }
+          else { T[J_RP] = lerp(2.75, 0.85, k); T[J_RR] = lerp(0.55, 0.1, k); T[J_RE] = lerp(1.75, 0.15, k); T[J_TY] = lerp(-0.5, 0.4, k); T[J_TB] = 0.25 * k; T[J_LP] = lerp(1.1, -0.3, k); T[J_RH] = 0.35 * k; T[J_RK] = 0.3 * k; } }
+        else if (a.k === 'wave') { T[J_RP] = 2.75; T[J_RR] = 0.55 + 0.4 * Math.sin(u * 22); T[J_RE] = 0.45; T[J_HP] = -0.15; }
+        else if (a.k === 'call') { const k = Math.min(1, u * 6) * Math.min(1, (1 - u) * 6); T[J_LP] = T[J_RP] = lerp(T[J_LP], 2.1, k); T[J_LE] = T[J_RE] = lerp(T[J_LE], 1.6, k); T[J_AY] = 0.75 * k; T[J_HP] = -0.25 * k; }
+      }
+    }
+    if (q.carry && !a) { T[J_RP] = 0.75; T[J_RE] = 1.0; T[J_AY] = 0.15; }
+    // looking at the play: the head first, then the shoulders (not while walking along, sitting watches too)
+    if (q.kind !== 'walk' || q.look) {
+      const L = q.look || PPL.look, ang = Math.atan2(L[0] - q.x, L[2] - q.z), d = angDiff(ang, q.h);
+      q.lh += (d - q.lh) * Math.min(1, dt * 3 * q.lookK);
+      const hy = clamp(q.lh, -1.05, 1.05); T[J_HY] += hy; T[J_TY] += clamp(q.lh - hy, -0.55, 0.55) * (sitting ? 0.4 : 1);
+      if (q.kind === 'crowd') T[J_HP] += clamp(Math.atan2(1.3, Math.hypot(L[0] - q.x, L[2] - q.z)) * 0.6 - 0.04, -0.2, 0.45);
+    }
+    // ease toward the target pose (fast for the quick moves) and keep the body offset
+    const k = Math.min(1, dt * 11), A = q.A; for (let i = 0; i < 16; i++) A[i] += (T[i] - A[i]) * k;
+    q.y += (y - q.y) * Math.min(1, dt * 10);
+  }
+  function dogPose(d, t, dt, mv) {
+    const T = d.T; T.fill(0);
+    if (mv > 0.05) { const s = Math.sin(d.wph), amp = clamp(mv / (1.4 * M2Y), 0.6, 2); T[J_LP] = 0.45 * s * amp; T[J_RP] = -0.45 * s * amp; T[J_LH] = -0.45 * s * amp; T[J_RH] = 0.45 * s * amp; T[J_HP] = 0.1 + 0.05 * Math.sin(d.wph * 2); }
+    else { T[J_HP] = -0.1 + 0.1 * Math.sin(t * 0.7 + d.ph); T[J_HY] = 0.4 * Math.sin(t * 0.33 + d.ph); }
+    T[J_AY] = 0.45 * Math.sin(t * 9 + d.ph);
+    const k = Math.min(1, dt * 12); for (let i = 0; i < 16; i++) d.A[i] += (T[i] - d.A[i]) * k;
+  }
+
+  // ---------- reactions: the crowd hears what the stadium crowd would ----------
+  function pplEvent(n) {
+    if (!PPL.init || !PPL.crowd.length) return;
+    const t = PPL.clk, R = pR; // the people's own clock (frame time, so a slow frame is slow motion, not a skipped reaction)
+    const big = n === 'cheer' || n === 'boo';
+    for (const q of PPL.crowd) {
+      if (q.away) continue;
+      const fan = q.fan, home = fan >= 0;
+      let k = null, d = 0, jump = false;
+      if (n === 'cheer' || n === 'boo') {
+        const good = (n === 'cheer') === home, r = R();
+        if (good) { k = r < 0.55 ? 'cheer' : r < 0.78 ? 'pump' : 'clap'; d = 1.8 + R() * 1.8; jump = R() < 0.4 * (q.age === 'adult' || q.age === 'teacher' ? 0.3 : 1); }
+        else { k = r < 0.62 ? 'groan' : r < 0.85 ? 'ooh' : null; d = 1.5 + R() * 1.4; }
+      } else if (n === 'ooh') { if (R() < 0.55) { k = R() < 0.6 ? 'ooh' : 'groan'; d = 1.0 + R() * 0.8; } }
+      else if (n === 'good') { if (R() < 0.45) { k = 'clap'; d = 1.4 + R() * 1.2; } }
+      else if (n === 'catch') { if (R() < 0.2) { k = 'clap'; d = 1 + R(); } }
+      else if (n === 'clap' || n === 'stomp') { if (q.mode === 'stand' && (!q.rx || q.rx.k === 'clap' || q.rx.k === 'stomp') && R() < 0.75) { k = n === 'clap' ? 'clap' : 'stomp'; d = n === 'clap' ? 0.34 : 0.3; } }
+      if (!k) continue;
+      if (!big && q.rx && t < q.rx.t0 + q.rx.d && q.rx.k !== 'clap' && q.rx.k !== 'stomp') continue; // a bigger reaction is still going
+      q.rx = { k, t0: t + (n === 'clap' || n === 'stomp' ? 0 : R() * 0.35), d, jump, v: R(), up: R() < 0.5 };
+    }
+  }
+  if (PPL_ON) { const p1 = sfx.play; sfx.play = (n) => { p1(n); try { pplEvent(n); } catch (e) {} }; }
+
+  // ---------- per frame: move, pose, cull, pack ----------
+  const PPL_FR = [0.34, 0.6, 1]; // how much of the crowd each quality level draws (low, medium, high)
+  function metPplFrame(dt, now) {
+    if (!PPL_ON) return;
+    const t0 = performance.now();
+    if (!PPL.init) { try { pplInit(); } catch (e) { PPL.init = true; try { console.error('metcalf people', e); } catch (e2) {} } }
+    PPL.clk += dt; const t = PPL.clk;
+    // where the crowd looks: the ball (or whoever has it), else the middle of the field
+    const L = PPL.look, b = ball, tgt = FETCH.on && FETCH.lookAt ? FETCH.lookAt : b ? (b.holder ? [b.holder.x, 1, b.holder.z] : [b.x, b.y || 0, b.z]) : [0, 0, MID];
+    L[0] += (tgt[0] - L[0]) * Math.min(1, dt * 4); L[1] = 1; L[2] += (tgt[2] - L[2]) * Math.min(1, dt * 4);
+    // a home touchdown: the front rows rush in a few steps, then drift back
+    if (hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < 0.7) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
+    PPL.hs0 = hs; PPL.as0 = as;
+    const ex = excite, lean = (phase === 'pre' || phase === 'dpre' || phase === 'live') && PULSE.v > 0.5;
+    for (const q of PPL.crowd) {
+      if (q.rushT && t > q.rushT) { q.rushT = 0; q.tx = null; }
+      const tx = q.fx != null ? q.fx : q.tx != null ? q.tx : q.hx, tz = q.fz != null ? q.fz : q.tz != null ? q.tz : q.hz;
+      const dx = tx - q.x, dz = tz - q.z, dd = Math.hypot(dx, dz);
+      let mv = 0;
+      if (dd > 0.08) { const sp = (q.rushT || q.fx != null ? 2.6 : 1.4) * M2Y; const st = Math.min(dd, sp * dt); q.x += dx / dd * st; q.z += dz / dd * st; mv = st / Math.max(dt, 1e-3); q.wph += st / (0.36 * q.sz * 1.6) * 0.5 * Math.PI; q.h += angDiff(Math.atan2(dx, dz), q.h) * Math.min(1, dt * 8); if (q.mode !== 'stand') { q.mode0 = q.mode; q.mode = 'stand'; } }
+      else { q.h += angDiff(q.hh, q.h) * Math.min(1, dt * 2.5); if (q.mode0 && q.fx == null) { q.mode = q.mode0; q.mode0 = null; } }
+      q.mv = mv;
+      // a loud place: some lean in with their hands on their knees, the keen ones bounce; a quiet one: now and then a new idle
+      q.lean = (q.lean || 0) + (((lean && q.en < 0.62 && q.mode === 'stand' && q.arms !== 3 && phase !== 'live') ? 1 : 0) - (q.lean || 0)) * Math.min(1, dt * 2);
+      if (ex > q.en + 0.2 && !q.rx && q.mode === 'stand' && pR() < dt * 0.6) q.rx = { k: pR() < 0.5 ? 'clap' : 'pump', t0: t, d: 1.2 + pR(), v: pR() };
+      q.idleT -= dt; if (q.idleT <= 0) { q.idleT = 6 + pR() * 14; if (q.mode === 'stand' && pR() < 0.35) q.arms = pR() < 0.4 ? 0 : pR() < 0.5 ? 1 : pR() < 0.5 ? 2 : 3; }
+    }
+    // walkers along their paths (they turn round at the ends), their dogs at heel
+    for (const q of PPL.walk) {
+      if (q.kind === 'pass') { q.mv = q.mv || 0; continue; } // the cutscene moves him
+      q.s += q.dir * q.spd * dt; const P = PPL.paths[q.pi];
+      if (q.s > P.len || q.s < 0) { q.dir = -q.dir; q.s = clamp(q.s, 0, P.len); if (q.pi < 2) { q.side = (pR() - 0.5) * 0.9; } }
+      pplWalkPos(q); const dx = q.tx0 - q.x, dz = q.tz0 - q.z, st = Math.hypot(dx, dz);
+      q.x = q.tx0; q.z = q.tz0; q.h += angDiff(q.th0, q.h) * Math.min(1, dt * 6); q.mv = st / Math.max(dt, 1e-3); q.wph += st / (0.36 * q.sz * 1.6) * 0.5 * Math.PI;
+      q.gy = gyF(metF(q.x, q.z)[0]);
+    }
+    for (const d of PPL.dogs) {
+      const o = d.owner, sd = o.dir * (o.pi === 0 ? 1 : -1), fx = Math.sin(o.h), fz = Math.cos(o.h);
+      const tx = o.x + fx * 0.75 - fz * 0.55 * sd, tz = o.z + fz * 0.75 + fx * 0.55 * sd, dx = tx - d.x, dz = tz - d.z, dd = Math.hypot(dx, dz);
+      if (dd > 3) { d.x = tx; d.z = tz; } else { const st = Math.min(dd, (o.mv + 0.6) * dt * 1.4); if (dd > 1e-3) { d.x += dx / dd * st; d.z += dz / dd * st; } }
+      const mv = o.mv > 0.1 ? o.mv : 0; d.wph += mv * dt / (0.42 * d.sz) * Math.PI; d.h += angDiff(mv > 0.1 ? o.h : Math.atan2(o.x - d.x, o.z - d.z), d.h) * Math.min(1, dt * 5); d.mv = mv; d.gy = o.gy;
+      o.lead = true;
+    }
+    // pose, cull, pack (near people get the full mesh, far ones the low one; dogs last)
+    const R = PPL.R, F = PPL.buf, fr = PPL_FR[clamp(quality, 0, 2)], ncrowd = Math.ceil(PPL.crowd.length * fr), nearD = quality >= 2 ? 30 : quality === 1 ? 22 : 15;
+    const vis = (x, z, r) => { const w = VP[3] * x + VP[7] * 1 + VP[11] * z + VP[15]; if (w < -r) return false; const cx = VP[0] * x + VP[4] + VP[8] * z + VP[12], cy = VP[1] * x + VP[5] + VP[9] * z + VP[13], ww = Math.max(w, 0.1) * 1.15 + r; return Math.abs(cx) < ww && Math.abs(cy) < ww + 1.2; };
+    const near = [], far = [];
+    for (let i = 0; i < PPL.all.length; i++) {
+      const q = PPL.all[i]; if (q.kind === 'crowd' && i >= ncrowd && !q.keep) continue; if (q.hidden) continue;
+      if (!vis(q.x, q.z, 1.5)) continue;
+      pplPose(q, t, dt, q.mv || 0);
+      (Math.hypot(q.x - cam.e[0], q.z - cam.e[2]) < nearD ? near : far).push(q);
+    }
+    const dogs = []; for (const d of PPL.dogs) { if (d.owner.hidden || !vis(d.x, d.z, 1)) continue; dogPose(d, t, dt, d.mv || 0); dogs.push(d); }
+    const need = (near.length + far.length + dogs.length) * 32; if (F.length < need) PPL.buf = new Float32Array(need + 64 * 32);
+    const B = PPL.buf; let n = 0;
+    const put = (q, dog) => { const o = n * 32; B[o] = q.x; B[o + 1] = q.z; B[o + 2] = q.h; B[o + 3] = q.sz; B[o + 4] = q.wid; B[o + 5] = dog ? 64 : q.fl; B[o + 6] = dog ? 0 : q.y; B[o + 7] = q.gy;
+      const c = q.c, c2 = q.c2 || c; B[o + 8] = c[0]; B[o + 9] = c[1]; B[o + 10] = c[2]; B[o + 11] = c[3]; B[o + 12] = c2[0]; B[o + 13] = c2[1]; B[o + 14] = c2[2]; B[o + 15] = 0; B.set(q.A, o + 16); n++; };
+    for (const q of near) put(q); R.nn = n; for (const q of far) put(q); R.nh = n; for (const d of dogs) put(d, true); R.n = n;
+    PPL.ms += (performance.now() - t0 - PPL.ms) * 0.05;
+    if (FETCH.on) fetchBubbles();
+  }
+  // ---------- drawing (inside the opaque scene pass, after the statics) ----------
+  function metPplDraw() {
+    const R = PPL.R; if (!PPL_ON || !R.n) return; const Q = pplGL(); if (!Q) return;
+    const P = Q.pr, IA = ['iA', 'iB', 'iC', 'iD', 'iE', 'iF', 'iG', 'iH'];
+    setLitUniforms(P);
+    gl.bindBuffer(gl.ARRAY_BUFFER, Q.inst); gl.bufferData(gl.ARRAY_BUFFER, PPL.buf.subarray(0, R.n * 32), gl.DYNAMIC_DRAW);
+    let tris = 0;
+    for (const [m, s, c] of [[Q.hi, 0, R.nn], [Q.lo, R.nn, R.nh - R.nn], [Q.dog, R.nh, R.n - R.nh]]) {
+      if (c <= 0) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.vb);
+      gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 4, gl.FLOAT, false, 32, 0);
+      if (P.a.aN != null) { gl.enableVertexAttribArray(P.a.aN); gl.vertexAttribPointer(P.a.aN, 4, gl.FLOAT, false, 32, 16); }
+      gl.bindBuffer(gl.ARRAY_BUFFER, Q.inst);
+      IA.forEach((k, j) => { const l = P.a[k]; if (l == null) return; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 128, s * 128 + j * 16); X.inst.vertexAttribDivisor(l, 1); });
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ib); X.inst.drawElementsInstanced(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0, c); DRAWS.n++; tris += m.n / 3 * c;
+    }
+    IA.forEach((k) => { const l = P.a[k]; if (l != null) X.inst.vertexAttribDivisor(l, 0); }); disableAll(P);
+    DRAWS.tris += tris; PPL.tris = tris;
+    // blob shadows: one instanced quad each, blended, no depth writes
+    const S = Q.pb; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uVP, false, VP);
+    gl.enable(gl.BLEND); gl.depthMask(false);
+    gl.bindBuffer(gl.ARRAY_BUFFER, Q.quad); gl.enableVertexAttribArray(S.a.aQ); gl.vertexAttribPointer(S.a.aQ, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, Q.inst);
+    for (const [k, off] of [['iA', 0], ['iB', 16]]) { const l = S.a[k]; if (l == null) continue; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 128, off); X.inst.vertexAttribDivisor(l, 1); }
+    X.inst.drawArraysInstanced(gl.TRIANGLES, 0, 6, R.n); DRAWS.n++;
+    for (const k of ['iA', 'iB']) { const l = S.a[k]; if (l != null) X.inst.vertexAttribDivisor(l, 0); }
+    disableAll(S); gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+
+  // =====================================================================================
+  // The ball over the fence
+  // =====================================================================================
+  let FEN = null; // the fences in engine units: a, b, unit direction d, far-side normal n, length
+  const fetchOurs = () => (DEFP && DEFP.on ? 1 : 0); // our team's side in the cutscene (on a key defensive play the CPU has the ball)
+  function fences() {
+    if (FEN) return FEN;
+    FEN = fenceList().map((f) => { const a = metE(f.a[0], f.a[1]), b = metE(f.b[0], f.b[1]), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { a, b, d: [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: f.n.slice(), L, fp: f.fp }; });
+    return FEN;
+  }
+  // every step: a ball that is not in anyone's hands crossing a fence line from the field side (live, or still bouncing when dead)
+  function metFetchWatch() {
+    if (!PPL_ON) return;
+    if (phase !== FW.ph) { if (phase === 'live') { FW.hit = null; FW.bp = null; } FW.ph = phase; }
+    const b = ball;
+    if ((phase !== 'live' && phase !== 'dead') || !b || b.holder || b.replay) { FW.bp = null; return; }
+    if (FW.bp && !FW.hit) {
+      for (const f of fences()) {
+        const s0 = (FW.bp[0] - f.a[0]) * f.n[0] + (FW.bp[1] - f.a[1]) * f.n[1], s1 = (b.x - f.a[0]) * f.n[0] + (b.z - f.a[1]) * f.n[1];
+        if (s0 < 0 && s1 >= 0) { const k = s0 / (s0 - s1), x = FW.bp[0] + (b.x - FW.bp[0]) * k, z = FW.bp[1] + (b.z - FW.bp[1]) * k, u = (x - f.a[0]) * f.d[0] + (z - f.a[1]) * f.d[1];
+          if (u >= 0 && u <= f.L) { FW.hit = { f, x, z, u }; break; } }
+      }
+    }
+    FW.bp = [b.x, b.z];
+  }
+  const SAY_CALL = ['Can you get our ball?!', 'A little help!', 'Little help please!', 'Over here!', 'Can you throw it back?', 'Hey! Our ball!', 'Thank you!!'];
+  // after the play (the result already stands): start the cutscene instead of going on; `cont` is what the game would have done
+  function metFetchStart(cont, force) {
+    if (!PPL_ON || FETCH.on || (DBG && DBG.noFetch && !force)) return false; // (tests: noFetch checks the cutscene leaves the game as it was)
+    const hit = force || FW.hit; FW.hit = null;
+    if (!hit || !ball) return false;
+    if (!force && qtr >= 4 && clock <= 0 && hs !== as) return false; // the game is over: nothing to fetch it for
+    if (!PPL.init) { try { pplInit(); } catch (e) { return false; } }
+    const f = hit.f, R = pR;
+    // where the ball lies: where it came to rest beyond the fence (not too far out), else just over it
+    let bx = ball.x, bz = ball.z, side = (bx - f.a[0]) * f.n[0] + (bz - f.a[1]) * f.n[1];
+    if (force || side < 0.6) { bx = hit.x + f.n[0] * 2.2; bz = hit.z + f.n[1] * 2.2; side = 2.2; }
+    if (side > 13) { const k = 13 / side; bx = hit.x + (bx - hit.x) * k; bz = hit.z + (bz - hit.z) * k; }
+    const u = clamp((bx - f.a[0]) * f.d[0] + (bz - f.a[1]) * f.d[1], 1.2, f.L - 1.2), cx = f.a[0] + f.d[0] * u, cz = f.a[1] + f.d[1] * u;
+    // the players who line up (not the ones still on the ground), nearest ones in the middle
+    const who = everyone.filter((p) => !p.rag && p.side !== 2 && p.bones);
+    if (!who.length) return false;
+    const save = who.map((p) => ({ p, x: p.x, z: p.z, h: p.h, vx: p.vx, vz: p.vz, pose: p.pose, poseT: p.poseT, face2: p.face2, hold: p.hold, look: p.look, celType: p.celType, celAt: p.celAt, reach: p.reach, sprint: p.sprint }));
+    const N = who.length, spots = [];
+    for (let i = 0; i < N; i++) { const row = N > 9 && i % 2 === 1 ? 1 : 0, k = row ? (i - 1) / 2 : i / (N > 9 ? 2 : 1), j = Math.ceil(k / 2) * (k % 2 ? 1 : -1), uu = clamp(u + j * 0.95 + row * 0.47, -6, f.L + 6), inw = 1.05 + row * 0.95; spots.push([f.a[0] + f.d[0] * uu - f.n[0] * inw, f.a[1] + f.d[1] * uu - f.n[1] * inw, Math.abs(j) + row * 0.5]); }
+    who.sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+    const L = who.map((p, i) => ({ p, s: spots[i] }));
+    let rc = L.find((o) => o.p.side === fetchOurs()) || L[0]; // one of ours catches it: the one of ours lined up nearest the middle
+    for (const o of L) if (o.p.side === fetchOurs() && o.s[2] < rc.s[2]) rc = o;
+    // the ones still far off (the big field, a play at the other end) start the cutscene already on their way, a few steps from their
+    // place in the line, so the line forms while the ball is fetched (everyone goes back where the play left them at the end)
+    for (const o of L) { const p = o.p, dx = p.x - o.s[0], dz = p.z - o.s[1], d = Math.hypot(dx, dz), R0 = 6 + (o.s[2] || 0) * 0.6; if (d > R0) { p.x = o.s[0] + dx / d * R0; p.z = o.s[1] + dz / d * R0; p.vx = 0; p.vz = 0; } }
+    // the passer-by: someone already walking on the far side not too far off, else someone who comes along the sidewalk
+    let ps = null, best = 34;
+    for (const q of PPL.walk) { if (q.kind !== 'walk') continue; const sd = (q.x - f.a[0]) * f.n[0] + (q.z - f.a[1]) * f.n[1]; if (sd < 0.4) continue; const dd = Math.hypot(q.x - bx, q.z - bz); if (dd < best) { best = dd; ps = q; } }
+    let spawned = false;
+    if (!ps) {
+      let sx, sz, pi = f.fp;
+      if (pi >= 0) { const P = PPL.paths[pi]; let bs = 0, bd = 1e9; for (let s = 0; s <= P.len; s += 1) { const ww = { pi, s, side: 0, dir: 1 }; pplWalkPos(ww); const dd = Math.hypot(ww.tx0 - bx, ww.tz0 - bz); if (dd < bd) { bd = dd; bs = s; } } const sgn = R() < 0.5 ? 1 : -1, s2 = clamp(bs + sgn * 15, 0, P.len); const ww = { pi, s: s2, side: 0.2, dir: -sgn }; pplWalkPos(ww); sx = ww.tx0; sz = ww.tz0; }
+      else { const sg = R() < 0.5 ? 1 : -1; sx = bx + f.d[0] * sg * 11 + f.n[0] * 2.5; sz = bz + f.d[1] * sg * 11 + f.n[1] * 2.5; }
+      const fF = metF(sx, sz); ps = pplNew(R, R() < 0.5 ? 'adult' : 'teen', 0, fF[0], fF[1], Math.atan2(bx - sx, bz - sz), 'walk');
+      Object.assign(ps, { pi: Math.max(0, pi), s: 0, dir: 1, spd: 1.3 * M2Y, side: 0, spawnT: true }); PPL.walk.push(ps); PPL.all.push(ps); spawned = true;
+    }
+    ps.kind = 'pass'; ps.keep = true;
+    // crowd people standing where the line forms step aside for it
+    const disp = [];
+    for (const q of PPL.crowd) { const du = (q.hx - f.a[0]) * f.d[0] + (q.hz - f.a[1]) * f.d[1] - u, dn = (q.hx - f.a[0]) * f.n[0] + (q.hz - f.a[1]) * f.n[1];
+      if (Math.abs(du) < N * 0.55 + 1.2 && dn > -4.2 && dn < 0.2) { const sg = du >= 0 ? 1 : -1, nu = u + sg * (N * 0.55 + 1.6 + Math.abs(du) * 0.35); q.fx = f.a[0] + f.d[0] * nu + f.n[0] * Math.min(dn, -0.8); q.fz = f.a[1] + f.d[1] * nu + f.n[1] * Math.min(dn, -0.8); disp.push(q); }
+      // and on the far side they leave a lane to the ball and back to the fence, so the one who fetches it is seen doing it
+      else if (dn >= 0.2 && dn < side + 4 && Math.abs(du) < 3.6) { const sg = du >= 0 ? 1 : -1, nu = u + sg * (3.9 + Math.abs(du) * 0.4); q.fx = f.a[0] + f.d[0] * nu + f.n[0] * dn; q.fz = f.a[1] + f.d[1] * nu + f.n[1] * dn; disp.push(q); } }
+    // the cosmetic RNG, the excitement and the crowd's pulse are put back as they were at the end: the cutscene is time out
+    Object.assign(FETCH, { cs0: cs, ex0: excite, pv0: PULSE.v, pe0: PULSE.e, cam0: [cam.e.slice(), cam.c.slice(), cam.shake, cam.kick], wave0: wave, mood0: crowdMood, parts0: parts.map((q) => Object.assign({}, q)) });
+    Object.assign(FETCH, { on: true, t: 0, n: 0, f, u, cx, cz, bx, bz, L, rc, ps, spawned, save, disp, cont, ball0: ball, stage: 'call', said: 0, bub: [], skipOK: false, flight: null, lookAt: [bx, 1, bz], ph0: phase,
+      cam: null, camS: R() < 0.5 ? 1 : -1, done: 0 });
+    ball = { st: 'dead', x: bx, y: 0.15, z: bz, vx: 0, vy: 0, vz: 0, rolling: true, spin: 0.6 };
+    phase = 'fetch'; clearBanner(); hideTags(); setControls(true);
+    banner('OVER THE FENCE!', 'Somebody get the ball…', '#ffc21a'); setTimeout(() => { if (phase === 'fetch') clearBanner(); }, 1500);
+    for (const o of L) { o.p.face2 = null; o.p.hold = false; o.p.look = null; o.p.celType = null; o.p.celAt = 0; o.p.reach = null; o.p.sprint = false; if (o.p.pose !== 'idle') setPose(o.p, 'idle'); }
+    fetchPickCam(); fetchCam(0);
+    return true;
+  }
+  // a camera spot with a clear view: the default framing sits in a tree crown on the lawns by the Main Street fence, so try both
+  // sides, nearer, farther, lower and higher, and keep the one whose lines of sight to the ball, the fence and the line of players
+  // pass through the fewest solids (MET.keep, the built frame in metres, like metKeepOut); the eye inside a solid counts most
+  function fetchSolid(x, y, z) { // engine units in, inside a solid (0.15 m padding)?
+    x = x / M2Y + MX0; y = y / M2Y; z = z / M2Y - MZ0; const m = 0.15;
+    for (const k of MET.keep || []) {
+      if (k.length === 6) { if (x > k[0] - m && x < k[3] + m && z > k[2] - m && z < k[5] + m && y < k[4] + m && y > k[1] - m) return true; }
+      else if (k.length === 5) { if (y > k[3] - m && y < k[4] + m && Math.hypot(x - k[0], z - k[1]) < k[2] + m) return true; }
+      else if (k.length === 4) { if (Math.hypot(x - k[0], y - k[1], z - k[2]) < k[3] + m) return true; }
+    }
+    return false;
+  }
+  const FETCH_CV = [[6.4, 5.4, 5.6], [4.6, 4.0, 4.4], [8.4, 7.0, 6.4], [5.4, 2.8, 6.0], [3.4, 2.4, 3.4], [10.5, 9.0, 7.5]]; // [back from the fence, height, to the side]
+  function fetchPickCam() {
+    const F = FETCH, f = F.f, along = clamp((F.bx - F.cx) * f.d[0] + (F.bz - F.cz) * f.d[1], -9, 9);
+    const tg = [[F.bx, 0.6, F.bz], [F.cx, 1.2, F.cz], [F.cx - f.n[0] * 1.2, 1.4, F.cz - f.n[1] * 1.2], [F.cx + f.n[0] * 2.5, 1.5, F.cz + f.n[1] * 2.5]];
+    let best = null, bs = 1e9;
+    for (const sg of [F.camS, -F.camS]) for (let i = 0; i < FETCH_CV.length; i++) {
+      const [bk, h, w] = FETCH_CV[i], side = sg * (w + Math.abs(along) * 0.15) + along * 0.35, e = [F.cx - f.n[0] * bk + f.d[0] * side, h, F.cz - f.n[1] * bk + f.d[1] * side];
+      let sc = i * 0.3 + (sg === F.camS ? 0 : 0.1) + (fetchSolid(e[0], e[1], e[2]) ? 40 : 0);
+      for (const t of tg) for (let j = 1; j < 16; j++) { const u = j / 16; if (fetchSolid(e[0] + (t[0] - e[0]) * u, e[1] + (t[1] - e[1]) * u, e[2] + (t[2] - e[2]) * u)) sc += 1; }
+      if (sc < bs) { bs = sc; best = { s: sg, bk, h, w }; }
+    }
+    F.cv = best || { s: F.camS, bk: 6.4, h: 5.4, w: 5.6 };
+  }
+  // the framing: from the field side, over the players' backs, at the fence and whoever comes for the ball
+  function fetchCam(dt) {
+    const F = FETCH, f = F.f, ps = F.ps;
+    let fx = F.cx + f.n[0] * 2.5, fz = F.cz + f.n[1] * 2.5;
+    if (ps) { fx = lerp(fx, ps.x, 0.45); fz = lerp(fz, ps.z, 0.45); }
+    if (F.flight || F.stage === 'thanks') { fx = lerp(fx, F.rc.p.x, 0.5); fz = lerp(fz, F.rc.p.z, 0.5); }
+    const dl = Math.hypot(fx - F.cx, fz - F.cz); if (dl > 9) { fx = F.cx + (fx - F.cx) * 9 / dl; fz = F.cz + (fz - F.cz) * 9 / dl; }
+    const along = (fx - F.cx) * f.d[0] + (fz - F.cz) * f.d[1];
+    // a three-quarter view from up and to one side, so whoever is beyond the fence shows over the line of players
+    const V = F.cv || { s: F.camS, bk: 6.4, h: 5.4, w: 5.6 }, side = V.s * (V.w + Math.abs(along) * 0.15) + along * 0.35, ex = F.cx - f.n[0] * V.bk + f.d[0] * side, ez = F.cz - f.n[1] * V.bk + f.d[1] * side;
+    F.cam = { e: [ex, V.h, ez], c: [fx, 0.9, fz] };
+  }
+  function fetchSay(who, txt, x, y, z) {
+    try {
+      if (!document.getElementById('bz-say-css')) { const st = document.createElement('style'); st.id = 'bz-say-css';
+        st.textContent = ".bz-say{position:absolute;transform:translate(-50%,-100%);background:#fff;color:#15171c;font:800 15px/1.1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.2px;padding:5px 10px 6px;border-radius:13px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:5;pointer-events:none;animation:bz-say-in .2s cubic-bezier(.2,1.4,.4,1) both}.bz-say:after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}@keyframes bz-say-in{from{opacity:0;transform:translate(-50%,-80%) scale(.6)}to{opacity:1;transform:translate(-50%,-100%) scale(1)}}";
+        document.head.appendChild(st); }
+      const b = el('div', 'bz-say', esc(txt)); fx.appendChild(b);
+      FETCH.bub.push({ b, who, x, y, z, t: 0, life: 1.9 });
+    } catch (e) {}
+  }
+  function fetchBubbles() {
+    const F = FETCH;
+    for (const o of F.bub) {
+      const w = o.who, hh = w ? (w.lk ? 2.15 * w.lk.hs : (w.H || 1.6) * M2Y + 0.35) : 0;
+      const s = w ? project(w.x, hh + 0.25, w.z) : project(o.x, o.y, o.z);
+      if (s) { o.b.style.left = s[0].toFixed(1) + 'px'; o.b.style.top = s[1].toFixed(1) + 'px'; o.b.style.display = ''; } else o.b.style.display = 'none';
+    }
+  }
+  // kids shouting to someone across the fence: a few short voiced calls (a sawtooth through two vowel formants, pitch falling)
+  function fetchShout(n, k) {
+    try {
+      if (!sfx.ctx || sfx.muted) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out) return; const t = ac.currentTime;
+      for (let i = 0; i < n; i++) {
+        const t0 = t + i * 0.13 + pR() * 0.08, d = 0.38 + pR() * 0.35, f0 = (k ? 260 : 330) + pR() * 140, o = ac.createOscillator(), g = ac.createGain(), m = ac.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * 1.08, t0); o.frequency.linearRampToValueAtTime(f0 * 1.22, t0 + d * 0.3); o.frequency.exponentialRampToValueAtTime(f0 * 0.82, t0 + d);
+        const F1 = ac.createBiquadFilter(), F2 = ac.createBiquadFilter(); F1.type = F2.type = 'bandpass'; F1.frequency.value = 760 + pR() * 160; F2.frequency.value = 2300 + pR() * 500; F1.Q.value = 6; F2.Q.value = 8;
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.04); g.gain.setValueAtTime(0.13, t0 + d * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+        o.connect(F1); o.connect(F2); F1.connect(g); F2.connect(m); m.gain.value = 0.6; m.connect(g); g.connect(out); o.start(t0); o.stop(t0 + d + 0.05);
+      }
+    } catch (e) {}
+  }
+  // the hand of a person (approximate, for the ball he carries), engine units
+  const handOf = (q, up) => { const fx = Math.sin(q.h), fz = Math.cos(q.h), s = q.sz; return [q.x + fx * 0.22 * s - fz * 0.2 * s, (up ? 2.05 : 0.95) * s + q.gy, q.z + fz * 0.22 * s + fx * 0.2 * s]; };
+  function metFetchStep(dt) {
+    const F = FETCH; if (!F.on) return;
+    for (const q of parts) { if (q.life <= 0) continue; q.life -= dt; q.vy -= 12 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < 0.05) { q.y = 0.05; q.vy *= -0.3; q.vx *= 0.6; q.vz *= 0.6; } q.r += dt * 8; } // (put back at the end)
+    F.t += dt; F.n = (F.n || 0) + 1; const t = F.t, f = F.f, ps = F.ps, now = PPL.clk;
+    // the players jog to the fence, then face it
+    for (const o of F.L) {
+      const p = o.p, d = Math.hypot(o.s[0] - p.x, o.s[1] - p.z);
+      if (d > 0.25) steer(p, o.s[0], o.s[1], Math.min(effV(p) * 0.62, 5.2), dt, 7); else { p.vx *= 0.7; p.vz *= 0.7; p.face2 = Math.atan2(f.n[0], f.n[1]); }
+      integrate(p, dt);
+    }
+    collide();
+    // calls across the fence
+    const callT = [0.9, 1.75, 2.7, 3.7, 5.0];
+    if (F.stage !== 'thanks' && F.said < callT.length && t >= callT[F.said] && !F.flight) {
+      const onScr = (o) => { const sp = project(o.p.x, 2.4, o.p.z); return sp && sp[0] > cssW * 0.15 && sp[0] < cssW * 0.85 && sp[1] > cssH * 0.12 && sp[1] < cssH * 0.78; }; // (a bubble low on the screen hides under the message bar)
+      const i = F.said++, ours = F.L.filter((o) => o.p.side === fetchOurs() && onScr(o)), pool = ours.length ? ours : F.L.filter(onScr).length ? F.L.filter(onScr) : F.L, o = pool[(i * 3 + 1) % pool.length];
+      fetchSay(o.p, SAY_CALL[i % (SAY_CALL.length - 1)]); fetchShout(2 + (i % 2), i % 3 === 2);
+      if (i === 0 && ps) { ps.act = { k: 'wave', t0: now, d: 0.9 }; }
+    }
+    if (t > 3 && !F.skipOK) { F.skipOK = true; setControls(true); }
+    // the passer-by: to the ball, picks it up, to the fence, throws it over to our player
+    if (ps) {
+      ps.look = F.stage === 'go' || F.stage === 'bend' ? [F.bx, 0, F.bz] : [F.rc.p.x, 1.5, F.rc.p.z];
+      const mvTo = (x, z, spd) => { const dx = x - ps.x, dz = z - ps.z, d = Math.hypot(dx, dz); if (d < 0.06) { ps.mv = 0; return true; } const st = Math.min(d, spd * dt); ps.x += dx / d * st; ps.z += dz / d * st; ps.mv = st / dt; ps.wph += st / (0.36 * ps.sz * 1.6) * 0.5 * Math.PI; ps.h += angDiff(Math.atan2(dx, dz), ps.h) * Math.min(1, dt * 7); ps.gy = gyF(metF(ps.x, ps.z)[0]); return d - st < 0.06; };
+      if (F.stage === 'call') { ps.mv = 0; ps.h += angDiff(Math.atan2(F.cx - ps.x, F.cz - ps.z), ps.h) * Math.min(1, dt * 3); if (t > 1.6) { F.stage = 'go'; const d = Math.hypot(F.bx - ps.x, F.bz - ps.z); F.spd = clamp(d / 4.2, 1.5 * M2Y, 3.4 * M2Y); } }
+      else if (F.stage === 'go') { // stops with the ball just in front of his feet
+        const dx = ps.x - F.bx, dz = ps.z - F.bz, d = Math.hypot(dx, dz) || 1, k = 0.42 * ps.sz;
+        if (mvTo(F.bx + dx / d * k, F.bz + dz / d * k, F.spd)) { F.stage = 'bend'; F.st0 = t; ps.mv = 0; ps.act = { k: 'bend', t0: now, d: 1.0 }; ps.h = Math.atan2(F.bx - ps.x, F.bz - ps.z); } }
+      else if (F.stage === 'bend') { if (t - F.st0 > 0.5) { const hd = handOf(ps, false); ball.x = hd[0]; ball.z = hd[2]; ball.y = Math.max(0.15, (t - F.st0 - 0.5) * 2 + 0.15); ball.rolling = false; } if (t - F.st0 > 1.0) { F.stage = 'carry'; ps.carry = true; const pu = clamp((ps.x - f.a[0]) * f.d[0] + (ps.z - f.a[1]) * f.d[1], 0.6, f.L - 0.6), ru = (F.rc.p.x - f.a[0]) * f.d[0] + (F.rc.p.z - f.a[1]) * f.d[1], tu = clamp(lerp(pu, ru, 0.65), 0.6, f.L - 0.6); F.tx = f.a[0] + f.d[0] * tu + f.n[0] * 2.4; F.tz = f.a[1] + f.d[1] * tu + f.n[1] * 2.4; } }
+      else if (F.stage === 'carry') { const hd = handOf(ps, false); ball.x = hd[0]; ball.y = hd[1]; ball.z = hd[2]; if (mvTo(F.tx, F.tz, 1.6 * M2Y)) { F.stage = 'throw'; F.st0 = t; ps.carry = false; ps.mv = 0; ps.h = Math.atan2(F.rc.p.x - ps.x, F.rc.p.z - ps.z); ps.act = { k: 'throw', t0: now, d: 0.8 }; fetchSay(ps, pR() < 0.5 ? 'Here you go!' : 'Got it!'); } }
+      else if (F.stage === 'throw') {
+        ps.h += angDiff(Math.atan2(F.rc.p.x - ps.x, F.rc.p.z - ps.z), ps.h) * Math.min(1, dt * 6);
+        const u = (t - F.st0) / 0.8;
+        if (u < 0.5) { const hd = handOf(ps, u > 0.2); ball.x = hd[0]; ball.y = hd[1]; ball.z = hd[2]; }
+        else if (!F.flight) { // release: a lob that clears the fence and drops into our player's hands
+          const r = F.rc.p, hd = handOf(ps, true), T = 1.0, ty = 1.55 * (r.lk ? r.lk.hs : 1), tx = r.x + Math.sin(r.h) * 0.3, tz = r.z + Math.cos(r.h) * 0.3;
+          F.flight = { x0: hd[0], y0: hd[1], z0: hd[2], vx: (tx - hd[0]) / T, vz: (tz - hd[2]) / T, vy: (ty - hd[1] + 0.5 * GRAV * T * T) / T, t: 0, T };
+          ball = { st: 'air', x: hd[0], y: hd[1], z: hd[2], vx: F.flight.vx, vy: F.flight.vy, vz: F.flight.vz, t: 0, T, replay: true, spin: 0, spinV: 14 };
+          sfx.play('throw');
+        }
+        if (u >= 1) { F.stage = 'back'; ps.look = null; }
+      } else if (F.stage === 'back' || F.stage === 'thanks') { // he goes on his way
+        if (ps.spawnT && f.fp < 0) mvTo(ps.x + f.d[0] * 3, ps.z + f.d[1] * 3, 1.3 * M2Y); else ps.mv = 0;
+      }
+    }
+    // the ball in the air, the catch
+    if (F.flight) {
+      const fl = F.flight; fl.t += dt; const u = Math.min(fl.t, fl.T);
+      ball.x = fl.x0 + fl.vx * u; ball.z = fl.z0 + fl.vz * u; ball.y = fl.y0 + fl.vy * u - 0.5 * GRAV * u * u; ball.vy = fl.vy - GRAV * u; ball.spin = (ball.spin || 0) + dt * 14;
+      const r = F.rc.p; r.face2 = Math.atan2(ball.x - r.x, ball.z - r.z);
+      if (fl.T - fl.t < 0.4 && r.pose !== 'reach' && !fl.got) setPose(r, 'reach');
+      if (fl.t >= fl.T && !fl.got) {
+        fl.got = true; ball = { st: 'held', holder: r, x: r.x, y: 1.3, z: r.z, vx: 0, vy: 0, vz: 0 }; setPose(r, 'idle'); sfx.play('catch');
+        F.stage = 'thanks'; F.st0 = F.t; fetchSay(r, 'Thanks!!'); fetchShout(2, false);
+        for (const o of F.L) if (o.p !== r && o.p.side === fetchOurs() && pR() < 0.5) o.p.face2 = Math.atan2(r.x - o.p.x, r.z - o.p.z);
+      }
+    }
+    if (ps) F.lookAt = F.flight ? [ball.x, ball.y, ball.z] : [ps.x, 1, ps.z];
+    for (const o of F.bub) o.t += dt;
+    for (const o of F.bub.filter((q) => q.t > q.life)) { try { o.b.remove(); } catch (e) {} }
+    F.bub = F.bub.filter((q) => q.t <= q.life);
+    fetchCam(dt);
+    // (tests: fetchAlign ends it on a whole number of frames, so a headless game can be compared with and without it)
+    if (F.stage === 'thanks' && F.t - F.st0 > 1.5 && !(DBG && DBG.fetchAlign && F.n % DBG.fetchAlign)) metFetchEnd();
+    else if (F.t > 30) metFetchEnd(); // never stuck
+  }
+  const metFetchSkipOK = () => FETCH.on && FETCH.skipOK;
+  function metFetchSkip() { if (FETCH.on && FETCH.skipOK) { sfx.play('tap'); metFetchEnd(); } }
+  // back to exactly where the game was: everyone where the play left them, the game's own ball, then what the game was going to do
+  function metFetchEnd() {
+    const F = FETCH; if (!F.on) return;
+    F.on = false; F.cam = null; F.lookAt = null;
+    for (const s of F.save) { const p = s.p; p.x = s.x; p.z = s.z; p.h = s.h; p.vx = s.vx; p.vz = s.vz; p.face2 = s.face2; p.hold = s.hold; p.look = s.look; p.celType = s.celType; p.celAt = s.celAt; p.reach = s.reach; p.sprint = s.sprint; p.pose = s.pose; p.poseT = s.poseT; }
+    ball = F.ball0;
+    for (const o of F.bub) { try { o.b.remove(); } catch (e) {} } F.bub = [];
+    for (const q of F.disp) { q.fx = null; q.fz = null; }
+    const ps = F.ps;
+    if (ps) {
+      ps.act = null; ps.carry = false; ps.look = null; ps.keep = false;
+      if (F.spawned) { PPL.walk = PPL.walk.filter((q) => q !== ps); PPL.all = PPL.all.filter((q) => q !== ps); }
+      else { ps.kind = 'walk'; let bs = ps.s, bd = 1e9; const P = PPL.paths[ps.pi]; for (let s = 0; s <= P.len; s += 0.5) { const w = { pi: ps.pi, s, side: ps.side, dir: ps.dir }; pplWalkPos(w); const d = Math.hypot(w.tx0 - ps.x, w.tz0 - ps.z); if (d < bd) { bd = d; bs = s; } } ps.s = bs; }
+    }
+    F.ps = null;
+    cs = F.cs0; excite = F.ex0; PULSE.v = F.pv0; PULSE.e = F.pe0; for (let i = 0; i < 3; i++) { cam.e[i] = F.cam0[0][i]; cam.c[i] = F.cam0[1][i]; } cam.shake = F.cam0[2]; cam.kick = F.cam0[3]; wave = F.wave0; crowdMood = F.mood0; parts = F.parts0;
+    phase = F.ph0 === 'dead' ? 'dead' : F.ph0; clearBanner(); setControls(true);
+    const c = F.cont; F.cont = null;
+    if (c) c();
+  }
+  // tests: start the cutscene now at a spot on a fence (i: fence index, uF: metres along it), from a snap-ready or dead ball
+  if (PPL_ON && DBG) {
+    DBG.metFetch = (i, uF) => {
+      if (FETCH.on || (phase !== 'pre' && phase !== 'dead')) return false;
+      const f = fences()[i || 0]; if (!f) return false; const u = clamp(uF == null ? f.L / 2 : uF * M2Y * MET_K, 1, f.L - 1), x = f.a[0] + f.d[0] * u, z = f.a[1] + f.d[1] * u;
+      const wasPre = phase === 'pre'; if (wasPre) { closeSheet(); sheetOpen = false; }
+      return metFetchStart(wasPre ? () => toPre(false) : deadDone, { f, x, z, u });
+    };
+    DBG.metPeople = () => ({ crowd: PPL.crowd.length, walk: PPL.walk.length, dogs: PPL.dogs.length, drawn: PPL.R.n, near: PPL.R.nn, tris: PPL.tris, ms: +PPL.ms.toFixed(3), gl: !!(G && G.ppl), fetch: FETCH.on ? FETCH.stage : null, hit: FW.hit ? 1 : 0, rx: PPL.crowd.filter((q) => q.rx).length, front: PPL.crowd.filter((q) => q.front).length, rush: PPL.crowd.filter((q) => q.rushT).length, hs0: PPL.hs0, moving: PPL.crowd.filter((q) => (q.mv || 0) > 0.1).length });
+    DBG.setQuality = (q) => setQuality(q);
+    // tests: crowd members standing inside a venue solid (built frame, the crowd's own posts left out)
+    DBG.metCrowdHits = () => { const n0 = MET.keep.length - PPL.crowd.length; let n = 0; for (const q of PPL.crowd) { const x = q.x / M2Y + MX0, z = q.z / M2Y - MZ0; for (let i = 0; i < n0; i++) { const k = MET.keep[i]; if (k.length === 6 ? k[1] < 1.9 && k[4] > 0.15 && x > k[0] && x < k[3] && z > k[2] && z < k[5] : k.length === 5 ? k[3] < 1.9 && Math.hypot(x - k[0], z - k[1]) < k[2] : false) { n++; break; } } } return n; };
+    DBG.metReact = (n) => { sfx.play(n); if (n === 'td') { hs += 7; boardDirty = true; } }; // tests: the crowd hears a cheer / boo / ooh; 'td' fakes a home score for the rush
+  }
+  // =====================================================================================
+  // Metcalf, south of the blacktop: the drop-off lot's black fence row, the lot's south fence, the courtyard with the big oak and
+  // the tot lot, the dark staff lot with its stalls, Fairchild Hall, Dry Grove Street, the recreation center, the buildings and
+  // trees out to the edge of town, the parked cars, and the flat-town skyline all round (tree canopy and the real campus towers in
+  // their true directions). Authored in metres in frame F (see 12-venue.js) through the same Batch primitives; buildMetcalf calls
+  // metSouth(K) once. Positions are measured on the 2022 orthophoto (5-7 cm) and OpenStreetMap; heights from the shadows.
+  // =====================================================================================
+  // roads and drive aisles for moving traffic, in frame F metres. pts: the centre line in the direction of travel (both ways
+  // listed for two-way streets as two lanes); lanes: [{ pts }] one polyline per lane in its direction of travel; width: curb to
+  // curb. Curves are polylines. Main Street is one-way northbound, Dry Grove Street east of Main one-way westbound, west of Main
+  // two-way; the school lots run one way: in from Dry Grove up the staff lot, round the drop-off loop counter-clockwise, out onto
+  // Main (right turn only).
+  if (METCALF) MET.roads = [
+    { name: 'South Main Street', oneWay: true, width: 10.65, speed: 13.4, pts: [[-26.08, -320], [-26.08, 320]], lanes: [{ pts: [[-28.6, -320], [-28.6, 320]] }, { pts: [[-23.8, -320], [-23.8, 320]] }] },
+    { name: 'Dry Grove Street (east of Main)', oneWay: true, width: 9.7, speed: 11.2, pts: [[118, -124.65], [-20.75, -124.65]], lanes: [{ pts: [[118, -125.3], [-20.75, -125.3]] }, { pts: [[118, -121.7], [-20.75, -121.7]] }] },
+    { name: 'Dry Grove Street (west of Main)', oneWay: false, width: 10.0, speed: 13.4, pts: [[-31.4, -72.5], [-137.9, -72.6], [-145.1, -71.7], [-152.6, -69.1], [-160.2, -65.2], [-167.0, -61.1]], lanes: [{ pts: [[-31.4, -70.35], [-137.9, -70.45], [-160.2, -63.2]] }, { pts: [[-160.2, -67.2], [-137.9, -74.75], [-31.4, -74.65]] }] },
+    { name: 'staff lot aisle (in from Dry Grove)', oneWay: true, width: 7.0, speed: 4.5, lot: true, pts: [[2.4, -121.0], [2.2, -116.5], [-1.4, -112.4], [-4.6, -107.5], [-4.8, -82], [-4.8, -56], [-4.2, -51.0]], lanes: [{ pts: [[2.4, -121.0], [2.2, -116.5], [-1.4, -112.4], [-6.9, -106.5], [-6.9, -82], [-6.9, -56], [-6.0, -51.6]] }, { pts: [[2.4, -121.0], [2.2, -116.5], [-1.4, -112.4], [-2.8, -107.5], [-2.8, -82], [-2.8, -56], [-2.4, -50.6]] }] },
+    { name: 'drop-off loop (counter-clockwise)', oneWay: true, width: 6.0, speed: 4.0, lot: true, pts: [[-4.0, -50.7], [2.8, -45.5], [6.6, -44.4], [15.7, -42.4], [17.7, -42.0], [23.3, -37.4], [24.4, -33.9], [23.6, -30.8], [22.2, -26.4], [20.2, -23.4], [15.6, -22.1], [7.1, -21.8], [-1.5, -22.4], [-4.4, -24.5], [-7.9, -28.2], [-8.0, -34.1], [-8.1, -40.0], [-8.0, -43.5], [-8.3, -47.0]], lanes: null },
+    { name: 'lot exit to Main Street', oneWay: true, width: 7.5, speed: 3.5, lot: true, pts: [[-8.3, -47.0], [-14.5, -47.6], [-20.6, -47.7], [-23.9, -49.5], [-23.9, -56]], lanes: null },
+    { name: 'drop-off shortcut', oneWay: true, width: 5.0, speed: 3.5, lot: true, pts: [[-4.0, -50.7], [-8.3, -47.0]], lanes: null },
+  ];
+  if (METCALF) for (const r of MET.roads) if (!r.lanes) r.lanes = [{ pts: r.pts }];
+  // the traffic lane's keys for the streets this module draws ({ y }: the road surface height in metres; presence = drawn)
+  if (METCALF) { MET.roads.drygroveE = { y: 0.045 }; MET.roads.drygroveW = { y: 0.045 }; }
+  // the black fence row between the blacktop and the drop-off lot (runs of freestanding panels with openings between them), for
+  // anything that wants to know where a ball can cross: [{ x0, x1, z, h }] in metres
+  if (METCALF) MET.southFence = [{ x0: -12.6, x1: -6.6, z: -16.95, h: 1.2 }, { x0: -0.65, x1: 17.45, z: -16.95, h: 1.2 }, { x0: 25.25, x1: 28.35, z: -16.95, h: 1.2 }];
+
+  // OpenStreetMap footprints south of the school (frame F metres) with heights: [h, x0, z0, x1, z1, ...]
+  const MS_BLD = [[18.8,136.7,-83.8,136.8,-58.9,133.1,-58.9,133.1,-54.6,136.8,-54.6,136.8,-52.9,179.8,-53.0,179.8,-54.6,183.4,-54.6,183.4,-59.1,179.8,-59.1,179.7,-83.8,183.3,-83.8,183.3,-88.2,179.7,-88.2,179.7,-89.9,136.7,-89.9,136.7,-88.2,132.8,-88.2,132.8,-83.8],[12,183.2,-94.7,183.1,-108.6,202.5,-108.8,202.5,-113.7,188.3,-113.6,188.0,-146.1,203.2,-146.3,203.1,-151.9,180.6,-151.7,180.5,-166.2,221.1,-166.6,221.2,-152.8,216.6,-152.7,217.0,-108.0,221.8,-108.1,222.0,-95.1],[8,-211.9,-63.3,-219.4,-63.2,-219.4,-55.8,-238.5,-55.6,-238.5,-63.0,-259.8,-62.8,-259.8,-74.8,-258.6,-74.9,-258.7,-92.9,-269.3,-92.8,-269.5,-125.1,-259.5,-125.2,-259.5,-126.4,-244.9,-126.5,-244.9,-134.7,-270.9,-134.5,-271.1,-157.2,-274.4,-157.2,-274.4,-163.0,-281.3,-162.9,-281.7,-221.0,-274.8,-221.1,-274.8,-224.9,-284.7,-224.8,-285.1,-279.1,-272.0,-279.2,-272.1,-286.5,-264.6,-286.5,-264.7,-292.7,-254.3,-292.8,-254.2,-286.4,-235.1,-286.6,-235.2,-292.7,-225.0,-292.8,-224.9,-286.5,-217.7,-286.5,-217.6,-279.1,-205.1,-279.3,-204.6,-225.3,-207.7,-225.2,-208.6,-209.4,-207.5,-209.4,-207.2,-180.2,-208.4,-180.2,-208.4,-172.8,-207.3,-172.8,-207.2,-163.8,-204.7,-163.9,-204.5,-135.2,-221.6,-135.1,-221.5,-126.3,-212.3,-126.3],[6.5,-78.1,-111.4,-37.6,-111.4,-37.6,-148.2,-74.5,-148.3,-74.6,-146.3,-80.7,-146.1,-80.7,-143.0,-78.3,-143.1],[8,-134.3,-130.2,-115.9,-130.3,-115.5,-93.9,-112.5,-94.0,-112.5,-87.8,-119.9,-87.7,-119.9,-90.5,-134.1,-90.3],[12,-158.3,-115.3,-140.2,-115.5,-140.7,-141.8,-147.0,-141.7,-147.0,-143.0,-152.0,-142.9,-152.1,-141.5,-158.6,-141.6],[11,134.0,-306.1,151.5,-305.9,151.4,-266.8,134.0,-266.6,134.0,-277.1,137.6,-277.2,137.5,-282.9,135.5,-283.5,134.8,-286.6,135.8,-290.1,137.6,-290.1,137.6,-295.6,133.9,-295.7],[6,-81.7,-281.1,-37.1,-281.3,-37.4,-297.1,-44.5,-296.8,-44.7,-302.3,-49.5,-302.2,-49.4,-296.7,-61.0,-296.5,-61.0,-298.7,-66.1,-298.7,-66.0,-296.5,-82.0,-296.2],[10.5,-143.0,-186.2,-121.3,-186.4,-121.4,-216.3,-143.3,-216.3],[10.5,-46.4,-197.3,-46.5,-209.1,-58.3,-208.9,-58.3,-206.7,-97.5,-207.2,-97.3,-197.9],[10.5,-114.9,-224.1,-61.6,-223.8,-59.4,-223.2,-59.4,-221.8,-46.3,-221.8,-46.5,-239.7,-59.5,-239.5,-59.5,-237.5,-115.4,-238.2],[5,-84.0,-169.6,-84.2,-177.2,-53.7,-177.6,-53.6,-170.1],[10.5,77.2,-86.4,77.3,-101.8,84.2,-101.6,84.4,-112.7,100.0,-112.8,99.7,-98.7,102.0,-97.1,102.0,-94.2,99.9,-93.0,100.0,-71.3,84.3,-71.2,84.4,-86.5],[5,-163.7,-226.3,-153.2,-226.4,-153.5,-242.1,-163.7,-242.1],[4.5,-53.5,-184.7,-81.2,-184.5,-81.2,-197.7,-53.6,-197.4],[6,-126.1,-42.3,-126.1,-40.9,-132.3,-40.9,-132.5,-55.5,-123.9,-55.6,-124.0,-58.2,-114.9,-58.2,-114.9,-55.5,-108.1,-55.6,-107.9,-42.5],[6,317.7,-119.1,320.1,-119.1,321.0,-121.1,320.0,-123.0,317.7,-123.0,316.5,-121.1]];
+  // the landmarks that stand over the trees from here (OpenStreetMap footprints, heights from the storey counts): the arena to the
+  // west-north-west, the library, the three 11-storey towers to the north-west, the two 18-storey halls to the east-north-east,
+  // the hotel and the 28-storey towers to the east-south-east. They are farther than the far clip, so each is drawn shrunk toward
+  // the field to 345 m: the same size on screen from the field, a little hazier.
+  const MS_LM = [[30.0,-387.1,181.3,-398.2,156.7,-400.0,157.2,-400.2,148.5,-398.2,148.4,-400.1,124.2,-398.1,124.6,-388.4,99.3,-365.5,84.1,-365.0,86.0,-337.4,86.1,-336.9,84.1,-313.3,99.0,-314.6,100.1,-303.8,124.3,-302.1,124.0,-302.0,132.8,-303.9,132.8,-301.9,157.0,-303.6,156.7,-314.5,180.9,-313.1,182.2,-336.6,197.2,-337.0,195.3,-364.9,195.4,-365.3,197.0],[22.4,293.4,223.7,357.9,221.8,355.8,157.8,291.6,159.3],[40.4,-449.1,346.0,-430.2,345.5,-430.8,310.1,-450.6,310.4],[65.6,540.2,156.6,540.0,140.1,546.1,140.1,546.1,136.8,574.7,136.4,574.8,140.1,582.1,140.0,582.3,156.5,575.0,156.6,575.0,160.0,547.0,160.4,547.0,156.5],[65.6,612.3,125.3,595.8,125.9,595.6,119.8,592.3,119.9,591.6,91.2,595.3,90.5,595.7,83.5,611.3,83.4,611.5,90.7,615.0,90.6,615.9,118.5,612.1,118.6],[33.2,669.2,-185.3,669.1,-177.1,681.0,-177.3,681.4,-172.6,692.0,-172.3,692.0,-166.8,697.5,-166.9,697.6,-162.9,705.7,-163.3,709.6,-156.7,709.9,-150.0,706.1,-143.6,697.9,-143.6,698.1,-136.8,702.7,-136.8,702.7,-129.9,706.5,-130.1,706.5,-128.2,721.0,-129.8,721.3,-116.5,708.0,-118.0,702.6,-116.1,702.2,-102.8,706.4,-102.9,706.4,-94.2,710.8,-94.3,710.7,-80.8,678.1,-79.7,678.2,-84.0,676.0,-84.2,676.1,-122.4,635.4,-121.8,635.3,-140.1,651.0,-155.9,642.9,-163.9,636.4,-162.9,636.5,-173.0,642.3,-173.1,654.3,-185.3],[40.4,-528.5,374.0,-528.5,354.8,-492.6,355.0,-492.8,374.0],[40.4,-494.3,266.8,-494.3,247.7,-458.5,246.8,-458.6,266.6],[91.0,529.6,-178.5,551.2,-157.5,548.8,-154.8,553.8,-150.4,555.8,-152.7,564.8,-144.1,570.7,-150.6,575.7,-145.7,573.0,-143.2,578.5,-137.4,575.4,-134.2,578.0,-131.5,581.8,-135.5,584.0,-133.3,586.2,-135.5,592.6,-133.4,594.8,-135.7,601.3,-133.6,603.4,-135.8,606.8,-132.4,609.4,-135.0,606.0,-138.3,608.1,-140.5,606.0,-146.9,608.2,-149.2,606.0,-155.6,608.2,-157.8,605.4,-160.5,608.6,-163.7,606.1,-166.1,602.8,-162.8,596.6,-164.6,594.4,-162.4,592.3,-164.5,590.2,-162.4,588.1,-164.5,585.9,-162.3,583.7,-164.4,581.6,-162.3,579.9,-163.8,583.9,-167.9,566.0,-185.5,562.1,-181.6,560.5,-183.2,562.4,-189.5,560.2,-191.7,562.4,-193.8,560.2,-196.0,562.4,-198.1,560.1,-200.3,562.3,-202.5,559.9,-204.8,563.1,-208.1,560.7,-210.5,557.5,-207.2,555.2,-209.5,553.0,-207.2,546.6,-209.3,544.4,-207.1,542.3,-209.2,535.9,-207.0,531.5,-211.3,528.8,-208.6,533.3,-204.3,531.1,-197.7,533.3,-195.6,531.2,-189.0,533.5,-182.5]];
+  const MS_LMC = ['#c9c8c2', '#a89a88', '#8f6352', '#b6ab9a', '#b6ab9a', '#b3a898', '#8f6352', '#8f6352', '#c2bcb0'];
+  // the street centre lines round the site that the traffic lane simulates (frame F; Dry Grove west of Main curves north-west
+  // into Kingsley), so trees and the skyline keep off them
+  const MS_RDS = [[[-26.9, -73.2], [-137.9, -73.3], [-145.2, -72.4], [-152.8, -69.8], [-160.3, -65.9], [-167.1, -61.8]], [[116, -124.0], [-20.75, -123.5]],
+    [[114.2, -340], [114.2, -139.9], [113.8, -69.6], [113.8, -9.5], [113.4, 91.0], [114.2, 139.9], [116.1, 247.2], [117.5, 340]],
+    [[-37.7, 340], [-37.6, 146.2], [-38.9, 112.7], [-42.9, 90.9], [-54.8, 65.2], [-73.6, 42.6], [-110.7, 5.5], [-142.4, -25.5], [-158.6, -45.8], [-170.9, -72.0], [-174.0, -101.4], [-177.0, -340]],
+    [[-340, 25], [-247.3, 53.2], [-196.6, 65.1], [-168.5, 80.9], [-141.5, 103.6], [-104.0, 127.3], [-62.5, 142.4], [-25.1, 148.2], [22.4, 147.1], [106.4, 142.3], [203.9, 138.0], [340, 132]]];
+  const msNearRoad = (x, z, m) => { for (const L of MS_RDS) for (let i = 0; i < L.length - 1; i++) { const a = L[i], b = L[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], t2 = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz))); if (Math.hypot(x - a[0] - dx * t2, z - a[1] - dz * t2) < m) return true; } return false; };
+  const msPoly = (a) => { const p = []; for (let i = 1; i < a.length; i += 2) p.push([a[i], a[i + 1]]); return p; };
+  const msInPoly = (p, x, z) => { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+  // the staff lot's canvas covers this rectangle (frame F metres)
+  const FLOT = { x0: -16.5, x1: 4.5, z0: -123.0, z1: -53.5 };
+
+  // ---------- a parked car: sedan, suv, hatch, pickup or van. Body: a side silhouette with wheel arches extruded across the width
+  // with rounded shoulders; a glass house with pillars; wheels with hubs; lights. ang: heading (rad CCW from +x); lod 1 = far ----------
+  const MS_CARS = {
+    sedan: { L: 4.85, W: 1.83, r: 0.32, wf: 1.42, wr: -1.4, bot: 0.3, top: [[2.43, 0.33], [2.45, 0.62], [2.3, 0.8], [1.6, 0.89], [0.85, 0.95], [-1.45, 0.98], [-2.2, 0.95], [-2.4, 0.84], [-2.44, 0.36]], cab: [0.85, 0.95, -0.05, 1.43, -0.95, 1.43, -1.45, 0.98] },
+    hatch: { L: 4.3, W: 1.79, r: 0.31, wf: 1.3, wr: -1.27, bot: 0.3, top: [[2.13, 0.33], [2.15, 0.6], [2.02, 0.8], [1.4, 0.9], [0.8, 0.96], [-1.75, 0.98], [-2.1, 0.92], [-2.16, 0.36]], cab: [0.8, 0.96, 0.0, 1.47, -1.45, 1.45, -1.95, 0.99] },
+    suv: { L: 4.75, W: 1.9, r: 0.37, wf: 1.43, wr: -1.4, bot: 0.4, top: [[2.36, 0.45], [2.38, 0.8], [2.25, 1.0], [1.5, 1.08], [0.95, 1.12], [-2.15, 1.14], [-2.36, 1.1], [-2.39, 0.46]], cab: [0.95, 1.12, 0.2, 1.74, -2.1, 1.74, -2.3, 1.14] },
+    van: { L: 5.15, W: 1.98, r: 0.34, wf: 1.62, wr: -1.55, bot: 0.34, top: [[2.56, 0.38], [2.58, 0.66], [2.45, 0.86], [1.85, 0.98], [1.45, 1.04], [-2.45, 1.08], [-2.56, 1.0], [-2.58, 0.4]], cab: [1.45, 1.04, 0.62, 1.76, -2.3, 1.76, -2.5, 1.08] },
+    pickup: { L: 5.75, W: 2.02, r: 0.4, wf: 1.85, wr: -1.75, bot: 0.45, top: [[2.86, 0.5], [2.88, 0.95], [2.72, 1.1], [1.3, 1.2], [1.05, 1.22], [-0.8, 1.24], [-0.85, 1.28], [-2.84, 1.28], [-2.87, 0.5]], cab: [1.05, 1.22, 0.4, 1.9, -0.7, 1.9, -0.8, 1.24], bed: [-0.9, -2.8, 1.28] },
+  };
+  const MS_PAINT = ['#e8e9ea', '#eceae4', '#17191c', '#1d1f22', '#5d6166', '#73777c', '#a7abaf', '#b9bcc0', '#1f3a66', '#2a3f5f', '#7e1a1d', '#a32b25', '#37424c', '#bdb39c', '#2d4436', '#5c2a33', '#d5d6d4', '#4a4f55'];
+  // (on the big field a car keeps its size where the spread map puts it: metObj in 12-venue.js)
+  const msCar = (pb, glb, x, z, ang, col, type, lod) => metObj(x, z, () => msCar0(pb, glb, x, z, ang, col, type, lod));
+  function msCar0(pb, glb, x, z, ang, col, type, lod) {
+    const S = MS_CARS[type] || MS_CARS.sedan, hw = S.W / 2, ca = Math.cos(ang), sa = Math.sin(ang);
+    const P = (u, y, v) => [x + u * ca - v * sa, y, z + u * sa + v * ca], N = (nu, ny, nv) => v3n([nu * ca - nv * sa, ny, nu * sa + nv * ca]);
+    const Q = (a, b, c, d, n, cl, B) => (B || pb).quad(a, b, c, d, n, cl);
+    const top = S.top, ch = lod ? 0 : 0.07, glass = [0.1, 0.12, 0.14, 1], body = col, dark = [0.05, 0.05, 0.055, 1];
+    // side silhouette: the top edge front to rear, then the sills and the wheel arches rear to front
+    const arch = (uc) => { const ra = S.r + 0.07, out = []; for (let k = 0; k <= 6; k++) { const a = Math.PI - k * Math.PI / 6; out.push([uc + Math.cos(a) * ra, Math.max(S.bot, S.r + Math.sin(a) * ra)]); } return out; };
+    const side = top.map((p, i) => [p[0], i > 0 && i < top.length - 1 ? p[1] - ch : p[1]]).concat(arch(S.wr), arch(S.wf)); // the top edge front to rear, then the sills and arches rear to front
+    const tri = earcut2(side);
+    for (const s of [-1, 1]) { pb.grow(tri.length * 3); const n = N(0, 0, s); for (const t of tri) for (const i of t) { const p = P(side[i][0], side[i][1], s * hw); pb.v(p[0], p[1], p[2], n[0], n[1], n[2], body, 0.5, 0.5); } }
+    // the skin over the top (nose, hood, beltline, deck, tail) with rounded shoulders
+    for (let i = 0; i < top.length - 1; i++) {
+      const a = top[i], b = top[i + 1], du = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(du, dy) || 1, nu = dy / l, ny = -du / l, n = N(nu, ny, 0);
+      const ya = i > 0 ? a[1] - ch : a[1], yb = i + 1 < top.length - 1 ? b[1] - ch : b[1], w2 = hw - ch;
+      Q(P(a[0], a[1], -w2), P(b[0], b[1], -w2), P(b[0], b[1], w2), P(a[0], a[1], w2), n, body);
+      if (ch) for (const s of [-1, 1]) Q(P(a[0], ya, s * hw), P(b[0], yb, s * hw), P(b[0], b[1], s * w2), P(a[0], a[1], s * w2), N(nu * 0.6, ny * 0.6, s * 0.8), shadeC(body, 0.97));
+    }
+    // arch liners and the dark underside between the sills
+    if (!lod) for (const uc of [S.wf, S.wr]) { const A = arch(uc); for (let k = 0; k < A.length - 1; k++) Q(P(A[k][0], A[k][1], -hw + 0.02), P(A[k + 1][0], A[k + 1][1], -hw + 0.02), P(A[k + 1][0], A[k + 1][1], hw - 0.02), P(A[k][0], A[k][1], hw - 0.02), N(0, -1, 0), dark); }
+    Q(P(top[0][0], S.bot + 0.02, -hw), P(top[top.length - 1][0], S.bot + 0.02, -hw), P(top[top.length - 1][0], S.bot + 0.02, hw), P(top[0][0], S.bot + 0.02, hw), [0, -1, 0], dark);
+    // glass house: windshield, rear glass, sides with the pillars, roof
+    const [fu, fy, ru1, ry, ru2, ry2, bu, by] = S.cab, wb = hw - 0.09, wt = hw - 0.27;
+    Q(P(fu, fy, -wb), P(fu, fy, wb), P(ru1, ry, wt), P(ru1, ry, -wt), N(ry - fy, fu - ru1, 0), glass, glb);
+    Q(P(bu, by, -wb), P(bu, by, wb), P(ru2, ry2, wt), P(ru2, ry2, -wt), N(-(ry2 - by), ru2 - bu, 0), glass, glb);
+    Q(P(ru1, ry, -wt), P(ru2, ry2, -wt), P(ru2, ry2, wt), P(ru1, ry, wt), [0, 1, 0], shadeC(body, 1.04));
+    for (const s of [-1, 1]) {
+      const sn = N(0, 0.28, s), A = P(fu, fy, s * wb), Bb = P(bu, by, s * wb), C = P(ru2, ry2, s * wt), D = P(ru1, ry, s * wt);
+      Q(A, Bb, C, D, sn, body);
+      const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t], o = (p) => [p[0] + sn[0] * 0.012, p[1] + sn[1] * 0.012, p[2] + sn[2] * 0.012];
+      const g0 = lerp(lerp(A, Bb, 0.06), lerp(D, C, 0.06), 0.08), g1 = lerp(lerp(A, Bb, 0.94), lerp(D, C, 0.94), 0.08), g2 = lerp(lerp(A, Bb, 0.94), lerp(D, C, 0.94), 0.9), g3 = lerp(lerp(A, Bb, 0.06), lerp(D, C, 0.06), 0.9);
+      Q(o(g0), o(g1), o(g2), o(g3), sn, glass, glb);
+      if (!lod) { const m0 = lerp(A, Bb, 0.47), m1 = lerp(A, Bb, 0.53), m2 = lerp(D, C, 0.53), m3 = lerp(D, C, 0.47), oo = (p) => [p[0] + sn[0] * 0.02, p[1] + sn[1] * 0.02, p[2] + sn[2] * 0.02]; Q(oo(m0), oo(m1), oo(m2), oo(m3), sn, shadeC(body, 0.6)); }
+    }
+    if (S.bed) { const [b0, b1, by2] = S.bed; Q(P(b0, by2 + 0.005, -hw + 0.08), P(b1, by2 + 0.005, -hw + 0.08), P(b1, by2 + 0.005, hw - 0.08), P(b0, by2 + 0.005, hw - 0.08), [0, 1, 0], [0.09, 0.09, 0.1, 1]); }
+    // wheels (tyre and hub) inside the arches
+    const seg = lod ? 6 : 9;
+    for (const uc of [S.wf, S.wr]) for (const s of [-1, 1]) {
+      pb.tube(P(uc, S.r, s * (hw - 0.26)), P(uc, S.r, s * (hw - 0.03)), S.r, [0.07, 0.07, 0.075, 1], seg);
+      if (lod) continue;
+      const c0 = P(uc, S.r, s * (hw - 0.025)), n = N(0, 0, s), hc = [0.55, 0.57, 0.6, 1]; pb.grow(seg * 3);
+      for (let k = 0; k < seg; k++) { const a0 = k / seg * 6.2832, a1 = (k + 1) / seg * 6.2832, p0 = P(uc + Math.cos(a0) * S.r * 0.62, S.r + Math.sin(a0) * S.r * 0.62, s * (hw - 0.025)), p1 = P(uc + Math.cos(a1) * S.r * 0.62, S.r + Math.sin(a1) * S.r * 0.62, s * (hw - 0.025)); pb.v(c0[0], c0[1], c0[2], n[0], n[1], n[2], hc, 0.5, 0.5); pb.v(p0[0], p0[1], p0[2], n[0], n[1], n[2], hc, 0.5, 0.5); pb.v(p1[0], p1[1], p1[2], n[0], n[1], n[2], hc, 0.5, 0.5); }
+    }
+    // lights, grille and plates on the nose and tail faces (the second skin segment from each end)
+    const face = (a, b, v0, v1, t0, t1, cl, off) => { const pa = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0], pb2 = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1], du = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(du, dy) || 1, nu = dy / l, ny = -du / l, o = off || 0.008;
+      Q(P(pa[0] + nu * o, pa[1] + ny * o, v0), P(pa[0] + nu * o, pa[1] + ny * o, v1), P(pb2[0] + nu * o, pb2[1] + ny * o, v1), P(pb2[0] + nu * o, pb2[1] + ny * o, v0), N(nu, ny, 0), cl); };
+    const nF = top[1], nT = top[2], tF = top[top.length - 3], tT = top[top.length - 2];
+    for (const s of [-1, 1]) { face(nF, nT, s * (hw - 0.4), s * (hw - 0.1), 0.45, 0.95, [0.93, 0.93, 0.88, 1]); face(tF, tT, s * (hw - 0.42), s * (hw - 0.1), 0.1, 0.75, [0.55, 0.06, 0.06, 1]); }
+    face(top[0], top[1], -hw + 0.45, hw - 0.45, 0.45, 0.95, [0.1, 0.1, 0.11, 1]);
+    if (!lod) { face(top[0], top[1], -0.26, 0.26, 0.15, 0.42, [0.85, 0.85, 0.82, 1], 0.012); face(top[top.length - 2], top[top.length - 1], -0.26, 0.26, 0.35, 0.65, [0.85, 0.85, 0.82, 1], 0.012); }
+  }
+
+  // ---------- a deciduous tree (trunk, limbs, a lobed crown and clumps on the limb ends; lod 1: trunk and crown only) ----------
+  const msTree = (K, x, z, d, h, sp, lod, cl) => metObj(x, z, () => msTree0(K, x, z, d, h, sp, lod, cl), 1.5); // (x1.5 on the big field, as in 12-venue.js)
+  function msTree0(K, x, z, d, h, sp, lod, cl) {
+    const { bark, leaf, R } = K, barkC = tc('#5f554a'), r0 = R, tr = 0.12 + d * 0.019, th = h * (sp === 'oak' ? 0.24 : sp === 'locust' ? 0.34 : 0.28), lean = (r0() - 0.5) * 0.25, la = r0() * 6.28;
+    const top = [x + Math.cos(la) * lean, th, z + Math.sin(la) * lean], base = cl || (sp === 'locust' ? '#62763a' : sp === 'oak' ? '#475a30' : '#4a5e32');
+    bark.cyl(x, z, 0, th + 0.1, tr * 1.35, tr * 0.92, barkC, lod ? 5 : 9, false, 1, 3);
+    if (!lod) bark.cyl(x, z, 0, 0.5, tr * 1.7, tr * 1.3, barkC, 9, false, 1, 0.6);
+    const nL = lod ? 0 : (sp === 'locust' ? 5 : sp === 'oak' ? 6 : 4), ends = [], cr = d / 2;
+    for (let k = 0; k < nL; k++) {
+      const a = la + k / nL * 6.2832 + (r0() - 0.5) * 0.7, el = (sp === 'oak' ? 0.3 : 0.6) + r0() * 0.35, Lb = cr * (0.55 + r0() * 0.25);
+      const m = [top[0] + Math.cos(a) * Lb * 0.5 * Math.cos(el), th + Lb * 0.5 * Math.sin(el) + 0.3, top[2] + Math.sin(a) * Lb * 0.5 * Math.cos(el)];
+      const e = [top[0] + Math.cos(a) * Lb * Math.cos(el * 0.8), th + Lb * Math.sin(el) * 0.95 + h * 0.08, top[2] + Math.sin(a) * Lb * Math.cos(el * 0.8)];
+      bark.tube(top, m, tr * 0.62, barkC, 6); bark.tube(m, e, tr * 0.38, barkC, 5); ends.push(e);
+    }
+    const yc = th + (h - th) * 0.5, ryc = (h - th) * 0.56, cs = sp === 'locust' ? 0.88 : sp === 'oak' ? 1.0 : 0.95;
+    leaf.crown(top[0], yc - (lod ? 0.4 : 0), top[2], cr * (lod ? 0.9 : 0.82) * cs, ryc * (lod ? 0.74 : 0.86), tc(base, 0.95 + r0() * 0.12), r0, lod ? 1 : 2, 0.34, sp === 'oak' ? 0.45 : 0.3);
+    // a far tree still breaks its outline: three leaf masses low on the sides
+    if (lod) for (let k = 0; k < 3; k++) { const a = la + k * 2.1 + r0() * 0.8, rc = cr * (0.34 + r0() * 0.1); leaf.clump(top[0] + Math.cos(a) * cr * 0.62, yc - ryc * (0.25 + r0() * 0.3), top[2] + Math.sin(a) * cr * 0.62, rc, rc * 0.78, tc(base, 0.85 + r0() * 0.2), r0, 0, 0.34); }
+    for (const e of ends) { const dx = e[0] - x, dz = e[2] - z, dl = Math.hypot(dx, dz) || 1, rc = cr * (0.26 + r0() * 0.08);
+      leaf.clump(x + dx / dl * cr * 0.62, Math.min(h - rc * 1.5, Math.max(th + rc, e[1] - 0.6)), z + dz / dl * cr * 0.62, rc, rc * 0.8, tc(base, 0.9 + r0() * 0.2), r0, 1, 0.34); }
+    MET.keep.push([x, z, tr * 1.4 + 0.25, 0, yc], [x, yc, z, Math.max(cr * 0.95, ryc)]);
+  }
+
+  // ---------- the staff lot: dark sealcoated asphalt, white stalls and lane dashes, arrows, the accessible stalls ----------
+  function metFarLotCanvas(W, H) {
+    const c = mkCv(W, H); if (!realCv()) return c;
+    const g = c.getContext('2d'), SX = W / (FLOT.x1 - FLOT.x0), SZ = H / (FLOT.z1 - FLOT.z0);
+    const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -FLOT.x0 * SX, -FLOT.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#56585a'; g.fillRect(0, 0, W, H);
+    const tile = grainTile(vimg('asphalt.jpg'), 512, 1.0, 77);
+    const TT = 3.0 / MET_BK; Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.75; for (let x = FLOT.x0; x < FLOT.x1; x += TT) for (let z = FLOT.z0; z < FLOT.z1; z += TT) g.drawImage(tile, x, z, TT, TT);
+    const nz = vnoise(19); It(g); g.globalAlpha = 0.22; g.drawImage(noiseCanvas(128, 256, (x, y) => 0.5 + (nz(x / 6, y / 6) - 0.5) * 0.7 + (nz(x * 0.7, y * 0.7) - 0.5) * 0.3), 0, 0, W, H);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; Wt(g);
+    metPaint(SX, 1.2, () => metFarLotPaint(g, Wt, It, W, H)); // (the big field: natural line widths on the spread lot)
+    It(g); return c;
+  }
+  function metFarLotPaint(g, Wt, It, W, H) {
+    const rr = mrng(808);
+    // worn grey wheel paths down the aisle, oil drips in the stalls, black crack-sealer lines (tar snakes)
+    for (const x of [-7.6, -6.2, -3.6, -2.2]) stroke(g, [[x, -116], [x + 0.1, -85], [x - 0.1, -55]], 0.45, 'rgba(120,120,116,0.10)');
+    for (let k = 0; k < 17; k++) { const zc = -55.5 - 2.74 * (k + 0.5); for (const dx of [-0.1, 0.25]) { const x = -12.0 + dx + rr() * 0.4, z = zc + (rr() - 0.5) * 0.6, r = 0.35 + rr() * 0.5, gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, `rgba(25,25,24,${(0.18 + rr() * 0.2).toFixed(3)})`); gr.addColorStop(1, 'rgba(25,25,24,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); } }
+    for (let k = 0; k < 22; k++) { let x = FLOT.x0 + 1 + rr() * 18, z = -56 - rr() * 58; const p = [[x, z]]; let a = rr() * 6.28; for (let s = 0; s < 7; s++) { a += (rr() - 0.5) * 1.0; x += Math.cos(a) * 0.7; z += Math.sin(a) * 0.7; p.push([x, z]); } stroke(g, p, 0.05, 'rgba(18,18,18,0.55)'); }
+    stroke(g, [[-16.2, -84.3], [0.2, -84.6]], 0.06, 'rgba(20,20,20,0.5)'); stroke(g, [[-5.1, -55], [-5.0, -116]], 0.05, 'rgba(25,25,25,0.4)');
+    // the pale concrete strip where it meets the drop-off lot
+    g.fillStyle = '#bdbcb5'; g.fillRect(-16.5, -54.85, 21, 1.35); g.fillStyle = 'rgba(70,70,66,0.5)'; g.fillRect(-16.5, -54.9, 21, 0.06);
+    const L = mkCv(W, H), lg = L.getContext('2d');
+    const layer = (draw, seed, blotch, grain, alpha) => { lg.setTransform(1, 0, 0, 1, 0, 0); lg.clearRect(0, 0, W, H); Wt(lg); draw(lg); wear(L, seed, blotch, grain, 0.6); It(g); g.globalAlpha = alpha; g.drawImage(L, 0, 0); g.globalAlpha = 1; Wt(g); };
+    layer((h) => {
+      // seventeen 90-degree stalls along the west fence (2.74 m on centre), the dashed line between the two northbound lanes
+      for (let k = 0; k <= 17; k++) stroke(h, [[-15.25, -55.5 - 2.74 * k], [-10.15, -55.5 - 2.74 * k]], 0.1, '#f2f2ec');
+      for (let z = -59.3; z > -112; z -= 5.4) stroke(h, [[-4.8, z], [-4.8, z - 2.4]], 0.11, '#f2f2ec');
+      h.fillStyle = '#f4f4ef';
+      const arrow = (x, z, deg, s) => { h.save(); h.translate(x, z); h.rotate(deg * Math.PI / 180); h.scale(s || 1, s || 1); h.beginPath(); h.moveTo(-1.1, -0.13); h.lineTo(0.25, -0.13); h.lineTo(0.25, -0.42); h.lineTo(1.0, 0); h.lineTo(0.25, 0.42); h.lineTo(0.25, 0.13); h.lineTo(-1.1, 0.13); h.closePath(); h.fill(); h.restore(); };
+      for (const z of [-59.6, -81.0, -97.6]) { arrow(-6.95, z, 90); arrow(-2.75, z, 90); }
+      arrow(-4.1, -108.6, 115); arrow(1.6, -113.0, 135);
+    }, 811, 0.25, 0.25, 0.95);
+    layer((h) => {
+      // the two accessible stalls along the east edge with their striped aisle, and the hatched no-parking ends
+      const Y = '#d9c25f'; rectW(h, 0.35, -81.2, 2.6, -59.0, 0.1, Y); stroke(h, [[0.35, -66.4], [2.6, -66.4]], 0.1, Y); stroke(h, [[0.35, -73.8], [2.6, -73.8]], 0.1, Y);
+      h.save(); h.beginPath(); h.rect(0.35, -73.8, 2.25, 7.4); h.clip(); for (let z = -76; z < -66; z += 0.9) stroke(h, [[0.2, z], [2.8, z + 1.6]], 0.09, Y); h.restore();
+      for (const [x0, x1, z0, z1] of [[-0.9, 2.6, -58.6, -55.0], [-0.2, 2.6, -104.6, -100.2]]) { rectW(h, x0, z0, x1, z1, 0.1, Y); h.save(); h.beginPath(); h.rect(x0, z0, x1 - x0, z1 - z0); h.clip(); for (let z = z0 - 4; z < z1; z += 0.9) stroke(h, [[x0, z], [x1, z + 2.2]], 0.09, Y); h.restore(); }
+      h.strokeStyle = '#ecebe4'; h.lineWidth = 0.09; h.lineCap = 'round';
+      for (const zc of [-62.7, -77.6]) { h.save(); h.translate(1.47, zc); h.beginPath(); h.arc(0.05, -0.15, 0.5, 0.5, 5.3); h.stroke(); h.beginPath(); h.moveTo(-0.15, 0.62); h.lineTo(-0.15, -0.1); h.lineTo(0.45, -0.1); h.lineTo(0.62, -0.62); h.moveTo(-0.15, 0.32); h.lineTo(0.35, 0.32); h.stroke(); h.beginPath(); h.arc(-0.15, 0.85, 0.12, 0, 6.2832); h.stroke(); h.restore(); }
+      h.fillStyle = 'rgba(40,90,170,0.55)'; h.beginPath(); h.arc(1.45, -71.4, 0.32, 0, 6.2832); h.fill();
+    }, 812, 0.32, 0.3, 0.9);
+  }
+
+  // ---------- build everything south of the blacktop (called once from buildMetcalf, metres in frame F) ----------
+  function metSouth(K) {
+    const { pb, B, R, atlW, slab, cc, up } = K, flat = B.mflat, conc = B.mconc, brick = B.mbrick, leaf = B.mleaf, bark = B.mbark, glassB = B.mglass, pick = B.mpick, dirt = B.mdirt, shing = B.mshing, roofB = B.mroof;
+    const fl = (B.mfarlot = new Batch(64)), rub = (B.mrubber = new Batch(400)), road = (B.mroad = new Batch(1500));
+    const T = Object.assign({}, K, { bark, leaf });
+    const rs = mrng(20251108); // this module's own stream, so nothing here moves the rest of the venue
+    T.R = rs;
+    const blk = [0.07, 0.07, 0.075, 1], PKC = [0.1, 0.1, 0.105, 1];
+    // black ornamental steel fence: pickets as one see-through textured quad, rails and square posts every 2.44 m (along x at z)
+    const fenceX = (x0, x1, z, h, postK) => {
+      pb.wbox(x0, 0.1, z - 0.02, x1, 0.14, z + 0.02, blk); pb.wbox(x0, h - 0.18, z - 0.02, x1, h - 0.14, z + 0.02, blk);
+      const u0 = metS(x0, z)[0] / 0.115, u1 = metS(x1, z)[0] / 0.115; // (real-metre picket pitch on the big field)
+      pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, h, z], [x0, h, z], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+      const n = Math.max(1, Math.round((x1 - x0) / metPitch(postK || 2.44))); for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, h + 0.03, z + 0.035, blk); }
+      MET.keep.push([x0, 0, z - 0.12, x1, h + 0.1, z + 0.12]);
+    };
+    const fenceZ = (z0, z1, x, h) => {
+      pb.wbox(x - 0.02, 0.1, z0, x + 0.02, 0.14, z1, blk); pb.wbox(x - 0.02, h - 0.18, z0, x + 0.02, h - 0.14, z1, blk);
+      const u0 = metS(x, z0)[1] / 0.115, u1 = metS(x, z1)[1] / 0.115;
+      pick.quad([x, 0.05, z0], [x, 0.05, z1], [x, h, z1], [x, h, z0], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+      const n = Math.max(1, Math.round(Math.abs(z1 - z0) / metPitch(2.44))); for (let i = 0; i <= n; i++) { const z = z0 + (z1 - z0) * i / n; pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, h + 0.03, z + 0.035, blk); }
+      MET.keep.push([x - 0.12, 0, Math.min(z0, z1), x + 0.12, h + 0.1, Math.max(z0, z1)]);
+    };
+
+    // ===== the black fence between the blacktop and the drop-off lot =====
+    // Freestanding black steel panels (about 1.15 m, square pickets with top and bottom rails) on a flat base frame about 0.9 m deep
+    // that the 2022 orthophoto shows as a rectangle under each 3 m unit; three runs with the walk-through openings where they are
+    // in the photo (x -6.6 to -0.65 and 17.45 to 25.25) and an opening at each end.
+    for (const f of MET.southFence) {
+      const n = Math.max(1, Math.round((f.x1 - f.x0) / metPitch(3.0))), u = (f.x1 - f.x0) / n, z = f.z, h = 1.15;
+      const panel = (a, b) => {
+        pick.quad([a, 0.08, z], [b, 0.08, z], [b, h - 0.04, z], [a, h - 0.04, z], [0, 0, 0], PKC, [a / 0.11, 1, b / 0.11, 1, b / 0.11, 0, a / 0.11, 0]);
+        pb.wbox(a, 0.06, z - 0.018, b, 0.1, z + 0.018, blk); pb.wbox(a, h - 0.07, z - 0.02, b, h - 0.03, z + 0.02, blk); pb.wbox(a, h * 0.55, z - 0.012, b, h * 0.55 + 0.03, z + 0.012, blk);
+        for (const xx of [a, b]) { pb.wbox(xx - 0.03, 0.02, z - 0.03, xx + 0.03, h, z + 0.03, blk); pb.wbox(xx - 0.025, 0.0, z - 0.45, xx + 0.025, 0.04, z + 0.45, blk); }
+        for (const dz of [-0.45, 0.45]) pb.wbox(a, 0.0, z + dz - 0.02, b, 0.035, z + dz + 0.02, blk);
+      };
+      for (let i = 0; i < n; i++) { // (on the big field each 3 m unit keeps its size and there are MET_K times as many)
+        if (!MSPR.on) { const a = f.x0 + i * u + 0.04, b = a + u - 0.08; panel(a, b); }
+        else { const cx = f.x0 + (i + 0.5) * u, hN = u * MET_K / 2; metObj(cx, z, () => panel(cx - hN + 0.04, cx + hN - 0.04)); }
+      }
+      MET.keep.push([f.x0, 0, z - 0.5, f.x1, h + 0.1, z + 0.5]);
+    }
+    // red cones at the run ends and along the fire lane, and the dark round trash can
+    const cone = (x, zz) => metObj(x, zz, () => { pb.cyl(x, zz, 0.03, 0.7, 0.16, 0.02, hx3('#e0451f'), 8); pb.wbox(x - 0.2, 0, zz - 0.2, x + 0.2, 0.03, zz + 0.2, hx3('#c23a1a')); pb.cyl(x, zz, 0.36, 0.46, 0.106, 0.086, hx3('#f2f2f0'), 8); });
+    for (const [x, zz] of [[-12.95, -17.0], [28.75, -16.75], [29.0, -23.4], [29.4, -36.8], [24.0, -47.8], [8.6, -50.3]]) cone(x, zz);
+    pb.cyl(-0.3, -17.7, 0, 0.95, 0.3, 0.32, hx3('#2a2d30'), 12, true); pb.cyl(-0.3, -17.7, 0.95, 1.0, 0.33, 0.33, hx3('#1f2225'), 12, true);
+    // the drain lid and the steel post by the south-east stalls
+    metObj(27.0, -49.1, () => flat.poly((() => { const p = []; for (let k = 0; k < 12; k++) { const t = k / 12 * 6.2832; p.push([27.0 + Math.cos(t) * 0.35, -49.1 + Math.sin(t) * 0.35]); } return p; })(), 0.004, hx3('#3d3b37')));
+    pb.wbox(26.07, 0, -52.13, 26.13, 2.2, -52.07, hx3('#8a8f8f'));
+
+    // ===== the lot's south edge: the black fence (x 3.8 to 34.2), the grass strip and the courtyard behind it =====
+    fenceX(3.8, 34.2, -53.5, 1.2);
+    // walks: east-west from the accessible stalls to the school yard, north-south down the courtyard's east side to Fairchild's
+    // door, the school yard's concrete apron, and the walk along the south edge of the staff lot
+    slab([[2.7, -57.5], [44.0, -57.3], [44.0, -58.8], [2.7, -58.9]], 0.03, cc('#c7c6be'));
+    slab([[15.3, -53.6], [16.6, -53.6], [16.6, -86.1], [15.3, -86.1]], 0.03, cc('#c9c8c0'));
+    slab([[35.4, -55.6], [43.3, -55.6], [43.3, -86.3], [37.6, -86.3], [37.6, -78.4], [35.4, -78.4]], 0.025, cc('#c4c3bb'));
+    slab([[-18.25, -116.8], [44, -116.6], [44, -118.6], [-18.25, -118.6]], 0.03, cc('#c9c7bd'));
+    for (let x = 4; x < 44; x += 1.52) flat.quad([x - 0.006, 0.035, -58.85], [x + 0.006, 0.035, -58.85], [x + 0.006, 0.035, -57.35], [x - 0.006, 0.035, -57.35], up, [0.5, 0.49, 0.45, 1]);
+    for (let z = -55; z > -86; z -= 1.52) flat.quad([15.3, 0.035, z - 0.006], [16.6, 0.035, z - 0.006], [16.6, 0.035, z + 0.006], [15.3, 0.035, z + 0.006], up, [0.5, 0.49, 0.45, 1]);
+    for (let x = -17; x < 44; x += 1.52) flat.quad([x - 0.006, 0.035, -118.6], [x + 0.006, 0.035, -118.6], [x + 0.006, 0.035, -116.7], [x - 0.006, 0.035, -116.7], up, [0.5, 0.49, 0.45, 1]);
+    // mulch beds along Fairchild's north wall and round the oak
+    dirt.poly([[2.7, -84.1], [15.3, -84.1], [15.3, -86.1], [2.7, -86.1]], 0.01, tc('#5d5043'), true, 0.5);
+    dirt.poly([[16.6, -84.0], [43.3, -84.0], [43.3, -86.1], [16.6, -86.1]], 0.01, tc('#5d5043'), true, 0.5);
+    dirt.poly((() => { const p = []; for (let k = 0; k < 16; k++) { const t = k / 16 * 6.2832; p.push([8.9 + Math.cos(t) * 1.7, -56.9 + Math.sin(t) * 1.3]); } return p; })(), 0.012, tc('#5a4c3e'), true, 0.5);
+    for (const [x, z, r] of [[4.2, -84.9, 0.6], [6.4, -85.0, 0.7], [11.8, -84.9, 0.6], [18.5, -85.0, 0.7], [27.0, -85.0, 0.65], [33.6, -84.9, 0.7], [40.2, -85.0, 0.6]]) leaf.clump(x, r * 0.75, z, r, r * 0.8, tc('#3c4a2c'), rs, 0, 0.5);
+    // the tot lot: blue poured rubber with a rounded north-east corner inside a black fence, a white storage box, a small red-and-
+    // yellow climber with a slide, spring riders, a red swing frame by the south fence
+    {
+      const TL = [[19.6, -59.6], [33.0, -59.6], [35.4, -61.0], [37.0, -63.5], [37.4, -66.0], [37.4, -78.2], [19.6, -78.2]];
+      rub.poly(TL, 0.02, tc('#2f4d70'), true, 0.35);
+      for (let i = 0; i < TL.length; i++) { const a = TL[i], b = TL[(i + 1) % TL.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, 0.05, (a[1] + b[1]) / 2, l, 0.1, 0.12, Math.atan2(b[1] - a[1], b[0] - a[0]), hx3('#8a8a84')); }
+      fenceX(19.4, 33.0, -59.4, 1.2); fenceZ(-59.4, -78.4, 19.4, 1.2); fenceX(19.4, 37.6, -78.4, 1.2); fenceZ(-78.4, -66.0, 37.6, 1.2);
+      { const p = [[33.0, -59.4], [35.6, -60.8], [37.2, -63.4], [37.6, -66.0]]; for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; pick.quad([a[0], 0.05, a[1]], [b[0], 0.05, b[1]], [b[0], 1.2, b[1]], [a[0], 1.2, a[1]], [0, 0, 0], PKC, [0, 1, Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.115, 1, Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.115, 0, 0, 0]); pb.wbox(b[0] - 0.035, 0, b[1] - 0.035, b[0] + 0.035, 1.23, b[1] + 0.035, blk); pb.tube([a[0], 1.04, a[1]], [b[0], 1.04, b[1]], 0.02, blk, 4); } }
+      pb.wbox(24.4, 0, -62.4, 27.0, 1.25, -61.0, hx3('#efefea')); pb.wbox(24.3, 1.25, -62.5, 27.1, 1.32, -60.9, hx3('#dcdcd6'));
+      const red = hx3('#c8302b'), yel = hx3('#e7c31f'), grn = hx3('#3f9a5a');
+      for (const [px, pz] of [[21.8, -66.8], [23.4, -66.8], [23.4, -68.4], [21.8, -68.4]]) pb.cyl(px, pz, 0, 2.3, 0.05, 0.05, grn, 7);
+      pb.wbox(21.7, 1.0, -68.5, 23.5, 1.06, -66.7, hx3('#3f474e')); pb.wbox(21.6, 2.3, -68.6, 23.6, 2.45, -66.6, yel);
+      pb.trough([[22.6, 1.0, -68.5], [22.6, 0.55, -70.0], [22.6, 0.3, -71.1]], 0.55, 0.18, yel);
+      for (const z of [-66.75, -68.45]) pb.wbox(21.85, 0.45, z - 0.03, 23.35, 1.0, z + 0.03, red);
+      for (const [x, zz, cl] of [[27.5, -66.0, red], [29.6, -64.8, hx3('#2c6fd1')]]) { pb.cyl(x, zz, 0, 0.35, 0.06, 0.06, hx3('#555'), 6); pb.blobby(x, 0.55, zz, 0.22, 0.2, 0.4, cl, 8, 5); }
+      for (const x of [23.4, 28.2]) { pb.tube([x, 0.0, -76.4], [x, 2.25, -75.9], 0.045, red, 7); pb.tube([x, 0.0, -75.4], [x, 2.25, -75.9], 0.045, red, 7); }
+      pb.tube([23.4, 2.25, -75.9], [28.2, 2.25, -75.9], 0.05, red, 8);
+      for (const x of [24.6, 26.9]) { for (const dx of [-0.22, 0.22]) flat.tube([x + dx, 2.2, -75.9], [x + dx, 0.5, -75.9], 0.008, hx3('#777'), 3); pb.wbox(x - 0.25, 0.45, -76.05, x + 0.25, 0.5, -75.75, blk); }
+      MET.keep.push([19.3, 0, -78.5, 37.7, 2.6, -59.3]);
+    }
+    // the red picnic tables and a bench in the school yard by the gym
+    for (const [x, z] of [[40.1, -61.0], [40.1, -64.6]]) { const rd = hx3('#b7352d'); pb.wbox(x - 0.9, 0.72, z - 0.38, x + 0.9, 0.77, z + 0.38, rd); for (const dz of [-0.68, 0.68]) pb.wbox(x - 0.9, 0.42, z + dz - 0.13, x + 0.9, 0.46, z + dz + 0.13, rd); for (const dx of [-0.7, 0.7]) pb.wbox(x + dx - 0.04, 0, z - 0.75, x + dx + 0.04, 0.72, z + 0.75, hx3('#3a3a3a')); }
+
+    // ===== the staff lot (dark, sealcoated) with its stalls, the fence along Main Street's walk, curbs =====
+    {
+      const U = (x) => (x - FLOT.x0) / (FLOT.x1 - FLOT.x0), V = (z) => (z - FLOT.z0) / (FLOT.z1 - FLOT.z0);
+      fl.poly([[-16.2, -53.5], [3.8, -53.5], [3.8, -54.85], [2.75, -54.85], [2.75, -82.0], [0.2, -82.0], [0.2, -113.4], [3.6, -115.6], [-0.6, -115.6], [-16.2, -115.6]], 0.002, [1, 1, 1, 1], true, (x, z) => [U(x), V(z)]);
+      // concrete curbs round the asphalt (low, 0.12 m) and the parking-head line by the fence
+      const curbR = (pts) => { for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); conc.extrude((() => { const nx = -(b[1] - a[1]) / l * 0.08, nz = (b[0] - a[0]) / l * 0.08; return [[a[0] - nx, a[1] - nz], [b[0] - nx, b[1] - nz], [b[0] + nx, b[1] + nz], [a[0] + nx, a[1] + nz]]; })(), 0, 0.12, cc('#c8c7bf'), 0.33); } };
+      curbR([[2.75, -54.9], [2.75, -82.0], [0.2, -82.0], [0.2, -113.4]]); curbR([[-16.25, -55.0], [-16.25, -115.6]]);
+      fenceZ(-55.3, -115.4, -16.4, 1.2);
+      // a light pole at the lot's north-west corner (its shadow in the photo) and one by the accessible stalls
+      for (const [x, z] of [[-15.9, -55.6], [2.2, -86.0]]) { const gl2 = hx3('#3a3d40'); pb.cyl(x, z, 0, 0.6, 0.22, 0.2, hx3('#b9b8b0'), 8, true); pb.cyl(x, z, 0.6, 7.6, 0.08, 0.06, gl2, 8); pb.wbox(x - 0.32, 7.45, z - 0.2, x + 0.32, 7.7, z + 0.2, gl2); flat.quad([x - 0.28, 7.44, z - 0.16], [x + 0.28, 7.44, z - 0.16], [x + 0.28, 7.44, z + 0.16], [x - 0.28, 7.44, z + 0.16], [0, 0, 0], [1.3, 1.28, 1.2, 1]); MET.keep.push([x, z, 0.3, 0, 7.8]); }
+      // accessible-parking signs at the heads of the two stalls
+      for (const z of [-62.7, -77.6]) { pb.wbox(2.95, 0, z - 0.03, 3.01, 2.2, z + 0.03, hx3('#9a9ea0')); pb.wbox(2.96, 1.7, z - 0.16, 3.0, 2.15, z + 0.16, hx3('#2a5bb0')); pb.wbox(2.955, 1.82, z - 0.07, 3.005, 2.02, z + 0.07, hx3('#f2f2f0')); }
+    }
+
+    // ===== Fairchild Hall (508 Dry Grove Street): two storeys of red-brown brick under flat roofs with a shingled hip-roofed centre
+    // block; its north side faces the courtyard and the tot lot (footprint from OpenStreetMap, roofs and heights from the photo) =====
+    {
+      const bc = tc('#8a4f3f'), cap = hx3('#cfccc3'), hF = 8.6, hW = 7.0;
+      const main = [[9.0, -86.1], [77.2, -86.1], [77.3, -105.3], [53.1, -105.2], [53.1, -108.8], [36.0, -108.7], [35.9, -105.2], [9.1, -105.2]];
+      const wing = [[1.3, -88.5], [9.0, -88.5], [9.0, -98.2], [1.3, -98.3]];
+      brick.extrude(main, 0, hF, bc, 1.1, false); brick.extrude(wing, 0, hW, bc, 1.1, false);
+      pb.poly(main, hF, hx3('#3e4244')); pb.poly(wing, hW, hx3('#45494a'));
+      const coping = (pts, y) => { for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, y + 0.1, (a[1] + b[1]) / 2, l + 0.24, 0.2, 0.3, Math.atan2(b[1] - a[1], b[0] - a[0]), cap); } };
+      coping(main, hF); coping(wing, hW);
+      // limestone band at the floor line and a darker base course
+      for (const [pts, y] of [[main, 4.3], [wing, 3.9]]) for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2, l + 0.06, 0.22, 0.06 + 0.02, Math.atan2(b[1] - a[1], b[0] - a[0]), cap); pb.obox((a[0] + b[0]) / 2, 0.3, (a[1] + b[1]) / 2, l + 0.04, 0.6, 0.04, Math.atan2(b[1] - a[1], b[0] - a[0]), hx3('#5b3a33')); }
+      // the hip-roofed centre block: eaves at 8.6 m, shingle slopes up to a flat deck at 11.3 m
+      { const x0 = 29.0, x1 = 62.5, z0 = -97.6, z1 = -86.1, o = 0.5, yE = hF + 0.05, yD = 11.3, ix0 = 33.6, ix1 = 57.9, iz0 = -94.9, iz1 = -88.8, rc = tc('#7b6a58');
+        const e = [[x0 - o, z0 - o], [x1 + o, z0 - o], [x1 + o, z1 + o], [x0 - o, z1 + o]], d = [[ix0, iz0], [ix1, iz0], [ix1, iz1], [ix0, iz1]];
+        for (let i = 0; i < 4; i++) { const a = e[i], b = e[(i + 1) % 4], c2 = d[(i + 1) % 4], d2 = d[i]; let n = v3n(v3c(v3s([b[0], yE, b[1]], [a[0], yE, a[1]]), v3s([d2[0], yD, d2[1]], [a[0], yE, a[1]]))); if (n[1] < 0) n = [-n[0], -n[1], -n[2]];
+          shing.quad([a[0], yE, a[1]], [b[0], yE, b[1]], [c2[0], yD, c2[1]], [d2[0], yD, d2[1]], n, rc, [a[0] * 0.45, a[1] * 0.45, b[0] * 0.45, b[1] * 0.45, c2[0] * 0.45, c2[1] * 0.45, d2[0] * 0.45, d2[1] * 0.45]); }
+        pb.poly(d, yD, hx3('#3c3f40')); pb.wbox(x0 - o, yE - 0.25, z0 - o, x1 + o, yE, z1 + o, hx3('#e4e2dc'));
+        brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], hF, yE, bc, 1.1, false); }
+      // windows: two rows of white-framed sash windows in pairs between brick piers on the faces seen from the school
+      const rowX = (z, xa, xb, n, sk) => { for (const y of [1.1, 5.2]) for (let x = xa; x + 1.25 <= xb; x += metPitch(1.6)) { if (sk && sk(x)) continue; atlW('winW', [x, z], [x + 1.25, z], y, y + 2.1, n); } };
+      rowX(-86.12, 10.0, 43.0, [0, 0, 1], (x) => x > 14.6 && x < 17.6); rowX(-86.12, 64.0, 76.6, [0, 0, 1]);
+      atlW('door', [15.2, -86.13], [16.9, -86.13], 0.0, 2.35, [0, 0, 1]); pb.wbox(14.8, 2.5, -86.9, 17.3, 2.65, -86.1, cap);
+      for (const y of [1.1, 4.8]) { for (let x = 2.0; x + 1.25 <= 8.6; x += metPitch(1.7)) atlW('winW', [x, -88.52], [x + 1.25, -88.52], y, y + 1.9, [0, 0, 1]); for (let z = -89.4; z - 1.25 >= -98.0; z -= 1.7) atlW('winW', [1.28, z - 1.25], [1.28, z], y, y + 1.9, [-1, 0, 0]); }
+      for (const y of [1.1, 5.2]) for (let z = -99.0; z - 1.25 >= -104.6; z -= metPitch(1.65)) atlW('winW', [8.98, z - 1.25], [8.98, z], y, y + 2.1, [-1, 0, 0]);
+      for (const y of [1.1, 5.2]) for (let x = 10.0; x + 1.25 <= 76.5; x += metPitch(1.6)) atlW('winW', [x + 1.25, -105.22], [x, -105.22], y, y + 2.1, [0, 0, -1]);
+      // rooftop units
+      for (const [x, z, w, d, h] of [[20, -95, 2.4, 1.6, 1.2], [26, -101, 1.8, 1.8, 1.0], [68, -95, 3.0, 2.0, 1.4], [45, -101, 2.0, 1.4, 1.1]]) pb.wbox(x - w / 2, hF, z - d / 2, x + w / 2, hF + h, z + d / 2, hx3('#9da1a2'));
+      MET.keep.push([1.3, 0, -108.8, 77.3, 12, -86.1]);
+    }
+
+    // ===== Dry Grove Street: one-way westbound east of Main (one lane and a parking lane), two lanes west of Main =====
+    {
+      const rc = tc('#a5a6a0'), rk = 0.3, y = 0.045;
+      const strip = (x0, z0, x1, z1, c) => { road.grow(6); for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]]) road.v(x, y, z, 0, 1, 0, c, x * rk, z * rk); };
+      // east of Main: from the Main Street curb (with a ramp down to Main's level) to University Street
+      for (let x = -20.75; x < 118; x += 12) strip(x, -129.5, Math.min(118, x + 12), -119.8, rc);
+      road.quad([-20.75, -0.15, -129.5], [-19.4, y, -129.5], [-19.4, y, -119.8], [-20.75, -0.15, -119.8], v3n([0.12, 1, 0]), rc, [-20.75 * rk, -129.5 * rk, -19.4 * rk, -129.5 * rk, -19.4 * rk, -119.8 * rk, -20.75 * rk, -119.8 * rk]);
+      for (let x = -14; x < 118; x += 4.6) flat.quad([x - 0.008, y + 0.003, -129.5], [x + 0.008, y + 0.003, -129.5], [x + 0.008, y + 0.003, -119.8], [x - 0.008, y + 0.003, -119.8], up, [0.4, 0.4, 0.39, 1]);
+      for (const [x0, x1, z] of [[-19.4, -0.6, -119.8], [3.6, 118, -119.8], [-19.4, 118, -129.5]]) conc.tbox(x0, 0, z - 0.075, x1, 0.14, z + 0.075, cc('#cbc9c0'), 0.33);
+      // Dry Grove meets Main at a signal: stop bars on both, the lane line, crosswalk bars across the mouth along Main's walk, and a
+      // signal pole on the south-east corner with its arm over Main and a head facing Dry Grove
+      flat.quad([-18.3, y + 0.004, -129.3], [-17.8, y + 0.004, -129.3], [-17.8, y + 0.004, -120.0], [-18.3, y + 0.004, -120.0], up, [0.92, 0.92, 0.9, 1]);
+      flat.quad([-31.3, -0.146, -137.4], [-20.85, -0.146, -137.4], [-20.85, -0.146, -136.9], [-31.3, -0.146, -136.9], up, [0.92, 0.92, 0.9, 1]);
+      for (let z = -129.2; z < -120; z += 0.9) flat.quad([-20.4, y + 0.004, z], [-18.6, y + 0.004, z], [-18.6, y + 0.004, z + 0.45], [-20.4, y + 0.004, z + 0.45], up, [0.9, 0.9, 0.88, 1]);
+      for (let x = -14; x < 118; x += 6) flat.quad([x, y + 0.004, -123.57], [x + 3, y + 0.004, -123.57], [x + 3, y + 0.004, -123.43], [x, y + 0.004, -123.43], up, [0.9, 0.9, 0.88, 1]);
+      { const x = -19.6, z = -131.6, gal = hx3('#8d9294'), hd = hx3('#1c1d1f'); pb.cyl(x, z, 0, 6.6, 0.14, 0.11, gal, 10); pb.tube([x, 6.2, z], [x - 7.5, 6.5, z], 0.07, gal, 6);
+        const head = (hx, hy, hz, nx, nz) => { pb.wbox(hx - 0.18, hy - 0.55, hz - 0.18, hx + 0.18, hy + 0.55, hz + 0.18, hd); for (const [k, cl] of [[0, '#5a1210'], [1, '#5a4710'], [2, '#1d8a3a']]) { const yy = hy + 0.34 - k * 0.34; flat.quad([hx + nx * 0.19 - nz * 0.11, yy - 0.11, hz + nz * 0.19 + nx * 0.11], [hx + nx * 0.19 + nz * 0.11, yy - 0.11, hz + nz * 0.19 - nx * 0.11], [hx + nx * 0.19 + nz * 0.11, yy + 0.11, hz + nz * 0.19 - nx * 0.11], [hx + nx * 0.19 - nz * 0.11, yy + 0.11, hz + nz * 0.19 + nx * 0.11], [0, 0, 0], hx3(cl)); } };
+        head(x - 3.6, 5.9, z, 0, -1); head(x - 6.9, 5.9, z, 0, -1); head(x + 0.25, 3.6, z, 1, 0); MET.keep.push([x, z, 0.3, 0, 6.8]); }
+      strip(-0.6, -119.8, 3.6, -118.6, tc('#b2b2ab'));
+      // south side: grass strip, sidewalk
+      slab([[-18.25, -131.0], [118, -131.0], [118, -132.8], [-18.25, -132.8]], 0.03, cc('#c9c7bd'));
+      // west of Main: two lanes, a centre line, the curb cut in Main's west curb
+      for (let x = -31.4; x > -138; x -= 12) strip(Math.max(-138, x - 12), -77.3, x, -67.3, rc);
+      { const C = [[-138, -72.5], [-145.2, -71.6], [-152.8, -69.0], [-160.3, -65.1], [-167.1, -61.0], [-171, -58.6]]; for (let i = 0; i < C.length - 1; i++) { const a = C[i], b = C[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = -(b[1] - a[1]) / l * 5, nz = (b[0] - a[0]) / l * 5; road.quad([a[0] + nx, y, a[1] + nz], [b[0] + nx, y, b[1] + nz], [b[0] - nx, y, b[1] - nz], [a[0] - nx, y, a[1] - nz], up, rc, [(a[0] + nx) * rk, (a[1] + nz) * rk, (b[0] + nx) * rk, (b[1] + nz) * rk, (b[0] - nx) * rk, (b[1] - nz) * rk, (a[0] - nx) * rk, (a[1] - nz) * rk]); } }
+      road.quad([-31.4, -0.15, -77.3], [-32.8, y, -77.3], [-32.8, y, -67.3], [-31.4, -0.15, -67.3], v3n([-0.12, 1, 0]), rc, [-31.4 * rk, -77.3 * rk, -32.8 * rk, -77.3 * rk, -32.8 * rk, -67.3 * rk, -31.4 * rk, -67.3 * rk]);
+      for (let x = -38; x > -136; x -= 7) flat.quad([x - 3, y + 0.003, -72.57], [x, y + 0.003, -72.57], [x, y + 0.003, -72.43], [x - 3, y + 0.003, -72.43], up, [0.84, 0.74, 0.3, 1]);
+      for (const z of [-67.3, -77.3]) conc.tbox(-138, 0, z - 0.075, -32.8, 0.14, z + 0.075, cc('#cbc9c0'), 0.33);
+      flat.quad([-37.3, y + 0.004, -77.1], [-36.8, y + 0.004, -77.1], [-36.8, y + 0.004, -72.6], [-37.3, y + 0.004, -72.6], up, [0.92, 0.92, 0.9, 1]);
+      { const x = -36.6, z = -78.2; pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.3, z + 0.03, hx3('#8a8f8f')); pb.grow(24); for (let k = 0; k < 8; k++) { const a0 = (k + 0.5) / 8 * 6.2832, a1 = (k + 1.5) / 8 * 6.2832; for (const [yy, zz] of [[2.0, z], [2.0 + Math.sin(a0) * 0.38, z + Math.cos(a0) * 0.38], [2.0 + Math.sin(a1) * 0.38, z + Math.cos(a1) * 0.38]]) pb.v(x - 0.045, yy, zz, -1, 0, 0, hx3('#b3141c'), 0.5, 0.5); } flat.quad([x - 0.05, 1.96, z + 0.22], [x - 0.05, 1.96, z - 0.22], [x - 0.05, 2.04, z - 0.22], [x - 0.05, 2.04, z + 0.22], [-1, 0, 0], [0.95, 0.95, 0.95, 1]); }
+      for (let z = -77.1; z < -67.5; z += 0.9) flat.quad([-36.0, y + 0.004, z], [-34.2, y + 0.004, z], [-34.2, y + 0.004, z + 0.45], [-36.0, y + 0.004, z + 0.45], up, [0.9, 0.9, 0.88, 1]);
+    }
+
+    // ===== the Campus Recreation Center beyond Dry Grove: a long tan-brick hall about 12 m high with a white roof and a higher
+    // gym block (its 24 m winter-noon shadow in the 2019 photo), and the open recreation field behind it =====
+    {
+      const P = [[162.7, -196.1], [162.5, -188.4], [108.4, -178.2], [102.0, -178.2], [102.4, -151.8], [79.7, -149.2], [79.7, -151.4], [60.6, -149.4], [60.6, -151.9], [41.7, -149.6], [41.3, -152.6], [7.6, -156.2], [7.4, -157.0], [-2.4, -156.6], [-2.4, -162.4], [-4.7, -163.0], [-5.0, -177.4], [-9.2, -177.2], [-9.9, -195.0], [-5.0, -195.1], [-5.1, -213.7], [-2.8, -213.6], [-3.1, -229.9], [24.6, -230.1], [37.2, -198.4], [67.4, -198.7], [111.8, -199.2], [138.5, -199.5], [144.8, -199.6], [145.5, -196.2]];
+      const wc = tc('#b49a7e'), h = 11.5;
+      brick.extrude(P, 0, h, wc, 1.1, hx3('#d9dad6')); pb.poly(P, h + 0.01, hx3('#d4d5d1'));
+      brick.extrude([[-2.0, -176], [100, -176], [100, -197], [-2.0, -197]], h, 15.5, wc, 1.1, hx3('#e2e3df'));
+      // the folded-plate north edge: a row of white gables over the north wall
+      for (let x = 0; x < 100; x += 15) { const zA = x < 41 ? -156.2 + (x - 7.6) * 0.19 : -150.5; shing.quad([x, h, zA], [x + 15, h, zA], [x + 7.5, h + 1.6, zA - 2.5], [x + 7.5, h + 1.6, zA - 2.5], v3n([0, 0.6, 0.8]), hx3('#a9aca9')); }
+      for (let x = 2; x < 100; x += 5) glassB.wall(x + 3.6, x < 41 ? -156.2 + (x - 7.6) * 0.19 + 0.02 : -149.55, x, x < 41 ? -156.2 + (x + 3.6 - 7.6) * 0.19 + 0.02 : -149.55, 1.2, 3.6, [0.22, 0.26, 0.3, 1], [0, 0, 1]);
+      for (let z = -160; z > -228; z -= 5) glassB.wall(-5.06, z, -5.06, z - 3.4, 1.2, 3.6, [0.22, 0.26, 0.3, 1], [-1, 0, 0]);
+      // the high gym block: a precast band with a row of clerestory windows facing north and west
+      glassB.wall(100, -175.97, -2.0, -175.97, 12.6, 14.4, [0.24, 0.28, 0.33, 1], [0, 0, 1]); glassB.wall(-2.03, -176, -2.03, -197, 12.6, 14.4, [0.24, 0.28, 0.33, 1], [-1, 0, 0]);
+      for (let x = 0; x < 100; x += 6) pb.wbox(x - 0.25, 12.4, -176.1, x + 0.25, 15.5, -175.9, hx3('#cfc8bb'));
+      pb.obox(49, 11.6, -175.95, 102, 0.3, 0.25, 0, hx3('#d8d2c6')); pb.obox(49, 15.55, -175.95, 102.4, 0.3, 0.3, 0, hx3('#d8d2c6'));
+    }
+
+    // ===== The Summit apartments across Main (OpenStreetMap footprint): four storeys of brick with white trim, a flat roof =====
+    {
+      const S = [[-98.2, -33.6], [-98.9, -63.1], [-55.6, -63.4], [-55.8, -25.1], [-74.5, -24.8], [-74.5, -45.4], [-82.7, -45.2], [-82.6, -37.7], [-85.7, -37.8], [-85.5, -33.7]], h = 12.6;
+      brick.extrude(S, 0, h, tc('#8a4e3c'), 1.1, false); pb.poly(S, h, hx3('#6b6058'));
+      for (let i = 0; i < S.length; i++) { const a = S[i], b = S[(i + 1) % S.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, h - 0.15, (a[1] + b[1]) / 2, l + 0.2, 0.3, 0.25, Math.atan2(b[1] - a[1], b[0] - a[0]), hx3('#e9e8e3')); }
+      for (let x = -73.0; x < -57; x += metPitch(3.2)) for (let y = 1.0; y < h - 2; y += 2.9) atlW('winB', [x, -25.08], [x + 1.4, -25.08], y, y + 1.6, [0, 0, 1]);
+      for (let x = -97.0; x < -87; x += metPitch(3.2)) for (let y = 1.0; y < h - 2; y += 2.9) atlW('winB', [x, -33.58], [x + 1.4, -33.58], y, y + 1.6, [0, 0, 1]);
+      for (let z = -46.5; z > -62; z -= metPitch(3.2)) for (let y = 1.0; y < h - 2; y += 2.9) atlW('winB', [-55.62, z], [-55.62, z - 1.4], y, y + 1.6, [1, 0, 0]);
+      for (let x = -97.5; x < -57; x += metPitch(3.2)) for (let y = 1.0; y < h - 2; y += 2.9) atlW('winB', [x + 1.4, -63.42], [x, -63.42], y, y + 1.6, [0, 0, -1]);
+      MET.keep.push([-99, 0, -63.5, -55.5, h + 0.3, -24.8]);
+    }
+
+    // ===== the other buildings south of the school out to the far clip: brick masses on their OpenStreetMap footprints with rows of
+    // dark windows on the faces that look toward the school =====
+    {
+      const cols = ['#8e5446', '#9a6a54', '#a4775f', '#7f5244', '#b3a28c', '#86523f', '#c4b8a4'];
+      MS_BLD.forEach((a, i) => {
+        const h = a[0], p = msPoly(a), col = tc(cols[i % cols.length]);
+        brick.extrude(p, 0, h, col, 1.1, hx3(i % 3 ? '#5c605f' : '#6e6a64'));
+        for (let k = 0; k < p.length; k++) { const A = p[k], Bq = p[(k + 1) % p.length], l = Math.hypot(Bq[0] - A[0], Bq[1] - A[1]); if (l < 7) continue;
+          let nx = (Bq[1] - A[1]) / l, nz = -(Bq[0] - A[0]) / l; const mx = (A[0] + Bq[0]) / 2, mz = (A[1] + Bq[1]) / 2; if (!msInPoly(p, mx - nx * 0.5, mz - nz * 0.5)) { nx = -nx; nz = -nz; }
+          if (nx * (-3.89 - mx) + nz * (0 - mz) <= 0) continue; // only the faces turned toward the field
+          const ox = nx * 0.03, oz = nz * 0.03, t0 = 1.2 / l;
+          for (let y = 1.0; y + 1.3 < h - 0.6; y += 3.4) glassB.quad([A[0] + (Bq[0] - A[0]) * t0 + ox, y, A[1] + (Bq[1] - A[1]) * t0 + oz], [Bq[0] - (Bq[0] - A[0]) * t0 + ox, y, Bq[1] - (Bq[1] - A[1]) * t0 + oz], [Bq[0] - (Bq[0] - A[0]) * t0 + ox, y + 1.4, Bq[1] - (Bq[1] - A[1]) * t0 + oz], [A[0] + (Bq[0] - A[0]) * t0 + ox, y + 1.4, A[1] + (Bq[1] - A[1]) * t0 + oz], [nx, 0, nz], [0.2, 0.23, 0.26, 1]);
+        }
+      });
+    }
+
+    // ===== the big university lot across Main behind Dry Grove (asphalt, rows of stalls) =====
+    {
+      B.masph.poly([[-110, -77.45], [-37.6, -77.45], [-37.6, -110.6], [-79, -110.6], [-79, -152], [-110, -152]], 0.012, tc('#5d5f61'), true, 0.4);
+      for (const [z0, z1] of [[-77.6, -83.4], [-87.6, -93.4], [-93.6, -99.4]]) for (let x = -42; x > -108; x -= 2.9) flat.quad([x - 0.05, 0.016, z0], [x + 0.05, 0.016, z0], [x + 0.05, 0.016, z1], [x - 0.05, 0.016, z1], up, [0.82, 0.82, 0.8, 1]);
+    }
+    // ===== parked cars =====
+    {
+      let ci = 0; const pick2 = () => { const k = Math.floor(rs() * MS_PAINT.length); ci++; return hx3(MS_PAINT[k]); };
+      const typ = () => { const q = rs(); return q < 0.4 ? 'sedan' : q < 0.62 ? 'suv' : q < 0.75 ? 'hatch' : q < 0.88 ? 'van' : 'pickup'; };
+      // the three angled stalls at the drop-off lot's south-east corner (nose toward the fence)
+      const hd = Math.atan2(-4.9, 2.3);
+      for (const [x, cl, t] of [[16.55, '#b9bcc0', 'suv'], [19.6, '#f0f0ee', 'sedan'], [22.65, '#6b1d24', 'van']]) msCar(pb, glassB, x, -50.55, hd, hx3(cl), t, 0);
+      // the staff lot: nose-in toward the fence along the west stalls (about two in three taken at lunch), one accessible stall
+      const taken = [1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0];
+      for (let k = 0; k < 17; k++) if (taken[k]) { const t = k === 4 ? 'pickup' : typ(); msCar(pb, glassB, -12.6 - (t === 'pickup' ? 0.25 : 0) + rs() * 0.25, -55.5 - 2.74 * (k + 0.5) + (rs() - 0.5) * 0.18, Math.PI + (rs() - 0.5) * 0.04, k === 4 ? hx3('#8e1b1b') : k === 1 ? hx3('#17191c') : pick2(), t, k > 9 ? 1 : 0); }
+      msCar(pb, glassB, 1.5, -78.0, Math.PI / 2, hx3('#a7abaf'), 'van', 0);
+      // angled parking on Dry Grove's south side west of Main, and rows in the big lot behind it
+      for (let x = -43.45; x > -106; x -= 2.9) if (rs() < 0.55) msCar(pb, glassB, x, -80.6, -Math.PI / 2, pick2(), typ(), 1);
+      for (const zr of [-90.5, -96.0]) for (let x = -43.45; x > -106; x -= 2.9) if (rs() < 0.42) msCar(pb, glassB, x, zr, zr === -90.5 ? Math.PI / 2 : -Math.PI / 2, pick2(), typ(), 1);
+      // a few along Fairchild's south side and in the lot east of the gym
+      for (const [x, z, a] of [[44.0, -112.2, -Math.PI / 2], [47.0, -112.2, -Math.PI / 2], [56.0, -112.0, -Math.PI / 2], [70.5, -60.0, 0], [70.5, -63.0, 0], [70.5, -66.2, Math.PI], [77.4, -77.5, Math.PI / 2]]) msCar(pb, glassB, x, z, a, pick2(), typ(), 1);
+    }
+
+    // ===== trees at their places in the photos: the big oak over the lot's south fence, the courtyard trees, the street trees on
+    // Dry Grove and Main, then scattered yard and street trees among the buildings out to the far clip =====
+    msTree(T, 8.9, -56.9, 19.0, 15.5, 'oak', 0, '#4b5c31');
+    msTree(T, 38.4, -60.6, 8.5, 10.5, 'maple', 0, '#56683a');
+    msTree(T, 21.6, -76.4, 6.0, 8.0, 'locust', 1); msTree(T, 33.4, -76.8, 7.0, 9.0, 'maple', 1, '#5a6b36');
+    for (const [x, z, d, h, sp] of [[12.2, -114.0, 9.5, 12, 'oak'], [24.5, -113.8, 8.0, 10, 'locust'], [33.0, -135.0, 8.0, 10, 'maple'], [62.0, -135.2, 8.0, 10, 'maple'], [-6.0, -134.5, 9.0, 11, 'locust'], [20.0, -134.4, 7.0, 9, 'maple'], [-19.3, -60.5, 7.5, 9.5, 'locust'], [-19.4, -92.0, 7.5, 9.5, 'maple'], [-19.2, -146.0, 8.0, 10, 'locust']]) msTree(T, x, z, d, h, sp, 1);
+    {
+      const roadsHit = (x, z) => Math.abs(x + 26) < 11 || msNearRoad(x, z, 8.5) || (z < -65 && z > -80 && x < -30) || (z < -116 && z > -134 && x > -22 && x < 120) || Math.abs(x - 116) < 7;
+      const lots = [[-112, -38, -160, -78], [-18, 4, -124, -53], [-16, 34.5, -54, -16], [62, 80, -82, -55], [40, 70, -128, -108]];
+      const inside = (x, z, m) => { for (const a of MS_BLD) { const p = msPoly(a); let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const q of p) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } if (x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m && (m > 0 || msInPoly(p, x, z))) return true; } return false; };
+      const taken = (x, z) => roadsHit(x, z) || inside(x, z, 4) || lots.some((l) => x > l[0] && x < l[1] && z > l[2] && z < l[3]) || (x > -10 && x < 165 && z < -140 && z > -236) || (x > -6 && x < 104 && z > -112 && z < -50) || (x > -100 && x < -36 && z > -64 && z < -20);
+      let placed = 0, tries = 0;
+      while (placed < 20 && tries++ < 3000) { const x = -300 + rs() * 600, z = -40 - rs() * 290; if (Math.hypot(x + 3.89, z) > 320 || taken(x, z)) continue; const q = rs(); msTree(T, x, z, 7 + rs() * 6, 9 + rs() * 6, q < 0.25 ? 'locust' : q < 0.5 ? 'oak' : 'maple', 1, rs() < 0.15 ? '#7a7a38' : rs() < 0.1 ? '#8a5a2e' : null); placed++; }
+    }
+
+    // ===== the skyline: a continuous band of tree canopy all round (two staggered rows of rounded crowns, about 10-18 m), open
+    // where Main Street runs off north and south, and the tall campus buildings standing over it in their real directions =====
+    // (on the big field it is pushed out by what the site grew instead of spreading MET_K times out: metFar in 12-venue.js)
+    metFar(-3.89, 0, () => {
+      const ox = -3.89, oz = 0, hn = vnoise(4242), G2 = [[0.24, 0.29, 0.18], [0.29, 0.33, 0.2], [0.33, 0.35, 0.21], [0.27, 0.32, 0.22], [0.36, 0.34, 0.19], [0.42, 0.36, 0.17]];
+      const blocked = (x, z) => Math.abs(x + 26.1) < 13 || msNearRoad(x, z, 11);
+      const row = (R0, h0, h1, haze, seed) => {
+        let th = seed;
+        while (th < seed + 6.2832) {
+          const q = rs(), w = q < 0.35 ? 3.5 + rs() * 2.5 : q < 0.9 ? 6 + rs() * 4 : 10 + rs() * 5, rr = R0 + (hn(th * 5 + seed, 11) - 0.5) * 28 + (rs() - 0.5) * 6, dth = w / rr, x = ox + Math.cos(th) * rr, z = oz + Math.sin(th) * rr;
+          const gap = hn(th * 3.1 + seed, 53) < 0.18; // a low stretch: roofs and smaller trees
+          if (!blocked(x, z)) {
+            const hk = (gap ? 0.55 : 1) * (h0 + (h1 - h0) * (0.6 * hn(th * 23 + seed, 17) + 0.4 * rs())), ci = Math.floor(hn(th * 31 + seed, 29) * 5.999 + (hn(th * 3 + seed, 41) > 0.82 ? 1 : 0)), cb = G2[Math.min(5, ci)], j = 0.9 + hn(th * 47, 5) * 0.2;
+            const col = [cb[0] * j * TN * 0.5, cb[1] * j * TN * 0.5, cb[2] * j * TN * 0.5, 1], fog = [0.68 * TN, 0.75 * TN, 0.85 * TN], cT = mixC(col, fog, haze), cBt = mixC(shadeC(col, 0.55), fog, haze * 0.9);
+            const n = 5, pts = []; for (let k = 0; k <= n; k++) { const t = k / n, a = th - dth * 0.62 + dth * 1.24 * t, s = Math.pow(Math.sin(t * Math.PI), 0.55), y = hk * (0.5 + 0.5 * s) + (rs() - 0.5) * 1.6 * Math.min(1, s * 3); pts.push([ox + Math.cos(a) * rr, y, oz + Math.sin(a) * rr, a]); }
+            leaf.grow(n * 6);
+            for (let k = 0; k < n; k++) { const a = pts[k], b = pts[k + 1], na = [-Math.cos(a[3]), 0.3, -Math.sin(a[3])], nb = [-Math.cos(b[3]), 0.3, -Math.sin(b[3])], ua = a[3] * rr * 0.12, ub = b[3] * rr * 0.12;
+              for (const [p, y, nn, c, u, v] of [[a, -0.1, na, cBt, ua, 0], [b, -0.1, nb, cBt, ub, 0], [b, b[1], nb, cT, ub, b[1] * 0.12], [a, -0.1, na, cBt, ua, 0], [b, b[1], nb, cT, ub, b[1] * 0.12], [a, a[1], na, cT, ua, a[1] * 0.12]]) leaf.v(p[0], y, p[2], nn[0], nn[1], nn[2], c, u, v); }
+          }
+          th += dth * (0.8 + hn(th * 13, 19) * 0.25);
+        }
+      };
+      row(305, 9, 18, 0.04, 0.1);
+      // beyond the open ends of Main Street a lower, hazier line of trees where the street disappears
+      for (const zz of [-338, 338]) for (let x = -40; x < -12; x += 4.2) { const h = 8 + hn(x, zz) * 4; leaf.quad([x, -0.1, zz], [x + 5, -0.1, zz], [x + 5, h, zz], [x, h, zz], [0, 0.3, zz < 0 ? 1 : -1], mixC(tc('#4a5235'), [0.68 * TN, 0.75 * TN, 0.85 * TN, 1], 0.35), [x * 0.1, 0, x * 0.1 + 0.5, 0, x * 0.1 + 0.5, h * 0.12, x * 0.1, h * 0.12]); }
+      // landmarks, shrunk toward the field to 345 m so they stay inside the far clip
+      MS_LM.forEach((a, i) => { const p0 = msPoly(a); let mx = 0, mz = 0; for (const q of p0) { mx += q[0]; mz += q[1]; } mx /= p0.length; mz /= p0.length; const s0 = Math.min(1, 345 / Math.hypot(mx - ox, mz - oz)); metObj(ox + (mx - ox) * s0, oz + (mz - oz) * s0, () => { // (keeps its size)
+        const p = msPoly(a); let cx = 0, cz = 0; for (const q of p) { cx += q[0]; cz += q[1]; } cx /= p.length; cz /= p.length;
+        const d = Math.hypot(cx - ox, cz - oz), s = Math.min(1, 345 / d), P2 = p.map((q) => [ox + (q[0] - ox) * s, oz + (q[1] - oz) * s]), h = a[0] * s;
+        const col = mixC(tc(MS_LMC[i]), [0.68 * TN, 0.75 * TN, 0.85 * TN, 1], 0.28);
+        brick.extrude(P2, -0.2, h, col, 0.6 / s, mixC(hx3('#7d807f'), [0.68, 0.75, 0.85, 1], 0.3));
+        if (a[0] > 35) { const fl2 = Math.floor(a[0] / 3.25); for (let k = 0; k < P2.length; k++) { const A = P2[k], Bq = P2[(k + 1) % P2.length], l = Math.hypot(Bq[0] - A[0], Bq[1] - A[1]); if (l < 9 * s) continue; let nx = (Bq[1] - A[1]) / l, nz = -(Bq[0] - A[0]) / l; if (!msInPoly(P2, (A[0] + Bq[0]) / 2 - nx * 0.3, (A[1] + Bq[1]) / 2 - nz * 0.3)) { nx = -nx; nz = -nz; }
+          for (let f = 1; f < fl2; f += 3) { const y = f * 3.25 * s; glassB.quad([A[0] + nx * 0.05, y, A[1] + nz * 0.05], [Bq[0] + nx * 0.05, y, Bq[1] + nz * 0.05], [Bq[0] + nx * 0.05, y + 1.6 * s, Bq[1] + nz * 0.05], [A[0] + nx * 0.05, y + 1.6 * s, A[1] + nz * 0.05], [nx, 0, nz], [0.3, 0.33, 0.38, 1]); } } }
+      }); });
+    });
+  }
+  // ---------- the module's batches (merged into W.defs before the see-through pickets) and its canvas texture ----------
+  function metSouthDefs(B, T1) {
+    return { mfarlot: T1('mfarlot', 0.86, 1, false, false, 'farlot'), mrubber: T1('mrubber', 0.95, 0, false, false, 'concrete.jpg'), mroad: T1('mroad', 0.85, 0, false, false, 'concrete.jpg') };
+  }
+  function metSouthTex(metTex, ctex2, reup) {
+    const W2 = quality >= 2 ? 512 : 256, H2 = W2 * 4;
+    metTex.farlot = ctex2(metFarLotCanvas(W2, H2), false, 16);
+    const r = vimg('asphalt.jpg'); if (!r.ok) r.cbs.push(() => setTimeout(() => { if (!G || !metTex || glLost) return; try { reup(metTex.farlot, metFarLotCanvas(W2, H2), false, 16); } catch (e) {} }, 0));
+  }
+  // =====================================================================================
+  // Metcalf traffic: cars, SUVs, pickups, minivans and the odd school bus or delivery truck on the real streets round the
+  // school, with their sound. South Main Street (one-way north, two lanes) runs right past the fence west of the blacktop;
+  // West College Avenue, South University Street, Dry Grove Street (both halves) and Kingsley Street are simulated too, so the
+  // signals and the far traffic stay coherent, but a car on one of those is only drawn once the world draws that street
+  // (MET.roads[key], see ROADS below). Everything is simulated in the site frame F (metres) and placed with metE every frame.
+  // Drawing: one dynamic vertex buffer in the venue's static list (one draw call, no shadow-map cost; soft blob shadows go into
+  // the transparent batch). Randomness: Math.random only (never the game RNG). With the stadium none of this runs.
+  // Hooks: metTrafficGL() at the end of metStatics (12-venue.js), metTrafficFrame(dt) in render() (80-render.js).
+  // =====================================================================================
+  const MTR = METCALF ? (() => {
+    const RND = Math.random, rr = (a, b) => a + (b - a) * RND();
+    const pickW = (list) => { let t = 0; for (const e of list) t += e[1]; let x = RND() * t; for (const e of list) { x -= e[1]; if (x <= 0) return e[0]; } return list[0][0]; };
+    // ---------- the road table (frame F, metres). Sources: the measured survey (wf1-final-measure: Main's curbs at x -31.4 /
+    // -20.75 and its lane line at -26.3), OpenStreetMap (ways 839518891 / 604072178 South Main, 24104487 / 604080111 North Main,
+    // 56594440 / 709100040 / 886379173 / 902959141 West College Avenue, 24095993 / 24110054 University Street, 24096905 Dry
+    // Grove west of Main, Dry Grove east of Main (one-way west), 24098061 / 697163452 / 697163451 Kingsley; the signal, stop and
+    // crossing nodes), and an Esri World Imagery z19 mosaic rectified into frame F at 0.25 m/px (curb lines and lane marks
+    // measured from brightness profiles; OSM centre-lines shifted onto them: College +1.9 m in z, University -2.0 m in x).
+    // Each road: centre-line pts, lanes as [direction (+1 along pts, -1 against), offset to the right of travel (m)], the road
+    // surface height y (m), and whether the world draws it. A world lane that draws one of the other streets publishes
+    // MET.roads[key] = { y } (presence = drawn) and its cars appear. ----------
+    const ROADS = {
+      // South Main Street: US 51 Business, one-way northbound, 2 lanes, 30 mph, 10.65 m curb to curb (measured), the surface
+      // 0.15 m below the curb; from z ~ +100 a left-turn lane opens for College Avenue (OSM turn:lanes left|through|through;right)
+      main: { name: 'South Main Street', pts: [[-26.08, -340], [-26.08, 340]], lanes: [[1, -2.52], [1, 2.28]], y: -0.15, oneway: true, mph: 30, drawn: true },
+      // West College Avenue: two-way, 4 lanes plus turn lanes, about 19.8 m curb to curb east of Main (measured z 136.0 - 155.8 at
+      // x 15-45, double yellow centre at 146.9); west of Main it bends south-west (OSM)
+      college: { name: 'West College Avenue', pts: [[-247.3, 53.2], [-196.6, 65.1], [-168.5, 80.9], [-141.5, 103.6], [-104.0, 127.3], [-82.2, 136.6], [-62.5, 142.4], [-37.6, 147.6], [-25.1, 146.6], [-9.7, 144.9], [22.4, 144.0], [50.0, 143.4], [63.9, 144.1], [80.0, 144.9], [106.4, 143.4], [116.2, 143.1], [152.6, 142.1], [203.9, 141.0]],
+        lanes: [[1, 1.85], [1, 5.5], [-1, 1.85], [-1, 5.5]], y: 0, mph: 30 },
+      // South / North University Street east of the school: two-way, 2 lanes, ~8.4 m curb to curb (measured x 109.6 - 118.0)
+      university: { name: 'University Street', pts: [[114.2, -260], [114.2, -178.2], [114.2, -139.9], [114.1, -116.3], [113.8, -69.6], [113.8, -9.5], [113.9, 13.7], [113.7, 51.0], [113.4, 91.0], [113.9, 127.6], [114.2, 139.9], [114.3, 152.9], [114.7, 191.4], [116.1, 247.2]],
+        lanes: [[1, 2.1], [-1, 2.1]], y: 0, mph: 25 },
+      // Dry Grove Street west of Main: two-way, 2 lanes, ~9-10 m (measured z -67.3 .. -77.3), stop sign where it meets Main
+      drygroveW: { name: 'Dry Grove Street (west)', pts: [[-26.9, -72.5], [-104, -72.5], [-137.8, -72.6], [-145.1, -71.7], [-152.6, -69.1], [-160.2, -65.2], [-167.0, -61.1]], lanes: [[1, 2.15], [-1, 2.15]], y: 0, mph: 30 },
+      // Dry Grove Street east of Main: one-way westbound from University to Main (measured z -117 .. -129.5), signal at Main
+      drygroveE: { name: 'Dry Grove Street (east)', pts: [[116, -124.0], [62, -123.6], [5, -123.5], [-20.75, -123.5]], lanes: [[1, 1.8], [1, -1.8]], y: 0, oneway: true, mph: 25 },
+      // Kingsley Street / North Main southbound: one-way south-west, 2 lanes, right beside Main north of z ~ 60
+      kingsley: { name: 'Kingsley Street', pts: [[-37.7, 258.3], [-37.6, 162.8], [-37.6, 146.2], [-37.9, 132.0], [-38.9, 112.7], [-40.3, 101.9], [-42.9, 90.9], [-47.8, 78.0], [-54.8, 65.2], [-63.1, 53.8], [-73.6, 42.6], [-91.6, 25.0], [-110.7, 5.5], [-122.1, -5.1], [-142.4, -25.5], [-152.8, -37.6], [-158.6, -45.8], [-167.0, -61.5], [-170.9, -72.0], [-174.0, -101.4], [-175.8, -222.3]],
+        lanes: [[1, 1.7], [1, -1.7]], y: 0, oneway: true, mph: 30 },
+    };
+    // signals (cycle s, offset s, phases [approach, green, yellow, all-red]) and stop signs, from the OSM signal / stop nodes
+    const SIG = {
+      A: { c: 64, o: 0, ph: [['ns', 38, 4, 2], ['ew', 16, 3, 1]] },  // Main & Dry Grove east (z ~ -123.5)
+      B: { c: 80, o: 17, ph: [['ns', 42, 4, 2], ['ew', 26, 4, 2]] }, // Main / Kingsley & College (z ~ 147)
+      C: { c: 80, o: 30, ph: [['ew', 42, 4, 2], ['ns', 26, 4, 2]] }, // University & College
+    };
+    let T = 0; // traffic clock (s)
+    const sigState = (id, ap) => { const s = SIG[id]; let t = ((T + s.o) % s.c + s.c) % s.c; for (const p of s.ph) { if (t < p[1]) return p[0] === ap ? 'G' : 'R'; t -= p[1]; if (t < p[2]) return p[0] === ap ? 'Y' : 'R'; t -= p[2]; if (t < p[3]) return 'R'; t -= p[3]; } return 'R'; };
+    // ---------- polyline helpers ----------
+    const offsetPts = (pts, off) => pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return [p[0] + dz / l * off, p[1] - dx / l * off]; });
+    const lanePts = (key, li) => { const R = ROADS[key], [dir, off] = R.lanes[li], p = dir > 0 ? R.pts : R.pts.slice().reverse(); return offsetPts(p, off); };
+    // first crossing of two polylines: [point, index in a, index in b]
+    function isect(a, b) {
+      for (let i = 0; i < a.length - 1; i++) for (let j = 0; j < b.length - 1; j++) {
+        const p = a[i], r = [a[i + 1][0] - p[0], a[i + 1][1] - p[1]], q = b[j], s = [b[j + 1][0] - q[0], b[j + 1][1] - q[1]], d = r[0] * s[1] - r[1] * s[0];
+        if (Math.abs(d) < 1e-9) continue; const t = ((q[0] - p[0]) * s[1] - (q[1] - p[1]) * s[0]) / d, u = ((q[0] - p[0]) * r[1] - (q[1] - p[1]) * r[0]) / d;
+        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return [[p[0] + r[0] * t, p[1] + r[1] * t], i, j];
+      }
+      return null;
+    }
+    // a turning movement: drive lane a up to where it crosses lane b, then lane b on
+    const turn = (a, b) => { const x = isect(a, b); return x ? a.slice(0, x[1] + 1).concat([x[0]], b.slice(x[2] + 1)) : null; };
+    // corners rounded with radius rad, then sampled every DS m: positions, headings, the curvature speed cap
+    const DS = 1;
+    function mkPath(pts, rad) {
+      const P = [pts[0]];
+      for (let i = 1; i < pts.length - 1; i++) {
+        const a = pts[i - 1], b = pts[i], c = pts[i + 1], l1 = Math.hypot(b[0] - a[0], b[1] - a[1]), l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+        const d1 = [(b[0] - a[0]) / l1, (b[1] - a[1]) / l1], d2 = [(c[0] - b[0]) / l2, (c[1] - b[1]) / l2], th = Math.acos(Math.max(-1, Math.min(1, d1[0] * d2[0] + d1[1] * d2[1])));
+        if (th < 0.05) { P.push(b); continue; }
+        const t = Math.min(rad * Math.tan(th / 2), l1 * 0.48, l2 * 0.48), A = [b[0] - d1[0] * t, b[1] - d1[1] * t], C = [b[0] + d2[0] * t, b[1] + d2[1] * t], n = Math.max(3, Math.ceil(th / 0.15));
+        for (let k = 0; k <= n; k++) { const u = k / n, m = 1 - u; P.push([m * m * A[0] + 2 * m * u * b[0] + u * u * C[0], m * m * A[1] + 2 * m * u * b[1] + u * u * C[1]]); } // quadratic Bezier through the corner
+      }
+      P.push(pts[pts.length - 1]);
+      let L = 0; const cum = [0]; for (let i = 1; i < P.length; i++) { L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); cum.push(L); }
+      const N = Math.max(2, Math.floor(L / DS) + 1), xs = new Float32Array(N), zs = new Float32Array(N), hx = new Float32Array(N), hz = new Float32Array(N), vc = new Float32Array(N);
+      for (let k = 0, j = 0; k < N; k++) {
+        const s = Math.min(L, k * DS); while (j < P.length - 2 && cum[j + 1] < s) j++;
+        const seg = cum[j + 1] - cum[j] || 1, u = (s - cum[j]) / seg; xs[k] = P[j][0] + (P[j + 1][0] - P[j][0]) * u; zs[k] = P[j][1] + (P[j + 1][1] - P[j][1]) * u;
+        hx[k] = (P[j + 1][0] - P[j][0]) / seg; hz[k] = (P[j + 1][1] - P[j][1]) / seg;
+      }
+      // curvature cap (2.6 m/s^2 sideways), then a backward pass so cars brake into a turn at 2 m/s^2
+      for (let k = 0; k < N; k++) { const a = Math.max(0, k - 2), b = Math.min(N - 1, k + 2), dth = Math.abs(Math.atan2(hx[a] * hz[b] - hz[a] * hx[b], hx[a] * hx[b] + hz[a] * hz[b])), kap = dth / Math.max(DS, (b - a) * DS); vc[k] = kap > 1e-3 ? Math.sqrt(2.6 / kap) : 40; }
+      for (let k = N - 2; k >= 0; k--) vc[k] = Math.min(vc[k], Math.sqrt(vc[k + 1] * vc[k + 1] + 2 * 2.0 * DS));
+      return { L: (N - 1) * DS, N, xs, zs, hx, hz, vc };
+    }
+    const at = (p, s, o) => { const f = Math.max(0, Math.min(p.N - 1.001, s / DS)), i = f | 0, u = f - i; o[0] = p.xs[i] + (p.xs[i + 1] - p.xs[i]) * u; o[1] = p.zs[i] + (p.zs[i + 1] - p.zs[i]) * u; const hx = p.hx[i] + (p.hx[i + 1] - p.hx[i]) * u, hz = p.hz[i] + (p.hz[i + 1] - p.hz[i]) * u, l = Math.hypot(hx, hz) || 1; o[2] = hx / l; o[3] = hz / l; return o; };
+    // where a route passes a stop line facing its way (within 7 m of the line's point, heading within ~45 deg), or -1
+    const nearS = (p, x, z, dx, dz) => { const dl = Math.hypot(dx, dz) || 1; let bs = -1, bd = 49; for (let k = 0; k < p.N; k++) { const d = (p.xs[k] - x) ** 2 + (p.zs[k] - z) ** 2; if (d < bd && (p.hx[k] * dx + p.hz[k] * dz) / dl > 0.7) { bd = d; bs = k * DS; } } return bs; };
+    // ---------- vehicle types (L, W, accel, headway, mix weights per street kind) ----------
+    const TYPES = {
+      sedan: { L: 4.75, W: 1.84, a: 1.6, Th: 1.2 }, hatch: { L: 4.25, W: 1.78, a: 1.6, Th: 1.2 }, suv: { L: 4.8, W: 1.92, a: 1.5, Th: 1.25 }, pickup: { L: 5.85, W: 2.0, a: 1.4, Th: 1.3 },
+      van: { L: 5.15, W: 1.99, a: 1.4, Th: 1.3 }, sbus: { L: 10.8, W: 2.44, a: 0.8, Th: 1.7, air: true, big: true }, truck: { L: 7.4, W: 2.44, a: 0.9, Th: 1.6, air: true, big: true }, tbus: { L: 12.2, W: 2.59, a: 0.8, Th: 1.7, air: true, big: true },
+    };
+    const MIX = [['sedan', 30], ['suv', 30], ['pickup', 13], ['hatch', 9], ['van', 9], ['sbus', 3], ['truck', 4]];
+    const MIXT = MIX.concat([['tbus', 4]]); // Connect Transit runs on University and College (the University & Metcalf stop)
+    // paint, by how common each colour is on US roads (white, black, greys and silver lead), sRGB 0..1
+    const PAINT = [[[0.86, 0.87, 0.87], 24], [[0.045, 0.047, 0.052], 20], [[0.33, 0.34, 0.35], 17], [[0.62, 0.63, 0.64], 12], [[0.13, 0.22, 0.42], 8], [[0.52, 0.05, 0.05], 8], [[0.07, 0.1, 0.2], 3], [[0.5, 0.42, 0.32], 3], [[0.15, 0.27, 0.2], 2], [[0.3, 0.04, 0.06], 2], [[0.85, 0.45, 0.08], 1]];
+    // ---------- the routes: lanes and turning movements, spawn rates (vehicles a minute) ----------
+    const RT = [];
+    const route = (key2, pts, rate, roads, opts) => { if (!pts) return; RT.push(Object.assign({ key: key2, pts, rate, roads, path: null, next: 0, stops: [], mix: MIX }, opts || {})); };
+    {
+      const ML = lanePts('main', 0), MR = lanePts('main', 1);
+      const MLT = [[-28.6, -340], [-28.6, 98], [-29.7, 112], [-29.7, 340]]; // the left-turn lane before College
+      const CE1 = lanePts('college', 0), CE2 = lanePts('college', 1), CW1 = lanePts('college', 2), CW2 = lanePts('college', 3);
+      const UN = lanePts('university', 0), US = lanePts('university', 1), DWE = lanePts('drygroveW', 1), DWW = lanePts('drygroveW', 0), DE1 = lanePts('drygroveE', 0), DE2 = lanePts('drygroveE', 1);
+      const K1 = lanePts('kingsley', 0), K2 = lanePts('kingsley', 1);
+      route('mainL', ML, 4.4, ['main']); route('mainR', MR, 5.4, ['main']);
+      route('mainL>dgW', turn(ML, DWW), 0.45, ['main', 'drygroveW']);
+      route('mainLT>colW', turn(MLT, CW1), 0.6, ['main', 'college']);
+      route('mainR>colE', turn(MR, CE2), 0.6, ['main', 'college']);
+      route('dgW>main', turn(DWE, ML), 0.6, ['drygroveW', 'main']);
+      route('dgE>main', turn(DE1, MR), 0.8, ['drygroveE', 'main']);
+      route('dgE2', DE2, 0.3, ['drygroveE']); // the left lane ends at Main (heard, never drawn on its own)
+      route('colE1', CE1, 1.6, ['college'], { mix: MIXT }); route('colE2', CE2, 1.2, ['college'], { mix: MIXT });
+      route('colW1', CW1, 1.6, ['college'], { mix: MIXT }); route('colW2', CW2, 1.2, ['college'], { mix: MIXT });
+      route('uniN', UN, 1.4, ['university'], { mix: MIXT }); route('uniS', US, 1.4, ['university'], { mix: MIXT });
+      route('king1', K1, 1.5, ['kingsley']); route('king2', K2, 1.2, ['kingsley']);
+    }
+    // stop lines: [x, z, the travel direction it faces, signal id and approach | 'stop' and the box that has to be clear first]
+    const STOPS = [
+      [-26.1, -137.0, 0, 1, 'A', 'ns'], [-18.0, -123.5, -1, 0, 'A', 'ew'],                                    // Main & Dry Grove east
+      [-26.1, 134.0, 0, 1, 'B', 'ns'], [-37.7, 158.0, 0, -1, 'B', 'ns'], [-45.0, 146.3, 1, 0.2, 'B', 'ew'], [-12.0, 148.2, -1, 0, 'B', 'ew'], // College at Main / Kingsley
+      [104.5, 142.4, 1, 0, 'C', 'ew'], [124.5, 141.4, -1, 0, 'C', 'ew'], [114.0, 130.5, 0, 1, 'C', 'ns'], [114.3, 153.5, 0, -1, 'C', 'ns'], // College & University
+      [114.2, -136.5, 0, 1, 'stop', [109, -133, 119, -119]], [114.1, -117.5, 0, -1, 'stop', [109, -133, 119, -119]], // all-way stop at Dry Grove east
+      [-37.0, -72.5, 1, 0, 'stop', [-31.5, -125, -21, -68]],                                                  // Dry Grove west: stop, then yield to Main
+    ];
+    // ---------- vehicle models: built once in local metres (u forward, y up, v right), with a tag per vertex: 0 fixed colour,
+    // 1 paint (vertex colour = shade), 2 head lamp, 3 tail lamp, 4 glass, 5 amber marker. Stored as pos3 nrm3 col3 tag ----------
+    function MB() { this.a = []; }
+    MB.prototype.v = function (p, n, c, t) { this.a.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2], t); };
+    const nrmOf = (a, b, c, ctr) => { const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2]; let n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx]; const l = Math.hypot(n[0], n[1], n[2]) || 1; n = [n[0] / l, n[1] / l, n[2] / l];
+      if (ctr) { const m = [(a[0] + b[0] + c[0]) / 3 - ctr[0], (a[1] + b[1] + c[1]) / 3 - ctr[1], (a[2] + b[2] + c[2]) / 3 - ctr[2]]; if (n[0] * m[0] + n[1] * m[1] + n[2] * m[2] < 0) n = [-n[0], -n[1], -n[2]]; } return n; };
+    MB.prototype.tri = function (a, b, c, col, t, ctr, n) { n = n || nrmOf(a, b, c, ctr); this.v(a, n, col, t); this.v(b, n, col, t); this.v(c, n, col, t); };
+    MB.prototype.quad = function (a, b, c, d, col, t, ctr, n) { n = n || nrmOf(a, b, c, ctr); this.tri(a, b, c, col, t, null, n); this.tri(a, c, d, col, t, null, n); };
+    // a convex side profile [[u, y]...] extruded across v0..v1
+    MB.prototype.ext = function (P, v0, v1, col, t) {
+      let cu = 0, cy = 0; for (const p of P) { cu += p[0] / P.length; cy += p[1] / P.length; } const ctr = [cu, cy, (v0 + v1) / 2];
+      for (let i = 1; i < P.length - 1; i++) for (const v of [v0, v1]) this.tri([P[0][0], P[0][1], v], [P[i][0], P[i][1], v], [P[i + 1][0], P[i + 1][1], v], col, t, null, [0, 0, v > ctr[2] ? 1 : -1]);
+      for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; this.quad([a[0], a[1], v0], [b[0], b[1], v0], [b[0], b[1], v1], [a[0], a[1], v1], col, t, ctr); }
+    };
+    MB.prototype.box = function (u0, u1, y0, y1, v0, v1, col, t) { this.ext([[u0, y0], [u1, y0], [u1, y1], [u0, y1]], v0, v1, col, t); };
+    // the greenhouse: rear-bottom, front-bottom, front-top, rear-top in (u, y); half widths wb at the belt and wt at the roof
+    MB.prototype.cabin = function (rb, fb, ft, rt, wb, wt, lo, pil) {
+      const P = (p, s, w) => [p[0], p[1], s * w], ctr = [(rb[0] + fb[0] + ft[0] + rt[0]) / 4, (rb[1] + rt[1]) / 2, 0];
+      this.quad(P(fb, -1, wb), P(fb, 1, wb), P(ft, 1, wt), P(ft, -1, wt), GLASS, 4, ctr);
+      this.quad(P(rb, -1, wb), P(rb, 1, wb), P(rt, 1, wt), P(rt, -1, wt), GLASS, 4, ctr);
+      this.quad(P(rt, -1, wt), P(rt, 1, wt), P(ft, 1, wt), P(ft, -1, wt), PS(0.94), 1, ctr);
+      for (const s of [-1, 1]) {
+        this.quad(P(rb, s, wb), P(fb, s, wb), P(ft, s, wt), P(rt, s, wt), GLASS, 4, ctr);
+        if (lo) continue;
+        // pillars: a thin A pillar, a B pillar, a broad C pillar (paint, just proud of the glass)
+        const y0 = Math.min(rb[1], fb[1]), y1 = Math.max(rt[1], ft[1]), side = (u, y) => [u, y, s * (wb + (wt - wb) * (y - y0) / ((y1 - y0) || 1) + 0.008)];
+        const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+        const pc = pil || PS(0.9), A0 = fb, A1 = ft, C0 = rb, C1 = rt, Bu = (fb[0] + rb[0]) / 2 + (ft[0] - fb[0]) * 0.2;
+        this.quad(side(A0[0], A0[1]), side(A1[0], A1[1]), side(A1[0] - 0.13, A1[1]), side(A0[0] - 0.2, A0[1]), pc, 1, ctr);
+        this.quad(side(C0[0], C0[1]), side(C1[0], C1[1]), side(C1[0] + 0.32, C1[1]), side(C0[0] + 0.42, C0[1]), pc, 1, ctr);
+        const bt = lerp(rt, ft, 0.5), bb = [Bu, fb[1]]; this.quad(side(bb[0] - 0.06, bb[1]), side(bb[0] + 0.06, bb[1]), side(bt[0] + 0.05, bt[1]), side(bt[0] - 0.05, bt[1]), DARK, 0, ctr);
+      }
+    };
+    // a wheel at (u, y = r) whose outer face is at |v| = vo: tread, sidewall, a silver hub
+    MB.prototype.wheel = function (u, r, vo, w, seg, hub) {
+      for (const s of [-1, 1]) {
+        const V = s * vo, Vi = s * (vo - w), y = r;
+        for (let k = 0; k < seg; k++) {
+          const a0 = k / seg * 6.2832, a1 = (k + 1) / seg * 6.2832, p0 = [u + Math.cos(a0) * r, y + Math.sin(a0) * r], p1 = [u + Math.cos(a1) * r, y + Math.sin(a1) * r], am = (a0 + a1) / 2;
+          this.quad([p0[0], p0[1], Vi], [p1[0], p1[1], Vi], [p1[0], p1[1], V], [p0[0], p0[1], V], TYRE, 0, null, v3n([Math.cos(am), Math.max(0.15, Math.sin(am)), 0])); // never facing down
+          this.tri([u, y, V], [p0[0], p0[1], V], [p1[0], p1[1], V], TYRE, 0, null, [0, 0, s]);
+          if (hub) { const h0 = [u + Math.cos(a0) * r * 0.6, y + Math.sin(a0) * r * 0.6], h1 = [u + Math.cos(a1) * r * 0.6, y + Math.sin(a1) * r * 0.6]; this.tri([u, y, V + s * 0.006], [h0[0], h0[1], V + s * 0.006], [h1[0], h1[1], V + s * 0.006], (k & 1) ? HUB : HUB2, 0, null, [0, 0, s]); }
+        }
+      }
+    };
+    // a dark wheel arch on the body side (upper half disc)
+    MB.prototype.arch = function (u, r, yc, vs, seg) { for (const s of [-1, 1]) for (let k = 0; k < seg; k++) { const a0 = k / seg * Math.PI, a1 = (k + 1) / seg * Math.PI; this.tri([u, yc, s * vs], [u + Math.cos(a0) * r, yc + Math.sin(a0) * r, s * vs], [u + Math.cos(a1) * r, yc + Math.sin(a1) * r, s * vs], DARK, 0, null, [0, 0, s]); } };
+    // a flat panel on the front (+u) or back (-u) face at u, spanning y0..y1 and |v| in v0..v1 on both sides (or across if v0 < 0)
+    MB.prototype.face = function (u, y0, y1, v0, v1, col, t, dir) { const n = t === 2 || t === 3 || t === 5 ? [dir, 0, 0] : [dir, 0, 0], q = (a, b) => this.quad([u, y0, a], [u, y0, b], [u, y1, b], [u, y1, a], col, t, null, n); if (v0 < 0) q(v0, v1); else { q(v0, v1); q(-v1, -v0); } };
+    // a strip on the sides at |v| = vs
+    MB.prototype.sideStrip = function (u0, u1, y0, y1, vs, col, t) { for (const s of [-1, 1]) this.quad([u0, y0, s * vs], [u1, y0, s * vs], [u1, y1, s * vs], [u0, y1, s * vs], col, t, null, [0, 0, s]); };
+    const GLASS = [0.05, 0.062, 0.075], TYRE = [0.045, 0.045, 0.05], HUB = [0.6, 0.61, 0.63], HUB2 = [0.48, 0.49, 0.51], DARK = [0.035, 0.035, 0.04], PLAS = [0.075, 0.075, 0.08], CHROME = [0.66, 0.67, 0.69];
+    const PS = (k) => [k, k, k], LENS = [0.82, 0.84, 0.86], TAIL = [0.5, 0.04, 0.035], AMBER = [0.9, 0.5, 0.08], PLATE = [0.86, 0.86, 0.8], WHITE = [0.88, 0.88, 0.86], YEL = [0.97, 0.71, 0.0];
+    // ---- the models ----
+    function carModel(type, lo) {
+      const b = new MB(), T0 = TYPES[type], h = T0.L / 2, hw = T0.W / 2, seg = lo ? 6 : 10;
+      const lamps = (uf, yh0, yh1, vh0, vh1, ur, yt0, yt1, vt0, vt1) => { b.face(uf + 0.008, yh0, yh1, vh0, vh1, LENS, 2, 1); b.face(ur - 0.008, yt0, yt1, vt0, vt1, TAIL, 3, -1); };
+      if (type === 'sedan' || type === 'hatch') {
+        const hb = type === 'hatch', r = 0.33, wu = hb ? 1.33 : 1.42;
+        b.ext(hb ? [[-h, 0.36], [h, 0.36], [h, 0.7], [h - 0.18, 0.8], [1.0, 0.95], [-h + 0.08, 0.98], [-h, 0.86]] : [[-h, 0.36], [h, 0.36], [h, 0.7], [h - 0.2, 0.8], [1.15, 0.96], [-1.5, 0.99], [-h + 0.15, 0.95], [-h, 0.8]], -hw, hw, PS(1), 1);
+        if (hb) b.cabin([-h + 0.08, 0.98], [1.0, 0.95], [0.35, 1.47], [-h + 0.28, 1.45], hw - 0.06, hw - 0.22, lo);
+        else b.cabin([-1.5, 0.99], [1.15, 0.96], [0.45, 1.44], [-0.95, 1.42], hw - 0.06, hw - 0.22, lo);
+        b.box(h - 0.1, h + 0.04, 0.3, 0.46, -hw + 0.03, hw - 0.03, PLAS, 0); b.box(-h - 0.04, -h + 0.1, 0.3, 0.46, -hw + 0.03, hw - 0.03, PLAS, 0);
+        lamps(h, 0.6, 0.69, 0.5, hw - 0.08, -h, 0.68, 0.79, 0.42, hw - 0.06);
+        b.wheel(wu, r, hw + 0.012, 0.22, seg, !lo); b.wheel(-wu, r, hw + 0.012, 0.22, seg, !lo);
+        if (!lo) { b.arch(wu, r + 0.07, 0.36, hw + 0.004, 6); b.arch(-wu, r + 0.07, 0.36, hw + 0.004, 6); b.face(h + 0.006, 0.46, 0.58, -0.45, 0.45, DARK, 0, 1); b.face(-h - 0.045, 0.5, 0.62, -0.26, 0.26, PLATE, 0, -1);
+          for (const s of [-1, 1]) b.box(0.95, 1.12, 0.98, 1.1, s > 0 ? hw : -hw - 0.13, s > 0 ? hw + 0.13 : -hw, PS(0.95), 1); }
+      } else if (type === 'suv' || type === 'van') {
+        const van = type === 'van', r = van ? 0.35 : 0.38, wu = van ? 1.52 : 1.45, by = van ? 0.4 : 0.46;
+        b.ext(van ? [[-h, by], [h, by], [h + 0.02, 0.72], [h - 0.25, 0.95], [1.6, 1.05], [-h + 0.08, 1.07], [-h, 0.86]] : [[-h, by], [h, by], [h + 0.02, 0.85], [h - 0.12, 1.02], [1.35, 1.12], [-h + 0.1, 1.15], [-h, 0.95]], -hw, hw, PS(1), 1);
+        if (van) b.cabin([-h + 0.08, 1.07], [1.6, 1.05], [0.2, 1.77], [-h + 0.22, 1.74], hw - 0.05, hw - 0.17, lo);
+        else b.cabin([-h + 0.1, 1.15], [1.35, 1.12], [0.55, 1.75], [-h + 0.28, 1.72], hw - 0.06, hw - 0.17, lo);
+        b.box(h - 0.12, h + 0.05, by - 0.1, by + 0.2, -hw + 0.02, hw - 0.02, PLAS, 0); b.box(-h - 0.05, -h + 0.12, by - 0.1, by + 0.2, -hw + 0.02, hw - 0.02, PLAS, 0);
+        if (van) lamps(h, 0.66, 0.78, 0.48, hw - 0.08, -h, 0.86, 1.05, 0.72, hw - 0.04); else lamps(h, 0.74, 0.84, 0.48, hw - 0.08, -h, 0.86, 1.0, 0.5, hw - 0.05);
+        b.wheel(wu, r, hw + 0.014, 0.24, seg, !lo); b.wheel(-wu, r, hw + 0.014, 0.24, seg, !lo);
+        if (!lo) { b.arch(wu, r + 0.08, by, hw + 0.004, 6); b.arch(-wu, r + 0.08, by, hw + 0.004, 6); b.face(h + 0.026, by + 0.22, by + 0.4, -0.5, 0.5, DARK, 0, 1); b.face(-h - 0.006, 0.62, 0.74, -0.26, 0.26, PLATE, 0, -1);
+          if (van) b.sideStrip(-0.4, -0.35, 0.45, 1.6, hw + 0.006, DARK, 0); else for (const s of [-1, 1]) b.box(-1.9, 0.5, 1.75, 1.8, s * (hw - 0.22) - 0.03, s * (hw - 0.22) + 0.03, PLAS, 0);
+          for (const s of [-1, 1]) b.box(1.05, 1.22, 1.1, 1.24, s > 0 ? hw : -hw - 0.14, s > 0 ? hw + 0.14 : -hw, PS(0.95), 1); }
+      } else if (type === 'pickup') {
+        const r = 0.41, wu = 1.85;
+        b.ext([[-h, 0.52], [h, 0.52], [h + 0.03, 0.98], [h - 0.1, 1.15], [1.55, 1.22], [-h, 1.24]], -hw, hw, PS(1), 1);
+        b.cabin([-0.85, 1.24], [1.55, 1.22], [0.75, 1.95], [-0.8, 1.92], hw - 0.04, hw - 0.14, lo, PS(0.9));
+        b.quad([-h + 0.08, 1.245, -hw + 0.1], [-0.9, 1.245, -hw + 0.1], [-0.9, 1.245, hw - 0.1], [-h + 0.08, 1.245, hw - 0.1], [0.06, 0.06, 0.065], 0, null, [0, 1, 0]); // the bed floor (liner)
+        for (const s of [-1, 1]) b.box(-h, -0.86, 1.24, 1.34, s > 0 ? hw - 0.1 : -hw, s > 0 ? hw : -hw + 0.1, PS(0.97), 1);
+        b.box(-h, -h + 0.1, 1.24, 1.34, -hw, hw, PS(0.97), 1);
+        b.box(h - 0.1, h + 0.08, 0.42, 0.66, -hw + 0.02, hw - 0.02, CHROME, 0); b.box(-h - 0.08, -h + 0.1, 0.42, 0.62, -hw + 0.02, hw - 0.02, CHROME, 0);
+        lamps(h, 0.86, 1.0, 0.62, hw - 0.08, -h, 0.85, 1.2, 0.8, hw - 0.02);
+        b.wheel(wu, r, hw + 0.016, 0.27, seg, !lo); b.wheel(-wu, r, hw + 0.016, 0.27, seg, !lo);
+        if (!lo) { b.arch(wu, r + 0.09, 0.52, hw + 0.004, 6); b.arch(-wu, r + 0.09, 0.52, hw + 0.004, 6); b.face(h + 0.032, 0.68, 0.96, -0.55, 0.55, DARK, 0, 1); b.face(h + 0.034, 0.8, 0.84, -0.55, 0.55, CHROME, 0, 1); b.face(-h - 0.085, 0.66, 0.78, -0.26, 0.26, PLATE, 0, -1);
+          for (const s of [-1, 1]) b.box(0.95, 1.15, 1.25, 1.42, s > 0 ? hw : -hw - 0.16, s > 0 ? hw + 0.16 : -hw, PLAS, 0); }
+      } else if (type === 'sbus') {
+        // a conventional (hood-in-front) school bus in school bus yellow, black rub rails and bumpers, a white roof
+        const r = 0.5, bw = hw, hu = 3.85;
+        b.ext([[hu, 0.62], [h, 0.62], [h + 0.05, 1.15], [h - 0.12, 1.42], [hu, 1.52]], -1.05, 1.05, YEL, 0);
+        b.box(-h, hu, 0.62, 3.0, -bw, bw, YEL, 0);
+        b.ext([[-h + 0.05, 3.0], [hu - 0.05, 3.0], [hu - 0.2, 3.12], [-h + 0.2, 3.12]], -bw + 0.1, bw - 0.1, WHITE, 0);
+        b.sideStrip(-h + 0.4, hu - 0.4, 1.78, 2.55, bw + 0.006, GLASS, 4);
+        if (!lo) for (let u = -h + 0.4; u <= hu - 0.35; u += 0.78) b.sideStrip(u, u + 0.11, 1.78, 2.55, bw + 0.012, YEL, 0);
+        for (const y of [1.0, 1.5, 2.72]) b.sideStrip(-h, hu, y, y + 0.07, bw + 0.012, DARK, 0);
+        b.face(hu + 0.004, 1.7, 2.68, -bw + 0.12, -0.04, GLASS, 4, 1); b.face(hu + 0.004, 1.7, 2.68, 0.04, bw - 0.12, GLASS, 4, 1);
+        b.face(-h - 0.004, 1.75, 2.55, -0.45, 0.45, GLASS, 4, -1);
+        b.box(h - 0.05, h + 0.14, 0.5, 0.78, -1.15, 1.15, DARK, 0); b.box(-h - 0.14, -h + 0.05, 0.5, 0.78, -bw, bw, DARK, 0);
+        b.face(h + 0.054, 0.85, 1.2, -0.62, 0.62, DARK, 0, 1);
+        lamps(h + 0.05, 1.0, 1.14, 0.7, 0.98, -h, 1.05, 1.3, 0.85, bw - 0.12);
+        b.face(hu + 0.006, 2.82, 2.96, 0.65, 0.95, AMBER, 5, 1); b.face(-h - 0.006, 2.82, 2.96, 0.65, 0.95, AMBER, 5, -1);
+        b.wheel(4.45, r, bw - 0.06, 0.32, seg, !lo); b.wheel(-2.3, r, bw + 0.012, 0.5, seg, !lo);
+        if (!lo) { b.arch(4.45, r + 0.1, 0.62, 1.054, 6); b.arch(-2.3, r + 0.1, 0.62, bw + 0.004, 6); }
+      } else if (type === 'truck') {
+        // a box truck: cab in the paint colour, a white box, a dark chassis
+        const r = 0.46, bw = hw;
+        b.box(-h + 0.2, 3.2, 0.55, 0.9, -0.55, 0.55, DARK, 0);
+        b.ext([[1.55, 0.62], [h, 0.62], [h + 0.04, 1.25], [h - 0.2, 1.62], [1.55, 1.62]], -1.08, 1.08, PS(1), 1);
+        b.cabin([1.6, 1.62], [h - 0.25, 1.62], [3.05, 2.5], [1.6, 2.5], 1.05, 0.98, lo, PS(0.92));
+        b.box(-h, 1.45, 0.9, 3.4, -bw, bw, WHITE, 0);
+        b.face(-h - 0.004, 0.95, 3.35, -bw + 0.05, bw - 0.05, [0.7, 0.71, 0.7], 0, -1);
+        if (!lo) { for (let y = 1.35; y < 3.3; y += 0.42) b.face(-h - 0.008, y, y + 0.03, -bw + 0.1, bw - 0.1, [0.5, 0.5, 0.5], 0, -1); b.sideStrip(-h, 1.45, 0.92, 1.05, bw + 0.006, DARK, 0); }
+        b.box(h - 0.06, h + 0.12, 0.5, 0.78, -1.1, 1.1, PLAS, 0);
+        lamps(h + 0.04, 1.02, 1.16, 0.62, 0.98, -h, 1.0, 1.18, 0.95, bw - 0.08);
+        b.face(h + 0.046, 0.8, 1.0, -0.55, 0.55, DARK, 0, 1);
+        b.wheel(2.85, r, 1.1, 0.3, seg, !lo); b.wheel(-2.0, r, bw - 0.05, 0.5, seg, !lo);
+      } else if (type === 'tbus') {
+        // a transit bus: white with a paint band, a long dark window band, a lit destination sign
+        const r = 0.5, bw = hw;
+        b.ext([[-h, 0.35], [h, 0.35], [h + 0.03, 2.8], [h - 0.15, 3.05], [-h + 0.1, 3.05], [-h, 2.85]], -bw, bw, WHITE, 0);
+        b.box(-3.5, 1.0, 3.05, 3.4, -bw + 0.35, bw - 0.35, [0.7, 0.71, 0.72], 0);
+        b.sideStrip(-h, h, 0.55, 0.95, bw + 0.006, PS(1), 1);
+        b.sideStrip(-h + 0.5, h - 1.2, 1.25, 2.5, bw + 0.006, GLASS, 4);
+        b.face(h + 0.034, 0.95, 2.6, -bw + 0.1, bw - 0.1, GLASS, 4, 1); b.face(h + 0.036, 2.62, 2.85, -0.85, 0.85, AMBER, 5, 1);
+        b.face(-h - 0.004, 1.9, 2.6, -bw + 0.25, bw - 0.25, GLASS, 4, -1);
+        lamps(h + 0.03, 0.55, 0.72, 0.85, bw - 0.12, -h, 0.6, 0.95, 0.95, bw - 0.08);
+        b.wheel(3.9, r, bw - 0.08, 0.32, seg, !lo); b.wheel(-2.4, r, bw - 0.05, 0.5, seg, !lo);
+        if (!lo) { b.arch(3.9, r + 0.1, 0.35, bw + 0.004, 6); b.arch(-2.4, r + 0.1, 0.35, bw + 0.004, 6); }
+      }
+      // matte parts (tag 0: tyres, plastics, chassis, trim) first, then the glossy ones (paint, glass, lamps): two materials
+      const A = b.a, mt = [], gs = []; for (let i = 0; i < A.length; i += 30) (A[i + 9] === 0 ? mt : gs).push(A.slice(i, i + 30));
+      const f = new Float32Array(A.length); let o = 0; for (const t of mt.concat(gs)) { f.set(t, o); o += 30; } f.nm = mt.length * 3; return f;
+    }
+    const TPL = {}; for (const k in TYPES) TPL[k] = { hi: carModel(k, false), lo: carModel(k, true) };
+    const TPLN = {}; for (const k in TPL) TPLN[k] = [TPL[k].hi.length / 10, TPL[k].lo.length / 10];
+    // ---------- state ----------
+    const cars = [], DBGM = DBG ? (DBG.mtr = { cars, roads: ROADS, routes: RT, tpl: TPLN, ms: 0, verts: 0, drawn: 0 }) : null;
+    let ready = false, vis = null, idN = 0;
+    const NIGHT = TOD === 'night', DUSK = TOD === 'sunset', LIGHTS = NIGHT || DUSK;
+    const todK = NIGHT ? 0.45 : DUSK ? 0.85 : TOD === 'morning' ? 1.1 : 1;
+    const capN = () => (quality === 0 ? 22 : 40), rateK = () => todK * (quality === 0 ? 0.65 : 1) * (DBG && DBG.mtrRate ? +DBG.mtrRate : 1);
+    function setup() {
+      ready = true;
+      const pub = (MET && MET.roads) || {}, all = DBG && DBG.mtrRoads === 'all';
+      vis = {}; for (const k in ROADS) { vis[k] = ROADS[k].drawn || all || !!pub[k]; if (pub[k] && typeof pub[k].y === 'number') ROADS[k].y = pub[k].y; }
+      MET.trafficRoads = ROADS;
+      for (const r of RT) {
+        r.path = mkPath(r.pts, r.big ? 9 : 7);
+        // a turning movement onto or off a street the world does not draw would pop in or out in plain sight: only through lanes
+        // run there (heard, not seen) until the world draws it
+        r.on = r.roads.length === 1 || r.roads.every((k) => vis[k]);
+        r.vis = r.roads.every((k) => vis[k]); const ok = r.roads.find((k) => k !== 'main'); r.yo = ok ? ROADS[ok].y : ROADS.main.y;
+        r.stops = [];
+        for (const st of STOPS) { const s = nearS(r.path, st[0], st[1], st[2], st[3]); if (s < 2 || s > r.path.L - 2) continue; if (st[4] === 'stop') r.stops.push({ s, stop: true, zone: st[5] }); else r.stops.push({ s, sig: st[4], ap: st[5] }); }
+        r.stops.sort((a, b) => a.s - b.s);
+        r.next = 0;
+      }
+      // a running start: cars spread along every lane, then a minute of traffic so the queues at the lights are already there
+      for (const r of RT) { if (!r.on) continue; const v = 13, gap = 60 * v / Math.max(0.1, r.rate * rateK()); for (let s = r.path.L - 10 - RND() * gap; s > 15; s -= gap * (0.5 + RND())) spawn(r, s); }
+      for (let i = 0; i < 300; i++) step(0.2, null);
+    }
+    function spawn(r, s) {
+      if (cars.length >= capN()) return null;
+      const type = pickW(r.mix), ty = TYPES[type];
+      const c = { id: idN++, r, s, type, L: ty.L, W: ty.W, ty, col: type === 'sbus' || type === 'tbus' && RND() < 0.4 ? [0.86, 0.87, 0.87] : pickW(PAINT), v: 0, a: 0, si: 0, wait: 0, cleared: -1, goY: -1, brake: false, hid: false, p: [0, 0, 1, 0], was: 0 };
+      if (type === 'tbus') c.col = pickW([[[0.1, 0.45, 0.32], 2], [[0.13, 0.22, 0.42], 1]]); // the band colour
+      const lim = ROADS[r.roads[0]].mph * 0.447;
+      c.vd = Math.max(9, lim + rr(-2.6, 2.4) - (ty.big ? 1.5 : 0)) * (WX === 'snow' ? 0.78 : WX === 'rain' ? 0.92 : 1);
+      c.look = RND() < 0.14; // slows down passing the game (brake lights by the field)
+      c.v = Math.min(c.vd, r.path.vc[Math.min(r.path.N - 1, (s / DS) | 0)]);
+      at(r.path, s, c.p); while (c.si < r.stops.length && r.stops[c.si].s < s) c.si++;
+      cars.push(c); return c;
+    }
+    // tests: put a car on a route at frame-F z (or x for an east-west route), optionally of a type and moving at v m/s
+    if (DBGM) DBGM.put = (key, at0, type, v) => { if (!ready) return 'not ready'; const r = RT.find((q) => q.key === key); if (!r) return 'no route'; let bs = 0, bd = 1e9; for (let k = 0; k < r.path.N; k++) { const d = Math.abs((Math.abs(r.path.hz[k]) > 0.7 ? r.path.zs[k] : r.path.xs[k]) - at0); if (d < bd) { bd = d; bs = k * DS; } } const c = spawn(r, bs); if (!c) return 'cap'; if (type && TYPES[type]) { c.type = type; c.ty = TYPES[type]; c.L = c.ty.L; c.W = c.ty.W; } if (v != null) c.v = v; return c.id; };
+    // the camera eye as an obstacle (frame F), refreshed every frame
+    const eye = { x: 0, z: 0, y: 99, k: M2Y };
+    const IDM = (c, gap, dv, v0) => { const s0 = S0(c), ss = s0 + Math.max(0, c.v * c.ty.Th + c.v * dv / (2 * Math.sqrt(c.ty.a * 2.4))); return c.ty.a * (1 - Math.pow(c.v / Math.max(0.1, v0), 4) - (ss / Math.max(0.1, gap)) * (ss / Math.max(0.1, gap))); };
+    const S0 = (c) => (c.ty.big ? 3 : 2.2);
+    function zoneClear(z, self) { for (const o of cars) { if (o === self) continue; const x = o.p[0], q = o.p[1]; if (x > z[0] && x < z[2] && q > z[1] && q < z[3]) return false; } return true; }
+    function step(dt, ev) {
+      T += dt;
+      for (const c of cars) at(c.r.path, c.s, c.p);
+      for (const c of cars) {
+        const r = c.r, P = c.p, hx = P[2], hz = P[3];
+        let v0 = Math.min(c.vd, r.path.vc[Math.min(r.path.N - 1, Math.round(c.s / DS))]);
+        if (c.look && r.key.startsWith('main') && P[1] > -28 && P[1] < 26) v0 = Math.min(v0, 8.5);
+        let acc = IDM(c, 1e4, 0, v0);
+        // the car ahead (any route): within 80 m, roughly in my path, going my way
+        let lead = null, lg = 1e9;
+        for (const o of cars) {
+          if (o === c) continue; const dx = o.p[0] - P[0], dz = o.p[1] - P[1], al = dx * hx + dz * hz; if (al <= 0 || al > 80) continue;
+          const lat = Math.abs(dx * hz - dz * hx), hd = o.p[2] * hx + o.p[3] * hz; if (hd < 0.2 || lat > (hd > 0.95 ? 1.6 : 1.25)) continue;
+          if (hd <= 0.95) { const bx = -dx, bz = -dz, al2 = bx * o.p[2] + bz * o.p[3]; if (al2 > 0 && Math.abs(bx * o.p[3] - bz * o.p[2]) < 1.25 && o.id > c.id) continue; } // two crossing paths: the older car goes first
+          const g = al - (c.L + o.L) / 2; if (g < lg) { lg = g; lead = o; }
+        }
+        if (lead) acc = Math.min(acc, IDM(c, lg, c.v - lead.v, v0));
+        // the next stop line
+        while (c.si < r.stops.length && r.stops[c.si].s < c.s - c.L / 2) c.si++;
+        const st = r.stops[c.si];
+        if (st) {
+          const g = st.s - c.s - c.L / 2 - 0.4;
+          let must = false;
+          if (g < 0) must = false; // already over the line: clear the junction
+          else if (st.sig) { const ss = sigState(st.sig, st.ap); if (ss === 'R') must = c.goY !== c.si; else if (ss === 'Y') { if (c.goY !== c.si) { if (g > c.v * c.v / (2 * 3.2) + 1) must = true; else c.goY = c.si; } } }
+          else if (c.cleared !== c.si) {
+            must = true;
+            if (g < 2.5 && c.v < 0.4) { c.wait += dt; if (c.wait > 1.3 && zoneClear(st.zone, c)) { c.cleared = c.si; c.wait = 0; must = false; } } else c.wait = 0;
+          }
+          if (must && g < 140) acc = Math.min(acc, IDM(c, Math.max(0.15, g + S0(c) - 0.5), c.v, v0)); // stops about half a metre short of the line
+        }
+        // the camera: a car never drives through it (it waits behind; if the eye is inside it, it is not drawn)
+        c.hid = false;
+        if (eye.y < 4.5) {
+          const dx = eye.x - P[0], dz = eye.z - P[1], al = dx * hx + dz * hz, lat = Math.abs(dx * hz - dz * hx);
+          if (lat < c.W / 2 + 0.9) { if (Math.abs(al) < c.L / 2 + 0.6) c.hid = true; else if (al > 0 && al < 60) acc = Math.min(acc, IDM(c, al - c.L / 2 - 1.2, c.v, v0)); }
+        }
+        acc = Math.max(-7, acc);
+        const v1 = Math.max(0, c.v + acc * dt); c.a = (v1 - c.v) / Math.max(1e-3, dt); c.s += (c.v + v1) / 2 * dt; c.v = v1;
+        c.brake = acc < -0.5 || (c.v < 0.6 && acc < 0.2);
+        // air brakes: a hiss as a bus or truck comes to a stop
+        if (ev && c.ty.air) { if (c.v > 3) c.was = 1; else if (c.was && c.v < 0.15) { c.was = 0; ev.push(['hiss', c]); } }
+      }
+      // retire cars at the end of their route, start new ones
+      for (let i = cars.length - 1; i >= 0; i--) if (cars[i].s >= cars[i].r.path.L - 0.5) cars.splice(i, 1);
+      const rk = rateK();
+      for (const r of RT) {
+        if (!r.on) continue; r.next -= dt;
+        if (r.next > 0) continue;
+        let clear = true; const p0 = r.path; for (const o of cars) { if (Math.hypot(o.p[0] - p0.xs[0], o.p[1] - p0.zs[0]) < 16 + o.L / 2) { clear = false; break; } }
+        if (clear && spawn(r, 0)) r.next = Math.max(2.2, -Math.log(1 - RND() * 0.999) * 60 / Math.max(0.05, r.rate * rk)); else r.next = 0.5;
+      }
+    }
+    // ---------- GL: one dynamic buffer in the venue's static list, drawn before the see-through layers ----------
+    const MAXV = 18000, buf = new Float32Array(MAXV * 12), bufM = new Float32Array(MAXV * 12); // glossy (paint, glass, lamps) and matte
+    let S = null, SM = null;
+    function initGL() {
+      if (!G) return;
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, buf.byteLength, gl.DYNAMIC_DRAW); G.bufs.push(b);
+      const bm = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bm); gl.bufferData(gl.ARRAY_BUFFER, bufM.byteLength, gl.DYNAMIC_DRAW); G.bufs.push(bm);
+      S = { k: 'mcars', b, n: 0, tex: G.white, cast: false, c0: false, kind: 0, mat: [0.34, 0, 0, 0], blend: false };
+      SM = { k: 'mcars2', b: bm, n: 0, tex: G.white, cast: false, c0: false, kind: 0, mat: [0.82, 0, 0, 0], blend: false };
+      let i = statics.findIndex((q) => q.blend); if (i < 0) i = statics.length; statics.splice(i, 0, S, SM);
+    }
+    // ---------- per frame ----------
+    const camR = [1, 0], evq = [];
+    let dbgT = 0;
+    function frame(dt) {
+      if (!G || !S || (DBG && DBG.mtrOff)) { if (S) S.n = SM.n = 0; return; }
+      const t0 = performance.now();
+      if (!ready) setup();
+      // the eye in frame F
+      { const f = metF(cam.e[0], cam.e[2]), e1 = metE(f[0] + 1, f[1]), e0 = metE(f[0], f[1]); eye.x = f[0]; eye.z = f[1]; eye.k = Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) || M2Y; eye.y = cam.e[1] / eye.k;
+        const fx = cam.c[0] - cam.e[0], fz = cam.c[2] - cam.e[2], l = Math.hypot(fx, fz) || 1; camR[0] = fz / l; camR[1] = -fx / l; }
+      const d = Math.max(0, Math.min(0.1, dt || 0)); evq.length = 0;
+      // the big field spreads the streets MET_K times longer (metE), so the simulation in frame F runs at 1 / MET_K: real speeds stay
+      if (d > 0 && !(DBG && DBG.mtrFreeze)) step(d / MET_K, evq);
+      // geometry
+      let n = 0, nM = 0, drawn = 0; const q = quality, loD = q >= 2 ? 48 : q === 1 ? 34 : 22, dayBlob = G.shadow ? 0.5 : 0.62;
+      const uz0 = MET.roads && MET.roads.university && MET.roads.university.z0, onDrawn = (c) => !(uz0 != null && c.r.roads.indexOf('university') >= 0 && Math.abs(c.p[0] - 113.8) < 7 && c.p[1] < uz0); // University St is only drawn north of z0
+      const order = cars.filter((c) => c.r.vis && !c.hid && onDrawn(c)).map((c) => [c, Math.hypot(c.p[0] - eye.x, c.p[1] - eye.z)]).sort((a, b) => a[1] - b[1]);
+      for (const [c, dist] of order) {
+        const P = c.p, E0 = metE(P[0], P[1]), E1 = metE(P[0] + P[2], P[1] + P[3]);
+        let fx = E1[0] - E0[0], fz = E1[1] - E0[1]; const kf = Math.hypot(fx, fz) || M2Y, k = M2Y; fx /= kf; fz /= kf; // sizes and heights in real units (the big field keeps cars their size)
+        const rx = fz, rz = -fx, y0 = (Math.abs(P[0] - ROADS.main.pts[0][0]) < 5.6 && P[1] > -340 && P[1] < 340 ? ROADS.main.y : c.r.yo) * k; // Main sits 0.15 m below its curbs
+        // off screen: skip (a sphere test against the view-projection)
+        { const R = (c.L / 2 + 1.5) * k, X = E0[0], Y = y0 + k, Z = E0[1], w = VP[3] * X + VP[7] * Y + VP[11] * Z + VP[15], cx = VP[0] * X + VP[4] * Y + VP[8] * Z + VP[12], cy = VP[1] * X + VP[5] * Y + VP[9] * Z + VP[13];
+          if (w < -R || Math.abs(cx) > w + R * 2.5 || Math.abs(cy) > w + R * 2.5) continue; }
+        const lo = dist > loD * (c.ty.big ? 1.4 : 1), tp = lo ? TPL[c.type].lo : TPL[c.type].hi, nv = tp.length / 10;
+        const nm = tp.nm; if (n + nv - nm > MAXV || nM + nm > MAXV) break;
+        const pc = c.col, dive = Math.max(-0.018, Math.min(0.012, -c.a * 0.004)), tl = LIGHTS ? (c.brake ? 3.2 : 1.35) : c.brake ? 2.2 : 0, hl = LIGHTS;
+        for (let i = 0, o = nM * 12, B = bufM; i < nv; i++, o += 12) {
+          if (i === nm) { B = buf; o = n * 12; }
+          const j = i * 10, u = tp[j], yy = tp[j + 1] + u * dive, v = tp[j + 2], tg = tp[j + 9];
+          B[o] = E0[0] + (u * fx + v * rx) * k; B[o + 1] = y0 + yy * k; B[o + 2] = E0[1] + (u * fz + v * rz) * k;
+          let nx = tp[j + 3], ny = tp[j + 4], nz = tp[j + 5], cr = tp[j + 6], cg = tp[j + 7], cb = tp[j + 8];
+          if (tg === 1) { cr *= pc[0]; cg *= pc[1]; cb *= pc[2]; }
+          else if (tg === 2) { if (hl) { cr = 2.4; cg = 2.3; cb = 2.0; nx = ny = nz = 0; } }
+          else if (tg === 3) { if (tl > 0) { cr = tl; cg = tl * 0.06; cb = tl * 0.05; nx = ny = nz = 0; } }
+          else if (tg === 5) { if (LIGHTS || c.type === 'tbus') { cr = 1.6; cg = 0.85; cb = 0.15; nx = ny = nz = 0; } }
+          B[o + 3] = nx * fx + nz * rx; B[o + 4] = ny; B[o + 5] = nx * fz + nz * rz;
+          B[o + 6] = cr; B[o + 7] = cg; B[o + 8] = cb; B[o + 9] = 1; B[o + 10] = 0.5; B[o + 11] = 0.5;
+        }
+        n += nv - nm; nM += nm; drawn++;
+        // a soft blob shadow (feathered rectangle) under the car, and the headlight pool on the road at night
+        { const yb = y0 + 0.02 * k, L1 = c.L * 0.44, W1 = c.W * 0.42, L2 = c.L * 0.6, W2 = c.W * 0.66, al = LIGHTS ? 0.32 : dayBlob, cI = [0, 0, 0, al], cO = [0, 0, 0, 0];
+          const pt = (u, v) => [E0[0] + (u * fx + v * rx) * k, E0[1] + (u * fz + v * rz) * k];
+          const ring = [[-L1, -W1, -L2, -W2], [L1, -W1, L2, -W2], [L1, W1, L2, W2], [-L1, W1, -L2, W2]]; tr.grow(54);
+          const V = (p, col) => tr.v(p[0], yb, p[1], 0, 0, 0, col, 0.5, 0.5);
+          { const a = pt(-L1, -W1), b2 = pt(L1, -W1), c2 = pt(L1, W1), d2 = pt(-L1, W1); V(a, cI); V(b2, cI); V(c2, cI); V(a, cI); V(c2, cI); V(d2, cI); }
+          for (let m = 0; m < 4; m++) { const A = ring[m], B2 = ring[(m + 1) % 4], i0 = pt(A[0], A[1]), i1 = pt(B2[0], B2[1]), o0 = pt(A[2], A[3]), o1 = pt(B2[2], B2[3]); V(i0, cI); V(i1, cI); V(o1, cO); V(i0, cI); V(o1, cO); V(o0, cO); }
+          if (hl && dist < 160) { const h2 = c.L / 2, a = pt(h2 + 0.4, -c.W * 0.4), b2 = pt(h2 + 0.4, c.W * 0.4), c2 = pt(h2 + 15, c.W * 1.25), d2 = pt(h2 + 15, -c.W * 1.25), cn = [1, 0.93, 0.78, NIGHT ? 0.16 : 0.07], cf = [1, 0.93, 0.78, 0]; tr.grow(6); V(a, cn); V(b2, cn); V(c2, cf); V(a, cn); V(c2, cf); V(d2, cf); }
+        }
+      }
+      S.n = n; SM.n = nM;
+      if (n) { gl.bindBuffer(gl.ARRAY_BUFFER, S.b); gl.bufferSubData(gl.ARRAY_BUFFER, 0, buf.subarray(0, n * 12)); }
+      if (nM) { gl.bindBuffer(gl.ARRAY_BUFFER, SM.b); gl.bufferSubData(gl.ARRAY_BUFFER, 0, bufM.subarray(0, nM * 12)); }
+      sound(d, evq);
+      if (DBGM) { DBGM.ms = DBGM.ms * 0.95 + (performance.now() - t0) * 0.05; DBGM.verts = n + nM; DBGM.drawn = drawn; DBGM.n = cars.length; DBGM.T = T; dbgT++; }
+    }
+    // ---------- sound: tyre roar and engine of the nearest few cars (Doppler, distance, pan from the camera), a distant horn now
+    // and then, the air-brake hiss of a bus or truck stopping. Through the game's output: muted with it, never (re)opened after the
+    // game has closed its audio (the same guard as the schoolyard sound), and every voice fades out on its own within half a
+    // second if frames stop coming (a pause, a hidden tab, the end of the game) ----------
+    const AU = { v: [], nb: null, dead: false, upd: 0, horn: performance.now() + 25000 + RND() * 50000 };
+    if (DBGM) DBGM.au = AU;
+    { const close0 = sfx.close; sfx.close = () => { AU.dead = true; try { for (const v of AU.v) { v.src.stop(); v.osc.stop(); } } catch (e) {} AU.v.length = 0; close0(); }; }
+    const actx = () => { if (AU.dead || sfx.muted || !sfx.out) return null; const ac = sfx.ctx(); return ac && ac.state !== 'closed' ? ac : null; };
+    function noiseBuf(ac) {
+      if (AU.nb) return AU.nb;
+      const n = ac.sampleRate * 2, b = ac.createBuffer(1, n, ac.sampleRate), dd = b.getChannelData(0); let s = 20261108 >>> 0, br = 0;
+      for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; const w = s / 4294967296 * 2 - 1; br = br * 0.86 + w * 0.5; dd[i] = br * 0.55; } // a reddish noise, about 0.3 rms
+      return (AU.nb = b);
+    }
+    function voice(ac) {
+      const src = ac.createBufferSource(); src.buffer = noiseBuf(ac); src.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.6;
+      const gT = ac.createGain(); gT.gain.value = 0.7;
+      const osc = ac.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 40;
+      const lpE = ac.createBiquadFilter(); lpE.type = 'lowpass'; lpE.frequency.value = 170; const gE = ac.createGain(); gE.gain.value = 0;
+      const g = ac.createGain(); g.gain.value = 0; const pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      src.connect(lp); lp.connect(gT); gT.connect(g); osc.connect(lpE); lpE.connect(gE); gE.connect(g);
+      if (pan) { g.connect(pan); pan.connect(sfx.out); } else g.connect(sfx.out);
+      src.start(0, RND() * 1.9); osc.start();
+      return { src, lp, gT, osc, gE, g, pan, car: null };
+    }
+    // where a car is for the listener: distance (m), pan, Doppler factor, level
+    function hear(c) {
+      const dx = (c.p[0] - eye.x) * MET_K, dz = (c.p[1] - eye.z) * MET_K, dy = -eye.y * MET_K + 0.6, d = Math.hypot(dx, dz, dy) || 1; // real metres (the big field spreads F)
+      const vr = -(c.p[2] * dx + c.p[3] * dz) / d * c.v; // + approaching
+      const pan = Math.max(-0.85, Math.min(0.85, (dx * camR[0] + dz * camR[1]) / Math.max(4, Math.hypot(dx, dz))));
+      const att = 1 / Math.sqrt(1 + (d / 10) * (d / 10));
+      return { d, pan, dop: Math.max(0.8, Math.min(1.25, 343 / (343 - vr))), att };
+    }
+    function oneShot(kind, c) {
+      const ac = actx(); if (!ac) return; const h = hear(c); if (h.d > 220) return;
+      try {
+        const t = ac.currentTime, g = ac.createGain(), pan = ac.createStereoPanner ? ac.createStereoPanner() : null; if (pan) { pan.pan.value = h.pan; g.connect(pan); pan.connect(sfx.out); } else g.connect(sfx.out);
+        if (kind === 'hiss') {
+          const src = ac.createBufferSource(), f = ac.createBiquadFilter(); src.buffer = noiseBuf(ac); src.playbackRate.value = 2.2; f.type = 'highpass'; f.frequency.value = 2400; f.Q.value = 0.5;
+          const v = 0.16 * h.att; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + 0.04); g.gain.setTargetAtTime(0.0001, t + 0.18, 0.28);
+          src.connect(f); f.connect(g); src.start(t, RND()); src.stop(t + 1.6);
+        } else { // a car horn: two tones near 400 and 500 Hz through the body of the horn, one or two toots
+          const n = RND() < 0.35 ? 2 : 1, len = 0.16 + RND() * 0.28, f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 0.7; f.connect(g);
+          const v = 0.07 * h.att, base = c.ty.big ? 0.62 : 1;
+          for (const fq of [405, 505]) { const o = ac.createOscillator(); o.type = 'square'; o.frequency.value = fq * base * h.dop; o.connect(f); o.start(t); o.stop(t + n * (len + 0.12) + 0.05); }
+          g.gain.setValueAtTime(0.0001, t); for (let k = 0; k < n; k++) { const t1 = t + k * (len + 0.12); g.gain.setValueAtTime(0.0001, t1); g.gain.linearRampToValueAtTime(v, t1 + 0.015); g.gain.setValueAtTime(v, t1 + len); g.gain.linearRampToValueAtTime(0.0001, t1 + len + 0.03); }
+        }
+      } catch (e) {}
+    }
+    function sound(dt, ev) {
+      const now = performance.now();
+      if (AU.dead) return;
+      if (sfx.muted || !sfx.out) { if (AU.v.length && sfx.out) { try { const ac = sfx.ctx(), t = ac.currentTime; for (const v of AU.v) { v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0, t, 0.05); } } catch (e) {} } return; }
+      for (const e of ev) oneShot(e[0], e[1]);
+      if (now > AU.horn) { AU.horn = now + 35000 + RND() * 85000; const far = cars.filter((c) => { const dd = Math.hypot(c.p[0] - eye.x, c.p[1] - eye.z); return dd > 30 && dd < 170; }); if (far.length) oneShot('horn', far[(RND() * far.length) | 0]); }
+      if (now < AU.upd) return; AU.upd = now + 45;
+      const ac = actx(); if (!ac) return;
+      const NV = quality === 0 ? 2 : 3;
+      try {
+        while (AU.v.length < NV) AU.v.push(voice(ac));
+        // the loudest few cars keep (or get) a voice
+        const cand = cars.map((c) => [c, hear(c)]).filter((q) => q[1].d < 110).sort((a, b) => (b[1].att * Math.min(1, b[0].v / 10 + 0.15)) - (a[1].att * Math.min(1, a[0].v / 10 + 0.15))).slice(0, NV);
+        const want = new Set(cand.map((q) => q[0]));
+        for (const v of AU.v) if (v.car && !want.has(v.car)) v.car = null;
+        for (const [c] of cand) if (!AU.v.some((v) => v.car === c)) { const f = AU.v.find((v) => !v.car); if (f) f.car = c; }
+        const t = ac.currentTime;
+        for (const v of AU.v) {
+          let lvl = 0;
+          if (v.car && cars.indexOf(v.car) >= 0) {
+            const c = v.car, h = hear(c), sp = c.v, big = c.ty.big;
+            lvl = 0.085 * h.att * Math.min(1.15, 0.12 + sp / 13) * (big ? 1.5 : 1) * (WX === 'rain' ? 1.25 : 1);
+            v.src.playbackRate.setTargetAtTime((0.8 + sp / 40) * h.dop, t, 0.05);
+            v.lp.frequency.setTargetAtTime((380 + sp * 52 + (WX === 'rain' ? 900 : 0)) * h.dop, t, 0.05);
+            v.osc.frequency.setTargetAtTime(((big ? 26 : 34) + sp * (big ? 1.1 : 1.7) + Math.max(0, c.a) * 6) * h.dop, t, 0.08);
+            v.gE.gain.setTargetAtTime((big ? 0.55 : 0.22) * (0.5 + Math.min(1, Math.max(0, c.a) / 1.2) * 0.8), t, 0.1);
+            if (v.pan) v.pan.pan.setTargetAtTime(h.pan, t, 0.05);
+          }
+          v.lvl = lvl; v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(lvl, t, 0.09); v.g.gain.setTargetAtTime(0, t + 0.45, 0.15); // the fade-out watchdog
+        }
+      } catch (e) {}
+    }
+    return { gl: initGL, frame, roads: ROADS, cars };
+  })() : null;
+  function metTrafficGL() { if (MTR) try { MTR.gl(); } catch (e) { console.error('blitz3d: traffic', e); } }
+  function metTrafficFrame(dt) { if (MTR) try { MTR.frame(dt); } catch (e) { if (!metTrafficFrame.err) { metTrafficFrame.err = 1; console.error('blitz3d: traffic', e); } } }
+  // =====================================================================================
+  // Sky, light and weather: the time of day (TOD: morning | noon | sunset | night) and the weather (WXK: clear | cloudy | overcast |
+  // rain | storm | snow | fog) at either venue. The default looks are untouched: the stadium's clear night and its clear / rain / snow
+  // days (the old presets in 10-setup.js) and Metcalf's clear lunch hour (12-venue.js). Everything else is composed here into SKY,
+  // LDIR and the four point lights before the GL setup reads them, plus a few shader additions that are only compiled in when they are
+  // on (street-light pools at night, snow cover, wet pavement), the extended sky shader, lightning with thunder, and the rain / wind
+  // sound. Nothing here draws from the game's random streams (rng, crand): lightning and the sound use Math.random.
+  // =====================================================================================
+  // sun positions for Normal, Illinois (40.51 N, 88.99 W) in early October (NOAA solar position): morning about 8:15 CDT (13.7 deg up,
+  // true bearing 108.8 deg), noon the venue's own (Metcalf: 12:15, 45.3 deg at 164 deg; the stadium: its old clear-day light), sunset
+  // about 17:15 CDT, the golden last hour (13.3 deg up at 251.3 deg; lower, the trees and houses across Main Street shade the whole
+  // schoolyard). Metcalf's frame F has +x east and +z north, its north 2 deg west of true (F bearing =
+  // true + 2). The stadium is on no map: its north is put where its old noon sun stands due south, so its field runs from the south-east
+  // (your end zone) to the north-west and the sun sets beyond the far end zone.
+  const SKY_DEG = Math.PI / 180;
+  const SKY_N = METCALF ? [0, 1] : [0.7522, -0.6582], SKY_E = METCALF ? [1, 0] : [-0.6582, -0.7522];
+  function skyDir(az, el) {
+    const a = (az + (METCALF ? 2 : 0)) * SKY_DEG, e = el * SKY_DEG, hx = Math.sin(a) * SKY_E[0] + Math.cos(a) * SKY_N[0], hz = Math.sin(a) * SKY_E[1] + Math.cos(a) * SKY_N[1];
+    return [hx * Math.cos(e), Math.sin(e), hz * Math.cos(e)];
+  }
+  // the schoolyard's lights at night (frame F metres): the five cobra-head street lights over South Main Street (heads 8.4 m up, from
+  // the aerial's pole shadows), the acorn post lamp by the south-west gate, and wall packs on the school's west walls over the blacktop
+  // and the drop-off lot. No pole lights stand in the lot (none show in the 2022 aerial), and no wall fixture is resolvable in the
+  // photos: the wall packs are a plausible stand-in (over the entrance and along the walls, 3.2-4.6 m up). [x, y, z, power]
+  const MET_LAMPS = {
+    key: [[-22.95, 8.38, 10.4, 330], [-22.95, 8.38, -20.6, 330], [-16.1, 3.66, -16.0, 70], [34.38, 3.0, -0.2, 150]], // lit with highlights
+    pool: [[-22.95, 8.38, 42.8, 330], [-22.85, 8.38, -52.2, 330], [-22.95, 8.38, 74.4, 330], [33.58, 3.15, 12.5, 150], [33.73, 4.45, -10, 150], [33.73, 4.45, -22, 150], [33.98, 3.75, -38.5, 150], [34.05, 3.45, -48, 150]],
+    wall: [[33.8, 3.3, 12.5], [34.6, 3.15, -0.2], [33.95, 4.6, -10], [33.95, 4.6, -22], [34.2, 3.9, -38.5], [34.27, 3.6, -48]],
+  };
+  const LAMPC = [1.0, 0.84, 0.66]; // warm white (about 3000 K)
+  const lampE = (x, y, z) => { const e = metE(x, z); return [e[0], y * M2Y, e[1]]; }; // metE spreads the ground plan on the big field; heights stay
+  const SKX = (() => {
+    const X = { on: false, cov: 0, halo: [0, 0, 0], band: [0, 0, 0], cloudD: [0.5, 0.52, 0.58], cloudL: [1.4, 1.4, 1.4], horL: 1, star: 1, moon: 0, disc: [1, 1, 1],
+      pools: null, poolK: 40, snow: null, wet: 0, storm: false, base: null, F: 0, pulses: [], next: 0, thunder: null };
+    // the old looks stay exactly as they were
+    const legacy = METCALF ? TOD === 'noon' && WXK === 'clear' : (TOD === 'night' && WXK === 'clear') || (TOD === 'noon' && (WXK === 'clear' || WXK === 'rain' || WXK === 'snow'));
+    if (legacy) return X;
+    X.on = true;
+    const cl = (o) => JSON.parse(JSON.stringify(o)), mul = (a, b) => [a[0] * b[0], a[1] * b[1], a[2] * b[2]], scl = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+    const fromLin = (c) => c.map((v) => Math.pow(Math.max(v, 0), 1 / 2.2)), toLin = (c) => c.map((v) => v * (v * (v * 0.305306011 + 0.682171111) + 0.012522878));
+    const day = METCALF ? MET.day : SKYP.clear, day2 = TOD === 'morning' || TOD === 'sunset';
+    const SUNP = { morning: skyDir(108.8, 13.7), noon: day.L, sunset: skyDir(251.3, 13.3) };
+    // a clear night at the schoolyard: a dark sky with the town's glow low down, a moon in the south-east for a key light, and the lamps
+    const METNIGHT = { top: [0.012, 0.016, 0.034], hor: [0.1, 0.088, 0.09], fog: [0.03, 0.03, 0.035], fogR: [60, 420, 0.6], amb: [0.02, 0.024, 0.036], gnd: [0.02, 0.019, 0.017],
+      sun: [0.09, 0.11, 0.16], L: skyDir(125, 34), night: 1, cloud: 0.25, glow: 0.7, tower: 0, exp: 1.35, soft: 1, env: 1 };
+    // ---- 1. the clear sky at this time of day ----
+    const clearAt = (t) => {
+      if (t === 'noon') return cl(day);
+      if (t === 'night') return cl(METCALF ? METNIGHT : SKYP.night);
+      const S = cl(day), m = t === 'morning';
+      S.L = SUNP[t];
+      S.sun = mul(day.sun, m ? [1.0, 0.84, 0.64] : [1.15, 0.66, 0.3]);       // low sun through more air: warm, golden at sunset
+      S.amb = mul(day.amb, m ? [0.82, 0.9, 1.04] : [0.72, 0.64, 0.74]);       // cool shadows in the morning, violet at sunset
+      S.gnd = mul(day.gnd, m ? [0.86, 0.84, 0.8] : [0.82, 0.66, 0.5]);
+      S.top = m ? [0.13, 0.31, 0.7] : [0.1, 0.13, 0.37];
+      S.hor = m ? [0.8, 0.77, 0.71] : [1.0, 0.57, 0.31];
+      S.fog = m ? [0.66, 0.66, 0.68] : [0.6, 0.44, 0.36];
+      S.exp = day.exp * (m ? 1.25 : 1.45);
+      S.glow = m ? 0 : 0.25; S.tower = METCALF || m ? 0 : 0.6;
+      return S;
+    };
+    // ---- 2. the weather on top ----
+    const OVC = { top: [0.42, 0.44, 0.48], hor: [0.66, 0.68, 0.71], fog: [0.56, 0.58, 0.61], fogR: [50, 330, 0.7], amb: [0.5, 0.53, 0.6], gnd: [0.2, 0.21, 0.2], sun: [0.6, 0.6, 0.6], night: 0, cloud: 1, glow: 0.3, tower: 0.35, exp: 0.64, soft: 2, env: 0.85 };
+    const R0 = SKYP.rain, STORM = Object.assign(cl(R0), { top: scl(R0.top, 0.5), hor: scl(R0.hor, 0.55), fog: scl(R0.fog, 0.45), fogR: [24, 180, 0.85], amb: scl(R0.amb, 0.55), gnd: scl(R0.gnd, 0.6), sun: scl(R0.sun, 0.4), exp: R0.exp * 1.35, tower: 0.85, glow: 0.8 });
+    const FOGC = [0.64, 0.65, 0.67], FOGW = { top: fromLin(FOGC), hor: fromLin(FOGC), fog: FOGC, fogR: METCALF ? [2, 62, 0.97] : [3, 85, 0.97], amb: [0.52, 0.54, 0.58], gnd: [0.22, 0.22, 0.21], sun: [0.7, 0.68, 0.64], night: 0, cloud: 0, glow: 0, tower: 0.5, exp: 0.62, soft: 2, env: 0.7 };
+    const TPL = { overcast: OVC, rain: R0, storm: STORM, snow: SKYP.snow, fog: FOGW };
+    const LV = { morning: 0.78, noon: 1, sunset: 0.5 }, TINT = { morning: [1.0, 0.97, 0.93], noon: [1, 1, 1], sunset: [1.1, 0.86, 0.76] };
+    const TOWD = { clear: 0, cloudy: 0, overcast: 0.35, rain: 0.55, storm: 0.85, snow: 0.4, fog: 0.5 };
+    let S;
+    if (WXK === 'clear' || WXK === 'cloudy') {
+      S = clearAt(TOD);
+      if (WXK === 'cloudy') { S.cloud = Math.max(S.cloud, 0.9); X.cov = 0.1; S.sun = scl(S.sun, 0.8); S.amb = scl(S.amb, 1.15); S.exp *= 1.04; X.star = 0.5; }
+    } else if (TOD !== 'night') {
+      // a grey day: the weather's own (noon) look, dimmed and tinted for the morning or the sunset, the sun faint behind it
+      const T = TPL[WXK], k = LV[TOD], c = TINT[TOD], ks = Math.pow(k, 1 / 2.2);
+      S = cl(T);
+      for (const f of ['amb', 'gnd', 'sun', 'fog']) S[f] = mul(scl(T[f], k), c);
+      S.top = mul(scl(T.top, ks), c); S.hor = mul(scl(T.hor, ks), c); S.exp = T.exp / Math.sqrt(k);
+      S.L = METCALF ? day.L : R0.L; // under cloud the faint key light stays high (a low one only drew the stands' shadow edge across the field)
+      S.cloud = WXK === 'fog' ? 0 : 1; X.cov = WXK === 'fog' ? 0 : WXK === 'storm' ? 0.48 : 0.4; X.disc = [0, 0, 0];
+      if (METCALF) { S.gnd = mul(scl([0.14, 0.14, 0.135], k * (WXK === 'snow' ? 2.2 : WXK === 'storm' ? 0.7 : 1)), c); S.tower = 0; S.glow = 0; } // the old schoolyard rain ground bounce
+      if (WXK === 'snow') S.amb = scl(S.amb, 1.05);
+    } else {
+      // a grey night: the night's lights under a low sky (stars and moon hidden), the cloud base lit from below by the town (the
+      // stadium's lights in the stadium)
+      const B = clearAt('night'), g = METCALF ? 1 : 1.5;
+      S = cl(B); X.star = 0; S.cloud = WXK === 'fog' ? 0 : 1; X.cov = WXK === 'fog' ? 0 : 0.42;
+      if (METCALF) S.sun = scl(B.sun, 0.18);
+      const ov = { overcast: [1, [45, 300, 0.7]], rain: [0.85, [30, 220, 0.8]], storm: [0.6, [24, 180, 0.85]], snow: [1.3, [28, 190, 0.85]] }[WXK];
+      if (ov) {
+        S.top = scl([0.03, 0.03, 0.036], g * ov[0]); S.hor = scl([0.11, 0.1, 0.098], g * ov[0]); S.fog = scl([0.022, 0.022, 0.027], g * ov[0]); S.fogR = ov[1];
+        if (WXK === 'snow') { S.amb = scl(B.amb, 1.5); S.gnd = scl(B.gnd, 2.2); S.fog = scl([0.06, 0.06, 0.07], g); }
+      } else { // fog: a dark, lamp-lit murk
+        const fc = METCALF ? [0.032, 0.03, 0.028] : [0.11, 0.11, 0.12];
+        S.fog = fc; S.top = fromLin(fc); S.hor = fromLin(fc); S.fogR = METCALF ? [2, 55, 0.97] : [5, 90, 0.97]; S.amb = scl(B.amb, 1.15);
+      }
+    }
+    // the stadium's lights: on at night, at sunset and on grey days
+    if (!METCALF) S.tower = TOD === 'night' ? SKYP.night.tower : TOD === 'sunset' ? Math.min(1, Math.max(0.6, TOWD[WXK] + 0.35)) : TOWD[WXK];
+    // ---- 3. the sky shader's colours: the sun's glow and the sunset band, the clouds' lit and shaded sides ----
+    if (TOD === 'morning') { X.halo = [0.5, 0.34, 0.18]; X.band = [0.12, 0.08, 0.07]; X.disc = WXK === 'clear' || WXK === 'cloudy' ? [1, 0.86, 0.66] : [0, 0, 0]; }
+    if (TOD === 'sunset') { X.halo = [1.0, 0.42, 0.14]; X.band = [0.42, 0.16, 0.24]; X.disc = WXK === 'clear' || WXK === 'cloudy' ? [1, 0.6, 0.3] : [0, 0, 0]; }
+    if (WXK !== 'clear' && WXK !== 'cloudy') { X.halo = scl(X.halo, 0.25); X.band = scl(X.band, 0.2); }
+    const hl = toLin(S.hor); X.horL = (hl[0] + hl[1] + hl[2]) / 3;
+    if (TOD === 'night') { X.cloudD = scl(hl, 0.55); X.cloudL = scl(hl, 1.0); }
+    else if (WXK === 'clear' || WXK === 'cloudy') { X.cloudD = TOD === 'sunset' ? [0.34, 0.24, 0.3] : TOD === 'morning' ? [0.55, 0.52, 0.55] : [0.5, 0.52, 0.58]; X.cloudL = TOD === 'sunset' ? [1.3, 0.78, 0.52] : TOD === 'morning' ? [1.35, 1.22, 1.08] : [1.4, 1.4, 1.4]; }
+    else { const dk = WXK === 'storm' ? 0.45 : WXK === 'rain' ? 0.62 : 0.72; X.cloudD = scl(hl, dk); X.cloudL = scl(hl, WXK === 'storm' ? 0.8 : 1.08); }
+    X.moon = METCALF && TOD === 'night' && (WXK === 'clear' || WXK === 'cloudy') ? 1 : 0;
+    // the big field (MET_K): every fog distance grows with the map, the haze starting 0.7 as far again, as 12-venue.js does for the default look (the day's distances are
+    // taken as authored, before any scaling, so they are scaled once)
+    if (METCALF) { if ((WXK === 'clear' || WXK === 'cloudy') && TOD !== 'night') S.fogR = [60, 420, 0.72]; S.fogR = [S.fogR[0] * MET_K * (MOPT.big ? 0.7 : 1), S.fogR[1] * MET_K, S.fogR[2]]; }
+    Object.assign(SKY, S);
+    const l = v3n(SKY.L); LDIR[0] = l[0]; LDIR[1] = l[1]; LDIR[2] = l[2];
+    if (!METCALF) for (const p of LPOS) p[3] = 1500 * SKY.tower;
+    X.storm = WXK === 'storm';
+    return X;
+  })();
+  // ---- surface looks (any time of day): snow lying on the grass, roofs and cars with a dusting on the blacktop (Metcalf), wet
+  // pavement in rain (Metcalf: the blacktop's own puddles come from WET in the shader already) ----
+  if (METCALF && WXK === 'snow') SKX.snow = [0.95, 0.24];
+  if (METCALF && (WXK === 'rain' || WXK === 'storm')) SKX.wet = 1;
+  // ---- the schoolyard's lights at night: four with highlights in the point-light slots (their lens flares too), the rest as pools ----
+  if (METCALF && TOD === 'night') {
+    const k2 = MET_K * MET_K;
+    MET_LAMPS.key.forEach((q, i) => { const e = lampE(q[0], q[1], q[2]); LPOS[i][0] = e[0]; LPOS[i][1] = e[1]; LPOS[i][2] = e[2]; LPOS[i][3] = q[3] * k2;
+      TOWERS[i][0] = e[0] + (e[0] < -3.5 ? -3.5 : 3.5); TOWERS[i][1] = e[1] + 2.5; TOWERS[i][2] = e[2]; }); // the flare code draws 3.5 in and 2.5 down from a tower
+    LCOL[0] = LAMPC[0]; LCOL[1] = LAMPC[1]; LCOL[2] = LAMPC[2];
+    SKX.pools = new Float32Array(32); MET_LAMPS.pool.forEach((q, i) => { const e = lampE(q[0], q[1], q[2]); SKX.pools.set([e[0], e[1], e[2], q[3] * k2], i * 4); });
+    SKX.poolK = 40 * k2;
+  }
+  // rain and snow are drawn unlit: dimmed in the schoolyard's dark (the stadium's lights keep them bright)
+  const WXB = METCALF && TOD === 'night' ? 0.5 : 1;
+  if (DBG) DBG.sky = { tod: TOD, wx: WXK, WX, on: SKX.on, SKY, LDIR, LPOS };
+  // the splash line: the old names for the old looks
+  function skyName() {
+    if (!SKX.on && !METCALF) return { clear: 'Clear skies', rain: 'Rain', snow: 'Snow', night: 'Under the lights' }[WX];
+    const t = METCALF ? { morning: 'Morning', noon: 'Lunch hour', sunset: 'Sunset', night: 'Night' }[TOD] : { morning: 'Morning', noon: 'Midday', sunset: 'Sunset', night: 'Under the lights' }[TOD];
+    if (METCALF && TOD === 'noon' && (WXK === 'rain' || WXK === 'snow')) return WXK === 'rain' ? 'Rain at lunch' : 'Snow at lunch';
+    const w = { clear: 'Clear skies', cloudy: 'Partly cloudy', overcast: 'Overcast', rain: 'Rain', storm: 'Thunderstorm', snow: 'Snow', fog: 'Fog' }[WXK];
+    return WXK === 'clear' && TOD !== 'morning' && TOD !== 'sunset' ? t : t + ' · ' + w;
+  }
+  // ---- shader additions, compiled in only when on: pools of lamp light (diffuse, no shadows), snow cover, wet pavement ----
+  function skyShader(src) {
+    if (SKX.pools && src.indexOf('uniform samplerCube uEnv;') >= 0) {
+      src = src.replace('uniform samplerCube uEnv;', 'uniform vec4 uPool[8];uniform vec3 uPoolC;uniform float uPoolK;\nuniform samplerCube uEnv;')
+        .replace('  // ambient: hemisphere diffuse + cubemap specular', `  for(int i=0;i<8;i++){vec3 Lv=uPool[i].xyz-vW;float d2=dot(Lv,Lv);vec3 L=Lv*inversesqrt(max(d2,0.01));float att=uPool[i].w/(d2+uPoolK);
+   float cone=0.35+0.65*clamp(L.y*1.6,0.0,1.0);float nl=max(dot(N,L),0.0);if(mode==1)nl=clamp((dot(N,L)+0.3)/1.3,0.0,1.0)*0.9;col+=uPoolC*diff*(att*cone*nl*ao/3.14159);}
+  // ambient: hemisphere diffuse + cubemap specular`);
+    }
+    const MARK = 'vec3 col=shadePBR(base,N,rough,metal,ao,cav,0,specOcc);';
+    if ((SKX.snow || SKX.wet) && src.indexOf(MARK) >= 0) {
+      let pre = 'uniform vec2 uSnowK;uniform float uWetK;\nfloat skH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat skN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(skH(i),skH(i+vec2(1.0,0.0)),f.x),mix(skH(i+vec2(0.0,1.0)),skH(i+vec2(1.0,1.0)),f.x),f.y);}\n';
+      let body = '';
+      // snow: whatever faces up turns white (grass and roofs nearly all over, the ground in drifting patches so its lines still read)
+      // (not on the ball and the other per-frame geometry, drawn with roughness 0.5)
+      if (SKX.snow) body += '{float up=smoothstep(0.35,0.85,normalize(vN).y)*step(0.02,abs(uMatW.x-0.5));float nz=skN(vW.xz*0.35)*0.6+skN(vW.xz*1.7+7.0)*0.4;float gk=(uKind>0.5&&uKind<1.5)?uSnowK.y:uSnowK.x;' +
+        'float cov=up*clamp(gk+(nz-0.5)*(0.35+gk*0.6),0.0,1.0);base=mix(base,vec3(0.8,0.82,0.87),cov);rough=mix(rough,0.75,cov);}';
+      // wet: streets, walks and roofs darken and gloss over (the ground's own wet look is in the field branch above)
+      if (SKX.wet) body += '{float wu=smoothstep(0.6,0.9,normalize(vN).y)*step(uKind,0.5)*step(0.02,abs(uMatW.x-0.5))*uWetK;base*=mix(1.0,0.62,wu);rough=mix(rough,0.2,wu);specOcc=mix(specOcc,1.6,wu);}';
+      src = src.replace('void main(){vec4 t=texture2D(uTex,vT);', pre + 'void main(){vec4 t=texture2D(uTex,vT);').replace(MARK, body + MARK);
+    }
+    return src;
+  }
+  // the extended sky: the sun's glow low on its side of the sky and a sunset band, cloud cover from scattered to overcast with lit and
+  // shaded sides, a moon, stars hidden by cloud. Lightning brightens it through uTop / uHor (set every frame from SKY).
+  const FS_SKY2 = `uniform mat4 uInvVP;uniform vec3 uSun;uniform float uNight;uniform float uTime;uniform vec3 uTop;uniform vec3 uHor;uniform float uCloud;uniform float uGlow;
+uniform float uCov;uniform vec3 uHalo;uniform vec3 uBand;uniform vec3 uCloudD;uniform vec3 uCloudL;uniform float uHorL;uniform float uStar;uniform float uMoon;uniform vec3 uDisc;varying vec2 vUV;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
+vec3 toLin(vec3 c){return c*(c*(c*0.305306011+0.682171111)+0.012522878);}
+void main(){vec4 a=uInvVP*vec4(vUV*2.0-1.0,1.0,1.0);vec4 b=uInvVP*vec4(vUV*2.0-1.0,-1.0,1.0);vec3 d=normalize(a.xyz/a.w-b.xyz/b.w);
+float h=clamp(d.y,0.0,1.0);vec3 hor=toLin(uHor);vec3 col=mix(hor,toLin(uTop),pow(h,0.5));
+vec2 hz=d.xz/max(length(d.xz),1e-4);vec2 sz=uSun.xz/max(length(uSun.xz),1e-4);float sa=dot(hz,sz)*0.5+0.5;
+col+=uHalo*pow(sa,4.0)*pow(1.0-h,3.0)+uBand*smoothstep(0.02,0.12,h)*(1.0-smoothstep(0.14,0.5,h))*(0.4+0.6*sa);
+float s=max(dot(d,uSun),0.0);float fl=dot(hor,vec3(0.3333))/max(uHorL,1e-4);
+if(uNight>0.5){vec2 sp=d.xz/max(d.y,0.03)*70.0;float st=step(0.992,hash(floor(sp)))*smoothstep(0.1,0.4,d.y)*(0.3+0.7*hash(floor(sp)+7.0));col+=vec3(0.7,0.78,1.0)*st*0.35*uStar;
+  col+=hor*uGlow*0.9*pow(1.0-h,6.0);col+=uMoon*(vec3(0.85,0.88,1.0)*smoothstep(0.99955,0.99972,s)*5.0+vec3(0.35,0.4,0.55)*pow(s,60.0)*0.15);}
+else{float disc=smoothstep(0.9992,0.9997,s);col+=uDisc*(vec3(1.0,0.95,0.85)*disc*40.0+vec3(1.0,0.8,0.5)*pow(s,12.0)*0.35+vec3(0.9,0.9,1.0)*pow(s,2.0)*0.12);}
+if(d.y>0.0&&uCloud>0.0){vec2 cp=d.xz/(d.y+0.12)*1.6+vec2(uTime*0.012,0.0);float n=noise(cp)*0.5+noise(cp*2.3+3.1)*0.26+noise(cp*4.9+9.0)*0.14+noise(cp*9.7+2.0)*0.1;
+ float c=smoothstep(0.45-uCov,0.68-uCov*0.7,n)*min(uCloud,1.0)*smoothstep(0.0,0.2,d.y);vec3 cc=mix(uCloudD,uCloudL,smoothstep(0.5,0.85,n))*fl;
+ cc+=uHalo*0.6*pow(sa,3.0)*(1.0-smoothstep(0.3,0.8,n))*(1.0-h);col=mix(col,cc,c);}
+gl_FragColor=vec4(col,1.0);}`;
+  // the fixed uniforms (after every program build, the context restore too)
+  function skyGL() {
+    if (!G) return;
+    if (SKX.on && G.sky) { const u = G.sky.u; gl.useProgram(G.sky.pr);
+      if (u.uCov) gl.uniform1f(u.uCov, SKX.cov); if (u.uHalo) gl.uniform3fv(u.uHalo, SKX.halo); if (u.uBand) gl.uniform3fv(u.uBand, SKX.band); if (u.uCloudD) gl.uniform3fv(u.uCloudD, SKX.cloudD); if (u.uCloudL) gl.uniform3fv(u.uCloudL, SKX.cloudL);
+      if (u.uHorL) gl.uniform1f(u.uHorL, SKX.horL); if (u.uStar) gl.uniform1f(u.uStar, SKX.star); if (u.uMoon) gl.uniform1f(u.uMoon, SKX.moon); if (u.uDisc) gl.uniform3fv(u.uDisc, SKX.disc); }
+    for (const k of ['world', 'worldHi', 'skin', 'skinHi']) {
+      const P = G[k]; if (!P) continue; gl.useProgram(P.pr);
+      if (P.u.uPool && SKX.pools) { gl.uniform4fv(P.u.uPool, SKX.pools); gl.uniform3fv(P.u.uPoolC, LAMPC); gl.uniform1f(P.u.uPoolK, SKX.poolK); }
+      if (P.u.uSnowK && SKX.snow) gl.uniform2f(P.u.uSnowK, SKX.snow[0], SKX.snow[1]);
+      if (P.u.uWetK) gl.uniform1f(P.u.uWetK, SKX.wet);
+    }
+  }
+  // ---- the schoolyard's light fixtures (frame F metres, then engine units like the rest of the venue): wall packs on the school
+  // (dark bronze housings, a lens that glows at night) and, at night, a glowing globe on the acorn lamp. The street lights' heads are
+  // in the venue already (their lenses always glow). ----
+  function skyLamps(W) {
+    if (!METCALF || !W.defs) return;
+    const b = new Batch(600), t = new Batch(200), night = TOD === 'night',
+      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; b.v(e[0] + (f[o] - ax) * M2Y, f[o + 1] * M2Y, e[1] + (f[o + 2] - az) * M2Y, f[o + 3], f[o + 4], f[o + 5], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
+    for (const [x, y, z] of MET_LAMPS.wall) {
+      t.wbox(x - 0.24, y - 0.15, z - 0.2, x, y + 0.17, z + 0.2, bronze);
+      t.quad([x - 0.245, y - 0.12, z - 0.15], [x - 0.245, y - 0.12, z + 0.15], [x - 0.245, y + 0.05, z + 0.15], [x - 0.245, y + 0.05, z - 0.15], [0, 0, 0], lens);
+      t.quad([x - 0.21, y - 0.155, z - 0.16], [x - 0.03, y - 0.155, z - 0.16], [x - 0.03, y - 0.155, z + 0.16], [x - 0.21, y - 0.155, z + 0.16], [0, 0, 0], lens);
+      put(x, z);
+    }
+    if (night) { // the acorn's globe, lit (a shell just outside the clear glass one)
+      const x = -16.1, z = -16.0, prof = [[0.095, 3.35], [0.21, 3.55], [0.23, 3.75], [0.17, 3.99], [0.065, 4.09]], c = [2.4, 2.1, 1.6, 1], seg = 12;
+      for (let i = 0; i < prof.length - 1; i++) for (let j = 0; j < seg; j++) {
+        const [r0, y0] = prof[i], [r1, y1] = prof[i + 1], a0 = j / seg * 6.2832, a1 = (j + 1) / seg * 6.2832, P = (r, y, a) => [x + Math.cos(a) * r, y, z + Math.sin(a) * r];
+        t.quad(P(r0, y0, a0), P(r0, y0, a1), P(r1, y1, a1), P(r1, y1, a0), [0, 0, 0], c);
+      }
+      put(x, z);
+    }
+    const def = { b, tex: null, mat: [0.6, 0, 1, 0], kind: 0, cast: false, c0: false }, d = {};
+    for (const k in W.defs) { if (k === 'mpick') d.mlamp = def; d[k] = W.defs[k]; } if (!d.mlamp) d.mlamp = def; // before the see-through pickets
+    W.defs = d;
+  }
+  // ---- per frame (from drawWeather): lightning. A strike is two or three quick flashes that light the sky and everything under it;
+  // its thunder follows 0.5-4 s later (further strikes are later and softer) ----
+  function skyFrame(dt, now) {
+    if (!SKX.storm || !(dt > 0)) return;
+    const z = SKX;
+    if (!z.base) { z.base = { top: SKY.top.slice(), hor: SKY.hor.slice(), amb: SKY.amb.slice(), fog: SKY.fog.slice() }; z.next = now + 3 + Math.random() * 5; }
+    const forced = DBG && DBG.strike; if (forced) DBG.strike = 0; // tests: a strike now (and __blitzDebug.noLightning: none on their own)
+    if ((forced || (now >= z.next && !(DBG && DBG.noLightning))) && phase !== 'box') {
+      const far = Math.random(), k = 1 - far * 0.55; z.next = now + 5 + Math.random() * 10;
+      z.pulses = [[now, k], [now + 0.09 + Math.random() * 0.06, k * 0.55]]; if (Math.random() < 0.6) z.pulses.push([now + 0.25 + Math.random() * 0.2, k * 0.85]);
+      if (z.thunder) z.thunder(0.5 + far * 3.5, k);
+    }
+    let F = 0; for (const p of z.pulses) { const t = now - p[0]; if (t >= 0 && t < 0.6) F = Math.max(F, p[1] * Math.exp(-t * 16)); }
+    if (DBG && DBG.flashHold != null) F = DBG.flashHold; // tests: hold a flash for a screenshot
+    if (F < 0.003 && z.F < 0.003) return;
+    z.F = F; const B = z.base, lv = TOD === 'night' ? 1 : 0.42;
+    SKY.top = B.top.map((v) => Math.min(1.2, v * (1 + F * 5 * lv))); SKY.hor = B.hor.map((v) => Math.min(1.2, v * (1 + F * 3.5 * lv)));
+    SKY.amb = B.amb.map((v, i) => v + [1.0, 1.05, 1.3][i] * F * lv); SKY.fog = B.fog.map((v, i) => v + [0.25, 0.26, 0.32][i] * F * lv);
+  }
+  // ---- sound: a rain bed (hiss, patter, a low roar), wind with the storm and in snow, and thunder. It starts with the game's first
+  // sound (the browser needs a tap first), follows the mute switch and stops for good when the game closes ----
+  if (WXK === 'rain' || WXK === 'storm' || WXK === 'snow') {
+    const play1 = sfx.play, mute1 = sfx.mute, close1 = sfx.close, vol = WXK === 'storm' ? 0.2 : WXK === 'rain' ? 0.12 : 0.07;
+    let bed = null, dead = false;
+    const start = () => {
+      if (bed || dead || sfx.muted) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out) return;
+      try {
+        const n = ac.sampleRate * 3, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        const g = ac.createGain(); g.gain.value = 0.0001; g.connect(out); g.gain.setTargetAtTime(vol, ac.currentTime, 1.5);
+        const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; const srcs = [src];
+        const chain = (s, nodes, gain) => { let a = s; for (const q of nodes) { a.connect(q); a = q; } const gg = ac.createGain(); gg.gain.value = gain; a.connect(gg); gg.connect(g); return gg; };
+        const filt = (type, f, q) => { const x = ac.createBiquadFilter(); x.type = type; x.frequency.value = f; if (q) x.Q.value = q; return x; };
+        if (WXK !== 'snow') { chain(src, [filt('highpass', 1100), filt('lowpass', 7000)], 0.55); chain(src, [filt('bandpass', 2600, 0.7)], 0.35); chain(src, [filt('lowpass', 300)], WXK === 'storm' ? 0.9 : 0.5); }
+        if (WXK !== 'rain') { // wind: a slow swell in a low band (its own offset into the noise)
+          const s2 = ac.createBufferSource(); s2.buffer = buf; s2.loop = true; srcs.push(s2);
+          const wg = chain(s2, [filt('bandpass', WXK === 'snow' ? 320 : 420, 0.9)], WXK === 'snow' ? 0.9 : 0.7);
+          const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.07 + Math.random() * 0.05; lg.gain.value = 0.45; lfo.connect(lg); lg.connect(wg.gain); lfo.start(); srcs.push(lfo);
+          s2.start(0, 1.3);
+        }
+        src.start(); bed = { g, srcs, buf };
+      } catch (e) { bed = null; }
+    };
+    sfx.play = (n) => { play1(n); start(); };
+    sfx.mute = (m) => { mute1(m); if (bed) { try { const ac = sfx.ctx(); if (ac) bed.g.gain.setTargetAtTime(m ? 0.0001 : vol, ac.currentTime, 0.1); } catch (e) {} } else if (!m) start(); };
+    sfx.close = () => { dead = true; if (bed) { for (const s of bed.srcs) try { s.stop(); } catch (e) {} } bed = null; close1(); };
+    if (WXK === 'storm') SKX.thunder = (delay, k) => {
+      setTimeout(() => {
+        if (dead || sfx.muted || !bed || finished) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out) return;
+        try {
+          const t = ac.currentTime, len = 2.5 + Math.random() * 2;
+          const rumble = (f, v, a, dd) => { const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = bed.buf; fl.type = 'lowpass'; fl.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dd); s.connect(fl); fl.connect(g); g.connect(out); s.start(t, Math.random() * 1.5); s.stop(t + dd + 0.1); };
+          if (k > 0.75) rumble(1800, 0.25 * k, 0.01, 0.35); // a near one cracks first
+          rumble(160, 0.9 * k, 0.08 + (1 - k) * 0.3, len); rumble(70, 0.8 * k, 0.3, len + 1);
+        } catch (e) {}
+      }, delay * 1000);
+    };
   }
 
     // ---------- game state ----------
     let phase = 'splash', qtr = 1, clock = QS, hs = 0, as = 0;
-    let los = TB, down = 1, fdz = TB + FD, play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
+    let los = TB, down = 1, fdz = fdAt(TB), play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
     const RUNOFF = 4; // seconds the clock keeps running after a play that ends in bounds
     let runoff = 0;
     let tPlay = 0, clockRun = false, toLeft = TOS, playClock = 20, warned = [false, false], recv2 = 'away', otLeft = 0, suddenDeath = false, kocT = 0;
@@ -4139,6 +6889,7 @@ gl_FragColor=vec4(c,1.0);}`;
       p.dirt = DIRT[side + ':' + key] || 0;
       p.towel = (role === 'QB' || role === 'RB' || role === 'WR') && ((p.num || key.length) % 3) !== 0;
       p.mouth = role !== 'QB' && ((p.num || key.length) % 4) === 1;
+      if (METCALF) casDress(p); // Metcalf: T-shirt, own bottoms, sneakers and hair instead of the uniform (21-casual.js)
       p.fcell = faceCell(p.lk.skin);
       // a real Lineup player's overall on offense: 90+ is a superstar (tier 1), 95+ adds an ability for his spot (tier 2), 99 is tier 3
       p.ovr = p.side === 0 && p.sq && p.sq.pid != null && p.sq.r ? +p.sq.r.ovr || 0 : 0;
@@ -4275,11 +7026,11 @@ gl_FragColor=vec4(c,1.0);}`;
       bfK = SMALL ? clamp((los + EZ - 1.9) / 6.3, 0.15, 1) : 1; // the deepest spot (7.6 back: a back, a deep drop) stays 0.6 inside the end line
       for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y']) {
         const sp = F[k]; let x = xin(LX(sp[0]) * fx, 1.5), z = Math.max(los + BF(sp[1]), ZBACK + emg(1.5)); // never lined up behind the end line
-        if (k === 'Y' && play.form === 'gun' && play.id !== 'rbscreen') x = 3.9 * fx;
+        if (k === 'Y' && play.form === 'gun' && play.id !== 'rbscreen') x = LX(3.9) * fx;
         addOff(offPlayer(k, x, z));
       }
       for (let i = 0; i < 5; i++) {
-        addOff(olPlayer(i, (i - 2) * 1.95, los - 0.9));
+        addOff(olPlayer(i, LX((i - 2) * 1.95), los - 0.9)); // (LX: shoulder-to-shoulder splits on the narrow field)
       }
       const RK = play.carrier || 'RB'; // who takes the handoff on a run (jet sweeps and end arounds hand it to a receiver)
       for (const k of ['X', 'Z', 'S', 'Y', 'RB']) {
@@ -4295,11 +7046,11 @@ gl_FragColor=vec4(c,1.0);}`;
       dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
       const sgn = OK.Y.x >= 0 ? 1 : -1, cush = DP.cush;
       const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
-      D('DL', 'DE1', -4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 91 }); D('DL', 'DT1', -1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
-      D('DL', 'DT2', 1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 93 }); D('DL', 'DE2', 4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 99 });
+      D('DL', 'DE1', LX(-4.6), los + 0.9, { w: 1.2, rad: 0.5, num: 91 }); D('DL', 'DT1', LX(-1.35), los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
+      D('DL', 'DT2', LX(1.35), los + 0.9, { w: 1.2, rad: 0.5, num: 93 }); D('DL', 'DE2', LX(4.6), los + 0.9, { w: 1.2, rad: 0.5, num: 99 });
       const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
-      D('LB', 'LBW', -4.2 * sgn, zc(los + 4.6), { num: 54 }); D('LB', 'LBM', 0.3, zc(los + 4.9), { num: 50 }); // (zc only binds in a shallow end zone)
-      D('LB', 'LBS', nickel ? slot.x - Math.sign(slot.x) * 0.9 : 4.2 * sgn, zc(los + (nickel ? 4.2 : 4.6)), { num: nickel ? 26 : 52, v: nickel ? DP.cbV * 0.97 : DP.lbV });
+      D('LB', 'LBW', LX(-4.2) * sgn, zc(los + 4.6), { num: 54 }); D('LB', 'LBM', LX(0.3), zc(los + 4.9), { num: 50 }); // (zc only binds in a shallow end zone)
+      D('LB', 'LBS', nickel ? slot.x - Math.sign(slot.x) * 0.9 : LX(4.2) * sgn, zc(los + (nickel ? 4.2 : 4.6)), { num: nickel ? 26 : 52, v: nickel ? DP.cbV * 0.97 : DP.lbV });
       const dk = dcall.kind || '', press = dk === 'press' || (!dk && KDEF > 0.7 && rng() < 0.35);
       const X = OK.X, Z = OK.Z;
       const cbZ = () => zc(los + DZ(press ? 1.4 : dk === 'prev' ? 8 + rng() * 1.5 : cush + rng() * 1.2)); // Prevent: a big cushion
@@ -4366,6 +7117,73 @@ gl_FragColor=vec4(c,1.0);}`;
       pr = null;
       if (VS && VS.auth) vsSetup('scrim');
     }
+    // =====================================================================================
+    // Metcalf clothes: a lunch-time game has no helmets, pads or uniforms. Everyone wears a plain T-shirt in his team's main colour
+    // (the kit's jersey colour, so the stadium rule that swaps the away side into its second colour when the two main colours are
+    // close keeps the teams apart) and his own bottoms: grey, black, navy or team-colour sweats, joggers, gym shorts, khaki or
+    // basketball shorts, crew or ankle socks, sneakers, and his own hair (buzz, short, fade, curly, longer; a few backwards caps and
+    // beanies). Every pick comes from a hash of the player (card id, else name, else his spot), never from a random stream, so a
+    // player looks the same all game and the game's own randomness is untouched. Only the look changes: skeleton, animation,
+    // hit boxes and hands are the player's as before.
+    // =====================================================================================
+    const casHash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+    const casRnd = (seed) => { let a = seed | 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+    const casPick = (r, opts) => { let s = 0; for (const o of opts) s += o[1]; let u = r() * s; for (const o of opts) { u -= o[1]; if (u <= 0) return o[0]; } return opts[opts.length - 1][0]; };
+    const CASP = {
+      black: hex('#17181b'), charcoal: hex('#3d4045'), grey: hex('#85888e'), heather: hex('#a7a9ae'), navy: hex('#1d2640'), khaki: hex('#b19a72'),
+      olive: hex('#5a5d3c'), denim: hex('#4a6185'), red: hex('#b0252d'), royal: hex('#2b4ea6'), white: hex('#e9e9e6'), tan: hex('#c7b38c'), gum: hex('#b07c49'),
+      // natural hair colours
+      hBlack: hex('#151110'), hDark: hex('#2c1d14'), hBrown: hex('#4f3220'), hLight: hex('#7a5535'), hBlond: hex('#b8935a'), hAuburn: hex('#6e321b'),
+    };
+    // a player's identity for his look: the card, else the roster name, else the spot on the field for the team
+    function casId(p) { const q = p.sq; if (q && q.pid != null) return 'p' + q.pid; if (q && q.name) return 'n' + q.name + ':' + (q.num != null ? q.num : ''); return 's' + p.side + ':' + p.key + ':' + (p.side ? AWAY.name : HOME.name); }
+    function casDress(p) {
+      if (!METCALF || p.side === 2) return;
+      const r = casRnd(casHash(casId(p))), C = CASP;
+      if (!p.sq) p.lk.skin = Math.min(4, (r() * 5) | 0); // generated players: a fixed skin tone too
+      const sk = p.lk.skin, dark = sk >= 3;
+      const hair = casPick(r, dark ? [[0, 4], [2, 4], [3, 3], [1, 2], [4, 0.5], [5, 1], [6, 1]] : [[0, 2], [1, 5], [2, 2], [3, 1.5], [4, 2.5], [5, 1], [6, 1]]);
+      const hc = casPick(r, dark ? [[C.hBlack, 6], [C.hDark, 3]] : sk === 2 ? [[C.hBlack, 4], [C.hDark, 4], [C.hBrown, 2]] : sk === 1 ? [[C.hBlack, 2], [C.hDark, 4], [C.hBrown, 3], [C.hLight, 1.5], [C.hBlond, 0.6]] : [[C.hBlack, 1], [C.hDark, 2.5], [C.hBrown, 3], [C.hLight, 2.5], [C.hBlond, 2], [C.hAuburn, 0.8]]);
+      const bot = casPick(r, [[0, 3], [1, 2.2], [2, 1.6], [3, 2], [4, 2]]);
+      // bottoms: never close to the other team's shirt, so a glance at the legs never says the wrong team
+      const opp = (p.side ? OFFC : DEFC).jer, pal = bot <= 1 ? [[C.grey, 3], [C.heather, 2.5], [C.charcoal, 2], [C.black, 3], [C.navy, 2], [null, 1.5]]
+        : bot === 2 ? [[C.black, 3], [C.navy, 2], [C.grey, 2], [C.red, 1], [C.royal, 1], [null, 1]]
+        : bot === 3 ? [[C.khaki, 3], [C.navy, 1.5], [C.olive, 1], [C.grey, 1.5], [C.black, 1.5], [C.denim, 1.5]]
+        : [[C.black, 3], [C.red, 1.5], [C.royal, 1.5], [C.grey, 1], [C.white, 1], [null, 1.5], [C.navy, 1]];
+      let bc = casPick(r, pal);
+      for (let i = 0; i < 4 && bc && cdist(bc, opp) < 0.3; i++) bc = casPick(r, pal);
+      if (bc && cdist(bc, opp) < 0.3) bc = cdist(C.black, opp) < 0.3 ? C.grey : C.black;
+      const shorts = bot >= 2, sock = shorts && r() < 0.4 ? 1 : 0;
+      const sc = casPick(r, [[C.white, 6], [C.black, 3], [C.grey, 1.2]]);
+      const shc = casPick(r, [[C.white, 4], [C.black, 3], [C.grey, 1.3], [C.navy, 1], [C.red, 0.8], [C.tan, 0.4]]);
+      const slc = shc === C.black ? casPick(r, [[C.black, 1], [C.white, 1.5]]) : shc === C.white ? casPick(r, [[C.white, 3], [C.gum, 0.5]]) : casPick(r, [[C.white, 3], [C.black, 1]]);
+      const cc = hair >= 5 ? casPick(r, [[C.black, 3], [C.navy, 2], [null, 2], [C.grey, 1.5], [C.red, 1], [C.white, 0.8]]) : null;
+      const g = { hair, bot, sock };
+      p.cas = { g, hc, bc, sc, shc, slc, cc, top: 0.028 + HEADK * (0.284 + [0.0045, 0.012, 0.03, 0.03, 0.016, 0.024, 0.032][hair]) } // the top of the hair or hat above the head bone;
+      p.lk.visor = false;
+      p.towel = false; p.mouth = false;
+      p.body = casSpec(p.body, g);
+    }
+    // colours for a dressed player (the slot table in 06-body.js; C = his side's kit, so team-colour picks follow the kit swaps)
+    function casCols(cols, p, C, skin) {
+      const k = p.cas;
+      cols[5] = k.shc; cols[14] = k.slc; cols[17] = k.sc; cols[19] = k.cc || C.jer; cols[23] = k.hc; cols[24] = k.bc || C.jer;
+      cols[10] = skin; cols[12] = skin;
+      return cols;
+    }
+    // new casual meshes cost a few milliseconds each to build, so a frame builds at most a couple and the rest wear a ready-made
+    // casual mesh for that frame (only matters on the first frames and when a new unit, e.g. the throw-off team, runs on)
+    let casFrame = -1, casBuilt = 0;
+    const CAS_BASE = { hair: 1, bot: 0, sock: 0 };
+    function meshForP(p) {
+      const s = p.body || BODY.WR;
+      if (!s.cas || G.meshes[bodyKey(s)]) return meshFor(s);
+      if (casFrame !== perf.n) { casFrame = perf.n; casBuilt = 0; }
+      if (casBuilt >= 2) return meshFor(casSpec(BODY[p.role] && !BODY[p.role].noGear ? BODY[p.role] : BODY.WR, CAS_BASE));
+      casBuilt++;
+      return meshFor(s);
+    }
+    function casPrebuild() { for (const k in BODY) if (!BODY[k].noGear) meshFor(casSpec(BODY[k], CAS_BASE)); }
 
     // ---------- animation runtime: semantic pose -> clip, blending, procedural layers, ragdoll ----------
     const ONE_SHOT = { throw: 0.56, jump: 1.05, dive: 0.75, juke: 0.36, spin: 0.5, stiff: 0.6, tackle: 0.45, getup: 0.9, kick: 0.8, stumble: 0.5, hurdle: 0.62 };
@@ -4481,6 +7299,7 @@ gl_FragColor=vec4(c,1.0);}`;
         }
         if (clip === 'block' || clip === 'rush') lineHands(p, bones, hs, clip, vw);
         else if (clip === 'tackle') wrapHands(p, bones, hs);
+        if (p.tchT > 0 && clip !== 'rag') { touchHands(p, bones, hs); p.tchT -= dt; } // two-hand touch: his hands on the runner
       }
       if (an.blendT > 0 && an.from && an.from.length === NB) {
         an.blendT -= dt; const u = clamp(1 - an.blendT / an.blendDur, 0, 1), s = u * u * (3 - 2 * u);
@@ -4596,6 +7415,13 @@ gl_FragColor=vec4(c,1.0);}`;
     // knock a player down: starts the ragdoll from the current pose with the body's velocity plus an impact impulse
     function knockDown(p, vel, imp, getup) {
       if (p.rag) { if (imp) p.rag.impulse(imp[0] * 0.5, imp[1] * 0.5, imp[2] * 0.5, 0.3); return; }
+      // two-hand touch (Metcalf): contact never puts anybody on the ground (no ragdoll); he stumbles and loses a step instead. Only
+      // his own dive (a layout for a pass, a dive for the goal line) ends on the blacktop.
+      if (MOPT.touch && !p.extra && !(p.diving || p.diveT > 0 || p.diveCatch)) {
+        p.stumbleT = Math.max(p.stumbleT || 0, 0.45); p.stun = Math.max(p.stun || 0, Math.min(0.5, (getup == null ? 1.3 : getup) * 0.3));
+        if (vel) { p.vx = vel[0] * 0.4; p.vz = vel[2] * 0.4; } p.wrapT = 0; p.eng = null; p.mv = null; p.mvT = 0;
+        return;
+      }
       ensureBones(p);
       p.rag = new Rag(p, p.bones, vel || [p.vx, 0, p.vz], 1 / 60);
       // his feet keep part of the run they had when the hit stopped his upper body: a square hit sweeps them out from under
@@ -4740,6 +7566,16 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // reaching for the ball: the hands come up over its last moments, thumbs together up high, pinkies down low, palms up for a ball
     // dropping in over his shoulder; fully out a beat before it gets there
+    // two-hand touch: both hands on the runner's lower back / hips from the side he came from, in quickly, held, let go
+    function touchHands(p, bones, hs) {
+      const c = p.tchC; if (!c || !c.bones || c.rag) return;
+      const dx = c.x - p.x, dz = c.z - p.z, dl = Math.hypot(dx, dz) || 1, w = smooth01(Math.min(p.tchT, 0.12) / 0.12) * smooth01((2.0 - dl) / 0.6);
+      if (w < 0.01) return;
+      const ux = dx / dl, uz = dz / dl, chs = c.lk.hs, H = c.bones[B.hips], y = H[7] + 0.16 * chs, o = [bones[B.shL], bones[B.elL], bones[B.haL], bones[B.shR], bones[B.elR], bones[B.haR]];
+      const bx = H[3] - ux * 0.13 * chs, bz = H[11] - uz * 0.13 * chs; // the near side of his body
+      armIK(bones, -1, [bx - uz * 0.17 * chs, y, bz + ux * 0.17 * chs], hs); armIK(bones, 1, [bx + uz * 0.17 * chs, y, bz - ux * 0.17 * chs], hs);
+      if (w < 0.99) for (let i = 0; i < 6; i++) { const bi = (i < 3 ? B.shL : B.shR) + (i % 3); bones[bi] = mLerp(o[i], bones[bi], w); }
+    }
     function reachIK(p, bones, t, hs) {
       const ch = bones[B.chest], c = [ch[3], ch[7], ch[11]], b = ball || { x: t[0], y: t[1], z: t[2] };
       const tA = Math.hypot(b.x - c[0], b.y - c[1], b.z - c[2]) / HF.sp, w = smooth01((0.62 - tA) / 0.42);
@@ -5157,7 +7993,9 @@ gl_FragColor=vec4(c,1.0);}`;
           const [tc, yc, side] = ballOver(p), top = effV(p), lp = b.lp || cp, dl = Math.hypot(lp.x - p.x, lp.z - p.z);
           // go up when the ball will cross over his head within jumping reach, or to high-point it over a defender who is right there
           const [, nd] = nearest(def, cp.x, cp.z, (d) => !d.rag && !d.eng), jt = Math.max(0, tc - 0.16), jy = Math.max(0, (5.6 + (p.agi - 50) * 0.02) * jt - 8.5 * jt * jt), hs = p.lk.hs;
-          if ((mine || b.tipped) && tc > 0.2 && tc < 0.55 && side < 0.9 && yc > (nd < 1.6 ? 2.15 : 2.45) * hs && yc < 2.45 * hs + jy + 0.2 && (b.vy < -2 || yc > 2.6 * hs) && Math.abs(p.x + p.vx * 0.55) < HW - 0.4 && p.z + p.vz * 0.55 < ZEND - emg(0.4)) doJump(p); // a flat ball at head height he catches on his feet, and he does not leap out of bounds (ball lane)
+          // the receiver you control (or the CPU's on its own plays) with a defender on the catch point times his own leap: no help
+          const own = p === ctrl && mine && deepK(b) >= 0.5 && nd < 2.6;
+          if ((mine || b.tipped) && tc > 0.2 && tc < 0.55 && side < 0.9 && yc > (nd < 1.6 ? 2.15 : 2.45) * hs && yc < 2.45 * hs + jy + 0.2 && (b.vy < -2 || yc > 2.6 * hs) && Math.abs(p.x + p.vx * 0.55) < HW - 0.4 && p.z + p.vz * 0.55 < ZEND - emg(0.4)) { if (!own) doJump(p); } // a flat ball at head height he catches on his feet, and he does not leap out of bounds (ball lane)
           // lay out when he cannot get to it on foot, not even at the last catchable moment (waist high)
           else if ((mine || b.tipped) && lp.t < 0.45 && dl > 0.8) { const [gt, gap, gapAny] = reachGap(p, lp, Math.max(top, p.v * 1.15)); if (gt < 0.36 && gapAny > 1.15 && gap < 2.8) doDive(p); }
         }
@@ -5427,7 +8265,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const a = d.ass || {}, base = Math.max(0, (d.breakAt || tPlay) - tPlay);
       const qx = qb.x - d.x, qz = qb.z - d.z, eyes = (Math.sin(d.h) * qx + Math.cos(d.h) * qz) / (Math.hypot(qx, qz) || 1);
       const aw = clamp(0.45 + 0.45 * clamp(KDEF, 0, 1.1) + ((d.agi || 60) - 60) / 150, 0.25, 1.15); // awareness
-      d.inPh = 0;
+      d.inPh = 0; d.trk = 0; d.trkT = 0;
+      // on a deep ball: will he get his head around and find it (the sharper the defense, the more often), and how well he times
+      // his own leap at it (seconds off the top of it)
+      if (deepK(ball) > 0) { d.findK = rng() < clamp(0.7 + 0.27 * clamp(KDEF, 0, 1) + ((d.agi || 60) - 60) / 400, 0.55, 0.97) ? 1 : 0; d.jErr = (rng() - 0.5) * 2 * lerp(0.2, 0.07, clamp(KDEF, 0, 1)); } else { d.findK = 0; d.jErr = 0; }
       let k;
       if (a.t === 'man' && a.tgt === target && target) {
         if (inPhase(d, target)) { d.inPh = 1; k = 0.9; }
@@ -5585,31 +8426,76 @@ gl_FragColor=vec4(c,1.0);}`;
       d.look = [c.x, 1.4, c.z];
       return true;
     }
-    // pursuit: an angle that meets the runner (cut him off, don't chase his tail), shaded inside-out so a cutback doesn't beat
-    // him; the man outside and in front keeps contain (turns it back inside); close in front of the runner he breaks down (shorter,
-    // under control) instead of flying by
+    // pursuit: every man runs to the ball, full speed, on an angle that meets the runner instead of chasing his back hip. The
+    // runner's path is read the way a defender reads it: where he is going (his heading, bent upfield: a man with the ball turns
+    // for the goal line) at the speed he is about to have (he is still speeding up out of a catch or a cut). The first spot on that
+    // path he can get to first (arms' reach) is where he aims, shaded inside-out so a cutback doesn't beat him; if there is none
+    // (the runner is quicker and already by him) he takes the deep angle, the spot near the goal line. The man outside and in front
+    // keeps contain (turns it back inside). Close in front of the runner he breaks down and mirrors him (stays square in his path,
+    // under control) instead of flying by. A deep man in front of a short catch comes downhill the same way.
+    const sprK = (p) => 1.2 + ((p.spd || 60) - 50) * 0.0012; // his sprint over his cruising speed (as effV)
+    function runPath(c, t, P) { // where the runner will be in t seconds (P = the path read: x, z, ux, uz, v0, vT)
+      const tau = 0.45, s = P.vT * t - (P.vT - P.v0) * tau * (1 - Math.exp(-t / tau));
+      return [P.x + P.ux * s, P.z + P.uz * s];
+    }
+    function readRunner(c) {
+      const cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz), fw = c.side === 0 ? 1 : -1;
+      let ux = cs > 1 ? cvx / cs : 0, uz = cs > 1 ? cvz / cs : fw;
+      // he turns upfield: the more he is going sideways (or back) the more a defender expects the turn
+      const bend = c.diveT > 0 ? 0 : 0.35 + 0.35 * clamp(1 - uz * fw, 0, 1);
+      ux = ux * (1 - bend); uz = uz * (1 - bend) + fw * bend; const ul = Math.hypot(ux, uz) || 1;
+      const vT = Math.max(cs, (c.v || 7) * (c.sta > 0.15 ? 1 + (sprK(c) - 1) * Math.min(1, c.sta * 2.5) : 1) * (c.pkV || 1) * (c.wrapT > 0 ? 0.4 : 1));
+      return { x: c.x, z: c.z, ux: ux / ul, uz: uz / ul, v0: cs, vT };
+    }
     function pursue(d, dt) {
       const c = carrier || ballXZ(); if (!c) return;
       const dd = dist(d, c);
-      staminaStep(d, dt, dd < 11 && dd > 1.5);
+      // the open field after a catch (a run fit at and through the line keeps playing its gaps and the cutback the old way, and a
+      // return is the kick coverage's lane race)
+      const live = !!carrier && !carrier.rag && !kick && c.side === 0 && !!(pr && pr.caught);
+      staminaStep(d, dt, live ? dd > 1.5 : dd < 11 && dd > 1.5); // rally to the ball: everybody runs, not just the men near him
       const sp = effV(d) * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1);
-      let t = 0, px = c.x, pz = c.z; const cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz);
-      for (let i = 0; i < 5; i++) { px = c.x + cvx * t; pz = c.z + cvz * t; t = Math.min(2.6, Math.hypot(px - d.x, pz - d.z) / Math.max(sp, 1)); }
-      px = clamp(px, -HW + 0.3, HW - 0.3);
-      let tx = lerp(px, c.x, 0.12), tz = lerp(pz, c.z, 0.12); // inside-out: a touch behind the runner's line, not past it
+      const cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz);
+      let tx, tz, tI = 9;
+      if (live) {
+        // how fast he can keep coming: sprinting while his wind lasts, then his cruising speed with a burst now and then
+        const dv = d.v * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1) * (d.stumbleT > 0 ? 0.72 : 1), dS = dv * (d.sta > 0.05 ? 1 + (sprK(d) - 1) * Math.min(1, 0.35 + d.sta) : 1.04);
+        const P = readRunner(c), reach = 0.85, react = 0.12, HT = 3.6;
+        let px = 0, pz = 0;
+        for (let t = 0.05; t <= HT; t += 0.1) {
+          [px, pz] = runPath(c, t, P);
+          if (Math.abs(px) > HW + 0.5) break; // he runs out of room on the sideline
+          if (Math.max(0, Math.hypot(px - d.x, pz - d.z) - reach) / dS + react <= t) { tI = t; break; }
+        }
+        // none: the deep angle (the last spot read, on the goal line side of him or where he would run out of room)
+        px = clamp(px, -HW + 0.3, HW + 0.3);
+        if (c.side === 0) pz = Math.min(pz, ZEND + 0.5); else pz = Math.max(pz, ZBACK - 0.5);
+        tx = px; tz = pz;
+        // inside-out: shade the spot toward the middle of the field (where his help is), more the earlier he gets there
+        if (tI <= HT) { const inX = -Math.sign(px || c.x || 1) * Math.min(0.9, 0.25 + 0.15 * tI); if (Math.abs(px) > KXS(4)) tx += inX * (d.z > c.z === (c.side === 0) ? 1 : 0.4); }
+      } else {
+        let t = 0, px = c.x, pz = c.z;
+        for (let i = 0; i < 5; i++) { px = c.x + cvx * t; pz = c.z + cvz * t; t = Math.min(2.6, Math.hypot(px - d.x, pz - d.z) / Math.max(sp, 1)); }
+        px = clamp(px, -HW + 0.3, HW - 0.3);
+        tx = lerp(px, c.x, 0.12); tz = lerp(pz, c.z, 0.12);
+      }
       const front = (d.x - c.x) * cvx + (d.z - c.z) * cvz > 0 && cs > 2; // he is in the runner's path
       if (c.side === 0 && Math.abs(c.x) > LX(7) && cvx * c.x > 0 && front && Math.abs(d.x) >= Math.abs(c.x) - 1.5) tx = c.x + Math.sign(c.x) * Math.max(0.8, Math.abs(tx - c.x)); // contain: keep him inside
       let spd = sp;
-      if (front && dd < 3.4 && c.side === 0 && c.jumpY <= 0.2) { spd = Math.max(cs * 0.95, sp * 0.72); tx = lerp(tx, c.x, 0.5); tz = lerp(tz, c.z, 0.5); } // break down
+      if (live && front && dd < 3.6 && c.jumpY <= 0.2) {
+        // break down and mirror: stay square in his path a beat ahead of him, under control, and let him come to the arms
+        const P = readRunner(c), lead = clamp(dd / Math.max(4, sp + cs), 0.12, 0.4), m = runPath(c, lead, P);
+        spd = Math.max(cs * 1.02, sp * 0.8); tx = lerp(tx, m[0], 0.75); tz = lerp(tz, m[1], 0.75);
+      } else if (front && dd < 3.4 && c.side === 0 && c.jumpY <= 0.2) { spd = Math.max(cs * 0.95, sp * 0.72); tx = lerp(tx, c.x, 0.5); tz = lerp(tz, c.z, 0.5); } // break down
       steer(d, tx, tz, spd, dt, 8);
       d.look = [c.x, 1.4, c.z];
       if (!d.eng && dd > 1.6 && !(d.imm > 0)) for (const b of off) { if (b !== carrier && b !== ctrl && b.eng == null && !b.rag && (b.tgt === d || b.role === 'OL') && dist(b, d) < b.rad + d.rad + 0.15) { if (engage(b, d, true)) break; } }
-      // lunge when close and closing
+      // lunge when close and closing (two-hand touch: a lunge with both hands out, on his feet)
       // a runner in the air: a good defender stays on his feet and catches him instead of diving under him
       if (c.jumpY > 0.2) { if (d.stayUp == null) d.stayUp = rng() < 0.25 + KDEF * 0.55; } else d.stayUp = null;
-      if (dd < 1.55 && d.pose !== 'tackle' && !c.rag && c.side === 0 && !(c.jumpY > 0.2 && d.stayUp)) {
+      if (dd < 1.55 && d.pose !== 'tackle' && !(MOPT.touch && d.lunge > 0) && !c.rag && c.side === 0 && !(c.jumpY > 0.2 && d.stayUp)) {
         const cl = (d.vx * (c.x - d.x) + d.vz * (c.z - d.z)) / (dd || 1);
-        if (cl > 0.5) { setPose(d, 'tackle'); d.lunge = 0.3; const ux = (c.x - d.x) / dd, uz = (c.z - d.z) / dd; d.vx += ux * 2.2; d.vz += uz * 2.2; }
+        if (cl > 0.5) { if (MOPT.touch) { d.tchC = c; d.tchT = 0.32; } else setPose(d, 'tackle'); d.lunge = 0.3; d.armR = live ? 1 : 0; const ux = (c.x - d.x) / dd, uz = (c.z - d.z) / dd; d.vx += ux * 2.2; d.vz += uz * 2.2; }
       }
     }
     // the ball is up: who can get there drives to the catch point; the rest close on the receiver. In phase (or over the top of an
@@ -5630,10 +8516,19 @@ gl_FragColor=vec4(c,1.0);}`;
         steer(d, ax, az, sp * 1.02, dt, 9);
         // eyes back for the ball: in phase, over the top, or squared up to it (a trailer who isn't in phase can't look back yet)
         if ((d.inPh || (t && d.z > t.z + 0.5 && cp.z < d.z - 1)) && tl < 1.4) { const mv = Math.hypot(d.vx, d.vz), ra = mv > 2 ? Math.atan2(d.vx, d.vz) : d.h, ba = Math.atan2(b.x - d.x, b.z - d.z); d.face2 = ra + clamp(angDiff(ba, ra), -1.9, 1.9); }
+        // a deep ball: running with the receiver in phase (even with him or on top, not trailing him on the ball's line) or over the
+        // top of it, he looks over his shoulder and finds it, a beat after he starts looking (sooner for a sharp one): then it is
+        // his ball to play at the catch point. Most do at the hard levels; some never get their head around
+        if (deepK(b) > 0 && !d.trk && d.findK && t && t !== d) {
+          const hv = Math.hypot(b.vx, b.vz) || 1, al = ((d.x - t.x) * b.vx + (d.z - t.z) * b.vz) / hv, under = ((cp.x - t.x) * b.vx + (cp.z - t.z) * b.vz) / hv < -1.5; // under-thrown: it comes down short of the receiver, on the trailer
+          if ((al > -0.8 || under) && (dist(d, t) < 3 || al > 0.5) && tl < 1.5) { d.trkT = (d.trkT || 0) + dt; if (d.trkT > lerp(0.4, 0.15, clamp(KDEF, 0, 1))) d.trk = 1; } else d.trkT = 0;
+        }
         if (dd < 2.6 && tl < 0.7) { const ahead = Math.min(tl, 0.1); d.reach = [b.x + b.vx * ahead, b.y + b.vy * ahead, b.z + b.vz * ahead]; if (d.pose !== 'jump') setPose(d, 'reach', true); } else d.reach = null;
         if (d.jumpY <= 0 && d.jumpT <= 0 && d.jumpDelay <= 0 && d.diveT <= 0) {
           const [tc, yc, side] = ballOver(d);
-          if (tc > 0.3 && tc < 0.56 && side < 1.3 && yc > 2.2 && yc < 3.6) doJump(d); // up for it at its highest point
+          // up for it at its highest point; on a deep ball he has found, a leap timed to the top of it (0.5 s from the push-off),
+          // off by his own timing
+          if (d.trk && deepK(b) > 0 ? tc > 0.08 && tc < 0.5 + (d.jErr || 0) && side < 1.3 && yc > 2.0 && yc < 3.6 : tc > 0.3 && tc < 0.56 && side < 1.3 && yc > 2.2 && yc < 3.6) doJump(d);
           // lay out for a pick (or to get a hand on it) when it is coming down just out of reach
           else if (!d.dvTry && tl < 0.3 && dd > sp * tl + 0.4 && dd < sp * tl + 2.1 && cp.y < 1.9) { d.dvTry = 1; if (rng() < 0.4 + 0.45 * KDEF) doDive(d); }
         }
@@ -5808,7 +8703,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- the key play: call, line up, snap ----------
     function defpBegin(r, d) {
       DEFP.left = Math.max(0, DEFP.left - 1); DEFP.dnum++;
-      DEFP.st = { start: d.start, call: d.lastLive || '', arch: d.arch || null, spot: r.spot, dn: r.dn || 1, fd: r.fd || r.spot + FD, plays: r.plays, yds: r.spot - d.start, base: d.base || null };
+      DEFP.st = { start: d.start, call: d.lastLive || '', arch: d.arch || null, spot: r.spot, dn: r.dn || 1, fd: r.fd || (NOFD ? FL : r.spot + FD), plays: r.plays, yds: r.spot - d.start, base: d.base || null };
       DEFP.brain = defpBrain();
       phase = 'dcall'; poss = 'away'; carrier = null; ctrl = null; mode = 'none'; kick = null; // the clock: still running from a play just before (defpEnd), else stopped
       los = DEFP.st.spot; down = DEFP.st.dn; fdz = Math.min(DEFP.st.fd, FL); tryMode = false; // the scoreboard shows their down and distance
@@ -5914,7 +8809,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!hunting) { d.hunt = 0; d.jumpQ = 0; d.diveQ = 0; }
       if (!dir && !hunting && tPlay - H.manT > 0.7) return false;
       d.breakAt = 0; // he sees the ball the moment it is thrown
-      if (d.rag || d.rising > 0 || d.diveT > 0) return true;
+      if (d.rag || d.rising > 0 || d.diveT > 0 || d.tlunge > 0) return true;
       if (hunting) {
         // after the ball: to the spot it comes down (a little short of it, to meet it), steered by you if you are
         const c = ball.cp, ax = c.x - d.x, az = c.z - d.z, al = Math.hypot(ax, az) || 1;
@@ -5958,6 +8853,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!d || d.rag || d.diveT > 0 || d.jumpY > 0 || d.rising > 0) return;
       if (goForBall(d) && ball.cp.t > 0.5 && Math.hypot(ball.cp.x - d.x, ball.cp.z - d.z) > 2.2) { d.diveQ = 1; return; } // too far yet: he runs at it, then lays out
       const c = carrier && carrier.side === 0 ? carrier : null;
+      // two-hand touch: at a ball carrier it is a lunge with both hands out (he stays on his feet), not a dive
+      if (MOPT.touch && c && dist(d, c) < 5) { if (d.tlunge > 0 || d.stun > 0) return; const dx = c.x + c.vx * 0.15 - d.x, dz = c.z + c.vz * 0.15 - d.z, l = Math.hypot(dx, dz) || 1, sp = d.v + 2.5; d.vx = dx / l * sp; d.vz = dz / l * sp; d.h = Math.atan2(dx, dz); d.tlunge = 0.35; d.tchC = c; d.tchT = 0.4; d.breakAt = 0; sfx.play('tap'); return; }
       if (c && dist(d, c) < 5) { const T = Math.min(0.35, dist(d, c) / 9); d.h = Math.atan2(c.x + c.vx * T - d.x, c.z + c.vz * T - d.z); }
       else if (!(ball && ball.st === 'air') && dir) d.h = Math.atan2(dir[0], dir[1]);
       d.breakAt = 0; doDive(d);
@@ -6038,7 +8935,11 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (mode === 'catch' && ctrl && ctrl.side === 0 && ball.st === 'air' && ball.cp) {
         const c = ctrl, b = ball, tl = b.cp.t, d0 = Math.hypot(b.cp.x - c.x, b.cp.z - c.z);
-        if (tl < 0.42 && tl > 0.05 && d0 < 1.8 && b.cp.y > 2.3 && c.jumpY <= 0 && c.jumpT <= 0 && !c.jumped) { c.jumped = 1; doJump(c); }
+        // a contested deep ball: he times his leap for the top of it (about half a second from the push-off), off by his skill,
+        // the same leap your receiver has to time
+        const [, ndB] = nearest(def, b.cp.x, b.cp.z, (d) => !d.rag && !d.eng), cont = deepK(b) >= 0.5 && ndB < 2.6;
+        if (cont && c.jErr == null) c.jErr = gauss() * lerp(0.17, 0.06, clamp(DIFF_OFF, 0, 1));
+        if (cont ? !c.jumped && c.jumpY <= 0 && c.jumpT <= 0 && d0 < 4.5 && hptT(c) - jumpRise(c) <= c.jErr : tl < 0.42 && tl > 0.05 && d0 < 1.8 && b.cp.y > 2.3 && c.jumpY <= 0 && c.jumpT <= 0 && !c.jumped) { c.jumped = 1; doJump(c); }
         else if (tl < 0.26 && d0 > 1.2 && d0 < 2.7 && !c.dove) { c.dove = 1; doDive(c); }
         return;
       }
@@ -6089,7 +8990,9 @@ gl_FragColor=vec4(c,1.0);}`;
         const ld = Math.hypot(qb.x + lx * u - d.x, qb.z + lz * u - d.z); if (ld < 1.4) lane = Math.max(lane, (1.4 - ld) * 1.6);
       }
       const gain = lp.z - los, need = fdz - los;
-      return { r, lp, arcT, d: Math.sqrt(L2), s: Math.min(near * 0.8, atLp) - lane + clamp(gain / 12, -0.6, 1.1) + (gain >= need ? 0.7 : 0) };
+      // deep, he wants a man who has a step: a ball thrown deep into a tight window is the hardest catch there is (and a pick risk)
+      const tightDeep = gain >= DZ(18) ? clamp(2.6 - Math.min(near, atLp), 0, 2) * 0.9 : 0;
+      return { r, lp, arcT, d: Math.sqrt(L2), s: Math.min(near * 0.8, atLp) - lane + clamp(gain / 12, -0.6, 1.1) + (gain >= need ? 0.7 : 0) - tightDeep };
     }
     function cpuThrow(B, e) { B.look = e.r; throwBall({ x: e.lp.x + gauss() * B.err, z: e.lp.z + gauss() * B.err * 1.2 }, e.arcT); }
     // room to run straight ahead of him: the nearest free defender in front
@@ -6118,13 +9021,13 @@ gl_FragColor=vec4(c,1.0);}`;
         S.dn++; head = extra && /batted|broken|swat/i.test(extra) ? 'BROKEN UP!' : 'INCOMPLETE'; sub = S.dn <= 4 ? `${ORD[Math.min(S.dn, 4)]} down` : ''; line = `Pass falls incomplete${extra ? ' (' + esc(extra.toLowerCase()) + ')' : ''}.`;
       } else {
         const ns = Math.round(spot * 2) / 2;
-        if (ns <= 0) { out = { k: 'safety' }; head = 'SAFETY!'; sub = `${HOME.abbr} +2`; line = 'Dropped in the end zone. Safety!'; sfx.play('cheer'); }
+        if (ns <= 0) { out = { k: 'safety' }; head = 'SAFETY!'; sub = `${HOME.abbr} +2`; line = MOPT.touch ? 'Touched down in the end zone. Safety!' : 'Dropped in the end zone. Safety!'; sfx.play('cheer'); }
         else {
           S.spot = clamp(ns, 1, FL - 1);
           if (S.spot >= S.fd) { S.dn = 1; S.fd = Math.min(S.spot + FD, FL); head = `${AWAY.abbr} FIRST DOWN`; col = '#ff3344'; }
-          else { S.dn++; head = kind === 'sack' ? 'SACKED!' : gained <= 0 ? 'STUFFED!' : gained <= 3 ? 'STOPPED SHORT' : 'TACKLED'; col = gained <= 3 ? '#2bd46b' : '#c9ccd4'; }
+          else { S.dn++; head = kind === 'sack' ? (MOPT.touch ? 'TOUCH SACK!' : 'SACKED!') : gained <= 0 ? 'STUFFED!' : gained <= 3 ? 'STOPPED SHORT' : MOPT.touch ? 'TOUCHED DOWN' : 'TACKLED'; col = gained <= 3 ? '#2bd46b' : '#c9ccd4'; }
           sub = gained > 0 ? `+${yd(gained)}` : gained < 0 ? `${gained} yards` : 'No gain';
-          line = kind === 'sack' ? `<b>${esc(nm((OK.QB && OK.QB.sackBy) || DEFP.ctl))}</b> gets home for the sack!` : `${gained > 0 ? 'Gain of ' + yd(gained) : gained < 0 ? 'Loss of ' + yd(gained) : 'No gain'}.`;
+          line = kind === 'sack' ? (MOPT.touch ? `<b>${esc(nm(P.touchBy || DEFP.ctl))}</b> gets two hands on him for the sack!` : `<b>${esc(nm((OK.QB && OK.QB.sackBy) || DEFP.ctl))}</b> gets home for the sack!`) : `${gained > 0 ? 'Gain of ' + yd(gained) : gained < 0 ? 'Loss of ' + yd(gained) : 'No gain'}.` + (MOPT.touch && P.touchBy ? ` Tagged by <b>${esc(nm(P.touchBy))}</b>.` : '');
         }
       }
       if (!out && S.dn > 4) { out = { k: 'ball', at: clamp(Math.round(FL - S.spot), 1, FL - 1) }; head = 'STOPPED ON DOWNS!'; col = '#2bd46b'; sub = 'Your ball'; sfx.play('cheer'); excite = 1; }
@@ -6158,7 +9061,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const S = DEFP.st, clk = { q: qtr, t: clock };
       const log = [], r = simCpu(S.spot, clk, log, S.arch ? { arch: S.arch } : S.call, { dn: S.dn, fd: S.fd, key: defpKeyCheck });
       if (r.plays > 0) { clockRun = false; runoff = 0; } // the simulated snaps ran the clock themselves; straight into another live snap, it keeps running
-      phase = 'cpu'; poss = 'away'; los = clamp(FL - S.spot, 1, FL - 1); down = 1; fdz = Math.min(FL, los + FD);
+      phase = 'cpu'; poss = 'away'; los = clamp(FL - S.spot, 1, FL - 1); down = 1; fdz = fdAt(los);
       setupPlay(); hideTags();
       CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       cpuD = { r, start: S.start, c0: clock, t: 0, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1), shown: false, el: el('div', 'bz-dcard'), pick: false, call: S.call, arch: S.arch, lastLive: S.call, log, base: { plays: S.plays, yds: Math.round(S.spot - S.start) } };
@@ -6192,11 +9095,11 @@ gl_FragColor=vec4(c,1.0);}`;
         return true;
       }
       if (phase === 'live') {
-        msg(touchy ? '<span>Drag to move · Jump for the ball · Dive to tackle</span>' : '<span>Arrows move · SPACE jump · X dive · Q switch · SHIFT sprint</span>');
+        msg(touchy ? `<span>Drag to move · Jump for the ball · ${MOPT.touch ? 'Touch to tag him' : 'Dive to tackle'}</span>` : `<span>Arrows move · SPACE jump · X ${MOPT.touch ? 'touch' : 'dive'} · Q switch · SHIFT sprint</span>`);
         if (!touchy) mkSprint();
         const g = el('div', 'bz-catch'); ctl.appendChild(g);
         const s = el('button', 'bz-btn', `Switch${K('Q')}`); s.type = 'button'; s.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defpSwitch(); }); g.appendChild(s);
-        const d = el('button', 'bz-btn bz-r', `Dive${K('X')}`); d.type = 'button'; d.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defDive(DEFP.ctl, defDir()); }); g.appendChild(d);
+        const d = el('button', 'bz-btn bz-r', `${MOPT.touch ? 'Touch' : 'Dive'}${K('X')}`); d.type = 'button'; d.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defDive(DEFP.ctl, defDir()); }); g.appendChild(d);
         const j = el('button', 'bz-btn bz-g', `Jump${K('SPACE')}`); j.type = 'button'; j.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); defJump(DEFP.ctl); }); g.appendChild(j);
         if (touchy) mkSprint();
         return true;
@@ -6282,7 +9185,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const ev = ids.map((id) => { const C = VS_CALLS.find((c) => c.id === id); let e = 0; for (const k of DKINDS) e += (w[k] / tot) * DFIT[id][k]; if (late && lead > 0 && id === 'prev') e += 0.25; if (late && lead < 0 && DCAT_OF[id] === 'blitz') e += 0.15; return { C, e }; }).sort((a, b) => b.e - a.e);
       return { ev, top };
     }
-    const WHY = { run: 'they like to run here', quick: 'expect a quick throw', mid: 'expect a throw past the sticks', deep: 'they may take a shot deep', screen: 'watch for a screen', pa: 'watch for play-action' };
+    const WHY = { run: 'they like to run here', quick: 'expect a quick throw', mid: NOFD ? 'expect a throw over the middle' : 'expect a throw past the sticks', deep: 'they may take a shot deep', screen: 'watch for a screen', pa: 'watch for play-action' };
     const ddWhy = (dn, togo, spot, top) => `${ORD[Math.min(dn, 4)] || dn} & ${togo >= FL - spot ? 'Goal' : Math.max(1, Math.round(togo))} · ${WHY[top]}`;
     // the coach's three: the calls that fit what they are likely to run here
     function dSuggest(dn, togo, spot, lead, late) {
@@ -6297,7 +9200,7 @@ gl_FragColor=vec4(c,1.0);}`;
       { id: 'heat', name: 'Bring the Heat', sub: 'Blitz after blitz', pool: ['c1b', 'c3b', 'c0', 'c1'], show: 'c0', desc: 'Pressure on most snaps: sacks, stops and turnovers, but a quick throw or a screen can beat it.' },
       { id: 'lock', name: 'Lockdown', sub: 'Man coverage: jam them', pool: ['press', 'c1', 'spy', 'c1b'], show: 'press', desc: 'Win one on one. Kills quick throws; a beaten man gives up the deep ball.' },
       { id: 'wall', name: 'Run Wall', sub: 'Stop the run first', pool: ['box', 'c1', 'c3', 'c1b'], show: 'box', desc: 'Load the box and make them throw. Play-action is the risk.' },
-      { id: 'hawk', name: 'Ball Hawk', sub: 'Disguise it and take it away', pool: ['c3d', 'c2', 'c4', 'c3'], show: 'c3d', desc: 'Confuse the reads on throws past the sticks. Soft against the run.' },
+      { id: 'hawk', name: 'Ball Hawk', sub: 'Disguise it and take it away', pool: ['c3d', 'c2', 'c4', 'c3'], show: 'c3d', desc: NOFD ? 'Confuse the reads on the longer throws. Soft against the run.' : 'Confuse the reads on throws past the sticks. Soft against the run.' },
       { id: 'mix', name: 'Mix It Up', sub: 'The best fit every down', pool: null, show: 'c3', desc: 'The coach calls whatever fits each down from the whole playbook.' },
     ];
     const archOf = (id) => DARCH.find((a) => a.id === id) || DARCH[DARCH.length - 1];
@@ -6351,7 +9254,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // zones first (under everything): deep ones blue, underneath ones yellow
       for (const k in L.A) { const a = L.A[k]; if (a.t !== 'zone') continue; g.fillStyle = a.deep ? 'rgba(77,170,255,.30)' : 'rgba(255,214,60,.28)'; g.strokeStyle = a.deep ? 'rgba(120,195,255,.85)' : 'rgba(255,214,60,.85)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(X(a.x), Y(a.z), SMALL ? (a.deep ? 6.5 : 4.5) * LK * W / (2 * (HW + 1.2)) * 1.4 : (a.deep ? 6.5 : 4.5) * W / 38, SMALL ? (a.deep ? 3.6 : 2.6) * DKN * H / 22 * 1.3 : (a.deep ? 3.6 : 2.6) * H / 33, 0, 0, 6.3); g.fill(); g.stroke(); g.setLineDash([]); const p = L.P[k]; g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(p.x), Y(p.z)); g.lineTo(X(a.x), Y(a.z)); g.stroke(); g.setLineDash([]); }
       // offense: the usual spread look
-      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(X((i - 2) * 1.95), Y(-0.9), 3, 0, 6.3); g.fill(); }
+      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(X(LX((i - 2) * 1.95)), Y(-0.9), 3, 0, 6.3); g.fill(); }
       for (const k in DFORM) { const [x0, z] = DFORM[k], x = SMALL ? xin(LX(x0), 1.5) : x0; g.fillStyle = k === 'QB' ? '#ffc21a' : '#f5f6f8'; g.beginPath(); g.arc(X(x), Y(z), 3.4, 0, 6.3); g.fill(); }
       const tip = (x0, y0, x1, y1, col) => { const a = Math.atan2(y1 - y0, x1 - x0); g.fillStyle = col; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k in L.A) {
@@ -6647,7 +9550,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const hp = releaseHand(qb), y0 = hp[1] > 1.2 ? hp[1] : REL_Y, ty = clamp(ARC_Y[arcT] + E.h, 0.55, 3.3); // anim: out of his hand where the throwing motion has it on the release frame
       const T = flightOf(Math.hypot(tx - hp[0], tz - hp[2]), arcT, ty - y0) * E.tk;
       ball = mkPass(hp[0], y0, hp[2], tx, ty, tz, T, arcT, clamp((hurry - 1) * 1.2 + Math.max(0, -plat[2]) * plat[1] * 0.6 + pressure() * 0.3, 0, 1));
-      ball.fromZ = qb.z; ball.sg = +E.sg.toFixed(2); ball.err = [+E.l.toFixed(2), +E.c.toFixed(2), +E.h.toFixed(2)];
+      ball.fromZ = qb.z; ball.air = tz - los; ball.sg = +E.sg.toFixed(2); ball.err = [+E.l.toFixed(2), +E.c.toFixed(2), +E.h.toFixed(2)];
       thrown = true; passer = qb; qb.armT = 0.35;
       updateCatchPoint();
       const L = as0.L && Math.hypot(as0.L.x - tx, as0.L.z - tz) < 9 ? as0.L : null;
@@ -6770,6 +9673,9 @@ gl_FragColor=vec4(c,1.0);}`;
       flyStep(b, dt); updateCatchPoint();
       if (!b.lev && b.cp && b.kind === 'pass') { b.lev = {}; for (const r of off) if (isRec(r) && Math.hypot(r.x - b.cp.x, r.z - b.cp.z) < 40) for (const d of def) if (Math.hypot(d.x - b.cp.x, d.z - b.cp.z) < 40) leverage(r, d); }
       if (target && !target.rag) target.reachT = b.T - b.t;
+      // how tightly he was covered just before it got there (0.45 s out): a man on him the whole way, or one closing on a receiver
+      // who had a step (the deep contest reads it)
+      if (target && b.sep45 == null && b.kind === 'pass' && b.T - b.t < 0.45) { let m = 99; for (const d of def) if (!d.rag && !d.eng) m = Math.min(m, dist(d, target)); b.sep45 = m; }
       // contact: swept along this step's travel so fast balls can't skip a hand. The first hand to the ball touches it; if a hand
       // from the other side gets there in the next instant too, it is a contested ball and placement decides it
       const px = b.x - b.vx * dt, py = b.y - b.vy * dt, pz = b.z - b.vz * dt;
@@ -6837,6 +9743,25 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // does the defender see the ball coming (it is not arriving over his back)?
     function facesBall(d) { const b = ball, hv = Math.hypot(b.vx, b.vz) || 1; return Math.sin(d.h) * -b.vx / hv + Math.cos(d.h) * -b.vz / hv > -0.35 || Math.hypot(d.vx, d.vz) < 1.5; }
+    // on a deep ball a defender running with the receiver can still see it: he found it over his shoulder (d.trk, playBall in 30-ai.js)
+    // how deep a pass is for the rules of a covered deep ball: its air yards past the line (thrown balls carry b.air), none under 14,
+    // all of it from 20 on. Short and intermediate throws keep their own contest
+    const deepK = (b) => (b && b.kind === 'pass' && !b.tipped ? clamp(((b.air != null ? b.air : b.D - 6) - DZ(14)) / Math.max(1, DZ(20) - DZ(14)), 0, 1) : 0);
+    const seesBall = (d) => facesBall(d) || (!!d.trk && deepK(ball) > 0);
+    // how a receiver's leap was timed for this ball: the top of his leap (0.16 s crouch, then the rise) against the moment the ball
+    // comes down through high-point height (about a foot over his standing reach). Within a tenth of a second: perfect; within two:
+    // good; otherwise early (he was on his way down, or back on the ground) or late (still going up, or still crouched). none: he
+    // never left the ground. The same clock for the player, the CPU and the tests
+    const HPT_Y = 2.9;
+    function hptT(p) { const b = ball, hy = HPT_Y * (p.lk.hs || 1), disc = b.vy * b.vy + 2 * GRAV * (b.y - hy); return disc >= 0 ? (b.vy + Math.sqrt(disc)) / GRAV : Math.max(0, b.vy / GRAV); } // seconds until it comes down through high-point height
+    const jumpRise = (p) => 0.16 + (5.6 + ((p.agi || 60) - 50) * 0.02) / 17; // push-off to the top of his leap
+    function jumpGrade(p) {
+      const b = ball; if (!b || p.jumpAt == null || tPlay < p.jumpAt || tPlay - p.jumpAt > 1.6) return 'none';
+      const off = p.jumpAt + jumpRise(p) - (tPlay + hptT(p));
+      return Math.abs(off) < 0.1 ? 'perfect' : Math.abs(off) < 0.2 ? 'good' : off < 0 ? 'early' : 'late';
+    }
+    // a contested deep ball, by the timing of his leap: only one at the top of it wins a ball the defender is also playing
+    const JUMPK = { perfect: 0.14, good: 0, none: -0.1, late: -0.17, early: -0.17 };
     // highest point a player can get a hand to right now
     const topReach = (p) => (2.42 - 0.97 * (1 - (p.lk.ll || 1))) * p.lk.hs + (p.jumpY || 0) * 1.1;
     // defenders around the receiver when the ball gets there (a ball thrown into a crowd)
@@ -6924,7 +9849,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const b = ball, hv = Math.hypot(b.vx, b.vz) || 1, t = b.pl ? b.pl.tag : '', hum = isHumanDef(d);
       const y = (ballAtBody(d) - (d.jumpY || 0)) / (d.lk.hs || 1), sp = Math.hypot(d.vx, d.vz), across = sp > 0.5 ? Math.abs(d.vx * b.vz - d.vz * b.vx) / (sp * hv) : 0;
       let dif = reach * reach * 0.12 + (y > 2.05 ? 0.08 : y < 0.95 ? 0.06 : 0) + clamp(sp - 3, 0, 5) * 0.02 * (0.5 + across) + (hv > 20 ? Math.min(0.12, (hv - 20) * 0.025) : 0);
-      if (!facesBall(d)) dif += 0.12;
+      if (!seesBall(d)) dif += 0.12;
       if (sp > 3 && (d.vx * b.vx + d.vz * b.vz) > 0.3 * sp * hv) dif += 0.1; // still running the other way, turning back for it
       if (contest) dif += 0.1;
       if (b.tipped) dif -= 0.04; // a ball popped up in the air hangs there for him
@@ -6945,14 +9870,35 @@ gl_FragColor=vec4(c,1.0);}`;
       const qO = clamp(1 - wO / RO, 0, 1), qD = clamp(1 - wD / (RD + 0.42), 0, 1);
       const side = clamp((Math.hypot(b.x - d.x, b.z - d.z) - Math.hypot(b.x - r.x, b.z - r.z)) / 0.9, -1, 1);
       const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.12 : 0) : 0;
-      const hum = isHumanDef(d), sees = hum || facesBall(d);
+      const hum = isHumanDef(d), sees = hum || seesBall(d);
       const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - 0.1 * KDEF + dHands(d) * 0.5;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
       const nz = (rng() + rng() - 1) * 0.07; // a close one can go either way
-      const W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0) - (b.D > 15 ? Math.min(0.15, (b.D - 15) * 0.011) : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
-      b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd }; b.cd = d; if (pr) pr.contest = b.contest;
+      // a deep ball (16+ yards in the air) is the hardest catch in the game when a man is on him: the defender who is in phase with
+      // him (even or on top, not trailing) and found the ball is the favourite. The receiver needs the ball put where only he can get
+      // it (placement), his hands to it first and a leap timed to the top of it; a step on the man (he trails) makes it his ball,
+      // and a defender running with him who never found the ball can only play through his hands. Each extra defender on it
+      // costs him a lot. A much better receiver still wins some of these.
+      const dk = deepK(b), deep = dk > 0, hv0 = Math.hypot(b.vx, b.vz) || 1;
+      const along = ((d.x - r.x) * b.vx + (d.z - r.z) * b.vz) / hv0, trail = along < -0.8;
+      const jg = deep ? jumpGrade(r) : null;
+      // the contest as it always was (the longer the throw the harder: the deep shot's penalty)
+      let W = clamp(0.72 - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0) - (b.D > 15 ? Math.min(0.15, (b.D - 15) * 0.011) : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      if (deep) { // ...and a covered deep ball (20+ air yards; blended in from 14)
+        const hiH = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) : 0;
+        // blanketed (a man within two yards of him just before it arrived) vs a step on the man who closes late: the late closer's
+        // lunge is a lesser threat, and the leap matters less
+        const blanket = b.sep45 == null || b.sep45 < 2.2;
+        const jk = trail ? Math.min(0, JUMPK[jg]) * 0.6 : blanket ? JUMPK[jg] : JUMPK[jg] * 0.5;
+        const phase = trail ? 0.06 : !blanket ? 0.03 : sees ? -0.1 : 0;
+        // with a man blanketing him, a ball put away from the defender only pays off if he goes up and gets it at the top
+        const pk = plc > 0 && blanket && !trail ? (jg === 'perfect' ? 1 : jg === 'good' ? 0.75 : 0.35) : 1;
+        const Wd = clamp(0.3 - 0.1 * KDEF + dramaCatch() + pkb + 0.32 * plc * pk + 0.08 * side + 0.2 * (qO - qD) + hiH + jk + phase + skill + nz - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (crowd >= 2 ? 0.15 * (crowd - 1) : 0), 0.08, 0.97);
+        W = lerp(W, Wd, dk);
+      }
+      b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd, jg, trail, s45: b.sep45 != null ? +b.sep45.toFixed(1) : null }; b.cd = d; if (pr) pr.contest = b.contest;
       const hv = Math.hypot(b.vx, b.vz), hit = clamp((Math.hypot(d.vx, d.vz) - 2) / 5, 0, 1);
       // over the line the receiver wins it: he holds on unless the hit or the defender's arm rips it out
       if (W >= 0.5) {
@@ -6969,14 +9915,23 @@ gl_FragColor=vec4(c,1.0);}`;
       const onHisSide = plc < -0.3 || side < -0.3 || W < 0.3;
       const dq = defCatchQ(d, clamp(wD / RD, 0, 1), true) + (hum && d.jumpY > 0.1 ? 0.06 : 0) - (plc > 0 ? plc * 0.1 : 0); if (pr) b.contest.dq = +dq.toFixed(2);
       if (sees && onHisSide && qD > 0.4 && b.y < topReach(d) - 0.05 && !PK.rainbow && !(PK.laser && plc > -0.6) && defHolds(dq)) { intercept(d, 'contest'); return; }
+      // a deep ball thrown into a crowd: the man who lost the fight for it knocks it loose, and the other defender on it (the safety
+      // over the top, facing it) can take it out of the air
+      if (deep && crowd >= 2 && !PK.rainbow && !PK.laser) {
+        let d2 = null, dd2 = 1.6;
+        for (const q of def) { if (q === d || q.rag || q.eng || q.stun > 0 || q.rising > 0 || !(isHumanDef(q) || seesBall(q))) continue; const qd = Math.hypot(q.x - b.x, q.z - b.z); if (qd < dd2 && b.y < topReach(q) - 0.05) { dd2 = qd; d2 = q; } }
+        if (d2 && defHolds(defCatchQ(d2, clamp(dd2 / 1.6, 0, 1), true) - 0.04 + dk * 0.04)) { d.lastTouch = tPlay; setCatch(d, 'swat'); intercept(d2, 'crowd'); return; }
+      }
       setCatch(d, 'swat'); if (pr) pr.pbu = d.key;
-      if (W >= 0.42) tipBall(d, 'TIPPED!', 0.8); else knockDown2(d.jumpY > 0.15 ? 'SWATTED!' : qO > 0.5 ? 'RIPPED OUT!' : 'BROKEN UP!', d);
+      // a deep ball he lost on a mistimed leap says so (he went up too soon and came down under it, went too late, or never went)
+      const tm = dk >= 0.5 && !trail && (jg === 'early' || jg === 'late' || jg === 'none') ? (jg === 'none' ? ' · NO JUMP' : jg === 'early' ? ' · JUMPED TOO SOON' : ' · JUMPED TOO LATE') : '';
+      if (W >= 0.42) tipBall(d, 'TIPPED!' + tm, 0.8); else knockDown2((d.jumpY > 0.15 ? 'SWATTED!' : qO > 0.5 ? 'RIPPED OUT!' : 'BROKEN UP!') + tm, d);
     }
     // a defender gets to the ball and no receiver is there with him (undercut, jumped route, overthrow into the safety)
     function defAttempt(d, wD) {
       const b = ball;
       d.lastTouch = tPlay; pathAdd('def');
-      const hum = isHumanDef(d), ok = b.y < topReach(d) - 0.05, sees = hum || facesBall(d), looking = hum || tPlay >= (d.breakAt || 0);
+      const hum = isHumanDef(d), ok = b.y < topReach(d) - 0.05, sees = hum || seesBall(d), looking = hum || tPlay >= (d.breakAt || 0);
       // eyes on it, in reach, a ball he can hold on to (defCatchQ) and nobody to fight him for it: a pick; a hand on it: a deflection
       const qD = wD != null ? clamp(1 - wD / catchRadius(d), 0, 1) : 0.5;
       if (DBG && DBG.forcePick) { intercept(d, 'undercut'); return; } // tests: every hand on the ball is a pick (return tackling)
@@ -7008,7 +9963,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const a = rng() * 6.283; b.vy = 5.4 + rng() * 1.4; b.vx = Math.cos(a) * 1.5 + b.vx * 0.08; b.vz = Math.sin(a) * 1.5 + b.vz * 0.08; b.y = Math.max(b.y, 1.95);
       p.lastTouch = tPlay; updateCatchPoint(); if (target) ctrl = target;
       for (const q of everyone) if (q !== p && Math.hypot(q.x - b.x, q.z - b.z) < 6) q.breakAt = Math.min(q.breakAt || 0, tPlay);
-      moment('helmet', p, 'OFF THE HELMET!', { a: p, snd: 'clang', col: '#ffc21a' });
+      moment('helmet', p, METCALF ? 'OFF THE HEAD!' : 'OFF THE HELMET!', { a: p, snd: 'clang', col: '#ffc21a' });
     }
     // broken up / batted down: the ball is dead, nobody gets another hand on it. Swatted, it is driven down and away from his hand
     function knockDown2(msg, d) {
@@ -7036,7 +9991,7 @@ gl_FragColor=vec4(c,1.0);}`;
       pr.rec = r; pr.catchZ = r.z; pr.caught = true; pr.tips = b.tips || 0;
       const notes = [], C = b.contest, crowd = crowdAt(r);
       const wild = !!(C && (C.W < 0.55 || crowd >= 2 || jumping && C.hi > 0)); // a catch he had no business making
-      if (b.helmet) notes.push('OFF THE HELMET!');
+      if (b.helmet) notes.push(METCALF ? 'OFF THE HEAD!' : 'OFF THE HELMET!');
       if (Math.abs(r.x) > HW - 1.25 || r.z > ZEND - emg(1.2)) notes.push('TOE TAP!');
       if (wild && jumping && crowd <= 1) notes.push('MOSSED HIM!');
       else if (wild && crowd >= 2) notes.push(diving ? 'CRAZY CATCH!' : 'IN TRAFFIC!');
@@ -7060,7 +10015,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // gets to him before he is back up to full speed
       { const ck = r.catchKind, k = jumping || ck === 'high' ? 0.55 : ck === 'low' || ck === 'onehand' ? 0.68 : C ? 0.72 : ck === 'basket' ? 0.93 : 0.88; r.vx *= k; r.vz *= k; }
       { let cd = null, cdd = 9; for (const d of def) { if (d.rag || d.eng || d.rising > 0 || d.stun > 0) continue; const dd = dist(d, r); if (dd < cdd) { cdd = dd; cd = d; } }
-        if (cd && cdd < 2.2 && !isHumanDef(cd)) { const ux = (r.x - cd.x) / (cdd || 1), uz = (r.z - cd.z) / (cdd || 1); cd.vx += ux * 1.6; cd.vz += uz * 1.6; if (cdd < 1.7) { setPose(cd, 'tackle'); cd.lunge = 0.3; } } }
+        if (cd && cdd < 2.2 && !isHumanDef(cd)) { const ux = (r.x - cd.x) / (cdd || 1), uz = (r.z - cd.z) / (cdd || 1); cd.vx += ux * 1.6; cd.vz += uz * 1.6; if (cdd < 1.7) { if (MOPT.touch) { cd.tchC = r; cd.tchT = 0.3; } else setPose(cd, 'tackle'); cd.lunge = 0.3; cd.armR = 1; } } }
       // posterized: the man who lost the jump ball goes down
       // (only a real jump ball he had no business winning, the defender up in the air with him; otherwise the man lands on him)
       if (wild && jumping && !diving && C.W < 0.6 && b.cd && !b.cd.rag && b.cd.jumpY > 0.05 && dist(b.cd, r) < 2.4 && funRoll('poster', 0.55)) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
@@ -7086,7 +10041,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function doJump(p) {
       if (!p || p.jumpY > 0 || p.jumpT > 0 || p.jumpDelay > 0 || p.rag || p.diveT > 0 || p.rising > 0) return;
-      p.jumpPow = 5.6 + (p.agi - 50) * 0.02; p.jumpDelay = 0.16; setPose(p, 'jump'); sfx.play('tap'); perkHook('jump', p);
+      p.jumpPow = 5.6 + (p.agi - 50) * 0.02; p.jumpDelay = 0.16; p.jumpAt = tPlay; setPose(p, 'jump'); sfx.play('tap'); perkHook('jump', p);
     }
     function doDive(p) {
       if (!p || p.diveT > 0 || p.rag || p.jumpY > 0 || p.rising > 0) return;
@@ -7101,7 +10056,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const v2n = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
     function receiverDiveStep(p, dt) {
       if (p.diveT > 0) { p.vx *= 1 - dt * 1.2; p.vz *= 1 - dt * 1.2; }
-      if (p.diving && p.diveT - dt <= 0) { p.diving = 0; if (!ball || ball.holder !== p) knockDown(p, [p.vx * 0.8, -1.2, p.vz * 0.8], null, 1.0); } // a missed dive ends on the turf, whichever timer ran out first
+      if (p.diving && p.diveT - dt <= 0) { if (!ball || ball.holder !== p) knockDown(p, [p.vx * 0.8, -1.2, p.vz * 0.8], null, 1.0); p.diving = 0; } // a missed dive ends on the turf, whichever timer ran out first
     }
     // tests: the throw's flight and its miss, without a play
     if (DBG) DBG.ballLab = {
@@ -7236,7 +10191,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const bz = c.z + (c.ddz || 0) * 0.9, fwd = c.side === 0 ? 1 : -1;
       if (c.diveFar == null || (bz - c.diveFar) * fwd > 0) c.diveFar = bz;
     }
-    function landDive(c) { c.diving = 0; diveReach(c); knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.downAt = tPlay + 0.3; }
+    function landDive(c) { diveReach(c); knockDown(c, [c.vx, -2, c.vz], null, 1.3); c.diving = 0; c.downAt = tPlay + 0.3; } // (his own dive: it ends on the ground even in two-hand touch)
     function slide(c) {
       setPose(c, 'slide'); c.down = true; c.fall = 1; c.fallT = 1; c.vx *= 0.4; c.vz = Math.max(0, c.vz * 0.4); c.getup = 1.2;
       popAt(c, 'SLIDE', '#c9ccd4');
@@ -7296,6 +10251,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // the ball is gone (thrown or handed off): flattening him now can't end the play
       if (ball && ball.holder !== c) { lateHit(c, d, nx, nz); return; }
       if (c.sackBy) return; // already in a rusher's grip: the clock on that is running
+      if (MOPT.touch) { touchHit(c, d, nx, nz); return; } // two-hand touch (Metcalf): a touch, not a tackle
       // a dive is already on its way down: contact can't stop it, only shorten it, and the tackler goes down with him
       if (c.diving || c.diveT > 0) {
         if (!c.diveHit) { c.diveHit = 1; d.tried = 1; const head = (c.vx * -nx + c.vz * -nz) > 0, k = head ? 0.55 : 0.85; c.vx *= k; c.vz *= k; knockDown(d, [c.vx * 0.4, 0, c.vz * 0.4], [nx * -0.4, 0.2, nz * -0.4], 1.0); sfx.play('tackle'); }
@@ -7362,7 +10318,7 @@ gl_FragColor=vec4(c,1.0);}`;
         else knockDown(d, [d.vx * 0.3, 0, d.vz * 0.3], [-nx * (1.6 + vc * 0.25), 0.9, -nz * (1.6 + vc * 0.25)], 1.0);
         d.tried = 1;
         if (fun === 'trucked') moment('trucked', d, 'TRUCKED!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', shake: 0.6 });
-        else if (fun === 'plant') moment('plant', d, 'TRUCK STICK!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', sub: 'planted in the turf' });
+        else if (fun === 'plant') moment('plant', d, 'TRUCK STICK!', { a: c, b: d, victim: victimOf(d), snd: 'tackle', sub: METCALF ? 'planted on the blacktop' : 'planted in the turf' });
         else if (stiffing) { popAt(c, 'STIFF ARM!', '#2bd46b'); voice.say('stiff_arm', { carrier: nm(c) }, 1, 0.4); }
         else { const sp = c.mv === 'spin' && c.mvT > 0; popAt(c, sp ? 'SPIN MOVE!' : 'BROKE A TACKLE!', '#2bd46b'); voice.say(sp ? 'spin' : 'broken_tackle', { carrier: nm(c) }, 1, 0.4); }
         perkHook('broke', c, d);
@@ -7375,7 +10331,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // the whiff: a defender lunges at the ball carrier, misses everything and eats turf
       if (c.side === 0 && !behindLOS && c.wrapT <= 0 && gang === 0 && !securing && !square && funRoll('whiff', 0.1)) {
         knockDown(d, [d.vx * 1.2 - nx * 1.5, 0.2, d.vz * 1.2 - nz * 1.5], [d.vx * 0.5, -0.5, d.vz * 0.5], 1.4); d.tried = 1; c.stumbleT = Math.max(c.stumbleT, 0.15);
-        moment('whiff', d, 'WHIFF!', { a: c, b: d, victim: 'away', snd: 'ooh', col: '#2bd46b', sub: 'face first into the turf', line: `<b>${esc(nm(d))}</b> dives at <b>${esc(nm(c))}</b> and hugs nothing but grass. WHIFF!` });
+        moment('whiff', d, 'WHIFF!', { a: c, b: d, victim: 'away', snd: 'ooh', col: '#2bd46b', sub: METCALF ? 'face first onto the blacktop' : 'face first into the turf', line: `<b>${esc(nm(d))}</b> dives at <b>${esc(nm(c))}</b> and hugs nothing but ${METCALF ? 'air' : 'grass'}. WHIFF!` });
         return;
       }
       sfx.play('tackle');
@@ -7419,9 +10375,51 @@ gl_FragColor=vec4(c,1.0);}`;
       if (q.throwT >= 0) { q.hurried = 1; releaseBall(); if (d) lateHit(q, d, ox / ol, oz / ol); popAt(q, 'GOT IT OFF!', '#2bd46b'); return; } // the arm was already coming forward
       finishTackle(q, d, 'sack', ox / ol, oz / ol, 3);
     }
+    // ---------- two-hand touch (Metcalf, MOPT.touch): a defender who gets both hands on the ball carrier ends the play where he is.
+    // Nobody is tackled, knocked down or sent flying: a juke or a spin that beats a man still beats him, a man reaching from behind a
+    // quicker runner, or catching him in the middle of a cut, often gets only one hand on him (no touch), and a hurdle clears a
+    // man lunging low. A quarterback touched behind the line is sacked (a touch sack). ----------
+    function touchHit(c, d, nx, nz) {
+      if (c.diving || c.diveT > 0) { if (!c.diveHit) { c.diveHit = 1; d.tried = 1; c.vx *= 0.8; c.vz *= 0.8; } return; } // he is going down on his own already: the dive lands where it lands
+      if (c.mv === 'spin' && c.mvT > 0.06 && c.spinBeat === d) return;
+      if (c.mv === 'hurdle' && c.jumpY > 0.3 && (d.lunge > 0 || d.tlunge > 0 || d.stumbleT > 0 || d.stun > 0 || d.rising > 0)) {
+        if (!c.hurdHit) { c.hurdHit = 1; d.tried = 1; d.stumbleT = Math.max(d.stumbleT || 0, 0.4); popAt(c, 'HURDLED HIM!', '#2bd46b'); sfx.play('good'); excite = Math.min(1, excite + 0.12); if (pr) pr.notes.push('hurdle'); }
+        return;
+      }
+      const behindLOS = c.role === 'QB' && !crossed && !handed && !thrown, vc = Math.hypot(c.vx, c.vz);
+      const fromBehind = (c.vx * nx + c.vz * nz) > vc * 0.5 && vc > 2, cutting = (c.mv === 'juke' || c.mv === 'spin') && c.mvT > 0;
+      let gang = 0; for (const o of (d.side === 0 ? off : def)) if (o !== d && dist(o, c) < 1.6 && !o.rag) gang++;
+      let pMiss = 0.05 + (1 - clamp(KDEF, 0, 1)) * 0.06 + ((c.agi || 60) - (d.agi || 60)) / 500 + (fromBehind && vc > (d.v || 6) * 0.9 ? 0.16 : 0) + (cutting ? 0.2 : 0) - gang * 0.08 + (c.side === 0 ? dramaBreak() * 0.6 : 0);
+      if (c.secureT > 0) pMiss *= 0.3; // still tucking the catch away
+      if (behindLOS) pMiss *= 0.5;
+      if (isHumanDef(d)) pMiss *= 0.35; // the defender you play: get there and he is touched
+      pMiss = clamp(pMiss, 0.02, 0.4);
+      if (DBG && DBG.forceBreak != null) pMiss = DBG.forceBreak;
+      if (rng() < pMiss) { // one hand on him: no touch, he keeps going
+        d.tried = 1; d.lastTry = tPlay; d.stumbleT = Math.max(d.stumbleT || 0, 0.35); d.vx *= 0.5; d.vz *= 0.5; c.stumbleT = Math.max(c.stumbleT || 0, 0.1);
+        d.tchC = c; d.tchT = 0.3; popAt(c, 'ONE HAND!', '#2bd46b'); sfx.play('good'); excite = Math.min(1, excite + 0.06);
+        return;
+      }
+      touchDown(c, d, behindLOS);
+    }
+    function touchDown(c, d, sack) {
+      if (phase !== 'live' || c.rag) return;
+      d.tried = 1; d.lastTry = tPlay;
+      d.tchC = c; d.tchT = 0.8; d.face2 = Math.atan2(c.x - d.x, c.z - d.z); d.vx = c.vx * 0.6; d.vz = c.vz * 0.6; // two hands on his back, both pull up
+      if (d.pose === 'tackle' || d.pose === 'dive') setPose(d, 'run');
+      const fw = c.side === 0 ? 1 : -1; let z = c.z; if (c.fpZ != null && (c.fpZ - z) * fw > 0) z = c.fpZ;
+      c.tackleKind = sack ? 'sack' : 'touch'; c.contactZ = z; c.wrapT = 0; c.wrapBy = null; c.vx *= 0.7; c.vz *= 0.7;
+      if (pr) pr.touchBy = d;
+      aim = null; hideAim(); c.throwT = -1; mode = 'none'; ctrl = null; input.stick = null; hideStick();
+      popAt(c, sack ? 'TOUCH SACK!' : 'TOUCHED!', c.side === 0 ? '#ff9a3c' : '#2bd46b');
+      if (perkHook('down', c)) return;
+      if (c.side === 1) { endPlay('intdown', z); return; }
+      endPlay(sack ? 'sack' : 'tackle', z);
+    }
     // a hit on a player without the ball: he goes down, the play goes on
     function lateHit(c, d, nx, nz) {
       if (c.rag) return;
+      if (MOPT.touch) { d.tried = 1; d.lastTry = tPlay; return; } // two-hand touch: nobody gets hit
       d.tried = 1; d.lastTry = tPlay;
       const k = (d.mass || 1) / ((d.mass || 1) + (c.mass || 1)), cl = Math.max(1.5, (d.vx - c.vx) * nx + (d.vz - c.vz) * nz); // the hit's momentum carries him
       knockDown(c, [c.vx * (1 - k) + nx * cl * k * 1.1, 0.3, c.vz * (1 - k) + nz * cl * k * 1.1], [nx * 0.5, 0.35 + cl * 0.03, nz * 0.5], 1.1);
@@ -7514,7 +10512,10 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!best && kr && b.y < 0.5) { let fd = 1.0; for (const p of everyone) { if (!p.rag || p === b.from) continue; const r = p.rag.pts[0], d = Math.hypot(r[0] - b.x, r[2] - b.z); if (d < fd) { fd = d; fell = p; } } best = fell; }
       if (best) {
         if (kick && kick.onside) { // an onside kick: whoever falls on it has it, but the first touches can be bobbled
-          const hk = kick.home, kickSide = hk ? 0 : 1, muffP = best.side === kickSide ? 0.15 : (hk ? 0.4 - 0.1 * DIFF : 0.25 + 0.15 * DIFF) * (kick.q != null ? 0.75 + 0.45 * kick.q : 1); // a well-timed kick is harder for the hands team to field
+          // a hands-team man fielding it with the kicking team arriving on him, or off a high hop, bobbles it more (see onsideHands)
+          const hk = kick.home, kickSide = hk ? 0 : 1;
+          let muffP = 0.15;
+          if (best.side !== kickSide) { let near = 9; for (const q of everyone) if (q.side === kickSide && !q.rag && q !== kick.kp) near = Math.min(near, Math.hypot(q.x - best.x, q.z - best.z)); muffP = kick.muffP + kick.press * clamp(1 - near / 2.5, 0, 1) + 0.04 * Math.abs(b.vy); }
           if (kick.muffs < 3 && rng() < muffP) {
             kick.muffs++; best.stun = 0.6; popAt(best, 'BOBBLED!', '#ff9a3c'); sfx.play('tap');
             b.t = 0; b.rolling = false; b.y = 0.3; b.vx = (rng() - 0.5) * 5; b.vz = (rng() - 0.5) * 5; b.vy = 3.5 + rng() * 2;
@@ -7723,7 +10724,7 @@ gl_FragColor=vec4(c,1.0);}`;
       finalizePlayers();
       for (const p of everyone) setPose(p, TH && p.key === 'KK' ? 'idle' : 'stance2');
       // head to head: the kicking side picked deep middle, left or right (left / right as the kicking side watches the return: -x is screen left)
-      const lz = TH ? clamp(Math.round(-1 + rng() * 7 - DIFF * 1.5), ZBACK + emg(2), TH.lzMax) : clamp(Math.round(-4 + rng() * 12 - DIFF * 3), ZBACK + emg(2), 9), lx = xin(!VS ? (rng() - 0.5) * 12 : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6, 1);
+      const lz = TH ? clamp(Math.round((-1 + rng() * 7 - DIFF * 1.5) * MET_K + (TH.lzOff || 0)), ZBACK + emg(2), TH.lzMax) : clamp(Math.round(-4 + rng() * 12 - DIFF * 3), ZBACK + emg(2), 9), lx = xin(!VS ? (rng() - 0.5) * (TH ? 2 * Math.min(6, HW - 3.5) : 12) : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6, 1);
       kick = { type: 'ko', st: 'wait', t: 0, lx, lz, R, tbOK: false };
       ball = TH ? { st: 'held', holder: DK.KK, x: DK.KK.x, y: 1.3, z: DK.KK.z, vx: 0, vy: 0, vz: 0, spin: 0 } : { st: 'spot', x: 0, y: 0.3, z: FL - VN.KO, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
       dcall = { name: TH ? 'Throw-off' : 'Kickoff' };
@@ -7775,6 +10776,13 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     // ---------- onside kicks: a short kick, a live ball after 10 yards, a scramble ----------
+    // The timing bar is symmetric: the marker sweeps end to end and the zones mirror about the centre, by d = |p - 0.5|:
+    // PERFECT (green) inside ONS_Z[0], GOOD inside ONS_Z[1], OK inside ONS_Z[2], MISS (red) out at the ends. The tap's quality
+    // q = 1 - 2d (1 dead centre, 0 at an end) is what travels with a head-to-head kick; both screens grade it the same way.
+    const ONS_Z = [0.07, 0.19, 0.32], ONS_TXT = ['MISS', 'OK', 'GOOD', 'PERFECT!'], ONS_COL = ['#ff3344', '#ff9a3c', '#ffd21f', '#2bd46b'];
+    const onsSpeed = () => 1.0 + 0.45 * clamp(DIFF, 0, 1.3); // bar widths a second: quicker at the higher levels (head to head: 1.45)
+    const onsQ = (p) => clamp(1 - Math.abs(p - 0.5) * 2, 0, 1);
+    const onsGrade = (q) => { const d = (1 - q) / 2; return d < ONS_Z[0] ? 3 : d < ONS_Z[1] ? 2 : d < ONS_Z[2] ? 1 : 0; };
     function startOnside(homeKick) {
       if (finished) return;
       clearBanner(); closeSheet(); hideTags(); hideMeter(); clearPlayers();
@@ -7783,30 +10791,32 @@ gl_FragColor=vec4(c,1.0);}`;
       const kz = homeKick ? VN.KO : FL - VN.KO, dir = homeKick ? 1 : -1;
       let kp, R;
       if (homeKick) {
-        // your kicking team across the 34; their hands team ten yards off, two men back
+        // your kicking team across the 34; their hands team's front line 12 yards off (the setup zone), two men back
         const kq = KQ || { key: 'K', look: KLOOK, num: 3 };
         kp = addOff(mkP(0, 'K', 'K', -0.6, kz - 1.6, { num: kq.num, lk: kq.look || KLOOK, sq: KQ, face: KQ ? KQ.cell : -1, v: 5.5, spd: 50, fx: KQ ? KQ.fx : null }));
         ['RB', 'X', 'Z', 'S', 'Y'].forEach((k, i) => addOff(offPlayer(k, [-17, -9, 4, 10, 17][i], kz - 1)));
         for (let i = 0; i < 5; i++) addOff(olPlayer(i, [-21, -13, -4, 14, 21][i], kz - 1, { v: 6.2 }));
-        for (let i = 0; i < 6; i++) addDef(mkP(1, i % 2 ? 'LB' : 'S', 'HC' + i, -15 + i * 6, kz + 10.5, { v: Math.max(7.2, DP.sV), num: 20 + i, tackle: DP.tackle, str: 60 + 30 * KDEF, lane: -15 + i * 6 }));
-        for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'HD' + i, -9 + i * 9, kz + 17, { v: Math.max(7, DP.lbV), num: 50 + i, tackle: DP.tackle, lane: -9 + i * 9 }));
+        for (let i = 0; i < 6; i++) addDef(mkP(1, i % 2 ? 'LB' : 'S', 'HC' + i, -15 + i * 6, kz + 12, { v: Math.max(7.2, DP.sV), num: 20 + i, tackle: DP.tackle, str: 60 + 30 * KDEF, lane: -15 + i * 6 }));
+        for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'HD' + i, -9 + i * 9, kz + 18, { v: Math.max(7, DP.lbV), num: 50 + i, tackle: DP.tackle, lane: -9 + i * 9 }));
         addDef(mkP(1, 'S', 'HR', 0, kz + 30, { v: DP.sV, num: 29 })); addDef(mkP(1, 'S', 'HR2', 0, kz + 48, { v: DP.sV, num: 31 }));
         R = kp;
       } else {
-        // their kicking team across the 64; your hands team ten yards off, the fastest man deeper
+        // their kicking team across the 64; your hands team: the sure hands (backs and receivers) in the front line 12 yards off,
+        // the linemen behind them, the fastest man deeper
         let rk = 'RB'; for (const k of ['X', 'Z', 'S']) if (SQ[k].r.spd > SQ[rk].r.spd + 4) rk = k;
         R = addOff(offPlayer(rk, 0, kz - 24));
-        ['RB', 'X', 'Z', 'S', 'Y'].filter((k) => k !== rk).forEach((k, i) => addOff(offPlayer(k, [-12, -4, 4, 12][i], kz - 13)));
-        for (let i = 0; i < 5; i++) addOff(olPlayer(i, [-18, -9, 0, 9, 18][i], kz - 10.5, { v: 6.2 }));
+        ['RB', 'X', 'Z', 'S', 'Y'].filter((k) => k !== rk).forEach((k, i) => addOff(offPlayer(k, [-12, -4, 4, 12][i], kz - 12)));
+        for (let i = 0; i < 5; i++) addOff(olPlayer(i, [-18, -9, 0, 9, 18][i], kz - 16, { v: 6.2 }));
         for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), kz - 1, { v: Math.max(7.5, DP.sV), lane: -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF }));
         kp = addDef(mkP(1, 'K', 'KK', 0, kz + 1, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
       }
       finalizePlayers();
       for (const p of everyone) setPose(p, 'stance2');
-      kick = { type: 'ko', st: 'wait', t: 0, onside: true, home: homeKick, kz, dir, kp, R, tbOK: false, react: homeKick ? 1.6 + 0.1 * (1 - DIFF) : 1.1 + 0.15 * DIFF, lx: 0, lz: kz + dir * 12, kickT: 0, muffs: 0 };
-      // your onside kick is timed (no aim): a marker sweeps the bar and you tap in the green; the timing sets the kick (see onsideKick).
+      kick = { type: 'ko', st: 'wait', t: 0, onside: true, home: homeKick, kz, dir, kp, R, tbOK: false, react: 0.3, muffP: 0.1, lx: 0, lz: kz + dir * 12, kickT: 0, muffs: 0 };
+      // your onside kick is timed (no aim): a marker sweeps the bar and you tap in the green; the grade sets the kick (onsideDist,
+      // onsideHands). The CPU times the same bar (cpuOnsideQ).
       // In head to head the kicking player timed it on their screen and the quality came with the kick.
-      if (homeKick && !(VS && VS.mute)) { if (DBG && DBG.onsideQ != null) kick.q = DBG.onsideQ; else { kick.st = 'meter'; kick.m = { p: 0, dir: 1, spd: 1.0 + 0.45 * clamp(DIFF, 0, 1.3), t: 0 }; showOnsideMeter(); } }
+      if (homeKick && !(VS && VS.mute)) { if (DBG && DBG.onsideQ != null) kick.q = DBG.onsideQ; else { kick.st = 'meter'; kick.m = { p: 0, dir: 1, spd: onsSpeed(), t: 0 }; showOnsideMeter(); } }
       else if (!homeKick && VS && VS.kq != null) kick.q = VS.kq;
       ball = { st: 'spot', x: 0, y: 0.3, z: kz, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
       dcall = { name: 'Onside kick' };
@@ -7830,8 +10840,10 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (k.st === 'wait') {
         if (k.t > 0.55 && k.kp.pose !== 'kick') setPose(k.kp, 'kick');
-        if (k.t > 0.85) { // the kick: short and low, down at 11 to 14 yards (timed kicks: see onsideDist)
-          const T = 1.05, lz = k.kz + k.dir * (k.q != null ? onsideDist(k) : 11 + rng() * 3), lx = (rng() - 0.5) * 14; k.lx = lx; k.lz = lz; k.st = 'air'; k.kickT = k.t; sfx.play('kick'); clearBanner();
+        if (k.t > 0.85) { // the kick: short and low (how far and how it comes off the turf: see onsideDist)
+          if (k.q == null) k.q = cpuOnsideQ();
+          onsideHands(k);
+          const T = 1.05, lz = k.kz + k.dir * onsideDist(k), lx = (rng() - 0.5) * 14; k.lx = lx; k.lz = lz; k.st = 'air'; k.kickT = k.t; sfx.play('kick'); clearBanner();
           ball = { st: 'kick', x: 0, y: 0.4, z: k.kz, vx: lx / T, vz: (lz - k.kz) / T, vy: (0.35 - 0.4 + 0.5 * GRAV * T * T) / T, t: 0, T, tx: lx, tz: lz, spin: 0, holder: null };
           for (const p of kickers) if (p !== k.kp) setPose(p, 'run', true);
         } else for (const p of everyone) { p.vx *= 0.8; p.vz *= 0.8; }
@@ -7842,7 +10854,7 @@ gl_FragColor=vec4(c,1.0);}`;
         for (const p of everyone) p.look = [b.x, b.y, b.z];
         if ((b.y <= 0.3 && b.vy < 0) || b.t >= b.T) { // it hits the turf and hops: a live ball
           k.st = 'scramble'; k.landZ = b.z; voiceLive('onside_live', {}, 0.9);
-          ball = { st: 'loose', x: b.x, y: 0.3, z: b.z, vx: b.vx * 0.3 + (rng() - 0.5) * 2.5, vy: k.short ? 1.4 + rng() : k.q != null ? 4.2 + k.q * 1.8 + rng() : 4.5 + rng() * 1.5, vz: b.vz * (k.short ? 0.12 : k.q != null ? 0.45 - 0.1 * k.q : 0.45), holder: null, t: 0, spin: 0 }; // a well-timed one pops up where the kicking team arrives; a dribbler dies short
+          ball = { st: 'loose', x: b.x, y: 0.3, z: b.z, vx: b.vx * 0.3 + (rng() - 0.5) * 2.5, vy: k.popV, vz: b.vz * k.popZ, holder: null, t: 0, spin: 0 }; // a well-timed one pops up where the kicking team arrives; a dribbler dies short
           sfx.play('tap'); setControls(true);
         }
       } else if (k.st === 'scramble') {
@@ -7850,22 +10862,33 @@ gl_FragColor=vec4(c,1.0);}`;
         if (b.t > 7 || (b.t > 2.5 && b.y < 0.3 && Math.hypot(b.vx, b.vz) < 0.25 && !everyone.some((p) => !p.rag && Math.hypot(p.x - b.x, p.z - b.z) < 2.5))) onsideDone(null, b.z); // nobody falls on it
       }
     }
-    // Timing: q = 1 in the middle of the bar, 0 at the ends. A perfect kick (in the green) goes just past 10 yards and pops up, and
-    // the hands team is slow to read it; a good one lands 11 to 13 yards out; a mishit either dies short of 10 (their ball) or rolls
-    // too far, right to the hands team, who see it coming.
+    // The kick by grade. PERFECT: off the turf just past 10 yards and up in the air (a pop), the one the kicking team can run under;
+    // GOOD: 11 to 13 yards with a smaller hop; OK: a skidder further on, right at the hands team; MISS: it dies short of 10 (their
+    // ball) or runs long and slow to the hands team, who see it all the way.
     function onsideDist(k) {
-      const q = k.q;
-      k.react += (q - 0.5) * (q < 0.5 ? 0.6 : 0.2); // a bad one, the hands team sees coming
-      if (q > 0.84) return 11 + rng() * 1.4;
-      if (q > 0.55) return 12 + rng() * 2.2;
-      if (rng() < (0.55 - q) * 1.4) { k.short = true; return 7 + rng() * 2.4; }
-      return 12.2 + rng() * (2 + (0.55 - q) * 6); // the worse the timing, the further it can run
+      const g = k.grade;
+      if (g === 3) { k.popV = 7 + rng() * 1.5; k.popZ = 0.1; return 10.4 + rng() * 1.2; }
+      if (g === 2) { k.popV = 4.6 + rng() * 1.2; k.popZ = 0.25; return 11.4 + rng() * 2; }
+      if (g === 1) { k.popV = 3 + rng() * 1.2; k.popZ = 0.35; return 11.8 + rng() * 2; }
+      if (rng() < 0.5) { k.short = true; k.popV = 1.4 + rng(); k.popZ = 0.12; return 7 + rng() * 2.4; }
+      k.popV = 2 + rng() * 1.2; k.popZ = 0.45; return 13 + rng() * 3;
     }
+    // The receiving hands team: how long until they move after the kick (react, s), their chance to bobble it when they get to it
+    // (muffP) and how much more when a kicking-team man is on him as he fields it (press). The CPU's hands team gets sharper with
+    // the level (sk). Yours, on their kick, is your own team, set for it ("Hands team!") against their fast cover men. A good kick
+    // buys the kicking team time: a perfect one skids and pops up, hard to read and hard to field; a miss, they see coming.
+    function onsideHands(k) {
+      const g = k.grade = onsGrade(k.q), sk = clamp(DIFF, 0, 1.3) / 1.3;
+      if (k.home) { k.react = 0.28 - 0.1 * sk + [0, 0.15, 0.28, 0.31][g]; k.muffP = 0.2 - 0.14 * sk + [0.02, 0.08, 0.18, 0.16][g]; k.press = 0.34 - 0.19 * sk; }
+      else { k.react = 0.16 + [0, 0.08, 0.16, 0.2][g]; k.muffP = 0.05 + [0, 0.03, 0.08, 0.08][g]; k.press = 0.12; }
+    }
+    // the CPU kicker times the same bar: a sloppy tap at Rookie, a surer one at the top levels
+    function cpuOnsideQ() { return onsQ(0.5 + (rng() + rng() - 1) * (0.55 - 0.15 * clamp(DIFF, 0, 1.3) / 1.3)); }
     function onsideTap(auto) {
       const k = kick; if (!k || k.st !== 'meter' || phase !== 'live') return;
-      const q = auto ? 0.15 : clamp(1 - Math.abs(k.m.p - 0.5) * 2, 0, 1);
-      k.q = q; k.st = 'wait'; k.t = 0.45; hideMeter();
-      popAt(k.kp, q > 0.84 ? 'PERFECT!' : q > 0.55 ? 'GOOD KICK' : q > 0.3 ? 'SO-SO' : 'MISHIT!', q > 0.55 ? '#2bd46b' : q > 0.3 ? '#ffc21a' : '#ff3344');
+      const q = auto ? 0.15 : onsQ(k.m.p), g = onsGrade(q);
+      k.q = q; k.st = 'wait'; k.t = 0.45; flashOnsideMeter(g, auto ? null : k.m.p);
+      popAt(k.kp, ONS_TXT[g], ONS_COL[g]);
       sfx.play('tap'); setControls(true);
     }
     function onsideDone(p, z, oob) {
@@ -7874,17 +10897,17 @@ gl_FragColor=vec4(c,1.0);}`;
       let homeBall = p ? p.side === 0 : !hk, how = ''; // nobody on it, or out of bounds: the receiving team takes it
       if (p && p.side === kickSide && trav < 9.5) { homeBall = !hk; how = 'Touched before 10 yards'; } // the kicking team touched it short: receiving team's ball
       else if (oob) how = 'Out of bounds'; else if (!p) how = 'Nobody falls on it';
-      const spot = clamp(Math.round(z), 2, FL - 2), at = ballTxt(spot).toLowerCase();
+      const spot = clamp(Math.round(z), 2, FL - 2), at = spot === MID ? 'midfield' : spot < MID ? 'your ' + spot : 'their ' + (FL - spot); // "at your 45", not "at the own 45"
       carrier = p || null;
       if (homeBall) {
-        banner(hk ? 'ONSIDE KICK RECOVERED!' : 'YOU RECOVER!', how || `${esc(HOME.name)} ball at the ${at}`, '#2bd46b'); sfx.play('cheer'); excite = Math.max(excite, hk ? 1 : 0.7); cam.kick = Math.max(cam.kick, 0.8);
-        say(hk ? `<b>${esc(HOME.name)}</b> fall on the onside kick! Ball at the ${at}.` : `<b>${esc(HOME.name)}</b> hands team comes up with it at the ${at}.`);
+        banner(hk ? 'ONSIDE KICK RECOVERED!' : 'YOU RECOVER!', how || `${esc(HOME.name)} ball at ${at}`, '#2bd46b'); sfx.play('cheer'); excite = Math.max(excite, hk ? 1 : 0.7); cam.kick = Math.max(cam.kick, 0.8);
+        say(hk ? `<b>${esc(HOME.name)}</b> fall on the onside kick! Ball at ${at}.` : `<b>${esc(HOME.name)}</b> hands team comes up with it at ${at}.`);
         if (hk) { addHL('Onside kick recovered'); markBig('big'); }
         voice.say(hk ? 'onside_won' : 'cpu_onside_lost', { home: HOME.name }, 3);
         pend = { next: ['home', spot, 'same'] };
       } else {
-        banner(hk ? 'THEY RECOVER' : 'ONSIDE KICK RECOVERED', how || `${esc(AWAY.name)} ball at the ${at}`, '#ff3344'); sfx.play(hk ? 'boo' : 'bad'); excite = Math.max(0, excite - 0.2);
-        say(hk ? `<b>${esc(AWAY.name)}</b> fall on it. Their ball at the ${at}.` : `<b>${esc(AWAY.name)}</b> recover their own onside kick.`);
+        banner(hk ? 'THEY RECOVER' : 'ONSIDE KICK RECOVERED', how || `${esc(AWAY.name)} ball at ${at}`, '#ff3344'); sfx.play(hk ? 'boo' : 'bad'); excite = Math.max(0, excite - 0.2);
+        say(hk ? `<b>${esc(AWAY.name)}</b> fall on it. Their ball at ${at}.` : `<b>${esc(AWAY.name)}</b> recover their own onside kick.`);
         voice.say(hk ? 'onside_lost' : 'cpu_onside_won', { away: AWAY.name }, 3);
         pend = { next: ['cpu', clamp(FL - spot, 1, FL - 1)] };
       }
@@ -7939,12 +10962,12 @@ gl_FragColor=vec4(c,1.0);}`;
           const st = stat(carrier && carrier.sq && carrier.sq.pid); if (st) st.long = Math.max(st.long, ret);
         } else if (VN.koType === 'throw' && endZ <= 0 && P.outEZ) {
           addPts('away', 2); head = 'SAFETY'; sub = `${esc(AWAY.name)} +2`; col = '#ff3344'; nx.next = ['cpu', VN.SAFE];
-          line = 'He brings it out, then gets taken down back in his own end zone. Safety.';
+          line = MOPT.touch ? 'He brings it out, then gets touched down back in his own end zone. Safety.' : 'He brings it out, then gets taken down back in his own end zone. Safety.';
         } else {
           const s = endZ <= 0.5 ? TB : clamp(Math.round(endZ), 1, FL - 1);
           const toS = s === MID ? 'midfield' : s < MID ? 'your ' + Math.round(s) : 'their ' + Math.round(FL - s); // "to your 8", not "to the own 8"
           nx.next = ['home', s, 'same']; head = endZ <= 0.5 ? 'TOUCHBACK' : 'RETURN'; sub = endZ <= 0.5 ? `Ball at your ${TB}` : `${Math.max(0, ret)}-yard return to ${toS}`; col = '#c9ccd4';
-          line = endZ <= 0.5 ? 'Downed in the end zone. Touchback.' : `<b>${esc(nm(carrier))}</b> brings it out to ${toS}.`;
+          line = endZ <= 0.5 ? 'Downed in the end zone. Touchback.' : `<b>${esc(nm(carrier))}</b> brings it out to ${toS}${MOPT.touch && kind === 'tackle' ? ', where he is tagged' : ''}.`;
           if (ret >= DZ(30)) { addHL(`${nm(carrier)} ${ret}-yd ${VN.koType === 'throw' ? 'throw-off' : 'kick'} return`); markBig('big'); }
         }
       } else {
@@ -7991,16 +11014,17 @@ gl_FragColor=vec4(c,1.0);}`;
           const ns = Math.round(spot * 2) / 2;
           if (ns <= 0 && !tryMode) {
             addPts('away', 2); head = 'SAFETY'; sub = `${esc(AWAY.name)} +2`; col = '#ff3344'; nx.next = ['cpu', VN.SAFE]; clockRun = false;
-            line = 'Tackled in the end zone. Safety.';
+            line = MOPT.touch ? 'Touched down in the end zone. Safety.' : 'Tackled in the end zone. Safety.';
           } else {
             nx.los = clamp(ns, 1, FL - 0.5);
-            if (kind === 'sack') { head = 'SACKED!'; col = '#ff3344'; if (!slid) { TS.sacks++; if (qbS) qbS.sacked++; sfx.play('bad'); } else head = 'DOWN'; }
+            if (kind === 'sack') { head = MOPT.touch ? 'TOUCH SACK!' : 'SACKED!'; col = '#ff3344'; if (!slid) { TS.sacks++; if (qbS) qbS.sacked++; sfx.play('bad'); } else head = 'DOWN'; }
             else if (kind === 'oob') { head = 'OUT OF BOUNDS'; clockRun = false; }
-            else head = 'TACKLED';
+            else head = MOPT.touch ? 'TOUCHED DOWN' : 'TACKLED';
             sub = gained > 0 ? `+${yd(gained)}` : gained < 0 ? `${gained} yards` : 'No gain';
-            if (kind === 'sack') line = slid ? `<b>${esc(nm(carrier))}</b> slides for ${yd(gained)}.` : `<b>${esc(nm(OK.QB))}</b> is sacked for a loss of ${Math.abs(gained)}.`;
+            if (kind === 'sack') line = slid ? `<b>${esc(nm(carrier))}</b> slides for ${yd(gained)}.` : MOPT.touch ? `<b>${esc(nm(OK.QB))}</b> is touched down behind the line, a loss of ${Math.abs(gained)}.` : `<b>${esc(nm(OK.QB))}</b> is sacked for a loss of ${Math.abs(gained)}.`;
             else if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b> for ${yd(gained)}${P.notes && P.notes[0] ? ' · ' + P.notes[0].toLowerCase().replace('!', '') : ''}.`;
             else line = `<b>${esc(nm(rus || carrier))}</b> ${gained >= 8 ? 'breaks free' : 'runs'} for ${yd(gained)}.`;
+            if (MOPT.touch && kind === 'tackle' && P.touchBy) line += ` Touched down by <b>${esc(nm(P.touchBy))}</b>.`;
             if (nx.los >= fdz && !tryMode) {
               const close = nx.los - fdz < 0.6;
               nx.down = 1; nx.fdz = Math.min(nx.los + FD, FL); head = 'FIRST DOWN!'; col = '#2bd46b'; sfx.play('good'); TS.firstDowns++;
@@ -8009,7 +11033,7 @@ gl_FragColor=vec4(c,1.0);}`;
               if (carrier && kind !== 'sack') closeP = carrier;
             } else nx.down = down + 1;
             if (tryMode) { head = 'TWO-POINT TRY FAILS'; col = '#ff3344'; nx.next = ['cpu', TB, 'ko']; }
-            else if (P.regain) { nx.down = 1; nx.fdz = Math.min(nx.los + FD, FL); head = 'BALL\'S BACK!'; col = '#2bd46b'; sub = 'Your defense... er, offense, recovers'; }
+            else if (P.regain) { nx.down = 1; nx.fdz = fdAt(nx.los); head = 'BALL\'S BACK!'; col = '#2bd46b'; sub = 'Your defense... er, offense, recovers'; }
           }
         }
         if (!nx.next && nx.down > 4) { nx.next = ['cpu', clamp(Math.round(FL - nx.los), 1, FL - 1)]; clockRun = false; head = 'TURNOVER ON DOWNS'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++; }
@@ -8075,14 +11099,14 @@ gl_FragColor=vec4(c,1.0);}`;
       if (VS && VS.auth) vsPre();
     }
     function startDrive(yd) {
-      los = clamp(Math.round(yd), 1, FL - 1); down = 1; fdz = Math.min(los + FD, FL); tryMode = false; go4 = false;
+      los = clamp(Math.round(yd), 1, FL - 1); down = 1; fdz = fdAt(los); tryMode = false; go4 = false;
       driveStart = los; drivePlays = 0; clockRun = false; poss = 'home'; perkHook('drive');
       voice.say('drive_start', { home: HOME.name, spot: spotTxt(los) }, 1, 0.35);
       toPre(true);
     }
     function startIntro() {
       intro = 2.0; introCut = true;
-      banner(`1st & ${FD}`, `${esc(nm(OK.QB))} and the ${esc(HOME.name)} offense · ${ballTxt(los)}`, '#ffc21a');
+      banner(NOFD ? '1st & Goal' : `1st & ${FD}`, `${esc(nm(OK.QB))} and the ${esc(HOME.name)} offense · ${NOFD ? `from the ${Math.round(FL - los)} · four downs to score` : ballTxt(los)}`, '#ffc21a');
     }
     function introT0() { intro = 0; }
     // after you score in the 4th quarter: kick it deep (they start at their 25) or try an onside kick
@@ -8153,9 +11177,10 @@ gl_FragColor=vec4(c,1.0);}`;
     // call: one call for every snap, or { arch } (a drive plan, 34-dsheet.js: each snap runs the call from the plan that fits).
     // log (optional) gets every snap: down, first-down spot and ball spot before it, the kind of play, the call, the gain, and how it
     // ended (stop: incomplete or out of bounds; to: a turnover; td), plus the field goal or punt that ends a drive.
+    const TOUCH_YK = 0.85;
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
-      const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || spot + FD, plays = 0, used = 0, yds = 0;
+      const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
       const L = (e) => { if (log) log.push(Object.assign({ dn, fd, sp: spot }, e)); return e; };
       const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t), kinds });
@@ -8180,12 +11205,14 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (r < T.loss + T.big + T.inc) { g = 0; stop = true; } // incomplete
         else g = Math.round(T.g * (0.2 + 1.6 * rng()));
         if (VN.yardK !== 1) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * VN.yardK); // a shorter field: shorter gains
+        if (MOPT.touch && g > 1) g = Math.round(g * TOUCH_YK); // two-hand touch: no yards after contact (no falling forward, no dragging tacklers)
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
         // same clock as the user: the play itself, then 4 more seconds after an in-bounds play before it stops for the next snap
         const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF) + CD.slow) * QS / 120);
         const e = L({ k: kind, call: cl, g, stop, secs: +(c0 - clk.t).toFixed(2) });
-        if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, FL - 1); const R = rng() < 0.6 ? 'INT' : 'FUMBLE'; e.to = R; e.g = Math.max(0, g); return fin(R); }
+        // (two-hand touch: nobody is hit, so no fumbles)
+        if (rng() < CD.to * (MOPT.touch ? 0.7 : 1)) { spot = clamp(spot + Math.max(0, g), 1, FL - 1); const R = MOPT.touch || rng() < 0.6 ? 'INT' : 'FUMBLE'; e.to = R; e.g = Math.max(0, g); return fin(R); }
         spot = Math.max(1, spot + g);
         if (spot >= FL) { e.g = FL - (spot - g); e.td = 1; spot = FL; return fin('TD'); }
         if (spot >= fd) { dn = 1; fd = Math.min(spot + FD, FL); } else dn++;
@@ -8196,13 +11223,13 @@ gl_FragColor=vec4(c,1.0);}`;
     const RES = { TD: ['TOUCHDOWN', '#ff3344'], FG: ['FIELD GOAL', '#ff3344'], MISS: ['MISSED FG', '#2bd46b'], PUNT: ['PUNT', '#c9ccd4'], INT: ['INTERCEPTED!', '#2bd46b'], FUMBLE: ['FUMBLE! YOUR BALL', '#2bd46b'], DOWNS: ['STOPPED ON DOWNS', '#2bd46b'], CLOCK: ['', '#c9ccd4'] };
     function startCpuDrive(start) {
       clearBanner(); closeSheet(); carrier = null; clockRun = false; ctrl = null; mode = 'none'; kick = null;
-      phase = 'cpu'; poss = 'away'; los = clamp(FL - start, 1, FL - 1); down = 1; fdz = Math.min(FL, los + FD);
+      phase = 'cpu'; poss = 'away'; los = clamp(FL - start, 1, FL - 1); down = 1; fdz = fdAt(los);
       setupPlay(); hideTags();
       if (!DRAMA.keep) fireOut('FIRE\'S OUT'); DRAMA.keep = false; // the player's drive ended without points
       // the player calls the defense first (a few seconds, then the suggested call is made for him), then the drive is played out
       cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true };
       cpuD.el.style.setProperty('--oc', OPPCSS);
-      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `1st & ${FD} at their ${start} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, FD, start, hs - as, qtr >= 4 && clock < 75] });
+      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `${NOFD ? '1st & Goal' : '1st & ' + FD} at their ${start} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, NOFD ? FL - start : FD, start, hs - as, qtr >= 4 && clock < 75] });
       setControls(true);
       say(`<b>${esc(AWAY.name)}</b> ball at their ${start}. Pick the plan for the drive.`);
       voice.say('cpu_drive_start', { away: AWAY.name, spot: start === MID ? 'midfield' : 'the ' + start }, 1, 0.3);
@@ -8555,8 +11582,10 @@ gl_FragColor=vec4(c,1.0);}`;
     const crowdLvlK = () => 0.45 + 0.55 * clamp(DIFF / 1.3, 0, 1);
     const kickNow = () => phase === 'kick' && kick && poss === 'home' && (kick.type === 'fg' || kick.type === 'xp');
     const crowdZone = () => homeRZ() || kickNow() ? 1 : qtr >= 4 && Math.abs(hs - as) <= 8 ? 0.5 : 0;
-    // Metcalf: no stands, only the kids around the blacktop: half the pressure on the aim, and no shaking picture or flash bulbs
-    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead' || kickNow(); return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() * crowdZone() * (METCALF ? 0.5 : 1) : 0; }
+    // Metcalf without the crowd setting: only the kids around the blacktop: half the pressure on the aim, and no shaking picture or
+    // flash bulbs. With the crowd on (MOPT.crowd) it works on the player exactly as the stadium does.
+    const QUIETYARD = METCALF && !MOPT.crowd;
+    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead' || kickNow(); return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() * crowdZone() * (QUIETYARD ? 0.5 : 1) : 0; }
     // the sway applied to the aim: an angle (radians) and a length factor, from the time
     function crowdWobble() {
       const e = PULSE.e || 0; if (e <= 0.01) return { a: 0, k: 1 };
@@ -8565,7 +11594,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     let noiseEl = null, flashT = 0;
     function crowdStep(dt) {
-      const e = PULSE.e = crowdE(), sh = METCALF ? 0 : e; // sh: the stands shaking (none at a schoolyard)
+      const e = PULSE.e = crowdE(), sh = QUIETYARD ? 0 : e; // sh: the stands shaking (none at a quiet schoolyard)
       if (sh > 0.01) cam.shake = Math.max(cam.shake, (0.2 + 0.75 * e) * (kickNow() ? 0.35 : 1)); // a kick: the stands shake, the kicker's view a little
       // the picture itself shakes
       if (stage) stage.style.transform = sh > 0.01 ? `translate(${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 90) * 3 * e).toFixed(1)}px,${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 130) * 2 * e).toFixed(1)}px)` : '';
@@ -8622,6 +11651,10 @@ gl_FragColor=vec4(c,1.0);}`;
       cpufumble: ['They fumble the snap! Your defense pounces on it.', 'BUTTERFINGERS! Their running back drops it and your defense falls on it.'],
       cpupick: ['Your defense jumps the route. PICKED!'],
     };
+    if (METCALF) { // no helmets and no grass on the blacktop
+      FUNL.whiff = ['{b} dives at {a} and hugs nothing but air. WHIFF!', '{b} whiffs so hard he spins all the way around.'];
+      FUNL.plant = ['{a} plants {b} on the blacktop with a stiff arm. He may still be down there.', 'Truck stick! {a} puts {b} on the ground.', '{a} with the stiff arm: {b} sees the sky.'];
+      FUNL.helmet = ['Off his head and into somebody\'s hands. Football is weird.', 'BONK! The ball caroms off somebody\'s head and is still alive!', 'OFF THE HEAD! Physics just took over.']; }
     function funLine(k, a, b) {
       const L = FUNL[k]; if (!L) return '';
       const s = L[(crand() * L.length) | 0];
@@ -8660,7 +11693,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const victimOf = (p) => (p && p.side === 0 ? 'home' : 'away');
     // two teammates crash into each other at speed (called from collide for same-side bumps)
     function funBump(a, b, rel) {
-      if (phase !== 'live' || a.rag || b.rag || a.extra || b.extra || rel < 4.2) return;
+      if (phase !== 'live' || a.rag || b.rag || a.extra || b.extra || rel < 4.2 || MOPT.touch) return; // (two-hand touch: no collisions that put people down)
       const c = carrier;
       if (a.eng || b.eng || a.role === 'OL' && b.role === 'OL') return;
       // the runner crashes into his own blocker: down he goes, tackled by his own man
@@ -8704,6 +11737,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // the pile on a loose ball: everybody close dives on it
     function funPile(b, winner) {
+      if (MOPT.touch) return 0; // two-hand touch: nobody dives on a loose ball, it is just picked up
       let n = 0;
       for (const p of everyone) { if (p === winner || p.rag || p.rising > 0) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < 3.4) { const nx = (b.x - p.x) / (d || 1), nz = (b.z - p.z) / (d || 1); knockDown(p, [nx * 3.5, 1.2, nz * 3.5], [nx * 2, 1.4, nz * 2], 1.8); n++; } }
       if (n >= 2) bigPop(winner, 'PILE UP!', '#ff9a3c');
@@ -8768,12 +11802,19 @@ gl_FragColor=vec4(c,1.0);}`;
       // more variants that don't fit a schoolyard, on top of the venue's own list: a kickoff (it is a throw-off), the bleachers,
       // the ref (no officials) and the field goal
       const MET_VSKIP2 = { kr_td: [0, 3, 5], throwaway: [3], friendly_fire: [6], coach_note: [10] };
+      // no first downs (Metcalf's true-size field): the variants about first and 10, the sticks, the chains and the marker
+      const NOFD_VSKIP = { situation: [0, 1, 2, 3, 4, 7, 9, 11], situation_1st: [1, 6, 7], situation_long: [1, 2, 4, 5, 6, 7], situation_fourth: [1, 2, 4], third_down: [1, 2, 5], cpu_downs: [4], drive_start: [1, 4], cpu_drive_start: [2, 5], hurdle: [5] };
+      // two-hand touch: the variants about tackles, hits, pulled flags and bodies on the ground; whole events that are all about
+      // hitting (trucks, big hits, broken tackles, stiff arms, piles) are never said
+      const TOUCH_VSKIP = { tackle_live: [0, 1, 2, 3, 4, 7], run_loss: [0, 3], sack: [0, 1, 3, 7], safety: [1, 5], whiff: [0, 5], spin: [5], hurdle: [2], run: [10], run_big: [4], run_live: [7], no_gain: [1] };
+      const TOUCH_NOEV = { truck: 1, decleat: 1, big_hit: 1, broken_tackle: 1, stiff_arm: 1, pile_up: 1, ref_down: 1 };
+      const skipOf = (e) => { let sk = METCALF ? (MET_VSKIP[e] || []).concat(MET_VSKIP2[e] || []) : []; if (NOFD && NOFD_VSKIP[e]) sk = sk.concat(NOFD_VSKIP[e]); if (MOPT.touch && TOUCH_VSKIP[e]) sk = sk.concat(TOUCH_VSKIP[e]); return sk; };
       function pick(e) {
         const ev = EV[e]; if (!ev || !(ev.n > 0)) return -1;
         const n = ev.n, r = recent[e] || (recent[e] = []), ok = (i) => !ev.ready || ev.ready[i] || !!(ev.prev && ev.prev[i]);
         let pool = []; for (let i = 0; i < n; i++) if (ok(i)) pool.push(i);
         if (!pool.length) for (let i = 0; i < n; i++) pool.push(i);
-        if (METCALF && (MET_VSKIP[e] || MET_VSKIP2[e])) { const sk = (MET_VSKIP[e] || []).concat(MET_VSKIP2[e] || []), p2 = pool.filter((i) => sk.indexOf(i) < 0); if (p2.length) pool = p2; }
+        if (METCALF) { const sk = skipOf(e), p2 = sk.length ? pool.filter((i) => sk.indexOf(i) < 0) : pool; if (p2.length) pool = p2; }
         const c = pool.filter((i) => r.indexOf(i) < 0);
         const i = c.length ? c[(cosmetic() * c.length) | 0] : pool[(cosmetic() * pool.length) | 0];
         r.push(i); const keep = Math.min(pool.length - 1, 5); while (r.length > keep) r.shift();
@@ -8815,7 +11856,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       // say(event, vars, priority 1 flavor / 2 result / 3 big / 4 live, chance 0..1)
       function say(e, vars, pri, chance) {
-        if (!on || avail === false || finished || !EV[e]) return false;
+        if (!on || avail === false || finished || !EV[e] || (MOPT.touch && TOUCH_NOEV[e])) return false;
         if (chance != null && cosmetic() > chance) return false;
         const urls = lineFor(e, vars); if (!urls || !urls.length) return false;
         enqueue(urls, pri || 2);
@@ -8965,7 +12006,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // the spoken call for a crazy moment (the kinds moment() is called with)
     const VOICE_MOMENT = { trucked: 'truck', plant: 'stiff_arm', decleat: 'decleat', whiff: 'whiff', ankles: 'ankles', hurdle: 'hurdle', catch: 'catch_wild', helmet: 'off_helmet', friendly: 'friendly_fire', ref: 'ref_down', houdini: 'houdini', pile: 'pile_up', bigman: 'big_man_td', scoop6: 'scoop_score', scoop: 'scoop_score', pick6: 'pick_six', fumble6: 'fumble_six', fumble: 'fumble', shank: 'punt_shank', doink: 'doink', doinkin: 'doink_in', leap: 'leap', bench: 'bench_party' };
     function voiceMoment(k, p, o) {
-      const e = VOICE_MOMENT[k]; if (!e) return;
+      const e = VOICE_MOMENT[k]; if (!e || (METCALF && e === 'off_helmet')) return; // (no helmets at the schoolyard)
       const a = (o && o.a) || p, name = nm(a), big = /^(big_man_td|scoop_score|pick_six|fumble_six|houdini|doink_in|off_helmet|catch_wild|fumble)$/.test(e);
       voice.say(e, { carrier: name, rec: name, passer: nm(OK.QB), player: name, away: AWAY.name, home: HOME.name }, big ? 3 : 2, big ? 1 : 0.8);
     }
@@ -9524,6 +12565,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function step(dt) {
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
+      // Metcalf: somebody gets the ball back from over the fence (13-metpeople.js). Time out: nothing else in the game moves on
+      if (phase === 'fetch') { metFetchStep(dt); return; }
+      if (METCALF) metFetchWatch(); // Metcalf: has the ball gone over a fence?
       voiceIdle(dt); dramaStep(dt);
       excite = Math.max(0, excite - dt * 0.09);
       for (const q of parts) { if (q.life <= 0) continue; q.life -= dt; q.vy -= 12 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < 0.05) { q.y = 0.05; q.vy *= -0.3; q.vx *= 0.6; q.vz *= 0.6; } q.r += dt * 8; }
@@ -9533,6 +12577,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (p.armT > 0) p.armT -= dt;
         if (p.jumpT > 0) p.jumpT -= dt;
         if (p.lunge > 0) { p.lunge -= dt; if (p.lunge <= 0 && p.pose === 'tackle' && !p.rag) setPose(p, 'run'); }
+        if (p.tlunge > 0) p.tlunge -= dt; // two-hand touch: your defender's lunge
         if (p.rag) ragStep(p, dt);
         if (p.celAt > 0) { p.celAt -= dt; if (p.celAt <= 0) { if (p.rag) riseUp(p); p.rising = 0; setPose(p, 'celebrate'); p.vx = p.vz = 0; } }
       }
@@ -9557,8 +12602,8 @@ gl_FragColor=vec4(c,1.0);}`;
         if (closeP && deadTot - deadT > 0.5 && closeP.celType == null && !closeP.leap) { const c = closeP; if (c.rag) riseUp(c); c.rising = 0; c.face2 = 0; setPose(c, 'celebrate', true); c.celType = 2; }
         if (ball && (ball.st === 'dead' || ball.st === 'loose' || ball.st === 'kick')) groundStep(ball, dt);
         deadT -= dt;
-        if (deadT <= 0 && DEFP.on) { defpAfter(); return; }
-        if (deadT <= 0) { if (!VS && lastBig && (lastBig.kind === 'td' || lastBig.want) && !lastBig.played && replayBuf.length > 20) startReplay(); else nextPlay(); }
+        if (deadT <= 0 && DEFP.on) { if (METCALF && metFetchStart(defpAfter)) return; defpAfter(); return; }
+        if (deadT <= 0) { if (METCALF && metFetchStart(deadDone)) return; deadDone(); } // Metcalf: a ball over the fence is fetched first
         return;
       }
       if (phase === 'replay') { replayStep(dt); return; }
@@ -9568,6 +12613,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'koc') { kocT -= dt; idle(dt); if (kocT <= 0) chooseKo(false); return; } // kick deep on its own if nobody picks
       if (phase === 'pat' || phase === 'over' || phase === 'splash' || phase === 'box') idle(dt);
     }
+    // the dead ball is done: the replay of a big play, else the next play
+    function deadDone() { if (!VS && lastBig && (lastBig.kind === 'td' || lastBig.want) && !lastBig.played && replayBuf.length > 20) startReplay(); else nextPlay(); }
     // between plays the clock only runs out the rest of the 4-second run-off, then stops for the next snap
     function runoffTick(dt) { const d = Math.min(dt, Math.max(0, runoff)); if (d > 0) clockTick(d); runoff -= dt; if (runoff <= 0) { clockRun = false; boardDirty = true; } }
     function idle(dt) { for (const p of everyone) { if (p.rag) continue; p.vx *= 0.8; p.vz *= 0.8; integrate(p, dt); } }
@@ -9602,7 +12649,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'live') return;
       const h = ball.holder;
       if (h && h.side === 0 && !h.rag && h.wrapT <= 0) {
-        for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 + (d.diveT > 0 && isHumanDef(d) ? 0.55 : 0) && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
+        for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 + ((d.diveT > 0 || d.tlunge > 0) && isHumanDef(d) ? 0.55 : d.lunge > 0 && (d.pose === 'tackle' || d.tchT > 0) && d.armR ? 0.3 : 0) && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
       }
       // an interception or fumble return: the offense players who get to him tackle him, each one trying, the same as defenders do
       if (h && h.side === 1 && !h.rag && h.wrapT <= 0 && phase === 'live') {
@@ -9699,7 +12746,7 @@ gl_FragColor=vec4(c,1.0);}`;
       { id: 'mid', name: 'Deep middle', sub: 'High and deep' },
       { id: 'left', name: 'Deep left', sub: 'Pin him to a sideline' },
       { id: 'right', name: 'Deep right', sub: 'Pin him to a sideline' },
-      { id: 'onside', name: 'Onside kick', sub: 'Time it: a better kick, better odds' },
+      { id: 'onside', name: 'Onside kick', sub: 'A long shot: time it in the green' },
     ];
     const VS_PH = ['pre', 'live', 'dead', 'kick', 'pat', 'break', 'replay', 'koc', 'over'];
     const VS_HDR = 23, VS_DELAY = 140, VS_CALL_T = 8, VS_KICK_T = 8;
@@ -9813,7 +12860,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function vsKickPicked(id) {
       if (phase !== 'vsk' || VS.ons) return;
       vsHideCard(); sfx.play('tap');
-      if (id === 'onside') { VS.ons = { p: 0, dir: 1, spd: 1.45, t: 0 }; showOnsideMeter(); setControls(true); return; } // time it first
+      if (id === 'onside') { VS.ons = { p: 0, dir: 1, spd: onsSpeed(), t: 0 }; showOnsideMeter(); setControls(true); return; } // time it first
       vsSend('kick', { kc: id, st: vsSt() });
       vsWatch(`<b>${esc(HOME.name)}</b> kick it ${id === 'mid' ? 'deep' : 'deep to the ' + id}.`);
     }
@@ -9827,9 +12874,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function vsOnsideTap(auto) {
       const m = VS.ons; if (!m || phase !== 'vsk') return;
-      const q = auto ? 0.15 : clamp(1 - Math.abs(m.p - 0.5) * 2, 0, 1);
-      VS.ons = null; hideMeter(); sfx.play('tap');
-      pop(q > 0.84 ? 'PERFECT!' : q > 0.55 ? 'GOOD KICK' : q > 0.3 ? 'SO-SO' : 'MISHIT!', q > 0.55 ? '#2bd46b' : q > 0.3 ? '#ffc21a' : '#ff3344');
+      const q = auto ? 0.15 : onsQ(m.p), g = onsGrade(q);
+      VS.ons = null; flashOnsideMeter(g, auto ? null : m.p); sfx.play('tap');
+      pop(ONS_TXT[g], ONS_COL[g]);
       vsSend('kick', { kc: 'onside', q: +q.toFixed(3), st: vsSt() });
       vsWatch(`<b>${esc(HOME.name)}</b> try the onside kick!`);
     }
@@ -10099,10 +13146,11 @@ gl_FragColor=vec4(c,1.0);}`;
     const op = { t: 0, x: 0, y: 0 }; // operator imperfection
     // a small field (a 30-yard schoolyard): the wide shots come in closer and a little lower (vk), and the eye stays out of the
     // school, the shed, the trees, the fence and the ground: the world's own keep-out (metKeepOut) and sensible bounds around the field
+    // (the big Metcalf field, VN.big: the stadium's own shots, vk 0, with the bounds scaled by MET_K and the same keep-out)
     function venueCam(e, c, vk) {
       if (vk > 0) { e[0] = c[0] + (e[0] - c[0]) * vk; e[2] = c[2] + (e[2] - c[2]) * vk; e[1] = c[1] + (e[1] - c[1]) * vk * 0.94; }
-      const z0 = e[2]; e[2] = clamp(e[2], ZBACK - 12, ZEND + 6); e[0] = clamp(e[0], -HW - 16, HW + 18);
-      e[1] = clamp(e[1] + Math.abs(e[2] - z0) * 0.3, 1.1, 24); // pulled in at an end: a little higher to keep the view
+      const z0 = e[2], K = MET_K; e[2] = clamp(e[2], ZBACK - 12 * K, ZEND + 6 * K); e[0] = clamp(e[0], -HW - 16 * K, HW + 18 * K);
+      e[1] = clamp(e[1] + Math.abs(e[2] - z0) * 0.3, 1.1, K > 1 ? 40 : 24); // pulled in at an end: a little higher to keep the view
       if (typeof metKeepOut === 'function') { const q = metKeepOut(e); if (q && q.length === 3) { e[0] = q[0]; e[1] = q[1]; e[2] = q[2]; } }
       if (e[1] < 1.1) e[1] = 1.1;
     }
@@ -10124,6 +13172,8 @@ gl_FragColor=vec4(c,1.0);}`;
       } else if (phase === 'replay' && replay && ball) {
         const a = replay.orbit + replay.t * 0.35, bx = ball.x || 0, bz = ball.z || los;
         e = [bx + Math.sin(a) * (5.5 + 3 * por), 1.6 + 2.0 * por, bz + Math.cos(a) * (5.5 + 3 * por) - 1.5]; c = [bx, 1.0, bz]; rate = 5; cdk = LENSK * 0.8; replayCam = 1;
+      } else if (phase === 'fetch' && FETCH.cam) { // Metcalf: the ball over the fence (13-metpeople.js)
+        e = FETCH.cam.e.slice(); c = FETCH.cam.c.slice(); rate = 2.4; cdk = 1;
       } else if (DEFP.on && (phase === 'dpre' || phase === 'live' || phase === 'dead')) { // a key defensive play: behind our defense
         [e, c] = defpCam(); rate = phase === 'live' ? 4.2 : 3; vk = 0.8;
       } else if (phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'over' || phase === 'box' || phase === 'vsw' || phase === 'dcall') {
@@ -10170,7 +13220,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       // lens: keep the subject the same size on screen with the narrower field of view by backing the camera off
       e = [c[0] + (e[0] - c[0]) * cdk, c[1] + (e[1] - c[1]) * cdk, c[2] + (e[2] - c[2]) * cdk];
-      if (SMALL) venueCam(e, c, vk);
+      if (SMALL) venueCam(e, c, vk); else if (VN.big) venueCam(e, c, 0);
       let dbg = false;
       if (DBG && DBG.cam) { e = DBG.cam.e; c = DBG.cam.c; dt = -1; dbg = true; }
       const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
@@ -10184,7 +13234,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const asp = cv.width / cv.height;
       const hf = dbg ? 86 : HFOV * (replayCam ? 1 - 0.25 * replayCam : 1);
       const fovy = clamp(2 * Math.atan(Math.tan((hf * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por) * (1 + cam.kick * 0.09);
-      const f = 1 / Math.tan(fovy / 2), n = 0.6, fa = 420;
+      const f = 1 / Math.tan(fovy / 2), n = 0.6, fa = METCALF && MOPT.big ? 420 * MET_K : 420; // the spread Metcalf map reaches MET_K times as far
       const ex = -(cam.e[0] + sx), ey = cam.e[1] + sy, ez = cam.e[2], cx = -(cam.c[0] + sx), cy = cam.c[1] + sy, cz = cam.c[2];
       let zx = ex - cx, zy = ey - cy, zz = ez - cz; let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
       let xx = zz, xz = -zx; l = Math.hypot(xx, xz) || 1; xx /= l; xz /= l; const xy = 0;
@@ -10246,7 +13296,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const COL = { open: [0.17, 0.83, 0.42, 0.8], mid: [1, 0.76, 0.1, 0.8], cov: [1, 0.2, 0.27, 0.75] };
     const sepClass = (d) => (d >= 3 ? 'open' : d >= 1.6 ? 'mid' : 'cov');
     function sepOf(r) { let bd = 99; for (const d of def) { if (d.rag) continue; const dd = dist(d, r); if (dd < bd) bd = dd; } return bd; }
-    const WXN = WX === 'rain' ? 1100 : WX === 'snow' ? 480 : 0;
+    const WXN = WX === 'rain' ? (WXK === 'storm' ? 1700 : 1100) : WX === 'snow' ? 480 : 0, RAINX = WXK === 'storm' ? 5.5 : 1.6; // a storm: heavier, wind-driven
     for (let i = 0; i < WXN; i++) wxp.push({ x: (crand() - 0.5) * 30, y: crand() * 14, z: (crand() - 0.5) * 30, s: 0.6 + crand() * 0.6, w: crand() });
     const flashes = [], breaths = [];
     function setLitUniforms(P, env) {
@@ -10284,6 +13334,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const iris = lk.skin >= 3 ? [0.22, 0.12, 0.05] : lk.skin === 2 ? [0.3, 0.18, 0.07] : lk.eyes || [0.28, 0.2, 0.1];
       // SL order: jer pant skin helm trim cleat pad mask num face arm name glove sock sole visor snum wht eye tape towel stripes
       const cols = [C.jer, C.pant, skin, C.helm, C.stripe, lk.cleat, C.pad, C.mask, C.num, skin, lk.sleeves ? C.jer : skin, WHITEC, C.glove, C.sock, lk.cleat === CLEATS.white ? DARKC : WHITEC, VISORC, C.num, WHITEC, iris, WHITEC, lum(C.pant) > 0.6 ? C.jer : WHITEC, WHITEC, lk.mouthC || C.jer];
+      cols.push(WHITEC, WHITEC); if (p.cas) casCols(cols, p, C, skin);
       for (let i = 0; i < NSL; i++) { colBuf[i * 3] = cols[i][0]; colBuf[i * 3 + 1] = cols[i][1]; colBuf[i * 3 + 2] = cols[i][2]; }
       gl.uniform3fv(P.u.uCol, colBuf);
       const nu = cellUV(p.ncell >= 0 ? p.ncell : 207), fu = cellUV(p.face >= 0 ? p.face : p.fcell >= 0 ? p.fcell : 100), nm = cellUV(p.nmcell >= 0 ? p.nmcell : 207);
@@ -10319,7 +13370,7 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const p of list) {
         if (!p.bones) continue;
         const d = depthOnly ? 99 : Math.hypot(p.x - cam.e[0], p.z - cam.e[2]);
-        const mesh = meshFor(p.body || BODY.WR)[d < (quality === 0 ? 9 : LOD_D) && !depthOnly ? 0 : 1];
+        const mesh = meshForP(p)[d < (quality === 0 ? 9 : LOD_D) && !depthOnly ? 0 : 1];
         if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
         if (!depthOnly && p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side === 2 ? G.kitR : p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
         skinCommon(P, p, mesh);
@@ -10389,6 +13440,7 @@ gl_FragColor=vec4(c,1.0);}`;
         gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 48, 0); gl.enableVertexAttribArray(P.a.aC); gl.vertexAttribPointer(P.a.aC, 3, gl.FLOAT, false, 48, 12); gl.enableVertexAttribArray(P.a.aM); gl.vertexAttribPointer(P.a.aM, 4, gl.FLOAT, false, 48, 24); gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 48, 40);
         gl.drawArrays(gl.TRIANGLES, 0, G.crowdN); DRAWS.n++; DRAWS.tris += G.crowdN / 3; disableAll(P); }
       if (forEnv) return;
+      if (METCALF) metPplDraw(); // Metcalf: the crowd and the people walking by (13-metpeople.js)
       // athletes, sideline figures
       if (showPlayers) { const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false, everyone); if (extras.length) drawPlayers(S, false, quality === 0 ? extras.filter((p) => p.ref || p.crew) : extras); drawFxShells(S, everyone, now); }
       // grass blades around the camera target (full detail only)
@@ -10436,6 +13488,7 @@ gl_FragColor=vec4(c,1.0);}`;
       handsFrame(Math.max(0, dt)); // anim: catches and swats are read off the ball before anyone is posed
       for (const p of everyone) animUpdate(p, Math.max(0, dt));
       extrasStep(Math.max(0, dt));
+      if (METCALF) metPplFrame(Math.max(0, dt), now); // Metcalf people: move, pose, pack (13-metpeople.js)
       dyn.n = 0; tr.n = 0;
       const showPlayers = phase !== 'box';
       if (ball && showPlayers) drawBallNow(now);
@@ -10444,6 +13497,7 @@ gl_FragColor=vec4(c,1.0);}`;
       drawExtrasProps();
       try { fxStep(Math.max(0, Math.min(dt, 0.1)), now); } catch (e) { if (!stepErrLogged) { stepErrLogged = true; console.error('blitz3d: fx error', e); } }
       if (showPlayers) contactBlobs();
+      if (METCALF) metTrafficFrame(dt); // the street traffic: moves, fills its buffer and blob shadows, plays its sound (13-mettraffic.js)
       drawWeather(dt, now);
       if (boardDirty && ((now * 4) | 0) % 2 === 0) { boardDirty = false; try { boardCanvas(); gl.bindTexture(gl.TEXTURE_2D, G.board); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, boardC); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }
       if (fieldDirty && now - fieldUpT > 1.5) { fieldDirty = false; fieldUpT = now; try { gl.bindTexture(gl.TEXTURE_2D, G.field); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fieldC); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }
@@ -10499,7 +13553,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const P = G.dofmb; gl.useProgram(P.pr); gl.bindFramebuffer(gl.FRAMEBUFFER, G.scene2.fb); gl.viewport(0, 0, cv.width, cv.height);
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.scene.dt); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.scene.tex);
           gl.uniform1i(P.u.uTex, 0); gl.uniform1i(P.u.uDepth, 1); gl.uniform2f(P.u.uPx, 1 / cv.width, 1 / cv.height); gl.uniformMatrix4fv(P.u.uInvVP, false, INV); gl.uniformMatrix4fv(P.u.uPrevVP, false, PREV_VP);
-          gl.uniform1f(P.u.uMB, mbK); const fd = Math.hypot(cam.c[0] - cam.e[0], cam.c[1] - cam.e[1], cam.c[2] - cam.e[2]); gl.uniform3f(P.u.uDof, fd, dofK, 0); gl.uniform2f(P.u.uNF, 0.6, 420);
+          gl.uniform1f(P.u.uMB, mbK); const fd = Math.hypot(cam.c[0] - cam.e[0], cam.c[1] - cam.e[1], cam.c[2] - cam.e[2]); gl.uniform3f(P.u.uDof, fd, dofK, 0); gl.uniform2f(P.u.uNF, 0.6, METCALF && MOPT.big ? 420 * MET_K : 420); // the projection's own far plane (the big Metcalf map reaches MET_K times as far)
           quadDraw(P); src = G.scene2;
         }
         // bloom
@@ -10600,6 +13654,7 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let i = flashes.length - 1; i >= 0; i--) { const q = flashes[i]; q.life -= 1 / 60; if (q.life <= 0) { flashes.splice(i, 1); continue; } tr.quad([q.x, q.y - 0.3, q.z - 0.3], [q.x, q.y - 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z - 0.3], [0, 0, 0], [3, 3, 3, 0.9]); }
     }
     function drawWeather(dt, now) {
+      skyFrame(dt, now); // lightning, and the sound under it (13-sky.js)
       // breath in the cold: small puffs at the facemask every few seconds
       if (WX === 'snow' && phase !== 'box') {
         for (const p of everyone) { if (!p.bones || p.rag) continue; if (crand() < dt * 0.35) { const m = p.bones[B.head], hp = mPt(m, 0, 0.12 * p.lk.hs, 0.22 * p.lk.hs); breaths.push({ x: hp[0], y: hp[1], z: hp[2], vx: Math.sin(p.h) * 0.6, vz: Math.cos(p.h) * 0.6, t: 0 }); } }
@@ -10608,13 +13663,13 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!WXN) return;
       const cx = cam.c[0] * 0.5 + cam.e[0] * 0.5, cz = cam.c[2] * 0.5 + cam.e[2] * 0.5, rain = WX === 'rain', d = Math.min(dt, 0.05);
       for (const q of wxp) {
-        q.y -= (rain ? 22 : 2.0) * q.s * d; q.x += (rain ? 1.6 : Math.sin(now + q.s * 9) * 0.9) * d; if (!rain) q.z += Math.cos(now * 0.7 + q.w * 7) * 0.4 * d;
+        q.y -= (rain ? 22 : 2.0) * q.s * d; q.x += (rain ? RAINX : Math.sin(now + q.s * 9) * 0.9) * d; if (!rain) q.z += Math.cos(now * 0.7 + q.w * 7) * 0.4 * d;
         if (q.y < 0) { q.y += 14; q.x = (crand() - 0.5) * 30; q.z = (crand() - 0.5) * 30; }
         const x = cx + q.x, z = cz + q.z;
-        if (rain) tr.streak(x, q.y, z, 0.32 * q.s, 0.011, [0.7, 0.75, 0.85, 0.22 + 0.2 * q.w]);
-        else { const r = 0.05 + 0.04 * q.w; tr.quad([x - r, q.y - r, z], [x + r, q.y - r, z], [x + r, q.y + r, z], [x - r, q.y + r, z], [0, 0, 0], [1.2, 1.2, 1.25, 0.85]); }
+        if (rain) tr.streak(x, q.y, z, 0.32 * q.s, 0.011, [0.7 * WXB, 0.75 * WXB, 0.85 * WXB, 0.22 + 0.2 * q.w]);
+        else { const r = 0.05 + 0.04 * q.w; tr.quad([x - r, q.y - r, z], [x + r, q.y - r, z], [x + r, q.y + r, z], [x - r, q.y + r, z], [0, 0, 0], [1.2 * WXB, 1.2 * WXB, 1.25 * WXB, 0.85]); }
       }
-      if (rain && phase !== 'box') for (let i = 0; i < 24; i++) { const x = cam.c[0] + (crand() - 0.5) * 24, z = cam.c[2] + (crand() - 0.5) * 24; tr.ring(x, z, 0.04 + crand() * 0.1, 0.1 + crand() * 0.12, [0.8, 0.85, 0.95, 0.25], 0.03, 8); }
+      if (rain && phase !== 'box') for (let i = 0; i < (RAINX > 2 ? 40 : 24); i++) { const x = cam.c[0] + (crand() - 0.5) * 24, z = cam.c[2] + (crand() - 0.5) * 24; tr.ring(x, z, 0.04 + crand() * 0.1, 0.1 + crand() * 0.12, [0.8, 0.85, 0.95, 0.25], 0.03, 8); }
     }
 
     // ---------- floating name tags ----------
@@ -11018,7 +14073,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const r = p.fxr; if (!r || !p.bones) continue;
         const hs = p.lk.hs, hm = p.bones[B.head], K = p.fxK || 0.6;
         // helmet prop
-        if (r.p) { const bob = p.fxBob || 1; emitProp(r.p, hm, 0, (0.35 + (r.p === 'halo' ? 0.04 : 0)) * hs * bob, -0.01 * hs, hs * bob * (1.1 + 0.3 * Math.min(K, 1.4))); }
+        if (r.p) { const bob = p.fxBob || 1; emitProp(r.p, hm, 0, ((p.cas ? p.cas.top : 0.35) + (r.p === 'halo' ? 0.04 : 0)) * hs * bob, -0.01 * hs, hs * bob * (1.1 + 0.3 * Math.min(K, 1.4))); }
         if (!r.e || !dt) continue;
         const camD = Math.hypot(p.x - cam.e[0], p.z - cam.e[2]); if (camD > 45) continue;
         const sp = Math.hypot(p.vx, p.vz);
@@ -11110,7 +14165,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let cur = null;
       for (const p of list) {
         const r = p.fxr; if (!r || !r.o || !p.bones) continue;
-        const d = Math.hypot(p.x - cam.e[0], p.z - cam.e[2]), mesh = meshFor(p.body || BODY.WR)[d < LOD_D ? 0 : 1];
+        const d = Math.hypot(p.x - cam.e[0], p.z - cam.e[2]), mesh = meshForP(p)[d < LOD_D ? 0 : 1];
         if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
         skinCommon(P, p, mesh); playerUniforms(P, p);
         const c = C3(r.o), k = clamp(0.35 + 0.35 * (p.fxK || 0.6), 0.3, 1.0) * (0.85 + 0.15 * Math.sin(now * 4 + p.ph));
@@ -11133,7 +14188,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const SVG_FS = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5"/></svg>';
     const SVG_SND = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 5c1.2 1.5 1.2 4.5 0 6" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>';
     const SVG_MUTE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.5"/></svg>';
-    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & ${FD}</b><span>${ballTxt(TB)}</span></div><div class="bz-pls t1" title="${METCALF ? 'Schoolyard hype: how loud the kids around the blacktop are' : 'Stadium pulse: how loud the building is'}"><span>${METCALF ? 'Hype' : 'Pulse'}</span><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="bz-sp"></div>`;
+    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & ${FD}</b><span>${ballTxt(TB)}</span></div><div class="bz-pls t1" title="${METCALF && !MOPT.crowd ? 'Schoolyard hype: how loud the kids around the blacktop are' : METCALF ? 'Crowd pulse: how loud the crowd around the blacktop is' : 'Stadium pulse: how loud the building is'}"><span>${METCALF && !MOPT.crowd ? 'Hype' : 'Pulse'}</span><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="bz-sp"></div>`;
     const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.bz-clk'), bPc = bug.querySelector('.bz-pc'), bDD = bug.querySelector('.bz-dd'), bSta = bug.querySelector('.bz-sta'); pulseEl = bug.querySelector('.bz-pls');
     const mkIB = (html, title) => { const b = el('button', 'bz-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const SVG_X = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3l10 10M13 3L3 13"/></svg>';
@@ -11183,7 +14238,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const liveD = DEFP.on || phase === 'dcall' || phase === 'dpre';
       bDD.innerHTML = cpuBall && simDD ? `<b>${esc(cpuD.dd)}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(cpuD.ddAt)}</span>` :
         cpuBall && liveD ? `<b>${ddTxt()}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(los)}</span>` :
-        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? '<b>Kickoff</b><span>Your kick</span>' : `<b>${ddTxt()}</b><span>${ballTxt(los)}</span>`;
+        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? '<b>Kickoff</b><span>Your kick</span>' : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, Math.round(FL - los)) : ballTxt(los)}</span>`;
       const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
     }
     let sprintBtn = null, staCache = -1;
@@ -11261,7 +14316,7 @@ gl_FragColor=vec4(c,1.0);}`;
         btn('', `Go for 2<small>one play from the ${VN.TWO}</small>${K('2')}`, () => chooseTry(true));
       } else if (phase === 'koc') {
         btn('bz-y', `Kick deep<small>they start at their ${TB}</small>${K('1')}`, () => chooseKo(false));
-        btn('', `Onside kick<small>time it: the better the kick, the better your odds</small>${K('2')}`, () => chooseKo(true));
+        btn('', `Onside kick<small>a long shot: stop the marker in the green</small>${K('2')}`, () => chooseKo(true));
       } else if (phase === 'live' && mode === 'aim') {
         if (play.type === 'qbdraw') msg('<span><b>QB Draw</b> · he takes off on his own · pull back to throw instead</span>');
         else msg(touchy ? '<span><b>Pull back</b> to aim, let go to throw · aim <b>behind</b> the QB to run</span>' : '<span><b>Pull back</b> to aim &amp; release · aim <b>behind</b> the QB to run · arrows move the QB</span>');
@@ -11271,7 +14326,7 @@ gl_FragColor=vec4(c,1.0);}`;
         btn('bz-r', `Run${K('R')}`, scramble, 'pointerdown').style.flex = '0 0 70px';
         mkSprint();
       } else if (phase === 'live' && mode === 'catch') {
-        msg(touchy ? '<span>He runs to the ball · steer to adjust · time your catch</span>' : '<span>Arrows adjust · SPACE jump · X dive · SHIFT sprint</span>');
+        msg(touchy ? '<span>He runs to the ball · covered deep? time your JUMP</span>' : '<span>Arrows adjust · SPACE jump (covered deep: time it) · X dive · SHIFT sprint</span>');
         if (!touchy) mkSprint();
         const g = el('div', 'bz-catch'); ctl.appendChild(g);
         const d = el('button', 'bz-btn', `Dive${K('X')}`); d.type = 'button'; d.addEventListener('pointerdown', (e) => { e.preventDefault(); doDive(ctrl); }); g.appendChild(d);
@@ -11283,15 +14338,15 @@ gl_FragColor=vec4(c,1.0);}`;
         if (!touchy) mkSprint();
         const g = el('div', 'bz-mv'); ctl.appendChild(g); mvBtns = {};
         const qbSlide = ctrl && ctrl.role === 'QB' && !qbRunPlay() && !(kick && kick.type === 'ko');
-        [['juke', 'Juke', 'J', 'bz-r'], ['spin', 'Spin', 'K', ''], ['stiff', 'Stiff', 'L', ''], ['hurdle', 'Hurdle', 'H', 'bz-g'], ['dive', qbSlide ? 'Slide' : 'Dive', 'SPACE', 'bz-y']].forEach(([m, n, k, c]) => {
+        [['juke', 'Juke', 'J', 'bz-r'], ['spin', 'Spin', 'K', ''], ['stiff', 'Stiff', 'L', ''], ['hurdle', 'Hurdle', 'H', 'bz-g'], ['dive', qbSlide ? 'Slide' : 'Dive', 'SPACE', 'bz-y']].filter((m) => !(MOPT.touch && m[0] === 'stiff')).forEach(([m, n, k, c]) => {
           const b = el('button', 'bz-btn ' + c, `${n}${K(k)}<i></i>`); b.type = 'button';
           b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); doMove(m); }); g.appendChild(b); if (m !== 'dive') mvBtns[m] = b;
         });
         if (touchy) mkSprint();
       } else if (phase === 'live' && kick && kick.onside && kick.st === 'meter') {
-        btn('bz-y bz-wide', `Kick it!<small>tap in the green</small>${K('SPACE')}`, () => onsideTap(false), 'pointerdown');
+        btn('bz-y bz-wide', `TAP!<small>stop the marker in the green</small>${K('SPACE')}`, () => onsideTap(false), 'pointerdown');
       } else if (phase === 'vsk' && VS && VS.ons) {
-        btn('bz-y bz-wide', `Kick it!<small>tap in the green</small>${K('SPACE')}`, () => vsOnsideTap(false), 'pointerdown');
+        btn('bz-y bz-wide', `TAP!<small>stop the marker in the green</small>${K('SPACE')}`, () => vsOnsideTap(false), 'pointerdown');
       } else if (phase === 'live') {
         msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? (kick.onside ? '<span>Onside kick · live ball once it goes 10 yards…</span>' : VN.koType === 'throw' ? '<span>Throw-off · get under it…</span>' : '<span>Kickoff · get under it…</span>') : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
       } else if (phase === 'kick') {
@@ -11316,6 +14371,9 @@ gl_FragColor=vec4(c,1.0);}`;
         if (VS.oPh === 'pre' || VS.oPh === 'dead') btn('bz-to' + (toLeft > 0 ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, vsTimeout);
       } else if (phase === 'vsk') {
         msg('<span>Your kickoff · pick it on the card</span>');
+      } else if (phase === 'fetch') { // Metcalf: the ball went over the fence (13-metpeople.js); skippable after 3 seconds
+        msg('<span>Ball over the fence…</span>');
+        if (metFetchSkipOK()) btn('bz-y', 'Skip', metFetchSkip, 'pointerdown').style.flex = '0 0 96px';
       } else if (phase === 'replay') {
         msg('<span>Instant replay</span>');
         btn('bz-y', 'Skip', endReplay, 'pointerdown').style.flex = '0 0 96px';
@@ -11354,10 +14412,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const line = (d, col) => { if (Y(d) < 0 || Y(d) > H) return; g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(d)); g.lineTo(X(HW), Y(d)); g.stroke(); };
       line(FL - los, '#ff5a5a'); line(ZEND - los, '#ffffff'); line(-los, '#ff5a5a'); line(ZBACK - los, '#ffffff'); // goal lines red, end lines white
       g.strokeStyle = '#5aa0ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(0)); g.lineTo(X(HW), Y(0)); g.stroke();
-      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) g.fillRect(X((i - 2) * 1.95) - 3, Y(-0.9) - 3, 6, 6);
+      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) g.fillRect(X(LX((i - 2) * 1.95)) - 3, Y(-0.9) - 3, 6, 6);
       const tip = (x0, y0, x1, y1) => { const a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k of ['X', 'Z', 'S', 'Y', 'RB', 'QB']) {
-        let x = xin(LX(F[k][0]), 1.5), d = Math.max(bf(F[k][1]), ZBACK + emg(1.5) - los); if (k === 'Y' && pl.form === 'gun' && pl.id !== 'rbscreen') x = 3.9;
+        let x = xin(LX(F[k][0]), 1.5), d = Math.max(bf(F[k][1]), ZBACK + emg(1.5) - los); if (k === 'Y' && pl.form === 'gun' && pl.id !== 'rbscreen') x = LX(3.9);
         const r = pl.routes[k], col = k === 'QB' ? '#ffc21a' : k === 'X' ? '#ffd45c' : '#ffffff';
         if (r && r !== 'B') {
           const s = x < -0.5 ? -1 : 1, xs = LXI(x), pts = [[x, d]];
@@ -11458,7 +14516,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function coachPicks() {
       const key = [down, los, fdz, drivePlays, qtr, Math.floor(clock / 30), hs, as, tryMode ? 1 : 0, hist.length ? hist[hist.length - 1].id : ''].join('|');
       if (coachMemo && coachMemo.key === key) return coachMemo.picks;
-      const g2g = fdz >= FL, need = Math.max(1, Math.round(g2g ? FL - los : fdz - los)), room = FL - los;
+      // (no first downs: it is goal to go only near the goal; further out a play is measured against the yards a down still needed)
+      const g2g = fdz >= FL && (!NOFD || FL - los <= VN.RZ), need = NOFD && !g2g ? Math.max(1, Math.round((FL - los) / (5 - Math.min(down, 4)))) : Math.max(1, Math.round(g2g ? FL - los : fdz - los)), room = FL - los;
+      const ddw = NOFD ? ORD[Math.min(down, 4)] + ' & Goal' : ORD[down] + ' & ' + need;
       const lead = hs - as, lateHalf = (qtr === 2 || qtr >= 4) && clock < 120, hurry = lateHalf && (lead < 0 || (qtr >= 4 && lead === 0)), protect = lateHalf && lead > 0 && qtr >= 4;
       const desperate = qtr >= 4 && clock < 20 && lead < 0 && los < FL - (SMALL ? 12 : 35) && (lead < -3 || los < MID);
       const backedUp = los < (SMALL ? 3 : 12), rz = los >= FL - VN.RZ, gl = los >= FL - VN.G5 || (g2g && need <= 3), wet = WET > 0.3;
@@ -11494,13 +14554,13 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (hurry) why = p.sl ? 'Hurry-up · sideline throw stops the clock' : run ? 'Hurry-up · they will not expect it' : 'Hurry-up · quick strike, then hurry to the line';
         else if (protect && run) why = 'Protect the lead · keep the clock moving';
         else if (blitzy && (scr || p.cat === 'quick' || p.type === 'draw')) why = 'They keep blitzing · make them pay';
-        else if (down >= 3) why = run ? ORD[down] + ' & ' + need + ' · they expect a pass' : over >= 0 ? ORD[down] + ' & ' + need + ' · gets you to the sticks' : ORD[down] + ' & ' + need + ' · catch and run for the rest';
+        else if (down >= 3) why = run ? ddw + ' · they expect a pass' : over >= 0 ? ddw + (NOFD ? ' · a big chunk toward the goal' : ' · gets you to the sticks') : ddw + ' · catch and run for the rest';
         else if (down === 2 && need <= 3 && shot) why = '2nd & short · free play, take a shot';
         else if (backedUp) why = 'Backed up · safe yards, no mistakes';
         else if (rz) why = 'Red zone · short field, short routes';
-        else if (wet && (run || p.cat === 'quick')) why = 'Wet turf · keep it simple';
+        else if (wet && (run || p.cat === 'quick')) why = (METCALF ? 'Wet blacktop' : 'Wet turf') + ' · keep it simple';
         else if (down === 1) why = run ? '1st down · stay on schedule' : p.type === 'pa' ? '1st down · fake the run they expect' : shot ? '1st down · take a shot' : '1st down · easy completion';
-        else why = '2nd & ' + need + ' · ' + p.desc.charAt(0).toLowerCase() + p.desc.slice(1);
+        else why = (NOFD ? '2nd & Goal' : '2nd & ' + need) + ' · ' + p.desc.charAt(0).toLowerCase() + p.desc.slice(1);
         return { p, s, why };
       }).sort((a, b) => b.s - a.s);
       const picks = [];
@@ -11540,15 +14600,27 @@ gl_FragColor=vec4(c,1.0);}`;
       a.querySelector('i').style.left = (50 + (kick.st === 'acc' ? kick.a : 0) * 50) + '%';
     }
     function hideMeter() { if (meter) { meter.remove(); meter = null; } }
-    // the onside timing bar: the green in the middle is a perfect kick
+    // the onside timing bar: symmetric zones drawn from ONS_Z (the same numbers that grade the tap), MISS | OK | GOOD | PERFECT |
+    // GOOD | OK | MISS, green dead centre; the marker sweeps end to end. On the tap it freezes and the grade flashes on the bar.
+    const ONS_ZC = ['#d9283a', '#f08a1c', '#f5cf1d', '#22c45e'];
     function showOnsideMeter() {
       hideMeter();
-      meter = el('div', 'bz-meter', `<h5>Onside kick<span>Tap in the green · no aiming</span></h5><div class="bz-mbar"><u></u><i></i></div>`);
+      const z = ONS_Z, ed = [0, 0.5 - z[2], 0.5 - z[1], 0.5 - z[0], 0.5 + z[0], 0.5 + z[1], 0.5 + z[2], 1], gr = [0, 1, 2, 3, 2, 1, 0];
+      const zones = gr.map((g, i) => `<span class="g${g}" style="left:${(ed[i] * 100).toFixed(2)}%;width:${((ed[i + 1] - ed[i]) * 100).toFixed(2)}%;background:${ONS_ZC[g]}"><em>${g === 3 ? 'PERFECT' : g === 2 ? 'GOOD' : g === 1 ? 'OK' : 'MISS'}</em></span>`).join('');
+      meter = el('div', 'bz-meter bz-ons', `<h5>Onside kick<span>Stop it in the green</span></h5><div class="bz-otap">${touchy ? 'TAP!' : 'TAP! <small>SPACE or click</small>'}</div><div class="bz-obar"><div class="bz-ozn">${zones}</div><b></b><i></i></div>`);
       wrap.appendChild(meter);
-      const u = meter.querySelector('u'); u.style.left = '42%'; u.style.right = '42%';
       updOnsideMeter(0);
     }
-    function updOnsideMeter(p) { if (meter) { const i = meter.querySelector('.bz-mbar i'); if (i) i.style.left = (p * 100) + '%'; } }
+    function updOnsideMeter(p) { if (meter) { const i = meter.querySelector('.bz-obar i'); if (i) i.style.left = (p * 100) + '%'; } }
+    // the tap: the marker stops where it was, the zone it hit lights up and the grade (PERFECT / GOOD / OK / MISS) shows big for a moment
+    function flashOnsideMeter(g, p) {
+      const m = meter; if (!m || !m.classList.contains('bz-ons')) { hideMeter(); return; }
+      m.classList.add('done', 'g' + g);
+      const t = m.querySelector('.bz-otap'); if (t) { t.textContent = ONS_TXT[g].replace('!', '') + '!'; t.style.color = ONS_COL[g]; }
+      const d = Math.abs((p == null ? 0 : p) - 0.5), zi = d < ONS_Z[0] ? 3 : p < 0.5 ? [0, 1, 2][d < ONS_Z[1] ? 2 : d < ONS_Z[2] ? 1 : 0] : [6, 5, 4][d < ONS_Z[1] ? 2 : d < ONS_Z[2] ? 1 : 0], zs = m.querySelectorAll('.bz-ozn span');
+      if (p != null) { updOnsideMeter(p); if (zs[zi]) zs[zi].classList.add('hit'); } // no tap (it went off by itself): nothing lit
+      meter = null; setTimeout(() => m.remove(), 900); // let go of it: the flash outlives a screen change (head to head hands over at once)
+    }
     // ---------- aim + stick indicators ----------
     const aimLn = el('div', 'bz-aimln'), aimRun = el('div', 'bz-aimrun', 'Release to run'), stickEl = el('div', 'bz-stick', '<b></b>');
     aimLn.style.display = aimRun.style.display = stickEl.style.display = 'none';
@@ -11588,8 +14660,8 @@ gl_FragColor=vec4(c,1.0);}`;
         <div class="fs"><span style="color:${HOMECSS}">${esc(HOME.name)}</span>${hs}<span style="color:#6f7584">–</span>${as}<span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
         <h3>Team</h3><table><tr><th></th><th>${esc(HOME.abbr)}</th><th>${esc(AWAY.abbr)}</th></tr>
         <tr><td>Total yards</td><td>${TS.yards}</td><td>${CPUS.yards}</td></tr><tr><td>Passing / rushing</td><td>${TS.passYds} / ${TS.rushYds}</td><td>–</td></tr>
-        <tr><td>Plays</td><td>${TS.plays}</td><td>${CPUS.plays}</td></tr><tr><td>First downs</td><td>${TS.firstDowns}</td><td>–</td></tr>
-        <tr><td>3rd down</td><td>${TS.thirdDownConv}/${TS.thirdDownAtt}</td><td>–</td></tr><tr><td>Turnovers</td><td>${TS.turnovers}</td><td>–</td></tr>
+        <tr><td>Plays</td><td>${TS.plays}</td><td>${CPUS.plays}</td></tr>${NOFD ? '' : `<tr><td>First downs</td><td>${TS.firstDowns}</td><td>–</td></tr>`}
+        ${NOFD ? '' : `<tr><td>3rd down</td><td>${TS.thirdDownConv}/${TS.thirdDownAtt}</td><td>–</td></tr>`}<tr><td>Turnovers</td><td>${TS.turnovers}</td><td>–</td></tr>
         <tr><td>Sacks allowed</td><td>${TS.sacks}</td><td>–</td></tr><tr><td>Time of possession</td><td>${fmtClock(top)}</td><td>${fmtClock(cTop)}</td></tr></table>
         ${pass ? `<h3>Passing</h3><table><tr><th>Player</th><th>C/Att</th><th>Yds</th><th>TD</th><th>Int</th><th>Sk</th></tr>${pass}</table>` : ''}
         ${rush ? `<h3>Rushing</h3><table><tr><th>Player</th><th>Att</th><th>Yds</th><th>TD</th><th>Long</th></tr>${rush}</table>` : ''}
@@ -11765,6 +14837,7 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (phase === 'kick') kickTap();
         else if (phase === 'live' && kick && kick.onside && kick.st === 'meter') onsideTap(false);
         else if (phase === 'replay') endReplay();
+        else if (phase === 'fetch') metFetchSkip(); // Metcalf: the ball over the fence (after 3 s)
         else if (mode === 'catch') doJump(ctrl);
         else if (mode === 'run') doMove('dive');
         return;
@@ -11807,6 +14880,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'live' && kick && kick.onside && kick.st === 'meter') { onsideTap(false); e.preventDefault(); return; }
       if (phase === 'vsk' && VS && VS.ons) { vsOnsideTap(false); e.preventDefault(); return; }
       if (phase === 'replay') { endReplay(); return; }
+      if (phase === 'fetch') { metFetchSkip(); return; } // Metcalf: the ball over the fence (skippable after 3 s)
       if (pid != null && (e.pointerId === pid || ptrStale() || performance.now() - ptT > 8000)) resetPtr(); // the old finger is gone
       if (pid != null) { if (ptype === 'aim' && e.pointerId !== pid) { setArc(arc === 0 ? 1 : 0); e.preventDefault(); } return; } // second finger while aiming: Touch <-> Bullet only (Lob -> Bullet); Lob is its own button or the 3 key
       if ((DEFP.on && (phase === 'live' || phase === 'dpre')) || (phase === 'vsw' && VS && VS.rcIdx >= 0 && VS.oPh === 'live')) { // a key defensive play, or Head to Head on defense: drag to move your defender
@@ -11888,7 +14962,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- splash ----------
     const lvlName = DIFF < 0.17 ? 'Rookie' : DIFF < 0.5 ? 'Pro' : DIFF < 0.83 ? 'All-Pro' : DIFF <= 1 ? 'Legend' : DIFF < 1.2 ? 'Hall of Fame' : 'GOAT';
-    const wxName = METCALF ? { clear: 'Lunch hour', rain: 'Rain at lunch', snow: 'Snow at lunch', night: 'Lunch hour' }[WX] : { clear: 'Clear skies', rain: 'Rain', snow: 'Snow', night: 'Under the lights' }[WX]; // a schoolyard has no lights (see 12-venue.js)
+    const wxName = skyName(); // the time of day and the weather (13-sky.js)
     const splash = el('div', 'bz-splash', `
       <div class="bz-title">BLITZ 3D</div>
       <div class="bz-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
@@ -11927,8 +15001,8 @@ gl_FragColor=vec4(c,1.0);}`;
       get plays() { return PLAYS.map((p) => p.id); }, get playList() { return PLAYS.map((p) => ({ id: p.id, type: p.type, name: p.name })); }, get cats() { return CATS.map((c) => c[0]); }, get sheetCat() { return sheetCat; },
       hurdle() { doMove('hurdle'); }, move(m) { doMove(m); },
       // card effects: set a player's card (by key or index) and read the table
-      setBuild(k, b, wgt) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; const B6 = BUILDS6[b] || {}, base = BODY[p.role] || BODY.WR; p.lk = Object.assign({}, p.lk, { build: BUILDS6[b] ? b : null, hs: base.hs * (B6.hs || 1), ll: B6.ll || 1 }); if (wgt != null) p.wgt = wgt; p.body = bodySpec(base, p.lk, p.wgt); p.lk.sw = p.body.sw; p.rag = null; p.fl = null; return p.body; },
-      setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },
+      setBuild(k, b, wgt) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; const B6 = BUILDS6[b] || {}, base = BODY[p.role] || BODY.WR; p.lk = Object.assign({}, p.lk, { build: BUILDS6[b] ? b : null, hs: base.hs * (B6.hs || 1), ll: B6.ll || 1 }); if (wgt != null) p.wgt = wgt; p.body = bodySpec(base, p.lk, p.wgt); if (p.cas) p.body = casSpec(p.body, p.cas.g); p.lk.sw = p.body.sw; p.rag = null; p.fl = null; return p.body; },
+      setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); if (p.cas) p.body = casSpec(p.body, p.cas.g); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },
       throwAt(x, z, a) { if (mode !== 'aim') return false; if (a != null) arc = a; return throwBall({ x, z, D: Math.hypot(x - OK.QB.x, z - OK.QB.z) }, arc); },
       jump() { doJump(ctrl); }, dive() { doDive(ctrl); }, hotGo(k) { if (!hot[k]) cycleHot(k); return hot[k]; },
       debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(FL, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
@@ -11944,7 +15018,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (finished) return;
         closeSheet(); clearBanner(); hideTags(); clearPlayers(); if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; hideMeter();
         phase = 'live'; tPlay = 0; thrown = false; handed = true; runSeen = 0; crossed = true; aim = null; target = null; passer = null; kick = null; lastBig = null; replayBuf = []; recT = 0; carrier = null;
-        los = o.los || MID; down = 1; fdz = los + FD; poss = 'home';
+        los = o.los || MID; down = 1; fdz = NOFD ? FL : los + FD; poss = 'home';
         const c = o.role ? (o.side ? addDef(mkP(1, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 24 })) : addOff(mkP(0, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 72 }))) : addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
         (o.def || []).forEach((d, i) => addDef(mkP(1, d.role || 'LB', 'T' + i, d.x, d.z, { v: d.v || 7.6, str: d.str || 70, agi: 60, tackle: d.tackle || 70, spd: 70, num: 40 + i })));
         // more receivers on the field (hunt / converge scenarios): { key, x, z, vx, vz }
@@ -12022,7 +15096,9 @@ gl_FragColor=vec4(c,1.0);}`;
   // =====================================================================================
   window.MFLBlitz = {
     version: 2,
-    venues: ['stadium', 'metcalf'], // opts.venue (Head to Head, Double or Nothing and Double or Double always play the stadium)
+    venues: ['stadium', 'metcalf'], // opts.venue (Head to Head always plays the stadium)
+    tods: ['morning', 'noon', 'sunset', 'night'], // opts.tod (default: the venue's usual, the stadium at night, Metcalf at noon)
+    weathers: ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'], // opts.weather ('night' = the stadium's usual clear night)
     play(root, opts) {
       return new Promise((resolve) => {
         let settled = false;
@@ -12042,7 +15118,17 @@ gl_FragColor=vec4(c,1.0);}`;
         const t0 = players[0] || {};
         const home = { name: String(t0.team || 'MFL Stars'), abbr: String(t0.abbr || t0.team || 'MFL').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MFL', color: t0.color || '#ffc21a', color2: t0.color2 || '#1b1e27', ovrOff: 66, ovrDef: 60, players };
         const away = pickOpponent(lvl, home, ctx.seed); // a different team every game, at the level's strength
-        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3, weather: data.weather || 'night', venue: ctx.run ? 'stadium' : data.venue || 'stadium', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
+        // the setup screen's choices (the server checks them and fixes a run's): where, Metcalf's settings, time of day, weather.
+        // A run at Metcalf always has the crowd and the big field and plays tackle. The stadium's usual look (a clear night) goes
+        // to the engine as the legacy weather 'night'.
+        const api = window.MFLBlitz, venue = data.venue === 'metcalf' ? 'metcalf' : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
+        const tod = api.tods.indexOf(data.tod) >= 0 ? data.tod : met ? 'noon' : 'night', wx = api.weathers.indexOf(data.weather) >= 0 ? data.weather : 'clear';
+        const crowd = met && (runMet || !!data.crowd), big = met && (runMet || !!data.big), touch = met && !runMet && !!data.touch;
+        const where = met ? ['Metcalf', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
+        const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
+        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
+          weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch,
+          label: (ctx.run ? `${ctx.run.name} · ${lvlN} · Game ${ctx.run.step}` : lvlN + ' · Arcade') + (where ? ' · ' + where : '') }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
           let tds = 0; for (const k in r.stats || {}) tds += (r.stats[k].rushTD || 0) + (r.stats[k].recTD || 0);
           const ab = esc(home.abbr), nm = esc(away.name);
