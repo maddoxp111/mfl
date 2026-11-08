@@ -4512,6 +4512,11 @@ gl_FragColor=vec4(c,1.0);}`;
     const isHumanDef = (d) => !!d && ((DEFP.on && d === DEFP.ctl) || (VS && VS.auth && VS.rc && d === VS.rc.d));
     // steering him by hand: returns true while the player is steering (or just was); otherwise the AI plays his assignment
     function humanDef(d, dt, dir, sprint, H) {
+      if (H.swLock) { // just switched to him on the throw: the input still held from before doesn't count until it changes
+        if (!dir || H.swD !== d) H.swLock = null; // let go (or another man, another play): your next press is new input
+        else if (dir[0] * H.swLock[0] + dir[1] * H.swLock[1] > 0.87) dir = null; // same way (within ~30 degrees): still the old input
+        else H.swLock = null;
+      }
       if (dir) H.manT = tPlay;
       const hunting = d.hunt && ball && ball.st === 'air' && ball.kind === 'pass' && ball.cp;
       if (!hunting) { d.hunt = 0; d.jumpQ = 0; d.diveQ = 0; }
@@ -4579,6 +4584,9 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const cur = DEFP.on ? DEFP.ctl : H.d;
       if (!best || best === cur) return;
+      // whatever direction you were already holding was for the other man: it doesn't steer this one. He keeps running the way
+      // he was (the AI plays it) until you move the stick somewhere new, let go and press again, or jump or dive
+      const held = hdDir(); H.swLock = held ? [held[0], held[1]] : null; H.swD = best;
       if (DEFP.on) { DEFP.ctl = best; DEFP.manT = -9; } else { H.d = best; H.manT = -9; H.dir = null; }
       best.breakAt = Math.min(best.breakAt || 0, tPlay + 0.05); // he sees it the moment it's thrown, like you would
     }

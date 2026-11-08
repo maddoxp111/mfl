@@ -205,6 +205,14 @@ const UPDATES = [
       'This also fixes your own defense on live snaps and in Head to Head, which had the same problem.',
     ],
   },
+  {
+    n: 19,
+    date: '2026-11-08',
+    title: '3D Blitz: the switch on the throw keeps him running',
+    items: [
+      "When you're switched to the defender covering the receiver the ball is thrown to, he keeps running the way he was going, after the ball, instead of stopping or following the direction you were already holding for your old player. Move the stick somewhere new, let go and press again, or jump or dive, and he's yours.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
