@@ -230,6 +230,20 @@ const UPDATES = [
       'Great returners still get good field position: about 31 yards a return with a top lineup in our tests, against about 24 for an average one. Touchdowns went from about 1 in 7 kickoffs (Rookie, top lineup) to about 1 in 100.',
     ],
   },
+  {
+    n: 22,
+    date: '2026-11-08',
+    title: '3D Blitz: play at Metcalf',
+    items: [
+      "New on the 3D Blitz setup screen: Where. Play at The Stadium like before, or at Metcalf: the real blacktop at Thomas Metcalf School, rebuilt life size from measurements, aerial photos and pictures of the school.",
+      "Every painted mark is where it really is: the field lines and red goal lines, the red ticks, the white box with its corner squares, the three four-square courts, the hopscotch, the target, both basketball keys with their hoops, and all 17 Wildcats paw prints, worn the way the real paint is.",
+      "Around it: the brick wing, the red shed, the blue two-story wing and the hedge, the roofs and skylights, the black fence and brick pillars on Main Street, the streetlights, the Wittenberg Lutheran Center across the street, the parking lot with its arrows, the new playground and the trees. Lunch-time sun and schoolyard sounds instead of a stadium crowd at night.",
+      "It plays on the real field: about 30 yards goal line to goal line, 2-yard end zones and 24 yards wide, 11 on 11. Formations, routes, coverage, the play art and the cameras are fitted to it.",
+      "Metcalf house rules: throw-offs instead of kickoffs, no punting, no field goals, a touchdown is worth 7 (no extra point), and you go for it on 4th down. First downs are still 10 yards. A pick or fumble downed in your own end zone is a touchback at your 4, and a runner who falls over the goal line scores.",
+      "Metcalf games pay the same as the stadium. Double or Nothing, Double or Double, Head to Head and Career are played at the stadium for now.",
+      "Small fixes in every game: \"Your ball at your 3\" instead of \"at the your 3\", the CPU drive card's result fits on one line, and after a score the bottom line says whose ball is next.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

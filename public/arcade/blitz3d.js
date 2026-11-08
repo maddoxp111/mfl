@@ -178,8 +178,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-dcard canvas.bz-mf{display:block;width:300px;max-width:100%;height:64px;margin:2px auto 6px;border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
 .bz-dcard .mf-dd{font-size:10px;color:#c9ccd4}.bz-dcard .mf-dd b{color:#ffc21a}
 .bz-dcard .mf-lp{min-height:1.6em;color:#f5f6f8}
-.bz-dcard .res{margin-top:10px;font-size:14px;color:#f5f6f8}
-.bz-dcard .sc{margin-top:8px;font-size:11px;color:#ffc21a}
+.bz-dcard .bz-dres{margin-top:10px;font-size:14px;color:#f5f6f8}
+.bz-dcard .bz-dsc{margin-top:8px;font-size:11px;color:#ffc21a}
 .bz-box{position:absolute;inset:0;z-index:9;background:rgba(7,8,11,.97);overflow-y:auto;touch-action:pan-y;padding:14px calc(12px + env(safe-area-inset-right,0px)) 18px calc(12px + env(safe-area-inset-left,0px))}
 .bz-box h2{margin:2px 0 4px;text-align:center;font:900 26px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px}
 .bz-box .fs{display:flex;justify-content:center;align-items:center;gap:14px;margin:8px 0 12px;font:400 20px 'Press Start 2P',monospace}
@@ -1802,6 +1802,62 @@ gl_FragColor=vec4(c,1.0);}`;
     const WET = WX === 'rain' ? 1 : WX === 'snow' ? 0.8 : 0;
     const rng = mkRng(opts.seed || 'blitz-' + Date.now());
     const DBG = window.__blitzDebug || null;
+    // ---------- the venue: field size and field rules (the stadium is the regulation 100-yard field) ----------
+    // Engine units are yards; z runs from your goal line (0) to theirs (FL), x is across the field (|x| <= HW in bounds).
+    // Metcalf: the blacktop at Thomas Metcalf School, measured in meters (origin at the field's center, +x east, +z north):
+    // red goal lines at z = +/-13.77 m, white end lines at +/-15.68 m, white sidelines at x = +/-11.20 m; the home offense attacks north.
+    const M2Y = 1.0936133;
+    const VENUES = {
+      stadium: { id: 'stadium', name: 'The Stadium',
+        FL: 100, EZ: 10, HW: 26.65, FD: 10, // goal to goal, end-zone depth, half width, first-down distance
+        TB: 25,   // touchback: the spot after a touchback or your kickoff (from the receiving team's goal line)
+        KO: 35,   // kickoff spot in the kicking team's frame (the CPU kicks from FL - KO)
+        SAFE: 35, // restart spot after a safety
+        PAT: 15, TWO: 2, // extra point and two-point try spots (yards from the goal line)
+        RZ: 20, GL: 10, NEAR: 15, G5: 5, G3: 3, // red zone, goal line, "inside the 15", the 5 and the 3 (from the goal line)
+        CPUFG: 37, CPUGO: 40, // drive sim: a field goal try from FL - CPUFG; going for it on 4th down from CPUGO
+        RESTART: { missMin: 20, toMin: 15, toMax: 70, puntLo: 18, puntLoR: 17, puntHi: 42, puntHiR: 12, fgMissMin: 20 },
+        koType: 'kick', onside: true, punt: true, fg: true, pat: true, tdPts: 6, tb: true, endLine: false, leap: true,
+        extras: true, grass: true, divots: true, yardCalls: true, zclamp: false, yardK: 1, mapLine: 10, mapStep: 20,
+        world: 'stadium', tex: [30, 12, 60, 124] },
+      // a lunch-time school game: throw-offs (no kicking), no punts, field goals or tries (a touchdown is 7), no chain crew,
+      // benches or officials; asphalt (no grass, no divots)
+      metcalf: { id: 'metcalf', name: 'Metcalf',
+        FL: 27.54 * M2Y, EZ: 1.91 * M2Y, HW: 11.20 * M2Y, FD: 10,
+        TB: 4, KO: 0, SAFE: 4, PAT: 3, TWO: 2,
+        RZ: 10, GL: 5, NEAR: 7, G5: 3, G3: 2, CPUFG: 0, CPUGO: 0,
+        RESTART: { missMin: 4, toMin: 2, toMax: 26, puntLo: 4, puntLoR: 6, puntHi: 10, puntHiR: 4, fgMissMin: 4 },
+        koType: 'throw', onside: false, punt: false, fg: false, pat: false, tdPts: 7, tb: true, endLine: true, leap: false,
+        extras: false, grass: false, divots: false, yardCalls: false, zclamp: true, yardK: 0.33, mapLine: 5, mapStep: 5,
+        world: 'metcalf', tex: null,
+        // the throw-off: the thrower on the CPU's goal line, the ball out of his hand about 2 yards up, flight time T, landing
+        // between lzMin and lzMax (yards from your goal line); your returner at R, blockers at B, the line at OL (x spread olx)
+        ko: { R: 2, B: [9, 11], bx: [-8, -3.5, 3.5, 8], OL: 15, olx: 4.5, y0: 2, T: 1.75, lzMax: 6 },
+        // play geometry on the small field (see LX / DZ below): dk = how much of a route stem past 6 yards is kept, zoneK = zone
+        // tightness from Rookie to Legend (a crowded field magnifies the gap between them), qbSep = the CPU quarterback's "open"
+        // thresholds, cam = camera distance
+        play: { dk: 0.45, zoneK: [0.95, 0.72], qbSep: 0.7, cam: 0.62 } },
+    };
+    // Head to Head always plays the stadium (both screens must run the same field); tests can pick one with __blitzDebug.venue
+    const VN = VENUES[opts.versus ? 'stadium' : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
+    const FL = VN.FL, EZ = VN.EZ, HW = VN.HW, FD = VN.FD, TB = VN.TB; // HW shadows the module-level stadium half width
+    const MID = FL / 2, ZEND = FL + EZ, ZBACK = -EZ; // midfield, their end line, your end line
+    const emg = (m) => Math.min(m, EZ * 0.2); // an end-zone margin: m at the stadium (every margin used is <= 2), less in a shallow end zone
+    const xin = (x, m) => clamp(x, -(HW - m), HW - m); // a spot kept m yards inside the sideline (never binds at the stadium)
+    // ---------- play geometry on a small field (every helper hands back its input at the stadium) ----------
+    // The playbook is drawn for the 53-yard-wide stadium. On a narrow field the core (the line, the backs, the tight end: |x| <= 4.6,
+    // body widths) stays at real size and everything outside it is squeezed so the stadium sideline lands on this sideline (LX).
+    // Route stems and defensive depths keep the first 6 yards and compress deeper ones by dk (DZ). Decisions stay in stadium terms:
+    // LXI / DZI map a real spot back to where the play's design thinks it is.
+    const VPL = VN.play || null, SMALL = !!VPL;
+    const CORE = 4.6, LK = (HW - CORE) / (26.65 - CORE), KX = HW / 26.65, DK0 = 6, DKN = VPL ? VPL.dk : 1;
+    const LX = (x) => (!SMALL || Math.abs(x) <= CORE ? x : Math.sign(x) * (CORE + (Math.abs(x) - CORE) * LK));
+    const LXI = (x) => (!SMALL || Math.abs(x) <= CORE ? x : Math.sign(x) * (CORE + (Math.abs(x) - CORE) / LK));
+    const DZ = (u) => (!SMALL || u <= DK0 ? u : DK0 + (u - DK0) * DKN);
+    const DZI = (u) => (!SMALL || u <= DK0 ? u : DK0 + (u - DK0) / DKN);
+    const KXS = (v) => (SMALL ? v * KX : v); // a plain lateral distance scaled to the field width
+    // play art and the drive card's mini field: grass at the stadium, blacktop greys at Metcalf (the field, outside the lines)
+    const ARTC = VN.grass ? { f: '#1f6a32', o: '#183f24', mf: '#1d5e2e' } : { f: '#5c5e5b', o: '#464845', mf: '#5c5e5b' };
     const sfx = Sfx();
     if (VS) { const p0 = sfx.play.bind(sfx); sfx.play = (n) => { if (VS.mute) return; p0(n); if (VS.auth) vsFxOut({ x: n }); }; } // relayed to the other screen
     let cs = 20240611; const crandL = () => ((cs = (cs * 1664525 + 1013904223) >>> 0) / 4294967296); // cosmetic only
@@ -2115,15 +2171,15 @@ gl_FragColor=vec4(c,1.0);}`;
       G.skin = mkProg(VS_SKIN, lib(FS_SKIN), defs()); G.skinHi = mkProg(VS_SKIN, lib(FS_SKIN), defs('#define PCF_HI\n'));
       G.depthW = mkProg(VS_DEPTH_W, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE); G.depthS = mkProg(VS_DEPTH_S, shadowPacked ? FS_DEPTH_PACK : FS_DEPTH_NONE);
       G.sky = mkProg(VS_QUAD, FS_SKY, FS_PRE); G.crowd = mkProg(VS_CROWD, FS_CROWD, FS_PRE);
-      G.grass = X.inst ? mkProg(VS_GRASS, FS_GRASS, FS_PRE) : null;
+      G.grass = X.inst && VN.grass ? mkProg(VS_GRASS, FS_GRASS, FS_PRE) : null;
       G.ao = mkProg(VS_QUAD, FS_AO, FS_PRE); G.blur4 = mkProg(VS_QUAD, FS_BLUR4, FS_PRE);
       G.extract = mkProg(VS_QUAD, FS_EXTRACT, FS_PRE); G.blur = mkProg(VS_QUAD, FS_BLUR, FS_PRE); G.dofmb = mkProg(VS_QUAD, FS_DOFMB, FS_PRE); G.final = mkProg(VS_QUAD, FS_FINAL, FS_PRE);
       for (const k of ['world', 'worldHi', 'skin', 'skinHi', 'depthW', 'depthS', 'sky', 'crowd', 'grass', 'ao', 'blur4', 'extract', 'blur', 'dofmb', 'final']) if (G[k]) G.progs.push(G[k].pr);
       G.white = mkTex(new Uint8Array([255, 255, 255, 255]));
       G.black = mkTex(new Uint8Array([0, 0, 0, 255]));
       G.flatN = mkTex(new Uint8Array([128, 128, 255, 128]));
-      G.field = mkTex(fieldCanvas(quality >= 2 ? 2 : 1), false, false, 16);
-      G.detail = mkTex(detailCanvas(), true, false, 8);
+      G.field = METCALF ? mkTex(new Uint8Array([255, 255, 255, 255])) : mkTex(groundCanvas(quality >= 2 ? 2 : 1), false, false, 16);
+      G.detail = mkTex(METCALF ? metDetailCanvas() : detailCanvas(), true, false, 8);
       G.fabric = mkTex(fabricCanvas(), true, false, 4);
       G.board = mkTex(boardCanvas()); boardDirty = false;
       G.ribbon = mkTex(ribbonCanvas(), true, false, 4);
@@ -2149,6 +2205,7 @@ gl_FragColor=vec4(c,1.0);}`;
         S.mat = k === 'field' ? [0.85, 0, 1, 0] : k === 'plain' ? [0.7, 0, 0, 0] : k === 'seats' ? [0.75, 0, 0, 0] : k === 'glow' ? [0.5, 0, 0, 6.0 * (0.25 + 0.75 * SKY.glow)] : k === 'board' ? [0.4, 0, 0, 1.6] : k === 'ribbon' ? [0.4, 0, 0, 2.2] : [0.08, 0.6, 0, 0];
         statics.push(S);
       }
+      if (W.defs) metStatics(W);
       G.crowdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.bufferData(gl.ARRAY_BUFFER, W.crowd.f.subarray(0, W.crowd.n * 12), gl.STATIC_DRAW); G.crowdN = W.crowd.n; G.bufs.push(G.crowdB);
       // grass blade mesh + instance ids
       if (G.grass) {
@@ -2192,6 +2249,8 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- textures ----------
     const ezOwn = shade(TEAM, 0.5), ezFar = shade(DEFA, 0.55);
     let fieldC = null, fieldScale = 1;
+    // the ground texture: the venue's own painter (12-venue.js) when it is there, else the stadium turf
+    function groundCanvas(k) { return VN.world === 'metcalf' && typeof metcalfGroundCanvas === 'function' ? metcalfGroundCanvas(k) : fieldCanvas(k); }
     function fieldCanvas(k) {
       cs = 20240611;
       const c = document.createElement('canvas'); const CW = 1024 * k, CH = 2048 * k; c.width = CW; c.height = CH; const g = c.getContext('2d');
@@ -2264,9 +2323,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // divots / scuffs appear where players go down
     function scuff(x, z, big) {
-      if (!fieldC || !G) return;
-      const g = fieldC.getContext('2d'), k = fieldScale, SX = fieldC.width / 60, SZ = fieldC.height / 124, px = (x + 30) * SX, pz = (z + 12) * SZ;
-      if (z < -9 || z > 109 || Math.abs(x) > HW) return;
+      if (!fieldC || !G || !VN.divots) return;
+      const g = fieldC.getContext('2d'), k = fieldScale, SX = fieldC.width / VN.tex[2], SZ = fieldC.height / VN.tex[3], px = (x + VN.tex[0]) * SX, pz = (z + VN.tex[1]) * SZ;
+      if (z < ZBACK + 1 || z > ZEND - 1 || Math.abs(x) > HW) return;
       for (let i = 0; i < (big ? 5 : 3); i++) { g.fillStyle = (WX === 'rain' ? 'rgba(50,38,22,' : 'rgba(95,78,45,') + (0.18 + crand() * 0.2) + ')'; g.beginPath(); g.ellipse(px + (crand() - 0.5) * 14 * k, pz + (crand() - 0.5) * 14 * k, (3 + crand() * 6) * k, (1.5 + crand() * 3) * k, crand() * 3, 0, 6.3); g.fill(); }
       scuffs.push([px, pz]); if (scuffs.length > 60) scuffs.shift();
       fieldDirty = true;
@@ -2447,6 +2506,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- stadium ----------
     function buildWorld() {
+      if (METCALF) return buildMetcalf(); // the Metcalf blacktop (12-venue.js)
       cs = 777;
       const W = { plain: new Batch(14000), seats: new Batch(3000), field: new Batch(12), glow: new Batch(1200), board: new Batch(12), ribbon: new Batch(60), glass: new Batch(60), crowd: null };
       const up = [0, 1, 0];
@@ -2561,7 +2621,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const fb = gl.createFramebuffer(), rb = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, S, S);
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
-      const eye = [0, 2.0, 50];
+      const eye = METCALF ? MET.envEye : [0, 2.0, MID];
       const dirs = [[[1, 0, 0], [0, -1, 0]], [[-1, 0, 0], [0, -1, 0]], [[0, 1, 0], [0, 0, 1]], [[0, -1, 0], [0, 0, -1]], [[0, 0, 1], [0, -1, 0]], [[0, 0, -1], [0, -1, 0]]];
       const Pm = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -(420 + 0.5) / (420 - 0.5), -1, 0, 0, -(2 * 420 * 0.5) / (420 - 0.5), 0]);
       const saveVP = VP.slice(), saveE = cam.e.slice(), saveQ = quality;
@@ -2747,10 +2807,1307 @@ gl_FragColor=vec4(c,1.0);}`;
         if (r) { const pr = r.call(wrap, { navigationUI: 'hide' }); if (pr && pr.catch) pr.catch(() => {}); }
       } catch (e) {}
     }
+  // =====================================================================================
+  // Venue: the blacktop at Thomas Metcalf School (Normal, Illinois), where the real middle-school flag football league plays.
+  // Everything is authored 1:1 in metres in the site frame F (origin at the football field's centre, +x east, +z north,
+  // y up) from the measured survey, then moved into engine units (yards) at the end: x = xF*M2Y, z = (zF + MZ0)*M2Y, so the
+  // south red goal line (zF = -13.77) is engine z = 0. With the stadium (the flag is false) none of this runs.
+  // =====================================================================================
+  const METCALF = VN.world === 'metcalf'; // the venue table decides (Head to Head, runs and Franchise are always the stadium)
+  const MZ0 = 13.77; // M2Y (meters to yards) comes from the venue table in 10-setup.js
+  const MET = {
+    envEye: [0, 2.0, MZ0 * M2Y],       // reflections are baked from midfield at head height
+    centre: [10 * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
+    texBase: '/static/arcade/venue/metcalf/',
+    verts: 0,
+    keep: [], // camera keep-out volumes in metres (frame F): [x0,y0,z0,x1,y1,z1] boxes, [x,z,r,y0,y1] cylinders, [x,y,z,r] spheres
+  };
+  // ---------- metKeepOut(e): moves an engine-unit camera eye [x, y, z] (mutated, and returned) out of the venue's solids: the
+  // school's walls and roofs, the shed, tree trunks and crowns, the fence line and its pillars, the hoops' boards and poles, the
+  // playground structures and the buildings across the street, and keeps it at least 0.6 units above the ground. A no-op at the
+  // stadium. Each solid is padded by 0.35 m; the eye leaves a box through its nearest side (never downward through the ground). ----------
+  function metKeepOut(e) {
+    if (!METCALF || !e || !MET.keep.length) return e;
+    let x = e[0] / M2Y, y = e[1] / M2Y, z = e[2] / M2Y - MZ0; const m = 0.35;
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const k of MET.keep) {
+        if (k.length === 6) {
+          const x0 = k[0] - m, y0 = k[1] - m, z0 = k[2] - m, x1 = k[3] + m, y1 = k[4] + m, z1 = k[5] + m;
+          if (x <= x0 || x >= x1 || z <= z0 || z >= z1 || y >= y1 || (y <= y0 && k[1] > 0.05)) continue;
+          let best = y1 - y, ax = 1, to = y1; // out through the top
+          if (x - x0 < best) { best = x - x0; ax = 0; to = x0; } if (x1 - x < best) { best = x1 - x; ax = 0; to = x1; }
+          if (z - z0 < best) { best = z - z0; ax = 2; to = z0; } if (z1 - z < best) { best = z1 - z; ax = 2; to = z1; }
+          if (k[1] > 0.05 && y - y0 < best) { best = y - y0; ax = 1; to = y0; }
+          if (ax === 0) x = to; else if (ax === 1) y = to; else z = to; moved = true;
+        } else if (k.length === 5) {
+          const r = k[2] + m, dx = x - k[0], dz = z - k[1], d = Math.hypot(dx, dz);
+          if (d >= r || y < k[3] - m || y > k[4] + m) continue;
+          if (k[4] + m - y < r - d) y = k[4] + m; else { const f = d > 1e-4 ? r / d : 0; x = d > 1e-4 ? k[0] + dx * f : k[0] + r; z = d > 1e-4 ? k[1] + dz * f : z; } moved = true;
+        } else if (k.length === 4) {
+          const r = k[3] + m, dx = x - k[0], dy = y - k[1], dz = z - k[2], d = Math.hypot(dx, dy, dz);
+          if (d >= r) continue; const f = d > 1e-4 ? r / d : 0; if (d > 1e-4) { x = k[0] + dx * f; y = k[1] + dy * f; z = k[2] + dz * f; } else y = k[1] + r; moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    y = Math.max(y, 0.6 / M2Y);
+    e[0] = x * M2Y; e[1] = y * M2Y; e[2] = (z + MZ0) * M2Y; return e;
+  }
+  // ---- sky and light: a clear lunch hour (about 12:15 local, early October) at Normal, IL. The sun stands about 45 deg high a
+  // little east of south (true azimuth 164 deg; the site frame is turned 2 deg, so 166 deg in F), so shadows fall north toward
+  // the playground and nothing shades the field. A schoolyard has no lights: a night game becomes the same lunch hour. ----
+  if (METCALF) {
+    const el = 45.3 * Math.PI / 180, az = 166 * Math.PI / 180;
+    // the references are midday photos: lit pavement reads neutral-warm light grey, shade a little blue, so the sky fill is
+    // kept mild (a deep blue fill turned the whole schoolyard cool) and the warm sun carries most of the light. The sky fill
+    // is about a sixth of the sun on open ground, so a shadow on the light blacktop falls to about half of the sunlit
+    // pavement as it does at noon; walls facing away from the sun still get the bounce off the bright pavement (gnd)
+    const day = { top: [0.16, 0.36, 0.76], hor: [0.66, 0.76, 0.89], fog: [0.68, 0.75, 0.85], fogR: [60, 420, 0.72], amb: [0.17, 0.19, 0.235], gnd: [0.36, 0.35, 0.32],
+      sun: [4.45, 4.25, 3.88], L: [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)], night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
+    if (WX === 'clear' || WX === 'night') Object.assign(SKY, day);
+    else Object.assign(SKY, { gnd: [0.14, 0.14, 0.135], tower: 0, glow: 0, L: day.L });
+    const l = v3n(SKY.L); LDIR[0] = l[0]; LDIR[1] = l[1]; LDIR[2] = l[2];
+    for (const p of LPOS) p[3] = 0;
+  }
+  // ---- sound: a schoolyard, not a stadium. The crowd bed drops to a murmur, no stomp-clap, the horn is a whistle, and a soft
+  // layer of traffic on Main Street, kids and the odd bird plays under the game. ----
+  if (METCALF) {
+    const play0 = sfx.play, crowd0 = sfx.crowd, close0 = sfx.close;
+    let amb = null, dead = false; // dead: the game has closed its audio, so late timers never reopen it
+    sfx.close = () => { dead = true; close0(); };
+    const ambient = () => {
+      if (amb || dead || sfx.muted) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out) return;
+      try {
+        amb = {};
+        const n = ac.sampleRate * 3, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0); let br = 0, s = 4711;
+        for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; br = br * 0.985 + ((s / 4294967296) * 2 - 1) * 0.15; d[i] = br; }
+        const src = ac.createBufferSource(); src.buffer = b; src.loop = true;
+        const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 210; const g = ac.createGain(); g.gain.value = 0.32;
+        src.connect(lp); lp.connect(g); g.connect(out); src.start(); amb.src = src; amb.g = g; amb.b = b;
+      } catch (e) {}
+    };
+    const chirp = () => { try { if (dead || !sfx.out) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out || sfx.muted) return; const t = ac.currentTime, f = 2600 + Math.random() * 1400;
+      for (let k = 0; k < 2 + ((Math.random() * 3) | 0); k++) { const o = ac.createOscillator(), g = ac.createGain(), t0 = t + k * 0.13; o.type = 'sine'; o.frequency.setValueAtTime(f, t0); o.frequency.exponentialRampToValueAtTime(f * 1.35, t0 + 0.07);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.012, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + 0.12); } } catch (e) {} };
+    const kids = (v, d) => { try { if (dead || !sfx.out) return; const ac = sfx.ctx(), out = sfx.out; if (!ac || !out || !amb || sfx.muted) return; const t = ac.currentTime, src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = amb.b; f.type = 'bandpass'; f.frequency.value = 1750; f.Q.value = 0.9; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random()); src.stop(t + d + 0.05); } catch (e) {} };
+    let birdT = 0;
+    sfx.play = (n) => {
+      if (n === 'stomp' || n === 'clap' || n === 'beat') return;
+      if (n === 'horn') n = 'whistle';
+      if (n === 'cheer') { ambient(); kids(0.5, 1.2); return; }
+      if (n === 'boo' || n === 'ooh') { ambient(); kids(0.22, 0.8); return; }
+      play0(n); ambient();
+      const now = performance.now(); if (now > birdT) { birdT = now + 9000 + Math.random() * 14000; if (birdT > now + 9000) setTimeout(chirp, 400); }
+    };
+    sfx.crowd = (v) => crowd0(v * 0.22);
+  }
+  // commentary variants that talk about the night, the stadium, the crowd, grass or uprights are left out at the schoolyard
+  const MET_VSKIP = { intro: [1, 2, 3, 4, 7, 9], cpu_td: [4], cpu_fg: [2], cpu_fumble: [2], halftime: [4], final_loss: [7], overtime: [2], incomplete: [6], fumble: [6], catch_diving: [6], stiff_arm: [3], big_hit: [3], third_down: [5], fg_good: [2, 4], doink: [0, 2, 5], doink_in: [1], leap: [0, 1], comeback: [3], tackle_live: [7], situation_long: [7], situation_fourth: [6], player_tds: [0, 1, 2, 3, 4, 5], halftime_color: [0, 6], pregame_color: [0, 1, 5] };
+
+  // ---------- small helpers ----------
+  const mrng = (seed) => { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
+  const hx3 = (h, k) => { const n = parseInt(h.slice(1), 16), m = k == null ? 1 : k; return [((n >> 16) & 255) / 255 * m, ((n >> 8) & 255) / 255 * m, (n & 255) / 255 * m, 1]; };
+  const TN = 1 / 0.8; // photo textures are normalised to a mean of 0.8, so a textured surface takes its colour / 0.8
+  const tc = (h, k) => hx3(h, (k == null ? 1 : k) * TN);
+  const mixC = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, 1];
+  let REALCV_ = null; const realCv = () => REALCV_ !== null ? REALCV_ : (REALCV_ = (() => { try { const c = document.createElement('canvas'); c.width = c.height = 2; const d = c.getContext('2d').getImageData(0, 0, 1, 1).data; return !!d && d.length === 4; } catch (e) { return false; } })());
+  const mkCv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  // value noise / fbm in [0,1] on a wrapping lattice
+  function vnoise(seed) {
+    const r = mrng(seed), N = 256, t = new Float32Array(N * N); for (let i = 0; i < N * N; i++) t[i] = r();
+    const sm = (x) => x * x * (3 - 2 * x);
+    return (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), fx = sm(x - xi), fy = sm(y - yi), a = xi & 255, b = yi & 255, a1 = (a + 1) & 255, b1 = (b + 1) & 255;
+      const v00 = t[b * N + a], v10 = t[b * N + a1], v01 = t[b1 * N + a], v11 = t[b1 * N + a1]; return v00 + (v10 - v00) * fx + (v01 - v00) * fy + (v00 - v10 - v01 + v11) * fx * fy; };
+  }
+  // a grey noise canvas (w x h) from fn(x, y) -> 0..1 (alpha a, or alpha from the value when aFromV)
+  function noiseCanvas(w, h, fn, aFromV) {
+    const c = mkCv(w, h); if (!realCv()) return c; const g = c.getContext('2d'), im = g.createImageData(w, h), d = im.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = fn(x, y), o = (y * w + x) * 4, b = Math.max(0, Math.min(255, v * 255)); if (aFromV) { d[o] = d[o + 1] = d[o + 2] = 0; d[o + 3] = b; } else { d[o] = d[o + 1] = d[o + 2] = b; d[o + 3] = 255; } }
+    g.putImageData(im, 0, 0); return c;
+  }
+
+  // ---------- photo textures (CC0, ambientCG): loaded at runtime; a flat colour stands in until they arrive ----------
+  const VIMG = {}, VSOFT = { 'panel_blue.jpg': 0.3, 'concrete.jpg': 0.8 }; // contrast kept per photo (the panels are near-flat enamel)
+  function vimg(name) {
+    if (VIMG[name]) return VIMG[name];
+    const r = VIMG[name] = { ok: false, c: null, cbs: [] };
+    try {
+      const im = new Image();
+      im.onerror = () => { r.err = true; try { console.warn('venue texture missing', name); } catch (e) {} };
+      im.onload = () => {
+        try { // normalise to a neutral mean of 0.8 per channel (the tint comes from the vertex colours)
+          const c = mkCv(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0);
+          if (realCv()) { const id = g.getImageData(0, 0, c.width, c.height), d = id.data; let sr = 0, sg = 0, sb = 0; const n = d.length / 4;
+            for (let i = 0; i < d.length; i += 4) { sr += d[i]; sg += d[i + 1]; sb += d[i + 2]; }
+            const kr = 204 / (sr / n), kg = 204 / (sg / n), kb = 204 / (sb / n), soft = VSOFT[name] || 1, S = (v) => Math.max(0, Math.min(255, 204 + (v - 204) * soft));
+            for (let i = 0; i < d.length; i += 4) { d[i] = S(d[i] * kr); d[i + 1] = S(d[i + 1] * kg); d[i + 2] = S(d[i + 2] * kb); }
+            g.putImageData(id, 0, 0); }
+          r.c = c; r.raw = im; r.ok = true;
+        } catch (e) { r.c = im; r.raw = im; r.ok = true; }
+        for (const f of r.cbs.splice(0)) { try { f(r); } catch (e) {} }
+      };
+      im.src = MET.texBase + name;
+    } catch (e) {}
+    return r;
+  }
+  function vtex(name) { // a GL texture that starts flat (0.8 grey) and becomes the photo when it loads
+    const t = mkTex(new Uint8Array([204, 204, 204, 255])); G.texs.push(t);
+    const up = (r) => {
+      if (!G || glLost || G.texs.indexOf(t) < 0) return;
+      gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, r.c);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.generateMipmap(gl.TEXTURE_2D);
+      if (X.aniso) gl.texParameterf(gl.TEXTURE_2D, X.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, X.maxAniso));
+    };
+    const r = vimg(name); if (r.ok) up(r); else r.cbs.push(up);
+    return t;
+  }
+  // a GL texture from a canvas that can be rebuilt later (the ground canvases redraw once the asphalt photo arrives)
+  function ctex(c, repeat, aniso) { const t = mkTex(c.width ? c : new Uint8Array([200, 200, 200, 255]), repeat, false, aniso || 8); G.texs.push(t); return t; }
+  function reupload(t, c, repeat, aniso) {
+    if (!G || glLost || G.texs.indexOf(t) < 0 || !c) return;
+    gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.generateMipmap(gl.TEXTURE_2D);
+    if (X.aniso) gl.texParameterf(gl.TEXTURE_2D, X.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(aniso || 8, X.maxAniso));
+  }
+  // grey, mean-128 version of a photo for 'overlay' blending in the ground canvases (procedural grain until it loads)
+  function grainTile(r, n, contrast, seed) {
+    const c = mkCv(n, n); if (!realCv()) return c; const g = c.getContext('2d');
+    if (r && r.ok) {
+      g.drawImage(r.raw, 0, 0, n, n); const id = g.getImageData(0, 0, n, n), d = id.data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11; const m = s / (d.length / 4);
+      for (let i = 0; i < d.length; i += 4) { const v = 128 + ((d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) - m) * contrast; d[i] = d[i + 1] = d[i + 2] = Math.max(0, Math.min(255, v)); d[i + 3] = 255; }
+      g.putImageData(id, 0, 0); return c;
+    }
+    const nz = vnoise(seed), rr = mrng(seed + 1);
+    return noiseCanvas(n, n, (x, y) => 0.5 + (nz(x / 3, y / 3) - 0.5) * 0.35 + (nz(x / 11 + 50, y / 11) - 0.5) * 0.3 + (rr() - 0.5) * 0.28);
+  }
+
+  // ---------- the official Metcalf Wildcats paw, in its paw-local frame (u = toward the toes, v = left), metres at full size ----------
+  // Main pad: an 'M' (two front humps, three rear lobes); four egg-shaped toes in an arc (measured from the painted stencils).
+  const PAW_PAD = (() => {
+    const V = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6];
+    const R = [-0.56, -0.52, -0.435, -0.335, -0.295, -0.335, -0.54, -0.565, -0.57, -0.545, -0.51, -0.445, -0.3];
+    const F = [0.07, 0.1, 0.18, 0.225, 0.245, 0.23, 0.2, 0.15, 0.085, 0.01, -0.05, -0.1, -0.17];
+    const pts = [];
+    for (let i = V.length - 1; i > 0; i--) pts.push([F[i], -V[i]]);
+    for (let i = 0; i < V.length; i++) pts.push([F[i], V[i]]);
+    for (let a = 1; a < 6; a++) { const t = (a / 6) * Math.PI, cu = (F[12] + R[12]) / 2, ru = (F[12] - R[12]) / 2; pts.push([cu + Math.cos(t) * ru, 0.6 + Math.sin(t) * 0.04]); }
+    for (let i = V.length - 1; i >= 0; i--) pts.push([R[i], V[i]]);
+    for (let i = 1; i < V.length; i++) pts.push([R[i], -V[i]]);
+    for (let a = 1; a < 6; a++) { const t = (a / 6) * Math.PI, cu = (F[12] + R[12]) / 2, ru = (F[12] - R[12]) / 2; pts.push([cu - Math.cos(t) * ru, -0.6 - Math.sin(t) * 0.04]); }
+    // corner cutting (four rounds) turns the measured stations into the stencil's smooth lobes and round-bottomed notches
+    let q = pts; for (let it = 0; it < 4; it++) { const o = []; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } q = o; }
+    return q;
+  })();
+  const PAW_TOES = [[0.29, 0.61, 0.235, 0.15, 0], [0.29, -0.61, 0.235, 0.15, 0], [0.65, 0.22, 0.235, 0.13, -0.09], [0.65, -0.22, 0.235, 0.13, 0.09]];
+  function pawPath(g) { // in paw-local units on a canvas whose x = u and y = v
+    g.beginPath(); const P = PAW_PAD, n = P.length;
+    g.moveTo((P[n - 1][0] + P[0][0]) / 2, (P[n - 1][1] + P[0][1]) / 2);
+    for (let i = 0; i < n; i++) { const a = P[i], b = P[(i + 1) % n]; g.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+    g.closePath();
+    for (const [cu, cv, ru, rv, tilt] of PAW_TOES) { // egg: the front end a little fuller than the back
+      g.moveTo(cu + ru * Math.cos(tilt), cv + ru * Math.sin(tilt));
+      for (let k = 1; k <= 28; k++) { const t = (k / 28) * 6.2832, ct = Math.cos(t), st = Math.sin(t), rr = rv * (1 + 0.14 * ct); const lu = ct * ru, lv = st * rr; g.lineTo(cu + lu * Math.cos(tilt) - lv * Math.sin(tilt), cv + lu * Math.sin(tilt) + lv * Math.cos(tilt)); }
+      g.closePath();
+    }
+  }
+  function drawPaw(g, ox, oz, th, s, col) { g.save(); g.translate(ox, oz); g.rotate(th); g.scale(s, s); g.fillStyle = col; pawPath(g); g.fill(); g.restore(); }
+
+  // the blacktop's stain field measured from the aerials (0.5 m cells, base-36 darkness in 1.2 % steps, row 0 = south edge) and
+  // the hairline cracks traced in the 2022 orthophoto; both are redrawn procedurally
+  const MET_STAIN = {"rows":["876655544443321111011112234567789abbccccbbaa9888777778899998765432223455666766666667777","8766555444444311100011122345667899abbccbabcca987888778abcdca887532222467778998766777777","98666555445663111000112233457899abbcegfcbdfca878aa86679abba8666421222356667998766677897","98665555335772110000012223346899ababehgcbca87657986456787653221000012233334555445666897","b975443321233000000001112223356666679aa977543335764345554321000000001112124433224555677","db8643322111200000000001111223454445566555321124543344333223100000000001113542013445566","eca765432112210000000011212344566544455443321124531232222233100000000111245631024544566","cba876543223210000000011211257888754444322221024631221111222100000000011344432234555666","ba9776543324211000000010000156677642355211210014422442111111000000000013422334456777766","aa9887643335310000000000000023444333454101200034322342110000000000001223322234557888767","bcb9a9543346521100000000000013233323465100200154243376210001000000000111122233447887777","bccaa9753323211111001110012212334323566200000043213465100014310000000001222332346777777","dcb977965422010000001110010100244312344100000033213453210026772000000123322344366788777","gda657876421010000000000000000023212234211000022112465520137872000000012200123367888777","gd9657754422100000000000000000122211234210000022211244311125520000000000111123357767778","eb8556544422100000000000000001222100123200000133210142100101100000000001221244346656788","ca7556545522111000000000000012343102113420000243321242000100000000000001221245446777899","a854455445322210000000000001234552122232100001222212321100000000010000122111355678989aa","a74333444422331012221111024433245432323232100112222133211000000000000022111246567779acc","a8444565532123222221112424575444667775667643334444345653200122233222113332345557bbabcee","b9557bb7775223212100101324469966878988777656424566556887531111345432224444456689cedcdff","db767ab8664222112223111223468978999aaa987655434666555787652100123222124444355689cffffff","hf9668a85332222234553435547877acfgfeeecb977666676565568776410111102213444444457beiiihgg","kgb778a9545222344677576787bda9dfkklhimkea99cb9abb89a988998543366334678987644458cgjiihhg","mgc769db655433ab78aa6555569c99deiijiijkd99aiicehjgffedcfdca8869a569eddgcb954458cgkjihhh","jfb779d9543323cea9ab865456789bceggffhgeb989gkhkkkgeeccdeb9a76677579dacd99865468bdghhhhh","he9668a74432225dda6797437aa8bhggihghhhd9777cjooljihfdfghfcd968bba98baba78766678acegghhh","eb8768a755332237a75766439ca8afggihjikkfba767dijlmmifdfghgccc78bca89cca99a987778abdfghge","ca9878b96532222223332222334567adfeddfecaa7557adhmhda999aa76544444578a87888877789bceffed","ba9899b9643222111114221111233479b99a99879755656ac9545766532222222355665665677889accddcc","ca9988aa75332211000443211124347999899877985576464411454443112222333355555678889abbccccc","db9867ab8544222100043343214546aba99ab868b977a877642244455411222122223554469a99aabccccbb","dca7668a6322211000122355213335787679a868ba88ccbba62245477511211121234443359a99abccccbbb","dba866675432211000133454323346777689a989cb99bbaa963455467521222122345555349a9bbccccbbbb","eba8666664332211113676665444567899bcdbbcdca9999875345546773224322455556524899bccccccbbb","fcb96676654432222138877885566889a88adcdfhc988777544576569b63465445666665457989cedcddbbb","gdca767654543322112566887668899ac989cccfic999898632575358853377454665787567779ehfffecbc","hecb8666435222111026558864687888a889bbdfida8aaa8511454235532376344555797577788cheffecbc","hcb9645643754222213766853345798775569acegc877787411475333421254223543467578877adcbcdccc","ea97436844754322103765543367677775578889a97665764124642343223531135435888998657accdcbcc","a874237622322111002543442267677775799889a88865664225865554333431124336878a985468ceedccc","97643343111100010013312113689a876456877aa999757753368778754344322233356558764379accccdd","965323332111100000243122245578887557777cd96555aa74579bbb9643354122223444586666abbdddddd","975334433110000000352110011244345566676bd8432279644689987621133243332333476778adeffeddd","97644448a7520000004521100100232444556769a6532268633578766432341112111222356778bdcfhfedd","a886545aea640100002310011201223434555557745323676314664332212211111112223545668bafhfedd","da86545686210000001111111100011221223345755212553102322221235411111111223433357bcffeedd","fb85437753220000000111211100111110001354443333442111221232333311110011333543347cehfcccc","fc94449a52211100000111110000011110112354443334543112331332222221111112235765347adeaabcc","gea4228c52100100000122110000000122333663433222443223453332222111111111124655458add89abc","lhb4126841000000000133200000000221225985311111132112331111112111101233235665458bddaaabb","kib4126940000000000132100000000111123554432110111111221111111001101233345655457acdccbbb","gfa4136852000000000013321000000012233543321000112223332321000011111223455544347acddcccb","eea41244100000000000142110000001100124312110001111111111111100111122134555333478abccccc","cc8301300000000000003521100000000000143123310000011112111794001111112332344345679abcccb","a973002000000000000002200000000000002320145311111133221124321011111123334444455689abbba","ba841010000000000000000000000000000010001344211112332210000100000011233344454456789aaa9","dcb633200000000000000000000000000000111003332110010001100000000110112345577544556788989","gfe955420000000000000000000000000000321000000000000001221000000001112344567544456677888","hed953230000000000001000000000000000110000000000000002431000000000112343345444456677777","dbc842210000000000001000000000000000230000000000000001000000000000011242124444456777777","bab742210000000000000000000000000000110000000000000001000000000000011111124334456898677","989632220000000000000000000000000000000000010011011234443212111000111232225435555897677","778643331000000000000000000100000000000000232123421256555776676433433555666655665677777","667655543100000000000111123212221110000012222223432134434675577323354666677756797777777","7567655542000000000012333333222222210013432222233333454345667886555678999887679aaa87787","867755544300111100012355433322223332125897433334444576544568accaa98bbbbbbb9999bcba87788","cfe879977400133310112344433333334443358ba9644334445666555579bccba87abaaabbaaabddca98778","ffc768b99643466532112233333333333444458ba9755444445566556789bbbb9779aa99aaaaabccbaa9778"]};
+  const MET_CRACKS = [[[-1.15,15.27],[-1.48,15.23],[-1.77,15.25],[-2.08,15.24],[-2.36,15.18],[-2.54,15.18]],[[5.56,10.8],[5.61,11.07],[5.69,11.37],[5.72,11.67],[5.8,11.96],[5.88,12.2],[5.91,12.46]],[[11.61,5.28],[11.61,5.59],[11.63,5.87],[11.6,6.19],[11.58,6.5],[11.62,6.74]],[[18.31,6.19],[18.03,6.21],[17.72,6.21],[17.46,6.21]],[[18.2,5.23],[17.9,5.18],[17.57,5.22],[17.27,5.19],[17.01,5.28],[16.68,5.42],[16.51,5.51]],[[6.01,4.19],[6.0,4.51],[6.04,4.79],[6.06,5.1],[6.06,5.29]],[[15.52,4.31],[15.15,4.31],[14.89,4.33],[14.58,4.34],[14.29,4.35],[14.0,4.33],[13.75,4.31]],[[28.85,2.33],[28.8,2.6],[28.75,2.9],[28.77,3.2],[28.76,3.41]],[[-7.12,2.84],[-7.44,2.85],[-7.76,2.84],[-8.0,2.82],[-8.38,2.87],[-8.67,2.82],[-8.91,2.71],[-9.24,2.82],[-9.53,2.88],[-9.77,2.99]],[[28.8,0.55],[28.86,0.89],[28.81,1.14],[28.84,1.48],[28.8,1.76],[28.8,1.99]],[[-1.77,0.61],[-2.07,0.6],[-2.39,0.59],[-2.64,0.56],[-2.84,0.56]],[[7.98,-3.19],[7.68,-3.23],[7.38,-3.18],[7.05,-3.19],[6.75,-3.24],[6.44,-3.19],[6.2,-3.27],[5.88,-3.22],[5.59,-3.24],[5.26,-3.16],[4.98,-3.31],[4.7,-3.27],[4.42,-3.25],[4.08,-3.29],[3.85,-3.35]],[[13.24,-3.55],[12.93,-3.51],[12.65,-3.5],[12.31,-3.53],[12.07,-3.6],[11.7,-3.4]],[[17.1,-4.2],[16.81,-4.1],[16.54,-3.99],[16.3,-3.74],[16.02,-3.68],[15.64,-3.72],[15.42,-3.65],[15.12,-3.51],[14.77,-3.5],[14.51,-3.52]],[[16.52,-6.03],[16.19,-6.05],[15.89,-5.89],[15.68,-5.9]],[[-9.5,-9.57],[-9.5,-9.28],[-9.51,-8.98],[-9.53,-8.69],[-9.52,-8.39],[-9.55,-8.19]],[[7.95,-8.69],[7.65,-8.65],[7.31,-8.67],[7.07,-8.61]],[[-4.99,-9.96],[-5.29,-9.98],[-5.62,-9.96],[-5.89,-9.95],[-6.16,-9.99],[-6.49,-9.99],[-6.78,-10.0],[-7.1,-9.99],[-7.3,-10.0]],[[-2.78,-11.21],[-3.07,-11.19],[-3.37,-11.22],[-3.66,-11.17],[-3.96,-11.2],[-4.29,-11.23],[-4.58,-11.19],[-4.86,-11.13],[-5.06,-11.12]],[[-1.2,-11.19],[-1.49,-11.21],[-1.8,-11.2],[-2.07,-11.17],[-2.38,-11.2]],[[1.55,-11.52],[1.19,-11.43],[0.92,-11.42],[0.64,-11.36],[0.33,-11.26],[0.05,-11.24],[-0.21,-11.24]]];
+  // ---------- the blacktop canvas (power-of-two square over the whole pad; canvas row 0 = south) ----------
+  const GB = { x0: -12.55, x1: 30.8, z0: -17.1, z1: 17.15 };
+  const LOT = { x0: -12.55, x1: 34.2, z0: -53.5, z1: -17.1 }; // east of x 30.8 only south of the hedge bed (z < -31)
+  function stroke(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); }
+  function rectW(g, x0, z0, x1, z1, w, col) { stroke(g, [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], w, col); }
+  function arcW(g, cx, cz, r, a0, a1, w, col) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(cx, cz, r, a0, a1); g.stroke(); }
+  // wear: cut paint away with a blotchy mask plus pixel grain (dst canvas in pixel space)
+  function wear(dst, seed, blotch, grain, scale) {
+    if (!realCv()) return; const g = dst.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out';
+    const nz = vnoise(seed), M = 512, sc = scale || 1;
+    if (blotch > 0) {
+      const m = noiseCanvas(M, M, (x, y) => { const v = nz(x / (9 * sc), y / (9 * sc)) * 0.55 + nz(x / (3.5 * sc) + 77, y / (3.5 * sc)) * 0.3 + nz(x / (1.3 * Math.max(1, sc)) + 13, y / (1.3 * Math.max(1, sc))) * 0.15; return Math.max(0, Math.min(1, (v - (1 - blotch)) / 0.18)); }, true);
+      g.drawImage(m, 0, 0, dst.width, dst.height);
+    }
+    if (grain > 0) { const r = mrng(seed + 9), t = noiseCanvas(256, 256, () => (r() < 0.5 ? r() * grain : r() * grain * 0.3), true); for (let y = 0; y < dst.height; y += 256) for (let x = 0; x < dst.width; x += 256) g.drawImage(t, x, y); }
+    g.restore();
+  }
+  function metGroundCanvas(N) {
+    const c = mkCv(N, N); if (!realCv()) return c;
+    const g = c.getContext('2d'), SX = N / (GB.x1 - GB.x0), SZ = N / (GB.z1 - GB.z0);
+    const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -GB.x0 * SX, -GB.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    // 1. weathered light-grey asphalt, the photo's aggregate overlaid at its real scale (about 2.2 m per tile). The base is the
+    // aerials' clean pavement (#c2c3c1-#c6c7c2) pulled a touch warm, as it reads at eye level in sun
+    g.fillStyle = '#bdbbb4'; g.fillRect(0, 0, N, N);
+    const tile = grainTile(vimg('asphalt.jpg'), 512, 1.25, 31);
+    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.75; const T = 2.2;
+    for (let x = GB.x0; x < GB.x1; x += T) for (let z = GB.z0; z < GB.z1; z += T) g.drawImage(tile, x, z, T, T);
+    // 2. mottling at two scales (procedural) and faint east-west paving passes (the references' smears run east-west)
+    const nz = vnoise(5);
+    const mot = noiseCanvas(256, 256, (x, y) => 0.5 + (nz(x / 6, y / 6) - 0.5) * 0.7 + (nz(x / 2 + 40, y / 2) - 0.5) * 0.3);
+    It(g); g.globalAlpha = 0.1; g.drawImage(mot, 0, 0, N, N);
+    const streak = noiseCanvas(64, 256, (x, y) => 0.5 + (nz(x / 5 + 90, y / 3) - 0.5) * 0.8); // 0.68 m x 0.13 m cells
+    g.globalAlpha = 0.07; g.drawImage(streak, 0, 0, N, N);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    // 3. the measured stain field (0.5 m survey of the aerials) as one continuous, soft field: upsampled bicubically to 0.1 m,
+    // blurred (sigma 0.6 m), drawn in a light grime colour and thinned by a soft east-west smear mask (never fully cut away)
+    {
+      const S = MET_STAIN.rows, nr = S.length, nc = S[0].length, D = 0.1, W2 = Math.ceil((GB.x1 - GB.x0) / D), H2 = Math.ceil((GB.z1 - GB.z0) / D);
+      const cv = (i, j) => { const r = S[Math.max(0, Math.min(nr - 1, j))], v = parseInt(r[Math.max(0, Math.min(r.length - 1, i))], 36); return v > 0 ? v * 0.012 : 0; };
+      const cr = (t) => { const t2 = t * t, t3 = t2 * t; return [-0.5 * t3 + t2 - 0.5 * t, 1.5 * t3 - 2.5 * t2 + 1, -1.5 * t3 + 2 * t2 + 0.5 * t, 0.5 * t3 - 0.5 * t2]; };
+      let F0 = new Float32Array(W2 * H2);
+      for (let y = 0; y < H2; y++) {
+        const fv = (y + 0.5) * D / 0.5 - 0.5, j0 = Math.floor(fv), wy = cr(fv - j0);
+        for (let x = 0; x < W2; x++) {
+          const fu = (x + 0.5) * D / 0.5 - 0.5, i0 = Math.floor(fu), wx = cr(fu - i0); let v = 0;
+          for (let b = 0; b < 4; b++) { let row = 0; for (let a = 0; a < 4; a++) row += wx[a] * cv(i0 - 1 + a, j0 - 1 + b); v += wy[b] * row; }
+          F0[y * W2 + x] = Math.max(0, v);
+        }
+      }
+      const sig = 0.6 / D, rad = Math.ceil(sig * 3), K = []; let ks = 0; for (let k = -rad; k <= rad; k++) { const w = Math.exp(-k * k / (2 * sig * sig)); K.push(w); ks += w; }
+      for (let k = 0; k < K.length; k++) K[k] /= ks;
+      const blur = (src, horiz) => { const out = new Float32Array(W2 * H2); for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) { let v = 0; for (let k = -rad; k <= rad; k++) { const xx = horiz ? Math.max(0, Math.min(W2 - 1, x + k)) : x, yy = horiz ? y : Math.max(0, Math.min(H2 - 1, y + k)); v += src[yy * W2 + xx] * K[k + rad]; } out[y * W2 + x] = v; } return out; };
+      F0 = blur(blur(F0, true), false);
+      const sc = mkCv(W2, H2), sx = sc.getContext('2d'), im = sx.createImageData(W2, H2), d = im.data;
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+        const xm = x * D, zm = y * D, mv = nz(xm / 3.6 + 300, zm / 0.9) * 0.6 + nz(xm / 9 + 500, zm / 2.2) * 0.4, m = Math.max(0, Math.min(1, (mv - 0.25) * 1.5));
+        const f = F0[y * W2 + x] * (0.45 + 0.55 * m), a = Math.min(0.48, f * 2.3 + f * f * 5), o = (y * W2 + x) * 4; // the heavy smears darker, the faint ones light
+        d[o] = 90; d[o + 1] = 90; d[o + 2] = 86; d[o + 3] = Math.round(a * 255);
+      }
+      sx.putImageData(im, 0, 0); It(g); g.imageSmoothingEnabled = true; g.drawImage(sc, 0, 0, N, N); Wt(g);
+    }
+    { // scuffs: a few short, straight, faint rubber marks from shoes and balls, crowded where kids play (keys, four-squares, the
+      // middle of the field, along the north edge), plus a few bleached pale patches
+      const sr = mrng(4711), zones = [[25.0, 10.4, 3.2, 8], [25.0, -3.6, 3.2, 8], [14.0, 13.9, 2.2, 4], [14.0, -1.3, 2.2, 4], [14.0, -8.2, 2.2, 4], [0, 0, 9, 12], [-5, 8, 5, 4], [5, -8, 6, 5], [8, 15.6, 9, 4], [17, 3.4, 2.5, 3], [17, -13, 2.5, 3]];
+      for (const [cx, cz, rad, n] of zones) for (let k = 0; k < n; k++) {
+        const a = sr() * 6.2832, d = Math.sqrt(sr()) * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, l = 0.3 + sr() * 0.5, h = sr() * 6.2832, al = 0.05 + sr() * 0.07;
+        g.strokeStyle = `rgba(58,56,53,${al.toFixed(3)})`; g.lineWidth = 0.04 + sr() * 0.05; g.lineCap = 'round'; g.beginPath();
+        g.moveTo(x, z); g.lineTo(x + Math.cos(h) * l, z + Math.sin(h) * l); g.stroke();
+      }
+      for (let k = 0; k < 18; k++) { const x = GB.x0 + 2 + sr() * (GB.x1 - GB.x0 - 4), z = GB.z0 + 2 + sr() * (GB.z1 - GB.z0 - 4), r = 0.6 + sr() * 1.4, gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, 'rgba(214,212,204,0.16)'); gr.addColorStop(1, 'rgba(214,212,204,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); }
+    }
+    // grime along the edges (outer 0.6-1 m), heavier on the south seam under the barrier row
+    const edge = (x0, z0, x1, z1, gx0, gz0, gx1, gz1, a) => { const gr = g.createLinearGradient(gx0, gz0, gx1, gz1); gr.addColorStop(0, `rgba(70,72,68,${a})`); gr.addColorStop(1, 'rgba(70,72,68,0)'); g.fillStyle = gr; g.fillRect(x0, z0, x1 - x0, z1 - z0); };
+    edge(GB.x0, GB.z0, GB.x0 + 1.0, GB.z1, GB.x0, 0, GB.x0 + 1.0, 0, 0.12); edge(GB.x1 - 0.9, GB.z0, GB.x1, GB.z1, GB.x1, 0, GB.x1 - 0.9, 0, 0.12);
+    edge(GB.x0, GB.z1 - 0.9, GB.x1, GB.z1, 0, GB.z1, 0, GB.z1 - 0.9, 0.12); edge(GB.x0, GB.z0, GB.x1, GB.z0 + 1.1, 0, GB.z0, 0, GB.z0 + 1.1, 0.18);
+    g.fillStyle = 'rgba(60,62,60,0.55)'; g.fillRect(GB.x0, GB.z0, GB.x1 - GB.x0, 0.06); // the asphalt/concrete seam
+    // scuffing in the keys and at the hoop poles
+    for (const [x, z, r, a] of [[25.6, 10.45, 2.2, 0.06], [25.6, -3.6, 2.2, 0.06], [28.1, 11.6, 0.9, 0.1], [28.1, -2.5, 0.9, 0.1], [-3.2, -10.2, 1.6, 0.05]]) { const gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, `rgba(60,60,58,${a})`); gr.addColorStop(1, 'rgba(60,60,58,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); }
+    // 4. hairline cracks: the measured ones plus the long wavy one in the middle column
+    const cr = MET_CRACKS.concat([[[5.35, 15.55], [5.5, 14.4], [5.6, 12.4], [5.75, 10.8], [5.85, 9.2], [5.95, 7.4], [6.05, 5.3], [6.0, 4.2], [6.15, 2.6], [6.2, 1.0]]]);
+    for (const p of cr) { const q = p.map(([x, z], i) => [x + Math.sin(i * 2.1 + x) * 0.03, z + Math.cos(i * 1.7 + z) * 0.03]); stroke(g, q, 0.02, 'rgba(96,98,94,0.3)'); stroke(g, q, 0.008, 'rgba(74,76,72,0.38)'); }
+    // 5. paint layers: red lines + ticks (heavily worn), red paws (faded, blotchy), white paint (crisp)
+    const L = mkCv(N, N), lg = L.getContext('2d');
+    const layer = (draw, seed, blotch, grain, alpha, sc) => { lg.setTransform(1, 0, 0, 1, 0, 0); lg.clearRect(0, 0, N, N); Wt(lg); draw(lg); wear(L, seed, blotch, grain, sc); It(g); g.globalAlpha = alpha; g.drawImage(L, 0, 0); g.globalAlpha = 1; Wt(g); };
+    const RED = '#a4473f', RW = 0.1;
+    const ticksZ = [-12.47, -10.96, -9.63, -8.34, -6.89, -5.52, -4.14, -2.79, -1.42, 2.66, 4.05, 5.42, 6.87, 8.18, 9.6, 10.87, 12.29];
+    { // the three long red lines: one continuous line each, faded unevenly along its length (0.3-1.5 m patches between about
+      // a quarter and most of full strength, soft transitions, never a missing piece)
+      const rn = vnoise(161), gl0 = g.globalAlpha; g.lineCap = 'butt'; let li = 0;
+      for (const z of [13.77, 0.0, -13.78]) {
+        li += 37; const st = 0.05;
+        for (let x = -11.1; x < 11.05 - 1e-6; x += st) {
+          const v = rn(x / 1.5 + li, li) * 0.55 + rn(x / 0.45 + li + 90, li) * 0.3 + rn(x / 0.16 + li + 200, li) * 0.15;
+          g.globalAlpha = 0.25 + 0.6 * Math.max(0, Math.min(1, (v - 0.28) / 0.44)) * 0.82;
+          stroke(g, [[x, z], [Math.min(11.05, x + st + 0.004), z]], RW, RED);
+        }
+      }
+      g.globalAlpha = gl0;
+    }
+    layer((h) => {
+      for (const z of ticksZ) { stroke(h, [[-11.1, z], [-10.45, z]], RW, RED); stroke(h, [[2.8, z], [3.95, z]], RW, RED); }
+      stroke(h, [[3.45, 1.38], [3.95, 1.38]], RW, RED);
+    }, 101, 0.55, 0.35, 0.82, 0.8);
+    layer((h) => {
+      drawPaw(h, -2.68, 7.16, 136.75 * Math.PI / 180, 1, '#ad2d33'); drawPaw(h, 25.67, 10.48, 0, 1, '#ad2d33'); drawPaw(h, 25.6, -3.52, -0.6 * Math.PI / 180, 1, '#ad2d33');
+    }, 202, 0.3, 0.3, 0.82, 0.9);
+    layer((h) => { // the small red paws: worn at a coarse scale so the toe ovals stay whole
+      for (const [x, z, n] of [[8.57, 16.1, 1], [12.81, 16.13, 1], [17.06, 16.17, 1], [5.33, 15.15, 1], [9.82, 15.18, 1], [-7.59, -15.25, -1], [-0.31, -15.2, -1]]) drawPaw(h, x, z, n * Math.PI / 2, 0.46, '#ad2d33');
+    }, 212, 0.2, 0.25, 0.8, 1.6);
+    const WH = '#f4f4f0', WW = 0.11;
+    layer((h) => {
+      // football field and the outer rectangle
+      stroke(h, [[-11.23, -15.71], [-11.23, 0.96]], WW, WH); stroke(h, [[-11.17, 0.96], [-11.17, 15.62]], WW, WH);
+      // the north border stops at x 24.2 where the arc meets it (the arc carries on to x 28.0); then a gap and the separate
+      // 1.0 m L return at the north-east corner, which turns south down the east boundary
+      stroke(h, [[-11.25, 15.68 - 0.0054 * 11.2], [24.2, 15.68 + 0.0054 * 24.2]], WW, WH);
+      stroke(h, [[-11.28, -15.65 - 0.0068 * 11.2], [29.4, -15.65 + 0.0068 * 29.35]], WW, WH);
+      stroke(h, [[28.35, 15.7], [29.35, 15.7], [29.35, -15.6]], WW, WH);
+      stroke(h, [[3.4, -15.72], [3.4, 0]], WW, WH); stroke(h, [[3.45, 0], [3.45, 15.75]], WW, WH);
+      stroke(h, [[11.18, -15.6], [11.18, 0]], WW, WH); stroke(h, [[11.23, 0], [11.23, 15.74]], WW, WH);
+      stroke(h, [[-11.2, 0.95], [3.45, 0.97]], WW, WH);
+      h.fillStyle = WH; for (const [x, z] of [[-10.97, 15.42], [3.29, 15.53], [-11.02, 1.11], [3.24, 1.21]]) h.fillRect(x - 0.24, z - 0.24, 0.48, 0.48);
+      // four-squares
+      for (const [x0, x1, z0, z1, dx, dz] of [[12.17, 15.86, 12.07, 15.76, 14.01, 13.92], [12.21, 15.77, -3.1, 0.52, 13.98, -1.27], [12.16, 15.75, -9.99, -6.31, 13.95, -8.16]]) { rectW(h, x0, z0, x1, z1, WW, WH); stroke(h, [[dx, z0], [dx, z1]], WW, WH); stroke(h, [[x0, dz], [x1, dz]], WW, WH); }
+      // hopscotches: [x0, x1, pair?] from the start end; the home half-circle last
+      const hop = (cz, cells, home, dir) => {
+        const hw = 0.08; let n = 1;
+        for (const [a, b, pair] of cells) {
+          const x0 = Math.min(a, b), x1 = Math.max(a, b), zz = pair ? 0.53 : 0.26;
+          rectW(h, x0, cz - zz, x1, cz + zz, hw, WH); if (pair) stroke(h, [[x0, cz], [x1, cz]], hw, WH);
+          const nums = pair ? [n, n + 1] : [n]; n += nums.length;
+          nums.forEach((num, k) => { const zc = pair ? cz + (k === 0 ? -dir : dir) * 0.27 : cz; h.save(); h.translate((x0 + x1) / 2, zc); h.transform(0, dir, dir, 0, 0, 0); h.fillStyle = WH; h.font = '700 0.26px Arial, sans-serif'; h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillText(String(num), 0, 0.01); h.restore(); });
+        }
+        const [hx0, hr] = home; h.lineWidth = hw; h.strokeStyle = WH; h.beginPath(); h.arc(hx0, cz, hr, dir > 0 ? Math.PI / 2 : -Math.PI / 2, dir > 0 ? Math.PI * 1.5 : Math.PI / 2); h.closePath(); h.stroke();
+        h.beginPath(); h.arc(hx0, cz, hr * 0.55, dir > 0 ? Math.PI / 2 : -Math.PI / 2, dir > 0 ? Math.PI * 1.5 : Math.PI / 2); h.stroke();
+        h.save(); h.translate(hx0 - dir * hr * 0.32, cz); h.transform(0, dir, dir, 0, 0, 0); h.font = '700 0.2px Arial, sans-serif'; h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = WH; h.fillText('10', 0, 0); h.restore();
+      };
+      const H1 = [[19.0, 18.4], [18.4, 17.84], [17.84, 17.4], [17.4, 16.81, 1], [16.81, 16.34], [16.34, 15.75, 1], [15.75, 15.22]];
+      hop(3.45, H1, [15.22, 0.53], 1); hop(-12.97, H1, [15.22, 0.53], 1);
+      hop(-12.97, [[25.06, 25.53], [25.53, 26.06], [26.06, 26.66], [26.66, 27.25, 1], [27.25, 27.75], [27.75, 28.31, 1], [28.31, 28.75]], [28.75, 0.47], -1);
+      // the target and its throw lines
+      for (const r of [0.34, 0.59, 0.85, 1.09]) arcW(h, 12.4, -11.85, r, 0, 6.2832, 0.08, WH);
+      stroke(h, [[11.9, -13.05], [12.95, -13.05]], 0.09, WH); for (const z of [-13.58, -14.06, -14.54, -15.04]) { stroke(h, [[11.95, z], [12.37, z]], 0.09, WH); stroke(h, [[12.53, z], [12.92, z]], 0.09, WH); }
+      // basketball: lanes, free-throw circles (solid outside, 5 dashes inside), lane marks, three-point arcs
+      // lane-space marks (measured): a 0.3 m block 7-8 ft from the key end, thin marks at 11, 14 and 17 ft; the south sides are worn
+      const LM = [{ n: [[25.56, 25.81], [24.545, 24.595], [23.595, 23.645], [22.635, 22.685]], s: [[24.975, 25.025], [24.025, 24.075]] }, { n: [[25.49, 25.79], [24.495, 24.545], [23.535, 23.585], [22.575, 22.625]], s: [[23.975, 24.025], [22.575, 22.625]] }];
+      for (const [x0, x1, z0, z1, ki] of [[22.13, 27.93, 8.65, 12.27, 0], [22.12, 27.88, -5.41, -1.77, 1]]) {
+        rectW(h, x0, z0, x1, z1, WW, WH); const cz = (z0 + z1) / 2;
+        arcW(h, 22.08, cz, 1.8, Math.PI / 2, Math.PI * 1.5, WW, WH);
+        for (const a of [-50, -24, 0, 24, 50]) arcW(h, 22.08, cz, 1.8, (a - 7) * Math.PI / 180, (a + 7) * Math.PI / 180, WW, WH);
+        h.fillStyle = WH;
+        for (const [a, b] of LM[ki].n) h.fillRect(a, z1, b - a, 0.15);
+        for (const [a, b] of LM[ki].s) h.fillRect(a, z0 - 0.15, b - a, 0.15);
+      }
+      stroke(h, [[27.9, 4.55], [26.3, 4.64], [25.31, 4.85], [24.38, 5.17], [23.5, 5.6], [22.67, 6.12], [21.92, 6.78], [21.27, 7.55], [20.77, 8.44], [20.43, 9.42], [20.42, 10.45], [20.43, 11.48], [20.77, 12.46], [21.28, 13.35], [21.94, 14.11], [22.7, 14.75], [23.53, 15.24], [24.4, 15.62], [25.33, 15.94], [26.3, 16.06], [27.3, 16.1], [28.0, 16.15]], WW, WH);
+      stroke(h, [[27.9, 2.55], [27.37, 2.42], [26.3, 2.29], [25.3, 2.03], [24.36, 1.67], [23.48, 1.23], [22.67, 0.68], [21.92, 0.03], [21.26, -0.74], [20.76, -1.63], [20.41, -2.61], [20.39, -3.65], [20.39, -4.69], [20.72, -5.68], [21.22, -6.58], [21.85, -7.38], [22.6, -8.06], [23.43, -8.63], [24.32, -9.08], [25.28, -9.43], [26.3, -9.67], [27.39, -9.81], [27.9, -9.89]], WW, WH);
+      // the white small paws
+      for (const [x, z, n] of [[10.66, 16.27, 1], [14.92, 16.32, 1], [19.17, 16.18, 1], [-7.77, 15.21, 1], [-0.28, 15.25, 1], [5.23, -15.17, -1], [8.94, -15.1, -1]]) drawPaw(h, x, z, n * Math.PI / 2, 0.46, WH);
+    }, 303, 0.1, 0.22, 0.97, 0.35);
+    // the target's dark centre disc
+    g.fillStyle = 'rgba(38,38,36,0.85)'; g.beginPath(); g.arc(12.4, -11.85, 0.15, 0, 6.2832); g.fill();
+    It(g);
+    return c;
+  }
+  // ---------- the drop-off lot south of the blacktop: old asphalt, lighter than the blacktop, block-cracked, no joint grid ----------
+  function metLotCanvas(N) {
+    const c = mkCv(N, N); if (!realCv()) return c;
+    const g = c.getContext('2d'), SX = N / (LOT.x1 - LOT.x0), SZ = N / (LOT.z1 - LOT.z0);
+    const Wt = (h) => h.setTransform(SX, 0, 0, SZ, -LOT.x0 * SX, -LOT.z0 * SZ), It = (h) => h.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#c3c2bb'; g.fillRect(0, 0, N, N);
+    const tile = grainTile(vimg('asphalt.jpg'), 512, 1.0, 41);
+    Wt(g); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.7; const T = 3.0;
+    for (let x = LOT.x0; x < LOT.x1; x += T) for (let z = LOT.z0; z < LOT.z1; z += T) g.drawImage(tile, x, z, T, T);
+    const nz = vnoise(9); It(g); g.globalAlpha = 0.2; g.drawImage(noiseCanvas(256, 256, (x, y) => 0.5 + (nz(x / 7, y / 7) - 0.5) * 0.6 + (nz(x * 0.8, y * 0.8) - 0.5) * 0.3), 0, 0, N, N);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; Wt(g);
+    // the straight paving seams (north-south at x -0.7 down to z -45, east-west at z -44.4), irregular block cracking, oil drips in
+    // the parking spots, the bright edge band by the blacktop
+    stroke(g, [[-0.7, -17.6], [-0.66, -30], [-0.72, -45.0]], 0.035, 'rgba(88,88,84,0.6)'); stroke(g, [[-12.5, -44.4], [10, -44.36], [34.2, -44.42]], 0.035, 'rgba(88,88,84,0.55)');
+    const rr = mrng(55);
+    for (let k = 0; k < 14; k++) { // block cracks: long, mostly straight, meeting at right-ish angles
+      let x = LOT.x0 + rr() * (LOT.x1 - LOT.x0), z = LOT.z0 + rr() * (LOT.z1 - LOT.z0); const p = [[x, z]]; let a = (rr() < 0.5 ? 0 : Math.PI / 2) + (rr() - 0.5) * 0.4;
+      for (let s2 = 0; s2 < 10; s2++) { a += (rr() - 0.5) * 0.25; x += Math.cos(a) * 0.8; z += Math.sin(a) * 0.8; p.push([x, z]); } stroke(g, p, 0.018, 'rgba(78,78,74,0.55)'); }
+    for (let k = 0; k < 26; k++) { let x = LOT.x0 + rr() * (LOT.x1 - LOT.x0), z = LOT.z0 + rr() * (LOT.z1 - LOT.z0); const p = [[x, z]]; let a = rr() * 6.28; for (let s = 0; s < 6; s++) { a += (rr() - 0.5) * 1.2; x += Math.cos(a) * 0.6; z += Math.sin(a) * 0.6; p.push([x, z]); } stroke(g, p, 0.012, 'rgba(80,82,78,0.5)'); }
+    for (let k = 0; k < 40; k++) { const x = LOT.x0 + 2 + rr() * (LOT.x1 - LOT.x0 - 4), z = LOT.z0 + 2 + rr() * (LOT.z1 - LOT.z0 - 4), r = 0.4 + rr() * 1.4, gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, `rgba(70,70,64,${(0.06 + rr() * 0.1).toFixed(3)})`); gr.addColorStop(1, 'rgba(70,70,64,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); }
+    for (const [x0, z0, x1, z1] of [[24, -48, 24, -19], [26.6, -48, 26.4, -19], [28, -19.4, -6, -19.6], [28, -22.8, -6, -23.0], [-6.5, -20, -6.8, -46], [-9.6, -20, -9.9, -46], [-9, -47, 26, -46.5], [-9, -44, 26, -43.8]]) stroke(g, [[x0, z0], [x1, z1]], 0.25, 'rgba(70,70,64,0.06)'); // faint wheel paths round the drop-off loop
+    for (const [x, z] of [[15.6, -50.4], [18.6, -50.6], [21.7, -50.2], [9.3, -21.9], [-7.7, -33.6], [5.8, -44.7], [23.8, -36.5]]) { const gr = g.createRadialGradient(x, z, 0, x, z, 0.9); gr.addColorStop(0, 'rgba(60,58,52,0.22)'); gr.addColorStop(1, 'rgba(60,58,52,0)'); g.fillStyle = gr; g.fillRect(x - 1, z - 1, 2, 2); }
+    g.fillStyle = 'rgba(232,232,226,0.8)'; g.fillRect(LOT.x0, -17.53, LOT.x1 - LOT.x0, 0.22);
+    g.fillStyle = 'rgba(60,62,60,0.5)'; g.fillRect(LOT.x0, -17.16, LOT.x1 - LOT.x0, 0.06);
+    // paint: white loop arrows and dividers, cone spots, angled stalls, yellow fire-lane hatching
+    const L = mkCv(N, N), lg = L.getContext('2d');
+    const layer = (draw, seed, blotch, grain, alpha) => { lg.setTransform(1, 0, 0, 1, 0, 0); lg.clearRect(0, 0, N, N); Wt(lg); draw(lg); wear(L, seed, blotch, grain, 0.6); It(g); g.globalAlpha = alpha; g.drawImage(L, 0, 0); g.globalAlpha = 1; Wt(g); };
+    const D2R = Math.PI / 180;
+    layer((h) => {
+      h.fillStyle = '#f6f6f2';
+      const arrow = (x, z, deg) => { h.save(); h.translate(x, z); h.rotate(deg * D2R); h.beginPath(); h.moveTo(-0.95, -0.14); h.lineTo(0.15, -0.14); h.lineTo(0.15, -0.475); h.lineTo(0.95, 0); h.lineTo(0.15, 0.475); h.lineTo(0.15, 0.14); h.lineTo(-0.95, 0.14); h.closePath(); h.fill(); h.restore(); };
+      for (const [x, z, d] of [[9.4, -19.9, 180], [9.4, -23.85, 180], [-3.9, -21.4, 225], [-1.2, -25.0, 225], [-7.65, -29.3, 270], [-7.75, -38.2, 270], [-9.6, -45.0, 225], [5.9, -42.6, 0], [6.5, -46.5, 0], [17.3, -39.4, 45], [19.0, -43.0, 45], [21.9, -33.0, 90], [25.8, -33.0, 90], [20.7, -22.0, 135], [18.6, -25.3, 135]]) arrow(x, z, d);
+      const div = (x, z, len, head) => { const dx = Math.sin(head * D2R) * len / 2, dz = Math.cos(head * D2R) * len / 2; stroke(h, [[x - dx, z - dz], [x + dx, z + dz]], 0.18, '#f0f0ea'); };
+      div(9.95, -21.75, 3.15, 90); div(-2.6, -23.5, 3.9, 57); div(5.8, -44.6, 3.1, 79); div(18.3, -41.2, 3.5, 66); div(23.8, -32.6, 3.5, 0); div(19.6, -23.6, 3.2, 120);
+      for (const z of [-22.9, -28.5]) { h.beginPath(); h.arc(28.0, z, 0.13, 0, 6.2832); h.fill(); }
+      for (const x of [14, 17, 20, 23]) stroke(h, [[x, -48.2], [x + 2.3, -53.1]], 0.11, '#f0f0ea');
+    }, 404, 0.2, 0.2, 1.0);
+    layer((h) => {
+      const Y = '#d8bf5a';
+      stroke(h, [[29.15, -17.3], [29.15, -47.5]], 0.11, Y);
+      h.save(); h.beginPath(); h.rect(29.15, -47.5, 1.65, 30.2); h.clip(); for (let z = -47.5; z < -16; z += 1.24) stroke(h, [[29.15, z + 1.65], [30.85, z]], 0.11, Y); h.restore();
+      stroke(h, [[29.15, -32.0], [31.9, -32.0], [31.9, -47.5]], 0.11, Y); h.save(); h.beginPath(); h.rect(30.85, -47.5, 1.05, 15.5); h.clip(); for (let z = -47.5; z < -30; z += 1.24) stroke(h, [[30.2, z + 1.65], [31.9, z]], 0.11, Y); h.restore(); // wider south of the hedge
+      // the newer no-parking zones along the south edge (as in the owner's screenshots), and the older south-east one
+      for (const [x0, x1] of [[0.0, 10.0], [11.0, 16.0], [23.0, 30.8]]) { rectW(h, x0, -53.4, x1, -47.6, 0.11, Y); h.save(); h.beginPath(); h.rect(x0, -53.4, x1 - x0, 5.8); h.clip(); for (let x = x0 - 6; x < x1; x += 1.1) stroke(h, [[x, -53.4], [x + 5.8, -47.6]], 0.1, Y); h.restore(); }
+    }, 505, 0.32, 0.3, 0.95);
+    It(g);
+    return c;
+  }
+  // ---------- flat roof membrane over the west wing and the main block: grey-green, a seam grid, dark ponding ----------
+  const ROOF = { x0: 33.5, x1: 71.5, z0: -52, z1: 18 };
+  function metRoofCanvas(W, H) {
+    const c = mkCv(W, H); if (!realCv()) return c;
+    const g = c.getContext('2d'), SX = W / (ROOF.x1 - ROOF.x0), SZ = H / (ROOF.z1 - ROOF.z0);
+    g.fillStyle = '#5a6664'; g.fillRect(0, 0, W, H);
+    const nz = vnoise(13); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.22; g.drawImage(noiseCanvas(256, 512, (x, y) => 0.5 + (nz(x / 5, y / 5) - 0.5) * 0.8 + (nz(x * 0.7, y * 0.7) - 0.5) * 0.3), 0, 0, W, H);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.setTransform(SX, 0, 0, SZ, -ROOF.x0 * SX, -ROOF.z0 * SZ);
+    for (let x = ROOF.x0; x < ROOF.x1; x += 3.05) stroke(g, [[x, ROOF.z0], [x, ROOF.z1]], 0.05, 'rgba(150,160,156,0.35)');
+    for (let z = ROOF.z0; z < ROOF.z1; z += 6.1) stroke(g, [[ROOF.x0, z], [ROOF.x1, z]], 0.04, 'rgba(150,160,156,0.25)');
+    const rr = mrng(21);
+    // ponding stains: irregular, mostly elongated, noise-warped patches with soft ragged edges (one low-res field, drawn smooth)
+    const PD = [[40, 14, 2.6], [39, 4, 2.4], [37, -8, 2.2], [44, -26, 2.4], [61, -26, 2.8], [46.5, 9, 1.8], [56, 2, 2.0], [66, -6, 2.2], [52, -20, 1.6], [42, -40, 2.0]];
+    for (let x = 34.5; x < 48; x += 3.2) PD.push([x, -4 + (rr() - 0.5), 1.1]);
+    const pd = PD.map(([x, z, r]) => { const an = rr() * Math.PI, el = 1.4 + rr() * 1.3; return [x, z, r * 1.25, Math.cos(an), Math.sin(an), el, 0.45 + rr() * 0.15]; });
+    { const D = 0.25, W2 = Math.round((ROOF.x1 - ROOF.x0) / D), H2 = Math.round((ROOF.z1 - ROOF.z0) / D), pc = mkCv(W2, H2), px = pc.getContext('2d'), im = px.createImageData(W2, H2), d = im.data, wn = vnoise(17);
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+        const X0 = ROOF.x0 + (x + 0.5) * D, Z0 = ROOF.z0 + (y + 0.5) * D, wx = X0 + (wn(X0 / 1.7, Z0 / 1.7) - 0.5) * 2.4, wz = Z0 + (wn(X0 / 1.7 + 50, Z0 / 1.7) - 0.5) * 2.4; let a = 0;
+        for (const [cx, cz, r, ca, sa, el, al] of pd) { const dx = wx - cx, dz = wz - cz; if (Math.abs(dx) > r * 3 || Math.abs(dz) > r * 3) continue; const u = (dx * ca + dz * sa) / el, v = -dx * sa + dz * ca, q = Math.hypot(u, v) / r;
+          const e = q + (wn(X0 / 0.6 + 90, Z0 / 0.6) - 0.5) * 0.5; if (e < 1) a = Math.max(a, al * Math.min(1, (1 - e) / 0.35)); }
+        const o = (y * W2 + x) * 4; d[o] = 44; d[o + 1] = 52; d[o + 2] = 52; d[o + 3] = Math.round(a * 255);
+      }
+      px.putImageData(im, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true; g.drawImage(pc, 0, 0, W, H); }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    return c;
+  }
+  // ---------- asphalt grain for the near-camera detail layer (r brightness, gb normal xy, a height), as the turf one ----------
+  function metDetailCanvas() {
+    const N = 512, c = mkCv(N, N); if (!realCv()) return c; const g = c.getContext('2d'), r = mrng(4243);
+    const h = new Float32Array(N * N);
+    for (let i = 0; i < 26000; i++) { // aggregate: little rounded stones
+      const x = r() * N, y = r() * N, rad = 1 + r() * r() * 5, k = 0.35 + r() * 0.65;
+      for (let dy = -Math.ceil(rad); dy <= rad; dy++) for (let dx = -Math.ceil(rad); dx <= rad; dx++) { const f = 1 - (dx * dx + dy * dy) / (rad * rad); if (f <= 0) continue; const ix = ((x + dx) % N + N) % N | 0, iy = ((y + dy) % N + N) % N | 0; h[iy * N + ix] = Math.max(h[iy * N + ix], k * Math.sqrt(f)); }
+    }
+    const img = g.createImageData(N, N), d = img.data;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x, hx = h[y * N + ((x + 1) % N)] - h[y * N + ((x + N - 1) % N)], hy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+      const nx = -hx * 1.1, ny = -hy * 1.1, nl = Math.hypot(nx, ny, 1), o = i * 4;
+      d[o] = 128 + (h[i] - 0.45) * 46 + (r() - 0.5) * 22; d[o + 1] = 128 + (nx / nl) * 127; d[o + 2] = 128 + (ny / nl) * 127; d[o + 3] = 112 + h[i] * 60;
+    }
+    g.putImageData(img, 0, 0);
+    return c;
+  }
+  // ---------- the decal atlas: shed siding, signs, playground panels, the backboard face (CLAMP, sub-rectangles) ----------
+  const ATL = { W: 2048, H: 1024, shedF: [0, 0, 1400, 280], shedS: [1408, 0, 300, 280], planks: [1716, 0, 332, 280], slats: [0, 288, 512, 256], plane: [512, 288, 256, 256], moon: [768, 288, 256, 256],
+    maze: [1024, 288, 256, 256], climb: [1280, 288, 256, 256], gagaPaw: [1536, 288, 256, 256], speed: [0, 552, 200, 256], nopark: [200, 552, 160, 256], board: [368, 552, 400, 236],
+    witt: [776, 552, 256, 256], n1: [1040, 552, 120, 120], n2: [1168, 552, 120, 120], n3: [1296, 552, 120, 120], n4: [1424, 552, 120, 120], postPaw: [1552, 552, 160, 160], deck: [1720, 552, 256, 256], vault: [1040, 680, 120, 120],
+    winW: [0, 816, 96, 128], winD: [100, 816, 96, 128], fan: [200, 816, 192, 104], door: [400, 816, 104, 120], wittE: [512, 816, 704, 144], wittR: [1224, 816, 240, 80], honors: [1472, 816, 224, 96], winB: [1704, 816, 96, 128], dormer: [1808, 816, 96, 128], vent: [1912, 816, 128, 96] };
+  const atlUV = (k) => { const r = ATL[k]; return [r[0] / ATL.W, r[1] / ATL.H, (r[0] + r[2]) / ATL.W, (r[1] + r[3]) / ATL.H]; };
+  function metAtlasCanvas() {
+    const c = mkCv(ATL.W, ATL.H); if (!realCv()) return c; const g = c.getContext('2d'), rr = mrng(88);
+    g.fillStyle = '#808080'; g.fillRect(0, 0, ATL.W, ATL.H);
+    const R = (k) => ATL[k];
+    // shed front: barn-red vertical boards with darker joints, a pair of doors with trim, hinges and a hasp
+    { const [x, y, w, h] = R('shedF'), pm = w / 11.1; g.fillStyle = '#b9473a'; g.fillRect(x, y, w, h);
+      for (let bx = 0; bx < 11.1; bx += 0.2) { const v = 0.9 + rr() * 0.18; g.fillStyle = `rgb(${185 * v | 0},${71 * v | 0},${58 * v | 0})`; g.fillRect(x + bx * pm, y, 0.2 * pm, h); g.fillStyle = '#8c3127'; g.fillRect(x + bx * pm, y, 2, h); }
+      const dn = (d0) => { // flush doors in the siding colour, a darker frame and joint, small black hinges and a hasp (no trim)
+        g.fillStyle = '#8c3127'; g.fillRect(x + d0 * pm - 4, y + h * 0.12 - 4, 1.9 * pm + 8, h * 0.88 + 4); g.fillStyle = '#b4443a'; g.fillRect(x + d0 * pm, y + h * 0.12, 1.9 * pm, h * 0.88);
+        for (let bx = 0; bx < 1.9; bx += 0.2) { g.fillStyle = '#8c3127'; g.fillRect(x + (d0 + bx) * pm, y + h * 0.12, 2, h * 0.88); }
+        g.fillStyle = '#7a2a22'; g.fillRect(x + (d0 + 0.95) * pm - 2, y + h * 0.12, 4, h * 0.88);
+        g.fillStyle = '#2a2a2a'; for (const hy of [0.25, 0.85]) { g.fillRect(x + d0 * pm + 2, y + h * hy, 18, 4); g.fillRect(x + (d0 + 1.9) * pm - 20, y + h * hy, 18, 4); } g.fillRect(x + (d0 + 0.95) * pm - 5, y + h * 0.55, 10, 14); };
+      dn(2.4); dn(6.8);
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x, y, w, 10); g.fillStyle = 'rgba(70,40,30,0.25)'; g.fillRect(x, y + h - 14, w, 14); }
+    { const [x, y, w, h] = R('shedS'), pm = w / 2.2; g.fillStyle = '#b9473a'; g.fillRect(x, y, w, h); for (let bx = 0; bx < 2.2; bx += 0.2) { g.fillStyle = '#8c3127'; g.fillRect(x + bx * pm, y, 2, h); } g.fillStyle = 'rgba(70,40,30,0.25)'; g.fillRect(x, y + h - 14, w, 14); }
+    // wood-look planks (the tower roof) and slat panels (alternating tan and grey-brown with round holes, wood top rail)
+    { const [x, y, w, h] = R('planks'); for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#b97a4e' : '#9a6a48'; g.fillRect(x, y + i * h / 10, w, h / 10); g.fillStyle = 'rgba(40,25,15,0.5)'; g.fillRect(x, y + i * h / 10, w, 2); } }
+    { const [x, y, w, h] = R('slats'), n = 9; g.fillStyle = '#5a4a40'; g.fillRect(x, y, w, h);
+      for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? '#8c7366' : '#b97a4e'; g.fillRect(x + i * w / n + 3, y + 26, w / n - 6, h - 30); for (let k = 0; k < 18; k++) { g.fillStyle = 'rgba(60,35,20,0.18)'; g.fillRect(x + i * w / n + 3 + rr() * (w / n - 8), y + 26 + rr() * (h - 32), 2, 10 + rr() * 30); } }
+      g.fillStyle = '#c08a5c'; g.fillRect(x, y, w, 24); g.fillStyle = '#2a2a2a'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(x + w * (0.25 + i * 0.25), y + h * 0.55, 18, 0, 6.2832); g.fill(); } }
+    // grey activity panels with white line art
+    const panel = (k, art) => { const [x, y, w, h] = R(k); g.fillStyle = '#7a8898'; g.fillRect(x, y, w, h); g.strokeStyle = '#5d6a78'; g.lineWidth = 6; g.strokeRect(x + 3, y + 3, w - 6, h - 6); g.save(); g.translate(x, y); g.strokeStyle = '#f2f4f6'; g.fillStyle = '#f2f4f6'; g.lineWidth = 6; g.lineCap = 'round'; art(w, h); g.restore(); };
+    panel('plane', (w, h) => { g.beginPath(); g.moveTo(40, 120); g.lineTo(200, 100); g.lineTo(220, 110); g.lineTo(200, 120); g.lineTo(40, 130); g.closePath(); g.stroke(); g.beginPath(); g.moveTo(120, 112); g.lineTo(90, 60); g.lineTo(110, 60); g.lineTo(150, 108); g.moveTo(120, 124); g.lineTo(95, 175); g.lineTo(115, 175); g.lineTo(150, 122); g.moveTo(48, 122); g.lineTo(36, 92); g.stroke(); g.beginPath(); g.moveTo(150, 200); g.quadraticCurveTo(165, 185, 180, 200); g.quadraticCurveTo(195, 185, 210, 200); g.stroke(); });
+    panel('moon', (w, h) => { g.beginPath(); g.arc(90, 90, 46, 0.6, 5.7); g.arc(112, 80, 36, 5.2, 1.2, true); g.closePath(); g.stroke(); for (const [cx, cy] of [[160, 180], [80, 200]]) { g.beginPath(); g.arc(cx - 22, cy, 16, Math.PI * 0.5, Math.PI * 1.5); g.arc(cx, cy - 10, 22, Math.PI, 0); g.arc(cx + 24, cy, 16, Math.PI * 1.5, Math.PI * 0.5); g.closePath(); g.stroke(); } for (const [sx, sy] of [[190, 50], [210, 100], [40, 160]]) { g.beginPath(); g.arc(sx, sy, 4, 0, 6.3); g.fill(); } });
+    panel('maze', (w, h) => { g.lineWidth = 8; for (let i = 0; i < 5; i++) { const m = 24 + i * 20; g.beginPath(); g.moveTo(m + 30, m); g.lineTo(w - m, m); g.lineTo(w - m, h - m); g.lineTo(m, h - m); g.lineTo(m, m + 30); g.stroke(); } });
+    { const [x, y, w, h] = R('climb'); g.fillStyle = '#7a8898'; g.fillRect(x, y, w, h); const cl = ['#3fae4a', '#d5232f', '#2c6fd1', '#e8c21f']; for (let i = 0; i < 16; i++) { g.fillStyle = cl[i % 4]; g.beginPath(); g.ellipse(x + 20 + rr() * (w - 40), y + 20 + rr() * (h - 40), 9 + rr() * 8, 7 + rr() * 6, rr() * 3, 0, 6.3); g.fill(); } }
+    // white gaga wall panel with the red paw in a circle; a white paw for the red posts
+    { const [x, y, w, h] = R('gagaPaw'), sx = 0.9 / 2.3; g.fillStyle = '#efeeef'; g.fillRect(x, y, w, h); g.save(); g.translate(x + w / 2, y + h / 2); g.scale(sx, 1); g.strokeStyle = '#e32545'; g.lineWidth = 9; g.beginPath(); g.arc(0, 0, 100, 0, 6.3); g.stroke(); g.translate(0, 10); g.scale(62, 62); g.rotate(-Math.PI / 2); g.fillStyle = '#c42633'; pawPath(g); g.fill(); g.restore(); }
+    { const [x, y, w, h] = R('postPaw'); g.fillStyle = '#d5232f'; g.fillRect(x, y, w, h); g.save(); g.translate(x + w / 2, y + h / 2 + 6); g.scale(70, 70); g.rotate(-Math.PI / 2); g.fillStyle = '#ffffff'; pawPath(g); g.fill(); g.restore(); }
+    // perforated charcoal deck
+    { const [x, y, w, h] = R('deck'); g.fillStyle = '#3f474e'; g.fillRect(x, y, w, h); g.fillStyle = '#22272c'; for (let yy = 6; yy < h; yy += 12) for (let xx = 6 + ((yy / 12) % 2) * 6; xx < w; xx += 12) { g.beginPath(); g.arc(x + xx, y + yy, 3, 0, 6.3); g.fill(); } }
+    // signs: SPEED LIMIT 30, NO PARKING, numbered line-up plates
+    { const [x, y, w, h] = R('speed'); g.fillStyle = '#f4f4f2'; g.fillRect(x, y, w, h); g.strokeStyle = '#111'; g.lineWidth = 6; g.strokeRect(x + 8, y + 8, w - 16, h - 16); g.fillStyle = '#111'; g.textAlign = 'center'; g.font = '700 34px Arial, sans-serif'; g.fillText('SPEED', x + w / 2, y + 58); g.fillText('LIMIT', x + w / 2, y + 98); g.font = '700 110px Arial, sans-serif'; g.fillText('30', x + w / 2, y + 218); }
+    { const [x, y, w, h] = R('nopark'); g.fillStyle = '#f4f4f2'; g.fillRect(x, y, w, h); g.strokeStyle = '#c4161c'; g.lineWidth = 6; g.strokeRect(x + 7, y + 7, w - 14, h - 14); g.fillStyle = '#c4161c'; g.textAlign = 'center'; g.font = '700 36px Arial, sans-serif'; g.fillText('NO', x + w / 2, y + 60); g.font = '700 26px Arial, sans-serif'; g.fillText('PARKING', x + w / 2, y + 100); g.fillText('ANY TIME', x + w / 2, y + 140); g.lineWidth = 8; g.beginPath(); g.moveTo(x + 30, y + 200); g.lineTo(x + w - 30, y + 200); g.stroke(); g.beginPath(); g.moveTo(x + w - 30, y + 200); g.lineTo(x + w - 52, y + 186); g.lineTo(x + w - 52, y + 214); g.closePath(); g.fill(); }
+    for (let i = 1; i <= 4; i++) { const [x, y, w, h] = R('n' + i); g.fillStyle = '#f6f6f4'; g.fillRect(x, y, w, h); g.fillStyle = '#c42633'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 90px Arial, sans-serif'; g.fillText(String(i), x + w / 2, y + h / 2 + 4); g.textBaseline = 'alphabetic'; }
+    // backboard: white with a black border and the shooter's square
+    { const [x, y, w, h] = R('board'); g.fillStyle = '#f2f2ee'; g.fillRect(x, y, w, h); g.strokeStyle = '#1a1a1a'; g.lineWidth = 10; g.strokeRect(x + 6, y + 6, w - 12, h - 12); g.lineWidth = 9; const sw = w * 0.335, sh = h * 0.43; g.strokeRect(x + (w - sw) / 2, y + h - 10 - sh * 1.15, sw, sh); }
+    // the church's cross mark on brick (Wittenberg Lutheran Center)
+    { const [x, y, w, h] = R('witt'); g.fillStyle = '#8a4b3a'; g.fillRect(x, y, w, h); for (let yy = 0; yy < h; yy += 9) { g.fillStyle = 'rgba(200,190,180,0.5)'; g.fillRect(x, y + yy, w, 2); } g.fillStyle = '#f2efe8'; g.fillRect(x + w / 2 - 12, y + 30, 24, h - 60); g.fillRect(x + 50, y + 90, w - 100, 24); }
+    // brick courses as a background for signs and windows painted onto brick walls (matches the tinted photo brick from afar)
+    const bricks = (x, y, w, h, col, mort) => { g.fillStyle = col; g.fillRect(x, y, w, h); g.fillStyle = mort; for (let yy = 0; yy < h; yy += 7) { g.fillRect(x, y + yy, w, 1); for (let xx = ((yy / 7) % 2) * 8; xx < w; xx += 16) g.fillRect(x + xx, y + yy, 1, 7); } for (let k = 0; k < w * h / 60; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '30,15,10' : '200,170,150'},0.08)`; g.fillRect(x + rr() * w, y + rr() * h, 8, 6); } };
+    // windows: white-framed (two sashes, muntins), bronze-framed modern, and a white one on siding
+    const win = (k, frame, glassTop, glassBot, wall) => { const [x, y, w, h] = R(k); if (wall) bricks(x, y, w, h, wall, 'rgba(190,180,170,0.55)'); const f = 8;
+      const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, glassTop); gr.addColorStop(1, glassBot); g.fillStyle = gr; g.fillRect(x + f, y + f, w - 2 * f, h - 2 * f);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.moveTo(x + f, y + f + 30); g.lineTo(x + w * 0.6, y + f); g.lineTo(x + w * 0.85, y + f); g.lineTo(x + f, y + f + 60); g.fill();
+      g.fillStyle = frame; g.fillRect(x, y, w, f); g.fillRect(x, y + h - f - 4, w, f + 4); g.fillRect(x, y, f, h); g.fillRect(x + w - f, y, f, h); g.fillRect(x, y + h / 2 - 4, w, 8); g.fillRect(x + w / 2 - 2, y, 4, h); };
+    win('winW', '#f2f1ec', '#5b6670', '#2b3238', '#8a4c3c'); win('winD', '#3b332c', '#6d7882', '#2a3036', '#8a4c3c'); win('winB', '#f2f1ec', '#55616b', '#262c32', '#6e3f33');
+    { const [x, y, w, h] = R('dormer'); g.fillStyle = '#6f7071'; g.fillRect(x, y, w, h); g.fillStyle = '#f0efea'; g.beginPath(); g.moveTo(x + 4, y + 44); g.arc(x + w / 2, y + 44, w / 2 - 4, Math.PI, 0); g.lineTo(x + w - 4, y + h - 4); g.lineTo(x + 4, y + h - 4); g.fill(); g.fillStyle = '#3a434b'; g.beginPath(); g.moveTo(x + 14, y + 46); g.arc(x + w / 2, y + 46, w / 2 - 14, Math.PI, 0); g.lineTo(x + w - 14, y + h - 14); g.lineTo(x + 14, y + h - 14); g.fill(); g.fillStyle = '#f0efea'; g.fillRect(x + w / 2 - 2, y + 20, 4, h - 30); g.fillRect(x + 14, y + 74, w - 28, 4); }
+    // the gym's half-round fan window: white radial glazing bars on dark glass, set in dark brick
+    { const [x, y, w, h] = R('fan'); bricks(x, y, w, h, '#6b3a30', 'rgba(170,150,140,0.5)'); const cx = x + w / 2, cy = y + h - 6, r = w / 2 - 10;
+      g.fillStyle = '#e9e8e2'; g.beginPath(); g.arc(cx, cy, r + 7, Math.PI, 0); g.fill(); g.fillStyle = '#2f3940'; g.beginPath(); g.arc(cx, cy, r, Math.PI, 0); g.fill();
+      g.strokeStyle = '#e9e8e2'; g.lineWidth = 4; for (let k = 1; k < 8; k++) { const a = Math.PI + k * Math.PI / 8; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); g.stroke(); } g.beginPath(); g.arc(cx, cy, r * 0.45, Math.PI, 0); g.stroke(); g.fillStyle = '#e9e8e2'; g.fillRect(x + 4, cy - 2, w - 8, 8); }
+    // a dark brown steel door pair with push bars and a transom
+    { const [x, y, w, h] = R('door'); g.fillStyle = '#9a9a94'; g.fillRect(x, y, w, h); g.fillStyle = '#4a3a30'; g.fillRect(x + 5, y + 18, w / 2 - 6, h - 18); g.fillRect(x + w / 2 + 1, y + 18, w / 2 - 6, h - 18); g.fillStyle = '#3b444c'; g.fillRect(x + 5, y + 4, w - 10, 11); g.fillStyle = '#6f7a82'; g.fillRect(x + 14, y + 30, 14, 26); g.fillRect(x + w - 28, y + 30, 14, 26); g.fillStyle = '#c9c9c4'; g.fillRect(x + 10, y + 72, w / 2 - 16, 4); g.fillRect(x + w / 2 + 6, y + 72, w / 2 - 16, 4); }
+    // Wittenberg Lutheran Center: white letters, the Missouri Synod line and the cross mark, on the east wall's dark brick
+    { const [x, y, w, h] = R('wittE'); bricks(x, y, w, h, '#5e3428', 'rgba(150,120,105,0.45)'); g.fillStyle = '#f2f0ea'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      g.font = '600 50px Arial, sans-serif'; g.fillText('Wittenberg Lutheran Center', x + 14, y + 92); g.font = '500 24px Arial, sans-serif'; g.fillText('Lutheran Church \u2013 Missouri Synod', x + 16, y + 126);
+      const cx = x + w - 62, cy = y + 66; g.fillRect(cx - 7, cy - 52, 14, 110); g.fillRect(cx - 42, cy - 18, 84, 14); g.strokeStyle = '#f2f0ea'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx - 26, cy + 4); g.lineTo(cx - 26, cy + 40); g.moveTo(cx + 26, cy + 4); g.lineTo(cx + 26, cy - 34); g.stroke(); }
+    { const [x, y, w, h] = R('wittR'); g.fillStyle = '#c8202c'; g.fillRect(x, y, w, h); g.strokeStyle = '#f4f4f2'; g.lineWidth = 3; g.strokeRect(x + 5, y + 5, w - 10, h - 10); g.fillStyle = '#f4f4f2'; g.textAlign = 'center'; g.font = '700 26px Georgia, serif'; g.fillText('WITTENBERG', x + w / 2, y + 36); g.fillText('LUTHERAN', x + w / 2, y + 66); }
+    { const [x, y, w, h] = R('honors'); g.fillStyle = '#f4f3ee'; g.fillRect(x, y, w, h); g.fillStyle = '#b2172b'; g.fillRect(x, y, w, 14); g.fillStyle = '#222'; g.textAlign = 'center'; g.font = '700 26px Arial, sans-serif'; g.fillText('Honors Program', x + w / 2, y + 48); g.fillText('Building', x + w / 2, y + 80); }
+    { const [x, y, w, h] = R('vent'); g.fillStyle = '#9ea2a3'; g.fillRect(x, y, w, h); g.fillStyle = '#6c7072'; for (let yy = 8; yy < h - 6; yy += 9) g.fillRect(x + 6, y + yy, w - 12, 4); }
+    { const [x, y, w, h] = R('vault'); g.fillStyle = '#7b7d78'; g.fillRect(x, y, w, h); g.fillStyle = '#5f5246'; g.fillRect(x + 10, y + 10, w - 20, h - 20); g.strokeStyle = 'rgba(30,25,20,0.6)'; g.lineWidth = 3; for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(x + 10, y + 10 + i * (h - 20) / 6); g.lineTo(x + w - 10, y + 10 + i * (h - 20) / 6); g.stroke(); } }
+    return c;
+  }
+
+  // ---------- extra world primitives (Batch: pos3 nrm3 col4 uv2, non-indexed triangles; grow() before v()) ----------
+  // vertical cylinder / cone frustum at (x, z) from y0 to y1, radii r0 -> r1; caps optional
+  Batch.prototype.cyl = function (x, z, y0, y1, r0, r1, c, seg, caps, uvU, uvV) {
+    seg = seg || 12; this.grow(seg * 6 + (caps ? seg * 6 : 0));
+    const h = y1 - y0, sl = (r0 - r1) / (Math.hypot(h, r0 - r1) || 1), cl = h / (Math.hypot(h, r0 - r1) || 1);
+    for (let i = 0; i < seg; i++) {
+      const a0 = (i / seg) * 6.2832, a1 = ((i + 1) / seg) * 6.2832, c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+      const u0 = (uvU || 1) * i / seg, u1 = (uvU || 1) * (i + 1) / seg, vv = uvV || 1;
+      const A = [x + c0 * r0, y0, z + s0 * r0, c0 * cl, sl, s0 * cl, u0, vv], B = [x + c1 * r0, y0, z + s1 * r0, c1 * cl, sl, s1 * cl, u1, vv];
+      const C = [x + c1 * r1, y1, z + s1 * r1, c1 * cl, sl, s1 * cl, u1, 0], D = [x + c0 * r1, y1, z + s0 * r1, c0 * cl, sl, s0 * cl, u0, 0];
+      for (const q of [A, B, C, A, C, D]) this.v(q[0], q[1], q[2], q[3], q[4], q[5], c, q[6], q[7]);
+      if (caps) {
+        if (r1 > 0) { this.v(x, y1, z, 0, 1, 0, c, 0.5, 0.5); this.v(D[0], y1, D[2], 0, 1, 0, c, 0.5, 0.5); this.v(C[0], y1, C[2], 0, 1, 0, c, 0.5, 0.5); }
+        if (r0 > 0) { this.v(x, y0, z, 0, -1, 0, c, 0.5, 0.5); this.v(B[0], y0, B[2], 0, -1, 0, c, 0.5, 0.5); this.v(A[0], y0, A[2], 0, -1, 0, c, 0.5, 0.5); }
+      }
+    }
+  };
+  // a round bar between two points; smooth normals, open ends
+  Batch.prototype.tube = function (a, b, r, c, seg) {
+    seg = seg || 8; this.grow(seg * 6);
+    const d = v3n(v3s(b, a)), ref = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], u = v3n(v3c(d, ref)), w = v3c(d, u);
+    for (let i = 0; i < seg; i++) {
+      const a0 = (i / seg) * 6.2832, a1 = ((i + 1) / seg) * 6.2832;
+      const n0 = [u[0] * Math.cos(a0) + w[0] * Math.sin(a0), u[1] * Math.cos(a0) + w[1] * Math.sin(a0), u[2] * Math.cos(a0) + w[2] * Math.sin(a0)];
+      const n1 = [u[0] * Math.cos(a1) + w[0] * Math.sin(a1), u[1] * Math.cos(a1) + w[1] * Math.sin(a1), u[2] * Math.cos(a1) + w[2] * Math.sin(a1)];
+      const P = (p, n) => [p[0] + n[0] * r, p[1] + n[1] * r, p[2] + n[2] * r];
+      for (const [p, n] of [[P(a, n0), n0], [P(a, n1), n1], [P(b, n1), n1], [P(a, n0), n0], [P(b, n1), n1], [P(b, n0), n0]]) this.v(p[0], p[1], p[2], n[0], n[1], n[2], c, 0.5, 0.5);
+    }
+  };
+  Batch.prototype.tubes = function (pts, r, c, seg) { for (let i = 0; i < pts.length - 1; i++) this.tube(pts[i], pts[i + 1], r, c, seg); };
+  // surface of revolution around a vertical axis at (x, z): prof = [[r, y], ...] bottom to top
+  Batch.prototype.lathe = function (x, z, prof, c, seg) {
+    seg = seg || 12; this.grow((prof.length - 1) * seg * 6);
+    for (let i = 0; i < prof.length - 1; i++) for (let j = 0; j < seg; j++) {
+      const [r0, y0] = prof[i], [r1, y1] = prof[i + 1], a0 = j / seg * 6.2832, a1 = (j + 1) / seg * 6.2832, ny = -(r1 - r0), nr = y1 - y0, nl = Math.hypot(ny, nr) || 1;
+      const P = (r, y, a) => [x + Math.cos(a) * r, y, z + Math.sin(a) * r], N = (a) => [Math.cos(a) * nr / nl, ny / nl, Math.sin(a) * nr / nl];
+      const A = P(r0, y0, a0), B = P(r0, y0, a1), C = P(r1, y1, a1), D = P(r1, y1, a0), na = N(a0), nb = N(a1);
+      for (const [p, n] of [[A, na], [D, na], [C, nb], [A, na], [C, nb], [B, nb]]) this.v(p[0], p[1], p[2], n[0], n[1], n[2], c, 0.5, 0.5);
+    }
+  };
+  // ear-clipping triangulation of a simple polygon [[x, z], ...]
+  function earcut2(pts) {
+    const n = pts.length, idx = []; let area = 0;
+    for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; area += a[0] * b[1] - b[0] * a[1]; }
+    for (let i = 0; i < n; i++) idx.push(area > 0 ? i : n - 1 - i);
+    const out = [], cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const inside = (p, a, b, c) => cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0;
+    let guard = 0;
+    while (idx.length > 3 && guard++ < 10000) {
+      let cut = false;
+      for (let i = 0; i < idx.length; i++) {
+        const ia = idx[(i + idx.length - 1) % idx.length], ib = idx[i], ic = idx[(i + 1) % idx.length], A = pts[ia], B = pts[ib], C = pts[ic];
+        if (cross(A, B, C) <= 1e-9) continue;
+        let ok = true; for (const j of idx) if (j !== ia && j !== ib && j !== ic && inside(pts[j], A, B, C)) { ok = false; break; }
+        if (!ok) continue;
+        out.push([ia, ib, ic]); idx.splice(i, 1); cut = true; break;
+      }
+      if (!cut) break;
+    }
+    if (idx.length === 3) out.push([idx[0], idx[1], idx[2]]);
+    return out;
+  }
+  // flat polygon at height y; uvK = texture repeats per metre (world UVs), or a mapper fn(x, z) -> [u, v]
+  Batch.prototype.poly = function (pts, y, c, up, uvK) {
+    const tri = earcut2(pts); this.grow(tri.length * 3); const ny = up === false ? -1 : 1;
+    for (const t of tri) for (const i of t) { const p = pts[i]; const uv = typeof uvK === 'function' ? uvK(p[0], p[1]) : uvK ? [p[0] * uvK, p[1] * uvK] : [0.5, 0.5]; this.v(p[0], y, p[1], 0, ny, 0, c, uv[0], uv[1]); }
+  };
+  // footprint walls from y0 to y1 (+ top cap unless topC === false); wall UVs in metres * uvK
+  Batch.prototype.extrude = function (pts, y0, y1, c, uvK, topC, topUV) {
+    const n = pts.length; this.grow(n * 6); let run = 0, area = 0;
+    for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; area += a[0] * b[1] - b[0] * a[1]; }
+    const s = area > 0 ? 1 : -1;
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n], ex = b[0] - a[0], ez = b[1] - a[1], l = Math.hypot(ex, ez) || 1, nx = (ez / l) * s, nz = (-ex / l) * s;
+      const k = uvK || 0, u0 = run * k, u1 = (run + l) * k, v0 = y1 * k, v1 = y0 * k; run += l;
+      const q = [[a[0], y0, a[1], u0, v1], [b[0], y0, b[1], u1, v1], [b[0], y1, b[1], u1, v0], [a[0], y0, a[1], u0, v1], [b[0], y1, b[1], u1, v0], [a[0], y1, a[1], u0, v0]];
+      for (const p of q) this.v(p[0], p[1], p[2], nx, 0, nz, c, uvK ? p[3] : 0.5, uvK ? p[4] : 0.5);
+    }
+    if (topC !== false) this.poly(pts, y1, topC || c, true, topUV || null);
+  };
+  // box with per-face UVs in metres * k (no bottom)
+  Batch.prototype.tbox = function (x0, y0, z0, x1, y1, z1, c, k) {
+    k = k || 1; const Q = (a, b, cc, d, n, u0, u1, v0, v1) => this.quad(a, b, cc, d, n, c, [u0 * k, v1 * k, u1 * k, v1 * k, u1 * k, v0 * k, u0 * k, v0 * k]);
+    Q([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [0, 0, -1], x0, x1, -y1, -y0);
+    Q([x1, y0, z1], [x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [0, 0, 1], -x1, -x0, -y1, -y0);
+    Q([x0, y0, z1], [x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [-1, 0, 0], -z1, -z0, -y1, -y0);
+    Q([x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [1, 0, 0], z0, z1, -y1, -y0);
+    Q([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], [0, 1, 0], x0, x1, z0, z1);
+  };
+  // oriented box: centre, length along heading ang (rad, CCW from +x), height, width
+  Batch.prototype.obox = function (cx, cy, cz, len, h, wid, ang, c) { this.box(mRY(mT(IDM, cx, cy, cz), -ang), 0, 0, 0, len, h, wid, c); };
+  // a vertical quad between two ground points (normal n), UVs in metres * k, or the atlas rectangle uvR
+  Batch.prototype.wall = function (x0, z0, x1, z1, y0, y1, c, n, k, uvR) {
+    const L = Math.hypot(x1 - x0, z1 - z0); let uv;
+    if (uvR) uv = [uvR[0], uvR[3], uvR[2], uvR[3], uvR[2], uvR[1], uvR[0], uvR[1]];
+    else { k = k || 0; uv = [0, -y0 * k, L * k, -y0 * k, L * k, -y1 * k, 0, -y1 * k]; }
+    this.quad([x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0], n, c, uv);
+  };
+  // lumpy ellipsoid with spherical UVs (tree crowns, hedges, shrubs); lump: 0..1 random bulges
+  Batch.prototype.blobby = function (cx, cy, cz, rx, ry, rz, c, segs, rows, uvk, lump, rnd) {
+    segs = segs || 10; rows = rows || 7; this.grow(segs * rows * 6); const L = lump || 0, ph = rnd ? rnd() * 6.28 : 0, ph2 = rnd ? rnd() * 6.28 : 0;
+    const P = (i, j) => { const pa = (i / rows) * Math.PI, th = (j / segs) * 6.2832, nx = Math.sin(pa) * Math.cos(th), ny = Math.cos(pa), nz = Math.sin(pa) * Math.sin(th);
+      const k = 1 + L * (0.5 * Math.sin(th * 3 + ph) * Math.sin(pa * 2 + ph2) + 0.35 * Math.sin(th * 5 + ph2 * 2) * Math.cos(pa * 3 + ph));
+      const n = v3n([nx / rx, ny / ry, nz / rz]); return [[cx + nx * rx * k, cy + ny * ry * k, cz + nz * rz * k], n, [th * (uvk || 1) * Math.max(rx, rz), pa * (uvk || 1) * ry]]; };
+    for (let i = 0; i < rows; i++) for (let j = 0; j < segs; j++) { const a = P(i, j), b = P(i + 1, j), d = P(i + 1, j + 1), e = P(i, j + 1); for (const q of [a, b, d, a, d, e]) this.v(q[0][0], q[0][1], q[0][2], q[1][0], q[1][1], q[1][2], c, q[2][0], q[2][1]); }
+  };
+  // a leafy crown cluster: an icosphere (subdivided once at detail 1) with its vertices pushed in and out, normals bent outward
+  // with a little scatter, colour darker underneath (self-shade); UVs in metres * uvk so the leaf photo keeps its scale
+  const ICO = (() => { const t = (1 + Math.sqrt(5)) / 2, V = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(v3n);
+    const F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    const sub = (tris) => { const out = []; for (const [a, b, c] of tris) { const ab = v3n([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]), bc = v3n([(b[0] + c[0]) / 2, (b[1] + c[1]) / 2, (b[2] + c[2]) / 2]), ca = v3n([(c[0] + a[0]) / 2, (c[1] + a[1]) / 2, (c[2] + a[2]) / 2]); out.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]); } return out; };
+    const t0 = F.map((f) => f.map((i) => V[i])), t1 = sub(t0); return [t0, t1, sub(t1)]; })();
+  Batch.prototype.clump = function (cx, cy, cz, r, ry, c, rnd, detail, uvk) {
+    const T = ICO[detail ? 1 : 0], ph = [rnd() * 6.28, rnd() * 6.28, rnd() * 6.28], k = uvk || 0.4; this.grow(T.length * 3);
+    const disp = (p) => 1 + 0.13 * Math.sin(p[0] * 3.1 + ph[0]) * Math.sin(p[1] * 2.7 + ph[1]) + 0.09 * Math.sin(p[2] * 4.3 + ph[2] + p[0] * 2.0);
+    for (const tri of T) for (const p of tri) {
+      const d = disp(p), x = cx + p[0] * r * d, y = cy + p[1] * ry * d, z = cz + p[2] * r * d, j = 0.12 * Math.sin(p[0] * 9 + p[2] * 7 + ph[0]);
+      const n = v3n([p[0] + j, p[1] + 0.25 + j * 0.5, p[2] - j]), sh = 0.62 + 0.38 * Math.max(0, p[1] * 0.5 + 0.5);
+      this.v(x, y, z, n[0], n[1], n[2], [c[0] * sh, c[1] * sh, c[2] * sh, 1], (Math.atan2(p[2], p[0]) * r + cx) * k, (Math.acos(Math.max(-1, Math.min(1, p[1]))) * ry + cy) * k);
+    }
+  };
+  // a whole deciduous crown: an icosphere (detail 1 or 2) swollen by a dozen random lobes into a cauliflower of leaf masses, smooth
+  // shared normals, colour darkened in the hollows between masses and underneath, so it reads as clumps of foliage with depth
+  Batch.prototype.crown = function (cx, cy, cz, rx, ry, c, rnd, detail, uvk, flatB) {
+    const T = ICO[detail], k = uvk || 0.4, lobes = [];
+    for (let i = 0; i < 16; i++) { const a = rnd() * 6.2832, e = Math.asin(rnd() * 1.6 - 0.6); lobes.push([Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a), 0.1 + rnd() * 0.16, 4 + rnd() * 6]); }
+    const ph = rnd() * 6.28, D = (p) => { let d = 0.8; for (const l of lobes) { const q = p[0] * l[0] + p[1] * l[1] + p[2] * l[2]; if (q > 0) d += l[3] * Math.pow(q, l[4]); } d += 0.045 * Math.sin(p[0] * 11 + ph) * Math.sin(p[1] * 9 + p[2] * 7) + 0.03 * Math.sin(p[2] * 17 - ph + p[0] * 5); if (p[1] < 0) d *= 1 - (flatB || 0.25) * p[1] * p[1]; return d; };
+    const key = (p) => (p[0] * 1e4 | 0) + ',' + (p[1] * 1e4 | 0) + ',' + (p[2] * 1e4 | 0), P = new Map(), N = new Map();
+    let dmin = 9, dmax = 0; const pos = (p) => { const kk = key(p); let v = P.get(kk); if (!v) { const d = D(p); dmin = Math.min(dmin, d); dmax = Math.max(dmax, d); v = [cx + p[0] * rx * d, cy + p[1] * ry * d, cz + p[2] * rx * d, d]; P.set(kk, v); N.set(kk, [0, 0, 0]); } return v; };
+    for (const tri of T) { const a = pos(tri[0]), b = pos(tri[1]), cc = pos(tri[2]), n = v3c(v3s(b, a), v3s(cc, a)); for (const p of tri) { const m = N.get(key(p)); m[0] += n[0]; m[1] += n[1]; m[2] += n[2]; } }
+    this.grow(T.length * 3);
+    for (const tri of T) for (const p of tri) {
+      const kk = key(p), v = P.get(kk), n0 = v3n(N.get(kk)), n = v3n([n0[0] * 0.75 + p[0] * 0.25, n0[1] * 0.75 + p[1] * 0.25 + 0.08, n0[2] * 0.75 + p[2] * 0.25]);
+      const hol = (v[3] - dmin) / Math.max(1e-3, dmax - dmin), sh = (0.34 + 0.66 * Math.sqrt(hol)) * (0.66 + 0.34 * Math.max(0, p[1] * 0.5 + 0.5)); // deep hollows between the leaf masses
+      this.v(v[0], v[1], v[2], n[0], n[1], n[2], [c[0] * sh, c[1] * sh, c[2] * sh, 1], (Math.atan2(p[2], p[0]) * rx * Math.sqrt(Math.max(0.05, 1 - p[1] * p[1])) + cx) * k, (Math.acos(Math.max(-1, Math.min(1, p[1]))) * ry * 1.1) * k);
+    }
+  };
+  // a U-shaped slide trough along a 3D path (bed + two side walls), width w, wall height h
+  Batch.prototype.trough = function (path, w, h, c) {
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1], d = v3n(v3s(b, a)), sd = v3n(v3c([0, 1, 0], d)), up = v3n(v3c(d, sd));
+      const off = (p, s, y) => [p[0] + sd[0] * s + up[0] * y, p[1] + sd[1] * s + up[1] * y, p[2] + sd[2] * s + up[2] * y];
+      this.quad(off(a, -w / 2, 0), off(b, -w / 2, 0), off(b, w / 2, 0), off(a, w / 2, 0), up, c);
+      this.quad(off(a, -w / 2, 0), off(b, -w / 2, 0), off(b, -w / 2, h), off(a, -w / 2, h), sd, c);
+      this.quad(off(a, w / 2, 0), off(b, w / 2, 0), off(b, w / 2, h), off(a, w / 2, h), [-sd[0], -sd[1], -sd[2]], c);
+      this.quad(off(a, -w / 2, -0.04), off(b, -w / 2, -0.04), off(b, w / 2, -0.04), off(a, w / 2, -0.04), [-up[0], -up[1], -up[2]], c);
+    }
+  };
+  // a hip-roofed box (walls batch wb, roof batch rb): centre, length along ang, width, eave and ridge heights
+  function hipHouse(wb, rb, cx, cz, len, wid, ang, eave, ridge, wc, rc, wk, over) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), P = (u, v) => [cx + u * ca - v * sa, cz + u * sa + v * ca], hl = len / 2, hw = wid / 2, o = over == null ? 0.4 : over;
+    const ft = [P(-hl, -hw), P(hl, -hw), P(hl, hw), P(-hl, hw)];
+    wb.extrude(ft, 0, eave, wc, wk || 0, false);
+    const E = [P(-hl - o, -hw - o), P(hl + o, -hw - o), P(hl + o, hw + o), P(-hl - o, hw + o)], r0 = P(-hl + hw, 0), r1 = P(hl - hw, 0), y = eave - 0.1;
+    const R = [r0[0], ridge, r0[1]], S = [r1[0], ridge, r1[1]], e = E.map((p) => [p[0], y, p[1]]);
+    const UV = (p) => [(p[0] * ca + p[2] * sa) * 0.45, ((-p[0] * sa + p[2] * ca) * 0.3 + p[1] * 0.5) * 0.9];
+    const face = (a, b, cc, d) => { const n = v3n(v3c(v3s(b, a), v3s(cc, a))); const nn = n[1] < 0 ? [-n[0], -n[1], -n[2]] : n; rb.quad(a, b, cc, d, nn, rc, [].concat(UV(a), UV(b), UV(cc), UV(d))); };
+    face(e[0], e[1], S, R); face(e[2], e[3], R, S); face(e[1], e[2], S, S); face(e[3], e[0], R, R);
+    rb.poly(E, y, rc, false);
+  }
+  // a gable-roofed building (walls batch wb, roof batch rb with metre UVs * rk, trim batch tb): centre, length along ang (the ridge
+  // runs along it), width, eave and ridge heights, overhang; brick gable triangles at both ends, fascia boards on eaves and rakes
+  function gableHouse(wb, rb, tb, cx, cz, len, wid, ang, eave, ridge, wc, rc, trim, wk, rk, over) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), P = (u, v) => [cx + u * ca - v * sa, cz + u * sa + v * ca], hl = len / 2, hw = wid / 2, o = over == null ? 0.45 : over;
+    wb.extrude([P(-hl, -hw), P(hl, -hw), P(hl, hw), P(-hl, hw)], 0, eave, wc, wk || 0, false);
+    for (const su of [-1, 1]) { const a = P(su * hl, -hw), b = P(su * hl, hw), m = P(su * hl, 0), n = [su * ca, 0, su * sa], k = wk || 0; wb.grow(3);
+      for (const [q, y, u] of [[a, eave, 0], [su > 0 ? b : m, su > 0 ? eave : ridge, su > 0 ? wid : hw], [su > 0 ? m : b, su > 0 ? ridge : eave, su > 0 ? hw : wid]]) wb.v(q[0], y, q[1], n[0], 0, n[2], wc, u * k, y * k); }
+    const yE = eave - 0.05, slope = Math.hypot(hw + o, ridge - yE);
+    for (const sv of [-1, 1]) { const a = P(-hl - o, sv * (hw + o)), b = P(hl + o, sv * (hw + o)), c = P(hl + o, 0), d = P(-hl - o, 0), A = [a[0], yE, a[1]], Bq = [b[0], yE, b[1]], C = [c[0], ridge, c[1]], D = [d[0], ridge, d[1]];
+      let n = v3n(v3c(v3s(Bq, A), v3s(D, A))); if (n[1] < 0) n = [-n[0], -n[1], -n[2]]; const L = len + 2 * o;
+      rb.quad(A, Bq, C, D, n, rc, [0, slope * rk, L * rk, slope * rk, L * rk, 0, 0, 0]); rb.quad(A, Bq, [Bq[0], yE - 0.02, Bq[2]], [A[0], yE - 0.02, A[2]], [0, -1, 0], shadeC(rc, 0.6));
+      tb.quad([A[0], yE - 0.22, A[2]], [Bq[0], yE - 0.22, Bq[2]], Bq, A, [-sa * sv, 0, ca * sv], trim); // fascia board on the eave
+      for (const su of [-1, 1]) { const e = su > 0 ? Bq : A, t = su > 0 ? C : D, nn = [su * ca, 0, su * sa]; tb.quad([e[0], e[1] - 0.2, e[2]], e, t, [t[0], t[1] - 0.2, t[2]], nn, trim); } }
+    rb.poly([P(-hl - o, -hw - o), P(hl + o, -hw - o), P(hl + o, hw + o), P(-hl - o, hw + o)], yE - 0.02, shadeC(rc, 0.55), false);
+    MET.keep.push([Math.min(P(-hl, -hw)[0], P(hl, hw)[0], P(-hl, hw)[0], P(hl, -hw)[0]) - o, 0, Math.min(P(-hl, -hw)[1], P(hl, hw)[1], P(-hl, hw)[1], P(hl, -hw)[1]) - o, Math.max(P(-hl, -hw)[0], P(hl, hw)[0], P(-hl, hw)[0], P(hl, -hw)[0]) + o, ridge + 0.3, Math.max(P(-hl, -hw)[1], P(hl, hw)[1], P(-hl, hw)[1], P(hl, -hw)[1]) + o]);
+  }
+  // a parked car: body, cabin with glass, wheels, lights. heading ang (rad CCW from +x)
+  function car(pb, glb, x, z, ang, col) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), P = (u, y, v) => [x + u * ca - v * sa, y, z + u * sa + v * ca], N = (u, y, v) => v3n([u * ca - v * sa, y, u * sa + v * ca]);
+    pb.obox(x, 0.68, z, 4.55, 0.62, 1.8, ang, col);
+    pb.obox(x + 1.7 * ca, 0.98, z + 1.7 * sa, 1.1, 0.06, 1.76, ang, shadeC(col, 0.95));
+    const top = shadeC(col, 0.92), q = (a, b, c, d, n, cl, B) => (B || pb).quad(a, b, c, d, n, cl);
+    const w0 = 0.86, w1 = 0.72;
+    q(P(-1.35, 1.0, -w0), P(1.1, 1.0, -w0), P(0.55, 1.42, -w1), P(-1.05, 1.42, -w1), N(0, 0.3, -1), [0.12, 0.14, 0.16, 1], glb);
+    q(P(-1.35, 1.0, w0), P(1.1, 1.0, w0), P(0.55, 1.42, w1), P(-1.05, 1.42, w1), N(0, 0.3, 1), [0.12, 0.14, 0.16, 1], glb);
+    q(P(1.1, 1.0, -w0), P(1.1, 1.0, w0), P(0.55, 1.42, w1), P(0.55, 1.42, -w1), N(0.6, 0.8, 0), [0.12, 0.14, 0.16, 1], glb);
+    q(P(-1.35, 1.0, -w0), P(-1.35, 1.0, w0), P(-1.05, 1.42, w1), P(-1.05, 1.42, -w1), N(-0.8, 0.6, 0), [0.12, 0.14, 0.16, 1], glb);
+    q(P(-1.05, 1.42, -w1), P(0.55, 1.42, -w1), P(0.55, 1.42, w1), P(-1.05, 1.42, w1), [0, 1, 0], top);
+    for (const [u, v] of [[1.42, -0.8], [1.42, 0.8], [-1.38, -0.8], [-1.38, 0.8]]) { const c0 = P(u, 0.33, v - Math.sign(v) * 0.11), c1 = P(u, 0.33, v + Math.sign(v) * 0.04); pb.tube(c0, c1, 0.33, [0.06, 0.06, 0.07, 1], 8); pb.tube(P(u, 0.33, v + Math.sign(v) * 0.045), P(u, 0.33, v + Math.sign(v) * 0.05), 0.2, [0.6, 0.62, 0.64, 1], 6); }
+    for (const v of [-0.62, 0.62]) { pb.obox(P(2.27, 0.78, v)[0], 0.78, P(2.27, 0.78, v)[2], 0.04, 0.14, 0.32, ang, [0.95, 0.95, 0.9, 1]); pb.obox(P(-2.27, 0.8, v)[0], 0.8, P(-2.27, 0.8, v)[2], 0.04, 0.14, 0.3, ang, [0.7, 0.05, 0.05, 1]); }
+  }
+  const shadeC = (c, k) => [c[0] * k, c[1] * k, c[2] * k, 1];
+  // ---------- the playground's posts with dome caps and white clamps ----------
+  function ppost(pb, x, z, h, clampYs) { pb.cyl(x, z, 0, h, 0.065, 0.065, [0.08, 0.08, 0.08, 1], 7); pb.lathe(x, z, [[0.066, h], [0.045, h + 0.06], [0.0, h + 0.085]], [0.08, 0.08, 0.08, 1], 6); for (const y of (clampYs || []).slice(-1)) pb.wbox(x - 0.085, y - 0.05, z - 0.085, x + 0.085, y + 0.05, z + 0.085, [0.8, 0.82, 0.84, 1]); }
+
+  // ---------- build the whole venue (metres, frame F), then convert to engine units ----------
+  function buildMetcalf() {
+    const t0 = performance.now();
+    const R = mrng(19550101); MET.keep = [];
+    const W = { plain: new Batch(40000), seats: new Batch(6), field: new Batch(6), glow: new Batch(6), board: new Batch(6), ribbon: new Batch(6), glass: new Batch(6), crowd: { f: new Float32Array(0), n: 0 } };
+    const B = {};
+    const nb = (k, cap) => (B[k] = new Batch(cap || 2000));
+    const pb = W.plain, gnd = nb('mground', 12), lot = nb('mlot', 12), grass = nb('mgrass', 30000), conc = nb('mconc', 12000), street = nb('mstreet', 4000), chips = nb('mchips', 600), dirt = nb('mdirt', 600),
+      brick = nb('mbrick', 6000), panel = nb('mpanel', 2000), corr = nb('mcorr', 600), bark = nb('mbark', 8000), leaf = nb('mleaf', 60000), atl = nb('matlas', 2000), roof = nb('mroof', 3000), flat = nb('mflat', 12000),
+      glassB = nb('mglass', 3000), pick = nb('mpick', 200), asph = nb('masph', 300), shing = nb('mshing', 3000), needle = nb('mneedle', 8000);
+    const up = [0, 1, 0], hedge = leaf;
+    const atlW = (k, a, b, y0, y1, n) => { const r = atlUV(k); atl.quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], n, [1, 1, 1, 1], [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]); }; // a = the viewer's left
+    const SEC = [], tot = () => { let n = pb.n; for (const k in B) n += B[k].n; return n; }, mark = (k) => SEC.push([k, tot()]);
+    // ===== ground =====
+    // the blacktop (its own canvas) and the drop-off lot (its own canvas)
+    gnd.quad([GB.x0, 0, GB.z0], [GB.x1, 0, GB.z0], [GB.x1, 0, GB.z1], [GB.x0, 0, GB.z1], up, [1, 1, 1, 1], [0, 0, 1, 0, 1, 1, 0, 1]);
+    { const U = (x) => (x - LOT.x0) / (LOT.x1 - LOT.x0), V = (z) => (z - LOT.z0) / (LOT.z1 - LOT.z0), lq = (x0, z0, x1, z1) => lot.quad([x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1], up, [1, 1, 1, 1], [U(x0), V(z0), U(x1), V(z0), U(x1), V(z1), U(x0), V(z1)]);
+      lq(LOT.x0, -31.0, 30.8, LOT.z1); lq(LOT.x0, LOT.z0, LOT.x1, -31.0); } // the hedge bed takes the corner by the wall
+    // grass everywhere else (patchy vertex colours), with a hole for South Main Street
+    {
+      const xs = [], zs = []; for (let x = -320; x < -70; x += 50) xs.push(x); for (let x = -70; x < 100; x += 10) xs.push(x); for (let x = 100; x <= 320; x += 44) xs.push(x);
+      xs.push(-31.55, -20.6, -12.55, -13.25); xs.sort((a, b) => a - b); for (let z = -320; z < -90; z += 46) zs.push(z); for (let z = -90; z < 110; z += 10) zs.push(z); for (let z = 110; z <= 320; z += 42) zs.push(z);
+      // a Midwest lawn in October: muted olive, mottled with dry yellow-brown and darker patches; worn bare along the pavement's west edge
+      const nz = vnoise(71), gc = (x, z) => { const n = nz(x / 9, z / 9) * 0.6 + nz(x / 3 + 30, z / 3) * 0.4, dry = nz(x / 23 + 7, z / 23), worn = x > -12.6 && x < -12.5 && z > -53.5 && z < 17.2 ? 0.75 : 0;
+        return mixC(mixC(mixC(tc('#373f2b'), tc('#465039'), n), tc('#57563c'), Math.max(0, dry - 0.55) * 1.6), tc('#5e5743'), worn); };
+      for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
+        const x0 = xs[i], x1 = xs[i + 1], z0 = zs[j], z1 = zs[j + 1], cx = (x0 + x1) / 2; if (cx > -31.55 && cx < -20.6) continue;
+        const K = 0.4, y = -0.03; grass.grow(6); const V = [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]];
+        for (const [x, z] of V) grass.v(x, y, z, 0, 1, 0, gc(x, z), x * K, z * K);
+      }
+    }
+    // concrete, grass and mulch patches
+    const cK = 0.33, cc = (h) => tc(h);
+    const slab = (pts, y, col, k) => { conc.extrude(pts, -0.04, y, col, k || cK, col, k || cK); };
+    // NW apron and the walk north along the playground's west side, curving away at the far end
+    slab([[-12.9, 17.15], [-5.6, 17.15], [-5.6, 20.25], [-12.9, 20.25]], 0.02, cc('#bdbdb6'));
+    slab([[-8.1, 20.25], [-5.6, 20.25], [-5.6, 44.0], [-8.1, 44.0]], 0.02, cc('#bfbfb8'));
+    { const p = [[-6.9, 44.0], [-8.6, 44.2], [-11.1, 46.4], [-10.7, 49.0], [-10.0, 51.9], [-9.1, 53.7], [-6.7, 54.7], [-4.6, 58.3], [-4.7, 62.5]]; for (let i = 0; i < p.length - 1; i++) { const [ax, az] = p[i], [bx, bz] = p[i + 1], dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz), px = -dz / l * 1.25, pz = dx / l * 1.25; slab([[ax - px, az - pz], [bx - px, bz - pz], [bx + px, bz + pz], [ax + px, az + pz]], 0.02, cc('#bfbfb8')); } }
+    // the NE walk from the blacktop corner round the school's NW corner and east along its north side
+    { const o = [[28.6, 17.15], [28.8, 19.0], [29.3, 19.6], [30.3, 20.8], [31.8, 21.6], [33.0, 21.9], [61.0, 21.9]], i2 = [[31.0, 17.15], [31.2, 18.3], [31.6, 18.6], [32.3, 19.3], [33.3, 19.6], [61.0, 19.6]];
+      slab(o.concat(i2.slice().reverse()), 0.02, cc('#c3c3bc')); }
+    for (let z = 18; z < 44; z += 1.5) flat.quad([-8.1, 0.025, z - 0.01], [-5.6, 0.025, z - 0.01], [-5.6, 0.025, z + 0.01], [-8.1, 0.025, z + 0.01], up, [0.42, 0.42, 0.4, 1]);
+    // planting bed along the school wall (dark mulch) and the mulch strip in front of the shed
+    dirt.poly([[30.8, -31.0], [34.05, -31.0], [34.05, 5.0], [33.8, 5.0], [33.8, 17.15], [30.8, 17.15]], 0.005, tc('#5b5040'), true, 0.5);
+    dirt.poly([[30.8, 4.0], [31.62, 4.0], [31.62, 17.15], [30.8, 17.15]], 0.008, tc('#7f745f'), true, 0.5);
+    // the west lawn strip, the fence's mulch line
+    dirt.poly([[-16.2, -41.6], [-15.7, -41.6], [-15.7, 89], [-16.2, 89]], -0.02, tc('#6d6656'), true, 0.5);
+    // the playground: wood chips with a dark timber edge
+    const PG = [[-3.4, 43.0], [28.6, 43.1], [28.7, 40.3], [45.5, 38.8], [59.5, 37.1], [59.6, 23.3], [57.7, 21.9], [32.2, 21.9], [30.1, 20.9], [29.1, 19.6], [28.7, 18.3], [28.6, 17.3], [-3.4, 17.3]];
+    chips.poly(PG, 0.0, tc('#c49a68'), true, 0.45);
+    for (let i = 0; i < PG.length; i++) { const a = PG[i], b = PG[(i + 1) % PG.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, 0.04, (a[1] + b[1]) / 2, l, 0.12, 0.16, Math.atan2(b[1] - a[1], b[0] - a[0]), [0.24, 0.2, 0.17, 1]); }
+    mark('South Main Street');
+    // ===== South Main Street (one-way northbound, 2 lanes, 10.65 m curb to curb) =====
+    {
+      const ZA = -320, ZB = 320, y = -0.15, prof = [[-31.4, '#b3b3ad'], [-30.8, '#b3b3ad'], [-30.75, '#a9aaa3'], [-29.9, '#a7a8a2'], [-29.2, '#95968f'], [-28.5, '#a6a7a1'], [-27.6, '#93948d'], [-26.9, '#a5a6a0'], [-26.3, '#a7a8a2'], [-25.6, '#a5a6a0'], [-24.9, '#94958e'], [-24.1, '#a6a7a1'], [-23.0, '#93948d'], [-22.2, '#a6a7a1'], [-21.4, '#a8a9a3'], [-21.35, '#b3b3ad'], [-20.75, '#b3b3ad']];
+      for (let z = ZA; z < ZB; z += 20) for (let i = 0; i < prof.length - 1; i++) {
+        const [x0, h0] = prof[i], [x1, h1] = prof[i + 1], c0 = tc(h0), c1 = tc(h1), K = 0.3; street.grow(6);
+        for (const [x, zz, cl] of [[x0, z, c0], [x1, z, c1], [x1, z + 20, c1], [x0, z, c0], [x1, z + 20, c1], [x0, z + 20, c0]]) street.v(x, y, zz, 0, 1, 0, cl, x * K, zz * K);
+      }
+      const yl = y + 0.004;
+      // the white dashed lane line (3 m dashes on a 12.3 m pitch, measured), joints and gutter seams
+      const d0 = [32.52, 20.32, 7.88, -4.38, -16.58, -28.8, -41.03]; const dz = []; for (let k = -24; k <= 24; k++) dz.push(7.88 + k * -12.27);
+      for (const z of dz) { const zz = d0.find((v) => Math.abs(v - z) < 2) || z; flat.quad([-26.36, yl, zz], [-26.24, yl, zz], [-26.24, yl, zz + 2.95], [-26.36, yl, zz + 2.95], up, [0.93, 0.93, 0.9, 1]); }
+      for (let z = ZA; z < ZB; z += 4.6) flat.quad([-31.4, yl, z - 0.008], [-20.75, yl, z - 0.008], [-20.75, yl, z + 0.008], [-31.4, yl, z + 0.008], up, [0.36, 0.36, 0.35, 1]);
+      for (const x of [-30.8, -21.35]) flat.quad([x - 0.008, yl, ZA], [x + 0.008, yl, ZA], [x + 0.008, yl, ZB], [x - 0.008, yl, ZB], up, [0.42, 0.42, 0.4, 1]);
+      for (let k = 0; k < 18; k++) { const z = -150 + R() * 300, x = -30 + R() * 8.5, w = 0.3 + R() * 0.7; flat.quad([x, yl, z], [x + w, yl, z], [x + w, yl, z + 0.9 + R()], [x, yl, z + 0.9 + R()], up, [0.5, 0.5, 0.48, 1]); } // patches
+      // curbs (lowered at the two driveways)
+      const curb = (x0, x1, za, zb) => conc.tbox(x0, y, za, x1, 0.0, zb, cc('#c9c8bf'), cK);
+      curb(-20.75, -20.6, ZA, -53.6); curb(-20.75, -20.6, -42.6, ZB); conc.tbox(-20.75, y, -53.6, -20.6, -0.11, -42.6, cc('#c9c8bf'), cK);
+      curb(-31.55, -31.4, ZA, -6.5); curb(-31.55, -31.4, 10.2, ZB); conc.tbox(-31.55, y, -6.5, -31.4, -0.11, 10.2, cc('#c9c8bf'), cK);
+      // sidewalks with joints every 1.5 m, the parkway's utility vaults
+      for (const [x0, x1] of [[-18.25, -16.45], [-35.97, -34.2]]) { conc.extrude([[x0, ZA], [x1, ZA], [x1, ZB], [x0, ZB]], -0.05, 0.03, cc('#cfcbbd'), cK, cc('#cfcbbd'), cK); for (let z = -130; z < 130; z += 1.52) flat.quad([x0, 0.034, z - 0.006], [x1, 0.034, z - 0.006], [x1, 0.034, z + 0.006], [x0, 0.034, z + 0.006], up, [0.5, 0.49, 0.45, 1]); }
+      for (const z of [0.85, -6.75]) atl.quad([-19.8, 0.01, z - 0.45], [-18.9, 0.01, z - 0.45], [-18.9, 0.01, z + 0.45], [-19.8, 0.01, z + 0.45], up, [1, 1, 1, 1], (() => { const r = atlUV('vault'); return [r[0], r[1], r[2], r[1], r[2], r[3], r[0], r[3]]; })());
+      // driveways: into the drop-off lot (south-west) and the church lot across the street
+      slab([[-20.6, -53.6], [-12.55, -53.6], [-12.55, -42.6], [-20.6, -42.6]], 0.0, cc('#c4c4bd'));
+      slab([[-46, -6.5], [-31.55, -6.5], [-31.55, 10.2], [-46, 10.2]], 0.0, cc('#b9b9b2'));
+      for (let x = -45; x < -33; x += 2.7) flat.quad([x - 0.05, 0.004, 4.9], [x + 0.05, 0.004, 4.9], [x + 0.05, 0.004, 10.1], [x - 0.05, 0.004, 10.1], up, [0.92, 0.92, 0.9, 1]);
+      // a few houses/apartments further along the far side of Main, beyond the campus buildings
+    }
+    mark('the west edge');
+    // ===== the west edge: lawn, black picket fence with red brick pillars, gate, lamps, poles, signs =====
+    {
+      const FX = -15.95, blk = [0.07, 0.07, 0.075, 1], PKC = [0.1, 0.1, 0.105, 1];
+      const fenceRun = (za, zb, x) => { // along z at x
+        const z0 = Math.min(za, zb), z1 = Math.max(za, zb);
+        // 1.2 m ornamental pickets (the south-west fence's 1.0 m shadow at 49 deg sun gives 1.1-1.2 m; it reads half the pillar)
+        pb.wbox(x - 0.02, 0.1, z0, x + 0.02, 0.14, z1, blk); pb.wbox(x - 0.02, 1.02, z0, x + 0.02, 1.06, z1, blk);
+        // the pickets (0.115 m pitch) are one see-through quad with the picket texture, so they fade to a dark veil with distance
+        pick.quad([x, 0.05, z0 + 0.003], [x, 0.05, z1], [x, 1.2, z1], [x, 1.2, z0 + 0.003], [0, 0, 0], PKC, [z0 / 0.115, 1, z1 / 0.115, 1, z1 / 0.115, 0, z0 / 0.115, 0]);
+        for (let z = z0; z <= z1; z += 2.44) { pb.quad([x - 0.035, 0, z], [x + 0.035, 0, z], [x + 0.035, 1.22, z], [x - 0.035, 1.22, z], [0, 0, 1], blk); pb.quad([x, 0, z - 0.035], [x, 0, z + 0.035], [x, 1.22, z + 0.035], [x, 1.22, z - 0.035], [1, 0, 0], blk); }
+        MET.keep.push([x - 0.12, 0, z0, x + 0.12, 1.3, z1]);
+      };
+      const fenceRunX = (xa, xb, z) => { const x0 = Math.min(xa, xb), x1 = Math.max(xa, xb); pb.wbox(x0, 0.1, z - 0.02, x1, 0.14, z + 0.02, blk); pb.wbox(x0, 1.02, z - 0.02, x1, 1.06, z + 0.02, blk);
+        pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, 1.2, z], [x0, 1.2, z], [0, 0, 0], PKC, [x0 / 0.115, 1, x1 / 0.115, 1, x1 / 0.115, 0, x0 / 0.115, 0]);
+        for (let x = x0; x <= x1; x += 2.44) pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, 1.22, z + 0.035, blk); MET.keep.push([x0, 0, z - 0.12, x1, 1.3, z + 0.12]); };
+      const PIL = [89.0, 70.5, 52.0, 34.0, 15.0, -3.9, -22.9, -41.6]; // the fence runs on north past the lawn (WGLT 01)
+      for (let i = 0; i < PIL.length - 1; i++) fenceRun(PIL[i] - 0.36, PIL[i + 1] + 0.36, FX);
+      for (const z of PIL) { // red brick pillar with a light grey precast cap
+        brick.tbox(FX - 0.34, 0, z - 0.34, FX + 0.34, 1.86, z + 0.34, tc('#8b4a3b'), 1.1);
+        conc.tbox(FX - 0.42, 1.86, z - 0.42, FX + 0.42, 1.95, z + 0.42, cc('#d9d6cc'), 1);
+        conc.extrude([[FX - 0.38, z - 0.38], [FX + 0.38, z - 0.38], [FX + 0.38, z + 0.38], [FX - 0.38, z + 0.38]], 1.95, 2.0, cc('#d4d1c7'), 1);
+        pb.lathe(FX, z, [[0.38 * 1.0, 2.0], [0.12, 2.12], [0.0, 2.13]], hx3('#d4d1c7'), 4);
+        MET.keep.push([FX - 0.45, 0, z - 0.45, FX + 0.45, 2.15, z + 0.45]);
+      }
+      // the short gate run at the south-west corner and the post with the white globe
+      fenceRunX(-15.95, -12.5, -17.4); // one low fence between the west lawn and the lot
+      // black acorn post lamp with a clear globe and finial
+      { const x = -16.1, z = -16.0; pb.lathe(x, z, [[0.16, 0], [0.13, 0.3], [0.07, 0.4], [0.06, 3.2], [0.09, 3.3], [0.09, 3.36]], blk, 10); glassB.lathe(x, z, [[0.09, 3.36], [0.2, 3.55], [0.22, 3.75], [0.16, 3.98], [0.06, 4.08]], [0.85, 0.88, 0.9, 1], 12); pb.lathe(x, z, [[0.07, 4.06], [0.1, 4.12], [0.02, 4.32], [0, 4.4]], blk, 8); }
+      // street lights (galvanised poles, single arms, cobra heads over the street)
+      // bases from the aerial shadows at z 42.8, 10.4 and -20.6 (about 31.6 m apart); poles about 8.3 m (7.0 m shadow)
+      for (const [x, z] of [[-20.2, 42.8], [-20.2, 10.4], [-20.2, -20.6], [-20.1, -52.2], [-20.2, 74.4]]) {
+        const gal = [0.6, 0.62, 0.63, 1]; pb.cyl(x, z, 0, 8.3, 0.13, 0.08, gal, 10); pb.cyl(x, z, 0, 0.5, 0.2, 0.17, gal, 10);
+        pb.tubes([[x, 7.9, z], [x - 0.8, 8.35, z], [x - 2.4, 8.55, z]], 0.045, gal, 6);
+        pb.blobby(x - 2.75, 8.5, z, 0.42, 0.12, 0.2, [0.55, 0.57, 0.58, 1], 8, 5); flat.quad([x - 3.05, 8.38, z - 0.14], [x - 2.5, 8.38, z - 0.14], [x - 2.5, 8.38, z + 0.14], [x - 3.05, 8.38, z + 0.14], [0, 0, 0], [1.6, 1.55, 1.4, 1]);
+        MET.keep.push([x, z, 0.4, 0, 8.6]);
+      }
+      // wooden utility poles with crossarms on the far side, and the wires between them
+      const poles = [-113.8, -82.4, -52.0, -21.4, 10.4, 41.8, 73.2, 104.6];
+      for (const z of poles) { const x = -32.15; bark.cyl(x, z, 0, 10.6, 0.16, 0.12, tc('#7a6a55'), 8, false, 1, 3); bark.tbox(x - 0.06, 9.6, z - 1.2, x + 0.06, 9.74, z + 1.2, tc('#6e5f4c'), 1); for (const s of [-1.05, -0.35, 1.05]) pb.cyl(x, z + s, 9.74, 9.92, 0.04, 0.04, [0.75, 0.78, 0.8, 1], 6); }
+      for (let i = 0; i < poles.length - 1; i++) for (const s of [-1.05, -0.35, 1.05]) { const a = [-32.15, 9.92, poles[i] + s], b = [-32.15, 9.92, poles[i + 1] + s], pts = []; for (let k = 0; k <= 4; k++) { const t = k / 4; pts.push([a[0], a[1] - Math.sin(t * Math.PI) * 0.6, a[2] + (b[2] - a[2]) * t]); } flat.tubes(pts, 0.026, [0.17, 0.17, 0.17, 1], 3); } // thick enough to stay at least a pixel wide from the field
+      // SPEED LIMIT 30 over NO PARKING, facing the northbound traffic
+      { const x = -19.7, z = -30.0; pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.75, z + 0.03, [0.6, 0.62, 0.62, 1]);
+        const q = (k, y0, y1, w) => { const r = atlUV(k); atl.quad([x - w / 2, y0, z - 0.04], [x + w / 2, y0, z - 0.04], [x + w / 2, y1, z - 0.04], [x - w / 2, y1, z - 0.04], [0, 0, -1], [1, 1, 1, 1], [r[2], r[3], r[0], r[3], r[0], r[1], r[2], r[1]]); pb.wbox(x - w / 2, y0, z - 0.035, x + w / 2, y1, z - 0.02, [0.7, 0.72, 0.72, 1]); };
+        q('speed', 2.0, 2.76, 0.6); q('nopark', 1.45, 1.92, 0.3); }
+    }
+    mark('the school');
+    // ===== the school =====
+    {
+      const brickC = tc('#a65b44'), cap = [0.73, 0.74, 0.72, 1], RK = 1 / (ROOF.x1 - ROOF.x0), RZ = 1 / (ROOF.z1 - ROOF.z0), ruv = (x, z) => [(x - ROOF.x0) * RK, (z - ROOF.z0) * RZ];
+      const roofTop = (pts, y) => roof.poly(pts, y, [1, 1, 1, 1], true, ruv);
+      const coping = (pts, y, w) => { for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; const x0 = Math.min(a[0], b[0]) - w, x1 = Math.max(a[0], b[0]) + w, z0 = Math.min(a[1], b[1]) - w, z1 = Math.max(a[1], b[1]) + w; pb.wbox(x0, y, z0, x1, y + 0.2, z1, cap); } };
+      // A: the one-storey north wing (brick, 4.0 m), its west wall over the blacktop's NE corner
+      const A = [[33.8, 17.1], [60.2, 17.1], [60.2, 11.7], [49.75, 11.7], [49.75, 1.7], [33.8, 1.7]], hA = 4.0;
+      brick.extrude(A, 0, hA, brickC, 1.1, false); roofTop(A, hA); coping(A, hA, 0.12);
+      MET.keep.push([33.8, 0, 1.7, 60.2, hA + 0.25, 17.1], [34.6, 0, -2.1, 49.75, 4.1, 1.7], [33.95, 0, -32.5, 49.75, 7.85, -2.1], [49.75, 0, -31.0, 62.7, 7.85, 11.7], [34.2, 0, -45.0, 62.7, 5.25, -32.5], [34.27, 0, -51.2, 62.2, 4.75, -45.0], [32.6, 0, -33.5, 34.2, 2.4, -31.9], [31.35, 0, 5.0, 33.8, 3.2, 16.4]);
+      // the connector: recessed, dark, the likely entrance
+      const Cn = [[34.6, 1.7], [49.75, 1.7], [49.75, -2.1], [34.6, -2.1]];
+      pb.extrude(Cn, 0, 3.9, hx3('#3a3540'), 0, false); roofTop(Cn, 3.9); coping([[34.6, 1.7], [49.75, 1.7], [49.75, -2.1], [34.6, -2.1]], 3.9, 0.1);
+      pb.wbox(33.8, 3.6, -2.1, 34.6, 3.9, 1.7, hx3('#2d2937')); // canopy edge
+      // a glass sidelight, then the steel door pair (about 2.1 m, with a transom) that the aerial shows as the dark doorway at z
+      // 0.2-2.0, its concrete landing step, the brown paver squares north of it and the white box by the wall
+      { const z0 = -1.55; glassB.wall(34.58, z0, 34.58, z0 + 1.4, 0.02, 2.2, [0.14, 0.17, 0.2, 1], [-1, 0, 0]); pb.wbox(34.54, 0, z0 - 0.05, 34.6, 2.3, z0, hx3('#8d939a')); pb.wbox(34.54, 0, z0 + 1.4, 34.6, 2.3, z0 + 1.45, hx3('#8d939a')); pb.wbox(34.54, 2.2, z0, 34.6, 2.3, z0 + 1.4, hx3('#8d939a')); }
+      atlW('door', [34.585, 0.2], [34.585, 1.65], 0.12, 2.45, [-1, 0, 0]);
+      slab([[32.5, -0.15], [34.6, -0.15], [34.6, 2.05], [32.5, 2.05]], 0.13, cc('#c4c3bc')); MET.keep.push([32.5, 0, -0.15, 34.6, 0.13, 2.05]);
+      for (const [x0, x1] of [[31.2, 32.4], [32.6, 33.4]]) for (let z = 2.4; z < 4.79; z += 0.6) flat.quad([x0 + 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.01], [x1 - 0.01, 0.02, z + 0.59], [x0 + 0.01, 0.02, z + 0.59], up, hx3(((z * 10) | 0) % 2 ? '#8a6a56' : '#7d604e'));
+      pb.wbox(33.2, 0, 2.6, 33.62, 0.78, 3.0, hx3('#ecebe6')); pb.wbox(33.18, 0.78, 2.58, 33.64, 0.82, 3.02, hx3('#d8d8d2'));
+      // the white downspout at the north wing's south-west corner
+      pb.cyl(33.86, 1.5, 0, hA + 0.1, 0.075, 0.075, hx3('#eeeeea'), 8); pb.tube([33.86, 0.25, 1.5], [33.5, 0.05, 1.5], 0.075, hx3('#eeeeea'), 8);
+      // B: the two-storey south wing (7.6 m), blue-grey panels between light pilasters every 3.22 m, over a dark base
+      const hB = 7.6, Bf = [[34.05, -2.1], [49.75, -2.1], [49.75, -32.5], [34.05, -32.5]];
+      roofTop(Bf, hB); coping(Bf, hB, 0.12);
+      pb.extrude([[34.15, -2.15], [49.75, -2.15], [49.75, -32.5], [34.15, -32.5]], 0, hB, hx3('#6f7884'), 0, false); // sides/back
+      panel.wall(34.04, -2.1, 34.04, -32.5, 1.0, hB, tc('#a4bddb'), [-1, 0, 0], 0.45);
+      for (let z = -2.6; z > -32.2; z -= 0.805) pb.quad([34.032, 1.0, z - 0.02], [34.032, 1.0, z + 0.02], [34.032, hB, z + 0.02], [34.032, hB, z - 0.02], [-1, 0, 0], hx3('#93a9c3')); // faint vertical ribs of the opaque panels
+      brick.wall(34.03, -2.1, 34.03, -32.5, 0, 1.0, tc('#7d4a3c'), [-1, 0, 0], 1.1);
+      for (let z = -2.05; z > -32.6; z -= 3.22) pb.wbox(33.95, 0.9, z - 0.125, 34.06, hB, z + 0.125, hx3('#b8c2cf'));
+      panel.wall(34.05, -2.1, 49.75, -2.1, 4.0, hB, tc('#a4bddb'), [0, 0, 1], 0.45); // north face above the connector
+      // C: the tall main block with the skylights (7.6 m) and its west wall over the north wing: brick, then a band of windows
+      const Cb = [[49.75, 11.7], [62.7, 11.7], [62.7, -31.0], [49.75, -31.0]];
+      // seen over the north wing's roof: a maroon wall, solid at the north end, then pale window stripes between maroon piers
+      brick.extrude(Cb, 0, 7.6, tc('#6c3340'), 1.1, false); roofTop(Cb, 7.6); coping(Cb, 7.6, 0.12);
+      for (let z = 6.6; z > -1.7; z -= 2.0) { glassB.wall(49.73, z, 49.73, z - 1.45, 4.3, 7.15, [0.7, 0.68, 0.72, 1], [-1, 0, 0]); for (const zz of [z + 0.02, z - 1.47]) pb.wbox(49.69, 4.25, zz - 0.05, 49.75, 7.2, zz + 0.05, hx3('#d9d1cc')); pb.wbox(49.69, 5.68, z - 1.45, 49.74, 5.74, z, hx3('#d9d1cc')); }
+      // the low south block with the white duct, the rest of the school as plain masses
+      const Sb = [[34.2, -32.5], [62.7, -32.5], [62.7, -45.0], [34.2, -45.0]];
+      brick.extrude(Sb, 0, 5.0, brickC, 1.1, false); roofTop(Sb, 5.0); coping(Sb, 5.0, 0.12);
+      brick.extrude([[34.27, -45.0], [62.2, -45.0], [62.2, -51.2], [34.27, -51.2]], 0, 4.5, brickC, 1.1, hx3('#4d5654'));
+      for (const [x0, x1, z0, z1, h] of [[62.7, 85.3, -32.1, 11.7, 7.6], [61.9, 85.3, 11.7, 74.8, 5.0], [45.2, 77.3, 74.7, 96.0, 5.2], [77.3, 93.3, 59.9, 79.3, 6.0], [85.2, 89.3, 0.7, 27.0, 5.0], [62.2, 98.5, -51.2, -32.1, 6.0], [43.4, 63.3, -86.7, -51.2, 8.5], [34.3, 43.4, -55.7, -51.2, 4.5]]) {
+        brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc('#8e5446'), 1.1, false);
+        if (x0 < ROOF.x1 && z0 > ROOF.z0) roofTop([[x0, z0], [Math.min(x1, ROOF.x1), z0], [Math.min(x1, ROOF.x1), z1], [x0, z1]], h); if (x1 > ROOF.x1 || z0 <= ROOF.z0) pb.poly([[Math.max(x0, z0 > ROOF.z0 ? ROOF.x1 : x0), z0], [x1, z0], [x1, z1], [Math.max(x0, z0 > ROOF.z0 ? ROOF.x1 : x0), z1]], h, hx3('#4f5a58'));
+        coping([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h, 0.1); MET.keep.push([x0, 0, z0, x1, h + 0.3, z1]);
+      }
+      // the facades of the far wings that can be seen from the blacktop and the playground: the 1950s school's tall white-framed
+      // windows in groups with brick piers, steel door pairs, and the gym's row of half-round fan windows near the top
+      const winsX = (x, za, zb, y0, y1, w, pitch, n, k, skip) => { const s2 = Math.sign(zb - za); let i = 0; for (let z = za; s2 * (zb - z) > w; z += s2 * pitch, i++) { if (skip && skip(i)) continue; const zl = Math.min(z, z + s2 * w), zh = Math.max(z, z + s2 * w); atlW(k, n[0] < 0 ? [x, zl] : [x, zh], n[0] < 0 ? [x, zh] : [x, zl], y0, y1, n); } };
+      const winsZ = (z, xa, xb, y0, y1, w, pitch, n, k, skip) => { let i = 0; for (let x = xa; x < xb - w; x += pitch, i++) { if (skip && skip(i)) continue; atlW(k, n[2] > 0 ? [x, z] : [x + w, z], n[2] > 0 ? [x + w, z] : [x, z], y0, y1, n); } };
+      winsX(61.88, 18.5, 74.0, 0.9, 3.4, 1.3, 1.55, [-1, 0, 0], 'winW', (i) => i % 6 === 5); atlW('door', [61.87, 44.6], [61.87, 46.1], 0.0, 2.3, [-1, 0, 0]);
+      winsZ(74.68, 46.5, 77.0, 0.9, 3.5, 1.3, 1.55, [0, 0, -1], 'winW', (i) => i % 5 === 4);
+      winsZ(-51.18, 44.6, 62.6, 6.2, 7.9, 3.4, 4.4, [0, 0, 1], 'fan'); winsX(43.38, -52.4, -86.0, 6.2, 7.9, 3.4, 4.4, [-1, 0, 0], 'fan');
+      winsX(43.38, -60.0, -84.0, 1.0, 2.6, 1.2, 3.0, [-1, 0, 0], 'winD', (i) => i % 4 === 3); atlW('door', [43.37, -56.2], [43.37, -54.7], 0.0, 2.3, [-1, 0, 0]);
+      winsX(34.18, -34.5, -44.5, 1.0, 2.7, 1.25, 2.6, [-1, 0, 0], 'winW'); atlW('door', [34.25, -49.3], [34.25, -47.8], 0.0, 2.3, [-1, 0, 0]); atlW('vent', [34.25, -46.6], [34.25, -45.6], 2.6, 3.3, [-1, 0, 0]);
+      winsX(34.28, -52.0, -55.4, 1.0, 2.6, 1.2, 1.7, [-1, 0, 0], 'winW');
+      // skylights (raised white domes) and the blue-grey ones on the low roof
+      for (const x of [53.24, 61.16]) for (const z of [7.25, -1.5, -10.2, -18.9, -25.6]) { pb.wbox(x - 0.85, 7.6, z - 1.3, x + 0.85, 7.85, z + 1.3, hx3('#d9dcd8')); pb.blobby(x, 7.85, z, 0.78, 0.22, 1.22, hx3('#f2f3f0'), 6, 3); }
+      for (const z of [-1.7, -10.2, -19.1, -25.6]) { pb.wbox(69.08 - 0.85, 7.6, z - 1.3, 69.08 + 0.85, 7.85, z + 1.3, hx3('#d9dcd8')); pb.blobby(69.08, 7.85, z, 0.78, 0.22, 1.22, hx3('#f2f3f0'), 6, 3); }
+      for (const x of [52.6, 60.6]) pb.wbox(x - 0.85, 5.0, -33.1 - 1.0, x + 0.85, 5.3, -33.1 + 1.0, hx3('#7c8ea0'));
+      // the cream-white roof duct on low supports: north-south on the main block, diagonal, west along the wing, down and south
+      const duct = (pts, r) => { for (let i = 0; i < pts.length - 1; i++) pb.tube(pts[i], pts[i + 1], r, hx3('#f0efe6'), 12); for (const p of pts.slice(1, -1)) pb.blobby(p[0], p[1], p[2], r * 1.02, r * 1.02, r * 1.02, hx3('#f0efe6'), 7, 4); };
+      duct([[65.9, 8.3, 24], [65.9, 8.3, -22.6], [59.0, 8.3, -29.6], [41.0, 8.3, -30.6], [40.75, 8.3, -32.2], [40.75, 5.7, -32.9], [40.75, 5.7, -48.6]], 0.5);
+      duct([[65.9, 8.3, 21.4], [68.5, 8.3, 19.6]], 0.4); duct([[62.6, 8.2, -27.5], [63.0, 8.2, -31.0]], 0.35);
+      for (const [x, z] of [[65.9, 15], [65.9, 5], [65.9, -5], [65.9, -15], [55, -30.2], [47, -30.5], [43, -30.6]]) pb.wbox(x - 0.4, 7.6, z - 0.12, x + 0.4, 7.82, z + 0.12, hx3('#8a8f90'));
+      for (let y = 7.6; y < 8.8; y += 0.3) pb.wbox(55.0, y, -31.5, 56.2, y + 0.05, -30.0, hx3('#9aa0a2'));
+      for (const [x, z] of [[63.7, 5.6], [63.4, 4.4], [63.5, 3.7]]) pb.cyl(x, z, 7.6, 7.95, 0.17, 0.17, hx3('#202224'), 8, true);
+      for (const [x, z] of [[69.6, 9.5], [70.0, 8.5]]) pb.blobby(x, 7.95, z, 0.3, 0.3, 0.3, hx3('#e8e8e4'), 8, 5);
+      for (const [x, cl] of [[59.3, '#e2741d'], [60.2, '#e8c21f'], [61.0, '#e2741d']]) pb.blobby(x, 5.2, -35.6, 0.2, 0.2, 0.2, hx3(cl), 8, 5);
+      // the hedge along the wing's base (x 30.95-33.0, about 2.0 m), from the landing south to z -31.8: one continuous sheared mass
+      // with a flat-ish top and near-vertical faces, lumpy at 0.3-0.5 m; the dark shrub at the shed's south end where the planting starts
+      {
+        const hn = vnoise(3301), prof = [[31.0, 0.0], [30.93, 0.45], [30.9, 1.0], [30.93, 1.5], [31.05, 1.82], [31.35, 1.98], [31.95, 2.05], [32.55, 1.99], [32.88, 1.8], [32.98, 1.2], [33.0, 0.0]];
+        const za = 0.0, zb = -31.8, nzs = 128, np = prof.length, G2 = [];
+        const pn = prof.map((p, i) => { const a = prof[Math.max(0, i - 1)], b = prof[Math.min(np - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dy / l, -dx / l]; }); // outward (west face points -x)
+        for (let k = 0; k <= nzs; k++) {
+          const z = za + (zb - za) * k / nzs, row = [];
+          for (let i = 0; i < np; i++) {
+            const [px, py] = prof[i], [nx, ny] = pn[i], end = Math.min(1, Math.min(k, nzs - k) / 3), base = py < 0.05 ? 0 : 1;
+            const d = base * ((hn(z / 0.42, py / 0.42 + i * 0.3) - 0.5) * 0.36 + (hn(z / 1.6 + 40, py / 1.2) - 0.5) * 0.22) * (0.4 + 0.6 * end);
+            row.push([px + nx * d, Math.max(0, py + ny * d), z]);
+          }
+          G2.push(row);
+        }
+        const nrm = (k, i) => { const a = G2[Math.max(0, k - 1)][i], b = G2[Math.min(nzs, k + 1)][i], c = G2[k][Math.max(0, i - 1)], e = G2[k][Math.min(np - 1, i + 1)]; return v3n(v3c(v3s(e, c), v3s(b, a))); };
+        const hc = tc('#52633d'); hedge.grow(nzs * (np - 1) * 6 + 2 * (np - 2) * 3);
+        const V = (k, i) => { const p = G2[k][i], n0 = nrm(k, i), n = n0[0] * pn[i][0] + n0[1] * pn[i][1] < 0 ? [-n0[0], -n0[1], -n0[2]] : n0, sh = 0.78 + 0.22 * Math.min(1, p[1] / 1.9), j = 0.92 + 0.16 * hn(p[2] / 0.9 + 70, p[1] / 0.9);
+          hedge.v(p[0], p[1], p[2], n[0], n[1], n[2], [hc[0] * sh * j, hc[1] * sh * j, hc[2] * sh * j, 1], p[2] * 1.4, (p[1] + (p[0] - 30.9) * 0.8) * 1.4); };
+        for (let k = 0; k < nzs; k++) for (let i = 0; i < np - 1; i++) { V(k, i); V(k + 1, i); V(k + 1, i + 1); V(k, i); V(k + 1, i + 1); V(k, i + 1); }
+        for (const [k, sz] of [[0, 1], [nzs, -1]]) for (let i = 1; i < np - 1; i++) { const r = G2[k]; for (const p of [r[0], r[i], r[i + 1]]) hedge.v(p[0], p[1], p[2], 0, 0, sz, shadeC(hc, 0.8), p[0] * 1.4, p[1] * 1.4); }
+      }
+      hedge.blobby(31.15, 0.62, 6.0, 0.55, 0.65, 1.35, tc('#2c3722'), 7, 4, 1.4, 0.4, R); MET.keep.push([30.85, 0, -31.9, 33.1, 2.15, 0.1], [30.55, 0, 4.6, 31.75, 1.3, 7.4]);
+
+    }
+    mark('the red lean-to');
+    // ===== the red lean-to shed against the north wing, and what stands in front of it =====
+    {
+      const xF = 31.62, xB = 33.8, z0 = 5.1, z1 = 16.2, yF = 2.2, yB = 3.1, sF = atlUV('shedF'), sS = atlUV('shedS');
+      atl.quad([xF, 0, z0], [xF, 0, z1], [xF, yF, z1], [xF, yF, z0], [-1, 0, 0], [1, 1, 1, 1], [sF[0], sF[3], sF[2], sF[3], sF[2], sF[1], sF[0], sF[1]]);
+      for (const [z, n] of [[z0, -1], [z1, 1]]) { atl.grow(6); const c = [1, 1, 1, 1], V = [[xF, 0, sS[0], sS[3]], [xB, 0, sS[2], sS[3]], [xB, yB, sS[2], sS[1]], [xF, 0, sS[0], sS[3]], [xB, yB, sS[2], sS[1]], [xF, yF, sS[0], sS[1] + (sS[3] - sS[1]) * (1 - yF / yB)]]; for (const v of V) atl.v(v[0], v[1], z, 0, 0, n, c, v[2], v[3]); }
+      // faded red-terracotta metal roof (ribs down the slope), fascia and gutter
+      const rc = tc('#8f5544'), ov = 0.25;
+      const a = [xF - ov, yF - 0.04, z0 - 0.12], b = [xB, yB + 0.02, z0 - 0.12], cc2 = [xB, yB + 0.02, z1 + 0.12], d = [xF - ov, yF - 0.04, z1 + 0.12], n = v3n([-(yB - yF), xB - xF + ov, 0]);
+      corr.quad(a, b, cc2, d, n, rc, [0, 0, 2.5 / 1.2, 0, 2.5 / 1.2, (z1 - z0 + 0.24) / 1.2, 0, (z1 - z0 + 0.24) / 1.2].map((v, i) => (i % 2 ? v : v)));
+      corr.quad(a, d, [d[0], d[1] - 0.02, d[2]], [a[0], a[1] - 0.02, a[2]], [0, -1, 0], shadeC(rc, 0.7));
+      pb.wbox(xF - ov - 0.02, yF - 0.2, z0 - 0.12, xF - ov + 0.02, yF, z1 + 0.12, hx3('#7a3a30'));
+      pb.tube([xF - ov - 0.07, yF - 0.12, z0 - 0.12], [xF - ov - 0.07, yF - 0.12, z1 + 0.12], 0.06, hx3('#8a4a3e'), 8);
+      pb.tube([xF - ov - 0.07, yF - 0.12, z0 - 0.05], [xF - ov - 0.07, 0.1, z0 - 0.05], 0.04, hx3('#8a4a3e'), 6);
+      // the brick wall above and beside it is the north wing's
+      // things along the wall: a mint-green and a yellow plastic boat, a cream sled, a dark ball, bins, a lid
+      const boat = (x, z, len, wid, col) => { pb.blobby(x, 0.17, z, wid / 2, 0.17, len / 2, col, 12, 6); pb.blobby(x, 0.3, z, wid / 2 * 0.62, 0.06, len / 2 * 0.55, shadeC(col, 0.86), 10, 4); };
+      // pointed-ellipse plastic boats about 0.55-0.6 m wide (green z 12.8-15.6, yellow 8.9-12.0), the cream sled (z 4.8-6.2), round
+      // black bins at the shed's south end and north of it, and a white cart
+      boat(31.3, 14.2, 2.8, 0.58, hx3('#96f5ab')); boat(31.3, 10.45, 3.1, 0.58, hx3('#f8f89e'));
+      pb.blobby(31.42, 0.18, 5.4, 0.3, 0.18, 0.62, hx3('#e3e4d3'), 9, 5, 1, 0.25, R);
+      const rbin = (x, z) => { pb.cyl(x, z, 0, 0.92, 0.28, 0.31, hx3('#17191c'), 12, false); pb.cyl(x, z, 0.92, 0.98, 0.33, 0.33, hx3('#222528'), 12, true); };
+      rbin(31.25, 7.0); rbin(31.2, 17.2);
+      pb.wbox(31.65, 0.05, 17.75, 32.25, 1.05, 18.5, hx3('#e8e8e6')); pb.wbox(31.62, 1.05, 17.72, 32.28, 1.12, 18.53, hx3('#d2d2cf'));
+      pb.obox(30.9, 0.03, 18.2, 0.45, 0.04, 0.45, Math.PI / 4, hx3('#e8e8e4'));
+    }
+    mark('on the blacktop');
+    // ===== on the blacktop: the two gooseneck goals =====
+    for (const [px, pz, bx] of [[28.58, 10.46, 26.76], [28.52, -3.59, 26.68]]) {
+      const gal = hx3('#a9b0b3'), r = 0.057;
+      pb.wbox(px - 0.2, 0, pz - 0.2, px + 0.2, 0.03, pz + 0.2, hx3('#7d8284'));
+      const path = [[px, 0, pz], [px, 2.45, pz]]; for (let k = 1; k <= 6; k++) { const t = (k / 6) * Math.PI / 2; path.push([px - 0.65 + 0.65 * Math.cos(t), 2.45 + 0.65 * Math.sin(t), pz]); }
+      path.push([bx + 0.12, 3.1, pz]); pb.tubes(path, r, gal, 10);
+      pb.tube([px, 1.95, pz], [bx + 0.35, 2.9, pz], 0.035, gal, 8);
+      pb.wbox(bx + 0.03, 2.95, pz - 0.35, bx + 0.14, 3.6, pz + 0.35, gal);
+      // white board 1.82 x 1.07, face to the west, bottom at 2.9 (its shadow in the aerial: bottom 2.9, top 3.95)
+      pb.wbox(bx, 2.9, pz - 0.91, bx + 0.03, 3.97, pz + 0.91, hx3('#cfd2d0'));
+      const u = atlUV('board'); atl.quad([bx - 0.004, 2.9, pz + 0.91], [bx - 0.004, 2.9, pz - 0.91], [bx - 0.004, 3.97, pz - 0.91], [bx - 0.004, 3.97, pz + 0.91], [-1, 0, 0], [1, 1, 1, 1], [u[0], u[3], u[2], u[3], u[2], u[1], u[0], u[1]]);
+      MET.keep.push([bx - 0.75, 2.6, pz - 1.15, px + 0.25, 4.2, pz + 1.15], [px, pz, 0.32, 0, 3.6]);
+      // orange rim and a white net
+      const rx = bx - 0.15 - 0.2286, ry = 3.05, org = hx3('#d9541e');
+      const rim = []; for (let k = 0; k <= 16; k++) { const t = (k / 16) * 6.2832; rim.push([rx + Math.cos(t) * 0.2286, ry, pz + Math.sin(t) * 0.2286]); } pb.tubes(rim, 0.01, org, 4);
+      pb.wbox(rx + 0.2, ry - 0.06, pz - 0.08, bx, ry + 0.01, pz + 0.08, org);
+      const net = hx3('#f4f4f2'); for (let k = 0; k < 12; k++) { const t0 = (k / 12) * 6.2832, t1 = ((k + 0.5) / 12) * 6.2832, t2 = ((k + 1) / 12) * 6.2832; const A = [rx + Math.cos(t0) * 0.225, ry - 0.01, pz + Math.sin(t0) * 0.225], M = [rx + Math.cos(t1) * 0.19, ry - 0.22, pz + Math.sin(t1) * 0.19], Bt = [rx + Math.cos(t2) * 0.155, ry - 0.42, pz + Math.sin(t2) * 0.155], Bt0 = [rx + Math.cos(t0) * 0.155, ry - 0.42, pz + Math.sin(t0) * 0.155]; flat.tube(A, M, 0.005, net, 3); flat.tube(M, Bt, 0.005, net, 3); }
+    }
+    mark('the low barrier');
+    // ===== the bike-rack row along the south edge (each unit a 3.3 x 1.0 m base frame with an upright teal lattice, about 0.9 m,
+    // double-sided) and what sits by it =====
+    {
+      const z = -16.95, teal = hx3('#3f8f86'), gal = hx3('#8a8f8f');
+      for (const [x0, x1] of [[-12.5, -6.6], [-0.75, 17.4], [25.3, 28.3]]) {
+        const n = Math.max(1, Math.round((x1 - x0) / 3.3)), u = (x1 - x0) / n;
+        for (let i = 0; i < n; i++) {
+          const a = x0 + i * u + 0.05, b = a + u - 0.1;
+          for (const dz of [-0.5, 0.5]) pb.tube([a, 0.04, z + dz], [b, 0.04, z + dz], 0.024, teal, 5);
+          for (const xx of [a, b]) { pb.tube([xx, 0.04, z - 0.5], [xx, 0.04, z + 0.5], 0.024, teal, 5); pb.tube([xx, 0.04, z - 0.5], [xx, 0.9, z], 0.024, teal, 5); pb.tube([xx, 0.04, z + 0.5], [xx, 0.9, z], 0.024, teal, 5); }
+          pb.tube([a, 0.9, z], [b, 0.9, z], 0.026, teal, 6); pb.tube([a, 0.3, z], [b, 0.3, z], 0.02, teal, 5);
+          for (let xx = a + 0.3; xx < b - 0.1; xx += 0.33) pb.tube([xx, 0.3, z], [xx, 0.9, z], 0.012, teal, 4);
+        }
+        MET.keep.push([x0, 0, z - 0.6, x1, 1.0, z + 0.6]);
+      }
+      // red cones (as in the newer capture) and a dark round trash can
+      const cone = (x, zz) => { pb.cyl(x, zz, 0.03, 0.7, 0.16, 0.02, hx3('#e0451f'), 8); pb.wbox(x - 0.2, 0, zz - 0.2, x + 0.2, 0.03, zz + 0.2, hx3('#c23a1a')); pb.cyl(x, zz, 0.36, 0.46, 0.106, 0.086, hx3('#f2f2f0'), 8); };
+      for (const [x, zz] of [[-11.8, -17.0], [27.3, -16.6], [24.6, -17.1], [25.0, -17.1], [13.5, -17.9], [5.9, -18.1], [29.0, -23.4], [29.1, -29.6], [29.4, -36.8], [28.5, -37.7], [29.2, -43.8], [24.0, -47.8], [13.3, -49.1], [8.6, -50.3]]) cone(x, zz);
+      pb.cyl(-0.3, -17.7, 0, 0.95, 0.3, 0.32, hx3('#2a2d30'), 12, true);
+      // the lot's south fence, the drain lid and the post
+      for (let x = 3.8; x < 33.8; x += 2.44) { pb.wbox(x, 0, -53.55, x + 0.05, 1.2, -53.45, hx3('#141414')); } pb.wbox(3.8, 1.1, -53.53, 33.8, 1.14, -53.47, hx3('#141414')); pb.wbox(3.8, 0.15, -53.53, 33.8, 0.19, -53.47, hx3('#141414'));
+      for (let x = 3.9; x < 33.8; x += 0.2) pb.quad([x, 0.05, -53.5], [x + 0.02, 0.05, -53.5], [x + 0.02, 1.15, -53.5], [x, 1.15, -53.5], [0, 0, 1], hx3('#141414'));
+      flat.poly((() => { const p = []; for (let k = 0; k < 12; k++) { const t = k / 12 * 6.2832; p.push([27.0 + Math.cos(t) * 0.35, -49.1 + Math.sin(t) * 0.35]); } return p; })(), 0.004, hx3('#3d3b37'));
+      pb.wbox(26.07, 0, -52.13, 26.13, 2.2, -52.07, hx3('#8a8f8f'));
+      // parked cars in the angled stalls
+      const hd = Math.atan2(-4.9, 2.3);
+      for (const [x, cl] of [[15.8, '#b9bcc0'], [18.9, '#f2f2f0'], [22.0, '#6b1d24']]) car(pb, glassB, x, -50.4, hd, hx3(cl));
+    }
+    mark('the far lot');
+    // ===== the far lot (dark asphalt) south of the driveway =====
+    {
+      asph.poly([[-14.78, -55.33], [-15.36, -116.39], [3.43, -117.12], [3.61, -107.86], [0.64, -107.76], [0.49, -81.6], [3.95, -81.79], [3.81, -55.48]], 0.0, tc('#55575a'), true, 0.4);
+      for (let z = -56.3; z > -114; z -= 2.74) flat.quad([-13.0, 0.004, z - 0.05], [-9.6, 0.004, z - 0.05], [-9.6, 0.004, z + 0.05], [-13.0, 0.004, z + 0.05], up, [0.85, 0.85, 0.83, 1]);
+      for (let z = -59.3; z > -114; z -= 5.4) flat.quad([-4.78, 0.004, z], [-4.66, 0.004, z], [-4.66, 0.004, z - 2.4], [-4.78, 0.004, z - 2.4], up, [0.85, 0.85, 0.83, 1]);
+      car(pb, glassB, -11.3, -62.6, 0, hx3('#2f3d57')); car(pb, glassB, -11.3, -70.8, Math.PI, hx3('#8d9196'));
+    }
+    mark('across Main Street');
+    // ===== across Main Street =====
+    {
+      const win = [0.16, 0.19, 0.22, 1], shC = tc('#525256'), trimW = hx3('#e9e8e3'), trimG = hx3('#b9bab6');
+      // Wittenberg Lutheran Center (201 S Main): dark brown-red brick under big steep charcoal-shingle gable roofs with a pale fascia
+      // (KartaView 2018, WGLT 06). The ridge runs north-south; the east wall under the eave carries the white letters and the
+      // cross mark, the south gable end over the church lot the red WITTENBERG LUTHERAN sign
+      const wC = tc('#5f392d');
+      gableHouse(brick, shing, pb, -49.65, 21.4, 23.2, 18.7, Math.PI / 2, 3.6, 10.8, wC, shC, trimG, 1.1, 0.45, 0.6);
+      gableHouse(brick, shing, pb, -58.6, 33.2, 15.0, 9.5, Math.atan2(-15.8, -15.4) + Math.PI, 3.4, 8.2, wC, shC, trimG, 1.1, 0.45, 0.5);
+      for (const z of [11.5, 16.2, 31.6]) brick.tbox(-40.55, 0, z - 0.45, -39.95, 3.9, z + 0.45, wC, 1.1); // brick piers on the street front
+      atlW('wittE', [-40.25, 30.6], [-40.25, 24.8], 1.9, 3.08, [1, 0, 0]);
+      atlW('wittR', [-44.6, 9.78], [-47.0, 9.78], 2.3, 3.1, [0, 0, -1]);
+      for (const z of [13.2, 14.6, 18.0, 19.4]) glassB.wall(-40.27, z, -40.27, z + 1.0, 0.9, 2.6, win, [1, 0, 0]);
+      for (const [x, z] of [[-41.6, 9.2], [-43.6, 9.2]]) { pb.wbox(x - 0.03, 0, z - 0.03, x + 0.03, 2.0, z + 0.03, hx3('#8a8f8f')); atl.quad([x - 0.15, 1.5, z - 0.04], [x + 0.15, 1.5, z - 0.04], [x + 0.15, 1.95, z - 0.04], [x - 0.15, 1.95, z - 0.04], [0, 0, -1], [1, 1, 1, 1], (() => { const r = atlUV('nopark'); return [r[2], r[3], r[0], r[3], r[0], r[1], r[2], r[1]]; })()); }
+      leaf.clump(-41.2, 1.0, 27.4, 1.3, 1.1, tc('#3d5a2e'), R, 1, 0.4); leaf.clump(-41.0, 0.9, 22.0, 1.0, 0.9, tc('#40602f'), R, 0, 0.4); // the bed in front
+      // the patio wing with its red-brick patio and two orange umbrella tables
+      gableHouse(brick, shing, pb, -46.1, -13.0, 15.0, 8.2, Math.PI / 2, 3.2, 6.6, tc('#8f5f4c'), shC, trimW, 1.1, 0.45, 0.45);
+      brick.poly([[-42.0, -19.5], [-36.5, -19.5], [-36.5, -6.5], [-42.0, -6.5]], 0.01, tc('#9a4a36'), true, 1.2);
+      for (const z of [-17.6, -15.2, -10.8, -8.4]) atlW('winD', [-42.0, z + 0.55], [-42.0, z - 0.55], 0.9, 2.5, [1, 0, 0]);
+      for (const [x, z] of [[-40.0, -8.4], [-39.7, -16.4]]) { pb.cyl(x, z, 0, 0.74, 0.45, 0.45, hx3('#3a3a3a'), 12, true); pb.cyl(x, z, 0.74, 2.3, 0.025, 0.025, hx3('#dddddd'), 6); pb.cyl(x, z, 2.0, 2.35, 1.3, 0.05, hx3('#e8762b'), 12); }
+      // ISU's Center for Mathematics, Science and Technology: one storey of tan brick, a low hip roof with white gutters, bronze windows
+      hipHouse(brick, shing, -63.7, -11.95, 26.9, 9.8, 0, 3.9, 5.6, tc('#a4775f'), shC, 1.1, 0.5);
+      for (let x = -75.5; x < -52; x += 2.4) atlW('winD', [x + 1.0, -7.08], [x, -7.08], 0.9, 2.6, [0, 0, 1]);
+      for (let z = -15.5; z < -8; z += 2.4) atlW('winD', [-50.23, z + 1.2], [-50.23, z], 0.9, 2.6, [1, 0, 0]);
+      // the Honors Program Building: an old two-storey house of red-brown brick with white trim, white-sided gables, a grey roof
+      // with round-topped dormers, and its sign by the walk
+      gableHouse(brick, shing, pb, -46.3, -41.6, 37.6, 16.6, Math.PI / 2, 6.2, 11.4, tc('#8e5442'), tc('#6f7071'), trimW, 1.1, 0.45, 0.5);
+      for (let z = -58; z < -25; z += 3.1) for (const y of [1.0, 4.0]) atlW('winW', [-37.98, z + 1.2], [-37.98, z], y, y + 1.75, [1, 0, 0]);
+      for (const z of [-54, -46, -38, -30]) { const xr = -38.2 - 2.0, y0 = 6.2 + 1.2; pb.wbox(xr - 0.4, y0 - 1.3, z - 0.75, xr + 0.6, y0 + 0.4, z + 0.75, hx3('#e9e8e3')); atlW('dormer', [xr + 0.62, z + 0.6], [xr + 0.62, z - 0.6], y0 - 1.2, y0 + 0.3, [1, 0, 0]); }
+      atl.quad([-36.4, 0.5, -29.0], [-36.4, 0.5, -30.6], [-36.4, 1.2, -30.6], [-36.4, 1.2, -29.0], [1, 0, 0], [1, 1, 1, 1], (() => { const r = atlUV('honors'); return [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]; })()); for (const z of [-29.05, -30.55]) pb.wbox(-36.47, 0, z - 0.04, -36.39, 1.25, z + 0.04, hx3('#3b3b3b'));
+      // further west: campus buildings and apartments as simple masses
+      // the four-storey brick apartment house west-south-west (WGLT 14, 19): white trim, balconies, a grey mansard with dormers
+      { const x0 = -104, x1 = -84, z0 = -40, z1 = -8, h = 10.4; brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc('#8a4e3c'), 1.1, false); pb.wbox(x0 - 0.1, h - 0.3, z0 - 0.1, x1 + 0.1, h, z1 + 0.1, trimW);
+        const m = 1.4, top = 13.2, P2 = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], I2 = [[x0 + m, z0 + m], [x1 - m, z0 + m], [x1 - m, z1 - m], [x0 + m, z1 - m]];
+        for (let k2 = 0; k2 < 4; k2++) { const a = P2[k2], b = P2[(k2 + 1) % 4], c = I2[(k2 + 1) % 4], d = I2[k2]; let n = v3n(v3c(v3s([b[0], h, b[1]], [a[0], h, a[1]]), v3s([d[0], top, d[1]], [a[0], h, a[1]]))); if (n[1] < 0) n = [-n[0], -n[1], -n[2]]; shing.quad([a[0], h, a[1]], [b[0], h, b[1]], [c[0], top, c[1]], [d[0], top, d[1]], n, tc('#77797b'), [0, 0, 8, 0, 8, 1.5, 0, 1.5]); }
+        pb.poly(I2, top, hx3('#5c605f'));
+        for (let z = z0 + 1.6; z < z1 - 1.6; z += 3.2) { for (let y = 1.0; y < h - 1; y += 2.85) atlW('winB', [x1 + 0.02, z + 1.2], [x1 + 0.02, z], y, y + 1.6, [1, 0, 0]); atlW('dormer', [x1 - 0.6, z + 1.3], [x1 - 0.6, z - 0.1], h + 0.3, h + 2.0, [1, 0, 0]); }
+        for (let z = z0 + 4; z < z1 - 3; z += 6.4) for (let y = 3.6; y < h - 1; y += 2.85) { pb.wbox(x1, y - 0.12, z - 1.2, x1 + 1.3, y, z + 1.2, hx3('#d8d8d2')); pb.wbox(x1 + 1.25, y, z - 1.2, x1 + 1.3, y + 1.0, z + 1.2, hx3('#2a2a2a')); }
+        MET.keep.push([x0, 0, z0, x1 + 1.4, top + 0.3, z1]); }
+      for (const [x0, x1, z0, z1, h, col] of [[-110, -84, 8, 44, 11, '#9a6a54'], [-96, -70, 55, 82, 9, '#a07c66'], [-104, -78, -95, -60, 12, '#7f5244'], [-75, -58, 52, 70, 6.5, '#b3a28c']]) {
+        brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc(col), 1.1, hx3('#5c605f'));
+        for (let y = 1.2; y < h - 1; y += 3.3) for (let z = z0 + 1.5; z < z1 - 1.5; z += 2.8) atlW('winB', [x1 + 0.02, z + 1.4], [x1 + 0.02, z], y, y + 1.6, [1, 0, 0]);
+      }
+      // the three-storey brick hall to the south-south-east (limestone base, white windows)
+      brick.extrude([[22, -132], [70, -132], [70, -112], [22, -112]], 1.0, 13, tc('#93503e'), 1.1, hx3('#5c605f'));
+      conc.extrude([[22, -132], [70, -132], [70, -112], [22, -112]], 0, 1.0, cc('#cfc7b4'), 0.3, false);
+      for (let x = 24; x < 68; x += 2.6) for (const y of [2.0, 5.6, 9.2]) { glassB.wall(x, -111.98, x + 1.3, -111.98, y, y + 2.0, [0.24, 0.27, 0.3, 1], [0, 0, 1]); pb.wbox(x - 0.08, y - 0.08, -111.99, x + 1.38, y + 2.08, -111.97, hx3('#efefea')); }
+      // north: more of the campus beyond the lawn
+      for (const [x0, x1, z0, z1, h, col] of [[-40, -10, 92, 120, 10, '#7d4a3c'], [5, 40, 110, 135, 12, '#86523f'], [100, 140, 40, 80, 9, '#7a4d3e'], [105, 150, -40, 10, 11, '#835243'], [110, 150, -120, -70, 8, '#8c5f50']]) {
+        brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, tc(col), 1.1, hx3('#575b5a'));
+        for (let y = 1.2; y < h - 1; y += 3.3) for (let x = x0 + 1.5; x < x1 - 1.5; x += 2.8) atlW('winW', [x + 1.4, z0 - 0.02], [x, z0 - 0.02], y, y + 1.6, [0, 0, -1]);
+      }
+    }
+    mark('the new (2025) playground');
+    // ===== the new (2025) playground =====
+    {
+      const red = hx3('#d5232f'), blk = hx3('#141414'), char = hx3('#3f474e'), slU = atlUV('slats'), dk = atlUV('deck');
+      const deck = (x0, z0, x1, z1, y) => { atl.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, [1, 1, 1, 1], [dk[0], dk[1], dk[2], dk[1], dk[2], dk[3], dk[0], dk[3]]); pb.wbox(x0, y - 0.06, z0, x1, y - 0.005, z1, char); };
+      const slat = (x0, z0, x1, z1, y, n) => { const u = slU, uv = [u[0], u[3], u[2], u[3], u[2], u[1], u[0], u[1]]; atl.quad([x0, y + 0.08, z0], [x1, y + 0.08, z1], [x1, y + 0.9, z1], [x0, y + 0.08 + 0.82, z0], n, [1, 1, 1, 1], uv); const ox = -n[0] * 0.03, oz = -n[2] * 0.03; atl.quad([x1 + ox, y + 0.08, z1 + oz], [x0 + ox, y + 0.08, z0 + oz], [x0 + ox, y + 0.9, z0 + oz], [x1 + ox, y + 0.9, z1 + oz], [-n[0], 0, -n[2]], [1, 1, 1, 1], uv); };
+      // towers: [x0, z0, size, deck height, roof?]
+      const T = [[10.6, 26.6, 1.8, 1.5, 0], [14.6, 28.6, 1.9, 2.1, 1], [18.8, 26.6, 1.8, 1.5, 0], [13.4, 23.9, 1.5, 0.9, 0]];
+      for (const [x0, z0, s, y, rf] of T) {
+        const x1 = x0 + s, z1 = z0 + s, h = rf ? 3.6 : y + 1.0;
+        for (const [px, pz] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]) ppost(pb, px, pz, h, [y - 0.1, y + 0.9]);
+        deck(x0, z0, x1, z1, y);
+        if (rf) { const ym = 4.3, cx = (x0 + x1) / 2, pu = atlUV('planks'), uv = [pu[0], pu[3], pu[2], pu[3], pu[2], pu[1], pu[0], pu[1]]; atl.quad([x0 - 0.3, h, z0 - 0.3], [x0 - 0.3, h, z1 + 0.3], [cx, ym, z1 + 0.3], [cx, ym, z0 - 0.3], v3n([-(ym - h), cx - x0 + 0.3, 0]), [1, 1, 1, 1], uv); atl.quad([x1 + 0.3, h, z1 + 0.3], [x1 + 0.3, h, z0 - 0.3], [cx, ym, z0 - 0.3], [cx, ym, z1 + 0.3], v3n([ym - h, x1 - cx + 0.3, 0]), [1, 1, 1, 1], uv); pb.wbox(cx - 0.06, ym - 0.05, z0 - 0.32, cx + 0.06, ym + 0.05, z1 + 0.32, hx3('#7a5a40')); for (const zz of [z0 - 0.3, z1 + 0.3]) pb.quad([x0 - 0.3, h, zz], [x1 + 0.3, h, zz], [cx, ym, zz], [cx, ym, zz], [0, 0, zz < z0 ? -1 : 1], hx3('#9a6a48')); }
+      }
+      slat(10.6, 26.6, 12.4, 26.6, 1.5, [0, 0, -1]); slat(10.6, 28.4, 12.4, 28.4, 1.5, [0, 0, 1]); slat(14.6, 30.5, 16.5, 30.5, 2.1, [0, 0, 1]); slat(16.5, 28.6, 16.5, 30.5, 2.1, [1, 0, 0]); slat(18.8, 28.4, 20.6, 28.4, 1.5, [0, 0, 1]);
+      // bridges and a ramp between the decks
+      const bridge = (a, b, w) => { const d = v3n(v3s(b, a)), s = v3n(v3c([0, 1, 0], d)); const P = (p, k) => [p[0] + s[0] * k, p[1], p[2] + s[2] * k]; atl.quad(P(a, -w / 2), P(b, -w / 2), P(b, w / 2), P(a, w / 2), up, [1, 1, 1, 1], [dk[0], dk[1], dk[2], dk[1], dk[2], dk[3], dk[0], dk[3]]); for (const k of [-w / 2, w / 2]) { pb.tube([P(a, k)[0], a[1] + 0.85, P(a, k)[2]], [P(b, k)[0], b[1] + 0.85, P(b, k)[2]], 0.025, red, 6); for (let t = 0; t <= 1.001; t += 0.25) { const q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; pb.tube(P(q, k), [P(q, k)[0], q[1] + 0.85, P(q, k)[2]], 0.02, blk, 4); } } };
+      bridge([12.4, 1.5, 27.5], [14.6, 2.1, 29.3], 0.9); bridge([16.5, 2.1, 29.2], [18.8, 1.5, 27.4], 0.9); bridge([14.15, 0.9, 24.8], [11.5, 1.5, 26.6], 0.85);
+      // charcoal stairs down from the low deck
+      for (let k = 0; k < 4; k++) { const y = 0.9 - (k + 1) * 0.22; pb.wbox(13.5, y - 0.03, 23.9 - (k + 1) * 0.28, 14.8, y + 0.0, 23.9 - k * 0.28, char); } for (const x of [13.5, 14.8]) pb.tube([x, 1.0, 23.9], [x, 0.5, 22.7], 0.025, red, 6);
+      // red slides (WGLT 14, 21): the double wave slide comes off the east deck toward the north-east with the roofed tower behind
+      // it, the open spiral is on the north side, the long straight slide runs off the west deck
+      { const p = []; for (let k = 0; k <= 10; k++) { const t = k / 10; p.push([20.6 + t * 3.7, 1.5 * (1 - t) + 0.22 * Math.sin(t * Math.PI * 2) * (1 - t) + 0.25 * t, 27.4 + t * 0.9]); } pb.trough(p, 1.1, 0.22, red); pb.trough(p.map((q) => [q[0], q[1] + 0.001, q[2]]), 0.05, 0.22, shadeC(red, 0.9)); pb.wbox(20.58, 1.5, 26.8, 20.9, 2.4, 28.0, red); }
+      { const p = [], cx = 15.5, cz = 31.6; for (let k = 0; k <= 22; k++) { const t = k / 22, a = -Math.PI / 2 + t * Math.PI * 2.4; p.push([cx + Math.cos(a) * 0.95, 2.1 - t * 1.85, cz + Math.sin(a) * 0.95]); } pb.trough(p, 0.6, 0.25, red); pb.cyl(cx, cz, 0, 2.4, 0.06, 0.06, blk, 8); }
+      { const p = [[10.6, 1.5, 27.5], [9.8, 1.2, 27.5], [7.6, 0.4, 27.5], [7.0, 0.32, 27.5]]; pb.trough(p, 0.6, 0.22, red); }
+      MET.keep.push([6.8, 0, 23.0, 24.6, 4.5, 33.0]);
+      // red arch climber with a black rope net (south of the first tower)
+      { const x0 = 10.0, x1 = 12.8, z = 25.4; for (const dz of [-0.6, 0.6]) { const p = []; for (let k = 0; k <= 10; k++) { const t = k / 10; p.push([x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 1.9, z + dz]); } pb.tubes(p, 0.045, red, 8); }
+        for (let k = 1; k < 10; k++) { const t = k / 10; flat.tube([x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 1.9, z - 0.6], [x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 1.9, z + 0.6], 0.015, blk, 4); }
+        for (const dz of [-0.3, 0, 0.3]) { const p = []; for (let k = 0; k <= 10; k++) { const t = k / 10; p.push([x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 1.9, z + dz]); } flat.tubes(p, 0.015, blk, 4); }
+        pb.lathe(11.4, 25.4, [[0.0, 1.9], [0.3, 1.9], [0.3, 1.95], [0, 1.95]], red, 12); }
+      // overhead ladder (red bars, black rings on chains) south from the east tower
+      { for (const x of [19.4, 20.0]) { pb.tube([x, 2.1, 26.6], [x, 2.1, 23.3], 0.035, red, 8); ppost(pb, x, 23.3, 2.1, []); } for (let z = 26.3; z > 23.4; z -= 0.38) pb.tube([19.4, 2.1, z], [20.0, 2.1, z], 0.02, red, 6); for (const z of [25.6, 24.6]) { flat.tube([19.7, 2.1, z], [19.7, 1.75, z], 0.008, blk, 4); pb.lathe(19.7, z, [[0.12, 1.66], [0.14, 1.7], [0.12, 1.74], [0.1, 1.7], [0.12, 1.66]], blk, 10); } }
+      // climbing wall and activity panels
+      const pnl = (k, x0, z0, x1, z1, y0, y1, n) => { const u = atlUV(k), uv = [u[0], u[3], u[2], u[3], u[2], u[1], u[0], u[1]]; atl.quad([x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0], n, [1, 1, 1, 1], uv); const ox = -n[0] * 0.03, oz = -n[2] * 0.03; pb.quad([x1 + ox, y0, z1 + oz], [x0 + ox, y0, z0 + oz], [x0 + ox, y1, z0 + oz], [x1 + ox, y1, z1 + oz], [-n[0], 0, -n[2]], hx3('#6d7a88')); };
+      pnl('climb', 14.92, 25.4, 14.92, 23.9, 0.0, 0.9, [1, 0, 0]); pnl('plane', 10.65, 26.58, 12.35, 26.58, 0.25, 1.4, [0, 0, -1]); pnl('moon', 18.85, 26.58, 20.55, 26.58, 0.2, 1.15, [0, 0, -1]);
+      pnl('maze', 8.0, 30.0, 9.2, 30.0, 0.35, 1.25, [0, 0, -1]); for (const x of [8.0, 9.2]) ppost(pb, x, 30.0, 1.35, [0.4, 1.2]);
+      // red disc steps and climbing balls near the east tower
+      for (const [x, z, y] of [[21.3, 25.6, 0.35], [21.9, 25.1, 0.6], [22.5, 25.6, 0.85]]) { ppost(pb, x, z, y - 0.05, []); pb.cyl(x, z, y - 0.05, y, 0.22, 0.22, red, 12, true); }
+      for (const [x, z] of [[17.2, 25.6], [17.7, 25.1]]) pb.blobby(x, 0.3, z, 0.3, 0.3, 0.3, red, 10, 6);
+      // gaga pit (white walls ~0.9 m, red posts with white paws) at the west edge of the mulch: WGLT 06 looks west-south-west from
+      // under the track ride over it at Wittenberg's cross, with the blue spruce just to its left and behind its south end
+      { const cx = -0.3, cz = 38.6, r = 3.0, gp = atlUV('gagaPaw'), wp = atlUV('postPaw'); MET.keep.push([cx - 3.2, 0, cz - 3.2, cx + 3.2, 1.1, cz + 3.2]);
+        for (let k = 0; k < 8; k++) { const a0 = (k + 0.5) / 8 * 6.2832, a1 = (k + 1.5) / 8 * 6.2832, x0 = cx + Math.cos(a0) * r, z0 = cz + Math.sin(a0) * r, x1 = cx + Math.cos(a1) * r, z1 = cz + Math.sin(a1) * r, am = (a0 + a1) / 2, n = [Math.cos(am), 0, Math.sin(am)];
+          if (k % 3 === 0) atl.quad([x1, 0, z1], [x0, 0, z0], [x0, 0.9, z0], [x1, 0.9, z1], n, [1, 1, 1, 1], [gp[0], gp[3], gp[2], gp[3], gp[2], gp[1], gp[0], gp[1]]); else pb.quad([x1, 0, z1], [x0, 0, z0], [x0, 0.9, z0], [x1, 0.9, z1], n, hx3('#efeeef'));
+          { const ix = -n[0] * 0.03, iz = -n[2] * 0.03; pb.quad([x0 + ix, 0, z0 + iz], [x1 + ix, 0, z1 + iz], [x1 + ix, 0.9, z1 + iz], [x0 + ix, 0.9, z0 + iz], [-n[0], 0, -n[2]], hx3('#e4e3e4')); }
+          pb.wbox(x0 - 0.07, 0, z0 - 0.07, x0 + 0.07, 1.02, z0 + 0.07, hx3('#e32545')); atl.quad([x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.6, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 + Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 - Math.cos(a0) * 0.06], [x0 + Math.cos(a0) * 0.072 - Math.sin(a0) * 0.06, 0.72, z0 + Math.sin(a0) * 0.072 + Math.cos(a0) * 0.06], [Math.cos(a0), 0, Math.sin(a0)], [1, 1, 1, 1], [wp[0], wp[3], wp[2], wp[3], wp[2], wp[1], wp[0], wp[1]]); } }
+      // track ride: red overhead beam on black A-frames, a black rope-and-disc seat on its trolley, along the north edge of the mulch
+      // with the lawn beyond (WGLT 01 looks north-west under it at the lawn, the Main Street fence and its spruces)
+      { const z = 41.2, x0 = 15.0, x1 = 25.0; MET.keep.push([x0 - 0.3, 2.3, z - 0.4, x1 + 0.3, 3.0, z + 0.4]); pb.tube([x0, 2.7, z], [x1, 2.7, z], 0.07, red, 10); for (const x of [x0, x1]) for (const s of [-1, 1]) pb.tube([x, 2.7, z], [x + 0, 0, z + s * 0.9], 0.06, blk, 8); pb.wbox(19.4, 2.55, z - 0.1, 19.8, 2.66, z + 0.1, blk); flat.tube([19.6, 2.55, z], [19.6, 0.75, z], 0.015, blk, 4); pb.cyl(19.6, z, 0.68, 0.75, 0.16, 0.16, blk, 10, true); }
+      // log steppers beside the decks by the airplane panel (WGLT 14), the charcoal table between the track ride and the gaga pit
+      // (WGLT 06), a bench; the tetherball pole (3.3 m, its 3 m shadow at (12.0, 40.3)); the raised timber garden bed by the walk.
+      // (The red posts with numbered plates in the 2025 photos are portable line-up markers for the event, so they are left out.)
+      for (let k = 0; k < 7; k++) { const a = 2.2 + k * 0.38, x = 11.2 + Math.cos(a) * 2.0, z = 25.6 + Math.sin(a) * 1.5, hh = 0.2 + (k % 3) * 0.12; bark.cyl(x, z, 0, hh, 0.2, 0.19, tc('#8a6a4a'), 10, false, 1, 0.6); pb.cyl(x, z, hh - 0.005, hh, 0.19, 0.19, hx3('#c9a77d'), 10, true); }
+      { const tx = 7.4, tz = 40.2; pb.wbox(tx - 0.9, 0.72, tz - 0.4, tx + 0.9, 0.76, tz + 0.4, char); pb.wbox(tx - 0.08, 0, tz - 0.08, tx + 0.08, 0.72, tz + 0.08, char); for (const z of [tz - 0.75, tz + 0.75]) { pb.wbox(tx - 0.9, 0.42, z - 0.15, tx + 0.9, 0.46, z + 0.15, char); pb.wbox(tx - 0.06, 0, z - 0.06, tx + 0.06, 0.42, z + 0.06, char); } MET.keep.push([tx - 1, 0, tz - 1, tx + 1, 0.8, tz + 1]); }
+      pb.wbox(33.6, 0.42, 22.5, 35.5, 0.47, 22.9, hx3('#3a3a3a'));
+      { const x = 12.0, z = 40.3; pb.cyl(x, z, 0, 3.3, 0.04, 0.035, hx3('#a9b0b3'), 8, true); pb.cyl(x, z, 0, 0.12, 0.2, 0.18, hx3('#8d9092'), 10, true); flat.tube([x + 0.03, 3.2, z], [x + 0.18, 1.6, z + 0.05], 0.006, hx3('#e8e4d8'), 3); pb.blobby(x + 0.19, 1.5, z + 0.05, 0.11, 0.11, 0.11, hx3('#e8c21f'), 8, 6); MET.keep.push([x, z, 0.3, 0, 3.4]); }
+      { const x0 = -8.0, x1 = -4.0, z0 = 47.0, z1 = 50.0; for (const [a, b, c, d] of [[x0, z0, x1, z0 + 0.1], [x0, z1 - 0.1, x1, z1], [x0, z0, x0 + 0.1, z1], [x1 - 0.1, z0, x1, z1]]) bark.tbox(a, 0, b, c, 0.4, d, tc('#8a6a4a'), 1); dirt.poly([[x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1], [x1 - 0.1, z1 - 0.1], [x0 + 0.1, z1 - 0.1]], 0.33, tc('#4a3c30'), true, 0.6); }
+    }
+    mark('trees (measured');
+    // ===== trees: deciduous shade trees built from a trunk, limbs and branches with several leafy crown clusters on the branch
+    // ends (the leaf photo texture, darker inside and underneath), and the blue spruces in tiers of ragged drooping skirts =====
+    {
+      const barkC = tc('#5f554a'), keepT = (x, z, tr, cy, cr) => { MET.keep.push([x, z, tr + 0.25, 0, cy]); MET.keep.push([x, cy, z, cr]); };
+      // sp: 'maple' (dense, rounded), 'locust' (airy, fine, lighter), 'oak' (broad, heavy limbs); lod 1 = far tree (fewer parts)
+      const decid = (x, z, d, h, sp, lod, cl) => {
+        const r0 = R, tr = 0.12 + d * 0.019, th = h * (sp === 'oak' ? 0.24 : sp === 'locust' ? 0.34 : 0.28), lean = (r0() - 0.5) * 0.25, la = r0() * 6.28;
+        const top = [x + Math.cos(la) * lean, th, z + Math.sin(la) * lean], base = cl || (sp === 'locust' ? '#62763a' : sp === 'oak' ? '#475a30' : '#4a5e32');
+        bark.cyl(x, z, 0, th + 0.1, tr * 1.35, tr * 0.92, barkC, lod ? 6 : 9, false, 1, 3);
+        if (!lod) bark.cyl(x, z, 0, 0.5, tr * 1.7, tr * 1.3, barkC, 9, false, 1, 0.6); // root flare
+        const nL = lod ? 3 : (sp === 'locust' ? 5 : 4), ends = [], main = [], cr = d / 2;
+        for (let k = 0; k < nL; k++) {
+          const a = la + k / nL * 6.2832 + (r0() - 0.5) * 0.7, el = (sp === 'oak' ? 0.35 : 0.6) + r0() * 0.35, L = cr * (0.55 + r0() * 0.25);
+          const m = [top[0] + Math.cos(a) * L * 0.5 * Math.cos(el), th + L * 0.5 * Math.sin(el) + 0.3, top[2] + Math.sin(a) * L * 0.5 * Math.cos(el)];
+          const e = [top[0] + Math.cos(a) * L * Math.cos(el * 0.8), th + L * Math.sin(el) * 0.95 + h * 0.08, top[2] + Math.sin(a) * L * Math.cos(el * 0.8)];
+          if (!lod) { bark.tube(top, m, tr * 0.62, barkC, 6); bark.tube(m, e, tr * 0.38, barkC, 5); } ends.push(e); main.push(1);
+          if (!lod) for (const s2 of [-1, 1]) { const b2 = a + s2 * (0.6 + r0() * 0.4), l2 = cr * (0.3 + r0() * 0.15), e2 = [m[0] + Math.cos(b2) * l2, m[1] + l2 * (0.55 + r0() * 0.4), m[2] + Math.sin(b2) * l2]; bark.tube(m, e2, tr * 0.22, barkC, 4); ends.push(e2); main.push(0); }
+        }
+        const lead = [top[0], h * 0.72, top[2]]; if (!lod) bark.tube(top, lead, tr * 0.45, barkC, 5); ends.push(lead); main.push(0);
+        // the crown: one lobed mass from just above the fork to the top, plus a few clumps on the limb ends breaking the outline
+        const yc = th + (h - th) * 0.5, ryc = (h - th) * 0.56, cs = sp === 'locust' ? 0.88 : sp === 'oak' ? 1.0 : 0.95;
+        leaf.crown(top[0], yc, top[2], cr * 0.82 * cs, ryc * 0.86, tc(base, 0.95 + r0() * 0.12), r0, lod ? 1 : 2, 0.34, sp === 'oak' ? 0.45 : 0.3);
+        if (!lod) ends.forEach((e, ei) => { if (!main[ei]) return; const dx = e[0] - x, dz = e[2] - z, dl = Math.hypot(dx, dz) || 1, rc = cr * (0.26 + r0() * 0.08);
+          leaf.clump(x + dx / dl * cr * 0.6, Math.min(h - rc * 1.5, Math.max(th + rc, e[1] - 0.6)), z + dz / dl * cr * 0.6, rc, rc * 0.8, tc(base, 0.9 + r0() * 0.2), r0, 1, 0.34); });
+        keepT(x, z, tr * 1.4, yc, Math.max(cr * 0.95, ryc));
+      };
+      // blue spruce: a conical stack of drooping, ragged skirts (needle texture), the lowest sweeping close to the ground
+      const spruce = (x, z, d, h, col) => {
+        bark.cyl(x, z, 0, h * 0.85, 0.24, 0.05, tc('#4d4339'), 7); const nT = 15, cB = col || '#566c66';
+        for (let k = 0; k < nT; k++) {
+          const t = k / nT, yb = 0.3 + t * (h - 1.2), r = d / 2 * Math.pow(1 - t, 1.0) * (0.92 + R() * 0.16) + 0.15, yt = yb + (h - 0.3) / nT * 2.6, n = 13, ph = R() * 6.28;
+          const ring = []; for (let i = 0; i < n; i++) { const a = ph + i / n * 6.2832, rr = r * (i % 2 ? 0.74 : 1.0) * (0.9 + R() * 0.18); ring.push([x + Math.cos(a) * rr, yb + (i % 2 ? 0.18 : -0.08) * r * 0.5, z + Math.sin(a) * rr, a]); }
+          const ap = [x, yt, z]; needle.grow(n * 6);
+          for (let i = 0; i < n; i++) { const p0 = ring[i], p1 = ring[(i + 1) % n], am = (p0[3] + p1[3]) / 2, nx = Math.cos(am) * 0.8, nz = Math.sin(am) * 0.8, c = tc(cB, 0.82 + R() * 0.28);
+            for (const q of [ap, p0, p1]) needle.v(q[0], q[1], q[2], nx, 0.6, nz, q === ap ? shadeC(c, 0.7) : c, (q[0] - x + q[2] - z) * 0.7, (q[1]) * 0.7);
+            const ui = [x, yb + 0.25, z]; for (const q of [ui, p1, p0]) needle.v(q[0], q[1], q[2], 0, -1, 0, shadeC(c, 0.45), (q[0] - x) * 0.7, (q[2] - z) * 0.7); }
+        }
+        MET.keep.push([x, z, d / 2 + 0.2, 0, h * 0.35], [x, z, d / 3 + 0.1, h * 0.35, h * 0.7], [x, z, d / 6 + 0.1, h * 0.7, h]);
+      };
+      // the measured ones: the blue spruce by the gaga pit (12.5-13 m from its 11.5 m shadow, visible crown about 5.5 m), the big
+      // maples on the west lawn by the fence, the trees east and south, the big tree in front of Wittenberg
+      spruce(0.4, 32.6, 5.6, 12.8, '#5a6f6b');
+      decid(-12.8, 38.0, 11.5, 13, 'maple'); decid(-13.2, 27.0, 10.0, 12, 'maple', 0, '#4d6234'); decid(-14.0, 57.0, 10.0, 12, 'oak');
+      decid(50.0, 30.0, 13.0, 14, 'locust'); decid(52.0, 55.0, 14.0, 15, 'maple', 0, '#4e6335'); decid(12.0, -60.0, 15.0, 14, 'oak');
+      decid(-44.0, 44.0, 12, 13, 'maple', 0, '#4a5d33');
+      // the spruces along the Main Street fence north of the playground (WGLT photo 01: two blue and one green spruce at the fence)
+      spruce(-12.2, 61.5, 4.6, 10.5, '#5e726e'); spruce(-11.4, 67.8, 4.2, 9.5, '#5b706b'); spruce(-12.6, 75.5, 5.2, 11.5, '#3b5640');
+      // more trees around the site, kept off buildings, streets and the play areas
+      const blocked = (x, z) => (x > -38 && x < -14 && z > -60 && z < 200) || (x > -16 && x < 34 && z > -56 && z < 46) || (x > 33 && x < 99 && z > -88 && z < 97) || (x > -80 && x < -36 && z > -62 && z < 42) || (x > -16 && x < 4 && z > -118 && z < -54) || Math.abs(x + 26) < 12 || (x > -16 && x < -9 && z > 58 && z < 80) || (x > -112 && x < -80 && z > -42 && z < -6);
+      let placed = 0, tries = 0;
+      while (placed < 16 && tries++ < 4000) { const a = R() * 6.28, rad = 45 + R() * 150, x = 12 + Math.cos(a) * rad, z = Math.sin(a) * rad; if (blocked(x, z)) continue; const d = 8 + R() * 7, h = 10 + R() * 6, q = R(); decid(x, z, d, h, q < 0.2 ? 'locust' : q < 0.45 ? 'oak' : 'maple', 1, R() < 0.12 ? '#7a7a38' : null); placed++; }
+      // street trees on the far side of Main
+      for (let z = -95; z < 110; z += 21 + R() * 6) { if (z > -8 && z < 12) continue; decid(-37.6 - R(), z, 7 + R() * 3, 9 + R() * 3, R() < 0.5 ? 'maple' : 'locust', 1); }
+    }
+      // the campus and the town beyond: a ragged ring of tree canopy 140-250 m out (two staggered rows, 9-18 m, gaps where
+      // South Main Street runs through), with roofs of houses showing in the gaps, so the horizon is not an empty plain
+      {
+        const hn = vnoise(911), cx0 = 12, cz0 = 0, NS = 150, rows = [[150, 9, 15, 0], [215, 11, 18, 0.5]];
+        for (const [r0, h0, h1, off] of rows) {
+          const pts = [];
+          for (let i = 0; i <= NS; i++) {
+            const th = (i + off) / NS * 6.2832, rr = r0 + (hn(th * 3 + r0, 5) - 0.5) * 50, x = cx0 + Math.cos(th) * rr, z = cz0 + Math.sin(th) * rr;
+            const gap = Math.max(0, Math.min(1, (hn(th * 4.5 + r0 * 0.1, 9) - 0.3) * 4)), road = x > -48 && x < -6 ? 0 : 1;
+            const h = (h0 + (h1 - h0) * hn(th * 9 + r0, 17) + (hn(th * 40 + r0, 23) - 0.5) * 3.2) * gap * road;
+            pts.push([x, z, Math.max(0, h), th]);
+          }
+          leaf.grow(NS * 12);
+          for (let i = 0; i < NS; i++) {
+            const a = pts[i], b = pts[i + 1]; if (a[2] < 0.5 && b[2] < 0.5) continue;
+            const na = [-Math.cos(a[3]), 0.35, -Math.sin(a[3])], nb = [-Math.cos(b[3]), 0.35, -Math.sin(b[3])], ca = tc(hn(a[3] * 13, 31) < 0.5 ? '#3d4a30' : '#56603f', 0.9 + hn(a[3] * 21, 7) * 0.2), cb = tc(hn(b[3] * 13, 31) < 0.5 ? '#3d4a30' : '#56603f', 0.9 + hn(b[3] * 21, 7) * 0.2);
+            const ya = a[2] * 0.62, yb = b[2] * 0.62, ua = a[3] * r0 * 0.12, ub = b[3] * r0 * 0.12, lo = (c) => shadeC(c, 0.62);
+            const Q = (p0, y0, n0, c0, u0, p1, y1, n1, c1, u1, y2a, y2b, c2a, c2b, v0, v1) => { for (const [p, y, n, c, u, v] of [[p0, y0, n0, c0, u0, v0], [p1, y1, n1, c1, u1, v0], [p1, y2b, n1, c2b, u1, v1], [p0, y0, n0, c0, u0, v0], [p1, y2b, n1, c2b, u1, v1], [p0, y2a, n0, c2a, u0, v1]]) leaf.v(p[0], y, p[1], n[0], n[1], n[2], c, u, v); };
+            Q(a, -0.05, na, lo(ca), ua, b, -0.05, nb, lo(cb), ub, ya, yb, ca, cb, 0, ya * 0.12);
+            Q(a, ya, na, ca, ua, b, yb, nb, cb, ub, a[2], b[2], shadeC(ca, 1.08), shadeC(cb, 1.08), ya * 0.12, a[2] * 0.12);
+          }
+          // roofs and walls of houses in the gaps
+          for (let i = 3; i < NS; i += 7) { const p = pts[i]; if (p[2] > 4 || (p[0] > -50 && p[0] < -4)) continue; const th = p[3], rr = Math.hypot(p[0] - cx0, p[1] - cz0) - 12;
+            hipHouse(brick, shing, cx0 + Math.cos(th) * rr, cz0 + Math.sin(th) * rr, 11 + hn(i, 3) * 6, 8 + hn(i, 4) * 3, th + Math.PI / 2, 3.0 + hn(i, 5) * 2.8, 6.0 + hn(i, 6) * 2.5, tc(hn(i, 8) < 0.5 ? '#8e5446' : '#b9b2a2'), tc('#5d5a55'), 0.5); }
+        }
+      }
+    mark('done: metres');
+    // ===== done: metres -> engine units, and the per-batch materials =====
+    const conv = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] *= M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } };
+    conv(pb); for (const k in B) if (B[k].n) conv(B[k]);
+    const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
+    W.defs = {
+      mground: T1('mground', 0.88, 1, false, false, 'ground'), mlot: T1('mlot', 0.85, 1, false, false, 'lot'), masph: T1('masph', 0.88, 1, false, false, 'asphalt.jpg'),
+      mgrass: T1('mgrass', 0.95, 0, false, false, 'grass.jpg'), mconc: T1('mconc', 0.82, 0, true, false, 'concrete.jpg'), mstreet: T1('mstreet', 0.85, 0, false, false, 'concrete.jpg'),
+      mchips: T1('mchips', 0.95, 0, false, false, 'woodchips.jpg'), mdirt: T1('mdirt', 0.95, 0, false, false, 'dirt.jpg'), mbrick: T1('mbrick', 0.85, 0, true, true, 'brick.jpg'),
+      mpanel: T1('mpanel', 0.9, 0, true, true, 'panel_blue.jpg'), mcorr: T1('mcorr', 0.6, 0, true, true, 'corrugated.jpg'), mbark: T1('mbark', 0.9, 0, true, true, 'bark.jpg'),
+      mleaf: T1('mleaf', 0.88, 0, true, true, 'leaves.jpg'), mshing: T1('mshing', 0.85, 0, true, true, 'shingle.jpg'), mneedle: T1('mneedle', 0.9, 0, true, true, 'needles.jpg'), matlas: T1('matlas', 0.7, 0, true, true, 'atlas'), mroof: T1('mroof', 0.8, 0, true, true, 'roof'),
+      mflat: T1('mflat', 0.75, 0, false, false, null), mglass: { b: B.mglass, tex: null, mat: [0.06, 0, 0, 0], kind: 0, cast: false, c0: false },
+      mpick: Object.assign(T1('mpick', 0.9, 8, false, false, 'pickets'), { blend: true }), // last: drawn see-through over what is behind it
+    };
+    let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
+    if (DBG) DBG.metKeepOut = metKeepOut; // for the screenshot and camera tests
+    if (DBG) DBG.metStats = { sec: SEC.map((q, i) => [q[0], q[1] - (i ? SEC[i - 1][1] : 0)]), verts: nv, ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))) };
+    return W;
+  }
+  // ---------- the picket fence texture: one picket per tile (a 0.02 m bar with a spear tip on a 0.115 m pitch), alpha only. Its
+  // mip levels are built by hand with the coverage raised with distance (pickets seen from afar overlap), so far fence runs read
+  // as a dark see-through veil instead of shimmering hatching ----------
+  function metPicketTex() {
+    const t = gl.createTexture(); G.texs.push(t); gl.bindTexture(gl.TEXTURE_2D, t);
+    const W0 = 32, H0 = 64, b0 = 13, b1 = 19, cov = (b1 - b0) / W0;
+    for (let L = 0; L <= 6; L++) { // 32x64 down to 1x1 (a complete chain)
+      const w = Math.max(1, W0 >> L), h = Math.max(1, H0 >> L), sc = 1 << L, k = Math.min(Math.pow(1.35, L), 0.5 / cov), d = new Uint8Array(w * h * 4);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let a = 0; for (let yy = y * sc; yy < Math.min(H0, (y + 1) * sc); yy++) for (let xx = x * sc; xx < Math.min(W0, (x + 1) * sc); xx++) { const tip = yy < 6 ? (b1 - b0) / 2 * (yy / 6) : 3, c = (b0 + b1) / 2; a += xx + 0.5 >= c - tip && xx + 0.5 < c + tip ? 1 : 0; }
+        a /= Math.min(W0, sc) * Math.min(H0, sc); const o = (y * w + x) * 4; d[o] = d[o + 1] = d[o + 2] = 255; d[o + 3] = Math.round(Math.min(1, a * k) * 255);
+      }
+      gl.texImage2D(gl.TEXTURE_2D, L, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, d);
+    }
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    return t;
+  }
+  // ---------- statics for the venue batches (called from setupGL after the built-in ones) ----------
+  let metTex = null;
+  function metStatics(W) {
+    const tq = performance.now(), big = quality >= 2 && X.maxTex >= 8192 && (navigator.deviceMemory || 0) >= 8 ? 4096 : Math.min(2048, X.maxTex);
+    metTex = {};
+    // a quick quarter-size blacktop first; the full one is drawn once (with the photo's aggregate when it arrives in time)
+    metTex.ground = ctex(metGroundCanvas(Math.min(1024, big)), false, 16);
+    let groundFull = false; const fullGround = () => { if (groundFull || !G || !metTex || glLost) return; groundFull = true; const had = vimg('asphalt.jpg').ok; try { reupload(metTex.ground, metGroundCanvas(big), false, 16); } catch (e) {}
+      if (!had) vimg('asphalt.jpg').cbs.push(() => setTimeout(() => { if (!G || !metTex || glLost) return; try { reupload(metTex.ground, metGroundCanvas(big), false, 16); } catch (e) {} }, 0)); };
+    { const r = vimg('asphalt.jpg'); if (r.ok) setTimeout(fullGround, 0); else r.cbs.push(() => setTimeout(fullGround, 0)); setTimeout(fullGround, 2500); }
+    metTex.lot = ctex(metLotCanvas(quality >= 2 ? 2048 : 1024), false, 16);
+    metTex.roof = ctex(metRoofCanvas(quality >= 2 ? 1024 : 512, quality >= 2 ? 2048 : 1024), false, 8);
+    metTex.atlas = ctex(metAtlasCanvas(), false, 8);
+    metTex.pickets = metPicketTex();
+    if (DBG && DBG.metStats) DBG.metStats.texMs = Math.round(performance.now() - tq);
+    // once the photos arrive, the ground canvases redraw with the real aggregate in them
+    const redo = (name, fn, key, size) => { const r = vimg(name); const f = () => { if (!G || !metTex || glLost) return; try { reupload(metTex[key], fn(size), false, 16); } catch (e) {} }; if (!r.ok) r.cbs.push(() => setTimeout(f, 0)); };
+    redo('asphalt.jpg', metLotCanvas, 'lot', quality >= 2 ? 2048 : 1024);
+    for (const k in W.defs) {
+      const d = W.defs[k]; if (!d.b || !d.b.n) continue;
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d.b.f.subarray(0, d.b.n * 12), gl.STATIC_DRAW); G.bufs.push(b);
+      const tex = !d.tex ? G.white : metTex[d.tex] ? metTex[d.tex] : vtex(d.tex);
+      statics.push({ k, b, n: d.b.n, tex, cast: d.cast, c0: d.c0, kind: d.kind, mat: d.mat, blend: !!d.blend });
+    }
+  }
+  // ---------- shadow cascades sized for the schoolyard: near box on the play, then fixed boxes over the site ----------
+  function metCasc(mid, nearR) {
+    if (NCASC() >= 3) return [[cam.c, nearR], [mid, 30], [MET.centre, 64]];
+    return [[cam.c, nearR], [MET.centre, 50], [MET.centre, 64]];
+  }
 
     // ---------- game state ----------
     let phase = 'splash', qtr = 1, clock = QS, hs = 0, as = 0;
-    let los = 25, down = 1, fdz = 35, play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
+    let los = TB, down = 1, fdz = TB + FD, play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
     const RUNOFF = 4; // seconds the clock keeps running after a play that ends in bounds
     let runoff = 0;
     let tPlay = 0, clockRun = false, toLeft = TOS, playClock = 20, warned = [false, false], recv2 = 'away', otLeft = 0, suddenDeath = false, kocT = 0;
@@ -2758,13 +4115,13 @@ gl_FragColor=vec4(c,1.0);}`;
     let ball = null, ctrl = null, carrier = null, mode = 'none', passer = null, target = null, thrown = false, handed = false, runSeen = -1, crossed = false;
     let aim = null, arc = 1, pend = null, deadT = 0, deadTot = 0, closeP = null, intro = 0, introCut = false, kick = null, cpuD = null, brk = null;
     let pr = null;
-    let excite = 0, parts = [], wxp = [], driveStart = 25, drivePlays = 0, replayBuf = [], replay = null, recT = 0, lastBig = null, pile = [], playRes = '';
+    let excite = 0, parts = [], wxp = [], driveStart = TB, drivePlays = 0, replayBuf = [], replay = null, recT = 0, lastBig = null, pile = [], playRes = '';
     const cam = { e: [0, 15, 6], c: [0, 0, 34], fov: 1, shake: 0, kick: 0, sx: 0, sy: 0 };
     const input = { l: 0, r: 0, u: 0, d: 0, stick: null, sprint: false };
     const GRAV = 12;
     const fmtClock = (c) => { c = Math.max(0, Math.ceil(c)); return Math.floor(c / 60) + ':' + String(c % 60).padStart(2, '0'); };
-    const ballTxt = (z) => { z = Math.round(z); return z === 50 ? 'Midfield' : z < 50 ? 'Own ' + z : 'Opp ' + (100 - z); };
-    const ddTxt = () => (tryMode ? 'Try' : `${ORD[Math.min(down, 4)]} & ${fdz >= 100 ? 'Goal' : Math.max(1, Math.round(fdz - los))}`);
+    const ballTxt = (z) => { z = Math.round(z); return z === MID ? 'Midfield' : z < MID ? 'Own ' + z : 'Opp ' + Math.round(FL - z); };
+    const ddTxt = () => (tryMode ? 'Try' : `${ORD[Math.min(down, 4)]} & ${fdz >= FL ? 'Goal' : Math.max(1, Math.round(fdz - los))}`);
     const WARN = QS >= 240 ? 120 : Math.round(QS * 0.25);
 
     function mkP(side, role, key, x, z, o) {
@@ -2809,12 +4166,22 @@ gl_FragColor=vec4(c,1.0);}`;
     // dig sinks the hips to under half speed; a curl, hitch or comeback plants and comes back nearly from a stop. A quick receiver
     // (agility) loses less in the break and gets back to speed sooner, so his breaks are sharper and harder to stay with.
     const RT_DT = 0.05;
+    const RZMAX = SMALL ? ZEND - 0.7 : ZEND - emg(2); // the deepest a route goes: just inside the end line
+    // the backfield on the small field: with the ball near your own goal line there is no room behind it, so every depth behind the
+    // line (the backs, the quarterback's drop) shrinks to fit in front of the end line (BF; 1 at the stadium)
+    let bfK = 1;
+    const BF = (u) => (bfK !== 1 && u < -1.3 ? -1.3 + (u + 1.3) * bfK : u); // under center (1.3 back) never moves
     function buildRoute(p, r) {
       const s = p.x < -0.5 ? -1 : p.x > 0.5 ? 1 : (flip ? -1 : 1), pts = [[p.x, p.z]];
-      for (const [o, u] of r.w) pts.push([clamp(p.x + s * o, -25.5, 25.5), clamp(p.z + u, -9, 108)]); // routes stay inside the end zone
+      let endC = false;
+      if (SMALL) { // the small field: the breaks in stadium terms mapped onto this field (LX, DZ); a route that runs into the end line
+        // stops there and settles along the back line (the end zone is 2 yards deep)
+        const xs = LXI(p.x);
+        for (const [o, u] of r.w) { const z = p.z + DZ(u); if (z > RZMAX) endC = true; pts.push([clamp(LX(xs + s * o), -(HW - 1.15), HW - 1.15), clamp(z, ZBACK + emg(1), RZMAX)]); }
+      } else for (const [o, u] of r.w) pts.push([clamp(p.x + s * o, -(HW - 1.15), HW - 1.15), clamp(p.z + u, ZBACK + emg(1), ZEND - emg(2))]); // routes stay inside the end zone
       const seg = [];
       for (let i = 1; i < pts.length; i++) { const dx = pts[i][0] - pts[i - 1][0], dz = pts[i][1] - pts[i - 1][1], l = Math.hypot(dx, dz) || 0.001; seg.push({ x: pts[i - 1][0], z: pts[i - 1][1], dx: dx / l, dz: dz / l, l }); }
-      const R = { pts, seg, sit: !!r.sit, s, d: (r.d || 0) + (r.blk || 0), blk: r.blk || 0, v: p.v * 0.97, len: seg.reduce((a, q) => a + q.l, 0) };
+      const R = { pts, seg, sit: !!r.sit || endC, endC, s, d: (r.d || 0) + (r.blk || 0), blk: r.blk || 0, v: p.v * 0.97, len: seg.reduce((a, q) => a + q.l, 0) };
       const ag = clamp(((p.agi || 60) - 60) / 40, -1, 1), V = R.v;
       const vb = seg.map((s0, i) => { if (i === seg.length - 1) return V; const s1 = seg[i + 1], c = s0.dx * s1.dx + s0.dz * s1.dz; return V * clamp((c > 0.8 ? 0.93 : c > 0.25 ? 0.74 : c > -0.35 ? 0.47 : 0.28) + ag * 0.09, 0.18, 0.97); });
       // his legs, the same as the movement physics (drive in 30-ai.js): a first-step push from his acceleration rating and
@@ -2857,7 +4224,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const s = R.seg[R.seg.length - 1], ex = s.x + s.dx * s.l, ez = s.z + s.dz * s.l;
       if (R.sit) return { x: ex, z: ez, vx: 0, vz: 0, seg: R.seg.length - 1, end: true };
-      const x = ex + s.dx * d, z = ez + s.dz * d, cx = clamp(x, -25.5, 25.5), cz = clamp(z, -9, 108);
+      const x = ex + s.dx * d, z = ez + s.dz * d, cx = clamp(x, -(HW - 1.15), HW - 1.15), cz = clamp(z, ZBACK + emg(1), RZMAX);
       return { x: cx, z: cz, vx: cx === x ? s.dx * R.v : 0, vz: cz === z ? s.dz * R.v : 0, seg: R.seg.length - 1, end: true };
     }
 
@@ -2872,7 +4239,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // they've seen you go deep over and over: two deep (quarters, Cover 2, or Cover 3 with the corners bailing), no all-out blitz
       if (FILM.heat > 0 && !(DBG && DBG.defKind != null) && !tryMode && rng() < FILM.heat * 0.9) { const r = rng(), cov = r < 0.45 ? 4 : r < 0.8 ? 2 : 3; return { cov, blitz: 0, stunt: rng() < 0.15, disguise: rng() < DP.disguise, name: COVN[cov], film: true }; }
       if (DBG && DBG.defKind != null) return /^c[0-4]$/.test(DBG.defKind) ? { cov: +DBG.defKind[1], blitz: DBG.defKind === 'c0' ? 2 : 0, stunt: false, disguise: false, name: COVN[+DBG.defKind[1]] } : DEFK(DBG.defKind); // tests
-      const togo = fdz - los, rz = los >= 78;
+      const togo = fdz - los, rz = los >= FL - VN.RZ - 2;
       let w;
       if (KDEF < 0.25) w = [0, 0.08, 0.35, 0.57, 0];
       else if (down >= 3 && togo >= 7) w = [0.04 + 0.1 * KDEF, 0.16, 0.2, 0.34, 0.26];
@@ -2904,9 +4271,10 @@ gl_FragColor=vec4(c,1.0);}`;
       clearPlayers();
       tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = false; runSeen = -1; crossed = false; aim = null; target = null; passer = null; playRes = '';
       parts = parts.filter((q) => q.life > 0); recT = 0; replayBuf = [];
-      const F = FORMS[play.form], fx = flip ? -1 : 1, zc = (z) => clamp(z, -8, 108);
+      const F = FORMS[play.form], fx = flip ? -1 : 1, zc = (z) => clamp(z, ZBACK + emg(2), ZEND - emg(2));
+      bfK = SMALL ? clamp((los + EZ - 1.9) / 6.3, 0.15, 1) : 1; // the deepest spot (7.6 back: a back, a deep drop) stays 0.6 inside the end line
       for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y']) {
-        const sp = F[k]; let x = sp[0] * fx, z = los + sp[1];
+        const sp = F[k]; let x = xin(LX(sp[0]) * fx, 1.5), z = Math.max(los + BF(sp[1]), ZBACK + emg(1.5)); // never lined up behind the end line
         if (k === 'Y' && play.form === 'gun' && play.id !== 'rbscreen') x = 3.9 * fx;
         addOff(offPlayer(k, x, z));
       }
@@ -2926,26 +4294,27 @@ gl_FragColor=vec4(c,1.0);}`;
       filmPrep(); // has the defense seen this play (and this receiver) too often?
       dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
       const sgn = OK.Y.x >= 0 ? 1 : -1, cush = DP.cush;
-      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, x, z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
+      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
       D('DL', 'DE1', -4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 91 }); D('DL', 'DT1', -1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
       D('DL', 'DT2', 1.35, los + 0.9, { w: 1.2, rad: 0.5, num: 93 }); D('DL', 'DE2', 4.6, los + 0.9, { w: 1.2, rad: 0.5, num: 99 });
-      const slot = OK.S, nickel = Math.abs(slot.x) > 5.5;
-      D('LB', 'LBW', -4.2 * sgn, los + 4.6, { num: 54 }); D('LB', 'LBM', 0.3, los + 4.9, { num: 50 });
-      D('LB', 'LBS', nickel ? slot.x - Math.sign(slot.x) * 0.9 : 4.2 * sgn, los + (nickel ? 4.2 : 4.6), { num: nickel ? 26 : 52, v: nickel ? DP.cbV * 0.97 : DP.lbV });
+      const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
+      D('LB', 'LBW', -4.2 * sgn, zc(los + 4.6), { num: 54 }); D('LB', 'LBM', 0.3, zc(los + 4.9), { num: 50 }); // (zc only binds in a shallow end zone)
+      D('LB', 'LBS', nickel ? slot.x - Math.sign(slot.x) * 0.9 : 4.2 * sgn, zc(los + (nickel ? 4.2 : 4.6)), { num: nickel ? 26 : 52, v: nickel ? DP.cbV * 0.97 : DP.lbV });
       const dk = dcall.kind || '', press = dk === 'press' || (!dk && KDEF > 0.7 && rng() < 0.35);
       const X = OK.X, Z = OK.Z;
-      const cbZ = () => zc(los + (press ? 1.4 : dk === 'prev' ? 8 + rng() * 1.5 : cush + rng() * 1.2)); // Prevent: a big cushion
+      const cbZ = () => zc(los + DZ(press ? 1.4 : dk === 'prev' ? 8 + rng() * 1.5 : cush + rng() * 1.2)); // Prevent: a big cushion
       D('CB', 'CB1', X.x - Math.sign(X.x || -1) * 0.6, cbZ(), { num: 24 });
       D('CB', 'CB2', Z.x - Math.sign(Z.x || 1) * 0.6, cbZ(), { num: 21 });
       const twoHigh = [2, 4].indexOf(dcall.cov) >= 0 ? !dcall.disguise : dcall.disguise;
-      if (dk === 'prev') { D('S', 'FS', -9, zc(los + 18), { num: 31 }); D('S', 'SS', 9, zc(los + 18), { num: 42 }); }
-      else if (dk === 'box') { D('S', 'FS', 0, zc(los + 14.5), { num: 31 }); D('S', 'SS', OK.Y.x + sgn * 1.2, zc(los + 4.6), { num: 42 }); } // the strong safety walks down over the tight end
+      if (dk === 'prev') { D('S', 'FS', LX(-9), zc(los + DZ(18)), { num: 31 }); D('S', 'SS', LX(9), zc(los + DZ(18)), { num: 42 }); }
+      else if (dk === 'box') { D('S', 'FS', 0, zc(los + DZ(14.5)), { num: 31 }); D('S', 'SS', OK.Y.x + sgn * 1.2, zc(los + 4.6), { num: 42 }); } // the strong safety walks down over the tight end
       else {
-        D('S', 'FS', twoHigh ? -10 * sgn : 0, zc(los + (twoHigh ? 13 : 14.5)), { num: 31 }); // the strong safety on the tight end's side, two-high or not
-        D('S', 'SS', twoHigh ? 10 * sgn : 5 * sgn, zc(los + (twoHigh ? 13 : 7.5)), { num: 42 });
+        D('S', 'FS', twoHigh ? LX(-10 * sgn) : 0, zc(los + DZ(twoHigh ? 13 : 14.5)), { num: 31 }); // the strong safety on the tight end's side, two-high or not
+        D('S', 'SS', LX(twoHigh ? 10 * sgn : 5 * sgn), zc(los + DZ(twoHigh ? 13 : 7.5)), { num: 42 });
       }
-      if (dk === 'box') for (const k of ['LBW', 'LBM', 'LBS']) if (DK[k].num !== 26) DK[k].z = los + 3.3; // linebackers up in the box
-      const Z_ = (x, z, deep) => ({ t: 'zone', x, z, deep: !!deep });
+      if (dk === 'box') for (const k of ['LBW', 'LBM', 'LBS']) if (DK[k].num !== 26) DK[k].z = zc(los + 3.3); // linebackers up in the box
+      // a zone landmark: where it is on this field (x, z from the line) and where the design puts it (xs, zs: stadium terms)
+      const Z_ = (x, z, deep) => ({ t: 'zone', x: xin(LX(x), 1.5), z: DZ(z), xs: x, zs: z, deep: !!deep });
       const man = (k) => ({ t: 'man', tgt: OK[k] });
       const A = {}, c = dcall.cov;
       if (c === 0) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), LBW: { t: 'rush' }, FS: { t: 'rush' } });
@@ -2961,8 +4330,8 @@ gl_FragColor=vec4(c,1.0);}`;
       if (c >= 2 && dcall.blitz) {
         const bk = rng() < 0.5 ? 'LBM' : 'LBW', hole = A[bk]; A[bk] = { t: 'rush' };
         // a zone blitz still covers the field: the nearest hook defender slides toward the hole the blitzer left
-        let nb = null, nd = 99; for (const k of ['LBW', 'LBM', 'LBS']) { const z = A[k]; if (k === bk || !z || z.t !== 'zone' || z.deep || Math.abs(z.x) >= 9) continue; const dd = Math.abs(z.x - hole.x); if (dd < nd) { nd = dd; nb = k; } }
-        if (nb && hole) A[nb] = Z_((A[nb].x + hole.x) / 2, Math.max(A[nb].z, hole.z));
+        let nb = null, nd = 99; for (const k of ['LBW', 'LBM', 'LBS']) { const z = A[k]; if (k === bk || !z || z.t !== 'zone' || z.deep || Math.abs(z.xs) >= 9) continue; const dd = Math.abs(z.xs - hole.xs); if (dd < nd) { nd = dd; nb = k; } }
+        if (nb && hole) A[nb] = Z_((A[nb].xs + hole.xs) / 2, Math.max(A[nb].zs, hole.zs));
       }
       if (dk === 'prev') Object.assign(A, { CB1: Z_(-16, 22, 1), CB2: Z_(16, 22, 1), FS: Z_(-6, 28, 1), SS: Z_(6, 28, 1), LBW: Z_(-12, 9), LBM: Z_(0, 12), LBS: Z_(12, 9) }); // four deep, three under
       else if (dk === 'spy') A.LBW = { t: 'spy' };
@@ -3129,7 +4498,7 @@ gl_FragColor=vec4(c,1.0);}`;
         // the lock point: the ball of the foot for the gait (the foot rolls over it), the ankle for the other clips
         const P = g ? mPt(m, 0, -0.04 * hs, 0.12 * hs) : [m[3], m[7], m[11]];
         if (planted) {
-          if (!L.on) { L.on = 1; L.x = P[0]; L.z = P[2]; L.m = m.slice(); L.fade = 0; const sp = Math.hypot(p.vx, p.vz); if (sp > 6 && parts.length < 90 && crand() < 0.35) for (let k = 0; k < 2; k++) parts.push({ x: m[3], y: 0.06, z: m[11], vx: -p.vx * 0.25 + (crand() - 0.5) * 1.5, vy: 1.8 + crand() * 1.6, vz: -p.vz * 0.25 + (crand() - 0.5) * 1.5, life: 0.5 + crand() * 0.3, r: crand() * 6, c: WX === 'rain' ? [0.2, 0.14, 0.08, 1] : [0.1 + crand() * 0.1, 0.25 + crand() * 0.1, 0.06, 1], sz: 0.05 }); }
+          if (!L.on) { L.on = 1; L.x = P[0]; L.z = P[2]; L.m = m.slice(); L.fade = 0; const sp = Math.hypot(p.vx, p.vz); if (sp > 6 && parts.length < 90 && !METCALF && crand() < 0.35) for (let k = 0; k < 2; k++) parts.push({ x: m[3], y: 0.06, z: m[11], vx: -p.vx * 0.25 + (crand() - 0.5) * 1.5, vy: 1.8 + crand() * 1.6, vz: -p.vz * 0.25 + (crand() - 0.5) * 1.5, life: 0.5 + crand() * 0.3, r: crand() * 6, c: WX === 'rain' ? [0.2, 0.14, 0.08, 1] : [0.1 + crand() * 0.1, 0.25 + crand() * 0.1, 0.06, 1], sz: 0.05 }); }
           const dx = L.x - P[0], dz = L.z - P[2], dd = Math.hypot(dx, dz);
           if (dd > 0.42 * hs) { L.on = 0; continue; }
           if (dd > 0.004) { const tgt = [m[3] + dx, m[7], m[11] + dz]; legIK(bones, side, tgt, hs, fwd, g ? m : L.m, p.lk.ll); } // the gait keeps its own foot angle (heel peeling up)
@@ -3710,6 +5079,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const ax = p.x - nd.x, az = p.z - nd.z, al = Math.hypot(ax, az) || 1;
           tx = q.x + ax / al * 1.6; tz = q.z + Math.max(-0.5, az / al * 0.8);
           if (nd.ass && nd.ass.t === 'man') { tx = q.x + (ax / al) * 2.2 + Math.sin(tPlay * 2.5) * 0.4; tz = q.z + 1.2; }
+          if (p.R.endC) { tx = clamp(q.x + (ax < 0 ? -1 : 1) * 2.2, -(HW - 1.2), HW - 1.2); tz = Math.min(tz, RZMAX); } // on the end line: slide along it, away from him
         }
         steer(p, tx, tz, p.R.v * 0.9, dt, 9);
         if (Math.hypot(tx - p.x, tz - p.z) < 0.7) { p.face2 = Math.atan2(qb.x - p.x, qb.z - p.z); p.vx *= 0.7; p.vz *= 0.7; }
@@ -3729,8 +5099,9 @@ gl_FragColor=vec4(c,1.0);}`;
       const sp = Math.hypot(qb.vx, qb.vz), out = Math.abs(qb.x) > 4.2 || (sp > 3.2 && Math.abs(qb.vx) > 2.4 && Math.abs(qb.x) > 2.8);
       if (!out && !p.scr) return false;
       p.scr = 1;
-      const side = Math.sign(qb.x || qb.vx) || 1, deep = p.z - los > 11;
-      let tx = deep ? qb.x + side * 5 + (p.x - qb.x) * 0.35 : clamp(qb.x + side * 9 + (p.x - qb.x) * 0.25, -HW + 2, HW - 2), tz = deep ? Math.max(los + 9, p.z - 4) : los + 4 + Math.max(0, (p.z - los) * 0.4);
+      const side = Math.sign(qb.x || qb.vx) || 1, deep = p.z - los > DZ(11);
+      let tx = deep ? qb.x + side * KXS(5) + (p.x - qb.x) * 0.35 : clamp(qb.x + side * (SMALL ? 6 : 9) + (p.x - qb.x) * 0.25, -HW + 2, HW - 2), tz = deep ? Math.max(los + DZ(9), p.z - 4) : los + 4 + Math.max(0, (p.z - los) * 0.4);
+      if (SMALL) tz = Math.min(tz, RZMAX);
       const [nd, dd] = nearest(def, p.x, p.z, (d) => !d.rag && !d.eng);
       if (nd && dd < 4) { tx += (p.x - nd.x) / dd * 2; tz += (p.z - nd.z) / dd * 1.2; }
       tx = clamp(tx, -HW + 1.5, HW - 1.5);
@@ -3756,8 +5127,8 @@ gl_FragColor=vec4(c,1.0);}`;
         const wasSpr = p.sprint; p.sprint = false; const vRun = effV(p); p.sprint = true; const vSpr = p.sta > 0.02 ? effV(p) : vRun; p.sprint = wasSpr;
         const sp = Math.hypot(p.vx, p.vz), hv = Math.hypot(b.vx, b.vz) || 1;
         // stay in bounds: he works to the boundary and reaches for a ball going out rather than running out after it
-        let ax = clamp(cp.x, -HW + 0.45, HW - 0.45), az = Math.min(cp.z, 109.4);
-        if (!mine) { const ox = p.x - cp.x, oz = p.z - cp.z, ol = Math.hypot(ox, oz) || 1; ax = clamp(cp.x + ox / ol * 1.3, -HW + 0.45, HW - 0.45); az = Math.min(cp.z + oz / ol * 1.3, 109.4); }
+        let ax = clamp(cp.x, -HW + 0.45, HW - 0.45), az = Math.min(cp.z, ZEND - emg(0.6));
+        if (!mine) { const ox = p.x - cp.x, oz = p.z - cp.z, ol = Math.hypot(ox, oz) || 1; ax = clamp(cp.x + ox / ol * 1.3, -HW + 0.45, HW - 0.45); az = Math.min(cp.z + oz / ol * 1.3, ZEND - emg(0.6)); }
         // a ball coming right to him (curl, hitch, under-thrown): step back toward the passer to meet it and shield it
         if (sp < 2.6 && dd < 1.6) { ax -= b.vx / hv * 0.55; az -= b.vz / hv * 0.55; }
         // a defender breaking on the ball would get there first: attack it now and fight for the spot instead of timing it
@@ -3786,7 +5157,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const [tc, yc, side] = ballOver(p), top = effV(p), lp = b.lp || cp, dl = Math.hypot(lp.x - p.x, lp.z - p.z);
           // go up when the ball will cross over his head within jumping reach, or to high-point it over a defender who is right there
           const [, nd] = nearest(def, cp.x, cp.z, (d) => !d.rag && !d.eng), jt = Math.max(0, tc - 0.16), jy = Math.max(0, (5.6 + (p.agi - 50) * 0.02) * jt - 8.5 * jt * jt), hs = p.lk.hs;
-          if ((mine || b.tipped) && tc > 0.2 && tc < 0.55 && side < 0.9 && yc > (nd < 1.6 ? 2.15 : 2.45) * hs && yc < 2.45 * hs + jy + 0.2 && (b.vy < -2 || yc > 2.6 * hs) && Math.abs(p.x + p.vx * 0.55) < HW - 0.4 && p.z + p.vz * 0.55 < 109.6) doJump(p); // a flat ball at head height he catches on his feet, and he does not leap out of bounds (ball lane)
+          if ((mine || b.tipped) && tc > 0.2 && tc < 0.55 && side < 0.9 && yc > (nd < 1.6 ? 2.15 : 2.45) * hs && yc < 2.45 * hs + jy + 0.2 && (b.vy < -2 || yc > 2.6 * hs) && Math.abs(p.x + p.vx * 0.55) < HW - 0.4 && p.z + p.vz * 0.55 < ZEND - emg(0.4)) doJump(p); // a flat ball at head height he catches on his feet, and he does not leap out of bounds (ball lane)
           // lay out when he cannot get to it on foot, not even at the last catchable moment (waist high)
           else if ((mine || b.tipped) && lp.t < 0.45 && dl > 0.8) { const [gt, gap, gapAny] = reachGap(p, lp, Math.max(top, p.v * 1.15)); if (gt < 0.36 && gapAny > 1.15 && gap < 2.8) doDive(p); }
         }
@@ -3797,23 +5168,23 @@ gl_FragColor=vec4(c,1.0);}`;
       const pt = play.type, fx = flip ? -1 : 1, rb = OK.RB, under = FORMS[play.form].under;
       p.hold = !!(ball && ball.holder === p && !thrown);
       if (ball && ball.holder !== p && (handed || thrown)) {
-        if (pt === 'run' || pt === 'draw') steer(p, p.x - fx * 1.2, p.z - 1, 3, dt);
+        if (pt === 'run' || pt === 'draw') steer(p, p.x - fx * 1.2, SMALL ? Math.max(p.z - 1, ZBACK + 0.6) : p.z - 1, 3, dt);
         else { p.vx *= 0.85; p.vz *= 0.85; }
         p.face2 = carrier ? Math.atan2(carrier.x - p.x, carrier.z - p.z) : null; p.look = carrier ? [carrier.x, 1.5, carrier.z] : ball ? [ball.x, ball.y, ball.z] : null;
         return;
       }
       if (pt === 'run' || pt === 'sneak') {
         if (pt === 'sneak') return;
-        const lane = (play.lane || 0) * fx;
-        if (play.toss) { p.face2 = Math.atan2(lane, -1); steer(p, p.x + fx * 0.6, p.z - 0.8, 2.5, dt); return; }
-        steer(p, lane * 0.25, los - 3.0, 4.2, dt); p.face2 = Math.atan2(lane - p.x, -1.5);
+        const lane = LX(play.lane || 0) * fx;
+        if (play.toss) { p.face2 = Math.atan2(lane, -1); steer(p, p.x + fx * 0.6, SMALL ? Math.max(p.z - 0.8, los + BF(-6)) : p.z - 0.8, 2.5, dt); return; }
+        steer(p, lane * 0.25, los + BF(-3.0), 4.2, dt); p.face2 = Math.atan2(lane - p.x, -1.5);
         return;
       }
-      if (pt === 'draw') { steer(p, 0, los - (under ? 5.5 : 6.4), 4.5, dt); p.face2 = 0; return; }
+      if (pt === 'draw') { steer(p, 0, los + BF(-(under ? 5.5 : 6.4)), 4.5, dt); p.face2 = 0; return; }
       if (pt === 'pa' || pt === 'boot') {
-        if (tPlay < 0.75) { steer(p, fx * 0.7, los - 3.4, 4, dt); p.face2 = Math.atan2(rb.x - p.x, rb.z - p.z); return; }
-        if (pt === 'boot') { steer(p, fx * 9, los - 7.2, 6.2, dt); p.face2 = Math.atan2(fx * 0.6, 1); return; }
-        steer(p, 0, los - 7.2, 5, dt); p.face2 = 0; return;
+        if (tPlay < 0.75) { steer(p, fx * 0.7, los + BF(-3.4), 4, dt); p.face2 = Math.atan2(rb.x - p.x, rb.z - p.z); return; }
+        if (pt === 'boot') { steer(p, fx * LX(9), los + BF(-7.2), 6.2, dt); p.face2 = Math.atan2(fx * 0.6, 1); return; }
+        steer(p, 0, los + BF(-7.2), 5, dt); p.face2 = 0; return;
       }
       const dz = under ? 6.8 : 6.3, B = DEFP.on && DEFP.brain;
       if (B && tPlay > 0.9 && ball && ball.holder === p) {
@@ -3821,17 +5192,17 @@ gl_FragColor=vec4(c,1.0);}`;
         // when the edges close (he never drifts back into them)
         let fx2 = 0, fz2 = 0; for (const d of def) { if (d.eng || d.rag || d.stun > 0) continue; const ex = p.x - d.x, ez = p.z - d.z, e = Math.hypot(ex, ez) || 1; if (e < 4.5) { fx2 += ex / e / e * 4; fz2 += ez / e / e * 2.5; } }
         let edge = 0; for (const d of def) if (d.eng && d.z < p.z + 2 && Math.abs(d.x - p.x) > 2) edge++;
-        steer(p, clamp(p.x + fx2, -4, 4), clamp(p.z + fz2 + (edge ? 1.2 : 0), los - dz - 1.2, los - 3.2), 3.2, dt, 8);
+        steer(p, clamp(p.x + fx2, -4, 4), clamp(p.z + fz2 + (edge ? 1.2 : 0), SMALL ? los + BF(-dz - 1.2) : los - dz - 1.2, los + BF(-3.2)), 3.2, dt, 8);
         const r = B.look; if (r) { p.face2 = Math.atan2(r.x - p.x, r.z - p.z); p.look = [r.x, 1.5, r.z]; }
         return;
       }
-      steer(p, p.x * 0.97, los - dz, under ? 5.4 : 3.5, dt); p.face2 = aim && aim.spot ? Math.atan2(aim.spot.x - p.x, aim.spot.z - p.z) : 0;
+      steer(p, p.x * 0.97, los + BF(-dz), under ? 5.4 : 3.5, dt); p.face2 = aim && aim.spot ? Math.atan2(aim.spot.x - p.x, aim.spot.z - p.z) : 0;
       p.look = aim && aim.spot ? [aim.spot.x, 1.5, aim.spot.z] : [p.x, 1.6, p.z + 20];
     }
     function rbMesh(p, dt) {
-      const pt = play.type, qb = OK.QB, fx = flip ? -1 : 1, lane = (play.lane || 0) * fx;
+      const pt = play.type, qb = OK.QB, fx = flip ? -1 : 1, lane = LX(play.lane || 0) * fx;
       if (pt === 'draw' && tPlay < 0.75) { steer(p, p.x, p.z, 1, dt); p.face2 = 0; return; }
-      if (play.toss) { steer(p, lane * 0.85, los - 4.2, p.v, dt, 10); return; }
+      if (play.toss) { steer(p, lane * 0.85, los + BF(-4.2), p.v, dt, 10); return; }
       if (play.cnt && tPlay < 0.28) { steer(p, p.x - Math.sign(lane || fx) * 1.6, p.z + 0.2, p.v * 0.7, dt, 10); return; } // counter: jab step away from the hole
       const wide = p.key !== 'RB'; // a receiver on a sweep sprints to the mesh point
       steer(p, qb.x + (lane - qb.x) * 0.12 + Math.sign(lane || fx) * 0.5, qb.z - 0.4, p.v * (wide ? 1 : 0.9), dt, 10);
@@ -3874,7 +5245,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // double the down lineman there until one of them climbs to the linebacker
     const ZONE_IDS = { zone: 1, ozone: 1, stretch: 1, toss: 1, qbsweep: 1, jet: 1, endaround: 1 }, GAP_IDS = { power: 1, counter: 1, qbpower: 1 };
     function runPlan() {
-      const fx = flip ? -1 : 1, lx = (play.lane || 0) * fx, s = Math.sign(lx) || fx, zone = !!ZONE_IDS[play.id];
+      const fx = flip ? -1 : 1, lx = LX(play.lane || 0) * fx, s = Math.sign(lx) || fx, zone = !!ZONE_IDS[play.id];
       const ol = [0, 1, 2, 3, 4].map((i) => OK['OL' + i]).filter(Boolean);
       for (const p of ol) p.rb = { k: zone && (p.x - lx) * s > -2.6 ? 'reach' : 'drive', s, lx }; // the backside men cut off the man in front of them
       if (GAP_IDS[play.id]) {
@@ -3882,7 +5253,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (play.id === 'counter') { const t = OK['OL' + (s > 0 ? 0 : 4)]; if (t) t.rb = { k: 'pull', s, lx, n: 1 }; }
       }
       let dl = null, dd = 3.4; for (const d of def) if (d.role === 'DL' && Math.abs(d.x - lx) < dd) { dd = Math.abs(d.x - lx); dl = d; }
-      if (dl && Math.abs(lx) < 7) {
+      if (dl && Math.abs(LXI(lx)) < 7) {
         const c = ol.filter((p) => p.rb.k !== 'pull').sort((a, b) => Math.abs(a.x - dl.x) - Math.abs(b.x - dl.x)).slice(0, 2), climb = 0.55 + rng() * 0.3;
         if (c.length === 2) for (const p of c) p.rb = { k: 'combo', s, lx, d: dl, climb };
       }
@@ -3901,7 +5272,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     const takenBy = (d, p) => { for (const o of off) if (o !== p && o.role === 'OL' && o.tgt === d && !o.rag && !(o.rb && o.rb.k === 'combo' && o.rb.d === d)) return true; return false; };
     function runBlock(p, dt) {
-      const fx = flip ? -1 : 1, lane = (play.lane || 0) * fx;
+      const fx = flip ? -1 : 1, lane = LX(play.lane || 0) * fx;
       if (p.role === 'OL' && p.rb === undefined) runPlan();
       const rb = p.rb;
       if (rb && rb.k === 'pull' && !p.pulled && pullStep(p, rb, dt)) return;
@@ -4072,13 +5443,14 @@ gl_FragColor=vec4(c,1.0);}`;
       if (r.R && !thrown && !(r.blk === 'chip' && tPlay < r.R.blk)) {
         const lag = DP.lag * d.lagK, q = posAt(r.R, Math.max(0, (r.rtT != null ? r.rtT : tPlay - (r.jam || 0)) - lag + (d.read || 0))); // where the receiver really is on his route; read: he knows where it's going
         const k = Math.max(0, 1 - tPlay / 1.6), sp = Math.hypot(q.vx, q.vz) || 1;
-        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + (DP.cush + (d.bail || 0) * 3) * k - (q.vz / sp) * 0.5 * (1 - k);
+        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + (SMALL ? DZ(DP.cush + (d.bail || 0) * 3) : DP.cush + (d.bail || 0) * 3) * k - (q.vz / sp) * 0.5 * (1 - k);
       } else { tx = r.x; tz = r.z + 1.2; }
       // a vertical route: once the receiver is even with him or by him going upfield, he opens his hips and runs with him, aimed at
       // his inside hip (not where the route was a beat ago) at a sprint, and a good corner has a closing gear: he stays in phase,
       // and a real burner can still win a step on a weak one. With no deep help (Cover 0) he plays on top instead of the hip.
       const vert = !thrown && tPlay > 0.6 && r.vz > 4.5 && r.z > d.z - 1.5;
       if (vert) { const inside = r.x > 0 ? -1 : 1, top = (dcall && dcall.cov === 0 ? 0.9 : 0) + (d.bail || 0) * 1.1; tx = r.x + inside * 0.7 + r.vx * 0.1; tz = r.z + r.vz * 0.12 + top; }
+      if (SMALL) tz = Math.min(tz, ZEND - 0.3); // nobody covers from behind the end line
       staminaStep(d, dt, vert || dist(d, r) > 2.5 && tPlay > 1);
       // a corner who got beaten (lost the jam, came up on a fake) can't make the step back up: no faster than the man he chases
       let spd = effV(d) * d.spdK * (vert && !d.beaten ? 1.02 + 0.07 * KDEF : 1);
@@ -4090,7 +5462,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function spyQB(d, dt) {
       const qb = OK.QB; if (!qb || handed) { zoneCover(d, dt); return; }
       const scr = mode === 'aim' && Math.hypot(qb.vx, qb.vz) > 3;
-      let tx = clamp(qb.x, -14, 14), tz = los + 4.6;
+      let tx = clamp(qb.x, -Math.min(LX(14), HW - 2), Math.min(LX(14), HW - 2)), tz = los + 4.6;
       if (scr) { const ip = interceptPt(d, qb, effV(d)); tx = ip[0]; tz = Math.max(ip[1], qb.z + 0.6); } // he's off: go get him
       staminaStep(d, dt, scr);
       steer(d, tx, tz, effV(d) * (scr ? 1 : 0.85), dt, 9);
@@ -4109,32 +5481,35 @@ gl_FragColor=vec4(c,1.0);}`;
     // him go); walls a crosser and passes him on when he leaves; drops under a curl or dig. The flat defender takes anything
     // outside him and short, and with nothing in the flat he sinks under the corner or out route behind him.
     function zoneCover(d, dt) {
-      const a = d.ass, Lx = a.x, Lz = los + a.z, flatMan = Math.abs(Lx) >= 8 && a.z <= 7;
+      const a = d.ass, Lx = a.x, Lz = VN.zclamp ? Math.min(los + a.z, ZEND - emg(1)) : los + a.z;
+      // on the small field the reads are made in the design's terms (stadium spots): the landmark and every receiver mapped back
+      const Sx = SMALL ? a.xs : Lx, Sz = SMALL ? DZI(Lz - los) : 0, flatMan = Math.abs(Sx) >= 8 && (SMALL ? a.zs : a.z) <= 7;
       let tx = Lx, tz = Lz, best = null, bs = 1e9;
       for (const r of off) {
         if (!ZR[r.key] || !r.R || r.blk === 'block' || r.rag) continue;
-        const dx = r.x - Lx, dz = r.z - Lz;
+        const dx = SMALL ? LXI(r.x) - Sx : r.x - Lx, dz = SMALL ? DZI(r.z - los) - Sz : r.z - Lz;
         if (Math.abs(r.vx) > 3.5 && Math.abs(dx) > 8 && dx * r.vx > 0) continue; // a crosser on his way out of the zone: passed on
         // the flat defender (a short zone out wide) owns everything outside him and short, out to the sideline, widest first
-        const dd = Math.hypot(dx, dz * 1.25), flat = Math.abs(Lx) >= 8 && r.x * Lx > 0 && Math.abs(r.x) > Math.abs(Lx) - 1 && r.z < Lz + 7;
+        const dd = Math.hypot(dx, dz * 1.25), flat = SMALL ? Math.abs(Sx) >= 8 && r.x * Lx > 0 && Math.abs(LXI(r.x)) > Math.abs(Sx) - 1 && dz < 7 : Math.abs(Lx) >= 8 && r.x * Lx > 0 && Math.abs(r.x) > Math.abs(Lx) - 1 && r.z < Lz + 7;
         if (dd > 8.5 && !flat) continue;
         const s = flat ? Math.abs(dz) * 0.5 + 1 : dd;
         if (s < bs) { bs = s; best = r; }
       }
       let carry = false;
       if (best) {
-        const k = DP.zoneTight * (d.read ? 1.25 : 1), bp = d.read && best.R ? posAt(best.R, tPlay + d.read) : best; // read: undercut where it's going
+        const k = DP.zoneTight * (SMALL ? lerp(VPL.zoneK[0], VPL.zoneK[1], clamp(KDEF, 0, 1)) : 1) * (d.read ? 1.25 : 1), bp = d.read && best.R ? posAt(best.R, tPlay + d.read) : best; // read: undercut where it's going
         tx = lerp(Lx, bp.x, k); tz = lerp(Lz, bp.z - 0.5, k * 0.9);
-        if (!flatMan && best.vz > 3.8 && best.z > los + 4 && best.z < los + 15) { // a seam through the hook: carry him, inside and under
-          const inside = best.x > 0 ? -1 : 1; tx = best.x + inside * 0.8; tz = Math.min(best.z - 0.6, los + 15); carry = true;
+        if (!flatMan && best.vz > 3.8 && best.z > los + 4 && best.z < los + DZ(15)) { // a seam through the hook: carry him, inside and under
+          const inside = best.x > 0 ? -1 : 1; tx = best.x + inside * 0.8; tz = Math.min(best.z - 0.6, los + DZ(15)); carry = true;
         } else if (Math.abs(best.vx) > 3.5 && Math.abs(best.vz) < 3) { // a crosser: wall him, in front of him at his depth
           tx = lerp(Lx, best.x + Math.sign(best.vx) * 1.4, k); tz = lerp(Lz, best.z + 0.4, k * 0.9);
         }
       } else if (flatMan && tPlay > 0.9) { // nothing in the flat: sink under the outside route (a corner or an out behind him)
         let o = null, oz = 1e9;
-        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag || r.x * Lx <= 0 || Math.abs(r.x) < Math.abs(Lx) - 6) continue; const dz = r.z - los; if (dz > 6 && dz < 20 && dz < oz) { oz = dz; o = r; } }
-        if (o) { tx = lerp(Lx, o.x, 0.5); tz = los + Math.min(oz - 2, 11 + 2 * KDEF + (d.bail || 0) * 4); }
+        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag || r.x * Lx <= 0 || Math.abs(LXI(r.x)) < Math.abs(Sx) - 6) continue; const dz = r.z - los; if (dz > 6 && dz < DZ(20) && dz < oz) { oz = dz; o = r; } }
+        if (o) { tx = lerp(Lx, o.x, 0.5); tz = los + Math.min(oz - 2, DZ(11 + 2 * KDEF + (d.bail || 0) * 4)); }
       }
+      if (SMALL) { tx = clamp(tx, -(HW - 0.6), HW - 0.6); tz = Math.min(tz, ZEND - 0.5); }
       zt[0] = tx; zt[1] = tz; eyesPull(d, zt); tx = zt[0]; tz = zt[1];
       staminaStep(d, dt, carry);
       runFace(d, 0, 0, false);
@@ -4145,29 +5520,31 @@ gl_FragColor=vec4(c,1.0);}`;
     // faster than him gets a bigger cushion; a vertical gets carried with the hips open and the eyes on the quarterback, a full
     // turn only once the receiver is even. Nothing deep: a sharp single-high safety comes down and robs the intermediate route.
     function deepZone(d, dt) {
-      const a = d.ass, Lx = a.x, Lz = los + a.z + (d.bail || 0) * 3, mid = Math.abs(Lx) < 3, half = !mid && Math.abs(Lx) < 12, prev = dcall && dcall.kind === 'prev';
+      const a = d.ass, Lx = a.x, Lz = VN.zclamp ? Math.min(los + a.z + (d.bail || 0) * 3, ZEND - emg(1)) : los + a.z + (d.bail || 0) * 3, prev = dcall && dcall.kind === 'prev';
+      const Sx = SMALL ? a.xs : Lx, Sz = SMALL ? DZI(Lz - los) : 0, mid = Math.abs(Sx) < 3, half = !mid && Math.abs(Sx) < 12; // the design's terms (see zoneCover)
       const ds = d.v * (1.2 + ((d.spd || 60) - 50) * 0.0012) * (d.spdK || 1); // his top speed
       let tx = Lx, tz = Lz, best = null, bs = 1e9, b2 = null, b2s = 1e9, rob = false;
       for (const r of off) {
         if (!ZR[r.key] || !r.R || r.blk === 'block' || r.rag) continue;
-        const dx = r.x - Lx;
-        if (r.z < Lz - 10 || Math.abs(dx) > (mid ? 20 : 11)) continue; // a lone middle safety helps on the outside go routes too
-        const s = -r.z + Math.abs(dx) * 0.4;
+        const dx = SMALL ? LXI(r.x) - Sx : r.x - Lx;
+        if ((SMALL ? DZI(r.z - los) < Sz - 10 : r.z < Lz - 10) || Math.abs(dx) > (mid ? 20 : 11)) continue; // a lone middle safety helps on the outside go routes too
+        const s = (SMALL ? -DZI(r.z - los) : -r.z) + Math.abs(dx) * 0.4;
         if (s < bs) { b2 = best; b2s = bs; bs = s; best = r; } else if (s < b2s) { b2s = s; b2 = r; }
       }
       d.even = 0;
       if (best) {
         const rv = Math.hypot(best.vx, best.vz), cush = (prev ? 4.5 : 1.8) + clamp((rv - ds * 0.92) * 1.1, 0, 3.5) + Math.max(0, best.vz) * 0.08 + (d.bail || 0) * 1.2; // nobody gets behind him: the faster the receiver, the deeper he plays
         // a deep-half safety splits two verticals in his half (four verticals is how you beat two deep)
-        const bx0 = half && b2 && b2s - bs < 2.5 && Math.abs(b2.x - Lx) < 11 ? (best.x + b2.x) / 2 : best.x, lim = half ? 6 : 4;
-        tx = lerp(Lx, bx0, mid ? 0.65 : half ? 0.85 : 0.88); if (!mid) tx = Lx < 0 ? Math.min(tx, Lx + lim) : Math.max(tx, Lx - lim);
+        const bx0 = half && b2 && b2s - bs < 2.5 && Math.abs(SMALL ? LXI(b2.x) - Sx : b2.x - Lx) < 11 ? (best.x + b2.x) / 2 : best.x, lim = half ? 6 : 4;
+        tx = lerp(Lx, bx0, mid ? 0.65 : half ? 0.85 : 0.88); if (!mid) tx = SMALL ? (Lx < 0 ? Math.min(tx, LX(Sx + lim)) : Math.max(tx, LX(Sx - lim))) : Lx < 0 ? Math.min(tx, Lx + lim) : Math.max(tx, Lx - lim);
         tz = Math.max(Lz - 3, best.z + cush); // just over the top of the deepest one, matched across
         if (best.z > d.z - 1 && best.vz > 3) d.even = 1;
       } else if (mid && tPlay > 2 && KDEF > 0.4 && dcall && (dcall.cov === 1 || dcall.cov === 3) && !dcall.kind) {
         let o = null, od = 1e9;
-        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag) continue; const dz = r.z - los, dx = Math.abs(r.x - Lx); if (dz < 6 || dz > 18 || dx > 14) continue; const s = dx + Math.abs(dz - 12); if (s < od) { od = s; o = r; } }
-        if (o) { tx = lerp(Lx, o.x, 0.55); tz = Math.max(o.z + 3, los + 11); rob = true; }
+        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag) continue; const dz = SMALL ? DZI(r.z - los) : r.z - los, dx = Math.abs(SMALL ? LXI(r.x) - Sx : r.x - Lx); if (dz < 6 || dz > 18 || dx > 14) continue; const s = dx + Math.abs(dz - 12); if (s < od) { od = s; o = r; } }
+        if (o) { tx = lerp(Lx, o.x, 0.55); tz = Math.max(o.z + 3, los + DZ(11)); rob = true; }
       }
+      if (SMALL) { tx = clamp(tx, -(HW - 0.6), HW - 0.6); tz = Math.min(tz, ZEND - 0.5); }
       const threat = best && best.vz > 4 && best.z > d.z - 7;
       zt[0] = tx; zt[1] = tz; if (!threat) eyesPull(d, zt); tx = zt[0]; tz = zt[1];
       staminaStep(d, dt, threat);
@@ -4221,7 +5598,7 @@ gl_FragColor=vec4(c,1.0);}`;
       px = clamp(px, -HW + 0.3, HW - 0.3);
       let tx = lerp(px, c.x, 0.12), tz = lerp(pz, c.z, 0.12); // inside-out: a touch behind the runner's line, not past it
       const front = (d.x - c.x) * cvx + (d.z - c.z) * cvz > 0 && cs > 2; // he is in the runner's path
-      if (c.side === 0 && Math.abs(c.x) > 7 && cvx * c.x > 0 && front && Math.abs(d.x) >= Math.abs(c.x) - 1.5) tx = c.x + Math.sign(c.x) * Math.max(0.8, Math.abs(tx - c.x)); // contain: keep him inside
+      if (c.side === 0 && Math.abs(c.x) > LX(7) && cvx * c.x > 0 && front && Math.abs(d.x) >= Math.abs(c.x) - 1.5) tx = c.x + Math.sign(c.x) * Math.max(0.8, Math.abs(tx - c.x)); // contain: keep him inside
       let spd = sp;
       if (front && dd < 3.4 && c.side === 0 && c.jumpY <= 0.2) { spd = Math.max(cs * 0.95, sp * 0.72); tx = lerp(tx, c.x, 0.5); tz = lerp(tz, c.z, 0.5); } // break down
       steer(d, tx, tz, spd, dt, 8);
@@ -4279,7 +5656,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function returnRun(c, dt) {
       let ux = 0, uz = -1;
       for (const o of off) { if (o.rag) continue; const dx = c.x - o.x, dz = c.z - o.z, d = Math.hypot(dx, dz); if (d < 7 && dz > -2) { ux += dx / d / d * 4; uz += dz / d / d * 2; } }
-      if (Math.abs(c.x) > HW - 3) ux -= Math.sign(c.x) * 1.5;
+      if (Math.abs(c.x) > HW - (SMALL ? Math.max(1.6, 3 * KX) : 3)) ux -= Math.sign(c.x) * 1.5;
       const l = Math.hypot(ux, uz) || 1;
       staminaStep(c, dt, true);
       steerDir(c, ux / l, uz / l, effV(c) * 1.02, dt, 8);
@@ -4379,7 +5756,8 @@ gl_FragColor=vec4(c,1.0);}`;
     function filmSnap() { if (!filmOn() || !play) return; FILM.snaps++; const e = FILM.plays[play.id] || (FILM.plays[play.id] = { n: 0, gain: 0, good: 0 }); e.n++; }
     function filmThrow(r, air) {
       if (!filmOn() || !r || r.side !== 0) return; const k = filmWho(r); FILM.tgt[k] = (FILM.tgt[k] || 0) + 1; FILM.passes++;
-      const D = FILM.deep, deep = air >= 18 ? 1 : 0; D.last.push(deep); if (D.last.length > 6) D.last.shift();
+      // a deep shot (on the small field the depth map's 18)
+      const D = FILM.deep, deep = air >= DZ(18) ? 1 : 0; D.last.push(deep); if (D.last.length > 6) D.last.shift();
       if (deep) { D.n++; D.who[k] = (D.who[k] || 0) + 1; D.pend = 1; }
     }
     function filmResult(gained, good) {
@@ -4389,9 +5767,9 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // a defender riding over the top of a doubled receiver: inside and deeper than where he is headed
     function bracketCover(d, dt) {
-      const r = d.ass.tgt; if (!r || r.rag || thrown) { d.ass = { t: 'zone', x: d.x, z: d.z - los, deep: true }; zoneCover(d, dt); return; }
+      const r = d.ass.tgt; if (!r || r.rag || thrown) { d.ass = { t: 'zone', x: d.x, z: d.z - los, xs: LXI(d.x), zs: DZI(d.z - los), deep: true }; zoneCover(d, dt); return; }
       const q = r.R ? posAt(r.R, tPlay + 0.3) : r, inside = r.x > 0 ? -1 : 1;
-      const tx = q.x + inside * 1.3, tz = Math.max(los + 4, Math.max(r.z, q.z) + 3.2);
+      const tx = q.x + inside * 1.3, tz = SMALL ? Math.min(Math.max(los + 4, Math.max(r.z, q.z) + 2.2), ZEND - 0.4) : Math.max(los + 4, Math.max(r.z, q.z) + 3.2);
       staminaStep(d, dt, r.vz > 4);
       steer(d, tx, tz, effV(d) * (r.vz > 4 ? 1.03 : 0.95), dt, 8);
     }
@@ -4419,30 +5797,30 @@ gl_FragColor=vec4(c,1.0);}`;
       if (DEFMODE === 'full') return true;
       // every snap is yours in clutch time (the 4th quarter's last minute or overtime, a one-score game) and once they are inside
       // your 10, however many key plays the drive has already had
-      if (spot >= 90 || ((clk.q >= 5 || (clk.q === 4 && clk.t <= 60)) && Math.abs(hs - as) <= 8)) return true;
+      if (spot >= FL - VN.GL || ((clk.q >= 5 || (clk.q === 4 && clk.t <= 60)) && Math.abs(hs - as) <= 8)) return true;
       if (DEFMODE === 'quick' || !(DEFP.left > 0)) return false;
       // two to four a drive (set when the drive starts): the big snaps always (3rd and 4th down, the red zone, the two-minute drill,
       // a one-score game late), the others now and then, more often until two have been played
-      const big = dn >= 3 || spot >= 80 || ((clk.q === 2 || clk.q >= 4) && clk.t < 120) || (clk.q >= 4 && Math.abs(hs - as) <= 8);
+      const big = dn >= 3 || spot >= FL - VN.RZ || ((clk.q === 2 || clk.q >= 4) && clk.t < 120) || (clk.q >= 4 && Math.abs(hs - as) <= 8);
       return big || rng() < (DEFP.dnum < 2 ? 0.55 : 0.25);
     }
 
     // ---------- the key play: call, line up, snap ----------
     function defpBegin(r, d) {
       DEFP.left = Math.max(0, DEFP.left - 1); DEFP.dnum++;
-      DEFP.st = { start: d.start, call: d.lastLive || '', arch: d.arch || null, spot: r.spot, dn: r.dn || 1, fd: r.fd || r.spot + 10, plays: r.plays, yds: r.spot - d.start, base: d.base || null };
+      DEFP.st = { start: d.start, call: d.lastLive || '', arch: d.arch || null, spot: r.spot, dn: r.dn || 1, fd: r.fd || r.spot + FD, plays: r.plays, yds: r.spot - d.start, base: d.base || null };
       DEFP.brain = defpBrain();
       phase = 'dcall'; poss = 'away'; carrier = null; ctrl = null; mode = 'none'; kick = null; // the clock: still running from a play just before (defpEnd), else stopped
-      los = DEFP.st.spot; down = DEFP.st.dn; fdz = Math.min(DEFP.st.fd, 100); tryMode = false; // the scoreboard shows their down and distance
-      const S = DEFP.st, togo = S.fd - S.spot, dd = `${ORD[Math.min(S.dn, 4)] || S.dn} & ${S.fd >= 100 ? 'Goal' : Math.max(1, Math.round(togo))}`;
+      los = DEFP.st.spot; down = DEFP.st.dn; fdz = Math.min(DEFP.st.fd, FL); tryMode = false; // the scoreboard shows their down and distance
+      const S = DEFP.st, togo = S.fd - S.spot, dd = `${ORD[Math.min(S.dn, 4)] || S.dn} & ${S.fd >= FL ? 'Goal' : Math.max(1, Math.round(togo))}`;
       // the suggestion: the down, the distance and the score
       const late = qtr >= 4 && clock < 75, lead = hs - as;
-      DEFP.sug = late && lead > 0 && lead <= 8 && togo > 5 ? 'prev' : togo <= 1.5 ? 'box' : S.dn >= 3 && togo >= 8 ? 'c3d' : S.spot >= 85 ? 'c1' : S.dn >= 3 ? 'c1b' : 'c3';
-      const goal = S.spot >= 90, clutchD = isClutch();
-      banner(goal ? 'GOAL LINE STAND' : clutchD ? 'CLUTCH D' : 'KEY PLAY', `${dd} · ${esc(AWAY.name)} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)}`, '#ffc21a');
+      DEFP.sug = late && lead > 0 && lead <= 8 && togo > 5 ? 'prev' : togo <= 1.5 ? 'box' : S.dn >= 3 && togo >= 8 ? 'c3d' : S.spot >= FL - VN.NEAR ? 'c1' : S.dn >= 3 ? 'c1b' : 'c3';
+      const goal = S.spot >= FL - VN.GL, clutchD = isClutch();
+      banner(goal ? 'GOAL LINE STAND' : clutchD ? 'CLUTCH D' : 'KEY PLAY', `${dd} · ${esc(AWAY.name)} at ${S.spot >= MID ? 'your ' + Math.round(FL - S.spot) : 'their ' + Math.round(S.spot)}`, '#ffc21a');
       say(`<b>${goal ? 'Goal line stand.' : clutchD ? 'Clutch time: every snap is yours.' : 'Key play.'}</b> ${dd} for <b>${esc(AWAY.name)}</b>. Call the defense, then play it yourself.`);
       sfx.play('whistle'); excite = Math.max(excite, 0.5);
-      openDSheet({ title: `Key play · ${dd}`, sub: `${AWAY.name} at ${S.spot >= 50 ? 'your ' + Math.round(100 - S.spot) : 'their ' + Math.round(S.spot)} · then you play a defender`, T: 10, cur: S.call, pool: S.arch && S.arch.pool ? S.arch.pool : null, fn: defpCall, situation: [S.dn, togo, S.spot, lead, late] });
+      openDSheet({ title: `Key play · ${dd}`, sub: `${AWAY.name} at ${S.spot >= MID ? 'your ' + Math.round(FL - S.spot) : 'their ' + Math.round(S.spot)} · then you play a defender`, T: 10, cur: S.call, pool: S.arch && S.arch.pool ? S.arch.pool : null, fn: defpCall, situation: [S.dn, togo, S.spot, lead, late] });
       setControls(true);
     }
     function defpCall(id) {
@@ -4451,7 +5829,7 @@ gl_FragColor=vec4(c,1.0);}`;
       vsHideCard(true); closeDSheet(); clearBanner(); sfx.play('tap');
       DEFP.call = C; DEFP.on = true; S.call = C.id; DRAMA.call = C.id; DBOOK.calls.push(C.id); // this snap's call; the drive goes on with your plan
       defpFlip(true);
-      los = S.spot; down = S.dn; fdz = Math.min(S.fd, 100); tryMode = false; hot = {};
+      los = S.spot; down = S.dn; fdz = Math.min(S.fd, FL); tryMode = false; hot = {};
       play = defpPickPlay(S); flip = rng() < 0.5;
       setupPlay();
       // start on the free safety (a linebacker in the box calls, the corner on his man in press), Q switches
@@ -4470,8 +5848,8 @@ gl_FragColor=vec4(c,1.0);}`;
     function defpPickPlay(S) {
       const togo = S.fd - S.spot, kind = pickKind(cpuKindW(S.dn, togo, S.spot, { q: qtr, t: clock }, as - hs));
       let ids = KIND_PLAYS[kind];
-      if (kind === 'run' && togo <= 1.5) ids = ['power', 'iso', 'hbdive', S.fd >= 100 ? 'qbpower' : 'sneak'];
-      if (S.spot >= 85 && kind === 'deep') ids = ['rzfade'];
+      if (kind === 'run' && togo <= 1.5) ids = ['power', 'iso', 'hbdive', S.fd >= FL ? 'qbpower' : 'sneak'];
+      if (S.spot >= FL - VN.NEAR && kind === 'deep') ids = ['rzfade'];
       const L = PLAYS.filter((p) => ids.includes(p.id));
       DEFP.kind = kind;
       return L.length ? L[(rng() * L.length) | 0] : PLAYS[0];
@@ -4645,12 +6023,12 @@ gl_FragColor=vec4(c,1.0);}`;
         if (t < B.t0) return;
         const pz = pressure(), hot = pz > 0.45, last = B.ri === B.prog.length - 1;
         const e = cur ? cpuEval(cur, qb) : null;
-        if (e && e.s > (last ? 1.7 : B.ri === 0 ? 2.3 : 2.05)) { cpuThrow(B, e); return; }
+        if (e && e.s > QSEP(last ? 1.7 : B.ri === 0 ? 2.3 : 2.05)) { cpuThrow(B, e); return; }
         if (hot || t > B.hold) {
           // flushed or out of time: the best he can see now (a man in his face: something quick), else throw it away or run
           let best = null; for (const r of B.prog) { const q = cpuEval(r, qb); if (q && (!best || q.s > best.s) && (!hot || q.d < 15 || q.s > 3)) best = q; }
-          if (best && best.s > (hot ? 1.5 : 1.25)) { cpuThrow(B, best); return; }
-          if (hot && rng() < B.scramble * dt * 6 && Math.abs(qb.x) < HW - 4 && cpuLane(qb) > 3.5) { scramble(); return; }
+          if (best && best.s > QSEP(hot ? 1.5 : 1.25)) { cpuThrow(B, best); return; }
+          if (hot && rng() < B.scramble * dt * 6 && Math.abs(qb.x) < HW - (SMALL ? 2.5 : 4) && cpuLane(qb) > 3.5) { scramble(); return; }
           if (B.smart && (hot ? pz > 0.7 : t > B.hold + 0.5)) { throwBall({ x: qb.x < 0 ? -HW - 4 : HW + 4, z: qb.z + 6 }, 0); return; } // throw it away
           return; // he hangs on (and may go down with it)
         }
@@ -4676,9 +6054,11 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
 
+    // the CPU quarterback's "open" bar: on the small field everybody is closer, so open is a smaller cushion
+    const QSEP = (v) => (SMALL ? v * VPL.qbSep : v);
     function cpuProg(B) {
       const L = off.filter((r) => isRec(r) && !r.rag && r.R && r.blk !== 'block');
-      const dep = (r) => Math.min(25, r.R.pts[r.R.pts.length - 1][1] - los), yd = play.yd || 8;
+      const dep = (r) => Math.min(DZ(25), r.R.pts[r.R.pts.length - 1][1] - los), yd = DZ(play.yd || 8);
       const blitz = def.filter((d) => d.ass && d.ass.t === 'rush').length >= 6;
       L.sort((a, b) => (blitz ? dep(a) - dep(b) : dep(b) - dep(a)));
       let prim = L[0]; if (!blitz) for (const r of L) if (Math.abs(dep(r) - yd) < Math.abs(dep(prim) - yd)) prim = r;
@@ -4696,7 +6076,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let T = flightOf(D0, arcT), lp = leadPt(r, T);
       for (let i = 0; i < 2; i++) { T = flightOf(Math.hypot(lp.x - qb.x, lp.z - qb.z), arcT); lp = leadPt(r, T); }
       const lx = lp.x - qb.x, lz = lp.z - qb.z, L2 = lx * lx + lz * lz;
-      if (L2 > maxDist() * maxDist() || Math.abs(lp.x) > HW - 0.8 || lp.z > 109) return null;
+      if (L2 > maxDist() * maxDist() || Math.abs(lp.x) > HW - 0.8 || lp.z > ZEND - emg(1)) return null;
       let near = 99, atLp = 99, lane = 0;
       for (const d of def) {
         if (d.rag) continue;
@@ -4723,14 +6103,16 @@ gl_FragColor=vec4(c,1.0);}`;
       // a running clock on defense, the same as on offense: after a play that ends in bounds it runs on through the call and the
       // lineup (RUNOFF more seconds) unless you call timeout; an incompletion, out of bounds, a score or a turnover stops it
       clockRun = kind === 'tackle' || kind === 'sack'; runoff = clockRun ? RUNOFF : 0;
-      const P = pr || {}, S = DEFP.st, endZ = kind === 'td' ? 100 : spot, gained = Math.round(endZ - los), who = nm(P.int || P.scoop || DEFP.ctl);
+      const P = pr || {}, S = DEFP.st, endZ = kind === 'td' ? FL : spot, gained = Math.round(endZ - los), who = nm(P.int || P.scoop || DEFP.ctl);
       let head = '', sub = '', col = '#2bd46b', line = '', out = null;
       const yd = (n) => (Math.abs(n) === 1 ? '1 yard' : Math.abs(n) + ' yards');
       if (kind === 'td') { out = { k: 'cputd' }; head = `${AWAY.abbr} TOUCHDOWN`; col = '#ff3344'; line = `<b>${esc(AWAY.name)}</b> score from ${yd(gained)} out.`; sfx.play('boo'); }
       else if (kind === 'pick6') { out = { k: 'pick6' }; head = P.scoop ? 'SCOOP AND SCORE!' : 'PICK SIX!'; line = `<b>${esc(who)}</b> takes it all the way back!`; sfx.play('cheer'); excite = 1; confetti(carrier ? carrier.x : 0, 0); }
       else if (kind === 'intdown' || kind === 'fumlost') {
-        out = { k: 'ball', at: clamp(Math.round(100 - spot), 1, 99) };
-        head = kind === 'intdown' && !(P.scoop || P.fumble) ? 'INTERCEPTED!' : 'FUMBLE! YOUR BALL'; sub = 'Your ball at the ' + (out.at === 50 ? '50' : out.at < 50 ? 'your ' + out.at : 'their ' + (100 - out.at));
+        // Metcalf (end line enforced): a turnover downed in your own end zone is a touchback
+        const ezTB = VN.endLine && spot >= FL;
+        out = { k: 'ball', at: ezTB ? TB : clamp(Math.round(FL - spot), 1, FL - 1) };
+        head = kind === 'intdown' && !(P.scoop || P.fumble) ? 'INTERCEPTED!' : 'FUMBLE! YOUR BALL'; sub = (ezTB ? 'Touchback · ' : '') + 'Your ball at ' + (out.at === MID ? 'the 50' : out.at < MID ? 'your ' + Math.round(out.at) : 'their ' + Math.round(FL - out.at));
         line = kind === 'intdown' && !(P.scoop || P.fumble) ? `<b>${esc(who)}</b> picks it off!` : 'Ball comes loose and your defense falls on it!'; sfx.play('cheer'); excite = 1;
       } else if (kind === 'inc') {
         S.dn++; head = extra && /batted|broken|swat/i.test(extra) ? 'BROKEN UP!' : 'INCOMPLETE'; sub = S.dn <= 4 ? `${ORD[Math.min(S.dn, 4)]} down` : ''; line = `Pass falls incomplete${extra ? ' (' + esc(extra.toLowerCase()) + ')' : ''}.`;
@@ -4738,14 +6120,14 @@ gl_FragColor=vec4(c,1.0);}`;
         const ns = Math.round(spot * 2) / 2;
         if (ns <= 0) { out = { k: 'safety' }; head = 'SAFETY!'; sub = `${HOME.abbr} +2`; line = 'Dropped in the end zone. Safety!'; sfx.play('cheer'); }
         else {
-          S.spot = clamp(ns, 1, 99);
-          if (S.spot >= S.fd) { S.dn = 1; S.fd = Math.min(S.spot + 10, 100); head = `${AWAY.abbr} FIRST DOWN`; col = '#ff3344'; }
+          S.spot = clamp(ns, 1, FL - 1);
+          if (S.spot >= S.fd) { S.dn = 1; S.fd = Math.min(S.spot + FD, FL); head = `${AWAY.abbr} FIRST DOWN`; col = '#ff3344'; }
           else { S.dn++; head = kind === 'sack' ? 'SACKED!' : gained <= 0 ? 'STUFFED!' : gained <= 3 ? 'STOPPED SHORT' : 'TACKLED'; col = gained <= 3 ? '#2bd46b' : '#c9ccd4'; }
           sub = gained > 0 ? `+${yd(gained)}` : gained < 0 ? `${gained} yards` : 'No gain';
           line = kind === 'sack' ? `<b>${esc(nm((OK.QB && OK.QB.sackBy) || DEFP.ctl))}</b> gets home for the sack!` : `${gained > 0 ? 'Gain of ' + yd(gained) : gained < 0 ? 'Loss of ' + yd(gained) : 'No gain'}.`;
         }
       }
-      if (!out && S.dn > 4) { out = { k: 'ball', at: clamp(Math.round(100 - S.spot), 1, 99) }; head = 'STOPPED ON DOWNS!'; col = '#2bd46b'; sub = 'Your ball'; sfx.play('cheer'); excite = 1; }
+      if (!out && S.dn > 4) { out = { k: 'ball', at: clamp(Math.round(FL - S.spot), 1, FL - 1) }; head = 'STOPPED ON DOWNS!'; col = '#2bd46b'; sub = 'Your ball'; sfx.play('cheer'); excite = 1; }
       if (col === '#2bd46b' && !out) sfx.play('good');
       S.plays++; CPUS.plays++; if (kind !== 'inc' && kind !== 'intdown' && kind !== 'pick6') CPUS.yards += gained;
       DEFP.res = out; DEFP.log.push({ kind, gained, call: DEFP.call ? DEFP.call.id : '', stop: !out ? (S.dn > 1 || kind === 'inc') : out.k !== 'cputd' });
@@ -4759,24 +6141,24 @@ gl_FragColor=vec4(c,1.0);}`;
       let cont;
       if (!out) cont = () => defpResume();
       else if (out.k === 'cputd') {
-        const two = cpuTry(); addPts('away', two ? (two.good ? 8 : 6) : 7); dramaCpu('TD');
+        const two = VN.pat ? cpuTry() : null; addPts('away', VN.pat ? (two ? (two.good ? 8 : 6) : 7) : VN.tdPts); dramaCpu('TD');
         if (two) { banner(two.good ? '2-PT TRY GOOD' : '2-PT TRY NO GOOD', '', two.good ? '#ff3344' : '#2bd46b'); }
         cont = () => goHome(null, true);
-      } else if (out.k === 'pick6') { addPts('home', 6); dramaCpu('INT'); poss = 'home'; cont = () => startPAT(); }
-      else if (out.k === 'safety') { addPts('home', 2); dramaCpu('DOWNS'); cont = () => goHome(35); }
+      } else if (out.k === 'pick6') { addPts('home', VN.pat ? 6 : VN.tdPts); dramaCpu('INT'); poss = 'home'; cont = VN.pat ? () => startPAT() : () => goCpu(TB); }
+      else if (out.k === 'safety') { addPts('home', 2); dramaCpu('DOWNS'); cont = () => goHome(VN.SAFE); }
       else { dramaCpu('INT'); cont = () => goHome(out.at); }
       boardDirty = true; setControls(true);
-      if (clock <= 0 && !(out && out.k === 'pick6')) endQuarter(out ? cont : () => startCpuDrive(clamp(Math.round(S.spot), 1, 99))); else cont();
+      if (clock <= 0 && !(out && out.k === 'pick6' && VN.pat)) endQuarter(out ? cont : () => startCpuDrive(clamp(Math.round(S.spot), 1, FL - 1))); else cont();
     }
     function defpClockOut() {
       const S = DEFP.st; closeDSheet(); DEFP.on = false; DEFP.ctl = null; DEFP.res = null; defpFlip(false); clearBanner(); poss = 'away'; clockRun = false;
-      boardDirty = true; endQuarter(() => startCpuDrive(clamp(Math.round(S.spot), 1, 99)));
+      boardDirty = true; endQuarter(() => startCpuDrive(clamp(Math.round(S.spot), 1, FL - 1)));
     }
     function defpResume() {
       const S = DEFP.st, clk = { q: qtr, t: clock };
       const log = [], r = simCpu(S.spot, clk, log, S.arch ? { arch: S.arch } : S.call, { dn: S.dn, fd: S.fd, key: defpKeyCheck });
       if (r.plays > 0) { clockRun = false; runoff = 0; } // the simulated snaps ran the clock themselves; straight into another live snap, it keeps running
-      phase = 'cpu'; poss = 'away'; los = clamp(100 - S.spot, 1, 99); down = 1; fdz = Math.min(100, los + 10);
+      phase = 'cpu'; poss = 'away'; los = clamp(FL - S.spot, 1, FL - 1); down = 1; fdz = Math.min(FL, los + FD);
       setupPlay(); hideTags();
       CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       cpuD = { r, start: S.start, c0: clock, t: 0, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1), shown: false, el: el('div', 'bz-dcard'), pick: false, call: S.call, arch: S.arch, lastLive: S.call, log, base: { plays: S.plays, yds: Math.round(S.spot - S.start) } };
@@ -4876,7 +6258,7 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (clk && clk.q >= 4 && clk.t < 120 && lead < 0) w = { run: 0.05, quick: 0.3, mid: 0.35, deep: 0.22, screen: 0.08, pa: 0 };
       else if (dn >= 3 && togo >= 7) w = { run: 0.08, quick: 0.25, mid: 0.35, deep: 0.2, screen: 0.07, pa: 0.05 };
       else if (dn >= 3) w = { run: 0.25, quick: 0.4, mid: 0.2, deep: 0, screen: 0.1, pa: 0.05 };
-      else if (spot >= 80) w = { run: 0.4, quick: 0.35, mid: 0.1, deep: 0.05, screen: 0, pa: 0.1 };
+      else if (spot >= FL - VN.RZ) w = { run: 0.4, quick: 0.35, mid: 0.1, deep: 0.05, screen: 0, pa: 0.1 };
       else w = { run: 0.45, quick: 0.22, mid: 0.13, deep: 0.07, screen: 0.06, pa: 0.07 };
       const recent = DBOOK.calls.slice(-6);
       if (recent.length >= 2) for (const k of DKINDS) { let f = 0; for (const c of recent) f += (DFIT[c] || DFIT.c3)[k]; w[k] *= Math.exp(-1.1 * f / recent.length); } // they have your number
@@ -4901,7 +6283,7 @@ gl_FragColor=vec4(c,1.0);}`;
       return { ev, top };
     }
     const WHY = { run: 'they like to run here', quick: 'expect a quick throw', mid: 'expect a throw past the sticks', deep: 'they may take a shot deep', screen: 'watch for a screen', pa: 'watch for play-action' };
-    const ddWhy = (dn, togo, spot, top) => `${ORD[Math.min(dn, 4)] || dn} & ${togo >= 100 - spot ? 'Goal' : Math.max(1, Math.round(togo))} · ${WHY[top]}`;
+    const ddWhy = (dn, togo, spot, top) => `${ORD[Math.min(dn, 4)] || dn} & ${togo >= FL - spot ? 'Goal' : Math.max(1, Math.round(togo))} · ${WHY[top]}`;
     // the coach's three: the calls that fit what they are likely to run here
     function dSuggest(dn, togo, spot, lead, late) {
       const { ev, top } = rankCalls(VS_CALLS.map((c) => c.id), dn, togo, spot, lead, late);
@@ -4950,24 +6332,32 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (kind === 'box') Object.assign(A, { LBW: Z_(-3.5, 3.5), LBM: Z_(0, 3.5), FS: Z_(0, 17, 1) });
       for (const k of ['DE1', 'DT1', 'DT2', 'DE2']) A[k] = { t: 'rush' };
       if (kind === 'prev') A.DE1 = Z_(0, 5);
+      if (SMALL) { // the small field: the same maps the game lines them up with (LX across, DZ in depth)
+        for (const k in P) P[k] = { x: xin(LX(P[k].x), 1), z: DZ(P[k].z) };
+        for (const k in A) if (A[k].t === 'zone') A[k] = Z_(xin(LX(A[k].x), 1.5), DZ(A[k].z), A[k].deep);
+      }
       return { P, A };
     }
     function dDiagram(cvs, C) {
       const g = cvs.getContext('2d'), W = cvs.width, H = cvs.height, L = defLayout(C);
-      const X = (x) => W / 2 + x * (W / 38), Y = (d) => H * 0.8 - d * (H / 33);
-      g.fillStyle = '#1f6a32'; g.fillRect(0, 0, W, H);
+      const X = SMALL ? (x) => W / 2 + x * (W / (2 * (HW + 1.2))) : (x) => W / 2 + x * (W / 38), Y = SMALL ? (d) => H * 0.8 - d * (H / 22) : (d) => H * 0.8 - d * (H / 33);
+      g.fillStyle = ARTC.f; g.fillRect(0, 0, W, H);
+      if (SMALL) { g.fillStyle = ARTC.o; g.fillRect(0, 0, X(-HW), H); g.fillRect(X(HW), 0, W, H); g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(-HW), 0); g.lineTo(X(-HW), H); g.moveTo(X(HW), 0); g.lineTo(X(HW), H); g.stroke(); } // the sidelines
       g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; for (let d = 0; d <= 25; d += 5) { g.beginPath(); g.moveTo(0, Y(d)); g.lineTo(W, Y(d)); g.stroke(); }
       g.strokeStyle = '#5aa0ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
+      // (a key play has the spot in their terms; a drive plan is picked with the ball still in yours)
+      const toGoal = DEFP.on || phase === 'dcall' || phase === 'dpre' ? FL - los : los;
+      if (SMALL) for (const [d, col] of [[toGoal, '#ff5a5a'], [toGoal + EZ, '#ffffff']]) if (Y(d) > 0 && d > 0) { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(d)); g.lineTo(X(HW), Y(d)); g.stroke(); } // the goal line and the end line they attack
       // zones first (under everything): deep ones blue, underneath ones yellow
-      for (const k in L.A) { const a = L.A[k]; if (a.t !== 'zone') continue; g.fillStyle = a.deep ? 'rgba(77,170,255,.30)' : 'rgba(255,214,60,.28)'; g.strokeStyle = a.deep ? 'rgba(120,195,255,.85)' : 'rgba(255,214,60,.85)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(X(a.x), Y(a.z), (a.deep ? 6.5 : 4.5) * W / 38, (a.deep ? 3.6 : 2.6) * H / 33, 0, 0, 6.3); g.fill(); g.stroke(); g.setLineDash([]); const p = L.P[k]; g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(p.x), Y(p.z)); g.lineTo(X(a.x), Y(a.z)); g.stroke(); g.setLineDash([]); }
+      for (const k in L.A) { const a = L.A[k]; if (a.t !== 'zone') continue; g.fillStyle = a.deep ? 'rgba(77,170,255,.30)' : 'rgba(255,214,60,.28)'; g.strokeStyle = a.deep ? 'rgba(120,195,255,.85)' : 'rgba(255,214,60,.85)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(X(a.x), Y(a.z), SMALL ? (a.deep ? 6.5 : 4.5) * LK * W / (2 * (HW + 1.2)) * 1.4 : (a.deep ? 6.5 : 4.5) * W / 38, SMALL ? (a.deep ? 3.6 : 2.6) * DKN * H / 22 * 1.3 : (a.deep ? 3.6 : 2.6) * H / 33, 0, 0, 6.3); g.fill(); g.stroke(); g.setLineDash([]); const p = L.P[k]; g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(p.x), Y(p.z)); g.lineTo(X(a.x), Y(a.z)); g.stroke(); g.setLineDash([]); }
       // offense: the usual spread look
       g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(X((i - 2) * 1.95), Y(-0.9), 3, 0, 6.3); g.fill(); }
-      for (const k in DFORM) { const [x, z] = DFORM[k]; g.fillStyle = k === 'QB' ? '#ffc21a' : '#f5f6f8'; g.beginPath(); g.arc(X(x), Y(z), 3.4, 0, 6.3); g.fill(); }
+      for (const k in DFORM) { const [x0, z] = DFORM[k], x = SMALL ? xin(LX(x0), 1.5) : x0; g.fillStyle = k === 'QB' ? '#ffc21a' : '#f5f6f8'; g.beginPath(); g.arc(X(x), Y(z), 3.4, 0, 6.3); g.fill(); }
       const tip = (x0, y0, x1, y1, col) => { const a = Math.atan2(y1 - y0, x1 - x0); g.fillStyle = col; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k in L.A) {
         const a = L.A[k], p = L.P[k], x0 = X(p.x), y0 = Y(p.z);
         if (a.t === 'rush') { const qb = DFORM.QB, x1 = X(lerp(p.x, qb[0], 0.8)), y1 = Y(lerp(p.z, qb[1], 0.8)); g.strokeStyle = '#ff4757'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); tip(x0, y0, x1, y1, '#ff4757'); }
-        else if (a.t === 'man') { const r = DFORM[a.tgt]; g.strokeStyle = 'rgba(255,255,255,.85)'; g.setLineDash([4, 3]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(X(r[0]), Y(r[1]) - 3); g.stroke(); g.setLineDash([]); }
+        else if (a.t === 'man') { const r = DFORM[a.tgt], rx = SMALL ? xin(LX(r[0]), 1.5) : r[0]; g.strokeStyle = 'rgba(255,255,255,.85)'; g.setLineDash([4, 3]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(X(rx), Y(r[1]) - 3); g.stroke(); g.setLineDash([]); }
         else if (a.t === 'spy') { const qb = DFORM.QB; g.strokeStyle = '#c084fc'; g.setLineDash([2, 3]); g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(X(qb[0]), Y(qb[1])); g.stroke(); g.setLineDash([]); }
       }
       for (const k in L.P) { const p = L.P[k], x = X(p.x), y = Y(p.z), col = L.A[k] && L.A[k].t === 'rush' ? '#ff6b78' : '#ffffff'; g.strokeStyle = col; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x - 3.5, y - 3.5); g.lineTo(x + 3.5, y + 3.5); g.moveTo(x + 3.5, y - 3.5); g.lineTo(x - 3.5, y + 3.5); g.stroke(); }
@@ -5167,7 +6557,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let ux, uz;
       if (Math.abs(det) < 1e-4) { ux = dx; uz = -dy; } else { ux = (dx * by - dy * bx) / det; uz = (ax * dy - ay * dx) / det; }
       const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
-      const Lp = Math.max(120, Math.min(cssW, cssH) * 0.42), k = Math.min(1, len / Lp), D = Math.max(3, k * maxDist());
+      const Lp = Math.max(120, Math.min(cssW, cssH) * 0.42), k = Math.min(1, len / Lp), D = Math.max(3, k * (SMALL ? Math.min(maxDist(), Math.max(ZEND + 3 - qb.z, HW * 1.6)) : maxDist())); // a small field: a full drag is the field, not his whole arm
       return { x: clamp(qb.x + ux * D, -HW - 2, HW + 2), z: qb.z + uz * D, D, k, over: len > Lp * 1.02, ux, uz, back: uz < -0.3 };
     }
     // time in the air for a throw of kind arcT over D yards, from real flight (gravity; drag is made up at launch):
@@ -5218,7 +6608,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function leadPt(r, t) {
       // (scr: off his route in the scramble drill, 30-ai.js)
       if (r.R && !r.scr && !(r.blk === 'chip' && tPlay < r.R.blk) && !(r.R.sit && Math.hypot(r.vx, r.vz) < 1.5)) { const q = posAt(r.R, routeClock(r) + t); return { x: q.x, z: q.z }; }
-      return { x: clamp(r.x + r.vx * t, -HW + 0.5, HW - 0.5), z: Math.min(109.5, r.z + r.vz * t) };
+      return { x: clamp(r.x + r.vx * t, -HW + 0.5, HW - 0.5), z: Math.min(ZEND - emg(0.5), r.z + r.vz * t) };
     }
     // the receiver a throw at `spot` is meant for, and his spot when the ball gets there
     function leadFor(spot, arcT, maxd) {
@@ -5265,7 +6655,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (target) placeOf(ball, target, L && L.r === target ? L : null);
       const st = stat(SQ.QB.pid); if (st) st.passAtt++;
       pr.kind = 'pass'; pr.passer = qb; pr.tgt = target; pr.thrown = true; filmThrow(target, tz - los);
-      if (target) voiceLive(spot.D >= 25 ? 'throw_deep' : spot.D < 7 ? 'throw_dump' : 'throw_to', { rec: nm(target) }, 0.9);
+      if (target) voiceLive(spot.D >= DZ(25) ? 'throw_deep' : spot.D < 7 ? 'throw_dump' : 'throw_to', { rec: nm(target) }, 0.9);
       const stare = aim && aim.dur > 0.8 && aim.tgt && aim.tgt === target ? Math.min(0.28, (aim.dur - 0.8) * 0.25) * (0.4 + DP.stare) : 0;
       for (const d of def) {
         const man = d.ass && d.ass.t === 'man' && d.ass.tgt === target;
@@ -5373,7 +6763,7 @@ gl_FragColor=vec4(c,1.0);}`;
       b.vy -= GRAV * 1.6 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.spin += dt * 10;
       if (b.y <= 0.14 && b.vy < 0) bounce(b);
     }
-    const inField = (x, z) => Math.abs(x) <= HW && z <= 110 && z >= -10;
+    const inField = (x, z) => Math.abs(x) <= HW && z <= ZEND && z >= ZBACK;
     function airStep(dt) {
       const b = ball;
       // placement is judged as thrown: on the first step in the air, against everyone near where it comes down
@@ -5417,7 +6807,7 @@ gl_FragColor=vec4(c,1.0);}`;
         }
       }
       if (b.y <= 0.14) { b.st = 'dead'; bounce(b); endPlay('inc', 0, b.tipped ? 'Batted down' : b.drop ? 'Dropped' : !inField(b.x, b.z) ? 'Out of bounds' : 'Nobody there'); return; }
-      if (Math.abs(b.x) > HW + 3 || b.z > 113 || b.z < -12) { b.st = 'dead'; endPlay('inc', 0, b.z > 110 ? 'Out of the back of the end zone' : 'Thrown away'); }
+      if (Math.abs(b.x) > HW + 3 || b.z > ZEND + 3 || b.z < ZBACK - 2) { b.st = 'dead'; endPlay('inc', 0, b.z > ZEND ? 'Out of the back of the end zone' : 'Thrown away'); }
     }
     // each extra defender around the catch cuts the odds a lot: double coverage is a gamble (about 1 in 3, more picks), a triple
     // team a long shot, but never zero: the crazy catch still happens
@@ -5639,7 +7029,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function catchBall(r, diving, jumping) {
       const b = ball;
-      if (!landsIn(r) && !perkHook('oob', r)) { if (pr) pr.oob = 1; ball.st = 'dead'; ball.vy = -1; popAt(r, 'NO FOOT DOWN', '#ff9a3c'); endPlay('inc', 0, r.z > 110 || r.z < -10 ? 'Out of bounds, past the end line' : 'Out of bounds'); return; }
+      if (!landsIn(r) && !perkHook('oob', r)) { if (pr) pr.oob = 1; ball.st = 'dead'; ball.vy = -1; popAt(r, 'NO FOOT DOWN', '#ff9a3c'); endPlay('inc', 0, r.z > ZEND || r.z < ZBACK ? 'Out of bounds, past the end line' : 'Out of bounds'); return; }
       if (r.catchAt !== tPlay) setCatch(r, catchKindOf(r, diving, jumping, 0.3, false));
       ball = { st: 'held', holder: r, x: r.x, y: 1.3, z: r.z, vx: 0, vy: 0, vz: 0 };
       carrier = r; ctrl = r; mode = 'run'; target = r; r.reach = null; r.pose = r.pose === 'reach' ? 'run' : r.pose;
@@ -5647,7 +7037,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const notes = [], C = b.contest, crowd = crowdAt(r);
       const wild = !!(C && (C.W < 0.55 || crowd >= 2 || jumping && C.hi > 0)); // a catch he had no business making
       if (b.helmet) notes.push('OFF THE HELMET!');
-      if (Math.abs(r.x) > HW - 1.25 || r.z > 108.8) notes.push('TOE TAP!');
+      if (Math.abs(r.x) > HW - 1.25 || r.z > ZEND - emg(1.2)) notes.push('TOE TAP!');
       if (wild && jumping && crowd <= 1) notes.push('MOSSED HIM!');
       else if (wild && crowd >= 2) notes.push(diving ? 'CRAZY CATCH!' : 'IN TRAFFIC!');
       else if (wild && (diving || r.catchKind === 'onehand')) notes.push('ONE-HANDED!');
@@ -5676,7 +7066,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (wild && jumping && !diving && C.W < 0.6 && b.cd && !b.cd.rag && b.cd.jumpY > 0.05 && dist(b.cd, r) < 2.4 && funRoll('poster', 0.55)) { knockDown(b.cd, [r.vx * 0.3, 0, r.vz * 0.3], [0, 0.15, 0], 1.0); if (b.cd.side === 1) { if (!r.poster) r.poster = 0; r.poster++; } }
       if (notes.length) cam.kick = Math.max(cam.kick, wild ? 0.9 : 0.5);
       const st = stat(SQ.QB.pid); if (st) st.passCmp++;
-      if (r.z >= 100) { endPlay('td', r.z); return; }
+      if (r.z >= FL) { endPlay('td', r.z); return; }
       if (diving) { r.diveT = Math.max(r.diveT, 0.25); r.diveCatch = 1; setTimeout(() => { if (phase === 'live' && carrier === r) { knockDown(r, [r.vx * 0.6, -1, r.vz * 0.6], null, 1.2); endPlay('tackle', r.z, 'Diving catch'); } }, 220 / ((DBG && DBG.speed) || 1)); return; }
       setControls(true);
     }
@@ -5735,15 +7125,15 @@ gl_FragColor=vec4(c,1.0);}`;
     function autoDir(c) {
       const fx = flip ? -1 : 1;
       let ux = 0, uz = 1;
-      if (c.side === 0 && c.key === (play.carrier || 'RB') && (play.type === 'run' || play.type === 'draw') && c.z < los + 1 && !kick) { const h = holeRead(c, (play.lane || 0) * fx); ux = h[0]; uz = h[1]; } // the back reads his blocks (30-ai.js)
-      if (c.role === 'QB' && c.z < los + 1 && play.type === 'sneak' && play.lane && !kick) { const lx = play.lane * fx; ux = (lx - c.x) * 0.5; uz = 1; }
+      if (c.side === 0 && c.key === (play.carrier || 'RB') && (play.type === 'run' || play.type === 'draw') && c.z < los + 1 && !kick) { const h = holeRead(c, LX(play.lane || 0) * fx); ux = h[0]; uz = h[1]; } // the back reads his blocks (30-ai.js)
+      if (c.role === 'QB' && c.z < los + 1 && play.type === 'sneak' && play.lane && !kick) { const lx = LX(play.lane) * fx; ux = (lx - c.x) * 0.5; uz = 1; }
       else if (c.role === 'QB' && c.z < los && !qbRunPlay()) { ux = c.x >= 0 ? 0.8 : -0.8; uz = 0.6; }
       for (const d of def) {
         if (d.rag || d.eng) continue;
         const dx = c.x - d.x, dz = c.z - d.z, dd = Math.hypot(dx, dz);
         if (dd < 7 && dz < 1.5) { const k = (DEFP.on ? lerp(1.8, 3.4, clamp(DIFF_OFF, 0, 1)) : AUTO) * (c.z < los - 0.5 && c.hole != null ? 0.35 : 1); ux += dx / dd / dd * k; uz += Math.max(0, dz) / dd / dd; } // behind the line the read does the work; a CPU runner sees better at a higher level
       }
-      if (Math.abs(c.x) > HW - 3) ux -= Math.sign(c.x) * 1.5;
+      if (Math.abs(c.x) > HW - (SMALL ? Math.max(1.6, 3 * KX) : 3)) ux -= Math.sign(c.x) * 1.5;
       const l = Math.hypot(ux, uz) || 1;
       return [ux / l, uz / l];
     }
@@ -6082,9 +7472,12 @@ gl_FragColor=vec4(c,1.0);}`;
       // a dive: the ball goes down where it was stretched out to, and over the goal line that is a score
       if (c.tackleKind === 'dive' && c.diveFar != null) {
         z = c.side === 0 ? Math.max(z, c.diveFar) : Math.min(z, c.diveFar); c.diveFar = null;
-        if (c.side === 0 && z >= 100) { endPlay(kick ? 'krtd' : 'td', z); return; }
+        if (c.side === 0 && z >= FL) { endPlay(kick ? 'krtd' : 'td', z); return; }
         if (c.side === 1 && z <= 0) { endPlay('pick6', z); return; }
       }
+      // Metcalf: falling forward with the ball over the goal line scores too (the stadium keeps its old spot-at-the-1 rule)
+      if (VN.endLine && c.side === 0 && z >= FL) { endPlay(kick ? 'krtd' : 'td', z); return; }
+      if (VN.endLine && c.side === 1 && z <= 0) { endPlay('pick6', z); return; }
       if (c.funFumble && !tryMode) { c.funFumble = 0; if (fumble(c)) moment('fumble', c, 'FUMBLE!', { a: c, victim: victimOf(c), col: '#ff3344', replay: false }); return; }
       if (perkHook('down', c)) return;
       if (c.side === 1) { endPlay('intdown', z); return; }
@@ -6154,10 +7547,12 @@ gl_FragColor=vec4(c,1.0);}`;
       voiceField();
       if (c.side === 0) {
         if (!crossed && c.z > los + 0.3) { crossed = true; if (c.role === 'QB' && mode === 'aim') { mode = 'run'; ctrl = c; carrier = c; pr.kind = 'rush'; pr.rusher = c; runSeen = tPlay; setControls(true); } }
-        if (c.z >= 100) { endPlay(kick ? 'krtd' : 'td', c.z); return; }
+        if (c.z >= FL) { endPlay(kick ? 'krtd' : 'td', c.z); return; }
+        if (VN.endLine && c.z < ZBACK) { endPlay('tackle', c.z, 'Out the back of the end zone'); return; } // past his own end line: down there (a safety)
         if (Math.abs(c.x) > HW) { if (perkHook('oob', c)) return; endPlay('oob', c.z); return; }
       } else {
         if (c.z <= 0) { endPlay('pick6', c.z); return; }
+        if (VN.endLine && c.z > ZEND) { endPlay('intdown', c.z); return; } // out the back of their own end zone
         if (Math.abs(c.x) > HW) { endPlay('intdown', c.z); return; }
       }
     }
@@ -6168,7 +7563,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let KQ = kqOf(SQ, KR), KQ2 = SQ2 ? kqOf(SQ2, KR2) : null;
     const KLOOK = normLook(null, 1);
     const fgRange = () => 36 + KK * 0.3 - WET * 3;
-    const fgDist = () => Math.round(117 - los);
+    const fgDist = () => Math.round(FL + EZ + 7 - los);
     function fgPct(d) { return clamp(1.08 - Math.max(0, d - 22) * (0.019 - (KK - 50) * 0.00012) - DIFF * 0.03 - WET * 0.06, 0.08, 0.98); }
     function startKick(type) {
       if (finished) return;
@@ -6183,7 +7578,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (type !== 'punt') { const h = addOff(mkP(0, 'QB', 'H', 0.3, kz - 0.1, { num: hq.num, lk: hq.look, sq: hq, face: hq.cell, spd: 50, fx: hq.fx })); h.h = 0.6; }
       for (let i = 0; i < 4; i++) addDef(mkP(1, 'DL', 'DL' + i, (i - 1.5) * 2.2, los + 0.9, { w: 1.2, rad: 0.5, v: DP.dlV, num: 90 + i }));
       for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'LB' + i, (i - 1) * 4, los + 3.5, { v: DP.lbV, num: 50 + i }));
-      if (type === 'punt') addDef(mkP(1, 'S', 'PR', 0, Math.min(108, los + 40), { v: DP.sV, num: 23 }));
+      if (type === 'punt') addDef(mkP(1, 'S', 'PR', 0, Math.min(ZEND - emg(2), los + 40), { v: DP.sV, num: 23 }));
       finalizePlayers();
       for (const p of everyone) setPose(p, p.key === 'H' ? 'kneel' : p.role === 'OL' || p.role === 'DL' ? 'stance3' : p.key === 'K' ? 'idle' : 'stance2');
       kick = { type, st: 'power', p: 0, dir: 1, a: 0, adir: 1, t: 0, kz, kp, spdP: 1.05 + (100 - KK) * 0.011, spdA: 1.5 + (100 - KK) * 0.02 };
@@ -6218,13 +7613,13 @@ gl_FragColor=vec4(c,1.0);}`;
         const b = ball;
         flyStep(b, dt);
         // off the upright: a ball that crosses the plane just outside (or just inside) a post rings it and bounces
-        if (k.type !== 'punt' && !k.judged && !k.doink && b.z >= 109.6 && b.y > 3.33 && (Math.abs(Math.abs(b.x) - 2.95) < 0.42 || funForced('doink'))) {
+        if (k.type !== 'punt' && !k.judged && !k.doink && b.z >= ZEND - 0.4 && b.y > 3.33 && (Math.abs(Math.abs(b.x) - 2.95) < 0.42 || funForced('doink'))) {
           k.doink = 1; const inn = funForced('doink') ? !!(DBG && DBG.doinkIn) : rng() < 0.5;
-          b.vz = inn ? Math.abs(b.vz) * 0.35 : -Math.abs(b.vz) * 0.3; b.vx = (inn ? -1 : 1) * Math.sign(b.x || 1) * 2.5; b.vy = Math.max(b.vy, 1.5); b.z = 109.9; if (inn) b.x = Math.sign(b.x || 1) * 2.4;
-          sfx.play('doink'); cam.shake = Math.max(cam.shake, 0.4); moment(inn ? 'doinkin' : 'doink', { x: b.x, z: 110 }, inn ? 'DOINK... AND IN!' : 'DOINK!', { victim: inn ? undefined : 'home', replay: false, snd: 'doink', col: inn ? '#2bd46b' : '#ff9a3c' });
+          b.vz = inn ? Math.abs(b.vz) * 0.35 : -Math.abs(b.vz) * 0.3; b.vx = (inn ? -1 : 1) * Math.sign(b.x || 1) * 2.5; b.vy = Math.max(b.vy, 1.5); b.z = ZEND - 0.1; if (inn) b.x = Math.sign(b.x || 1) * 2.4;
+          sfx.play('doink'); cam.shake = Math.max(cam.shake, 0.4); moment(inn ? 'doinkin' : 'doink', { x: b.x, z: ZEND }, inn ? 'DOINK... AND IN!' : 'DOINK!', { victim: inn ? undefined : 'home', replay: false, snd: 'doink', col: inn ? '#2bd46b' : '#ff9a3c' });
           if (inn) { k.judged = 1; k.good = true; endKick(); }
         }
-        if (k.type !== 'punt' && !k.judged && b.z >= 110) { k.judged = 1; k.good = !k.doink && Math.abs(b.x) < 3.08 && b.y > 3.33; endKick(); }
+        if (k.type !== 'punt' && !k.judged && b.z >= ZEND) { k.judged = 1; k.good = !k.doink && Math.abs(b.x) < 3.08 && b.y > 3.33; endKick(); }
         if (k.type !== 'punt' && !k.judged && k.doink && b.vz < 0 && b.y <= 0.3) { k.judged = 1; k.good = false; endKick(); }
         if (k.type !== 'punt' && !k.judged && !k.doink && (b.y <= 0.14 || b.vz <= 0)) { k.judged = 1; k.good = false; endKick(); }
         if (k.doink && b.y <= 0.14 && b.vy < 0) bounce(b);
@@ -6266,35 +7661,35 @@ gl_FragColor=vec4(c,1.0);}`;
       if (k.type === 'punt') {
         let land = b.z, ret = 0, how;
         if (Math.abs(b.x) > HW) how = 'out of bounds';
-        else if (land >= 100) { land = 80; how = 'touchback'; }
+        else if (land >= FL) { land = FL - 20; how = 'touchback'; }
         else { const hang = b.t; ret = hang > 3.6 || rng() < 0.3 ? 0 : Math.round(rng() * 9 * (0.4 + KDEF * 0.6)); how = ret ? `returned ${ret} yards` : 'fair catch'; }
-        const net = Math.round(Math.min(land, 100) - los - ret);
-        const cpuStart = clamp(Math.round(100 - land + ret), 1, 99);
-        say(`<b>${esc(KR.name)}</b> punts ${Math.round(Math.min(land, 100) - los)} yards, ${how}. Net ${net}.`);
+        const net = Math.round(Math.min(land, FL) - los - ret);
+        const cpuStart = clamp(Math.round(FL - land + ret), 1, FL - 1);
+        say(`<b>${esc(KR.name)}</b> punts ${Math.round(Math.min(land, FL) - los)} yards, ${how}. Net ${net}.`);
         banner('PUNT', `${how === 'touchback' ? 'Touchback' : 'Net ' + net + ' yards'}`, '#c9ccd4');
         if (!k.shank) voice.say('punt', { yards: yb(Math.max(2, net)) }, 2, 0.5);
         pend = { next: ['cpu', cpuStart] }; finishSpecial(2.6, 'punt');
         return;
       }
-      const d = Math.round(110 - k.kz), st = stat(KR.pid);
+      const d = Math.round(ZEND - k.kz), st = stat(KR.pid);
       if (k.type === 'xp') {
         voice.say(k.good ? 'xp_good' : 'xp_miss', {}, 2, 0.7);
         if (k.good) { addPts('home', 1); banner('EXTRA POINT GOOD', `${HOME.abbr} ${hs} – ${as} ${AWAY.abbr}`, '#2bd46b'); sfx.play('good'); say('The extra point is <b>good</b>.'); }
         else { banner('NO GOOD', 'Extra point missed', '#ff3344'); sfx.play('bad'); say('The extra point is <b>no good</b>.'); }
-        pend = { next: ['cpu', 25, 'ko'] }; finishSpecial(2.4, 'xp');
+        pend = { next: ['cpu', TB, 'ko'] }; finishSpecial(2.4, 'xp');
         return;
       }
       if (st) { st.fgAtt++; if (k.good) st.fgMade++; }
       voice.say(k.good ? (k.doink ? 'doink_in' : 'fg_good') : (k.doink ? 'doink' : 'fg_miss'), { kicker: shortName(KR.name), dist: String(d) }, 3);
       if (!k.good) fireOut('FIRE\'S OUT');
       if (k.good) {
-        addPts('home', 3); banner('IT\'S GOOD!', `${d}-yard field goal`, '#2bd46b'); sfx.play('good'); sfx.play('cheer'); excite = 0.8; confetti(0, 110); cam.kick = 0.6;
+        addPts('home', 3); banner('IT\'S GOOD!', `${d}-yard field goal`, '#2bd46b'); sfx.play('good'); sfx.play('cheer'); excite = 0.8; confetti(0, ZEND); cam.kick = 0.6;
         say(`<b>${esc(KR.name)}</b> drills it from ${d} yards.`); addHL(`${shortName(KR.name)} ${d}-yd FG`);
-        pend = { next: ['cpu', 25, 'ko'] };
+        pend = { next: ['cpu', TB, 'ko'] };
       } else {
         banner('NO GOOD', `${d}-yard try ${k.doink ? 'off the upright' : k.shank ? 'shanked' : Math.abs(b.x) >= 3.08 ? (b.x > 0 ? 'wide right' : 'wide left') : 'falls short'}`, '#ff3344'); sfx.play('bad'); sfx.play('boo');
         say(`The ${d}-yard try is <b>no good</b>.`);
-        pend = { next: ['cpu', clamp(Math.round(100 - k.kz), 20, 99)] };
+        pend = { next: ['cpu', clamp(Math.round(FL - k.kz), VN.RESTART.fgMissMin, FL - 1)] };
       }
       finishSpecial(2.8, 'fg');
     }
@@ -6306,7 +7701,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- kickoffs: the CPU kicks, you return ----------
     // the other team goes onside when it trails late in the 4th
-    const cpuWantsOnside = () => !VS && qtr >= 4 && !suddenDeath && as < hs && (clock < QS * 0.75 || hs - as >= 9) && !(DBG && DBG.noOnside) || !!(DBG && DBG.forceOnside);
+    const cpuWantsOnside = () => VN.onside && (!VS && qtr >= 4 && !suddenDeath && as < hs && (clock < QS * 0.75 || hs - as >= 9) && !(DBG && DBG.noOnside) || !!(DBG && DBG.forceOnside));
     function startKickoff(deep) {
       if (!deep && cpuWantsOnside()) { startOnside(false); return; }
       clearBanner(); closeSheet();
@@ -6314,25 +7709,28 @@ gl_FragColor=vec4(c,1.0);}`;
       tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = true; runSeen = 0; crossed = true; target = null; passer = null;
       parts = parts.filter((q) => q.life > 0); replayBuf = []; recT = 0;
       let rk = 'RB'; for (const k of ['X', 'Z', 'S']) if (SQ[k].r.spd > SQ[rk].r.spd + 4) rk = k;
-      const R = addOff(offPlayer(rk, 0, 3));
+      // a throw-off (VN.ko): the thrower on their goal line, the coverage team across the field just in front of it, your
+      // returner around your goal line with the blockers spread in between
+      const TH = VN.koType === 'throw' ? VN.ko : null, cw = TH ? 2 * (HW - 1) / 9 : 0;
+      const R = addOff(offPlayer(rk, 0, TH ? TH.R : 3));
       const others = ['RB', 'X', 'Z', 'S', 'Y'].filter((k) => k !== rk);
-      others.forEach((k, i) => addOff(offPlayer(k, [-12, -5, 5, 12][i], 22 + (i % 2) * 3)));
-      for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * 6, 31, { v: 6 }));
-      for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), 64, { v: Math.max(7.5, DP.sV) * (1.02 + 0.03 * (i % 3)), lane: -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF, agi: 50 + 40 * KDEF, spd: 60 + 30 * KDEF, ko: 1 }));
+      others.forEach((k, i) => addOff(offPlayer(k, TH ? TH.bx[i] : [-12, -5, 5, 12][i], TH ? TH.B[i % 2] : 22 + (i % 2) * 3)));
+      for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * (TH ? TH.olx : 6), TH ? TH.OL : 31, { v: 6 }));
+      for (let i = 0; i < 10; i++) addDef(mkP(1, i < 4 ? 'LB' : 'S', 'KC' + i, TH ? -(HW - 1) + i * cw : -22 + i * 4.9 + (i >= 5 ? 0.6 : 0), FL - VN.KO - 1, { v: Math.max(7.5, DP.sV) * (1.02 + 0.03 * (i % 3)), lane: TH ? -(HW - 1) + i * cw : -22 + i * 4.9, num: 40 + i, tackle: DP.tackle + 6, str: 55 + 40 * KDEF, agi: 50 + 40 * KDEF, spd: 60 + 30 * KDEF, ko: 1 }));
       // two of the middle men are the safeties: they trail the wave as the last line instead of running into the blocks
       DK.KC4.koSafe = 1; DK.KC5.koSafe = 1; DK.KC4.tackle = DK.KC5.tackle = Math.max(DP.tackle + 6, 64);
-      addDef(mkP(1, 'K', 'KK', 0, 66, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
+      addDef(mkP(1, 'K', 'KK', 0, TH ? FL - VN.KO + 0.4 : FL - VN.KO + 1, { v: 6, num: 6, tackle: 30, str: 40, spd: 40 }));
       finalizePlayers();
-      for (const p of everyone) setPose(p, 'stance2');
+      for (const p of everyone) setPose(p, TH && p.key === 'KK' ? 'idle' : 'stance2');
       // head to head: the kicking side picked deep middle, left or right (left / right as the kicking side watches the return: -x is screen left)
-      const lz = clamp(Math.round(-4 + rng() * 12 - DIFF * 3), -8, 9), lx = !VS ? (rng() - 0.5) * 12 : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6;
+      const lz = TH ? clamp(Math.round(-1 + rng() * 7 - DIFF * 1.5), ZBACK + emg(2), TH.lzMax) : clamp(Math.round(-4 + rng() * 12 - DIFF * 3), ZBACK + emg(2), 9), lx = xin(!VS ? (rng() - 0.5) * 12 : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6, 1);
       kick = { type: 'ko', st: 'wait', t: 0, lx, lz, R, tbOK: false };
-      ball = { st: 'spot', x: 0, y: 0.3, z: 65, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
-      dcall = { name: 'Kickoff' };
+      ball = TH ? { st: 'held', holder: DK.KK, x: DK.KK.x, y: 1.3, z: DK.KK.z, vx: 0, vy: 0, vz: 0, spin: 0 } : { st: 'spot', x: 0, y: 0.3, z: FL - VN.KO, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
+      dcall = { name: TH ? 'Throw-off' : 'Kickoff' };
       pr = { type: 'ko', start: 0, kind: 'ret', notes: [] };
       phase = 'live'; mode = 'none'; poss = 'home';
       setControls(true); hideTags();
-      banner('KICKOFF', `${esc(AWAY.name)} kick to ${esc(HOME.name)}`, '#ffc21a'); voice.say('kickoff_cpu', { away: AWAY.name }, 1, 0.45);
+      if (TH) banner('THROW-OFF', `${esc(AWAY.name)} throw it to ${esc(HOME.name)}`, '#ffc21a'); else { banner('KICKOFF', `${esc(AWAY.name)} kick to ${esc(HOME.name)}`, '#ffc21a'); voice.say('kickoff_cpu', { away: AWAY.name }, 1, 0.45); }
       say(`<b>${esc(SQ[rk].name)}</b> deep to receive.`);
       if (VS && VS.auth) vsSetup('ko', { kc: VS.kc });
     }
@@ -6340,10 +7738,21 @@ gl_FragColor=vec4(c,1.0);}`;
       const k = kick, R = k.R;
       k.t += dt;
       if (k.st === 'wait') {
-        for (const d of def) { steer(d, d.x, 64 + (k.t < 0.9 ? 0 : -3), d.v * 0.6, dt); if (k.t > 0.6) setPose(d, 'run', true); }
-        const kk = DK.KK; if (k.t > 0.55 && kk.pose !== 'kick') setPose(kk, 'kick');
+        for (const d of def) { if (VN.koType === 'throw' && d.key === 'KK') { d.vx *= 0.8; d.vz *= 0.8; continue; } steer(d, d.x, FL - VN.KO - 1 + (k.t < 0.9 ? 0 : -3), d.v * 0.6, dt); if (k.t > 0.6) setPose(d, 'run', true); } // the thrower stays put
+        const kk = DK.KK;
+        if (VN.koType === 'throw') { // a throw-off: a lob from his hand on their goal line, on the release frame of the throw
+          if (k.t > 0.6 && kk.pose !== 'throw') { kk.throwArc = 2; kk.h = Math.PI; setPose(kk, 'throw'); }
+          if (k.t > 0.8) {
+            const TH = VN.ko, T = TH.T, hp = releaseHand(kk), ok = hp && Number.isFinite(hp[0] + hp[1] + hp[2]);
+            const x0 = ok ? hp[0] : kk.x, y0 = ok ? Math.max(TH.y0 - 0.15, hp[1]) : TH.y0, z0 = ok ? hp[2] : kk.z - 0.4;
+            k.st = 'air'; sfx.play('throw'); clearBanner();
+            ball = { st: 'kick', x: x0, y: y0, z: z0, vx: (k.lx - x0) / T * 1.04, vz: (k.lz - z0) / T * 1.04, vy: (1.4 - y0 + 0.5 * GRAV * T * T) / T, t: 0, T, tx: k.lx, tz: k.lz, spin: 0, spinV: 14, holder: null };
+          }
+          return;
+        }
+        if (k.t > 0.55 && kk.pose !== 'kick') setPose(kk, 'kick');
         if (k.t > 0.85) {
-          const T = 3.2, x0 = 0, z0 = 65; k.st = 'air'; sfx.play('kick'); clearBanner();
+          const T = 3.2, x0 = 0, z0 = FL - VN.KO; k.st = 'air'; sfx.play('kick'); clearBanner();
           ball = { st: 'kick', x: x0, y: 0.4, z: z0, vx: (k.lx - x0) / T * 1.07, vz: (k.lz - z0) / T * 1.07, vy: (1.4 - 0.4 + 0.5 * GRAV * T * T) / T, t: 0, T, tx: k.lx, tz: k.lz, spin: 0, holder: null };
         }
       } else if (k.st === 'air') {
@@ -6355,13 +7764,14 @@ gl_FragColor=vec4(c,1.0);}`;
         for (const p of off) if (p !== R) { steer(p, p.x * 0.8, Math.max(b.tz + 12, p.z - 6), p.v * 0.7, dt); p.face2 = Math.PI; }
         const hL = handPos(R, -1), hR = handPos(R, 1), near = Math.min(Math.hypot(hL[0] - b.x, hL[1] - b.y, hL[2] - b.z), Math.hypot(hR[0] - b.x, hR[1] - b.y, hR[2] - b.z)) < 0.5 || (Math.hypot(R.x - b.x, R.z - b.z) < 0.6 && b.y < 1.9);
         if (near && b.vy < 0 || b.y < 0.3) {
-          if (b.z < -10 || b.y < 0.3 && b.z < 0) { touchback(); return; }
+          if (VN.tb && (b.z < ZBACK || VN.koType !== 'throw' && b.y < 0.3 && b.z < 0)) { touchback(); return; } // a throw-off on the ground in the end zone is live: a touchback only if he stays in there
           ball = { st: 'held', holder: R, x: R.x, y: 1.3, z: R.z, vx: 0, vy: 0, vz: 0 }; carrier = R; ctrl = R; mode = 'run'; k.st = 'ret'; k.catchT = tPlay; R.reach = null; setPose(R, 'run'); voiceLive('return_live', { carrier: nm(R) }, 0.8);
           k.tbOK = R.z < 0; sfx.play('catch'); pr.start = R.z; pr.rusher = R; setControls(true); perkHook('touch', R);
         }
       } else if (k.st === 'ret') {
+        if (VN.koType === 'throw' && carrier && carrier.z > 0) pr.outEZ = 1; // out of his end zone: going back in and down there is a safety
         if (k.tbOK && !carrier) k.tbOK = false; // fumbled: no touchback option any more
-        if (k.tbOK && carrier && (carrier.z > 0.5 || tPlay - k.catchT > 2.6)) { if (carrier.z <= 0.5 && Math.hypot(carrier.vx, carrier.vz) < 1) { touchback(); return; } k.tbOK = false; setControls(true); }
+        if (k.tbOK && carrier && VN.tb && (carrier.z > 0.5 || tPlay - k.catchT > 2.6)) { if (carrier.z <= 0.5 && Math.hypot(carrier.vx, carrier.vz) < 1) { touchback(); return; } k.tbOK = false; setControls(true); }
       }
     }
     // ---------- onside kicks: a short kick, a live ball after 10 yards, a scramble ----------
@@ -6370,7 +7780,7 @@ gl_FragColor=vec4(c,1.0);}`;
       clearBanner(); closeSheet(); hideTags(); hideMeter(); clearPlayers();
       tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = true; runSeen = 0; crossed = true; target = null; passer = null; aim = null; lastBig = null;
       parts = parts.filter((q) => q.life > 0); replayBuf = []; recT = 0;
-      const kz = homeKick ? 35 : 65, dir = homeKick ? 1 : -1;
+      const kz = homeKick ? VN.KO : FL - VN.KO, dir = homeKick ? 1 : -1;
       let kp, R;
       if (homeKick) {
         // your kicking team across the 34; their hands team ten yards off, two men back
@@ -6464,7 +7874,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let homeBall = p ? p.side === 0 : !hk, how = ''; // nobody on it, or out of bounds: the receiving team takes it
       if (p && p.side === kickSide && trav < 9.5) { homeBall = !hk; how = 'Touched before 10 yards'; } // the kicking team touched it short: receiving team's ball
       else if (oob) how = 'Out of bounds'; else if (!p) how = 'Nobody falls on it';
-      const spot = clamp(Math.round(z), 2, 98), at = ballTxt(spot).toLowerCase();
+      const spot = clamp(Math.round(z), 2, FL - 2), at = ballTxt(spot).toLowerCase();
       carrier = p || null;
       if (homeBall) {
         banner(hk ? 'ONSIDE KICK RECOVERED!' : 'YOU RECOVER!', how || `${esc(HOME.name)} ball at the ${at}`, '#2bd46b'); sfx.play('cheer'); excite = Math.max(excite, hk ? 1 : 0.7); cam.kick = Math.max(cam.kick, 0.8);
@@ -6476,7 +7886,7 @@ gl_FragColor=vec4(c,1.0);}`;
         banner(hk ? 'THEY RECOVER' : 'ONSIDE KICK RECOVERED', how || `${esc(AWAY.name)} ball at the ${at}`, '#ff3344'); sfx.play(hk ? 'boo' : 'bad'); excite = Math.max(0, excite - 0.2);
         say(hk ? `<b>${esc(AWAY.name)}</b> fall on it. Their ball at the ${at}.` : `<b>${esc(AWAY.name)}</b> recover their own onside kick.`);
         voice.say(hk ? 'onside_lost' : 'cpu_onside_won', { away: AWAY.name }, 3);
-        pend = { next: ['cpu', clamp(100 - spot, 1, 99)] };
+        pend = { next: ['cpu', clamp(FL - spot, 1, FL - 1)] };
       }
       const key = homeBall ? 'onsideWon' : 'onsideLost'; FUN.counts[key] = (FUN.counts[key] || 0) + 1;
       finishSpecial(2.8, 'onside');
@@ -6484,9 +7894,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function touchback() {
       if (phase !== 'live') return;
       if (carrier) { carrier.vx = carrier.vz = 0; setPose(carrier, 'kneel'); }
-      banner('TOUCHBACK', 'Ball at your 25', '#c9ccd4'); say('Touchback. Ball at the 25.'); voice.say('kr_touchback', {}, 2, 0.6);
+      banner('TOUCHBACK', `Ball at your ${TB}`, '#c9ccd4'); say(`Touchback. Ball at the ${TB}.`); voice.say('kr_touchback', {}, 2, 0.6);
       phase = 'dead'; deadT = 1.6; deadTot = 1.6; mode = 'none'; ctrl = null; carrier = null;
-      pend = { next: ['home', 25, 'same'] }; clockRun = false; kick = null; setControls(true);
+      pend = { next: ['home', TB, 'same'] }; clockRun = false; kick = null; setControls(true);
     }
 
     // ---------- scoring helpers ----------
@@ -6512,7 +7922,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const nx = { los, down, fdz, next: null };
       let head = '', sub = '', col = '#ffc21a', line = '';
       closeP = null; clockRun = true;
-      const endZ = kind === 'td' || kind === 'krtd' ? 100 : spot;
+      const endZ = kind === 'td' || kind === 'krtd' ? FL : spot;
       const gained = Math.round(endZ - los);
       playRes = kind; if ((kind === 'run' || kind === 'tackle' || kind === 'oob' || kind === 'catch') && endZ >= fdz && !tryMode) playRes = 'first';
       if (!ko && poss === 'home') filmResult(gained, kind === 'td' || playRes === 'first' || gained >= 10);
@@ -6520,18 +7930,22 @@ gl_FragColor=vec4(c,1.0);}`;
         kick = null; clockRun = false;
         const ret = Math.round(endZ - (P.start || 0));
         if (kind === 'fumlost') {
-          const s = clamp(Math.round(100 - endZ), 1, 99); nx.next = ['cpu', s]; head = 'FUMBLE LOST'; sub = `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++;
+          const s = clamp(Math.round(FL - endZ), 1, FL - 1); nx.next = ['cpu', s]; head = 'FUMBLE LOST'; sub = `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++;
           line = 'The return man coughs it up and the kicking team falls on it.';
         } else if (kind === 'krtd') {
-          addPts('home', 6); head = 'TOUCHDOWN!'; sub = 'Kickoff return!'; col = '#2bd46b'; closeP = carrier; if (carrier) celebrate(carrier);
-          confetti(carrier ? carrier.x : 0, 100); nx.next = ['pat']; line = `<b>${esc(nm(carrier))}</b> takes the kickoff all the way back!`;
-          addHL(`${nm(carrier)} kickoff-return TD`); markBig('td');
+          addPts('home', VN.pat ? 6 : VN.tdPts); head = 'TOUCHDOWN!'; sub = VN.koType === 'throw' ? 'Throw-off return!' : 'Kickoff return!'; col = '#2bd46b'; closeP = carrier; if (carrier) celebrate(carrier);
+          confetti(carrier ? carrier.x : 0, FL); nx.next = VN.pat ? ['pat'] : ['cpu', TB, 'ko']; line = `<b>${esc(nm(carrier))}</b> takes the ${VN.koType === 'throw' ? 'throw-off' : 'kickoff'} all the way back!`;
+          addHL(`${nm(carrier)} ${VN.koType === 'throw' ? 'throw-off' : 'kickoff'}-return TD`); markBig('td');
           const st = stat(carrier && carrier.sq && carrier.sq.pid); if (st) st.long = Math.max(st.long, ret);
+        } else if (VN.koType === 'throw' && endZ <= 0 && P.outEZ) {
+          addPts('away', 2); head = 'SAFETY'; sub = `${esc(AWAY.name)} +2`; col = '#ff3344'; nx.next = ['cpu', VN.SAFE];
+          line = 'He brings it out, then gets taken down back in his own end zone. Safety.';
         } else {
-          const s = endZ <= 0.5 ? 25 : clamp(Math.round(endZ), 1, 99);
-          nx.next = ['home', s, 'same']; head = endZ <= 0.5 ? 'TOUCHBACK' : 'RETURN'; sub = endZ <= 0.5 ? 'Ball at your 25' : `${Math.max(0, ret)}-yard return to the ${ballTxt(s).toLowerCase()}`; col = '#c9ccd4';
-          line = endZ <= 0.5 ? 'Downed in the end zone. Touchback.' : `<b>${esc(nm(carrier))}</b> brings it out to the ${ballTxt(s).toLowerCase()}.`;
-          if (ret >= 30) { addHL(`${nm(carrier)} ${ret}-yd kick return`); markBig('big'); }
+          const s = endZ <= 0.5 ? TB : clamp(Math.round(endZ), 1, FL - 1);
+          const toS = s === MID ? 'midfield' : s < MID ? 'your ' + Math.round(s) : 'their ' + Math.round(FL - s); // "to your 8", not "to the own 8"
+          nx.next = ['home', s, 'same']; head = endZ <= 0.5 ? 'TOUCHBACK' : 'RETURN'; sub = endZ <= 0.5 ? `Ball at your ${TB}` : `${Math.max(0, ret)}-yard return to ${toS}`; col = '#c9ccd4';
+          line = endZ <= 0.5 ? 'Downed in the end zone. Touchback.' : `<b>${esc(nm(carrier))}</b> brings it out to ${toS}.`;
+          if (ret >= DZ(30)) { addHL(`${nm(carrier)} ${ret}-yd ${VN.koType === 'throw' ? 'throw-off' : 'kick'} return`); markBig('big'); }
         }
       } else {
         TS.plays++;
@@ -6539,9 +7953,9 @@ gl_FragColor=vec4(c,1.0);}`;
         const qbS = stat(SQ.QB.pid), rec = P.rec, recS = rec && stat(rec.sq && rec.sq.pid), rus = P.rusher, rusS = rus && stat(rus.sq && rus.sq.pid);
         const yd = (n) => (n === 1 ? '1 yard' : n + ' yards');
         if (kind === 'td') {
-          if (tryMode) { addPts('home', 2); head = 'TWO-POINT TRY GOOD!'; col = '#2bd46b'; nx.next = ['cpu', 25, 'ko']; line = 'The two-point try is <b>good</b>!'; }
+          if (tryMode) { addPts('home', 2); head = 'TWO-POINT TRY GOOD!'; col = '#2bd46b'; nx.next = ['cpu', TB, 'ko']; line = 'The two-point try is <b>good</b>!'; }
           else {
-            addPts('home', 6); head = 'TOUCHDOWN!'; col = '#2bd46b'; nx.next = ['pat'];
+            addPts('home', VN.pat ? 6 : VN.tdPts); head = 'TOUCHDOWN!'; col = '#2bd46b'; nx.next = VN.pat ? ['pat'] : ['cpu', TB, 'ko'];
             sub = `${HOME.abbr} ${hs} – ${as} ${AWAY.abbr}`;
             if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b>, ${yd(gained)}, TOUCHDOWN!`;
             else line = `<b>${esc(nm(rus || carrier))}</b> punches it in from ${yd(gained)} out!`;
@@ -6551,32 +7965,35 @@ gl_FragColor=vec4(c,1.0);}`;
             benchParty(0);
           }
           closeP = carrier; if (carrier) celebrate(carrier);
-          confetti(carrier ? carrier.x : 0, 100); clockRun = false; cam.kick = 1;
+          confetti(carrier ? carrier.x : 0, FL); clockRun = false; cam.kick = 1;
         } else if (kind === 'pick6') {
-          addPts('away', tryMode ? 2 : 7); head = tryMode ? 'RETURNED FOR TWO' : P.scoop ? 'FUMBLE SIX' : 'PICK SIX'; sub = tryMode ? `${esc(AWAY.name)} take the try back` : `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = tryMode ? ['cpu', 25, 'ko'] : ['home', null, 'ko']; clockRun = false;
+          addPts('away', tryMode ? 2 : VN.pat ? 7 : VN.tdPts); head = tryMode ? 'RETURNED FOR TWO' : P.scoop ? 'FUMBLE SIX' : 'PICK SIX'; sub = tryMode ? `${esc(AWAY.name)} take the try back` : `${esc(AWAY.name)} return it for a score`; col = '#ff3344'; nx.next = tryMode ? ['cpu', TB, 'ko'] : ['home', null, 'ko']; clockRun = false;
           const sc = P.scoop || P.int; line = `${P.scoop ? 'Scooped' : 'Intercepted'} and returned for a touchdown by <b>${esc(AWAY.abbr)} #${sc ? sc.num : ''}</b>.`; TS.turnovers++; markBig('td');
           const bigD = P.scoop && P.scoop.role === 'DL';
           moment(bigD ? 'bigman' : P.scoop ? 'fumble6' : 'pick6', carrier || sc, bigD ? 'BIG MAN TOUCHDOWN!' : P.scoop ? 'FUMBLE SIX!' : 'PICK SIX!', { a: carrier || sc, b: carrier || sc, victim: 'home', col: '#ff3344' });
           if (carrier) { closeP = carrier; carrier.celType = (crand() * 5) | 0; carrier.celAt = 0.5; }
           benchParty(1);
         } else if (kind === 'intdown') {
-          const s = clamp(Math.round(100 - spot), 1, 99); nx.next = tryMode ? ['cpu', 25, 'ko'] : ['cpu', s]; clockRun = false;
-          head = P.scoop || P.fumble ? 'FUMBLE LOST' : 'INTERCEPTED'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++;
+          // Metcalf (end line enforced): a turnover downed in, or run out the back of, their own end zone is a touchback
+          const ezTB = VN.endLine && !tryMode && spot >= FL;
+          const s = ezTB ? TB : clamp(Math.round(FL - spot), 1, FL - 1); nx.next = tryMode ? ['cpu', TB, 'ko'] : ['cpu', s]; clockRun = false;
+          head = P.scoop || P.fumble ? 'FUMBLE LOST' : 'INTERCEPTED'; sub = ezTB ? `Touchback · ${esc(AWAY.name)} ball at their ${TB}` : `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++;
           line = `<b>${esc(nm(passer))}</b> is picked off${P.tgt ? ' going for ' + esc(nm(P.tgt)) : ''}.`; markBig('int');
         } else if (kind === 'fumlost') {
-          const s = clamp(Math.round(100 - spot), 1, 99); nx.next = tryMode ? ['cpu', 25, 'ko'] : ['cpu', s]; clockRun = false;
-          head = 'FUMBLE LOST'; sub = `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++; line = 'Ball comes loose and the defense falls on it.';
+          const ezTB = VN.endLine && !tryMode && spot >= FL;
+          const s = ezTB ? TB : clamp(Math.round(FL - spot), 1, FL - 1); nx.next = tryMode ? ['cpu', TB, 'ko'] : ['cpu', s]; clockRun = false;
+          head = 'FUMBLE LOST'; sub = ezTB ? `${esc(AWAY.name)} recover · touchback` : `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++; line = 'Ball comes loose and the defense falls on it.';
         } else if (kind === 'inc') {
           head = 'INCOMPLETE'; col = '#c9ccd4'; sub = extra || ''; clockRun = false; sfx.play('bad');
-          if (tryMode) { head = 'TWO-POINT TRY FAILS'; sub = extra ? 'Incomplete · ' + extra : 'Incomplete'; col = '#ff3344'; nx.next = ['cpu', 25, 'ko']; } else nx.down = down + 1; // a try is one play: an incompletion ends it
+          if (tryMode) { head = 'TWO-POINT TRY FAILS'; sub = extra ? 'Incomplete · ' + extra : 'Incomplete'; col = '#ff3344'; nx.next = ['cpu', TB, 'ko']; } else nx.down = down + 1; // a try is one play: an incompletion ends it
           line = `<b>${esc(nm(passer))}</b>'s pass ${P.tgt ? 'for <b>' + esc(nm(P.tgt)) + '</b> ' : ''}falls incomplete${extra ? ' (' + extra.toLowerCase() + ')' : ''}.`;
         } else {
           const ns = Math.round(spot * 2) / 2;
           if (ns <= 0 && !tryMode) {
-            addPts('away', 2); head = 'SAFETY'; sub = `${esc(AWAY.name)} +2`; col = '#ff3344'; nx.next = ['cpu', 35]; clockRun = false;
+            addPts('away', 2); head = 'SAFETY'; sub = `${esc(AWAY.name)} +2`; col = '#ff3344'; nx.next = ['cpu', VN.SAFE]; clockRun = false;
             line = 'Tackled in the end zone. Safety.';
           } else {
-            nx.los = clamp(ns, 1, 99.5);
+            nx.los = clamp(ns, 1, FL - 0.5);
             if (kind === 'sack') { head = 'SACKED!'; col = '#ff3344'; if (!slid) { TS.sacks++; if (qbS) qbS.sacked++; sfx.play('bad'); } else head = 'DOWN'; }
             else if (kind === 'oob') { head = 'OUT OF BOUNDS'; clockRun = false; }
             else head = 'TACKLED';
@@ -6586,16 +8003,16 @@ gl_FragColor=vec4(c,1.0);}`;
             else line = `<b>${esc(nm(rus || carrier))}</b> ${gained >= 8 ? 'breaks free' : 'runs'} for ${yd(gained)}.`;
             if (nx.los >= fdz && !tryMode) {
               const close = nx.los - fdz < 0.6;
-              nx.down = 1; nx.fdz = Math.min(nx.los + 10, 100); head = 'FIRST DOWN!'; col = '#2bd46b'; sfx.play('good'); TS.firstDowns++;
+              nx.down = 1; nx.fdz = Math.min(nx.los + FD, FL); head = 'FIRST DOWN!'; col = '#2bd46b'; sfx.play('good'); TS.firstDowns++;
               if (P.third) TS.thirdDownConv++;
               if (close) { sub = 'Measurement… by inches!'; line += ' Measured: first down.'; }
               if (carrier && kind !== 'sack') closeP = carrier;
             } else nx.down = down + 1;
-            if (tryMode) { head = 'TWO-POINT TRY FAILS'; col = '#ff3344'; nx.next = ['cpu', 25, 'ko']; }
-            else if (P.regain) { nx.down = 1; nx.fdz = Math.min(nx.los + 10, 100); head = 'BALL\'S BACK!'; col = '#2bd46b'; sub = 'Your defense... er, offense, recovers'; }
+            if (tryMode) { head = 'TWO-POINT TRY FAILS'; col = '#ff3344'; nx.next = ['cpu', TB, 'ko']; }
+            else if (P.regain) { nx.down = 1; nx.fdz = Math.min(nx.los + FD, FL); head = 'BALL\'S BACK!'; col = '#2bd46b'; sub = 'Your defense... er, offense, recovers'; }
           }
         }
-        if (!nx.next && nx.down > 4) { nx.next = ['cpu', clamp(Math.round(100 - nx.los), 1, 99)]; clockRun = false; head = 'TURNOVER ON DOWNS'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++; }
+        if (!nx.next && nx.down > 4) { nx.next = ['cpu', clamp(Math.round(FL - nx.los), 1, FL - 1)]; clockRun = false; head = 'TURNOVER ON DOWNS'; sub = `${esc(AWAY.name)} ball`; col = '#ff3344'; TS.turnovers++; }
         // stats
         if (!tryMode) {
           if (kind !== 'inc' && kind !== 'intdown' && kind !== 'pick6') TS.yards += gained;
@@ -6603,12 +8020,12 @@ gl_FragColor=vec4(c,1.0);}`;
             if (qbS) { qbS.passYds += gained; if (kind === 'td') qbS.passTD++; }
             if (recS) { recS.rec++; recS.recYds += gained; recS.yac += Math.max(0, Math.round(endZ - (P.catchZ || los))); recS.long = Math.max(recS.long, gained); if (kind === 'td') recS.recTD++; }
             TS.passYds += gained;
-            if (gained >= 25 && kind !== 'td') { addHL(`${nm(passer)} ${gained}-yd strike to ${nm(rec)}`); markBig('big'); }
+            if (gained >= DZ(25) && kind !== 'td') { addHL(`${nm(passer)} ${gained}-yd strike to ${nm(rec)}`); markBig('big'); }
             if (P.notes && P.notes.length && (P.wild || P.notes[0] === 'TOE TAP!' || P.notes[0] === 'DIVING CATCH!' || P.notes[0] === 'HIGH-POINTED!')) { addHL(`${nm(rec)} ${P.notes[0].toLowerCase().replace('!', '')}`); markBig('big'); }
           } else if (P.kind === 'rush' && rus && kind !== 'sack') {
             if (rusS) { rusS.rushAtt++; rusS.rushYds += gained; rusS.long = Math.max(rusS.long, gained); if (kind === 'td') rusS.rushTD++; }
             TS.rushYds += gained;
-            if (gained >= 20 && kind !== 'td') { addHL(`${nm(rus)} ${gained}-yd run`); markBig('big'); }
+            if (gained >= DZ(20) && kind !== 'td') { addHL(`${nm(rus)} ${gained}-yd run`); markBig('big'); }
           }
         }
       }
@@ -6640,7 +8057,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let cont;
       if (!next) cont = () => toPre(false);
       else if (next[0] === 'pat') cont = () => startPAT();
-      else if (next[0] === 'cpu') cont = () => VS ? vsGive(next) : (next[2] === 'ko' && qtr >= 4 && !suddenDeath && !(DBG && DBG.noKoChoice) ? startKoChoice() : goCpu(next[1])); // after you score in the 4th: kick deep or onside
+      else if (next[0] === 'cpu') cont = () => VS ? vsGive(next) : (next[2] === 'ko' && VN.onside && qtr >= 4 && !suddenDeath && !(DBG && DBG.noKoChoice) ? startKoChoice() : goCpu(next[1])); // after you score in the 4th: kick deep or onside
       else cont = () => (next[2] === 'ko' ? goHome(null, true) : next[2] === 'same' ? startDrive(next[1]) : goHome(next[1]));
       if (clock <= 0 && (!next || next[0] !== 'pat')) endQuarter(cont); else cont();
     }
@@ -6649,6 +8066,7 @@ gl_FragColor=vec4(c,1.0);}`;
       phase = 'pre'; poss = 'home'; setupPlay(); playClock = PCL;
       voicePre();
       if (down === 3 && !tryMode && !isNewDrive) voice.say('third_down', { dist: String(Math.max(1, Math.min(99, Math.round(fdz - los)))) }, 1, 0.3);
+      if (down === 4 && !tryMode && !VN.punt && !VN.fg) go4 = true; // nothing to kick: every 4th down is a go
       sheetOpen = !(down === 4 && !tryMode) || go4;
       if (!isNewDrive) clearBanner();
       setControls(true);
@@ -6657,19 +8075,19 @@ gl_FragColor=vec4(c,1.0);}`;
       if (VS && VS.auth) vsPre();
     }
     function startDrive(yd) {
-      los = clamp(Math.round(yd), 1, 99); down = 1; fdz = Math.min(los + 10, 100); tryMode = false; go4 = false;
+      los = clamp(Math.round(yd), 1, FL - 1); down = 1; fdz = Math.min(los + FD, FL); tryMode = false; go4 = false;
       driveStart = los; drivePlays = 0; clockRun = false; poss = 'home'; perkHook('drive');
       voice.say('drive_start', { home: HOME.name, spot: spotTxt(los) }, 1, 0.35);
       toPre(true);
     }
     function startIntro() {
       intro = 2.0; introCut = true;
-      banner('1st & 10', `${esc(nm(OK.QB))} and the ${esc(HOME.name)} offense · ${ballTxt(los)}`, '#ffc21a');
+      banner(`1st & ${FD}`, `${esc(nm(OK.QB))} and the ${esc(HOME.name)} offense · ${ballTxt(los)}`, '#ffc21a');
     }
     function introT0() { intro = 0; }
     // after you score in the 4th quarter: kick it deep (they start at their 25) or try an onside kick
     function startKoChoice() {
-      phase = 'koc'; poss = 'home'; clockRun = false; kick = null; carrier = null; ctrl = null; mode = 'none'; kocT = 8; los = 35;
+      phase = 'koc'; poss = 'home'; clockRun = false; kick = null; carrier = null; ctrl = null; mode = 'none'; kocT = 8; los = VN.KO;
       setupPlay(); hideTags(); setControls(true);
       banner('KICKOFF', 'Kick it deep, or try an onside kick?', '#ffc21a');
       say('Fourth quarter: kick deep or go onside?');
@@ -6677,17 +8095,17 @@ gl_FragColor=vec4(c,1.0);}`;
     function chooseKo(onside) {
       if (phase !== 'koc') return;
       clearBanner(); sfx.play('tap');
-      if (onside) { voice.say('onside_choice', {}, 2); startOnside(true); } else goCpu(25);
+      if (onside) { voice.say('onside_choice', {}, 2); startOnside(true); } else goCpu(TB);
     }
     function startPAT() {
-      phase = 'pat'; poss = 'home'; tryMode = false; clockRun = false; los = 85; down = 1; fdz = 100;
+      phase = 'pat'; poss = 'home'; tryMode = false; clockRun = false; los = FL - VN.PAT; down = 1; fdz = FL;
       setupPlay(); setControls(true);
       say('Extra point or go for two?');
     }
     function chooseTry(two) {
       if (phase !== 'pat') return;
-      if (two) { voice.say('two_choice', {}, 1, 0.6); tryMode = true; los = 98; down = 1; fdz = 100; toPre(false); banner('TWO-POINT TRY', 'Get it in from the 2', '#ffc21a'); }
-      else { los = 85; startKick('xp'); }
+      if (two) { voice.say('two_choice', {}, 1, 0.6); tryMode = true; los = FL - VN.TWO; down = 1; fdz = FL; toPre(false); banner('TWO-POINT TRY', `Get it in from the ${VN.TWO}`, '#ffc21a'); }
+      else { los = FL - VN.PAT; startKick('xp'); }
     }
     // change your mind before the ball is live: lined up for two with the ball not snapped -> kick it; kick lined up with no power set -> go for two
     function switchTry(two) {
@@ -6703,7 +8121,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function choose4th(k) {
       if (phase !== 'pre' || down !== 4 || go4 || tryMode || finished) return;
       if (k === 'go') { go4 = true; sfx.play('tap'); voice.say('fourth_go', {}, 1, 0.6); sheetOpen = true; setControls(true); openSheet(); return; }
-      if (k === 'fg' && 117 - los > fgRange() + 3) return;
+      if (k === 'punt' && !VN.punt) return;
+      if (k === 'fg' && !VN.fg) return;
+      if (k === 'fg' && FL + EZ + 7 - los > fgRange() + 3) return;
       startKick(k === 'fg' ? 'fg' : 'punt');
     }
     // ---------- possession changes / overtime ----------
@@ -6735,7 +8155,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ended (stop: incomplete or out of bounds; to: a turnover; td), plus the field goal or punt that ends a drive.
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
-      const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || spot + 10, plays = 0, used = 0, yds = 0;
+      const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || spot + FD, plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
       const L = (e) => { if (log) log.push(Object.assign({ dn, fd, sp: spot }, e)); return e; };
       const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t), kinds });
@@ -6743,12 +8163,12 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let guard = 0; guard < 60; guard++) {
         if (clk.t <= 0) return fin('CLOCK');
         const needTD = clk.q >= 4 && lead + 3 <= 0 && clk.t < QS * 0.6;
-        if (spot >= 63 && ((endHalf && clk.t < 14 && !needTD) || (dn === 4 && !needTD) || (suddenDeath && dn >= 3))) {
-          const d = 117 - spot; tick(5); plays++;
+        if (VN.fg && spot >= FL - VN.CPUFG && ((endHalf && clk.t < 14 && !needTD) || (dn === 4 && !needTD) || (suddenDeath && dn >= 3))) {
+          const d = FL + EZ + 7 - spot; tick(5); plays++;
           const good = rng() < clamp(CD.fg * (1.25 - (d - 20) * 0.012), 0.2, 0.97); L({ k: 'fg', g: 0, good, d });
           return fin(good ? 'FG' : 'MISS');
         }
-        if (dn === 4 && !(fd - spot <= CD.go4 && spot >= 40) && !(clk.q >= 4 && lead < 0 && clk.t < QS * 1.2)) { tick(6); plays++; L({ k: 'punt', g: 0 }); return fin('PUNT'); }
+        if (VN.punt && dn === 4 && !(fd - spot <= CD.go4 && spot >= VN.CPUGO) && !(clk.q >= 4 && lead < 0 && clk.t < QS * 1.2)) { tick(6); plays++; L({ k: 'punt', g: 0 }); return fin('PUNT'); }
         if (o && o.key && o.key(spot, dn, fd, clk, lead, plays)) return Object.assign(fin('KEY'), { dn, fd }); // a key play: played live (33-defplay.js)
         // the CPU's kind of play for the down, distance and your habits, against your call (34-dsheet.js)
         const cl = A ? archCall(A, dn, fd - spot, spot, lead, endHalf && clk.t < 75) : call;
@@ -6759,32 +8179,33 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (r < T.loss + T.big) g = 15 + Math.floor(rng() * 35);
         else if (r < T.loss + T.big + T.inc) { g = 0; stop = true; } // incomplete
         else g = Math.round(T.g * (0.2 + 1.6 * rng()));
+        if (VN.yardK !== 1) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * VN.yardK); // a shorter field: shorter gains
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
         // same clock as the user: the play itself, then 4 more seconds after an in-bounds play before it stops for the next snap
         const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF) + CD.slow) * QS / 120);
         const e = L({ k: kind, call: cl, g, stop, secs: +(c0 - clk.t).toFixed(2) });
-        if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, 99); const R = rng() < 0.6 ? 'INT' : 'FUMBLE'; e.to = R; e.g = Math.max(0, g); return fin(R); }
+        if (rng() < CD.to) { spot = clamp(spot + Math.max(0, g), 1, FL - 1); const R = rng() < 0.6 ? 'INT' : 'FUMBLE'; e.to = R; e.g = Math.max(0, g); return fin(R); }
         spot = Math.max(1, spot + g);
-        if (spot >= 100) { e.g = 100 - (spot - g); e.td = 1; spot = 100; return fin('TD'); }
-        if (spot >= fd) { dn = 1; fd = Math.min(spot + 10, 100); } else dn++;
+        if (spot >= FL) { e.g = FL - (spot - g); e.td = 1; spot = FL; return fin('TD'); }
+        if (spot >= fd) { dn = 1; fd = Math.min(spot + FD, FL); } else dn++;
         if (dn > 4) return fin('DOWNS');
       }
-      return fin('PUNT');
+      return fin(VN.punt ? 'PUNT' : 'DOWNS');
     }
     const RES = { TD: ['TOUCHDOWN', '#ff3344'], FG: ['FIELD GOAL', '#ff3344'], MISS: ['MISSED FG', '#2bd46b'], PUNT: ['PUNT', '#c9ccd4'], INT: ['INTERCEPTED!', '#2bd46b'], FUMBLE: ['FUMBLE! YOUR BALL', '#2bd46b'], DOWNS: ['STOPPED ON DOWNS', '#2bd46b'], CLOCK: ['', '#c9ccd4'] };
     function startCpuDrive(start) {
       clearBanner(); closeSheet(); carrier = null; clockRun = false; ctrl = null; mode = 'none'; kick = null;
-      phase = 'cpu'; poss = 'away'; los = clamp(100 - start, 1, 99); down = 1; fdz = Math.min(100, los + 10);
+      phase = 'cpu'; poss = 'away'; los = clamp(FL - start, 1, FL - 1); down = 1; fdz = Math.min(FL, los + FD);
       setupPlay(); hideTags();
       if (!DRAMA.keep) fireOut('FIRE\'S OUT'); DRAMA.keep = false; // the player's drive ended without points
       // the player calls the defense first (a few seconds, then the suggested call is made for him), then the drive is played out
       cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true };
       cpuD.el.style.setProperty('--oc', OPPCSS);
-      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `1st & 10 at their ${start} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, 10, start, hs - as, qtr >= 4 && clock < 75] });
+      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `1st & ${FD} at their ${start} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, FD, start, hs - as, qtr >= 4 && clock < 75] });
       setControls(true);
       say(`<b>${esc(AWAY.name)}</b> ball at their ${start}. Pick the plan for the drive.`);
-      voice.say('cpu_drive_start', { away: AWAY.name, spot: start === 50 ? 'midfield' : 'the ' + start }, 1, 0.3);
+      voice.say('cpu_drive_start', { away: AWAY.name, spot: start === MID ? 'midfield' : 'the ' + start }, 1, 0.3);
     }
     // the drive plan (34-dsheet.js DARCH): every snap of the drive runs a call from it
     function chooseArch(id) {
@@ -6796,7 +8217,7 @@ gl_FragColor=vec4(c,1.0);}`;
       DEFP.left = DEFMODE === 'high' ? 2 + ((rng() * 3) | 0) : DEFMODE === 'medium' ? 1 + ((rng() * 2) | 0) : 0; DEFP.dnum = 0; // live snaps this drive: two to four (High), one or two (Medium); clutch time and the goal line are live anyway
       const clk = { q: qtr, t: clock }, log = [], r = simCpu(d.start, clk, log, { arch: A }, { key: defpKeyCheck });
       d.log = log; d.arch = A;
-      if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = 100; } // tests: force the drive's result
+      if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = FL; } // tests: force the drive's result
       CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       Object.assign(d, { r, c0: clock, t: 0, call, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1) }); // clutch: the drive plays out slower (the field below plays inside that time)
       sfx.play('tap'); drawCard();
@@ -6824,7 +8245,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const k = d.shown ? 1 : Math.min(1, d.t / d.dur), f = k * n, i = Math.min(n - 1, Math.floor(f));
       return { L, n, i, u: d.shown ? 1 : f - i, e: L[i] };
     }
-    const driveSpot = (sp) => (Math.round(sp) === 50 ? 'midfield' : sp < 50 ? 'their ' + Math.round(sp) : 'your ' + Math.round(100 - sp));
+    const driveSpot = (sp) => (Math.round(sp) === MID ? 'midfield' : sp < MID ? 'their ' + Math.round(sp) : 'your ' + Math.round(FL - sp));
     function playTxt(e, done) {
       if (e.k === 'fg') return done ? (e.good ? `${e.d}-yard field goal: GOOD` : `${e.d}-yard field goal: NO GOOD`) : `${e.d}-yard field goal try`;
       if (e.k === 'punt') return 'Punt';
@@ -6838,26 +8259,26 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function drawField(d) {
       const P = drivePlay(d), cv = d.fc; if (!cv) return;
-      const g = cv.getContext('2d'), W = cv.width, H = cv.height, X = (z) => W * (10 + z) / 120;
-      g.fillStyle = '#1d5e2e'; g.fillRect(0, 0, W, H);
+      const g = cv.getContext('2d'), W = cv.width, H = cv.height, X = (z) => W * (EZ + z) / (FL + 2 * EZ);
+      g.fillStyle = ARTC.mf; g.fillRect(0, 0, W, H);
       g.fillStyle = OPPCSS; g.globalAlpha = 0.55; g.fillRect(0, 0, X(0), H); g.globalAlpha = 1; // their end zone (left)
-      g.fillStyle = HOMECSS; g.globalAlpha = 0.55; g.fillRect(X(100), 0, W - X(100), H); g.globalAlpha = 1; // yours (right): they're driving at it
+      g.fillStyle = HOMECSS; g.globalAlpha = 0.55; g.fillRect(X(FL), 0, W - X(FL), H); g.globalAlpha = 1; // yours (right): they're driving at it
       g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1;
-      for (let z = 0; z <= 100; z += 10) { g.beginPath(); g.moveTo(X(z) + 0.5, 0); g.lineTo(X(z) + 0.5, H); g.stroke(); }
+      for (let z = 0; z <= FL; z += VN.mapLine) { g.beginPath(); g.moveTo(X(z) + 0.5, 0); g.lineTo(X(z) + 0.5, H); g.stroke(); }
       g.fillStyle = 'rgba(255,255,255,.45)'; g.font = `bold ${Math.round(H * 0.16)}px Inter,sans-serif`; g.textAlign = 'center';
-      for (let z = 20; z <= 80; z += 20) g.fillText(String(z <= 50 ? z : 100 - z), X(z), H * 0.95);
+      for (let z = VN.mapStep; z <= FL - VN.mapStep; z += VN.mapStep) g.fillText(String(z <= MID ? z : Math.round(FL - z)), X(z), H * 0.95);
       if (!P) return;
       const { L, i, u, e } = P;
       // the plays so far: thin lines, each from its spot to where it ended
       for (let j = 0; j < i; j++) { const q = L[j]; if (q.k === 'fg' || q.k === 'punt') continue; g.strokeStyle = q.g < 0 ? 'rgba(255,90,90,.5)' : 'rgba(255,255,255,.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(q.sp), H * 0.5 + ((j % 3) - 1) * H * 0.1); g.lineTo(X(q.sp + q.g), H * 0.5 + ((j % 3) - 1) * H * 0.1); g.stroke(); }
       // the line of scrimmage and the line to gain for this snap
       g.fillStyle = '#4da3ff'; g.fillRect(X(e.sp) - 1, 0, 2, H);
-      if (e.fd < 100 && e.k !== 'fg' && e.k !== 'punt') { g.fillStyle = '#ffd400'; g.fillRect(X(e.fd) - 1, 0, 2, H); }
+      if (e.fd < FL && e.k !== 'fg' && e.k !== 'punt') { g.fillStyle = '#ffd400'; g.fillRect(X(e.fd) - 1, 0, 2, H); }
       // the ball on this play: a run along the ground, a pass up in an arc (a kick goes off the field)
       const ease = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
       let bx, by = H * 0.5;
       if (e.k === 'fg' || e.k === 'punt') { bx = X(e.sp + (e.k === 'fg' ? 27 : 42) * ease); by = H * 0.5 - Math.sin(ease * Math.PI) * H * 0.35; }
-      else { const pass = e.k !== 'run' && !(e.g < 0); bx = X(e.sp + (e.stop && e.g === 0 ? 12 * ease : e.g * ease)); if (pass) by = H * 0.5 - Math.sin(ease * Math.PI) * H * 0.28; }
+      else { const pass = e.k !== 'run' && !(e.g < 0); bx = X(e.sp + (e.stop && e.g === 0 ? DZ(12) * ease : e.g * ease)); if (pass) by = H * 0.5 - Math.sin(ease * Math.PI) * H * 0.28; }
       g.fillStyle = '#8a4b1f'; g.strokeStyle = '#fff'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(bx, by, 5, 3.4, 0, 0, 6.29); g.fill(); g.stroke();
       if (e.k !== 'fg' && e.k !== 'punt' && e.stop && e.g === 0 && u > 0.85) { g.fillStyle = '#ff5a5a'; g.font = `bold ${Math.round(H * 0.2)}px Inter,sans-serif`; g.fillText('×', bx, by - 6); }
     }
@@ -6872,14 +8293,14 @@ gl_FragColor=vec4(c,1.0);}`;
       const P = drivePlay(d), q = (s) => d.el.querySelector(s);
       if (P && !d.shown) {
         const e = P.e, togo = e.fd - e.sp, done = P.u > 0.8;
-        d.dd = e.k === 'fg' ? 'Field goal' : e.k === 'punt' ? '4th down' : `${ORD[Math.min(e.dn, 4)] || e.dn} & ${e.fd >= 100 ? 'Goal' : Math.max(1, Math.round(togo))}`; d.ddAt = e.sp;
+        d.dd = e.k === 'fg' ? 'Field goal' : e.k === 'punt' ? '4th down' : `${ORD[Math.min(e.dn, 4)] || e.dn} & ${e.fd >= FL ? 'Goal' : Math.max(1, Math.round(togo))}`; d.ddAt = e.sp;
         q('.mf-dd').innerHTML = `<b>${esc(d.dd)}</b> at ${esc(driveSpot(e.sp))}`;
         q('.mf-lp').textContent = playTxt(e, done) + (e.call ? ` · vs ${callName(e.call)}` : '');
       } else if (d.shown) { d.dd = null; q('.mf-dd').innerHTML = ''; q('.mf-lp').textContent = P ? playTxt(P.L[P.n - 1], true) : ''; }
       q('.mf-st').innerHTML = `Plays <b>${n}</b> · Yards <b>${y}</b>`;
       q('.mf-pl').innerHTML = `Started at their ${d.start} · your plan: <b>${esc(d.arch ? d.arch.name : callName(d.call))}</b>`;
       q('.mf-rs').innerHTML = (d.shown && r.kinds ? `<p style="margin:2px 0 0;font-size:12px;color:#9aa0ad">They ran: ${kindsTxt(r.kinds)}</p>` : '') +
-        (d.shown ? `<p class="res" style="color:${res[1]}">${label}</p>${r.two ? `<p style="margin:4px 0 0;color:${r.two.good ? '#ff3344' : '#2bd46b'}">2-PT TRY ${r.two.good ? 'GOOD' : 'NO GOOD'}</p>` : ''}<p class="sc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '');
+        (d.shown ? `<p class="bz-dres" style="color:${res[1]}">${label}</p>${r.two ? `<p style="margin:4px 0 0;color:${r.two.good ? '#ff3344' : '#2bd46b'}">2-PT TRY ${r.two.good ? 'GOOD' : 'NO GOOD'}</p>` : ''}<p class="bz-dsc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '');
       drawField(d);
     }
     function cpuStep(dt) {
@@ -6890,7 +8311,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!d.shown && d.t >= d.dur && d.r.res === 'KEY') { clock = d.r.t; d.el.remove(); cpuD = null; defpBegin(d.r, d); return; } // the drive stops for a key play
       if (!d.shown && d.t >= d.dur) {
         d.shown = true; clock = d.r.t;
-        if (d.r.res === 'TD') { const two = cpuTry(); d.r.two = two; addPts('away', two ? (two.good ? 8 : 6) : 7); } else if (d.r.res === 'FG') { addPts('away', 3); }
+        if (d.r.res === 'TD') { const two = VN.pat ? cpuTry() : null; d.r.two = two; addPts('away', VN.pat ? (two ? (two.good ? 8 : 6) : 7) : VN.tdPts); } else if (d.r.res === 'FG') { addPts('away', 3); }
         else if (d.r.res !== 'CLOCK' && d.r.res !== 'PUNT') { sfx.play('good'); excite = 0.6; } else sfx.play('whistle');
         if (d.r.res !== 'CLOCK') dramaCpu(d.r.res);
         const fz = funCpu(d.r); if (fz) { moment(fz[0], null, fz[1], { victim: 'away', replay: false, snd: fz[0] === 'cpudoink' ? 'doink' : 'ooh', line: funLine(fz[0]) }); d.fl = FUN.line; FUN.line = ""; FUN.plays++; FUN.thisPlay = 0; }
@@ -6905,10 +8326,10 @@ gl_FragColor=vec4(c,1.0);}`;
         const r = d.r, sp = r.spot;
         let cont;
         if (r.res === 'TD' || r.res === 'FG') cont = () => goHome(null, true);
-        else if (r.res === 'MISS') cont = () => goHome(clamp(107 - sp, 20, 80));
-        else if (r.res === 'PUNT') cont = () => goHome(r.shank ? 42 + Math.floor(rng() * 12) : 18 + Math.floor(rng() * 17));
+        else if (r.res === 'MISS') cont = () => goHome(clamp(FL + 7 - sp, VN.RESTART.missMin, FL - 20));
+        else if (r.res === 'PUNT') cont = () => goHome(r.shank ? VN.RESTART.puntHi + Math.floor(rng() * VN.RESTART.puntHiR) : VN.RESTART.puntLo + Math.floor(rng() * VN.RESTART.puntLoR));
         else if (r.res === 'CLOCK') cont = () => startCpuDrive(sp);
-        else cont = () => goHome(clamp(100 - sp, 15, 70));
+        else cont = () => goHome(clamp(FL - sp, VN.RESTART.toMin, VN.RESTART.toMax));
         if (clock <= 0 || r.res === 'CLOCK') endQuarter(cont); else cont();
       }
     }
@@ -6926,14 +8347,14 @@ gl_FragColor=vec4(c,1.0);}`;
           brkTo(qtr === 4 ? 'END OF REGULATION' : `END OF OVERTIME`, `Tied ${hs}–${as} · ${qtr === 4 ? 'overtime!' : 'another period'}`, () => {
             const first = qtr === 4;
             qtr++; clock = QS; boardDirty = true;
-            if (first) { otLeft = 2; suddenDeath = false; toLeft = Math.min(TOS, 2); if (VS) VS.toOpp = toLeft; const youFirst = rng() < 0.5; say(`Overtime coin toss: <b>${youFirst ? esc(HOME.name) : esc(AWAY.name)}</b> receive.`); if (youFirst) goHome(null, true); else goCpu(25); }
+            if (first) { otLeft = 2; suddenDeath = false; toLeft = Math.min(TOS, 2); if (VS) VS.toOpp = toLeft; const youFirst = rng() < 0.5; say(`Overtime coin toss: <b>${youFirst ? esc(HOME.name) : esc(AWAY.name)}</b> receive.`); if (youFirst) goHome(null, true); else goCpu(TB); }
             else { suddenDeath = true; cont(); }
           }, 3);
         } else gameOver();
         return;
       }
       if (qtr === 2) {
-        brkTo('HALFTIME', `${sc} · ${TOS} timeouts again`, () => { qtr = 3; clock = QS; toLeft = TOS; if (VS) VS.toOpp = TOS; boardDirty = true; if (recv2 === 'home') goHome(null, true); else goCpu(25); }, 3.4);
+        brkTo('HALFTIME', `${sc} · ${TOS} timeouts again`, () => { qtr = 3; clock = QS; toLeft = TOS; if (VS) VS.toOpp = TOS; boardDirty = true; if (recv2 === 'home') goHome(null, true); else goCpu(TB); }, 3.4);
         return;
       }
       brkTo(`END OF Q${qtr}`, sc, () => { qtr++; clock = QS; boardDirty = true; cont(); });
@@ -7006,7 +8427,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // a missed kick, or when the CPU scores. A touchdown or field goal keeps it going into the next drive.
     function dramaPlay(kind, gained, head) {
       if (tryMode || (kick && kick.type === 'ko')) return;
-      const good = kind === 'td' || head === 'FIRST DOWN!' || (gained >= 12 && kind !== 'inc');
+      const good = kind === 'td' || head === 'FIRST DOWN!' || (gained >= DZ(12) && kind !== 'inc');
       const bad = ['inc', 'sack', 'intdown', 'fumlost', 'pick6', 'safety'].includes(kind) || gained < 0 || head === 'TURNOVER ON DOWNS';
       if (bad) { if (DRAMA.fireOn) fireOut('FIRE\'S OUT'); DRAMA.streak = 0; return; }
       if (!good) return;
@@ -7079,7 +8500,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const PULSE = { e: 0, v: 0.12, tier: 0, shown: 0, beatT: 0, beatN: 0, popT: 0 };
     const PULSE_TIERS = [[0, 'Quiet'], [0.38, 'Loud'], [0.58, 'Rocking'], [0.78, 'Deafening']];
     // the player's ball inside the 20 (live, between plays, or lined up)
-    const homeRZ = () => poss === 'home' && phase !== 'cpu' && phase !== 'koc' && !(kick && kick.type === 'ko') && los >= 80;
+    const homeRZ = () => poss === 'home' && phase !== 'cpu' && phase !== 'koc' && !(kick && kick.type === 'ko') && los >= FL - VN.RZ;
     // a kick of yours: the place gets loud for a field goal or an extra point (louder for a long one, and late in a close game), a
     // little for a kickoff or a punt
     function kickPulse(m, q4) {
@@ -7096,8 +8517,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const level = 0.1 + clamp(DIFF / 1.3, 0, 1) * 0.22;
       // the red zone: the player's ball inside the 20, or a CPU drive getting there on its card
       let rz = 0, big = false;
-      if (homeRZ()) { rz = 0.12 + (los - 80) / 20 * 0.14; big = down >= 3; }
-      else if (phase === 'cpu' && cpuD && cpuD.r) { const k = Math.min(1, cpuD.t / cpuD.dur), sp = cpuD.start + (cpuD.r.spot - cpuD.start) * k; rz = sp >= 80 ? 0.1 + (sp - 80) / 20 * 0.12 : 0; }
+      if (homeRZ()) { rz = 0.12 + (los - (FL - VN.RZ)) / VN.RZ * 0.14; big = down >= 3; }
+      else if (phase === 'cpu' && cpuD && cpuD.r) { const k = Math.min(1, cpuD.t / cpuD.dur), sp = cpuD.start + (cpuD.r.spot - cpuD.start) * k; rz = sp >= FL - VN.RZ ? 0.1 + (sp - (FL - VN.RZ)) / VN.RZ * 0.12 : 0; }
       if (!q4 && !big) return clamp(level * 0.5 + rz * 0.35, 0, 0.24); // a play that doesn't matter: one bar, two in the red zone
       const close = (m <= 3 ? 0.3 : m <= 8 ? 0.22 : m <= 14 ? 0.06 : m <= 21 ? -0.08 : -0.2) * (q4 ? 1 : 0.35 + 0.65 * g);
       const late = q4 ? 0.12 + (qtr === 4 && clock < 60 ? 0.08 : 0) + (qtr >= 5 ? 0.12 : 0) : 0;
@@ -7115,7 +8536,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // a tier up gets called out (not every flicker: it has to climb, and not more than every 20 s)
       let tier = 0; for (let i = 0; i < PULSE_TIERS.length; i++) if (p >= PULSE_TIERS[i][0]) tier = i;
       PULSE.popT -= dt;
-      if (tier > PULSE.tier && tier >= 2 && PULSE.popT <= 0 && (phase === 'pre' || phase === 'cpu' || phase === 'dead')) { PULSE.popT = 20; pop(`STADIUM ${PULSE_TIERS[tier][1].toUpperCase()}`, tier >= 3 ? '#ff3344' : '#ffc21a'); DRAMA.log.push('pulse' + tier); }
+      if (tier > PULSE.tier && tier >= 2 && PULSE.popT <= 0 && (phase === 'pre' || phase === 'cpu' || phase === 'dead')) { PULSE.popT = 20; pop(`${METCALF ? 'SCHOOLYARD' : 'STADIUM'} ${PULSE_TIERS[tier][1].toUpperCase()}`, tier >= 3 ? '#ff3344' : '#ffc21a'); DRAMA.log.push('pulse' + tier); }
       PULSE.tier = tier;
       // stomp, stomp, clap: the crowd's own rhythm at the line or on defense once the place is rocking (the heartbeat takes over in clutch time)
       if (p >= 0.58 && !isClutch() && (phase === 'pre' || phase === 'cpu')) {
@@ -7134,7 +8555,8 @@ gl_FragColor=vec4(c,1.0);}`;
     const crowdLvlK = () => 0.45 + 0.55 * clamp(DIFF / 1.3, 0, 1);
     const kickNow = () => phase === 'kick' && kick && poss === 'home' && (kick.type === 'fg' || kick.type === 'xp');
     const crowdZone = () => homeRZ() || kickNow() ? 1 : qtr >= 4 && Math.abs(hs - as) <= 8 ? 0.5 : 0;
-    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead' || kickNow(); return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() * crowdZone() : 0; }
+    // Metcalf: no stands, only the kids around the blacktop: half the pressure on the aim, and no shaking picture or flash bulbs
+    function crowdE() { const on = phase === 'live' || phase === 'pre' || phase === 'dead' || kickNow(); return on ? clamp((PULSE.v - 0.3) / 0.7, 0, 1) * crowdLvlK() * crowdZone() * (METCALF ? 0.5 : 1) : 0; }
     // the sway applied to the aim: an angle (radians) and a length factor, from the time
     function crowdWobble() {
       const e = PULSE.e || 0; if (e <= 0.01) return { a: 0, k: 1 };
@@ -7143,17 +8565,17 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     let noiseEl = null, flashT = 0;
     function crowdStep(dt) {
-      const e = PULSE.e = crowdE();
-      if (e > 0.01) cam.shake = Math.max(cam.shake, (0.2 + 0.75 * e) * (kickNow() ? 0.35 : 1)); // a kick: the stands shake, the kicker's view a little
+      const e = PULSE.e = crowdE(), sh = METCALF ? 0 : e; // sh: the stands shaking (none at a schoolyard)
+      if (sh > 0.01) cam.shake = Math.max(cam.shake, (0.2 + 0.75 * e) * (kickNow() ? 0.35 : 1)); // a kick: the stands shake, the kicker's view a little
       // the picture itself shakes
-      if (stage) stage.style.transform = e > 0.01 ? `translate(${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 90) * 3 * e).toFixed(1)}px,${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 130) * 2 * e).toFixed(1)}px)` : '';
+      if (stage) stage.style.transform = sh > 0.01 ? `translate(${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 90) * 3 * e).toFixed(1)}px,${((Math.random() - 0.5) * 11 * e + Math.sin(performance.now() / 130) * 2 * e).toFixed(1)}px)` : '';
       // the vignette closes in with the beat; flash bulbs pop
       if (!noiseEl && stage) { noiseEl = el('div', 'bz-noise', ''); stage.appendChild(noiseEl); }
       if (noiseEl) {
         const beat = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * (6.3 / Math.max(0.45, 1.5 - PULSE.v * 1.05)));
         noiseEl.style.opacity = e > 0.01 ? (e * (0.55 + 0.3 * beat)).toFixed(2) : '0';
         flashT -= dt;
-        if (e > 0.15 && flashT <= 0 && Math.random() < dt * e * 3) { flashT = 0.25; noiseEl.classList.add('flash'); setTimeout(() => { try { noiseEl.classList.remove('flash'); } catch (er) {} }, 70); }
+        if (sh > 0.15 && flashT <= 0 && Math.random() < dt * e * 3) { flashT = 0.25; noiseEl.classList.add('flash'); setTimeout(() => { try { noiseEl.classList.remove('flash'); } catch (er) {} }, 70); }
       }
       // keep the aim line moving even while the finger holds still
       if (aim && phase === 'live' && mode === 'aim' && e > 0.01) showAim();
@@ -7245,7 +8667,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if ((a === c || b === c) && c.side === 0 && !kick) {
         const o = a === c ? b : a; if (o.rag || !funRoll('friendly', 0.7)) return;
         finishTackle(c, o, 'hit', (c.x - o.x) / (dist(c, o) || 1), (c.z - o.z) / (dist(c, o) || 1), rel);
-        moment('friendly', c, 'FRIENDLY FIRE!', { a: c, b: o, victim: 'home', snd: 'clang', col: '#ff9a3c', line: `<b>${esc(nm(c))}</b> runs smack into his own blocker <b>${esc(nm(o))}</b>. Friendly fire!` });
+        moment('friendly', c, 'FRIENDLY FIRE!', { a: c, b: o, victim: 'home', snd: 'clang', col: '#ff9a3c', line: `<b>${esc(nm(c))}</b> runs smack into his own blocker${o.sq ? ' <b>' + esc(nm(o)) + '</b>' : ''}. Friendly fire!` });
         return;
       }
       if (a === c || b === c) return;
@@ -7291,7 +8713,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function funCelebrate(c) {
       if (!c) return;
       const nearSide = Math.abs(c.x) > HW - 9;
-      let t = DBG && DBG.celType != null ? DBG.celType : (crand() * 6) | 0; if (t === 5 && !nearSide && !(DBG && DBG.celType === 5)) t = 4;
+      let t = DBG && DBG.celType != null ? DBG.celType : (crand() * 6) | 0; if (t === 5 && (!nearSide && !(DBG && DBG.celType === 5) || !VN.leap)) t = 4; // no stands to leap into at every venue
       c.celType = t === 5 ? 0 : t; c.celAt = 0.55; c.leap = t === 5 ? { t: 0, sx: Math.sign(c.x) || 1 } : null;
       if (t === 1 || t === 4 || t === 5) voice.say(t === 1 ? 'spike' : t === 4 ? 'dance' : 'leap', { player: nm(c) }, 2, 0.8);
       const L = ['', 'THE SPIKE!', '', '', 'DANCE PARTY!', 'INTO THE STANDS!'][t];
@@ -7343,11 +8765,15 @@ gl_FragColor=vec4(c,1.0);}`;
       } catch (e) { avail = false; }
       // a variant the player has not heard lately (the last few picks of each event are kept out of the draw), among the
       // variants whose clips are all made, or that have an earlier split that is, whenever there are any
+      // more variants that don't fit a schoolyard, on top of the venue's own list: a kickoff (it is a throw-off), the bleachers,
+      // the ref (no officials) and the field goal
+      const MET_VSKIP2 = { kr_td: [0, 3, 5], throwaway: [3], friendly_fire: [6], coach_note: [10] };
       function pick(e) {
         const ev = EV[e]; if (!ev || !(ev.n > 0)) return -1;
         const n = ev.n, r = recent[e] || (recent[e] = []), ok = (i) => !ev.ready || ev.ready[i] || !!(ev.prev && ev.prev[i]);
         let pool = []; for (let i = 0; i < n; i++) if (ok(i)) pool.push(i);
         if (!pool.length) for (let i = 0; i < n; i++) pool.push(i);
+        if (METCALF && (MET_VSKIP[e] || MET_VSKIP2[e])) { const sk = (MET_VSKIP[e] || []).concat(MET_VSKIP2[e] || []), p2 = pool.filter((i) => sk.indexOf(i) < 0); if (p2.length) pool = p2; }
         const c = pool.filter((i) => r.indexOf(i) < 0);
         const i = c.length ? c[(cosmetic() * c.length) | 0] : pool[(cosmetic() * pool.length) | 0];
         r.push(i); const keep = Math.min(pool.length - 1, 5); while (r.length > keep) r.shift();
@@ -7465,7 +8891,7 @@ gl_FragColor=vec4(c,1.0);}`;
     })();
     const yb = (n) => String(Math.max(1, Math.min(99, Math.round(Math.abs(+n || 0))))); // yards as the voice says them: 1 to 99, each its own clip
     const n99 = (n) => String(Math.max(0, Math.min(99, Math.round(+n || 0))));
-    const spotTxt = (z) => (Math.round(z) === 50 ? 'midfield' : 'the ' + (z < 50 ? Math.round(z) : 100 - Math.round(z)));
+    const spotTxt = (z) => (Math.round(z) === MID ? 'midfield' : 'the ' + (z < MID ? Math.round(z) : Math.round(FL - Math.round(z))));
     let VD0 = 0, VMIN = 0, VBLOW = false, VCOME = false;
     // when the play is called: render the live calls for the players on it, so the snap and the throw are on hand
     function voicePre() {
@@ -7485,7 +8911,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const recs = ['X', 'Z', 'S', 'Y', 'RB'].filter((k) => OK[k] && OK[k].R).slice(0, 4);
       for (const k of recs) { const r = nm(OK[k]); voice.prefetch('incomplete', { passer: pn, rec: r }); voice.prefetch('first_down', { player: r }); }
       const rb = (play.carrier && OK[play.carrier]) || OK.RB;
-      if (rb && isRunPlay(play)) { const c = nm(rb); voice.prefetch('first_down', { player: c }); voice.prefetch('no_gain', { carrier: c }); voice.prefetch('run_loss', { carrier: c }); if (100 - los <= 6) voice.prefetch('td_short', { carrier: c }); }
+      if (rb && isRunPlay(play)) { const c = nm(rb); voice.prefetch('first_down', { player: c }); voice.prefetch('no_gain', { carrier: c }); voice.prefetch('run_loss', { carrier: c }); if (FL - los <= 6) voice.prefetch('td_short', { carrier: c }); }
     }
     // the spoken call for a play that just ended
     function voiceResult(kind, P, gained, nx, head, extra, slid, spot) {
@@ -7495,6 +8921,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (kind === 'krtd') V('kr_td', { carrier: nm(carrier) }, 3);
         else if (kind === 'fumlost') V('fumble_lost', { away }, 3);
         else if (head === 'TOUCHBACK') V('kr_touchback', {}, 2, 0.8);
+        else if (head === 'SAFETY') V('safety', {}, 3);
         else V('kr_return', { carrier: nm(carrier), yards: yb(spot - (P.start || 0)) }, 2, 0.8);
         return;
       }
@@ -7521,12 +8948,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (P.regain) { V('fumble_kept', { home }, 2); return; }
       const first = head === 'FIRST DOWN!';
       if (P.caught) {
-        if (gained >= 20) V('complete_big', { passer: pn, rec: rn, yards: yb(gained) }, 2);
+        if (gained >= DZ(20)) V('complete_big', { passer: pn, rec: rn, yards: yb(gained) }, 2);
         else if (first && cosmetic2() < 0.5) V('first_down', { player: rn }, 2);
         else V('complete', { passer: pn, rec: rn, yards: yb(gained) }, 2);
       } else {
         const qb = !!(P.rusher && P.rusher.role === 'QB');
-        if (gained >= 15) V('run_big', { carrier: cn, yards: yb(gained) }, 2);
+        if (gained >= DZ(15)) V('run_big', { carrier: cn, yards: yb(gained) }, 2);
         else if (gained < 0) V('run_loss', { carrier: cn }, 2);
         else if (gained === 0) V('no_gain', { carrier: cn }, 2, 0.8);
         else if (qb) V('scramble', { passer: cn, yards: yb(gained) }, 2);
@@ -7579,9 +9006,9 @@ gl_FragColor=vec4(c,1.0);}`;
         const sk = drivePlays + '|' + down + '|' + Math.round(los);
         if (VI.sitKey !== sk) { // the down and distance, once per play, first
           VI.sitKey = sk;
-          if (los >= 97) return ['situation_goal', {}, 'sit'];
-          if (down === 4) return ['situation_fourth', { dist: String(dist) }, 'sit'];
-          if (los >= 80 && cosmetic2() < 0.5) return ['situation_redzone', {}, 'sit'];
+          if (los >= FL - VN.G3) return ['situation_goal', {}, 'sit'];
+          if (down === 4 && VN.punt) return ['situation_fourth', { dist: String(dist) }, 'sit'];
+          if (los >= FL - VN.RZ && cosmetic2() < 0.5) return ['situation_redzone', {}, 'sit'];
           if (down === 1) return ['situation_1st', { spot: spotTxt(los) }, 'sit'];
           if (down >= 3 && dist >= 7) return ['situation_long', { dist: String(dist) }, 'sit'];
           if (down >= 3 && dist <= 2) return ['situation_short', {}, 'sit'];
@@ -7593,7 +9020,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'dead' || phase === 'pre') {
         const dy = Math.round(los - driveStart);
         if (drivePlays >= 3 && cool('drive_note', 45)) add(3, 'drive_note', { plays: String(Math.min(30, drivePlays)), yards: yb(dy) }, 'drive');
-        if (drivePlays >= 4 && dy >= 30 && cool('drive_hot', 60)) add(3, 'drive_hot', {}, 'drive');
+        if (drivePlays >= 4 && dy >= DZ(30) && cool('drive_hot', 60)) add(3, 'drive_hot', {}, 'drive');
         if (drivePlays >= 3 && dy <= 4 && cool('drive_stall', 60)) add(2, 'drive_stall', {}, 'drive');
         for (const p of lineup) {
           const s = stat(p.sq.pid); if (!s) continue;
@@ -7601,7 +9028,7 @@ gl_FragColor=vec4(c,1.0);}`;
           if (s.rec >= 2 && cool('player_catches', 50)) add(2, 'player_catches', { player: nm(p), n: String(Math.min(30, s.rec)), yards: yb(s.recYds) }, 'stat');
           if (s.rushAtt >= 3 && cool('player_rush', 50)) add(2, 'player_rush', { player: nm(p), n: String(Math.min(30, s.rushAtt)), yards: yb(s.rushYds) }, 'stat');
           const tds = s.recTD + s.rushTD; if (tds >= 2 && cool('player_tds', 90)) add(2, 'player_tds', { player: nm(p), n: String(Math.min(30, tds)) }, 'stat');
-          if ((s.rec >= 4 || s.recYds >= 60 || s.rushYds >= 60) && cool('player_hot', 80)) add(2, 'player_hot', { player: nm(p) }, 'stat');
+          if ((s.rec >= 4 || s.recYds >= DZ(60) || s.rushYds >= DZ(60)) && cool('player_hot', 80)) add(2, 'player_hot', { player: nm(p) }, 'stat');
           if (p.role === 'WR' && TS.plays >= 10 && s.rec === 0 && cool('player_quiet', 90)) add(1, 'player_quiet', { player: nm(p) }, 'stat');
         }
       }
@@ -7629,9 +9056,10 @@ gl_FragColor=vec4(c,1.0);}`;
       if (mode !== 'run') return;
       if (!pr.vRun && crossed && c.z > los + 1 && pr.kind === 'rush' && c.role !== 'QB') { pr.vRun = 1; voiceLive('run_live', { carrier: nm(c) }, 0.7); return; }
       if (!pr.vOpen && tPlay - (runSeen || 0) > 0.8 && c.z > los + 4 && !def.some((d) => !d.rag && Math.hypot(d.x - c.x, d.z - c.z) < 5)) { pr.vOpen = 1; voiceLive('open_field', { carrier: nm(c) }, 0.8); return; }
-      if (!pr.v20 && c.z >= 80 && los < 79) { pr.v20 = 1; voiceLive('inside_20', {}, 0.8); return; }
-      if (!pr.v10 && c.z >= 90 && los < 89) { pr.v10 = 1; voiceLive('inside_10', {}, 0.8); return; }
-      if (!pr.v5 && c.z >= 95 && los < 94) { pr.v5 = 1; voiceLive('at_the_5', {}, 0.8); }
+      if (!VN.yardCalls && !SMALL) return; // the calls below say the yard lines of a 100-yard field (a small field has a real 10 and 5)
+      if (!pr.v20 && VN.yardCalls && c.z >= FL - 20 && los < FL - 21) { pr.v20 = 1; voiceLive('inside_20', {}, 0.8); return; }
+      if (!pr.v10 && c.z >= FL - 10 && los < FL - 11) { pr.v10 = 1; voiceLive('inside_10', {}, 0.8); return; }
+      if (!pr.v5 && c.z >= FL - 5 && los < FL - 6) { pr.v5 = 1; voiceLive('at_the_5', {}, 0.8); }
     }
 
     // ---------- card perks: every card type does one thing on the field ----------
@@ -7715,7 +9143,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function boost(p, k, t) { (p.pkB || (p.pkB = [])).push({ k, t }); }
     const nearDef = (p, r) => { let b = null, bd = r || 99; for (const d of def) { if (d.rag) continue; const dd = dist(d, p); if (dd < bd) { bd = dd; b = d; } } return b; };
     const defsNear = (p, r) => def.filter((d) => !d.rag && dist(d, p) < r);
-    const shortYd = () => fdz - los <= 2 || los >= 95;
+    const shortYd = () => fdz - los <= 2 || los >= FL - VN.G5;
     function perkList() { if (PK.ev !== everyone) { PK.ev = everyone; PK.list = everyone.filter((p) => pkOf(p)); } return PK.list; }
     const has = (p, id) => !!(p && pkOf(p) && p.pk.id === id);
 
@@ -7988,7 +9416,7 @@ gl_FragColor=vec4(c,1.0);}`;
           p.pkCarry = (p.pkCarry || 0) + dt;
           const nd = nearDef(p, 99), ndd = nd ? dist(nd, p) : 99;
           switch (P.id) {
-            case 'spec-td': if (p.z > 80 && p.vz > 1) { k *= 1 + 0.08 * P.S; if (use(p, 'play')) fire(p); } break;
+            case 'spec-td': if (p.z > FL - VN.RZ && p.vz > 1) { k *= 1 + 0.08 * P.S; if (use(p, 'play')) fire(p); } break;
             case 'allstar': if (ndd > 4.6) { k *= 1 + 0.1 * P.S; if (use(p, 'play')) fire(p); } break;
             case 'pixel': if (!cut && sp > 3) p.pkStr = (p.pkStr || 0) + dt; if (cut) p.pkStr = 0; if (p.pkStr > 1) { k *= 1 + 0.12 * P.S; if (use(p, 'play')) fire(p); } break;
             case 'hot-sauce': if (p.pkCarry > (PK.force ? 0.5 : 3)) { k *= 1 + Math.min(0.25, (p.pkCarry - 3) * 0.05) * P.S; if (use(p, 'play')) fire(p); } break;
@@ -8376,7 +9804,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // our kickoff: pick it
     function vsKickChoice() {
       VS.auth = false; vsFlip(false);
-      phase = 'vsk'; poss = 'home'; mode = 'none'; ctrl = null; carrier = null; kick = null; pend = null; los = 35;
+      phase = 'vsk'; poss = 'home'; mode = 'none'; ctrl = null; carrier = null; kick = null; pend = null; los = VN.KO;
       hideAim(); hideStick(); closeSheet(); hideMeter(); hideTags(); clearBanner();
       VS.mute++; try { setupPlay(); } finally { VS.mute--; }
       setControls(true); boardDirty = true;
@@ -8541,13 +9969,13 @@ gl_FragColor=vec4(c,1.0);}`;
     function vsDefTap(a) { if (phase !== 'vsw' || !(VS.oPh === 'live' || VS.oPh === 'pre')) return; vsSend('dact', { a }); sfx.play('tap'); }
 
     // ---------- on defense: the call ----------
-    const vsSpot = (z) => (z === 50 ? 'midfield' : z > 50 ? 'your ' + Math.round(100 - z) : 'their ' + Math.round(z));
+    const vsSpot = (z) => (z === MID ? 'midfield' : z > MID ? 'your ' + Math.round(FL - z) : 'their ' + Math.round(z));
     function vsShowCall() {
       VS.reacted = false; VS.picked = null;
       const late = qtr >= 4 && clock < 75, lead = hs - as, togo = fdz - los;
-      const dd = tryMode ? 'Two-point try' : `${ORD[down] || down} & ${fdz >= 100 ? 'Goal' : Math.max(1, Math.round(togo))}`;
+      const dd = tryMode ? 'Two-point try' : `${ORD[down] || down} & ${fdz >= FL ? 'Goal' : Math.max(1, Math.round(togo))}`;
       vsHideCard(true);
-      openDSheet({ title: `${AWAY.name} ball · ${dd}`, sub: `at ${vsSpot(los)} · call the defense`, T: VS_CALL_T, cur: VS.lastCall || '', fn: vsCallPicked, situation: [tryMode ? 3 : down, tryMode ? 2 : togo, tryMode ? 98 : los, lead, late] });
+      openDSheet({ title: `${AWAY.name} ball · ${dd}`, sub: `at ${vsSpot(los)} · call the defense`, T: VS_CALL_T, cur: VS.lastCall || '', fn: vsCallPicked, situation: [tryMode ? 3 : down, tryMode ? 2 : togo, tryMode ? FL - VN.TWO : los, lead, late] });
       setControls(true);
     }
     function vsCallPicked(id) {
@@ -8601,7 +10029,7 @@ gl_FragColor=vec4(c,1.0);}`;
         case 'hand':
           if (VS.auth) break;
           vsSync(d.st);
-          if (d.type === 'spot') { vsMine(); startDrive(+d.spot || 25); } else if (d.type === 'recv') vsKickChoice();
+          if (d.type === 'spot') { vsMine(); startDrive(+d.spot || TB); } else if (d.type === 'recv') vsKickChoice();
           break;
         case 'kick': if (!VS.auth || phase === 'vsw') vsGotKick(d); break;
         case 'final': VS.oppTS = d.ts || null; if (phase !== 'over' && phase !== 'box') { vsSync(d.st); VS.endSent = true; vsHideCard(true); vsSend('tstats', { ts: vsTS() }); gameOver(); } break;
@@ -8651,11 +10079,11 @@ gl_FragColor=vec4(c,1.0);}`;
       const st = R.st; if (st) { const mine = R.stBy === 'me'; toLeft = mine ? st.toMe : st.toOpp; VS.toOpp = mine ? st.toOpp : st.toMe; if (st.otLeft != null) otLeft = st.otLeft; suddenDeath = !!st.sd; }
       boardDirty = true;
       const h = R.hand, p = R.pre;
-      if (h && R.handBy === 'opp' && h.type === 'spot') { vsMine(); startDrive(+h.spot || 25); }
+      if (h && R.handBy === 'opp' && h.type === 'spot') { vsMine(); startDrive(+h.spot || TB); }
       else if (h && R.handBy === 'opp' && h.type === 'recv') vsKickChoice();
       else if (h && R.handBy === 'me' && h.type === 'recv') vsAwaitKick(false);
       else if (h && R.handBy === 'me') vsWatch(`Back in the game · <b>${esc(AWAY.name)}</b> have the ball.`);
-      else if (R.ball === 'me' && p) { vsMine(); los = +p.los || 25; down = p.down || 1; fdz = +p.fdz || los + 10; tryMode = !!p.try; toPre(false); say('Back in the game · same down.'); }
+      else if (R.ball === 'me' && p) { vsMine(); los = +p.los || TB; down = p.down || 1; fdz = +p.fdz || los + FD; tryMode = !!p.try; toPre(false); say('Back in the game · same down.'); }
       else if (R.ball === 'opp') vsWatch(`Back in the game · <b>${esc(AWAY.name)}</b> have the ball.`);
       else if (VS.net.recvFirst) vsAwaitKick(false); else vsKickChoice();
     }
@@ -8669,8 +10097,17 @@ gl_FragColor=vec4(c,1.0);}`;
     const HFOV = 64; // horizontal field of view (degrees) at 16:9 -> about a 32 mm lens; the old framing was authored for 86, so offsets stretch by LENSK
     const LENSK = Math.tan((86 * Math.PI) / 360) / Math.tan((HFOV * Math.PI) / 360);
     const op = { t: 0, x: 0, y: 0 }; // operator imperfection
+    // a small field (a 30-yard schoolyard): the wide shots come in closer and a little lower (vk), and the eye stays out of the
+    // school, the shed, the trees, the fence and the ground: the world's own keep-out (metKeepOut) and sensible bounds around the field
+    function venueCam(e, c, vk) {
+      if (vk > 0) { e[0] = c[0] + (e[0] - c[0]) * vk; e[2] = c[2] + (e[2] - c[2]) * vk; e[1] = c[1] + (e[1] - c[1]) * vk * 0.94; }
+      const z0 = e[2]; e[2] = clamp(e[2], ZBACK - 12, ZEND + 6); e[0] = clamp(e[0], -HW - 16, HW + 18);
+      e[1] = clamp(e[1] + Math.abs(e[2] - z0) * 0.3, 1.1, 24); // pulled in at an end: a little higher to keep the view
+      if (typeof metKeepOut === 'function') { const q = metKeepOut(e); if (q && q.length === 3) { e[0] = q[0]; e[1] = q[1]; e[2] = q[2]; } }
+      if (e[1] < 1.1) e[1] = 1.1;
+    }
     function updateCam(dt) {
-      let e, c, rate = 3.2, cdk = LENSK;
+      let e, c, rate = 3.2, cdk = LENSK, vk = 0; // vk: how much closer the shot comes on a small field (0 = a close-up, left alone)
       const qb = OK.QB || { x: 0, z: los - 5, lk: { hs: 1 } };
       // follow a ball carrier: low and close; closer still in the open field
       const fl = (p, back) => {
@@ -8688,10 +10125,10 @@ gl_FragColor=vec4(c,1.0);}`;
         const a = replay.orbit + replay.t * 0.35, bx = ball.x || 0, bz = ball.z || los;
         e = [bx + Math.sin(a) * (5.5 + 3 * por), 1.6 + 2.0 * por, bz + Math.cos(a) * (5.5 + 3 * por) - 1.5]; c = [bx, 1.0, bz]; rate = 5; cdk = LENSK * 0.8; replayCam = 1;
       } else if (DEFP.on && (phase === 'dpre' || phase === 'live' || phase === 'dead')) { // a key defensive play: behind our defense
-        [e, c] = defpCam(); rate = phase === 'live' ? 4.2 : 3;
+        [e, c] = defpCam(); rate = phase === 'live' ? 4.2 : 3; vk = 0.8;
       } else if (phase === 'splash' || phase === 'cpu' || phase === 'break' || phase === 'over' || phase === 'box' || phase === 'vsw' || phase === 'dcall') {
-        const t = performance.now() / 1000 * 0.07, z0 = phase === 'splash' ? los : 50;
-        e = [Math.sin(t) * 26, 14 + 8 * por, z0 - 4 - Math.cos(t) * 30]; c = [0, 0.5, z0 + 4];
+        const t = performance.now() / 1000 * 0.07, z0 = phase === 'splash' ? los : MID;
+        e = [Math.sin(t) * 26, 14 + 8 * por, z0 - 4 - Math.cos(t) * 30]; c = [0, 0.5, z0 + 4]; vk = VPL ? VPL.cam : 0;
       } else if (closeP && phase === 'dead' && deadTot - deadT > 0.35) {
         const q = closeP, hh = 2.0 * q.lk.hs + (q.rag ? -0.9 : 0);
         e = [q.x + 0.6, hh + 0.55, q.z + 3.7 + por * 1.5]; c = [q.x, hh - 0.25, q.z]; rate = 4; replayCam = 0.7;
@@ -8703,34 +10140,37 @@ gl_FragColor=vec4(c,1.0);}`;
         if (kick.st === 'fly' && ball) { e = [ball.x * 0.5 - 9 - 3 * por, Math.max(4, ball.y * 0.6 + 3 + 3 * por), ball.z - 9 - 3 * por]; c = [ball.x * 0.7, ball.y * 0.6 + 1, ball.z + 12]; rate = 5; }
         else { e = [-9 - 4 * lnd, 5.5 + 5 * por, kick.kz - 9 - 4 * por]; c = [0, 3, kick.kz + (kick.type === 'punt' ? 24 : 20)]; }
       } else if (phase === 'pat') {
-        e = [0, 13 + 10 * por, 74 - 4 * por]; c = [0, 0, 100];
+        e = [0, 13 + 10 * por, FL - 26 - 4 * por]; c = [0, 0, FL];
       } else if (phase === 'koc' || phase === 'vsk') {
-        e = [0, 12 + 9 * por, 22 - 4 * por]; c = [0, 0, 52];
+        e = [0, 12 + 9 * por, VN.KO - 13 - 4 * por]; c = [0, 0, VN.KO + 17];
       } else if (kick && kick.type === 'ko' && (kick.st === 'wait' || kick.st === 'air' || kick.st === 'scramble')) {
-        const R = kick.R, bz = ball ? ball.z : 65;
-        e = [R.x * 0.5 + 4.5, 11 + 8 * por, R.z - 9 - 3 * por]; c = [(ball ? ball.x : 0) * 0.5, 3, Math.max(R.z + 14, Math.min(bz, R.z + 45))];
+        const R = kick.R, bz = ball ? ball.z : FL - VN.KO;
+        e = [R.x * 0.5 + 4.5, 11 + 8 * por, R.z - 9 - 3 * por]; c = [(ball ? ball.x : 0) * 0.5, 3, Math.max(R.z + 14, Math.min(bz, R.z + 45))]; vk = VPL ? VPL.cam : 0;
       } else if ((phase === 'live' || phase === 'dead') && carrier && (mode === 'run' || carrier.side === 1 || phase === 'dead')) {
-        [e, c] = fl(carrier); rate = phase === 'live' ? 5 : 3;
+        [e, c] = fl(carrier); rate = phase === 'live' ? 5 : 3; vk = 0.86;
         if (phase === 'dead') { e[1] += 1; }
       } else if (phase === 'live' && ball && ball.st === 'air' && !kick) {
         const b = ball, k = Math.min(1, b.t / b.T), ez = lerp(b.fromZ || los - 6, b.tz, 0.5 * k);
         if (target) {
           const cx = lerp(target.x, b.tx, 0.55 + 0.3 * k), cz = lerp(target.z, b.tz, 0.55 + 0.3 * k) + 1.2;
-          c = [cx, 0.9, cz]; e = [cx * 0.85, 6.4 + 5 * por + 1.5 * lnd, cz - 10.5 - 3 * por]; rate = 4;
+          c = [cx, 0.9, cz]; e = [cx * 0.85, 6.4 + 5 * por + 1.5 * lnd, cz - 10.5 - 3 * por]; rate = 4; vk = 0.8;
         } else {
-          e = [b.tx * 0.45 * k, 7.5 + Math.min(8, (b.D || 10) * 0.14) + 8 * por, Math.min(ez - 9 - 3 * por, b.tz - 11 - 3 * por)]; c = [lerp(b.x, b.tx, 0.6), 0.6, lerp(b.z, b.tz, 0.75)]; rate = 3.6;
+          e = [b.tx * 0.45 * k, 7.5 + Math.min(8, (b.D || 10) * 0.14) + 8 * por, Math.min(ez - 9 - 3 * por, b.tz - 11 - 3 * por)]; c = [lerp(b.x, b.tx, 0.6), 0.6, lerp(b.z, b.tz, 0.75)]; rate = 3.6; vk = 0.75;
         }
       } else {
         const bootX = play.type === 'boot' && phase === 'live' ? qb.x * 0.5 : 0;
         if (phase === 'live') {
           const look = Math.min(tPlay, 3) * 1.1, qx = mode === 'aim' ? qb.x * 0.6 : 0, qz = Math.min(qb.z, los - 4);
-          e = [bootX + qx, 8.0 + 1.0 * por + 1.2 * lnd, qz - 7.3 - 0.6 * por - 1 * lnd]; c = [bootX + qx, 0.6, qz + 6.8 + look + 1.2 * por];
+          e = [bootX + qx, 8.0 + 1.0 * por + 1.2 * lnd, qz - 7.3 - 0.6 * por - 1 * lnd]; c = [bootX + qx, 0.6, qz + 6.8 + look + 1.2 * por]; vk = 0.84;
+          if (SMALL) c[2] = Math.min(c[2], ZEND + 1); // the whole field is in front of him: no need to look past the end line
         } else {
-          e = [bootX, 11.5 + 5 * por + 2 * lnd, los - 15 - 1.5 * por - 1.5 * lnd]; c = [bootX, 0, los + 6 + 2 * por - lnd];
+          e = [bootX, 11.5 + 5 * por + 2 * lnd, los - 15 - 1.5 * por - 1.5 * lnd]; c = [bootX, 0, los + 6 + 2 * por - lnd]; vk = 0.7;
+          if (SMALL) c[2] = Math.min(c[2], ZEND - 1.5); // near their goal line: look at the end zone, not the playground
         }
       }
       // lens: keep the subject the same size on screen with the narrower field of view by backing the camera off
       e = [c[0] + (e[0] - c[0]) * cdk, c[1] + (e[1] - c[1]) * cdk, c[2] + (e[2] - c[2]) * cdk];
+      if (SMALL) venueCam(e, c, vk);
       let dbg = false;
       if (DBG && DBG.cam) { e = DBG.cam.e; c = DBG.cam.c; dt = -1; dbg = true; }
       const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
@@ -8763,7 +10203,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const nc = NCASC(), sz = G && G.shadow ? G.shadow.size : 1024;
       const flipX = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
       const mid = [(cam.e[0] + cam.c[0]) * 0.5 + camF[0] * 6, 1, (cam.e[2] + cam.c[2]) * 0.5 + camF[2] * 6];
-      const spec = [[cam.c, 13 + 5 * por], [mid, 42], [[0, 0, 50], 150]];
+      const spec = METCALF ? metCasc(mid, 13 + 5 * por) : [[cam.c, 13 + 5 * por], [mid, 42], [[0, 0, MID], 150]];
       for (let i = 0; i < 3; i++) {
         const [ctr, R] = spec[i], texel = (2 * R) / sz;
         const lv = m4LookAt([-LDIR[0] * 220, LDIR[1] * 220, LDIR[2] * 220], [0, 0, 0], [0, 1, 0]);
@@ -8838,7 +10278,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function disableAll(P) { for (const k in P.a) gl.disableVertexAttribArray(P.a[k]); }
     const worldMat = (P, mat, kind) => { gl.uniform4f(P.u.uMatW, mat[0], mat[1], mat[2], mat[3]); gl.uniform1f(P.u.uKind, kind || 0); };
-    const DIRTC = WX === 'rain' ? [0.16, 0.12, 0.07] : WX === 'snow' ? [0.3, 0.3, 0.3] : [0.25, 0.3, 0.1];
+    const DIRTC = METCALF ? [0.33, 0.33, 0.31] : WX === 'rain' ? [0.16, 0.12, 0.07] : WX === 'snow' ? [0.3, 0.3, 0.3] : [0.25, 0.3, 0.1];
     function playerUniforms(P, p) {
       const C = p.side === 2 ? REFC : p.side ? DEFC : OFFC, lk = p.lk, skin = lk.tone || SKIN[lk.skin];
       const iris = lk.skin >= 3 ? [0.22, 0.12, 0.05] : lk.skin === 2 ? [0.3, 0.18, 0.07] : lk.eyes || [0.28, 0.2, 0.1];
@@ -8936,8 +10376,10 @@ gl_FragColor=vec4(c,1.0);}`;
         const fv = s.k === 'board' && feedOn && G.feed && !G.feedPass; gl.uniform1f(W.u.uFlipV, fv ? 1 : 0); if (fv) gl.uniform4f(W.u.uMatW, 0.4, 0, 0, 1.0);
         if (s.k === 'ribbon') gl.uniform2f(W.u.uUV, (now * 0.04) % 1, 0); else gl.uniform2f(W.u.uUV, 0, 0);
         if (s.k === 'glass') { gl.enable(gl.BLEND); }
+        if (s.blend) { gl.enable(gl.BLEND); gl.depthMask(false); } // see-through venue layers (the schoolyard's picket veil)
         bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; DRAWS.tris += s.n / 3;
         if (s.k === 'glass') gl.disable(gl.BLEND);
+        if (s.blend) { gl.disable(gl.BLEND); gl.depthMask(true); }
       }
       disableAll(W);
       // crowd
@@ -8950,7 +10392,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // athletes, sideline figures
       if (showPlayers) { const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S); gl.bindTexture(gl.TEXTURE_2D, G.atlas); drawPlayers(S, false, everyone); if (extras.length) drawPlayers(S, false, quality === 0 ? extras.filter((p) => p.ref || p.crew) : extras); drawFxShells(S, everyone, now); }
       // grass blades around the camera target (full detail only)
-      if (quality >= 2 && G.grass && showPlayers && !G.feedPass && WX !== 'snow') drawGrass(now);
+      if (quality >= 2 && G.grass && showPlayers && !G.feedPass && WX !== 'snow' && !METCALF) drawGrass(now);
       // dynamic lit geometry (ball, chains, confetti) then transparent markers
       setLitUniforms(W); gl.uniform2f(W.u.uUV, 0, 0); gl.uniform1f(W.u.uFlipV, 0); worldMat(W, [0.5, 0, 0, 0], 0); gl.bindTexture(gl.TEXTURE_2D, G.white);
       if (dyn.n) { bindWorldAttribs(W, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; DRAWS.tris += dyn.n / 3; }
@@ -9018,7 +10460,7 @@ gl_FragColor=vec4(c,1.0);}`;
         for (let ci = 0; ci < G.shadow.n; ci++) {
           gl.viewport(ci * G.shadow.size, 0, G.shadow.size, G.shadow.size);
           const P = G.depthW; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uLVP, false, CASC[ci]);
-          for (const s of statics) if (s.cast && (ci > 0 || s.k === 'plain') && !(quality === 0 && s.k === 'seats')) { bindWorldAttribs(P, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; }
+          for (const s of statics) if (s.cast && (ci > 0 || s.k === 'plain' || s.c0) && !(quality === 0 && s.k === 'seats')) { bindWorldAttribs(P, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; }
           if (dyn.n) { bindWorldAttribs(P, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; }
           disableAll(P);
           if (ci < 2) { const S = G.depthS; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uLVP, false, CASC[ci]); if (showPlayers) { drawPlayers(S, true, everyone); if (extras.length && ci === 0) drawPlayers(S, true, extras); } }
@@ -9027,7 +10469,7 @@ gl_FragColor=vec4(c,1.0);}`;
         gl.enable(gl.BLEND);
       }
       // ---- jumbotron feed: the current camera view at low resolution, shown on the big screen during replays and close-ups ----
-      if (quality >= 2 && G.feed && (replayCam > 0) && ((perf.n & 1) === 0)) {
+      if (quality >= 2 && G.feed && !METCALF && (replayCam > 0) && ((perf.n & 1) === 0)) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, G.feed.fb); gl.viewport(0, 0, G.feed.w, G.feed.h);
         gl.clearColor(SKY.hor[0], SKY.hor[1], SKY.hor[2], 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         G.feedPass = true; drawScenePass(false); G.feedPass = false;
@@ -9110,7 +10552,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && phase !== 'koc';
       if (scrim && !tryMode) {
         tr.seg(-HW, los, HW, los, 0.26, [0.25, 0.55, 1, 0.7], 0.03);
-        if (fdz < 100) tr.seg(-HW, fdz, HW, fdz, 0.26, [1, 0.86, 0.1, 0.8], 0.03);
+        if (fdz < FL) tr.seg(-HW, fdz, HW, fdz, 0.26, [1, 0.86, 0.1, 0.8], 0.03);
       }
       if (phase === 'pre' || phase === 'splash') {
         const fx = flip ? -1 : 1;
@@ -9154,7 +10596,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'live' && mode === 'aim' && !aim) for (const r of off) if (isRec(r) && r.R && !(r.blk === 'chip' && tPlay < r.R.blk)) { const c = COL[sepClass(sepOf(r))], pul = 1 + Math.sin(now * 8) * 0.08; tr.ring(r.x, r.z, 0.95 * pul, 1.25 * pul, c, 0.05, 16); }
       if (phase === 'live' && ctrl && mode === 'catch') tr.ring(ctrl.x, ctrl.z, 0.9, 1.2, [0.17, 0.83, 0.42, 0.9], 0.05, 18);
       if ((phase === 'live' || phase === 'dead') && carrier && mode === 'run') tr.ring(carrier.x, carrier.z, 0.9, 1.2, [1, 0.76, 0.1, 0.85], 0.05, 18);
-      if (excite > 0.3 && flashes.length < 60 && crand() < excite * 0.7) { const s = crand() < 0.5 ? -1 : 1; flashes.push({ x: s * (37 + crand() * 22), y: 3 + crand() * 18, z: -20 + crand() * 140, life: 0.08 }); }
+      if (!METCALF && excite > 0.3 && flashes.length < 60 && crand() < excite * 0.7) { const s = crand() < 0.5 ? -1 : 1; flashes.push({ x: s * (37 + crand() * 22), y: 3 + crand() * 18, z: -20 + crand() * 140, life: 0.08 }); }
       for (let i = flashes.length - 1; i >= 0; i--) { const q = flashes[i]; q.life -= 1 / 60; if (q.life <= 0) { flashes.splice(i, 1); continue; } tr.quad([q.x, q.y - 0.3, q.z - 0.3], [q.x, q.y - 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z + 0.3], [q.x, q.y + 0.3, q.z - 0.3], [0, 0, 0], [3, 3, 3, 0.9]); }
     }
     function drawWeather(dt, now) {
@@ -9225,7 +10667,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- sideline life: officials who signal, the chain crew on the real spots, benches, coaches ----------
     const extras = [];
-    const chain = { los: 25, fd: 35, down: 1 };
+    const chain = { los: TB, fd: TB + FD, down: 1 };
     const ORANGE = [1, 0.45, 0.08, 1], POLE = [0.95, 0.5, 0.1, 1];
     function mkExtra(side, role, x, z, o) {
       const p = mkP(side, role, 'X' + extras.length, x, z, Object.assign({ v: 3, spd: 40 }, o || {}));
@@ -9238,7 +10680,7 @@ gl_FragColor=vec4(c,1.0);}`;
       return p;
     }
     function setupExtras() {
-      if (extras.length || quality < 1) return;
+      if (extras.length || quality < 1 || !VN.extras) return;
       // officials (white hat referee behind the offense, umpire, two wings)
       mkExtra(2, 'REF', 4, 15, { key: 'R', pose: 'idle' }).ref = 'R';
       mkExtra(2, 'REF', -3, 32, { key: 'U', pose: 'idle' }).ref = 'U';
@@ -9265,7 +10707,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!extras.length) return;
       // the chains walk to the new spots between plays
       const k = Math.min(1, dt * 1.4);
-      const tl = los, tf = fdz < 100 ? fdz : los + 10;
+      const tl = los, tf = fdz < FL ? fdz : los + FD;
       chain.los += (tl - chain.los) * k; chain.fd += (tf - chain.fd) * k;
       const pre = phase === 'pre' || phase === 'break' || phase === 'cpu' || phase === 'splash';
       const bx = ball ? ball.x : 0, bz = ball ? ball.z : los;
@@ -9290,7 +10732,7 @@ gl_FragColor=vec4(c,1.0);}`;
           steerExtra(p, tx, tz, 4.2, dt, face);
           p.look = ball ? [bx, Math.max(0.5, ball.y || 1), bz] : null;
         } else if (p.crew) {
-          const zx = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - 10 : chain.fd;
+          const zx = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - FD : chain.fd;
           steerExtra(p, HW + 2.9, zx + 0.45, 3.5, dt, -Math.PI / 2);
           if (p.pose !== 'idle') setPose(p, 'idle');
           p.look = [bx, 1, bz];
@@ -9307,15 +10749,15 @@ gl_FragColor=vec4(c,1.0);}`;
     function drawExtrasProps() {
       const live = phase === 'pre' || phase === 'live' || phase === 'dead' || phase === 'splash' || phase === 'pat' || phase === 'koc';
       const scrim = live && !(kick && kick.type === 'ko') && phase !== 'pat' && phase !== 'koc' && !tryMode;
-      if (!scrim) return;
+      if (!scrim || !VN.extras) return;
       const sx = HW + 2.9;
       const pole = (z, hgt, top) => { dyn.box(IDM, sx, hgt / 2, z, 0.07, hgt, 0.07, POLE); if (top) dyn.box(IDM, sx, hgt + 0.22, z, 0.42, 0.44, 0.07, ORANGE); else dyn.box(IDM, sx, hgt + 0.1, z, 0.22, 0.2, 0.22, ORANGE); };
       pole(chain.los, 2.1, true);
-      if (fdz < 100) { pole(chain.fd - 10, 2.0, false); pole(chain.fd, 2.0, false); tr.seg(sx + 0.05, chain.fd - 10, sx + 0.05, chain.fd, 0.035, [0.8, 0.8, 0.82, 0.95], 0.75); }
+      if (fdz < FL) { pole(chain.fd - FD, 2.0, false); pole(chain.fd, 2.0, false); tr.seg(sx + 0.05, chain.fd - FD, sx + 0.05, chain.fd, 0.035, [0.8, 0.8, 0.82, 0.95], 0.75); }
       // the crew's hands on the poles
       for (const p of extras) {
         if (!p.crew || !p.bones) continue;
-        const z = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - 10 : chain.fd;
+        const z = p.crew === 'box' ? chain.los : p.crew === 'c0' ? chain.fd - FD : chain.fd;
         p.reach = [sx, 1.35 * p.lk.hs, z];
       }
     }
@@ -9691,7 +11133,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const SVG_FS = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5"/></svg>';
     const SVG_SND = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 5c1.2 1.5 1.2 4.5 0 6" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>';
     const SVG_MUTE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6h3l4-3v10l-4-3H2z"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.5"/></svg>';
-    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & 10</b><span>Own 25</span></div><div class="bz-pls t1" title="Stadium pulse: how loud the building is"><span>Pulse</span><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="bz-sp"></div>`;
+    bug.innerHTML = `<div class="bz-sb"><div class="bz-tm" data-t="h" style="--c:${HOMECSS}"><b>${esc(HOME.abbr)}</b><em>0</em><i></i><s></s></div><div class="bz-tm" data-t="a" style="--c:${OPPCSS}"><b>${esc(AWAY.abbr)}</b><em>0</em><i></i></div><div class="bz-clk"><b>2:00</b><span>Q1</span></div><div class="bz-pc">20</div><div class="bz-sta"><span>Sprint</span><u><i></i></u></div></div><div class="bz-dd"><b>1st & ${FD}</b><span>${ballTxt(TB)}</span></div><div class="bz-pls t1" title="${METCALF ? 'Schoolyard hype: how loud the kids around the blacktop are' : 'Stadium pulse: how loud the building is'}"><span>${METCALF ? 'Hype' : 'Pulse'}</span><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="bz-sp"></div>`;
     const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.bz-clk'), bPc = bug.querySelector('.bz-pc'), bDD = bug.querySelector('.bz-dd'), bSta = bug.querySelector('.bz-sta'); pulseEl = bug.querySelector('.bz-pls');
     const mkIB = (html, title) => { const b = el('button', 'bz-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const SVG_X = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3l10 10M13 3L3 13"/></svg>';
@@ -9737,7 +11179,7 @@ gl_FragColor=vec4(c,1.0);}`;
       bPc.classList.toggle('low', phase === 'pre' && pc <= 5);
       const cpuBall = poss === 'away' || phase === 'cpu';
       // on defense: their down and distance, and the ball from your side of the field (a simulated drive: the snap on its card)
-      const theirSpot = (z) => (Math.round(z) === 50 ? 'Midfield' : z < 50 ? 'Their ' + Math.round(z) : 'Your ' + Math.round(100 - z));
+      const theirSpot = (z) => (Math.round(z) === MID ? 'Midfield' : z < MID ? 'Their ' + Math.round(z) : 'Your ' + Math.round(FL - z));
       const liveD = DEFP.on || phase === 'dcall' || phase === 'dpre';
       bDD.innerHTML = cpuBall && simDD ? `<b>${esc(cpuD.dd)}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(cpuD.ddAt)}</span>` :
         cpuBall && liveD ? `<b>${ddTxt()}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(los)}</span>` :
@@ -9801,14 +11243,14 @@ gl_FragColor=vec4(c,1.0);}`;
       if ((DEFP.on || phase === 'dcall') && defpControls()) return; // a key defensive play (33-defplay.js)
       if (phase === 'pre') {
         if (sheetOpen) return;
-        if (down === 4 && !go4 && !tryMode) {
+        if (down === 4 && !go4 && !tryMode && (VN.punt || VN.fg)) {
           const fd = fgDist(), inR = fd <= fgRange() + 3;
-          btn('bz-y', `Go for it<small>4th & ${fdz >= 100 ? 'goal' : Math.max(1, Math.round(fdz - los))}</small>`, () => choose4th('go'));
-          btn('', `Punt${K('P')}`, () => choose4th('punt'));
-          const f = btn('', `Field goal<small>${inR ? fd + ' yd · ' + Math.round(fgPct(fd) * 100) + '%' : 'out of range'}</small>`, () => choose4th('fg')); f.disabled = !inR;
+          btn('bz-y', `Go for it<small>4th & ${fdz >= FL ? 'goal' : Math.max(1, Math.round(fdz - los))}</small>`, () => choose4th('go'));
+          if (VN.punt) btn('', `Punt${K('P')}`, () => choose4th('punt'));
+          if (VN.fg) { const f = btn('', `Field goal<small>${inR ? fd + ' yd · ' + Math.round(fgPct(fd) * 100) + '%' : 'out of range'}</small>`, () => choose4th('fg')); f.disabled = !inR; }
         } else {
           btn('bz-wide', `${esc(play.name)}<small>${esc(FORMS[play.form].name)}${flip ? ' · flipped' : ''} · change play</small>`, () => { sheetOpen = true; setControls(true); openSheet(); });
-          const late = (qtr === 2 || qtr >= 4) && clock < 25 && fgDist() <= fgRange() && !tryMode;
+          const late = VN.fg && (qtr === 2 || qtr >= 4) && clock < 25 && fgDist() <= fgRange() && !tryMode;
           if (late) btn('', `FG<small>${fgDist()} yd</small>`, () => startKick('fg'));
           if (tryMode) btn('', `Kick XP instead<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => switchTry(false));
           btn('bz-y bz-wide', VS && VS.waitD ? 'Snap<small>waiting for their call…</small>' : `Snap${K('SPACE')}`, snap);
@@ -9816,9 +11258,9 @@ gl_FragColor=vec4(c,1.0);}`;
         btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
       } else if (phase === 'pat') {
         btn('bz-y', `Kick XP<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => chooseTry(false));
-        btn('', `Go for 2<small>one play from the 2</small>${K('2')}`, () => chooseTry(true));
+        btn('', `Go for 2<small>one play from the ${VN.TWO}</small>${K('2')}`, () => chooseTry(true));
       } else if (phase === 'koc') {
-        btn('bz-y', `Kick deep<small>they start at their 25</small>${K('1')}`, () => chooseKo(false));
+        btn('bz-y', `Kick deep<small>they start at their ${TB}</small>${K('1')}`, () => chooseKo(false));
         btn('', `Onside kick<small>time it: the better the kick, the better your odds</small>${K('2')}`, () => chooseKo(true));
       } else if (phase === 'live' && mode === 'aim') {
         if (play.type === 'qbdraw') msg('<span><b>QB Draw</b> · he takes off on his own · pull back to throw instead</span>');
@@ -9851,12 +11293,13 @@ gl_FragColor=vec4(c,1.0);}`;
       } else if (phase === 'vsk' && VS && VS.ons) {
         btn('bz-y bz-wide', `Kick it!<small>tap in the green</small>${K('SPACE')}`, () => vsOnsideTap(false), 'pointerdown');
       } else if (phase === 'live') {
-        msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? (kick.onside ? '<span>Onside kick · live ball once it goes 10 yards…</span>' : '<span>Kickoff · get under it…</span>') : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
+        msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? (kick.onside ? '<span>Onside kick · live ball once it goes 10 yards…</span>' : VN.koType === 'throw' ? '<span>Throw-off · get under it…</span>' : '<span>Kickoff · get under it…</span>') : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
       } else if (phase === 'kick') {
-        if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the 2</small>${K('2')}`, () => switchTry(true));
+        if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the ${VN.TWO}</small>${K('2')}`, () => switchTry(true));
         btn('bz-y bz-wide', `${kick.st === 'power' ? 'Set power' : kick.st === 'acc' ? 'Set aim' : 'Kicking…'}${K('SPACE')}`, kickTap, 'pointerdown');
       } else if (phase === 'dead') {
-        msg('<span>Next play coming up…</span>');
+        const nxt = pend && pend.next; // after a score or a turnover the next snap is not this drive's
+        msg(nxt ? (nxt[0] === 'pat' ? '<span>The try is next…</span>' : nxt[0] === 'cpu' ? `<span>${esc(AWAY.name)} ball next…</span>` : '<span>Your ball next…</span>') : '<span>Next play coming up…</span>');
         if (lastBig && lastBig.kind !== 'td' && !lastBig.played) btn('', 'Replay', () => { if (lastBig) lastBig.want = true; sfx.play('tap'); }).style.flex = '0 0 86px';
         if ((poss === 'home' && pend && !pend.next) || DEFP.on) btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
       } else if (phase === 'vsw') { // head to head: their ball, our defense
@@ -9898,7 +11341,48 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- playbook sheet ----------
     let sheet = null, sheetCat = 'short';
+    // the play art on a small field: everybody where he really lines up and runs on this field (the lateral and depth maps, the
+    // backfield squeezed near your own goal line, routes stopped at the end line), with the sidelines, the goal line and the end line
+    function diagramS(cvs, pl, fl) {
+      const g = cvs.getContext('2d'), W = cvs.width, H = cvs.height, F = FORMS[pl.form], fx = fl ? -1 : 1;
+      const sx = W / (2 * (HW + 1.2)), sy = H / 30, X = (x) => W / 2 + x * fx * sx, Y = (d) => H * 0.62 - d * sy;
+      const bk = clamp((los + EZ - 1.9) / 6.3, 0.15, 1), bf = (d) => (d < -1.3 ? -1.3 + (d + 1.3) * bk : d), dmax = ZEND - 0.7 - los;
+      g.fillStyle = ARTC.f; g.fillRect(0, 0, W, H);
+      g.fillStyle = ARTC.o; g.fillRect(0, 0, X(-HW * fx), H); g.fillRect(X(HW * fx), 0, W, H); // out of bounds
+      g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1; for (let d = -5; d <= 15; d += 5) { g.beginPath(); g.moveTo(X(-HW), Y(d)); g.lineTo(X(HW), Y(d)); g.stroke(); }
+      g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(-HW), 0); g.lineTo(X(-HW), H); g.moveTo(X(HW), 0); g.lineTo(X(HW), H); g.stroke();
+      const line = (d, col) => { if (Y(d) < 0 || Y(d) > H) return; g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(d)); g.lineTo(X(HW), Y(d)); g.stroke(); };
+      line(FL - los, '#ff5a5a'); line(ZEND - los, '#ffffff'); line(-los, '#ff5a5a'); line(ZBACK - los, '#ffffff'); // goal lines red, end lines white
+      g.strokeStyle = '#5aa0ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(0)); g.lineTo(X(HW), Y(0)); g.stroke();
+      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) g.fillRect(X((i - 2) * 1.95) - 3, Y(-0.9) - 3, 6, 6);
+      const tip = (x0, y0, x1, y1) => { const a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
+      for (const k of ['X', 'Z', 'S', 'Y', 'RB', 'QB']) {
+        let x = xin(LX(F[k][0]), 1.5), d = Math.max(bf(F[k][1]), ZBACK + emg(1.5) - los); if (k === 'Y' && pl.form === 'gun' && pl.id !== 'rbscreen') x = 3.9;
+        const r = pl.routes[k], col = k === 'QB' ? '#ffc21a' : k === 'X' ? '#ffd45c' : '#ffffff';
+        if (r && r !== 'B') {
+          const s = x < -0.5 ? -1 : 1, xs = LXI(x), pts = [[x, d]];
+          for (const [o, u] of r.w) pts.push([clamp(LX(xs + s * o), -(HW - 1.15), HW - 1.15), Math.min(d + DZ(u), dmax)]);
+          g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(x), Y(d));
+          for (let i = 1; i < pts.length; i++) g.lineTo(X(pts[i][0]), Y(pts[i][1]));
+          g.stroke();
+          const a0 = pts[pts.length - 2], a1 = pts[pts.length - 1];
+          if (Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 0.2) tip(X(a0[0]), Y(a0[1]), X(a1[0]), Y(a1[1]));
+          else { g.beginPath(); g.arc(X(a1[0]), Y(a1[1]), 2.5, 0, 6.3); g.fill(); } // settles on the end line
+        } else if (k !== 'QB' && !(isRunPlay(pl) && k === (pl.type === 'sneak' ? 'QB' : (pl.carrier || 'RB')))) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(x) - 4, Y(d) - 6); g.lineTo(X(x) + 4, Y(d) - 6); g.stroke(); }
+        g.fillStyle = k === 'QB' ? '#ffc21a' : css(TEAM); g.beginPath(); g.arc(X(x), Y(d), 4, 0, 6.3); g.fill();
+      }
+      if (isRunPlay(pl) || pl.type === 'qbdraw') {
+        const c = pl.type === 'sneak' || pl.type === 'qbdraw' ? F.QB : F[pl.carrier || 'RB'], lx = LX(pl.lane || 0), cx = xin(LX(c[0]), 1.5), cd = bf(c[1]), ld = Math.min(5, dmax);
+        g.strokeStyle = '#ff9a3c'; g.fillStyle = '#ff9a3c'; g.lineWidth = 3; g.beginPath(); g.moveTo(X(cx), Y(cd)); g.lineTo(X(lx * 0.5), Y(-1.5 * bk)); g.lineTo(X(lx), Y(ld)); g.stroke(); tip(X(lx * 0.5), Y(-1.5 * bk), X(lx), Y(ld));
+      }
+      g.font = 'bold 10px Inter,sans-serif';
+      if (pl.type === 'pa' || pl.type === 'boot') { g.fillStyle = 'rgba(255,154,60,.9)'; g.fillText('PA', 4, 12); }
+      else if (pl.type === 'screen') { g.fillStyle = 'rgba(77,210,255,.9)'; g.fillText('SCREEN', 4, 12); }
+      else if (pl.type === 'qbdraw' || (pl.type === 'sneak' && pl.lane)) { g.fillStyle = 'rgba(255,154,60,.9)'; g.fillText('QB RUN', 4, 12); }
+      else if (pl.carrier) { g.fillStyle = 'rgba(255,154,60,.9)'; g.fillText(pl.carrier === 'S' ? 'JET' : 'REVERSE', 4, 12); }
+    }
     function diagram(cvs, pl, fl) {
+      if (SMALL) { diagramS(cvs, pl, fl); return; }
       const g = cvs.getContext('2d'), W = cvs.width, H = cvs.height, F = FORMS[pl.form], fx = fl ? -1 : 1;
       const X = (x) => W / 2 + x * fx * (W / 36), Y = (d) => H * 0.62 - d * (H / 34);
       g.fillStyle = '#1f6a32'; g.fillRect(0, 0, W, H);
@@ -9974,21 +11458,21 @@ gl_FragColor=vec4(c,1.0);}`;
     function coachPicks() {
       const key = [down, los, fdz, drivePlays, qtr, Math.floor(clock / 30), hs, as, tryMode ? 1 : 0, hist.length ? hist[hist.length - 1].id : ''].join('|');
       if (coachMemo && coachMemo.key === key) return coachMemo.picks;
-      const g2g = fdz >= 100, need = Math.max(1, Math.round(g2g ? 100 - los : fdz - los)), room = 100 - los;
+      const g2g = fdz >= FL, need = Math.max(1, Math.round(g2g ? FL - los : fdz - los)), room = FL - los;
       const lead = hs - as, lateHalf = (qtr === 2 || qtr >= 4) && clock < 120, hurry = lateHalf && (lead < 0 || (qtr >= 4 && lead === 0)), protect = lateHalf && lead > 0 && qtr >= 4;
-      const desperate = qtr >= 4 && clock < 20 && lead < 0 && los < 65 && (lead < -3 || los < 50);
-      const backedUp = los < 12, rz = los >= 80, gl = los >= 95 || (g2g && need <= 3), wet = WET > 0.3;
+      const desperate = qtr >= 4 && clock < 20 && lead < 0 && los < FL - (SMALL ? 12 : 35) && (lead < -3 || los < MID);
+      const backedUp = los < (SMALL ? 3 : 12), rz = los >= FL - VN.RZ, gl = los >= FL - VN.G5 || (g2g && need <= 3), wet = WET > 0.3;
       const recent = hist.slice(-3).map((h) => h.id), blitzy = hist.length >= 2 && hist.slice(-2).every((h) => h.blitz);
       const noise = (i) => { const x = Math.sin((down * 7 + los * 13 + drivePlays * 31 + qtr * 101 + i * 17 + hs * 3 + as * 5) * 12.9898) * 43758.5453; return x - Math.floor(x); };
       const scored = PLAYS.map((p, i) => {
-        const run = isRunPlay(p) || p.type === 'qbdraw', scr = p.type === 'screen', shot = p.cat === 'deep' || p.type === 'pa', over = p.yd - need;
+        const run = isRunPlay(p) || p.type === 'qbdraw', scr = p.type === 'screen', shot = p.cat === 'deep' || p.type === 'pa', pyd = DZ(p.yd), over = pyd - need; // the gain it is drawn for, on this field
         let s = 0, why;
         if (down >= 3 || g2g) s += over < 0 ? over * 0.9 : -over * 0.12;
         else if (down === 1) { if (p.yd >= 4 && p.yd <= 15) s += 1; if (run) s += 0.8; if (p.type === 'pa') s += 0.7; }
         else { s += over < -2 ? (over + 2) * 0.5 : -over * 0.08; if (need <= 3 && shot) s += 1.6; }
         if (need <= 1 && (p.id === 'sneak' || p.id === 'hbdive' || p.id === 'iso')) s += 4; else if (need <= 2 && run && p.yd <= 4) s += 1.6;
         if (backedUp) { s -= p.risk * 4; if (p.cat === 'trick') s -= 2; if (run || p.cat === 'quick') s += 0.8; }
-        if (rz) { if (p.yd > room + 6) s -= (p.yd - room - 6) * 0.25; if (p.id === 'rzfade' && room <= 12) s += 2.5; if (p.cat === 'quick' || run) s += 0.5; }
+        if (rz) { if (pyd > room + 6) s -= (pyd - room - 6) * 0.25; if (p.id === 'rzfade' && room <= 12) s += 2.5; if (p.cat === 'quick' || run) s += 0.5; }
         if (gl && !run && p.id !== 'rzfade' && p.cat !== 'quick') s -= 2;
         if (hurry) { s += (1 - p.clk) * 2.5 + (p.sl ? 1 : 0); if (run) s -= 2; if (p.type === 'pa' || p.type === 'boot') s -= 1; }
         else if (protect) { s += p.clk * 2; if (p.cat === 'deep' || p.cat === 'trick') s -= 1.5; }
@@ -10044,7 +11528,7 @@ gl_FragColor=vec4(c,1.0);}`;
       meter = el('div', 'bz-meter', `<h5>${type === 'punt' ? 'Punt' : type === 'xp' ? 'Extra point' : fgDist() + '-yd field goal'}<span>${esc(KR.name)} · K ${Math.round(KK)}</span></h5><div class="bz-mbar"><u></u><i></i></div><div class="bz-macc"><i></i></div><p>${touchy ? 'Tap' : 'Click or SPACE'} to set power, then again to aim</p>`);
       wrap.appendChild(meter);
       if (type !== 'punt') {
-        const need = 110 - kick.kz + 1, R0 = 36 + KK * 0.3 - WET * 3, pReq = clamp((need / R0 - 0.42) / 0.62, 0, 1);
+        const need = ZEND - kick.kz + 1, R0 = 36 + KK * 0.3 - WET * 3, pReq = clamp((need / R0 - 0.42) / 0.62, 0, 1);
         const u = meter.querySelector('u'); u.style.left = (pReq * 100) + '%'; u.style.right = '0';
       } else meter.querySelector('u').style.display = 'none';
       updMeter();
@@ -10232,7 +11716,15 @@ gl_FragColor=vec4(c,1.0);}`;
     wrap.addEventListener('dblclick', (e) => e.preventDefault());
     wrap.addEventListener('contextmenu', (e) => { if (!finished) e.preventDefault(); });
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glLost = true; });
-    cv.addEventListener('webglcontextrestored', () => { if (finished) return; try { setupGL(); glLost = false; } catch (err) { console.error(err); } });
+    // restored: extensions have to be switched on again on the new context (the anisotropy one was handed out by the lost one), and
+    // glLost is cleared before the rebuild so textures whose photos are already loaded upload during it (venue photo textures)
+    cv.addEventListener('webglcontextrestored', () => {
+      if (finished) return;
+      try { for (const n of ['EXT_color_buffer_float', 'EXT_color_buffer_half_float', 'ANGLE_instanced_arrays', 'WEBGL_depth_texture', 'WEBKIT_WEBGL_depth_texture', 'OES_standard_derivatives', 'OES_texture_half_float', 'OES_texture_half_float_linear']) gl.getExtension(n); } catch (e) {}
+      try { const a = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'); X.aniso = a; X.maxAniso = a ? gl.getParameter(a.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0; } catch (e) { X.aniso = null; X.maxAniso = 0; }
+      glLost = false;
+      try { setupGL(); } catch (err) { glLost = true; console.error(err); }
+    });
 
     // ---------- input ----------
     const KEYS = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd' };
@@ -10396,7 +11888,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
     // ---------- splash ----------
     const lvlName = DIFF < 0.17 ? 'Rookie' : DIFF < 0.5 ? 'Pro' : DIFF < 0.83 ? 'All-Pro' : DIFF <= 1 ? 'Legend' : DIFF < 1.2 ? 'Hall of Fame' : 'GOAT';
-    const wxName = { clear: 'Clear skies', rain: 'Rain', snow: 'Snow', night: 'Under the lights' }[WX];
+    const wxName = METCALF ? { clear: 'Lunch hour', rain: 'Rain at lunch', snow: 'Snow at lunch', night: 'Lunch hour' }[WX] : { clear: 'Clear skies', rain: 'Rain', snow: 'Snow', night: 'Under the lights' }[WX]; // a schoolyard has no lights (see 12-venue.js)
     const splash = el('div', 'bz-splash', `
       <div class="bz-title">BLITZ 3D</div>
       <div class="bz-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
@@ -10404,7 +11896,7 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}${ovrBadge(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       ${ovrPanel()}
       ${VS ? '' : `<div class="bz-dslide"><div class="bz-dslide-h"><b>Defense</b><span>how many of their snaps you play yourself</span></div><input type="range" min="0" max="4" step="1" value="${DEFMODES.indexOf(DEFMODE)}" aria-label="How much defense you play"><div class="bz-dslide-t">${DEFMODES.map((m) => `<i class="${m === DEFMODE ? 'on' : ''}">${DEFLBL[m][0]}</i>`).join('')}</div><p class="bz-dslide-d">${DEFLBL[DEFMODE][1]}</p></div>`}
-      <button type="button" class="bz-go">KICK OFF</button>`);
+      <button type="button" class="bz-go">${VN.koType === 'throw' ? 'THROW OFF' : 'KICK OFF'}</button>`);
     wrap.appendChild(splash);
     { const sl = splash.querySelector('.bz-dslide input'); // how much defense: kept in the browser, and in the game's gear panel too
       if (sl) { sl.addEventListener('pointerdown', (e) => e.stopPropagation()); sl.addEventListener('input', () => { const m = DEFMODES[sl.value | 0]; setDefMode(m); splash.querySelectorAll('.bz-dslide-t i').forEach((x, i) => x.classList.toggle('on', i === (sl.value | 0))); splash.querySelector('.bz-dslide-d').textContent = DEFLBL[m][1]; }); } }
@@ -10417,7 +11909,7 @@ gl_FragColor=vec4(c,1.0);}`;
       say(`Coin toss: <b>${youRecv ? esc(HOME.name) : esc(AWAY.name)}</b> will receive.`);
       if (VS) { // head to head: the server tossed the coin; whatever the other screen sent while we sat on the splash goes through now
         phase = 'break'; brk = { t: 0.01, then: () => { if (VS.net.resume) vsResume(VS.net.resume); else if (youRecv) vsAwaitKick(false); else vsKickChoice(); const q = VS.pend.splice(0); for (const [t, d] of q) vsOnMsg(t, d); } };
-      } else phase = 'break', brk = { t: 0.01, then: () => (youRecv ? goHome(null, true) : goCpu(25)) };
+      } else phase = 'break', brk = { t: 0.01, then: () => (youRecv ? goHome(null, true) : goCpu(TB)) };
       try { cv.focus({ preventScroll: true }); } catch (e) {}
     }
 
@@ -10426,7 +11918,8 @@ gl_FragColor=vec4(c,1.0);}`;
       get phase() { return phase; }, get mode() { return mode; }, get clock() { return clock; }, get qtr() { return qtr; }, get hs() { return hs; }, get as() { return as; },
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
-      get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
+      get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get venue() { return VN; }, kneel() { if (kick && kick.type === 'ko' && kick.tbOK) touchback(); }, get cpuD() { return cpuD; }, get pend() { return pend; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
+      get cam() { return cam; }, kickoffNow() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); closeSheet(); startKickoff(false); }, // tests: the camera, a CPU kickoff (throw-off) now
       get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, get crowdE() { return PULSE.e; }, aimSpotNow() { return aimSpot(); }, crowdWobble() { return crowdWobble(); }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
@@ -10438,20 +11931,20 @@ gl_FragColor=vec4(c,1.0);}`;
       setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },
       throwAt(x, z, a) { if (mode !== 'aim') return false; if (a != null) arc = a; return throwBall({ x, z, D: Math.hypot(x - OK.QB.x, z - OK.QB.z) }, arc); },
       jump() { doJump(ctrl); }, dive() { doDive(ctrl); }, hotGo(k) { if (!hot[k]) cycleHot(k); return hot[k]; },
-      debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(100, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
+      debugSet(o) { if (phase !== 'pre') return; if (o.los != null) los = o.los; if (o.down) down = o.down; if (o.togo) fdz = Math.min(FL, los + o.togo); if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.run != null) clockRun = o.run; go4 = false; closeSheet(); toPre(false); },
       quit() { finishGame(true); },
       // moments and perks (tests): pick off a pass now, kick now, give every Lineup card one perk, reach the hooks
       intercept(i) { const d = def[i || 0]; if (d && ball && ball.st === 'air') intercept(d, 'test'); },
       kickNow(t) { if (phase === 'pre') startKick(t || 'fg'); },
       onsideTap() { onsideTap(false); }, vsOnsideTap() { vsOnsideTap(false); }, onside(home) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); startOnside(home !== false); }, koChoice() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; clearBanner(); startKoChoice(); },
-      forcePre(l) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; replay = null; hideMeter(); clearBanner(); startDrive(l || 50); },
+      forcePre(l) { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; replay = null; hideMeter(); clearBanner(); startDrive(l || MID); },
       teamFx(f) { for (const k in SQ) SQ[k].fx = f; for (const p of off) { p.fx = f; p.pkFx = undefined; } PK.ev = null; },
       perkInternals: { knockDown, hitCarrier, perkHook, perkTackle, perkThrow, perkCatch, perkReach, recAttempt, engage, doJump, doDive, pkOf, catchBall, PK, FUN },
       scenario(o) {
         if (finished) return;
         closeSheet(); clearBanner(); hideTags(); clearPlayers(); if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; kick = null; hideMeter();
         phase = 'live'; tPlay = 0; thrown = false; handed = true; runSeen = 0; crossed = true; aim = null; target = null; passer = null; kick = null; lastBig = null; replayBuf = []; recT = 0; carrier = null;
-        los = o.los || 50; down = 1; fdz = los + 10; poss = 'home';
+        los = o.los || MID; down = 1; fdz = los + FD; poss = 'home';
         const c = o.role ? (o.side ? addDef(mkP(1, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 24 })) : addOff(mkP(0, o.role, o.key || 'T', o.x || 0, o.z || 40, { num: o.num || 72 }))) : addOff(offPlayer(o.key || 'RB', o.x || 0, o.z || 40)); c.h = o.h || 0;
         (o.def || []).forEach((d, i) => addDef(mkP(1, d.role || 'LB', 'T' + i, d.x, d.z, { v: d.v || 7.6, str: d.str || 70, agi: 60, tackle: d.tackle || 70, spd: 70, num: 40 + i })));
         // more receivers on the field (hunt / converge scenarios): { key, x, z, vx, vz }
@@ -10473,7 +11966,7 @@ gl_FragColor=vec4(c,1.0);}`;
       },
       reachGap, ballOver, leverage, leadPt, get pr() { return pr; }, get vs() { return VS; }, cpuTry() { return cpuTry(); }, projectPt(x, y, z) { return project(x, y, z); }, vsCalls: VS_CALLS, vsPick(id) { if (dsheet) dsheetPick(id); else if (vsCardEl && vsCardEl.fn) vsCardEl.fn(id); }, get vsCard() { return dsheet ? 'Call the defense · ' + dsheet.o.title : vsCardEl ? vsCardEl.textContent : null; }, get dsheetOpen() { return !!dsheet; }, vsJump() { vsJumpTap(); }, vsTimeout() { vsTimeout(); }, routePos(k, dt) { const p = OK[k]; return p && p.R ? posAt(p.R, tPlay + dt) : null; }, get perf() { return perf; }, get aim() { return aim; }, aimSpot, flightT: flightOf, contactDist, catchRadius, shoulderPos, get quality() { return quality; }, setQuality(q) { setQuality(q); showQuality(); }, get draws() { return DRAWS; }, atlasURL() { try { return atlas.toDataURL(); } catch (e) { return 'ERR ' + e.message; } }, get shadowOn() { return !!(G && G.shadow); }, get shadowInfo() { return G && G.shadow ? { n: G.shadow.n, size: G.shadow.size, packed: G.shadow.packed, ok: G.shadow.ok } : null; }, get hdr() { return !!(G && G.scene && G.scene.hdr); }, get gl2() { return X.gl2; }, get caps() { return X; }, get extras() { return extras; }, get cam() { return cam; }, get everyone() { return everyone; }, get pile() { return pile; }, handPos, knockDown, setPose,
       swipe(ux, uz, k) { if (mode !== 'aim') return false; const D = Math.max(3, Math.min(1, k || 1) * maxDist()); return throwBall({ x: OK.QB.x + ux * D, z: OK.QB.z + uz * D, D }, arc); },
-      kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } }, pat() { if (phase === 'pre') { closeSheet(); startPAT(); } }, get pendLos() { return pend ? pend.los : null; }, get film() { return FILM; }, simDrives(call, n, start) { const R = { n, pts: 0, TD: 0, FG: 0, INT: 0, FUMBLE: 0, PUNT: 0, DOWNS: 0, MISS: 0, CLOCK: 0, used: 0, plays: 0, yds: 0 }; for (let i = 0; i < n; i++) { const r = simCpu(start || 25, { q: 1, t: 9999 }, null, call); R[r.res]++; R.pts += r.res === 'TD' ? 7 : r.res === 'FG' ? 3 : 0; R.used += r.used; R.plays += r.plays; R.yds += r.yds; } return R; },
+      kickoff() { if (phase === 'pre') { closeSheet(); goHome(null, true); } }, pat() { if (phase === 'pre') { closeSheet(); startPAT(); } }, get pendLos() { return pend ? pend.los : null; }, get film() { return FILM; }, simDrives(call, n, start) { const R = { n, pts: 0, TD: 0, FG: 0, INT: 0, FUMBLE: 0, PUNT: 0, DOWNS: 0, MISS: 0, CLOCK: 0, used: 0, plays: 0, yds: 0 }; for (let i = 0; i < n; i++) { const r = simCpu(start || TB, { q: 1, t: 9999 }, null, call); R[r.res]++; R.pts += r.res === 'TD' ? (VN.pat ? 7 : VN.tdPts) : r.res === 'FG' ? 3 : 0; R.used += r.used; R.plays += r.plays; R.yds += r.yds; } return R; },
       get playClock() { return playClock; }, set playClock(v) { playClock = v; }, get cpuStats() { return CPUS; }, get cpuCS() { return CS; },
       get defp() { return DEFP; }, defpCall(id) { if (phase === 'dcall') defpCall(id); }, defpSwitch() { defpSwitch(); }, defJump() { defJump(DEFP.ctl); }, defDive() { defDive(DEFP.ctl, defDir()); }, // key defensive plays (tests)
       vsDefTap(a) { vsDefTap(a); }, get everyone() { return everyone; },
@@ -10516,7 +12009,7 @@ gl_FragColor=vec4(c,1.0);}`;
     try {
       if (document.fonts && document.fonts.load) document.fonts.load('900 40px "Barlow Condensed"').then(() => {
         if (!G || glLost || finished) return;
-        gl.deleteTexture(G.field); G.field = mkTex(fieldCanvas(quality >= 2 ? 2 : 1), false, false, 16); G.texs.push(G.field); statics.forEach((s) => { if (s.k === 'field') s.tex = G.field; });
+        if (!METCALF) { gl.deleteTexture(G.field); G.field = mkTex(groundCanvas(quality >= 2 ? 2 : 1), false, false, 16); G.texs.push(G.field); statics.forEach((s) => { if (s.k === 'field') s.tex = G.field; }); }
         for (const k in numMap) delete numMap[k]; numN = 0; nameN = 0; for (const p of everyone) { p.ncell = p.num ? numCell(p.num) : -1; p.nmcell = p.sq && p.sq.name ? nameCell(shortName(p.sq.name)) : -1; }
         boardDirty = true;
       }).catch(() => {});
@@ -10529,6 +12022,7 @@ gl_FragColor=vec4(c,1.0);}`;
   // =====================================================================================
   window.MFLBlitz = {
     version: 2,
+    venues: ['stadium', 'metcalf'], // opts.venue (Head to Head, Double or Nothing and Double or Double always play the stadium)
     play(root, opts) {
       return new Promise((resolve) => {
         let settled = false;
@@ -10548,7 +12042,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const t0 = players[0] || {};
         const home = { name: String(t0.team || 'MFL Stars'), abbr: String(t0.abbr || t0.team || 'MFL').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MFL', color: t0.color || '#ffc21a', color2: t0.color2 || '#1b1e27', ovrOff: 66, ovrDef: 60, players };
         const away = pickOpponent(lvl, home, ctx.seed); // a different team every game, at the level's strength
-        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3, weather: data.weather || 'night', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
+        window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3, weather: data.weather || 'night', venue: ctx.run ? 'stadium' : data.venue || 'stadium', label: ctx.run ? `${ctx.run.name} · ${ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]} · Game ${ctx.run.step}` : (ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl]) + ' · Arcade' }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
           let tds = 0; for (const k in r.stats || {}) tds += (r.stats[k].rushTD || 0) + (r.stats[k].recTD || 0);
           const ab = esc(home.abbr), nm = esc(away.name);

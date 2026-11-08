@@ -1,0 +1,21 @@
+Metcalf venue textures
+
+Photo textures from ambientCG (https://ambientcg.com), released under CC0 1.0 (public domain).
+Resized to power-of-two JPGs for the game; colors are tinted at runtime.
+
+asphalt.jpg, asphalt_n.jpg  Asphalt031
+concrete.jpg                Concrete034
+concrete_old.jpg            Concrete036
+brick.jpg                   Bricks105
+grass.jpg                   Grass004
+woodchips.jpg               WoodChips003
+bark.jpg                    Bark012
+panel_blue.jpg              CorrugatedSteel007A
+corrugated.jpg              CorrugatedSteel005
+gravel.jpg                  Gravel023
+dirt.jpg                    Ground054
+leaves.jpg                  composed from LeafSet010 and LeafSet009 leaf sprites (scattered, rotated, shaded in depth)
+shingle.jpg                 RoofingTiles003
+needles.jpg                 procedural (spruce twigs), no photo
+
+Everything else at the venue (painted marks, stains, facades, signs, foliage) is drawn procedurally in the engine.

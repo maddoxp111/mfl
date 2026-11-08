@@ -2802,4 +2802,7 @@ body.arc-playing .ticker{display:none}
 .bz-dm-opts small{color:var(--muted);font-size:10.5px}
 .bz-dm-opts input:checked+span{box-shadow:0 0 0 2px #ffc21a inset;background:color-mix(in srgb,#ffc21a 10%,var(--card2))}
 .bz-dm-opts input:focus-visible+span{outline:2px solid #ffc21a;outline-offset:2px}
-@media(max-width:620px){.bz-dm-opts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.bz-vn-opts{grid-template-columns:repeat(2,minmax(0,1fr))}
+.bz-vn-opts span{padding:10px 12px}
+.bz-vn-opts b{font-size:13px}
+@media(max-width:620px){.bz-dm-opts{grid-template-columns:repeat(3,minmax(0,1fr))}.bz-vn-opts{grid-template-columns:repeat(2,minmax(0,1fr))}}
