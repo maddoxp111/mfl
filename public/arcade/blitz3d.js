@@ -3100,7 +3100,8 @@ gl_FragColor=vec4(c,1.0);}`;
   }
   // ---- sound: a schoolyard, not a stadium. The crowd bed drops to a murmur, no stomp-clap, the horn is a whistle, and a soft
   // layer of traffic on Main Street, kids and the odd bird plays under the game. With the crowd setting (MOPT.crowd) the crowd
-  // sounds exactly as at the stadium (full bed, cheers, boos, stomp-clap, the heartbeat), the kids on top. ----
+  // sounds as at the stadium (the bed at 85%, cheers, boos, stomp-clap, the heartbeat), the kids on top, and the low schoolyard
+  // rumble drops well under it (at full level it buried every crowd swell). ----
   if (METCALF) {
     const play0 = sfx.play, crowd0 = sfx.crowd, close0 = sfx.close;
     let amb = null, dead = false; // dead: the game has closed its audio, so late timers never reopen it
@@ -3112,7 +3113,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const n = ac.sampleRate * 3, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0); let br = 0, s = 4711;
         for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; br = br * 0.985 + ((s / 4294967296) * 2 - 1) * 0.15; d[i] = br; }
         const src = ac.createBufferSource(); src.buffer = b; src.loop = true;
-        const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 210; const g = ac.createGain(); g.gain.value = 0.32;
+        const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 210; const g = ac.createGain(); g.gain.value = MOPT.crowd ? 0.06 : 0.32; // with the crowd on, the crowd is the murmur: the low schoolyard rumble stays well under it
         src.connect(lp); lp.connect(g); g.connect(out); src.start(); amb.src = src; amb.g = g; amb.b = b;
       } catch (e) {}
     };
@@ -3131,7 +3132,7 @@ gl_FragColor=vec4(c,1.0);}`;
       play0(n); ambient();
       const now = performance.now(); if (now > birdT) { birdT = now + 9000 + Math.random() * 14000; if (birdT > now + 9000) setTimeout(chirp, 400); }
     };
-    sfx.crowd = (v) => crowd0(MOPT.crowd ? v : v * 0.22);
+    sfx.crowd = (v) => crowd0(MOPT.crowd ? v * 0.85 : v * 0.22); // the crowd setting: the stadium's bed a touch under it (a schoolyard, not a bowl)
   }
   // commentary variants that talk about the night, the stadium, the crowd, grass or uprights are left out at the schoolyard
   const MET_VSKIP = { intro: [1, 2, 3, 4, 7, 9], cpu_td: [4], cpu_fg: [2], cpu_fumble: [2], halftime: [4], final_loss: [7], overtime: [2], incomplete: [6], fumble: [6], catch_diving: [6], stiff_arm: [3], big_hit: [3], third_down: [5], fg_good: [2, 4], doink: [0, 2, 5], doink_in: [1], leap: [0, 1], comeback: [3], tackle_live: [7], situation_long: [7], situation_fourth: [6], player_tds: [0, 1, 2, 3, 4, 5], halftime_color: [0, 6], pregame_color: [0, 1, 5] };
@@ -15137,7 +15138,7 @@ gl_FragColor=vec4(col,1.0);}`;
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get venue() { return VN; }, kneel() { if (kick && kick.type === 'ko' && kick.tbOK) touchback(); }, get cpuD() { return cpuD; }, get pend() { return pend; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
       get cam() { return cam; }, kickoffNow() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); closeSheet(); startKickoff(false); }, // tests: the camera, a CPU kickoff (throw-off) now
-      get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, get crowdE() { return PULSE.e; }, aimSpotNow() { return aimSpot(); }, crowdWobble() { return crowdWobble(); }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
+      get sfx() { return sfx; }, get excite() { return excite; }, set excite(v) { excite = v; }, get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, get crowdE() { return PULSE.e; }, aimSpotNow() { return aimSpot(); }, crowdWobble() { return crowdWobble(); }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
       pick(id, fl) { const p = PLAYS.find((q) => q.id === id); if (p) { if (fl != null) flip = !!fl; pickPlay(p); } },
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
