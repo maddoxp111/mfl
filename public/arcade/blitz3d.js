@@ -4850,7 +4850,7 @@ gl_FragColor=vec4(c,1.0);}`;
   // (forward/up), roll (out to the side), elbow; per leg: hip pitch (forward), knee; arm yaw (both arms in toward the middle)
   const J_TB = 0, J_TY = 1, J_TR = 2, J_HP = 3, J_HY = 4, J_LP = 5, J_LR = 6, J_LE = 7, J_RP = 8, J_RR = 9, J_RE = 10, J_LH = 11, J_LK = 12, J_RH = 13, J_RK = 14, J_AY = 15;
   // body flags (iB.y): 1 long sleeves, 2 long pants, 4 hoodie hood, 8 backpack, 16 long hair, 32 cap
-  const PPL = { clk: 0, init: false, all: [], crowd: [], walk: [], dogs: [], paths: [], buf: null, R: { n: 0, nn: 0, nh: 0 }, hs0: 0, as0: 0, look: [0, 0, MID], ms: 0, tris: 0, rush: 0 };
+  const PPL = { ev: [-99, 0, 0, 0], evP: 0, fd: null, fdirty: false, nfar: 0, clk: 0, init: false, all: [], crowd: [], walk: [], dogs: [], paths: [], buf: null, R: { n: 0, nn: 0, nh: 0 }, hs0: 0, as0: 0, look: [0, 0, MID], ms: 0, tris: 0, rush: 0 };
   const FW = { ph: '', bp: null, hit: null }; // the ball over a fence: last phase, last ball spot, the crossing this play
   const FETCH = { on: false, t: 0, cam: null, skipOK: false };
   if (METCALF) MET.fetch = FETCH; // other Metcalf modules can see the cutscene (e.g. hold the traffic near the ball)
@@ -5022,6 +5022,60 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     const nu = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS); for (let i = 0; i < nu; i++) { const n = gl.getActiveUniform(pr, i).name.replace(/\[0\]$/, ''); P.u[n] = gl.getUniformLocation(pr, n); }
     G.progs.push(pr); return P;
   }
+  // ---------- the far crowd: a flat cut-out person (20 triangles) that turns to face the camera, posed in the vertex shader ----------
+  // Each vertex: x (metres across, or across the arm for an arm), y (metres up, or 0..1 along the arm), part (0 body, 1 left arm,
+  // 2 right arm), colour slot (0 face, 1 shirt, 2 pants, 3 hair, 4 shoes, 6 forearm, 7 shin). Instances never change while they
+  // stand at home (one static buffer): the reactions, the bounce and the sway all come from uniforms and each one's phase.
+  function pplFarMesh() {
+    const V = [], q = (x0, x1, y0, y1, part, slot, xb0, xb1) => { const i = V.length / 4; V.push(xb0 == null ? x0 : xb0, y0, part, slot, xb1 == null ? x1 : xb1, y0, part, slot, x1, y1, part, slot, x0, y1, part, slot); I.push(i, i + 1, i + 2, i, i + 2, i + 3); }, I = [];
+    q(-0.12, 0.12, 0.0, 0.085, 0, 4); // shoes
+    q(-0.125, 0.125, 0.07, 0.45, 0, 7, -0.105, 0.105); // shins (pants, or bare legs under shorts)
+    q(-0.14, 0.14, 0.44, 0.84, 0, 2, -0.125, 0.125); // thighs and hips
+    q(-0.2, 0.2, 0.82, 1.36, 0, 1, -0.16, 0.16); // torso, wider at the shoulders
+    q(-0.085, 0.085, 1.33, 1.61, 0, 0, -0.07, 0.07); // head (the face, or the back of the head)
+    q(-0.095, 0.095, 1.5, 1.63, 0, 3, -0.093, 0.093); // hair on top
+    for (const pt of [1, 2]) { q(-0.05, 0.05, 0.0, 0.45, pt, 1); q(-0.042, 0.042, 0.45, 1.0, pt, 6); } // upper arm, forearm
+    return { v: new Float32Array(V), i: new Uint16Array(I) };
+  }
+  // instance (16 floats): iA = x, z, heading, size; iB = width, flags, 0, ground y; iC = skin, shirt, pants, hair; iD = phase, energy,
+  // bits (1 away fan, 2 sitting, 4 drawn by the near path this frame), 0
+  const VS_PFAR = `attribute vec4 aP;attribute vec4 iA;attribute vec4 iB;attribute vec4 iC;attribute vec4 iD;
+uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uEv;uniform vec4 uEv2;uniform float uT;uniform float uFarD;
+varying vec3 vW;varying vec3 vN;varying float vVD;varying vec3 vC;varying float vSk;
+vec3 rgbU(float v){float r=floor(v/65536.0);float g=floor((v-r*65536.0)/256.0);return vec3(r,g,v-r*65536.0-g*256.0)/255.0;}
+float bitF(float f,float k){return mod(floor(f/k+0.001),2.0);}
+void main(){vec2 dc=iA.xy-uEye.xz;float dist=length(dc);float bits=iD.z;
+if(bitF(bits,4.0)>0.5||dist<uFarD){gl_Position=vec4(2.0,2.0,2.0,1.0);vW=vec3(0.0);vN=vec3(0.0,1.0,0.0);vVD=0.0;vC=vec3(0.0);vSk=0.0;}else{
+float ph=iD.x,en=iD.y,away=bitF(bits,1.0),sit=bitF(bits,2.0),fl=iB.y,t=uT;
+float h1=fract(ph*7.31),h2=fract(ph*3.77+0.13),h3=fract(ph*11.9+0.5);
+float code=away>0.5?uEv.z:uEv.y;float u=t-uEv.x-h2*0.35;
+float f=clamp(u*5.0,0.0,1.0)*clamp((uEv.w-u)*3.0,0.0,1.0)*step(h1,uEv2.x)*step(0.5,code);
+vec2 A=vec2(0.1),Lk=vec2(1.0);float hop=0.0;
+float pump=step(en+0.2,uEv2.y)*step(0.82,fract(t*0.21+h3));A.y=mix(A.y,2.5+0.4*sin(t*11.0+ph),pump);
+vec2 E=A,EL=vec2(1.0);
+if(code>0.5&&code<1.5){if(h3<0.55){E=vec2(2.85+0.14*sin(t*9.0+ph));}else if(h3<0.78){E=vec2(0.3,2.5+0.45*sin(t*11.0+ph));}else{E=vec2(0.55+0.3*abs(sin(t*15.5+ph)));EL=vec2(0.7);}
+  if(h2<0.4){float k=fract(u*1.75+ph);hop=4.0*k*(1.0-k)*min(1.0,u*3.0);}}
+else if(code>1.5&&code<2.5){if(h3<0.6){E=vec2(2.45);EL=vec2(0.5);}else{E=vec2(0.15);}}
+else if(code>2.5&&code<3.5){E=vec2(2.3);EL=vec2(0.52);}
+else if(code>3.5){E=vec2(0.55+0.3*abs(sin(t*15.5+ph)));EL=vec2(0.7);}
+A=mix(A,E,f);Lk=mix(Lk,EL,f);hop*=f;
+float part=aP.z,sl=aP.w;vec2 p=aP.xy;
+if(part>0.5){float sd=part<1.5?-1.0:1.0;float a=sd<0.0?A.x:A.y;float L=sd<0.0?Lk.x:Lk.y;vec2 d=vec2(sd*sin(a),-cos(a));vec2 nn=vec2(-d.y,d.x);
+  p=vec2(sd*0.185,1.33)+d*(p.y*0.6*L)+nn*p.x;p.y-=0.533*sit;}
+else if(sit>0.5){p.y=p.y<0.82?p.y*0.35:p.y-0.533;}
+p.y+=hop*0.2;p.x+=0.02*sin(t*0.8+ph)*p.y;
+vec3 D=uEye-vec3(iA.x,0.0,iA.y);D.y=0.0;D=normalize(D);vec3 Rt=vec3(D.z,0.0,-D.x);
+float zo=part>0.5?0.03:(sl>2.5&&sl<3.5?0.012:0.0);
+vec3 w=vec3(iA.x,iB.w,iA.y)+(Rt*p.x*iB.x+vec3(0.0,p.y,0.0)+D*zo)*iA.w;
+vW=w;vN=normalize(D+vec3(0.0,0.3,0.0));
+float back=step(dot(vec2(sin(iA.z),cos(iA.z)),D.xz),-0.15);
+vec3 skin=rgbU(iC.x),shirt=rgbU(iC.y),pants=rgbU(iC.z),hair=rgbU(iC.w);
+vec3 c=sl<0.5?mix(skin,hair,back):sl<1.5?shirt:sl<2.5?pants:sl<3.5?hair:sl<4.5?vec3(0.16,0.16,0.17):sl<6.5?(bitF(fl,1.0)>0.5?shirt:skin):(bitF(fl,2.0)>0.5?pants:skin);
+vC=c;vSk=(sl<0.5&&back<0.5)||(sl>5.5&&sl<6.5&&bitF(fl,1.0)<0.5)||(sl>6.5&&bitF(fl,2.0)<0.5)?1.0:0.0;
+gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}}`;
+  const VS_PBLOBF = `attribute vec2 aQ;attribute vec4 iA;attribute vec4 iB;attribute vec4 iD;uniform mat4 uVP;uniform HP vec3 uEye;uniform float uFarD;varying vec2 vQ;varying float vK;
+void main(){float r=iA.w*0.3*(0.85+0.3*iB.x);vQ=aQ;vK=0.85;vec2 dc=iA.xy-uEye.xz;float hid=mod(floor(iD.z/4.0+0.001),2.0);
+if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
   // GL objects live on G (rebuilt after a lost context); null when instancing or enough vertex attributes are missing
   function pplGL() {
     if (!G) return null;
@@ -5032,7 +5086,10 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
       const mesh = (k, lod) => { const d = pplMeshData(k, lod), vb = gl.createBuffer(), ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, d.v, gl.STATIC_DRAW); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, d.i, gl.STATIC_DRAW); G.bufs.push(vb, ib); return { vb, ib, n: d.i.length }; };
       const Q = { pr: pplProg(VS_PPL, FS_PPL, 'aP'), pb: pplProg(VS_PBLOB, FS_PBLOB, 'aQ'), hi: mesh('person', 0), lo: mesh('person', 1), dog: mesh('dog', 0), inst: gl.createBuffer(), quad: gl.createBuffer() };
       gl.bindBuffer(gl.ARRAY_BUFFER, Q.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
-      G.bufs.push(Q.inst, Q.quad); G.ppl = Q;
+      G.bufs.push(Q.inst, Q.quad);
+      { const d = pplFarMesh(), vb = gl.createBuffer(), ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, d.v, gl.STATIC_DRAW); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, d.i, gl.STATIC_DRAW); G.bufs.push(vb, ib);
+        Q.far = { vb, ib, n: d.i.length, pr: pplProg(VS_PFAR, FS_PPL, 'aP'), pb: pplProg(VS_PBLOBF, FS_PBLOB, 'aQ'), inst: gl.createBuffer(), up: -1 }; G.bufs.push(Q.far.inst); }
+      G.ppl = Q;
     } catch (e) { try { console.error('metcalf people: no GL', e); } catch (e2) {} G.ppl = null; }
     return G.ppl;
   }
@@ -5040,9 +5097,12 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
   // ---------- where people go ----------
   // a spot is free of the venue's solids (MET.keep: walls, trunks, poles, fences, play structures), off the street, outside the
   // field of play and its margin, and not on top of someone else (real distance, in engine units)
+  // the margin kept clear round the field (frame F metres): 2.4 m at the sides at true size; with the big field about 3 m (sides)
+  // and 2.5 m (ends) in real metres, so the rows stand close to the lines like a real sideline crowd
+  const PM_S = MOPT.big ? 3.0 / MET_K : 2.4, PM_S0 = MOPT.big ? 2.5 / MET_K : 1.6, PM_N = MOPT.big ? 2.5 / MET_K : 1.8;
   function pplFree(xF, zF, mF) {
     if (xF > -31.6 && xF < -20.6) return false; // Main Street
-    if (xF > -11.2 - 2.4 && xF < 3.42 + 2.4 && zF > -15.68 - 1.6 && zF < 15.68 + 1.8) return false; // the field and its margin
+    if (xF > -11.2 - PM_S && xF < 3.42 + PM_S && zF > -15.68 - PM_S0 && zF < 15.68 + PM_N) return false; // the field and its margin
     // the solids are stored in the built (spread) frame: with the big field the spot is tested where the plan spread puts it
     if (MOPT.big) { const s = sprP(sprPlan(), xF, zF); xF = s[0]; zF = s[1]; }
     for (const k of MET.keep) {
@@ -5070,40 +5130,66 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
       [[-12.4, 18.7], [-6.85, 18.7], [-6.85, 44.0], [-9.6, 46.6], [-10.4, 50.4], [-8.6, 54.2], [-5.7, 57.0], [-4.7, 62.5]], // the school walk by the playground
     ];
     PPL.paths = Pth.map((pl) => { const pts = pl.map(([x, z]) => metE(x, z)), L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, L, len: L[L.length - 1], f: pl }; });
-    const placed = [], near = (x, z, m) => { for (const q of placed) if (Math.abs(q.x - x) < m && Math.abs(q.z - z) < m && Math.hypot(q.x - x, q.z - z) < m) return true; return false; };
+    // who is already standing where (a 1-unit grid, so a crowd of two thousand places quickly)
+    const grid = new Map(), gk = (i, j) => i * 4096 + j;
+    const placed = { push(q) { const k = gk(Math.floor(q.x), Math.floor(q.z)); let c = grid.get(k); if (!c) grid.set(k, (c = [])); c.push(q); } };
+    const near = (x, z, m) => { const i0 = Math.floor(x - m), i1 = Math.floor(x + m), j0 = Math.floor(z - m), j1 = Math.floor(z + m);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const c = grid.get(gk(i, j)); if (c) for (const q of c) if (Math.hypot(q.x - x, q.z - z) < m) return true; } return false; };
     const ageOf = (r) => (r < 0.62 ? 'kid' : r < 0.74 ? 'teen' : r < 0.9 ? 'adult' : r < 0.95 ? 'teacher' : 'little');
     // the field's nearest point (frame F), for facing it
     const facing = (xF, zF, jit) => { const fx = clamp(xF, -11.2, 3.42), fz = clamp(zF, -15.68, 15.68), e = metE(xF, zF), f = metE(fx, fz); return Math.atan2(f[0] - e[0], f[1] - e[1]) + (R() - 0.5) * jit; };
     const add = (n, gen, opt) => {
       let made = 0;
       for (let t = 0; t < n * 30 && made < n; t++) {
-        const [xF, zF] = gen(); if (!pplFree(xF, zF, 0.32)) continue;
+        const g = gen(); if (!g) break; const xF = g[0], zF = g[1]; if (!pplFree(xF, zF, 0.32)) continue;
         const e = metE(xF, zF); if (near(e[0], e[1], opt.sp || 0.62)) continue;
         const fan = R() < 0.24 ? 1 : R() < 0.08 ? -1 : 0, age = opt.little && R() < 0.3 ? 'little' : ageOf(R());
         const h = opt.face === 'any' ? R() * 6.28 : facing(xF, zF, opt.jit || 0.5);
         const q = pplNew(R, age, fan, xF, zF, h, 'crowd'); q.rank = opt.rank != null ? opt.rank + R() * (1 - opt.rank) : R() * 0.92;
-        const dl = Math.min(Math.abs(xF + 11.2), Math.abs(xF - 3.42), Math.abs(zF + 15.68), Math.abs(zF - 15.68)); q.front = !!opt.row && dl < 4.2;
+        const dl = Math.min(Math.abs(xF + 11.2), Math.abs(xF - 3.42), Math.abs(zF + 15.68), Math.abs(zF - 15.68)); q.front = !!opt.row && dl < (MOPT.big ? 1.45 : 4.2);
         const m = R(), young = q.age === 'kid' || q.age === 'little'; // front rows: some kids down on one knee or sitting
         q.mode = opt.sit != null && m < opt.sit ? 'sit' : q.front && young && m < 0.14 ? 'kneel' : q.front && young && m < 0.22 ? 'sit' : 'stand';
         q.arms = R() < 0.18 ? 1 : R() < 0.22 ? 2 : R() < 0.1 ? 3 : 0; // crossed, pockets, phone
         placed.push(q); PPL.crowd.push(q); made++;
       }
     };
+    const U = (a, b) => a + R() * (b - a);
     if (MOPT.crowd) {
-      const U = (a, b) => a + R() * (b - a);
+      // how many: the true-size yard gets half as many again as it used to; the big field (an area MET_K^2 times larger) gets the
+      // packed rows below plus several times the scattered groups, so it looks as full (about 1500-1900 at the top quality)
+      const KB = MOPT.big ? 2.2 : 1.5, KS = MOPT.big ? 4.5 : 1.5, N = (n, k) => Math.round(n * k);
+      if (MOPT.big) {
+        // packed rows all the way round, several deep, in engine units (yards): the sidelines 4 rows from 3 m out, the end lines
+        // 3 rows from 2.5 m out, the side rows running on past the corners; gaps here and there as in a real crowd
+        const a = metE(-11.2, -15.68), b = metE(3.42, 15.68), sp = 0.84, rw = 0.8, C = [];
+        const gap = (u, s0) => Math.sin(u * 0.13 + s0) + Math.sin(u * 0.047 + s0 * 2.3) < -1.15;
+        for (const sd of [-1, 1]) for (let r = 0; r < 4; r++) for (let z = a[1] - 4.5 + (r % 2) * sp * 0.5; z < b[1] + 4.5; z += sp + U(-0.15, 0.2)) {
+          if (gap(z, sd * 3.1) || R() < r * 0.1) continue;
+          const d = 3.0 * M2Y + 0.35 + r * rw + U(-0.16, 0.16), x = sd < 0 ? a[0] - d : b[0] + d; C.push(metF(x, z + U(-0.15, 0.15)));
+        }
+        for (const sd of [-1, 1]) for (let r = 0; r < 3; r++) for (let x = a[0] - 1.5 + (r % 2) * sp * 0.5; x < b[0] + 1.5; x += sp + U(-0.15, 0.2)) {
+          if (gap(x, sd * 5.7 + 1) || R() < r * 0.1) continue;
+          const d = 2.5 * M2Y + 0.35 + r * rw + U(-0.16, 0.16), z = sd < 0 ? a[1] - d : b[1] + d; C.push(metF(x + U(-0.15, 0.15), z));
+        }
+        for (let i = C.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0, t = C[i]; C[i] = C[j]; C[j] = t; }
+        let ci = 0; add(C.length, () => (ci < C.length ? C[ci++] : null), { row: true, jit: 0.35, sp: 0.6 });
+      }
       // rows along the lines: west on the lawn, east on the painted strip, north at the playground edge, south behind the fence
-      add(48, () => [U(-15.45, -13.65), U(-15.2, 15.6)], { row: true, jit: 0.4 });
-      add(74, () => [U(5.85, 9.8), U(-15.2, 15.6)], { row: true, jit: 0.4 });
-      add(38, () => [U(-12.4, 4.4), U(17.55, 20.6)], { row: true, jit: 0.5, little: true });
-      add(34, () => [U(-12.2, 4.6), U(-20.7, -17.75)], { row: true, jit: 0.5 });
-      add(18, () => [U(4.4, 11.0), R() < 0.55 ? U(16.4, 20.4) : U(-20.4, -17.75)], { row: true, jit: 0.6 }); // the corners
-      add(8, () => [U(-15.5, -12.7), U(16.5, 22.0)], { row: true, jit: 0.6 });
-      // scattered: the four-square and basketball side, the playground, the lawns, the lot; some sitting
-      add(30, () => [U(11.6, 29.6), U(-15.8, 16.4)], { face: 'field', jit: 1.6, sit: 0.18, rank: 0.25 });
-      add(32, () => { for (let k = 0; k < 20; k++) { const x = U(-3.2, 40), z = U(21.5, 42.5); if (inPoly(x, z, PG_POLY)) return [x, z]; } return [999, 999]; }, { face: 'field', jit: 1.4, sit: 0.3, rank: 0.25, little: true });
-      add(10, () => [U(-15.4, -8.4), U(21.0, 44.0)], { face: 'field', jit: 1.2, sit: 0.4, rank: 0.3 });
-      add(10, () => [U(-10.5, 28.0), U(-45.0, -22.5)], { face: 'field', jit: 1.2, rank: 0.35 });
-      add(8, () => [U(-17.9, -16.7), U(-22, 24)], { face: 'field', jit: 0.6, rank: 0.2 }); // on the sidewalk outside the fence, watching
+      add(N(48, KB), () => [U(-15.45, -13.65), U(-15.2, 15.6)], { row: true, jit: 0.4 });
+      add(N(74, KB), () => [U(5.85, 9.8), U(-15.2, 15.6)], { row: true, jit: 0.4 });
+      add(N(38, KB), () => [U(-12.4, 4.4), U(17.55, 20.6)], { row: true, jit: 0.5, little: true });
+      add(N(34, KB), () => [U(-12.2, 4.6), U(-20.7, -17.75)], { row: true, jit: 0.5 });
+      add(N(18, KB), () => [U(4.4, 11.0), R() < 0.55 ? U(16.4, 20.4) : U(-20.4, -17.75)], { row: true, jit: 0.6 }); // the corners
+      add(N(8, KB), () => [U(-15.5, -12.7), U(16.5, 22.0)], { row: true, jit: 0.6 });
+      // scattered: the four-square and basketball side, the playground, the lawns, the lot; some sitting (in little groups on the
+      // big field: a few friends standing together)
+      const grp = (gen, sz) => { if (!sz) return gen; let c = null, k = 0; const r = 1.2 / MET_K; return () => { if (!c || k <= 0) { c = gen(); k = 1 + ((R() * sz) | 0); } k--; return [c[0] + U(-1, 1) * r, c[1] + U(-1, 1) * r]; }; };
+      const G0 = MOPT.big ? 6 : 0;
+      add(N(30, KS), grp(() => [U(11.6, 29.6), U(-15.8, 16.4)], G0), { face: 'field', jit: 1.6, sit: 0.18, rank: 0.25 });
+      add(N(32, KS), grp(() => { for (let k = 0; k < 20; k++) { const x = U(-3.2, 40), z = U(21.5, 42.5); if (inPoly(x, z, PG_POLY)) return [x, z]; } return [-25, 0]; }, G0), { face: 'field', jit: 1.4, sit: 0.3, rank: 0.25, little: true });
+      add(N(10, KS), grp(() => [U(-15.4, -8.4), U(21.0, 44.0)], G0), { face: 'field', jit: 1.2, sit: 0.4, rank: 0.3 });
+      add(N(10, KS), grp(() => [U(-10.5, 28.0), U(-45.0, -22.5)], G0), { face: 'field', jit: 1.2, rank: 0.35 });
+      add(N(8, KS), () => [U(-17.9, -16.7), U(-22, 24)], { face: 'field', jit: 0.6, rank: 0.2 }); // on the sidewalk outside the fence, watching
       PPL.crowd.sort((a, b) => a.rank - b.rank);
     }
     // walkers: Main Street (both sides) and the school walk, a few at once all the time
@@ -5114,6 +5200,12 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     const W0 = Math.max(16, PPL.all.length + 16) * 32; PPL.buf = new Float32Array(W0);
     // camera keep-out: the eye never ends up inside a spectator (only where the camera keep-out runs, the small field)
     if (MOPT.crowd) for (const q of PPL.crowd) { const f = metF(q.x, q.z); MET.keep.push([f[0], f[1], 0.28, 0, q.H + 0.05]); }
+    // the far crowd's static instances (in the crowd's own order, so a quality level draws the same first ones on both paths)
+    const FD = PPL.fd = new Float32Array(Math.max(1, PPL.crowd.length) * 16);
+    PPL.crowd.forEach((q, i) => { const o = i * 16; q.fi = i; q.fb = (q.fan < 0 ? 1 : 0) | (q.mode === 'sit' || q.mode === 'kneel' ? 2 : 0);
+      FD[o] = q.hx; FD[o + 1] = q.hz; FD[o + 2] = q.hh; FD[o + 3] = q.sz; FD[o + 4] = q.wid; FD[o + 5] = q.fl; FD[o + 6] = 0; FD[o + 7] = q.gy;
+      FD[o + 8] = q.c[0]; FD[o + 9] = q.c[1]; FD[o + 10] = q.c[2]; FD[o + 11] = q.c2[0]; FD[o + 12] = q.ph; FD[o + 13] = q.en; FD[o + 14] = q.fb; FD[o + 15] = 0; });
+    PPL.fdirty = true;
   }
   function pplWalker(R, pi, s, dir) {
     const path = PPL.paths[pi], age = pi === 2 ? (R() < 0.8 ? 'kid' : 'teacher') : R() < 0.45 ? 'adult' : R() < 0.6 ? 'teen' : 'kid';
@@ -5224,8 +5316,14 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     if (!PPL.init || !PPL.crowd.length) return;
     const t = PPL.clk, R = pR; // the people's own clock (frame time, so a slow frame is slow motion, not a skipped reaction)
     const big = n === 'cheer' || n === 'boo';
+    // the far crowd (drawn by the vertex shader) gets the same reaction as one event: [start, home kind, away kind, length] and how
+    // many join in; kinds 1 cheer, 2 groan, 3 ooh, 4 clap. A smaller one never cuts a bigger one short.
+    { const E = PPL.ev, run = t < E[0] + E[3] + 0.4 && E[1] > 0 && E[1] < 4;
+      const set = (h, a, d, p) => { if (!big && run) return; E[0] = t; E[1] = h; E[2] = a; E[3] = d; PPL.evP = p; };
+      if (n === 'cheer') set(1, 2, 3.2, 1); else if (n === 'boo') set(2, 1, 3.2, 1); else if (n === 'ooh') set(3, 3, 1.6, 0.55);
+      else if (n === 'good') set(4, 4, 2.2, 0.45); else if (n === 'clap' || n === 'stomp') set(4, 4, 0.36, 0.75); }
     for (const q of PPL.crowd) {
-      if (q.away) continue;
+      if (q.away || q.bb) continue; // (the far crowd reacts in its vertex shader, from PPL.ev)
       const fan = q.fan, home = fan >= 0;
       let k = null, d = 0, jump = false;
       if (n === 'cheer' || n === 'boo') {
@@ -5254,13 +5352,21 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     const L = PPL.look, b = ball, tgt = FETCH.on && FETCH.lookAt ? FETCH.lookAt : b ? (b.holder ? [b.holder.x, 1, b.holder.z] : [b.x, b.y || 0, b.z]) : [0, 0, MID];
     L[0] += (tgt[0] - L[0]) * Math.min(1, dt * 4); L[1] = 1; L[2] += (tgt[2] - L[2]) * Math.min(1, dt * 4);
     // a home touchdown: the front rows rush in a few steps, then drift back
-    if (hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < 0.7) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
+    if (hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < (MOPT.big ? 0.35 : 0.7)) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
     PPL.hs0 = hs; PPL.as0 = as;
     const ex = excite, lean = (phase === 'pre' || phase === 'dpre' || phase === 'live') && PULSE.v > 0.5;
+    // far LOD: whoever stands at home beyond farD is drawn by the far crowd's vertex shader and costs nothing here
+    const farD = quality >= 2 ? 44 : quality === 1 ? 28 : 20, ce = cam.e, FD = PPL.fd; PPL.farD = farD;
     for (const q of PPL.crowd) {
       if (q.rushT && t > q.rushT) { q.rushT = 0; q.tx = null; }
+      const home = q.fx == null && q.tx == null && !q.rushT;
+      const at = home && q.x === q.hx && q.z === q.hz, fb = at ? q.fb : q.fb | 4; // 4: away from home, the near path draws him
+      if (FD[q.fi * 16 + 14] !== fb) { FD[q.fi * 16 + 14] = fb; PPL.fdirty = true; }
+      if (at) { const fx = q.hx - ce[0], fz = q.hz - ce[2]; if (fx * fx + fz * fz >= farD * farD) { if (!q.bb) { q.bb = true; q.rx = null; q.lean = 0; q.mv = 0; } continue; } }
+      q.bb = false;
       const tx = q.fx != null ? q.fx : q.tx != null ? q.tx : q.hx, tz = q.fz != null ? q.fz : q.tz != null ? q.tz : q.hz;
       const dx = tx - q.x, dz = tz - q.z, dd = Math.hypot(dx, dz);
+      if (home && dd <= 0.08) { q.x = q.hx; q.z = q.hz; } // back home: settle exactly, so the far path can take him again
       let mv = 0;
       if (dd > 0.08) { const sp = (q.rushT || q.fx != null ? 2.6 : 1.4) * M2Y; const st = Math.min(dd, sp * dt); q.x += dx / dd * st; q.z += dz / dd * st; mv = st / Math.max(dt, 1e-3); q.wph += st / (0.36 * q.sz * 1.6) * 0.5 * Math.PI; q.h += angDiff(Math.atan2(dx, dz), q.h) * Math.min(1, dt * 8); if (q.mode !== 'stand') { q.mode0 = q.mode; q.mode = 'stand'; } }
       else { q.h += angDiff(q.hh, q.h) * Math.min(1, dt * 2.5); if (q.mode0 && q.fx == null) { q.mode = q.mode0; q.mode0 = null; } }
@@ -5291,7 +5397,7 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     const vis = (x, z, r) => { const w = VP[3] * x + VP[7] * 1 + VP[11] * z + VP[15]; if (w < -r) return false; const cx = VP[0] * x + VP[4] + VP[8] * z + VP[12], cy = VP[1] * x + VP[5] + VP[9] * z + VP[13], ww = Math.max(w, 0.1) * 1.15 + r; return Math.abs(cx) < ww && Math.abs(cy) < ww + 1.2; };
     const near = [], far = [];
     for (let i = 0; i < PPL.all.length; i++) {
-      const q = PPL.all[i]; if (q.kind === 'crowd' && i >= ncrowd && !q.keep) continue; if (q.hidden) continue;
+      const q = PPL.all[i]; if (q.kind === 'crowd' && (q.bb || i >= ncrowd) && !q.keep) continue; if (q.hidden) continue;
       if (!vis(q.x, q.z, 1.5)) continue;
       pplPose(q, t, dt, q.mv || 0);
       (Math.hypot(q.x - cam.e[0], q.z - cam.e[2]) < nearD ? near : far).push(q);
@@ -5302,12 +5408,16 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     const put = (q, dog) => { const o = n * 32; B[o] = q.x; B[o + 1] = q.z; B[o + 2] = q.h; B[o + 3] = q.sz; B[o + 4] = q.wid; B[o + 5] = dog ? 64 : q.fl; B[o + 6] = dog ? 0 : q.y; B[o + 7] = q.gy;
       const c = q.c, c2 = q.c2 || c; B[o + 8] = c[0]; B[o + 9] = c[1]; B[o + 10] = c[2]; B[o + 11] = c[3]; B[o + 12] = c2[0]; B[o + 13] = c2[1]; B[o + 14] = c2[2]; B[o + 15] = 0; B.set(q.A, o + 16); n++; };
     for (const q of near) put(q); R.nn = n; for (const q of far) put(q); R.nh = n; for (const d of dogs) put(d, true); R.n = n;
+    PPL.nfar = MOPT.crowd ? ncrowd : 0;
     PPL.ms += (performance.now() - t0 - PPL.ms) * 0.05;
     if (FETCH.on) fetchBubbles();
   }
   // ---------- drawing (inside the opaque scene pass, after the statics) ----------
   function metPplDraw() {
-    const R = PPL.R; if (!PPL_ON || !R.n) return; const Q = pplGL(); if (!Q) return;
+    if (!PPL_ON) return;
+    const R = PPL.R, Q = (R.n || PPL.nfar) && pplGL(); if (!Q) return;
+    if (PPL.nfar && Q.far) pplFarDraw(Q);
+    if (!R.n) return;
     const P = Q.pr, IA = ['iA', 'iB', 'iC', 'iD', 'iE', 'iF', 'iG', 'iH'];
     setLitUniforms(P);
     gl.bindBuffer(gl.ARRAY_BUFFER, Q.inst); gl.bufferData(gl.ARRAY_BUFFER, PPL.buf.subarray(0, R.n * 32), gl.DYNAMIC_DRAW);
@@ -5331,6 +5441,29 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
     for (const [k, off] of [['iA', 0], ['iB', 16]]) { const l = S.a[k]; if (l == null) continue; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 128, off); X.inst.vertexAttribDivisor(l, 1); }
     X.inst.drawArraysInstanced(gl.TRIANGLES, 0, 6, R.n); DRAWS.n++;
     for (const k of ['iA', 'iB']) { const l = S.a[k]; if (l != null) X.inst.vertexAttribDivisor(l, 0); }
+    disableAll(S); gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+
+  // the far crowd: one instanced draw of the cut-outs and one of their blob shadows (not at the lowest quality)
+  function pplFarDraw(Q) {
+    const F = Q.far, P = F.pr, IA = ['iA', 'iB', 'iC', 'iD'], n = PPL.nfar;
+    gl.bindBuffer(gl.ARRAY_BUFFER, F.inst);
+    if (PPL.fdirty || F.up !== PPL.fd.length) { gl.bufferData(gl.ARRAY_BUFFER, PPL.fd, gl.DYNAMIC_DRAW); PPL.fdirty = false; F.up = PPL.fd.length; }
+    setLitUniforms(P);
+    const E = PPL.ev; gl.uniform4f(P.u.uEv, E[0], E[1], E[2], E[3]); gl.uniform4f(P.u.uEv2, PPL.evP, excite, 0, 0); gl.uniform1f(P.u.uT, PPL.clk); gl.uniform1f(P.u.uFarD, PPL.farD || 28);
+    gl.bindBuffer(gl.ARRAY_BUFFER, F.vb); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 4, gl.FLOAT, false, 16, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, F.inst);
+    IA.forEach((k, j) => { const l = P.a[k]; if (l == null) return; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 64, j * 16); X.inst.vertexAttribDivisor(l, 1); });
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, F.ib); X.inst.drawElementsInstanced(gl.TRIANGLES, F.n, gl.UNSIGNED_SHORT, 0, n); DRAWS.n++; DRAWS.tris += F.n / 3 * n;
+    IA.forEach((k) => { const l = P.a[k]; if (l != null) X.inst.vertexAttribDivisor(l, 0); }); disableAll(P);
+    if (quality < 1) return;
+    const S = F.pb; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uVP, false, VP); gl.uniform3f(S.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform1f(S.u.uFarD, PPL.farD || 28);
+    gl.enable(gl.BLEND); gl.depthMask(false);
+    gl.bindBuffer(gl.ARRAY_BUFFER, Q.quad); gl.enableVertexAttribArray(S.a.aQ); gl.vertexAttribPointer(S.a.aQ, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, F.inst);
+    for (const [k, off] of [['iA', 0], ['iB', 16], ['iD', 48]]) { const l = S.a[k]; if (l == null) continue; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 64, off); X.inst.vertexAttribDivisor(l, 1); }
+    X.inst.drawArraysInstanced(gl.TRIANGLES, 0, 6, n); DRAWS.n++;
+    for (const k of ['iA', 'iB', 'iD']) { const l = S.a[k]; if (l != null) X.inst.vertexAttribDivisor(l, 0); }
     disableAll(S); gl.depthMask(true); gl.disable(gl.BLEND);
   }
 
@@ -5580,7 +5713,7 @@ gl_Position=uVP*vec4(iA.x+aQ.x*r,iB.w+0.045,iA.y+aQ.y*r,1.0);}`;
       const wasPre = phase === 'pre'; if (wasPre) { closeSheet(); sheetOpen = false; }
       return metFetchStart(wasPre ? () => toPre(false) : deadDone, { f, x, z, u });
     };
-    DBG.metPeople = () => ({ crowd: PPL.crowd.length, walk: PPL.walk.length, dogs: PPL.dogs.length, drawn: PPL.R.n, near: PPL.R.nn, tris: PPL.tris, ms: +PPL.ms.toFixed(3), gl: !!(G && G.ppl), fetch: FETCH.on ? FETCH.stage : null, hit: FW.hit ? 1 : 0, rx: PPL.crowd.filter((q) => q.rx).length, front: PPL.crowd.filter((q) => q.front).length, rush: PPL.crowd.filter((q) => q.rushT).length, hs0: PPL.hs0, moving: PPL.crowd.filter((q) => (q.mv || 0) > 0.1).length });
+    DBG.metPeople = () => ({ crowd: PPL.crowd.length, walk: PPL.walk.length, dogs: PPL.dogs.length, drawn: PPL.R.n, near: PPL.R.nn, far: PPL.nfar, farD: PPL.farD, tris: PPL.tris, ms: +PPL.ms.toFixed(3), gl: !!(G && G.ppl), fetch: FETCH.on ? FETCH.stage : null, hit: FW.hit ? 1 : 0, rx: PPL.crowd.filter((q) => q.rx).length, front: PPL.crowd.filter((q) => q.front).length, rush: PPL.crowd.filter((q) => q.rushT).length, hs0: PPL.hs0, moving: PPL.crowd.filter((q) => (q.mv || 0) > 0.1).length });
     DBG.setQuality = (q) => setQuality(q);
     // tests: crowd members standing inside a venue solid (built frame, the crowd's own posts left out)
     DBG.metCrowdHits = () => { const n0 = MET.keep.length - PPL.crowd.length; let n = 0; for (const q of PPL.crowd) { const x = q.x / M2Y + MX0, z = q.z / M2Y - MZ0; for (let i = 0; i < n0; i++) { const k = MET.keep[i]; if (k.length === 6 ? k[1] < 1.9 && k[4] > 0.15 && x > k[0] && x < k[3] && z > k[2] && z < k[5] : k.length === 5 ? k[3] < 1.9 && Math.hypot(x - k[0], z - k[1]) < k[2] : false) { n++; break; } } } return n; };
