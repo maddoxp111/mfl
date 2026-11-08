@@ -244,6 +244,15 @@ const UPDATES = [
       "Small fixes in every game: \"Your ball at your 3\" instead of \"at the your 3\", the CPU drive card's result fits on one line, and after a score the bottom line says whose ball is next.",
     ],
   },
+  {
+    n: 23,
+    date: '2026-11-08',
+    title: 'Admin panel on all your devices',
+    items: [
+      "Log in to the admin panel once while signed in to your account and it shows up on every device signed in to that account. Each device still asks for the 4-digit admin PIN before the panel opens.",
+      'Logging out of the admin panel takes it off all of that account\'s devices.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

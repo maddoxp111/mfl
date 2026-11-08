@@ -118,7 +118,7 @@ app.use((req, res, next) => {
     const left = (v) => Number(String(v || '').split('.')[v && v.split('.').length === 3 ? 1 : 0]) - Date.now();
     const name = currentUser(req);
     if (name && left(c[USER_COOKIE]) < (SESSION_DAYS - 7) * DAY) setUserCookie(req, res, name);
-    if (adminSession(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
+    if (adminCookie(req) && left(c.mfl_admin) < (SESSION_DAYS - 7) * DAY) setAdminCookie(req, res);
   }
   next();
 });
@@ -306,13 +306,27 @@ function playerLeaders(db) {
 const sign = (v) => crypto.createHmac('sha256', SECRET).update(v).digest('hex');
 const cookiesOf = (req) => Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((x) => { const i = x.indexOf('='); return [x.slice(0, i), decodeURIComponent(x.slice(i + 1))]; }));
 const sigOk = (sig, good) => !!sig && sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
-// Logged in with the admin password (step 1 of 2).
-function adminSession(req) {
+// Logged in with the admin password (step 1 of 2): on this device (the mfl_admin cookie), or on any device signed in to a site
+// account that logged in to the admin panel (or unlocked it) once. Every device still needs the PIN (step 2). Logging out of the
+// admin panel ends it for that account on every device; an admin password reset (ADMIN_GEN) ends it everywhere.
+function adminCookie(req) {
   const v = cookiesOf(req).mfl_admin;
   if (!v) return false;
   const [exp, sig] = v.split('.');
   if (!exp || !sig || Number(exp) < Date.now()) return false;
   return sigOk(sig, sign(ADMIN_GEN + exp));
+}
+function adminAccount(req) {
+  const u = currentUser(req), a = u && (load().adminAccounts || {})[u];
+  return !!a && a.gen === ADMIN_GEN;
+}
+const adminSession = (req) => adminCookie(req) || adminAccount(req);
+async function linkAdminAccount(req) { // remember the signed-in account as an admin account (all its devices see the panel)
+  const u = currentUser(req); if (!u) return;
+  const db = load(); db.adminAccounts = db.adminAccounts || {};
+  if (db.adminAccounts[u] && db.adminAccounts[u].gen === ADMIN_GEN) return;
+  db.adminAccounts[u] = { gen: ADMIN_GEN, at: new Date().toISOString() };
+  await save();
 }
 // Step 2: the admin PIN. It is set once, at the first admin login, and asked for again whenever the admin panel is opened
 // after PIN_IDLE without using it. Saving a form gets a longer grace, so a long box score is never lost to the PIN.
@@ -2685,7 +2699,7 @@ app.get('/admin/login', (req, res) => {
     ${adminPasswordSet() ? '' : '<p class="muted sm">No admin password yet. Choose one (at least 8 characters).</p>'}
     ${req.query.bad ? `<p class="err">${adminPasswordSet() ? 'Wrong password.' : 'Use at least 8 characters.'}</p>` : ''}<label>Password<input type="password" name="password" autofocus required></label><button class="btn">${adminPasswordSet() ? 'Log in' : 'Set password'}</button></form></div>`, { ticker: false }));
 });
-app.post('/admin/login', (req, res) => {
+app.post('/admin/login', async (req, res) => {
   const p = String(req.body.password || '');
   if (!adminPasswordSet()) {
     if (p.length < 8 || p.length > 72) return res.redirect('/admin/login?bad=1');
@@ -2693,9 +2707,14 @@ app.post('/admin/login', (req, res) => {
     require('fs').writeFileSync(AUTH_FILE, JSON.stringify(adminAuth));
   } else if (!adminPasswordOk(p)) return res.redirect('/admin/login?bad=1');
   setAdminCookie(req, res);
+  await linkAdminAccount(req);
   res.redirect('/admin');
 });
-app.get('/admin/logout', (req, res) => { res.setHeader('Set-Cookie', ['mfl_admin=; Path=/; Max-Age=0', 'mfl_apin=; Path=/; Max-Age=0']); res.redirect('/'); });
+app.get('/admin/logout', async (req, res) => {
+  const u = currentUser(req), db = load();
+  if (u && db.adminAccounts && db.adminAccounts[u]) { delete db.adminAccounts[u]; await save(); } // off on every device of this account
+  res.setHeader('Set-Cookie', ['mfl_admin=; Path=/; Max-Age=0', 'mfl_apin=; Path=/; Max-Age=0']); res.redirect('/');
+});
 
 // ---------- admin PIN ----------
 const pinNext = (v) => (/^\/admin(\/[a-z0-9/_?=&.-]*)?$/i.test(String(v || '')) && !/^\/admin\/(pin|login|logout)/.test(v) ? v : '/admin');
@@ -2737,6 +2756,7 @@ app.post('/admin/pin', async (req, res) => {
     return res.send(pinPage(req, `Wrong PIN. ${PIN_TRIES - (f.n % PIN_TRIES)} tr${PIN_TRIES - (f.n % PIN_TRIES) === 1 ? 'y' : 'ies'} left before the panel locks for an hour.`));
   } else if (db.adminPinFails) { delete db.adminPinFails; await save(); }
   setPinCookie(req, res);
+  await linkAdminAccount(req);
   res.redirect(next);
 });
 // Change the PIN (needs the current one). Every other unlocked browser is locked again.
@@ -2755,11 +2775,12 @@ app.get('/admin/security', requireAdmin, (req, res) => {
   res.send(layout(req, 'Admin PIN', pageHead('Admin', 'PIN') + `<div class="wrap">${adminNav('/admin/security')}
     ${req.query.msg ? `<div class="toast">${esc(req.query.msg)}</div>` : ''}
     <div class="card"><div class="card-h"><h2>Admin PIN</h2></div>
-      <p class="muted sm">The admin panel asks for the password once per device, then for this PIN whenever it's opened after ${PIN_IDLE / 60000} minutes away. ${PIN_TRIES} wrong PINs in a row lock it for an hour. PIN set ${esc(longDate(p.at.slice(0, 10)))}.${f && f.n ? ` <b>${f.n} wrong PIN${f.n === 1 ? '' : 's'}</b> since the last right one (latest ${esc(new Date(f.last).toLocaleString('en-US', { timeZone: TZ }))}).` : ''}</p>
+      <p class="muted sm">Log in with the password once while signed in to your account and the admin panel shows up on every device signed in to that account; each device asks for this PIN, and again whenever the panel is opened after ${PIN_IDLE / 60000} minutes away. Log out of the admin panel to take it off all of that account's devices. ${PIN_TRIES} wrong PINs in a row lock it for an hour. PIN set ${esc(longDate(p.at.slice(0, 10)))}.${f && f.n ? ` <b>${f.n} wrong PIN${f.n === 1 ? '' : 's'}</b> since the last right one (latest ${esc(new Date(f.last).toLocaleString('en-US', { timeZone: TZ }))}).` : ''}</p>
       <form method="post" action="/admin/pin/change" class="form fgrid">
         ${pinField('current', 'Current PIN')}${pinField('pin', 'New PIN')}${pinField('pin2', 'New PIN again')}
         <button class="btn">Change PIN</button>
-      </form></div></div>`, { ticker: false }));
+      </form>
+      ${(() => { const acc = Object.entries(load().adminAccounts || {}).filter(([, a]) => a.gen === ADMIN_GEN).map(([n]) => '@' + esc(n)); return `<p class="muted sm">Accounts that see the admin panel on all their devices: ${acc.length ? acc.join(', ') : 'none yet (log in while signed in to your account)'}.</p>`; })()}</div></div>`, { ticker: false }));
 });
 
 app.get('/admin', requireAdmin, (req, res) => {
