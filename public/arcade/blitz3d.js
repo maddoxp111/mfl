@@ -3025,13 +3025,16 @@ gl_FragColor=vec4(c,1.0);}`;
   const MX0 = -3.89;
   // frame F (metres) <-> engine units (yards) on the ground plane. Everything that converts between the two (cars, people, the ball
   // over a fence, cameras) goes through these, so the big-field option (MET_K) can rescale the map in one place.
-  // With the big field (MOPT.big) the map is spread by MET_K about the field's south goal-line centre (see sprInstall below), so
-  // these scale by MET_K too: a frame F point lands where the spread map drew it. Heights are never scaled (metres * M2Y). Code
-  // that places things at run time (cars, people, the ball over the fence) takes the anchor from metE and keeps sizes, spacing
-  // between people or cars and offsets from a lane or a fence in real units: metres * M2Y after metE, not frame F metres (a
-  // 1.5 m gap in F would come out MET_K times wider). The fence, the curbs and the lane line sit at metE of their F positions.
+  // With the big field (MOPT.big) the map is the true-size map zoomed by MET_K about the field's south goal-line centre: every
+  // static thing (ground, buildings and their height, trees, the playground, hoops, benches, lamps, parked and moving cars, signs,
+  // paint) is built exactly as at true size and scaled by MET_K in all three axes at the end (conv in buildMetcalf), so landmarks
+  // keep their proportion to the field. Only the people stay human size. metE / metF scale by MET_K; metY(y) is the engine height
+  // of a frame F height (below the ground, a sunken street, it is not scaled, so the people's ground heights stay right). Code
+  // that places people at run time takes the anchor from metE and keeps their sizes and spacing in real units (metres * M2Y).
+  const MET_Z = MOPT.big ? MET_K : 1; // the world's zoom (1 at true size)
   const metE = (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K];
   const metF = (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0];
+  const metY = (y) => (y < 0 ? y : y * MET_Z) * M2Y;
   const MET = {
     envEye: MOPT.big ? [metE(0, 0)[0], 2.0, metE(0, 0)[1]] : [-MX0 * M2Y, 2.0, MZ0 * M2Y], // reflections are baked from midfield at head height
     centre: MOPT.big ? [metE(10, 2)[0], 0, metE(10, 2)[1]] : [(10 - MX0) * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
@@ -3043,9 +3046,9 @@ gl_FragColor=vec4(c,1.0);}`;
   // school's walls and roofs, the shed, tree trunks and crowns, the fence line and its pillars, the hoops' boards and poles, the
   // playground structures and the buildings across the street, and keeps it at least 0.6 units above the ground. A no-op at the
   // stadium. Each solid is padded by 0.35 m; the eye leaves a box through its nearest side (never downward through the ground).
-  // The solids are stored in the BUILT frame: metres after the big field's spread (MET.keep.push runs every solid through the current
-  // spread mode, see sprInstall), so the plain M2Y / MX0 / MZ0 conversion below is the right one at both sizes; going through
-  // metF here would scale the big field twice. ----------
+  // The solids are stored in the BUILT frame: metres after the big field's zoom (MET.keep.push zooms every solid pushed while the
+  // venue builds, and places a person's solid pushed later at its zoomed spot at its real size), so the plain M2Y / MX0 / MZ0
+  // conversion below is the right one at both sizes; going through metF here would scale the big field twice. ----------
   function metKeepOut(e) {
     if (!METCALF || !e || !MET.keep.length) return e;
     let x = e[0] / M2Y + MX0, y = e[1] / M2Y, z = e[2] / M2Y - MZ0; const m = 0.35;
@@ -3257,10 +3260,11 @@ gl_FragColor=vec4(c,1.0);}`;
   // metPaint(SX, k, fn): paints one frame F canvas (SX = canvas pixels per F metre) that a spread quad shows: inside, stroke / rectW /
   // arcW lines come out k times their natural width (never under 0.8 px); MET_BK is the factor a photo tile size in F is divided by
   // so the photo keeps its real scale (1 at true size)
-  const MET_BK = MOPT.big ? MET_K : 1;
-  function metPaint(SX, k, fn) { if (!MOPT.big) return fn(); const c0 = CLW, m0 = CLM; CLW = k / MET_K; CLM = 0.8 / SX; try { return fn(); } finally { CLW = c0; CLM = m0; } }
+  // (MET_SPR: the old spread build of the big field; off, the big field is a uniform zoom of the true-size map, see metE)
+  const MET_SPR = false, MET_BK = MET_SPR ? MET_K : 1;
+  function metPaint(SX, k, fn) { if (!MET_SPR) return fn(); const c0 = CLW, m0 = CLM; CLW = k / MET_K; CLM = 0.8 / SX; try { return fn(); } finally { CLW = c0; CLM = m0; } }
   function natC(g, cx, cz, fn) {
-    if (!MOPT.big) return fn();
+    if (!MET_SPR) return fn();
     const c0 = CLW, m0 = CLM; g.save(); g.translate(cx, cz); g.scale(1 / MET_K, 1 / MET_K); g.translate(-cx, -cz); CLW = 1; CLM = m0 * MET_K;
     try { fn(); } finally { g.restore(); CLW = c0; CLM = m0; }
   }
@@ -3898,7 +3902,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
   // ---------- build the whole venue (metres, frame F), then convert to engine units ----------
   function buildMetcalf() {
-    const unspr = MOPT.big ? sprInstall() : null;
+    const unspr = MET_SPR ? sprInstall() : null;
     try { return buildMetcalf0(); } finally { if (unspr) unspr(); }
   }
   function buildMetcalf0() {
@@ -3907,6 +3911,10 @@ gl_FragColor=vec4(c,1.0);}`;
     // keep-out solids follow the spread: while building, through the current mode; pushed later (people, at run time), as plain
     // frame F metres through the plan spread
     if (MSPR.on) MET.keep.push = function () { const m = MSPR.on ? MSPR.m : sprPlan(); for (const k of arguments) Array.prototype.push.call(this, sprKeep(k, m)); return this.length; };
+    // the zoomed big field: a solid pushed while building zooms with the map; one pushed later (a person) moves to its zoomed spot
+    // and keeps its real size
+    let built = false; const ZM = sprMode(MX0, -MZ0, MX0, -MZ0, MET_K, 0, 0, MET_K, MET_K, MET_K, false, 'zoom');
+    if (MOPT.big && !MSPR.on) MET.keep.push = function () { const m = built ? sprPlan() : ZM; for (const k of arguments) Array.prototype.push.call(this, sprKeep(k, m)); return this.length; };
     const W = { plain: new Batch(40000), seats: new Batch(6), field: new Batch(6), glow: new Batch(6), board: new Batch(6), ribbon: new Batch(6), glass: new Batch(6), crowd: { f: new Float32Array(0), n: 0 } };
     const B = {};
     const nb = (k, cap) => (B[k] = new Batch(cap || 2000));
@@ -4347,7 +4355,8 @@ gl_FragColor=vec4(c,1.0);}`;
       // (the skyline all round is built in 13-metsouth.js)
     mark('done: metres');
     // ===== done: metres -> engine units, and the per-batch materials =====
-    const conv = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } };
+    const conv = !MOPT.big ? (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } }
+      : (b) => { const f = b.f, K = M2Y * MET_Z; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * K; f[o + 1] = metY(f[o + 1]); f[o + 2] = (f[o + 2] + MZ0) * K; } }; // the big field: the uniform zoom
     conv(pb); for (const k in B) if (B[k].n) conv(B[k]);
     const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
     W.defs = {
@@ -4361,6 +4370,7 @@ gl_FragColor=vec4(c,1.0);}`;
     };
     { const pk = W.defs.mpick; delete W.defs.mpick; Object.assign(W.defs, metSouthDefs(B, T1)); W.defs.mpick = pk; }
     let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
+    built = true;
     if (DBG) DBG.metKeepOut = metKeepOut; // for the screenshot and camera tests
     if (DBG) DBG.metStats = { sec: SEC.map((q, i) => [q[0], q[1] - (i ? SEC[i - 1][1] : 0)]), verts: nv, ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))) };
     return W;
@@ -6578,16 +6588,16 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       { const f = metF(cam.e[0], cam.e[2]), e1 = metE(f[0] + 1, f[1]), e0 = metE(f[0], f[1]); eye.x = f[0]; eye.z = f[1]; eye.k = Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) || M2Y; eye.y = cam.e[1] / eye.k;
         const fx = cam.c[0] - cam.e[0], fz = cam.c[2] - cam.e[2], l = Math.hypot(fx, fz) || 1; camR[0] = fz / l; camR[1] = -fx / l; }
       const d = Math.max(0, Math.min(0.1, dt || 0)); evq.length = 0;
-      // the big field spreads the streets MET_K times longer (metE), so the simulation in frame F runs at 1 / MET_K: real speeds stay
-      if (d > 0 && !(DBG && DBG.mtrFreeze)) step(d / MET_K, evq);
+      // (the big field zooms the whole map, these cars too, so the simulation in frame F runs as at true size)
+      if (d > 0 && !(DBG && DBG.mtrFreeze)) step(d, evq);
       // geometry
       let n = 0, nM = 0, drawn = 0; const q = quality, loD = q >= 2 ? 48 : q === 1 ? 34 : 22, dayBlob = G.shadow ? 0.5 : 0.62;
       const uz0 = MET.roads && MET.roads.university && MET.roads.university.z0, onDrawn = (c) => !(uz0 != null && c.r.roads.indexOf('university') >= 0 && Math.abs(c.p[0] - 113.8) < 7 && c.p[1] < uz0); // University St is only drawn north of z0
       const order = cars.filter((c) => c.r.vis && !c.hid && onDrawn(c)).map((c) => [c, Math.hypot(c.p[0] - eye.x, c.p[1] - eye.z)]).sort((a, b) => a[1] - b[1]);
       for (const [c, dist] of order) {
         const P = c.p, E0 = metE(P[0], P[1]), E1 = metE(P[0] + P[2], P[1] + P[3]);
-        let fx = E1[0] - E0[0], fz = E1[1] - E0[1]; const kf = Math.hypot(fx, fz) || M2Y, k = M2Y; fx /= kf; fz /= kf; // sizes and heights in real units (the big field keeps cars their size)
-        const rx = fz, rz = -fx, y0 = (Math.abs(P[0] - ROADS.main.pts[0][0]) < 5.6 && P[1] > -340 && P[1] < 340 ? ROADS.main.y : c.r.yo) * k; // Main sits 0.15 m below its curbs
+        let fx = E1[0] - E0[0], fz = E1[1] - E0[1]; const kf = Math.hypot(fx, fz) || M2Y, k = M2Y * MET_Z; fx /= kf; fz /= kf; // sizes and heights zoom with the map on the big field
+        const rx = fz, rz = -fx, y0 = metY(Math.abs(P[0] - ROADS.main.pts[0][0]) < 5.6 && P[1] > -340 && P[1] < 340 ? ROADS.main.y : c.r.yo); // Main sits 0.15 m below its curbs
         // off screen: skip (a sphere test against the view-projection)
         { const R = (c.L / 2 + 1.5) * k, X = E0[0], Y = y0 + k, Z = E0[1], w = VP[3] * X + VP[7] * Y + VP[11] * Z + VP[15], cx = VP[0] * X + VP[4] * Y + VP[8] * Z + VP[12], cy = VP[1] * X + VP[5] * Y + VP[9] * Z + VP[13];
           if (w < -R || Math.abs(cx) > w + R * 2.5 || Math.abs(cy) > w + R * 2.5) continue; }
@@ -6739,7 +6749,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     wall: [[33.8, 3.3, 12.5], [34.6, 3.15, -0.2], [33.95, 4.6, -10], [33.95, 4.6, -22], [34.2, 3.9, -38.5], [34.27, 3.6, -48]],
   };
   const LAMPC = [1.0, 0.84, 0.66]; // warm white (about 3000 K)
-  const lampE = (x, y, z) => { const e = metE(x, z); return [e[0], y * M2Y, e[1]]; }; // metE spreads the ground plan on the big field; heights stay
+  const lampE = (x, y, z) => { const e = metE(x, z); return [e[0], metY(y), e[1]]; }; // (the big field zooms the whole map, heights too: metE / metY)
   const SKX = (() => {
     const X = { on: false, cov: 0, halo: [0, 0, 0], band: [0, 0, 0], cloudD: [0.5, 0.52, 0.58], cloudL: [1.4, 1.4, 1.4], horL: 1, star: 1, moon: 0, disc: [1, 1, 1],
       pools: null, poolK: 40, snow: null, wet: 0, storm: false, base: null, F: 0, pulses: [], next: 0, thunder: null };
@@ -6910,7 +6920,7 @@ gl_FragColor=vec4(col,1.0);}`;
   function skyLamps(W) {
     if (!METCALF || !W.defs) return;
     const b = new Batch(600), t = new Batch(200), night = TOD === 'night',
-      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; b.v(e[0] + (f[o] - ax) * M2Y, f[o + 1] * M2Y, e[1] + (f[o + 2] - az) * M2Y, f[o + 3], f[o + 4], f[o + 5], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
+      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; b.v(e[0] + (f[o] - ax) * M2Y * MET_Z, metY(f[o + 1]), e[1] + (f[o + 2] - az) * M2Y * MET_Z, f[o + 3], f[o + 4], f[o + 5], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
     for (const [x, y, z] of MET_LAMPS.wall) {
       t.wbox(x - 0.24, y - 0.15, z - 0.2, x, y + 0.17, z + 0.2, bronze);
       t.quad([x - 0.245, y - 0.12, z - 0.15], [x - 0.245, y - 0.12, z + 0.15], [x - 0.245, y + 0.05, z + 0.15], [x - 0.245, y + 0.05, z - 0.15], [0, 0, 0], lens);
