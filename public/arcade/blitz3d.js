@@ -2013,6 +2013,10 @@ gl_FragColor=vec4(c,1.0);}`;
       yardK: 1, mapLine: 10, mapStep: 20, big: true, yardCalls: true,
       ko: Object.assign({}, VN0.ko, { R: VN0.ko.R * MET_K, B: VN0.ko.B.map((v) => v * MET_K), bx: VN0.ko.bx.map((v) => v * MET_K), OL: VN0.ko.OL * MET_K, olx: VN0.ko.olx * MET_K, T: 2.9, lzMax: 24, lzOff: 4 }),
       play: null });
+    // real heights on Metcalf's true-size blacktop: each player stands at his listed height (6'2" = 1.88 m), not at the
+    // stadium's football-player size (there a 5'4" rating draws about 2 m tall). STAND_H = the top of the skull standing straight at
+    // hs 1 in yards (bind pose: hips 1.08 + spine, chest, neck, head bones 0.78 + the casual head's crown 0.028 + 1.1 x 0.284)
+    const MHT = VN0.world === 'metcalf' && !MOPT.big, STAND_H = 2.2004;
     // time of day ('morning' | 'noon' | 'sunset' | 'night'; opts.tod, tests __blitzDebug.tod); the default is the venue's usual look: Metcalf
     // at noon, the stadium at night unless a weather was named (the old clear / rain / snow days were daytime games)
     const TODO = DBG && DBG.tod !== undefined ? DBG.tod : opts.tod;
@@ -2109,7 +2113,9 @@ gl_FragColor=vec4(c,1.0);}`;
       const hin = r ? rv(r, 'hgt') : NaN;
       let hs = isFinite(hin) && hin > 40 ? clamp(1 + (clamp(hin, 54, 78) - 64) * 0.011, 0.88, 1.15) : l.height === 'short' ? 0.93 : l.height === 'tall' ? 1.07 : 1;
       if (b) hs *= BUILDS[b].hs || 1;
-      return { skin: sk, hs, cleat: CLEATS[l.cleats] || CLEATS.black, visor: !!l.visor, sleeves: !!l.sleeves, build: b, ll: b ? BUILDS[b].ll || 1 : 1 };
+      const o = { skin: sk, hs, cleat: CLEATS[l.cleats] || CLEATS.black, visor: !!l.visor, sleeves: !!l.sleeves, build: b, ll: b ? BUILDS[b].ll || 1 : 1 };
+      if (MHT && isFinite(hin) && hin > 40) o.hin = clamp(hin, 54, 78); // his listed height in inches (true-size Metcalf)
+      return o;
     };
     // a team's 11 (and kicker) from its player list; idx0 offsets the photo cells (head to head builds the opponent's too, at 32+)
     function mkSquad(T, idx0) {
@@ -4001,18 +4007,18 @@ gl_FragColor=vec4(c,1.0);}`;
       const FX = -15.95, blk = [0.07, 0.07, 0.075, 1], PKC = [0.1, 0.1, 0.105, 1];
       const fenceRun = (za, zb, x) => { // along z at x
         const z0 = Math.min(za, zb), z1 = Math.max(za, zb);
-        // 1.2 m ornamental pickets (the south-west fence's 1.0 m shadow at 49 deg sun gives 1.1-1.2 m; it reads half the pillar)
-        pb.wbox(x - 0.02, 0.1, z0, x + 0.02, 0.14, z1, blk); pb.wbox(x - 0.02, 1.02, z0, x + 0.02, 1.06, z1, blk);
+        // 1.5 m ornamental pickets (the owner, 6'2", has the top about at his chin or a bit under)
+        pb.wbox(x - 0.02, 0.1, z0, x + 0.02, 0.14, z1, blk); pb.wbox(x - 0.02, 1.32, z0, x + 0.02, 1.36, z1, blk);
         // the pickets (0.115 m pitch) are one see-through quad with the picket texture, so they fade to a dark veil with distance
         const u0 = metS(x, z0)[1] / 0.115, u1 = metS(x, z1)[1] / 0.115; // the picket pitch in real metres
-        pick.quad([x, 0.05, z0 + 0.003], [x, 0.05, z1], [x, 1.2, z1], [x, 1.2, z0 + 0.003], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
-        for (let z = z0; z <= z1; z += metPitch(2.44)) metObj(x, z, () => { pb.quad([x - 0.035, 0, z], [x + 0.035, 0, z], [x + 0.035, 1.22, z], [x - 0.035, 1.22, z], [0, 0, 1], blk); pb.quad([x, 0, z - 0.035], [x, 0, z + 0.035], [x, 1.22, z + 0.035], [x, 1.22, z - 0.035], [1, 0, 0], blk); });
-        MET.keep.push([x - 0.12, 0, z0, x + 0.12, 1.3, z1]);
+        pick.quad([x, 0.05, z0 + 0.003], [x, 0.05, z1], [x, 1.5, z1], [x, 1.5, z0 + 0.003], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+        for (let z = z0; z <= z1; z += metPitch(2.44)) metObj(x, z, () => { pb.quad([x - 0.035, 0, z], [x + 0.035, 0, z], [x + 0.035, 1.52, z], [x - 0.035, 1.52, z], [0, 0, 1], blk); pb.quad([x, 0, z - 0.035], [x, 0, z + 0.035], [x, 1.52, z + 0.035], [x, 1.52, z - 0.035], [1, 0, 0], blk); });
+        MET.keep.push([x - 0.12, 0, z0, x + 0.12, 1.6, z1]);
       };
-      const fenceRunX = (xa, xb, z) => { const x0 = Math.min(xa, xb), x1 = Math.max(xa, xb); pb.wbox(x0, 0.1, z - 0.02, x1, 0.14, z + 0.02, blk); pb.wbox(x0, 1.02, z - 0.02, x1, 1.06, z + 0.02, blk);
+      const fenceRunX = (xa, xb, z) => { const x0 = Math.min(xa, xb), x1 = Math.max(xa, xb); pb.wbox(x0, 0.1, z - 0.02, x1, 0.14, z + 0.02, blk); pb.wbox(x0, 1.32, z - 0.02, x1, 1.36, z + 0.02, blk);
         const u0 = metS(x0, z)[0] / 0.115, u1 = metS(x1, z)[0] / 0.115;
-        pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, 1.2, z], [x0, 1.2, z], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
-        for (let x = x0; x <= x1; x += metPitch(2.44)) pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, 1.22, z + 0.035, blk); MET.keep.push([x0, 0, z - 0.12, x1, 1.3, z + 0.12]); };
+        pick.quad([x0, 0.05, z], [x1, 0.05, z], [x1, 1.5, z], [x0, 1.5, z], [0, 0, 0], PKC, [u0, 1, u1, 1, u1, 0, u0, 0]);
+        for (let x = x0; x <= x1; x += metPitch(2.44)) pb.wbox(x - 0.035, 0, z - 0.035, x + 0.035, 1.52, z + 0.035, blk); MET.keep.push([x0, 0, z - 0.12, x1, 1.6, z + 0.12]); };
       let PIL = [52.0, 34.0, 15.0, -3.9, -22.9, -41.6]; // north of the pillar at z 52 the fence turns north-east along the walk (13-metnorth.js)
       if (MSPR.on) { const P2 = []; for (let i = 0; i < PIL.length - 1; i++) { const n = Math.max(1, Math.round((PIL[i] - PIL[i + 1]) * MET_K / 18.5)); for (let k = 0; k < n; k++) P2.push(PIL[i] + (PIL[i + 1] - PIL[i]) * k / n); } P2.push(PIL[PIL.length - 1]); PIL = P2; } // a pillar every 18.5 m as in life
       for (let i = 0; i < PIL.length - 1; i++) fenceRun(PIL[i] - metPitch(0.36), PIL[i + 1] + metPitch(0.36), FX);
@@ -4704,11 +4710,11 @@ gl_FragColor=vec4(c,1.0);}`;
       const blk = [0.07, 0.07, 0.075, 1], PKC = [0.1, 0.1, 0.105, 1], F = mnSmooth(MN_FENCE, 2.0); let run = 0, sincePost = 0;
       for (let i = 0; i < F.length - 1; i++) {
         const a = F[i], b = F[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), ang = Math.atan2(dz, dx), mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
-        const nn = [-dz / l, 0, dx / l]; for (const y of [0.12, 1.04]) pb.quad([a[0], y - 0.02, a[1]], [b[0], y - 0.02, b[1]], [b[0], y + 0.02, b[1]], [a[0], y + 0.02, a[1]], nn, blk); void mx; void mz; void ang;
+        const nn = [-dz / l, 0, dx / l]; for (const y of [0.12, 1.34]) pb.quad([a[0], y - 0.02, a[1]], [b[0], y - 0.02, b[1]], [b[0], y + 0.02, b[1]], [a[0], y + 0.02, a[1]], nn, blk); void mx; void mz; void ang;
         const sa = metS(a[0], a[1]), sb = metS(b[0], b[1]), lr = MSPR.on ? Math.hypot(sb[0] - sa[0], sb[1] - sa[1]) : l; // (real metres on the big field)
-        pick.quad([a[0], 0.05, a[1]], [b[0], 0.05, b[1]], [b[0], 1.2, b[1]], [a[0], 1.2, a[1]], [0, 0, 0], PKC, [run / 0.115, 1, (run + lr) / 0.115, 1, (run + lr) / 0.115, 0, run / 0.115, 0]);
-        sincePost += lr; if (sincePost >= 2.44 || i === 0) { sincePost = 0; metObj(a[0], a[1], () => { const nn = [-dz / l, 0, dx / l]; pb.quad([a[0] - nn[2] * 0.035, 0, a[1] + nn[0] * 0.035], [a[0] + nn[2] * 0.035, 0, a[1] - nn[0] * 0.035], [a[0] + nn[2] * 0.035, 1.22, a[1] - nn[0] * 0.035], [a[0] - nn[2] * 0.035, 1.22, a[1] + nn[0] * 0.035], nn, blk); pb.quad([a[0] - nn[0] * 0.035, 0, a[1] - nn[2] * 0.035], [a[0] + nn[0] * 0.035, 0, a[1] + nn[2] * 0.035], [a[0] + nn[0] * 0.035, 1.22, a[1] + nn[2] * 0.035], [a[0] - nn[0] * 0.035, 1.22, a[1] - nn[2] * 0.035], [dx / l, 0, dz / l], blk); }); }
-        run += lr; keep([Math.min(a[0], b[0]) - 0.12, 0, Math.min(a[1], b[1]) - 0.12, Math.max(a[0], b[0]) + 0.12, 1.3, Math.max(a[1], b[1]) + 0.12]);
+        pick.quad([a[0], 0.05, a[1]], [b[0], 0.05, b[1]], [b[0], 1.5, b[1]], [a[0], 1.5, a[1]], [0, 0, 0], PKC, [run / 0.115, 1, (run + lr) / 0.115, 1, (run + lr) / 0.115, 0, run / 0.115, 0]);
+        sincePost += lr; if (sincePost >= 2.44 || i === 0) { sincePost = 0; metObj(a[0], a[1], () => { const nn = [-dz / l, 0, dx / l]; pb.quad([a[0] - nn[2] * 0.035, 0, a[1] + nn[0] * 0.035], [a[0] + nn[2] * 0.035, 0, a[1] - nn[0] * 0.035], [a[0] + nn[2] * 0.035, 1.52, a[1] - nn[0] * 0.035], [a[0] - nn[2] * 0.035, 1.52, a[1] + nn[0] * 0.035], nn, blk); pb.quad([a[0] - nn[0] * 0.035, 0, a[1] - nn[2] * 0.035], [a[0] + nn[0] * 0.035, 0, a[1] + nn[2] * 0.035], [a[0] + nn[0] * 0.035, 1.52, a[1] + nn[2] * 0.035], [a[0] - nn[0] * 0.035, 1.52, a[1] - nn[2] * 0.035], [dx / l, 0, dz / l], blk); }); }
+        run += lr; keep([Math.min(a[0], b[0]) - 0.12, 0, Math.min(a[1], b[1]) - 0.12, Math.max(a[0], b[0]) + 0.12, 1.6, Math.max(a[1], b[1]) + 0.12]);
       }
     }
     // ===== odds and ends on the grounds =====
@@ -5756,7 +5762,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   if (METCALF) { MET.roads.drygroveE = { y: 0.045 }; MET.roads.drygroveW = { y: 0.045 }; }
   // the black fence row between the blacktop and the drop-off lot (runs of freestanding panels with openings between them), for
   // anything that wants to know where a ball can cross: [{ x0, x1, z, h }] in metres
-  if (METCALF) MET.southFence = [{ x0: -12.6, x1: -6.6, z: -16.95, h: 1.2 }, { x0: -0.65, x1: 17.45, z: -16.95, h: 1.2 }, { x0: 25.25, x1: 28.35, z: -16.95, h: 1.2 }];
+  if (METCALF) MET.southFence = [{ x0: -12.6, x1: -6.6, z: -16.95, h: 1.5 }, { x0: -0.65, x1: 17.45, z: -16.95, h: 1.5 }, { x0: 25.25, x1: 28.35, z: -16.95, h: 1.5 }];
 
   // OpenStreetMap footprints south of the school (frame F metres) with heights: [h, x0, z0, x1, z1, ...]
   const MS_BLD = [[18.8,136.7,-83.8,136.8,-58.9,133.1,-58.9,133.1,-54.6,136.8,-54.6,136.8,-52.9,179.8,-53.0,179.8,-54.6,183.4,-54.6,183.4,-59.1,179.8,-59.1,179.7,-83.8,183.3,-83.8,183.3,-88.2,179.7,-88.2,179.7,-89.9,136.7,-89.9,136.7,-88.2,132.8,-88.2,132.8,-83.8],[12,183.2,-94.7,183.1,-108.6,202.5,-108.8,202.5,-113.7,188.3,-113.6,188.0,-146.1,203.2,-146.3,203.1,-151.9,180.6,-151.7,180.5,-166.2,221.1,-166.6,221.2,-152.8,216.6,-152.7,217.0,-108.0,221.8,-108.1,222.0,-95.1],[8,-211.9,-63.3,-219.4,-63.2,-219.4,-55.8,-238.5,-55.6,-238.5,-63.0,-259.8,-62.8,-259.8,-74.8,-258.6,-74.9,-258.7,-92.9,-269.3,-92.8,-269.5,-125.1,-259.5,-125.2,-259.5,-126.4,-244.9,-126.5,-244.9,-134.7,-270.9,-134.5,-271.1,-157.2,-274.4,-157.2,-274.4,-163.0,-281.3,-162.9,-281.7,-221.0,-274.8,-221.1,-274.8,-224.9,-284.7,-224.8,-285.1,-279.1,-272.0,-279.2,-272.1,-286.5,-264.6,-286.5,-264.7,-292.7,-254.3,-292.8,-254.2,-286.4,-235.1,-286.6,-235.2,-292.7,-225.0,-292.8,-224.9,-286.5,-217.7,-286.5,-217.6,-279.1,-205.1,-279.3,-204.6,-225.3,-207.7,-225.2,-208.6,-209.4,-207.5,-209.4,-207.2,-180.2,-208.4,-180.2,-208.4,-172.8,-207.3,-172.8,-207.2,-163.8,-204.7,-163.9,-204.5,-135.2,-221.6,-135.1,-221.5,-126.3,-212.3,-126.3],[6.5,-78.1,-111.4,-37.6,-111.4,-37.6,-148.2,-74.5,-148.3,-74.6,-146.3,-80.7,-146.1,-80.7,-143.0,-78.3,-143.1],[8,-134.3,-130.2,-115.9,-130.3,-115.5,-93.9,-112.5,-94.0,-112.5,-87.8,-119.9,-87.7,-119.9,-90.5,-134.1,-90.3],[12,-158.3,-115.3,-140.2,-115.5,-140.7,-141.8,-147.0,-141.7,-147.0,-143.0,-152.0,-142.9,-152.1,-141.5,-158.6,-141.6],[11,134.0,-306.1,151.5,-305.9,151.4,-266.8,134.0,-266.6,134.0,-277.1,137.6,-277.2,137.5,-282.9,135.5,-283.5,134.8,-286.6,135.8,-290.1,137.6,-290.1,137.6,-295.6,133.9,-295.7],[6,-81.7,-281.1,-37.1,-281.3,-37.4,-297.1,-44.5,-296.8,-44.7,-302.3,-49.5,-302.2,-49.4,-296.7,-61.0,-296.5,-61.0,-298.7,-66.1,-298.7,-66.0,-296.5,-82.0,-296.2],[10.5,-143.0,-186.2,-121.3,-186.4,-121.4,-216.3,-143.3,-216.3],[10.5,-46.4,-197.3,-46.5,-209.1,-58.3,-208.9,-58.3,-206.7,-97.5,-207.2,-97.3,-197.9],[10.5,-114.9,-224.1,-61.6,-223.8,-59.4,-223.2,-59.4,-221.8,-46.3,-221.8,-46.5,-239.7,-59.5,-239.5,-59.5,-237.5,-115.4,-238.2],[5,-84.0,-169.6,-84.2,-177.2,-53.7,-177.6,-53.6,-170.1],[10.5,77.2,-86.4,77.3,-101.8,84.2,-101.6,84.4,-112.7,100.0,-112.8,99.7,-98.7,102.0,-97.1,102.0,-94.2,99.9,-93.0,100.0,-71.3,84.3,-71.2,84.4,-86.5],[5,-163.7,-226.3,-153.2,-226.4,-153.5,-242.1,-163.7,-242.1],[4.5,-53.5,-184.7,-81.2,-184.5,-81.2,-197.7,-53.6,-197.4],[6,-126.1,-42.3,-126.1,-40.9,-132.3,-40.9,-132.5,-55.5,-123.9,-55.6,-124.0,-58.2,-114.9,-58.2,-114.9,-55.5,-108.1,-55.6,-107.9,-42.5],[6,317.7,-119.1,320.1,-119.1,321.0,-121.1,320.0,-123.0,317.7,-123.0,316.5,-121.1]];
@@ -5937,7 +5943,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     // that the 2022 orthophoto shows as a rectangle under each 3 m unit; three runs with the walk-through openings where they are
     // in the photo (x -6.6 to -0.65 and 17.45 to 25.25) and an opening at each end.
     for (const f of MET.southFence) {
-      const n = Math.max(1, Math.round((f.x1 - f.x0) / metPitch(3.0))), u = (f.x1 - f.x0) / n, z = f.z, h = 1.15;
+      const n = Math.max(1, Math.round((f.x1 - f.x0) / metPitch(3.0))), u = (f.x1 - f.x0) / n, z = f.z, h = 1.5; // about chin high on the owner (6'2")
       const panel = (a, b) => {
         pick.quad([a, 0.08, z], [b, 0.08, z], [b, h - 0.04, z], [a, h - 0.04, z], [0, 0, 0], PKC, [a / 0.11, 1, b / 0.11, 1, b / 0.11, 0, a / 0.11, 0]);
         pb.wbox(a, 0.06, z - 0.018, b, 0.1, z + 0.018, blk); pb.wbox(a, h - 0.07, z - 0.02, b, h - 0.03, z + 0.02, blk); pb.wbox(a, h * 0.55, z - 0.012, b, h * 0.55 + 0.03, z + 0.012, blk);
@@ -5959,7 +5965,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     pb.wbox(26.07, 0, -52.13, 26.13, 2.2, -52.07, hx3('#8a8f8f'));
 
     // ===== the lot's south edge: the black fence (x 3.8 to 34.2), the grass strip and the courtyard behind it =====
-    fenceX(3.8, 34.2, -53.5, 1.2);
+    fenceX(3.8, 34.2, -53.5, 1.5);
     // walks: east-west from the accessible stalls to the school yard, north-south down the courtyard's east side to Fairchild's
     // door, the school yard's concrete apron, and the walk along the south edge of the staff lot
     slab([[2.7, -57.5], [44.0, -57.3], [44.0, -58.8], [2.7, -58.9]], 0.03, cc('#c7c6be'));
@@ -5980,7 +5986,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       const TL = [[19.6, -59.6], [33.0, -59.6], [35.4, -61.0], [37.0, -63.5], [37.4, -66.0], [37.4, -78.2], [19.6, -78.2]];
       rub.poly(TL, 0.02, tc('#2f4d70'), true, 0.35);
       for (let i = 0; i < TL.length; i++) { const a = TL[i], b = TL[(i + 1) % TL.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); pb.obox((a[0] + b[0]) / 2, 0.05, (a[1] + b[1]) / 2, l, 0.1, 0.12, Math.atan2(b[1] - a[1], b[0] - a[0]), hx3('#8a8a84')); }
-      fenceX(19.4, 33.0, -59.4, 1.2); fenceZ(-59.4, -78.4, 19.4, 1.2); fenceX(19.4, 37.6, -78.4, 1.2); fenceZ(-78.4, -66.0, 37.6, 1.2);
+      fenceX(19.4, 33.0, -59.4, 1.5); fenceZ(-59.4, -78.4, 19.4, 1.5); fenceX(19.4, 37.6, -78.4, 1.5); fenceZ(-78.4, -66.0, 37.6, 1.5);
       { const p = [[33.0, -59.4], [35.6, -60.8], [37.2, -63.4], [37.6, -66.0]]; for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; pick.quad([a[0], 0.05, a[1]], [b[0], 0.05, b[1]], [b[0], 1.2, b[1]], [a[0], 1.2, a[1]], [0, 0, 0], PKC, [0, 1, Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.115, 1, Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.115, 0, 0, 0]); pb.wbox(b[0] - 0.035, 0, b[1] - 0.035, b[0] + 0.035, 1.23, b[1] + 0.035, blk); pb.tube([a[0], 1.04, a[1]], [b[0], 1.04, b[1]], 0.02, blk, 4); } }
       pb.wbox(24.4, 0, -62.4, 27.0, 1.25, -61.0, hx3('#efefea')); pb.wbox(24.3, 1.25, -62.5, 27.1, 1.32, -60.9, hx3('#dcdcd6'));
       const red = hx3('#c8302b'), yel = hx3('#e7c31f'), grn = hx3('#3f9a5a');
@@ -6004,7 +6010,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       // concrete curbs round the asphalt (low, 0.12 m) and the parking-head line by the fence
       const curbR = (pts) => { for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); conc.extrude((() => { const nx = -(b[1] - a[1]) / l * 0.08, nz = (b[0] - a[0]) / l * 0.08; return [[a[0] - nx, a[1] - nz], [b[0] - nx, b[1] - nz], [b[0] + nx, b[1] + nz], [a[0] + nx, a[1] + nz]]; })(), 0, 0.12, cc('#c8c7bf'), 0.33); } };
       curbR([[2.75, -54.9], [2.75, -82.0], [0.2, -82.0], [0.2, -113.4]]); curbR([[-16.25, -55.0], [-16.25, -115.6]]);
-      fenceZ(-55.3, -115.4, -16.4, 1.2);
+      fenceZ(-55.3, -115.4, -16.4, 1.5);
       // a light pole at the lot's north-west corner (its shadow in the photo) and one by the accessible stalls
       for (const [x, z] of [[-15.9, -55.6], [2.2, -86.0]]) { const gl2 = hx3('#3a3d40'); pb.cyl(x, z, 0, 0.6, 0.22, 0.2, hx3('#b9b8b0'), 8, true); pb.cyl(x, z, 0.6, 7.6, 0.08, 0.06, gl2, 8); pb.wbox(x - 0.32, 7.45, z - 0.2, x + 0.32, 7.7, z + 0.2, gl2); flat.quad([x - 0.28, 7.44, z - 0.16], [x + 0.28, 7.44, z - 0.16], [x + 0.28, 7.44, z + 0.16], [x - 0.28, 7.44, z + 0.16], [0, 0, 0], [1.3, 1.28, 1.2, 1]); MET.keep.push([x, z, 0.3, 0, 7.8]); }
       // accessible-parking signs at the heads of the two stalls
@@ -7025,6 +7031,9 @@ gl_FragColor=vec4(col,1.0);}`;
         sta: 1, sprint: false, rad: 0.42, carrySide: 1, carryT: 0, an: { clip: 'idle', t: 0, from: null, blendT: 0, blendDur: 0 }, bones: null, rag: null, look: null, lean: 0, leanF: 0, ax: 0, az: 0, pvx: 0, pvz: 0, stumbleT: 0, plant: 0, hitT: 0, downAt: 0, handsT: null, throwT: -1 }, o || {});
       const bd = bodySpec(BODY[role] || BODY.WR, p.lk, p.wgt);
       p.body = bd; p.lk = Object.assign({}, p.lk, { hs: p.lk.hs * bd.hs, sw: bd.sw, ll: bd.ll || 1 });
+      // true-size Metcalf (10-setup.js MHT): drawn at his listed height; with none listed, about 5'2" (a middle schooler) moved by his
+      // look and spot, give or take 4 inches (steady per player)
+      if (MHT) { let hh = 0; for (const ch of side + key) hh = (hh * 31 + ch.charCodeAt(0)) >>> 0; p.lk.hs = (p.lk.hin ? p.lk.hin : 62 * p.lk.hs + (hh % 9) - 4) / 36 / STAND_H; }
       // mass for collisions, blocks and tackles: real weight when we have it, else by position
       p.mass = p.wgt > 0 ? clamp(p.wgt / 140, 0.6, 1.8) : role === 'OL' || role === 'DL' ? 1.35 : role === 'TE' || role === 'LB' ? 1.1 : role === 'QB' ? 1 : 0.95;
       p.staK = 0.7 + clamp(p.staR || 60, 25, 99) / 99 * 0.6;
