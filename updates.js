@@ -213,6 +213,14 @@ const UPDATES = [
       "When you're switched to the defender covering the receiver the ball is thrown to, he keeps running the way he was going, after the ball, instead of stopping or following the direction you were already holding for your old player. Move the stick somewhere new, let go and press again, or jump or dive, and he's yours.",
     ],
   },
+  {
+    n: 20,
+    date: '2026-11-08',
+    title: 'Coin history: runs say what really happened',
+    items: [
+      "Double or Nothing and Double or Double games now say what happened in your coin history. A game you won with the cash-out still waiting says \"win · cash out … waiting on the 3D Blitz page\", a game you won and played on says so, and a game with no result yet says \"in progress\". Before, all of these showed as a loss because their coins were negative: a run's win pays nothing until you cash out, and playing on puts more at risk.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

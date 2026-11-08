@@ -913,47 +913,6 @@ module.exports = function arcade(app, h) {
     if (m && m.status === 'won') { m.status = 'void'; await putDoc(userKey(name), user); }
     res.redirect('/admin/arcade');
   });
-  // One-time correction (Nov 5). An earlier automatic repair for @mpedon (meant for his Double or Double game 3, which had already
-  // been fixed by hand) ran again at a server restart and marked his game 5 of that run a win while it was still being played; the
-  // real result was then refused. He lost game 5. So game 5 becomes a loss (the run ends there, as the real result would have
-  // done); a cash-out of it is taken back and any game played after it in the run is refunded. It runs once: the marker is set
-  // whatever it finds. Its outcome can be read at /arcade/fix-status/<key> until Nov 8.
-  let FIX = { pending: true };
-  const FIX_KEY = 'a3cddb07cb3e8de9f90b45fb', FIX_UNTIL = Date.parse('2026-11-08T00:00:00Z'), FIX_ID = 'fix-2026-11-05-g5-lost';
-  async function correctOnce() {
-    try {
-      const all = await h.listDocs('users/');
-      const u0 = all.find((u) => String(u.name || '').toLowerCase() === 'mpedon');
-      if (!u0) { FIX = { found: false }; return; }
-      const user = await getDoc(userKey(u0.name), { fresh: true });
-      if ((user.fixes || []).includes(FIX_ID)) { FIX = { done: true }; return; }
-      (user.fixes = user.fixes || []).push(FIX_ID); // set first: this never runs twice, whatever happens below
-      const m = (user.arcade || []).find((x) => x.run && x.run.id === '1fedb4bc' && x.run.step === 5);
-      if (!m) { await putDoc(userKey(u0.name), user); FIX = { found: true, noGame5: true }; return; }
-      const before = { status: m.status, payout: m.payout, pending: !!m.run.pending, cashedOut: !!m.run.cashedOut, fixed: m.fixed || null };
-      const after = (user.arcade || []).filter((x) => x.run && x.run.id === m.run.id && x.run.step > 5);
-      if (m.status === 'won' && m.fixed && m.fixed.why === 'update restart') {
-        m.status = 'lost'; m.payout = 0; m.run.pending = false; m.run.cashedOut = false; m.run.rolled = false; delete m.run.auto;
-        m.fixed = { why: 'update restart', undone: true, at: new Date().toISOString() }; m.corrected = { why: 'lost on the field; an automatic repair had marked it won by mistake', at: new Date().toISOString() };
-        for (const x of after) if (x.status !== 'void') { x.status = 'void'; x.payout = 0; if (x.run) { x.run.pending = false; x.run.cashedOut = false; } x.refund = { why: 'the run had ended at game 5', at: new Date().toISOString() }; }
-        FIX = { found: true, applied: true, before, game5: { status: m.status, payout: m.payout }, laterRefunded: after.length };
-      } else FIX = { found: true, applied: false, before, why: 'game 5 is not the repair-made win any more; left as it is' };
-      await putDoc(userKey(u0.name), user);
-      console.log('arcade correction', JSON.stringify(FIX));
-    } catch (e) { FIX = { error: String(e && e.message || e) }; console.error('arcade correction', e); }
-  }
-  if (process.env.RAILWAY_ENVIRONMENT && Date.now() < FIX_UNTIL) setTimeout(correctOnce, 8000).unref?.();
-  app.get('/arcade/fix-status/:key', async (req, res) => {
-    if (req.params.key !== FIX_KEY || Date.now() > FIX_UNTIL) return res.status(404).send('Not found');
-    if (!req.query.d) return json(res, FIX);
-    try { // live: his recent arcade games and what each did to his coins
-      const all = await h.listDocs('users/'), u0 = all.find((u) => String(u.name || '').toLowerCase() === 'mpedon');
-      if (!u0) return json(res, { found: false });
-      const user = await getDoc(userKey(u0.name), { fresh: true }), db = load();
-      const recent = (user.arcade || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, +req.query.n || 14).map((m) => ({ id: m.id, game: m.game, at: m.at, local: m.local, status: m.status, level: m.level, risk: !!m.risk, stake: m.stake, payout: m.payout, net: matchNet(m), run: m.run || null, refund: m.refund || null, forfeit: !!m.forfeit, quit: !!m.quit, fixed: m.fixed || null, versus: m.versus ? { opp: m.versus.opp, reason: m.versus.reason } : null, score: m.score, opp: m.stats && m.stats.opp }));
-      json(res, { name: u0.name, balance: h.accountOf(db, user, await h.survivorNow(db)).balance, arcadeNet: (user.arcade || []).reduce((a, m) => a + matchNet(m), 0), serverStart: new Date(SERVER_START).toISOString(), recent });
-    } catch (e) { json(res, { error: String(e && e.message || e) }); }
-  });
   app.post('/admin/arcade/won', h.requireAdmin, async (req, res) => {
     const name = String(req.body.u || '');
     const user = await getDoc(userKey(name), { fresh: true });

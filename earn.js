@@ -112,7 +112,11 @@ module.exports = function earn(app, h) {
       const n = E.matchNet(m); if (!n) continue;
       const G = (GAMES[m.game] || {}).name || m.game, lv = E.LEVELS && E.LEVELS[m.level];
       const mode = m.versus ? `Head to Head vs @${m.versus.opp || '?'}` : m.run ? `${(E.RUNS && E.RUNS[m.run.mode] && E.RUNS[m.run.mode].name) || 'Run'} game ${m.run.step}` : m.career ? 'Career' : m.risk ? 'Risk mode' : '';
-      add(m.at, n > 0 ? `${G} win` : `${G} loss`, n, [lv && (lv.name || lv), mode].filter(Boolean).join(' · '), 'arcade');
+      // what actually happened, not just which way the coins went: a run's won game pays nothing until the cash out (its coins
+      // are the stake for the bigger risk), so it reads as a win; an unfinished game says so
+      const R = m.run, state = m.status === 'open' ? `${G} in progress` : m.status === 'won' ? `${G} win` : n > 0 ? `${G} win` : `${G} loss`;
+      const note = m.status === 'open' ? 'no result yet' : R && m.status === 'won' && R.pending ? `cash out ${Number(R.cash || 0).toLocaleString('en-US')} waiting on the 3D Blitz page` : R && m.status === 'won' && R.rolled ? 'won and played on: this is the extra put at risk' : R && m.status === 'won' && R.cashedOut ? 'cashed out' : '';
+      add(m.at, state, n, [lv && (lv.name || lv), mode, note].filter(Boolean).join(' · '), 'arcade');
     }
     if (A && A.challengeDays) for (const d of A.challengeDays(user)) add(localIso(d.day, '23:59'), 'Daily challenges', d.coins, `${d.n} done`, 'arcade', true);
     for (const d of user.checkins || []) add(localIso(d, '12:00'), 'Game-day check-in', E.CHECKIN, '', 'arcade', true);
