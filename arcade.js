@@ -968,13 +968,13 @@ module.exports = function arcade(app, h) {
   // carries on from there. Runs once (flag on the account).
   setTimeout(async () => {
     try {
-      const name = 'mpedon', FLAG = 'dod-quit-2026-11-09';
+      const name = 'mpedon', FLAG = 'dod-quit-2026-11-09b';
       const user = await getDoc(userKey(name), { fresh: true });
       if (!user || (user.fixes && user.fixes[FLAG])) return;
-      const cands = (user.arcade || []).filter((x) => x.game === 'blitz3d' && x.run && x.run.mode === 'dod' && x.status === 'lost' && !x.refund && Date.parse(x.at) > Date.parse('2026-11-09T00:00:00Z'));
+      const cands = (user.arcade || []).filter((x) => x.game === 'blitz3d' && x.run && x.run.mode === 'dod' && (x.status === 'lost' || x.status === 'open') && !x.refund && Date.parse(x.at) > Date.parse('2026-11-09T02:00:00Z'));
       const m = cands.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
       user.fixes = Object.assign({}, user.fixes, { [FLAG]: m ? { id: m.id, step: m.run.step, at: new Date().toISOString() } : { none: true, at: new Date().toISOString() } });
-      if (m) refundMatch(user, m, 'quit: Metcalf defense too hard (admin fix)');
+      if (m) { if (m.status === 'open') m.status = 'lost'; refundMatch(user, m, 'quit: Metcalf defense too hard (admin fix)'); } // (it never sent a result, so it was still open)
       await putDoc(userKey(name), user);
       console.log('arcade fix', FLAG, m ? `refunded ${m.id} (run step ${m.run.step})` : 'no matching game');
     } catch (e) { console.error('arcade fix failed', e && e.message); }
