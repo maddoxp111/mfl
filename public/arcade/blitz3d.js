@@ -9971,6 +9971,9 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // each extra defender around the catch cuts the odds a lot: double coverage is a gamble (about 1 in 3, more picks), a triple
     // team a long shot, but never zero: the crazy catch still happens
+    // the defense's skill in contests. On Metcalf live key plays the defense is YOURS, so a harder level must not make your defenders
+    // better ball hawks (it was the CPU's defensive strength); there it eases off as the level rises
+    const KDX = () => (METCALF && DEFP.on ? Math.max(0, 0.3 - 0.25 * KDEF) : KDEF);
     const CROWDK = 0.62 - 0.1 * KDEF;
     // the defender you play reaches a lot more ball: hands up and going for it (jump, dive or JUMP/DIVE pressed with it in the air)
     const humReach = (p) => (p.side === 1 && isHumanDef(p) ? (p.hunt || p.jumpY > 0.05 || p.diveT > 0 ? 0.7 : 0.5) / 0.32 : 1);
@@ -10067,7 +10070,7 @@ gl_FragColor=vec4(col,1.0);}`;
       dif += WET * 0.05 + (b.wobA > 0.08 ? 0.03 : 0);                                    // a wet ball, a wobbling duck
       // a defender arriving with the ball: a hand in his face, and the hit at the catch point (worse in the air or laid out)
       const hit = dN ? clamp((Math.hypot(dN.vx, dN.vz) - 2) / 5, 0, 1) : 0;
-      dif += cf * (0.07 + 0.07 * KDEF) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
+      dif += cf * (0.07 + 0.07 * KDX()) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
       const crowd = crowdAt(r), [pkb, pks] = perkCatch(r, false);
       let p = 0.55 + r.cat * 0.0045 + pkb - dif;
       if (crowd >= 2) p *= Math.pow(CROWDK, crowd - 1);
@@ -10111,7 +10114,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (contest) dif += 0.1;
       if (b.tipped) dif -= 0.04; // a ball popped up in the air hangs there for him
       dif -= (t === 'behind' || t === 'back' || t === 'wide' || t === 'over' ? 0.05 : t === 'lead' || t === 'body' ? -0.03 : 0) + (b.wobA > 0.08 ? 0.05 : 0) + (b.arc === 2 ? 0.03 : 0);
-      return 0.78 + (DP.intSkill - 0.06) * 1.6 + (hum ? (d.hunt || d.jumpY > 0.05 || d.diveT > 0 ? 0.26 : 0.2) : 0) - dHands(d) - dif;
+      return 0.78 + ((METCALF && DEFP.on ? 0.06 - 0.03 * KDEF : DP.intSkill) - 0.06) * 1.6 + (hum ? (d.hunt || d.jumpY > 0.05 || d.diveT > 0 ? 0.26 : 0.2) : 0) - dHands(d) - dif;
     }
     // decided at the ends, a roll in the middle (his hands are worse than a receiver's, so the band leans to a breakup)
     // (Metcalf, the CPU throwing against you: on the narrow blacktop every throw goes past a defender, so a hand on it is mostly a
@@ -10130,7 +10133,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const side = clamp((Math.hypot(b.x - d.x, b.z - d.z) - Math.hypot(b.x - r.x, b.z - r.z)) / 0.9, -1, 1);
       const hi = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) + (jumping ? 0.12 : 0) : 0;
       const hum = isHumanDef(d), sees = hum || seesBall(d);
-      const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - 0.1 * KDEF + dHands(d) * 0.5;
+      const skill = (r.cat - 62) / 150 + (r.str - 60) / 420 + ((r.mass || 1) - 1) * 0.12 - 0.1 * KDX() + dHands(d) * 0.5;
       const crowd = crowdAt(r);
       const plc = leverage(r, d);
       const [pkb, pks] = perkCatch(r, true);
@@ -10144,7 +10147,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const along = ((d.x - r.x) * b.vx + (d.z - r.z) * b.vz) / hv0, trail = along < -0.8;
       const jg = deep ? jumpGrade(r) : null;
       // the contest as it always was (the longer the throw the harder: the deep shot's penalty)
-      let W = clamp(0.72 + (METCALF && DEFP.on ? 0.1 : 0) - 0.12 * KDEF + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0) - (b.D > 15 ? Math.min(0.15, (b.D - 15) * 0.011) : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
+      let W = clamp(0.72 + (METCALF && DEFP.on ? 0.1 : 0) - 0.12 * KDX() + dramaCatch() + pkb + 0.18 * plc + 0.08 * side + 0.2 * (qO - qD) + hi + skill + nz + (sees ? 0 : 0.08) - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (b.tipped ? 0.04 : 0) - (b.D > 15 ? Math.min(0.15, (b.D - 15) * 0.011) : 0), 0.18, 0.97) * (crowd >= 2 ? Math.pow(CROWDK, crowd - 1) : 1);
       if (deep) { // ...and a covered deep ball (20+ air yards; blended in from 14)
         const hiH = b.y > 2.15 ? clamp((topReach(r) - topReach(d)) * 0.8, -0.15, 0.15) : 0;
         // blanketed (a man within two yards of him just before it arrived) vs a step on the man who closes late: the late closer's
@@ -10154,7 +10157,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const phase = trail ? 0.06 : !blanket ? 0.03 : sees ? -0.1 : 0;
         // with a man blanketing him, a ball put away from the defender only pays off if he goes up and gets it at the top
         const pk = plc > 0 && blanket && !trail ? (jg === 'perfect' ? 1 : jg === 'good' ? 0.75 : 0.35) : 1;
-        const Wd = clamp(0.3 - 0.1 * KDEF + dramaCatch() + pkb + 0.32 * plc * pk + 0.08 * side + 0.2 * (qO - qD) + hiH + jk + phase + skill + nz - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (crowd >= 2 ? 0.15 * (crowd - 1) : 0), 0.08, 0.97);
+        const Wd = clamp(0.3 - 0.1 * KDX() + dramaCatch() + pkb + 0.32 * plc * pk + 0.08 * side + 0.2 * (qO - qD) + hiH + jk + phase + skill + nz - (hum && d.jumpY > 0.1 ? 0.07 : 0) - (hum && (d.hunt || d.diveT > 0) ? 0.2 : 0) - (b.behind ? 0.06 : 0) - (diving ? 0.03 : 0) - (crowd >= 2 ? 0.15 * (crowd - 1) : 0), 0.08, 0.97);
         W = lerp(W, Wd, dk);
       }
       b.contest = { W: +W.toFixed(2), plc: +plc.toFixed(2), side: +side.toFixed(2), qO: +qO.toFixed(2), qD: +qD.toFixed(2), hi: +hi.toFixed(2), sees, crowd, jg, trail, s45: b.sep45 != null ? +b.sep45.toFixed(1) : null }; b.cd = d; if (pr) pr.contest = b.contest;
