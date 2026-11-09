@@ -69,6 +69,14 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-ib.sure{background:#ff3344;border-color:#ff3344}
 .bz-tick{position:absolute;left:50%;top:0;z-index:5;transform:translate(-50%,0);max-width:92%;padding:7px 12px;border-radius:999px;background:rgba(15,17,23,.86);border:1px solid #262b38;font:700 12px/1.3 Inter,sans-serif;color:#e6e8ee;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bz-tick.on{opacity:1}
+.bz-ban{position:absolute;left:50%;top:48px;z-index:5;transform:translate(-50%,-4px);display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 11px 6px;border-radius:12px;background:rgba(7,8,11,.62);border:1px solid rgba(255,217,59,.35);pointer-events:none;opacity:0;transition:opacity .25s,transform .25s;max-width:94%}
+.bz-ban.on{opacity:1;transform:translate(-50%,0)}
+.bz-ban-i{display:flex;gap:2px}.bz-ban-i svg{width:19px;height:19px;color:#6d6a5a;opacity:.45;transition:color .15s,opacity .15s,transform .15s}
+.bz-ban-i svg.f{color:#ffd93b;opacity:1;transform:scale(1.12)}
+.bz-ban b{font:400 12px/1.2 'Press Start 2P',monospace;color:#ffd93b;text-shadow:2px 2px 0 #000;white-space:nowrap;letter-spacing:.5px}
+.bz-ban b i{font-style:normal;color:#ff3344}
+.bz-ban.go{border-color:#ff3344}.bz-ban.go b{font-size:14px;animation:bz-banpop .45s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes bz-banpop{0%{transform:scale(.3);opacity:0}60%{opacity:1}100%{transform:scale(1)}}
 .bz-tick b{color:#ffc21a}
 .bz-ctl{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:flex-end;gap:6px;padding:18px calc(8px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));background:linear-gradient(transparent,rgba(7,8,11,.5));pointer-events:none}
 .bz-ctl>*{pointer-events:auto}
@@ -443,6 +451,8 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
       coin: () => { tone(988, 0.07, 'square', 0.035); tone(1319, 0.2, 'square', 0.035, 0, 0.07); },
       win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'square', 0.04, 0, i * 0.11)),
       lose: () => [392, 330, 262].forEach((f, i) => tone(f, 0.25, 'square', 0.04, 0, i * 0.15)),
+      banana: () => tone(1046, 0.045, 'triangle', 0.022), // Metcalf: the banana count, one soft tick each
+      rushgo: () => { tone(784, 0.06, 'square', 0.03); tone(1175, 0.12, 'square', 0.03, 0, 0.07); },
     };
     return {
       init,
@@ -7930,6 +7940,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // kick-slide with him; lose that race and the rusher turns the corner, win it and he runs him past the pocket). Otherwise a swim
     // or a rip once he has his hands on him: it beats the block clean, or it gets stuffed and he resets for another.
     function engage(b, d, run) {
+      if (!run && METCALF && banHeld()) return false; // Metcalf: no pass rush before 7 banana
       if (!b || !d || b.eng || d.eng || d.rag || b.rag || b.rising > 0 || d.rising > 0 || (d.imm > 0 && d.immOf === b)) return false;
       // the blocker has to be between the defender and the ball
       const g = carrier || (ball && ball.holder) || OK.QB; if (g && g !== b) { const gx = g.x - d.x, gz = g.z - d.z, bx = b.x - d.x, bz = b.z - d.z, gl = Math.hypot(gx, gz) || 1, bl = Math.hypot(bx, bz) || 1; if ((gx * bx + gz * bz) / (gl * bl) < 0.25) return false; }
@@ -8557,6 +8568,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function rushQB(d, dt) {
       const qb = carrier || OK.QB, fx = d.x < 0 ? -1 : 1;
       if (!qb) return;
+      if (METCALF && banHeld()) { banWait(d, qb, dt); return; } // Metcalf: he waits on his side of the line for 7 banana
       let tx = qb.x, tz = qb.z;
       const scrambling = carrier === OK.QB || (mode === 'aim' && Math.hypot(qb.vx, qb.vz) > 3);
       if (d.stunt && tPlay < 0.55) { tx = d.x + d.stunt * 3; tz = los + 0.2; }
@@ -8839,7 +8851,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const DEF_ORDER = ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2'];
     // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
     // rd: how long his eyes stay on each read; smart: he throws it away rather than eat a sack
-    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null }; };
+    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null }; };
 
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
@@ -9575,6 +9587,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const ARC_Y = [1.5, 1.6, 2.0], REL_Y = 2.2; // where each kind of throw is aimed to arrive (chest for a bullet, up high for a lob)
     function pressure() {
       const qb = OK.QB; let p = 0;
+      if (METCALF && banHeld()) return 0; // Metcalf: nobody can come before 7 banana
       for (const d of def) if (!d.eng && !d.rag && d.stun <= 0) p = Math.max(p, clamp((3.2 - dist(d, qb)) / 3.2, 0, 1));
       return p;
     }
@@ -10403,6 +10416,7 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // ---------- contact: tackles as collisions with momentum ----------
     function hitCarrier(c, d) {
+      if (METCALF && c === OK.QB && d && d.side === 1) { const h = banHeld(); if (DBG && DBG.bot) (DBG.banQB || (DBG.banQB = [])).push({ t: +tPlay.toFixed(2), held: h, pass: mode === 'aim' }); if (h) return; } // Metcalf: no contact before 7 banana
       if (phase !== 'live' || c.rag || !d || d.rag) return;
       if (c.mv === 'juke' && c.mvT > 0.12 && c.jukeBeat && c.jukeBeat.indexOf(d) >= 0) return; // he faked this man out
       const dx = c.x - d.x, dz = c.z - d.z, dl = Math.hypot(dx, dz) || 1, nx = dx / dl, nz = dz / dl;
@@ -11367,6 +11381,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const cl = A ? archCall(A, dn, fd - spot, spot, lead, endHalf && clk.t < 75) : call;
         const kind = pickKind(cpuKindW(dn, fd - spot, spot, clk, lead)); kinds[kind] = (kinds[kind] || 0) + 1; DBOOK.calls.push(cl); if (DBOOK.calls.length > 30) DBOOK.calls.shift();
         const r = rng(), T = matchT(CD, cl, kind);
+        if (METCALF && kind !== 'run') T.loss *= kind === 'quick' || kind === 'screen' ? 0.75 : 0.4; // Metcalf: no rush before 7 banana, so far fewer sacks
         let g, stop = false;
         if (r < T.loss) g = -1 - Math.floor(rng() * 5);
         else if (r < T.loss + T.big) g = 15 + Math.floor(rng() * 35);
@@ -12741,6 +12756,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
       if (ONEC) vqSync(); // one clock: keep the stretch of the game in step with it
+      if (METCALF) banHud(); // Metcalf: the banana count at the top of the screen (76-banana.js)
       // Metcalf: somebody gets the ball back from over the fence (13-metpeople.js). Time out: nothing else in the game moves on
       if (phase === 'fetch') { metFetchStep(dt); return; }
       if (METCALF) metFetchWatch(); // Metcalf: has the ball gone over a fence?
@@ -12821,10 +12837,11 @@ gl_FragColor=vec4(col,1.0);}`;
       for (const p of everyone) if (p.diveT > 0 && p !== carrier && !p.rag) receiverDiveStep(p, dt); // receivers and defenders laying out for a pass
       for (const p of everyone) integrate(p, dt);
       collide();
+      if (METCALF && banHeld()) banClamp(); // Metcalf: nobody past the line before 7 banana (76-banana.js)
       funRef(dt); perkStep(dt);
       if (phase !== 'live') return;
       const h = ball.holder;
-      if (h && h.side === 0 && !h.rag && h.wrapT <= 0) {
+      if (h && h.side === 0 && !h.rag && h.wrapT <= 0 && !(METCALF && h === OK.QB && banHeld())) {
         for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 + ((d.diveT > 0 || d.tlunge > 0) && isHumanDef(d) ? 0.55 : d.lunge > 0 && (d.pose === 'tackle' || d.tchT > 0) && d.armR ? 0.3 : 0) && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
       }
       // an interception or fumble return: the offense players who get to him tackle him, each one trying, the same as defenders do
@@ -12894,6 +12911,67 @@ gl_FragColor=vec4(col,1.0);}`;
       replay = null;
       nextPlay();
     }
+    // ---------- Metcalf house rule: nobody rushes the quarterback until the count reaches 7 banana ----------
+    // After the snap no defender crosses the line of scrimmage until "1 banana, 2 banana ... 7 banana" (4.75 seconds, one banana
+    // every 4.75/7 s). Before that the rushers wait at the line (mirror the quarterback, spy, drop into coverage): no contact
+    // with the quarterback, no sacks. Once the ball is handed off, pitched or thrown, or the quarterback runs past the line, the
+    // count no longer matters. Generic: whoever is assigned to rush, on any roster. The count shows at the top of the screen.
+    const BAN_N = 7, BAN_T = 4.75, BAN_S = BAN_T / BAN_N, BAN_Z = 0.45;
+    function banHeld() {
+      if (!METCALF || phase !== 'live' || kick || !OK.QB || !ball || tPlay >= BAN_T || thrown || crossed) return false;
+      if (carrier && carrier !== OK.QB) return false;
+      return ball.st === 'snap' || ball.holder === OK.QB;
+    }
+    const banLine = () => los + BAN_Z;
+    let banNudgeT = -9;
+    // the line holds: nobody on the defense is past it while the count is on (the defender you control too)
+    function banClamp() {
+      const z0 = banLine();
+      for (const d of def) {
+        if (d.rag || d.z >= z0) continue;
+        d.z = z0; if (d.vz < 0) d.vz = 0;
+        if (DBG && DBG.bot) DBG.banClamps = (DBG.banClamps || 0) + 1;
+        if (isHumanDef(d) && tPlay > banNudgeT) { banNudgeT = tPlay + 1.6; popAt(d, 'WAIT FOR 7 BANANA', '#ffc21a'); }
+      }
+    }
+    // a rusher during the count: on his side of the line, square to the quarterback and mirroring him, ready to go on 7
+    function banWait(d, qb, dt) {
+      const tx = d.x + clamp(qb.x - d.x, -1.6, 1.6) * 0.5, tz = banLine() + 0.3;
+      staminaStep(d, dt, false);
+      steer(d, tx, tz, effV(d) * 0.6, dt, 8);
+      d.face2 = Math.atan2(qb.x - d.x, qb.z - d.z); d.look = [qb.x, 1.5, qb.z];
+      if (DBG && DBG.bot) DBG.banHolds = (DBG.banHolds || 0) + 1;
+    }
+    // the count on screen: one banana marked per banana, then RUSH! on 7
+    const BAN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 13.5c2.6 5.4 11.8 6.6 16.4-1.2.9-1.6 1.2-3.6 1-5.6l-1.6.3c-.3 5.4-6.6 10.3-15.8 6.5z" fill="currentColor" stroke="#3a2a00" stroke-width="1.1" stroke-linejoin="round"/><path d="M19.4 7l1-2.6 1.4.4-.9 2.5" fill="#6b4a12"/></svg>';
+    const BAN = { el: null, n: -2, on: false, rushAt: -9, live: 0 };
+    function banEl() {
+      if (BAN.el) return BAN.el;
+      const e = el('div', 'bz-ban'); e.innerHTML = `<div class="bz-ban-i">${BAN_SVG.repeat(BAN_N)}</div><b></b>`;
+      wrap.appendChild(e); BAN.el = e; BAN.icons = e.querySelectorAll('svg'); BAN.txt = e.querySelector('b');
+      return e;
+    }
+    function banHud() {
+      const held = banHeld();
+      // a new snap: the count starts at 0
+      if (phase === 'live' && !kick && OK.QB && tPlay < 0.05 && !BAN.live) { BAN.live = 1; BAN.n = -1; BAN.rushAt = -9; }
+      if (phase !== 'live') BAN.live = 0;
+      let n = -1, rush = false;
+      if (held) n = Math.min(BAN_N - 1, Math.floor(tPlay / BAN_S)); // bananas finished so far (the 7th lands at 4.75 s)
+      else if (BAN.live && phase === 'live' && !kick && tPlay >= BAN_T && tPlay < BAN_T + 1.3 && !thrown && !crossed && !(carrier && carrier !== OK.QB)) rush = true;
+      const show = held || rush;
+      if (!show) { if (BAN.on) { BAN.el.classList.remove('on'); BAN.on = false; BAN.n = -2; } return; }
+      const e = banEl();
+      if (!BAN.on) { const b = bug.getBoundingClientRect(), w = wrap.getBoundingClientRect(); e.style.top = Math.max(0, Math.round(b.bottom - w.top) - 6) + 'px'; e.classList.add('on'); BAN.on = true; }
+      const k = rush ? BAN_N : n;
+      if (k === BAN.n) return;
+      BAN.n = k;
+      BAN.icons.forEach((s, i) => s.classList.toggle('f', i < k));
+      e.classList.toggle('go', rush);
+      BAN.txt.innerHTML = rush ? '7 BANANA! <i>RUSH!</i>' : k ? k + ' BANANA' : 'COUNT IT';
+      if (rush) sfx.play('rushgo'); else if (k) sfx.play('banana');
+    }
+    if (DBG && METCALF) DBG.banana = () => ({ held: banHeld(), n: BAN.n, on: BAN.on, t: tPlay, line: banLine(), BAN_T });
     // ---------- head to head ----------
     // Two people, one game. Whoever has the ball plays it on their own screen, exactly as against the CPU, and that screen is in
     // charge of the possession: it runs the clock, decides every play, and streams the field (every player, the ball, its camera)
