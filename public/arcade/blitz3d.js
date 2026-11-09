@@ -5304,7 +5304,10 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
         } else if (r.k === 'ooh') {
           W[J_LP] = W[J_RP] = 2.3; W[J_LR] = W[J_RR] = 0.85; W[J_LE] = W[J_RE] = 2.35; W[J_AY] = 0; W[J_TB] = 0.15;
         } else if (r.k === 'stomp') {
-          if (!sitting) { const k = Math.sin(Math.min(1, u / r.d) * Math.PI); W[r.v < 0.5 ? J_LH : J_RH] = 0.55 * k; W[r.v < 0.5 ? J_LK : J_RK] = 0.9 * k; wy = 0; }
+          // the same foot every beat (most stomp with their right), a quick low lift and a slam with a little dip: a knee-high lift
+          // on a random foot each beat read as walking on the spot (the end-line rows face the camera)
+          if (!sitting) { const x = Math.min(1, u / r.d), up = x < 0.35 ? Math.sin(x / 0.35 * Math.PI / 2) : x < 0.55 ? Math.cos((x - 0.35) / 0.2 * Math.PI / 2) : 0, dip = x > 0.55 && x < 0.85 ? Math.sin((x - 0.55) / 0.3 * Math.PI) : 0, lf = (q.ph * 7.31) % 1 < 0.22;
+            W[lf ? J_LH : J_RH] = 0.3 * up; W[lf ? J_LK : J_RK] = 0.55 * up; W[J_LK] += 0.14 * dip; W[J_RK] += 0.14 * dip; W[J_LH] += 0.06 * dip; W[J_RH] += 0.06 * dip; wy = -0.02 * dip; }
         }
         for (let i = 0; i < 16; i++) T[i] += (W[i] - T[i]) * f; y += (wy - y) * f;
       }
@@ -5749,6 +5752,8 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     DBG.setQuality = (q) => setQuality(q);
     // tests: crowd members standing inside a venue solid (built frame, the crowd's own posts left out)
     DBG.metCrowdHits = () => { const n0 = MET.keep.length - PPL.crowd.length; let n = 0; for (const q of PPL.crowd) { const x = q.x / M2Y + MX0, z = q.z / M2Y - MZ0; for (let i = 0; i < n0; i++) { const k = MET.keep[i]; if (k.length === 6 ? k[1] < 1.9 && k[4] > 0.15 && x > k[0] && x < k[3] && z > k[2] && z < k[5] : k.length === 5 ? k[3] < 1.9 && Math.hypot(x - k[0], z - k[1]) < k[2] : false) { n++; break; } } } return n; };
+    // tests: every spectator drawn by the near path this frame: [index, x, z, hips L/R, knees L/R, speed, reaction, end-line row]
+    DBG.metLegs = () => { const o = []; PPL.crowd.forEach((q, i) => { if (q.bb) return; const f = metF(q.hx, q.hz); o.push([i, q.x, q.z, q.A[J_LH], q.A[J_RH], q.A[J_LK], q.A[J_RK], q.mv || 0, q.rx ? q.rx.k : '', Math.abs(f[1]) > 15.68 && f[0] > -11.2 - 1 && f[0] < 3.42 + 1 ? 1 : 0]); }); return o; };
     DBG.metReact = (n) => { sfx.play(n); if (n === 'td') { hs += 7; boardDirty = true; } }; // tests: the crowd hears a cheer / boo / ooh; 'td' fakes a home score for the rush
   }
   // =====================================================================================
