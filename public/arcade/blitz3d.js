@@ -58,7 +58,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 .bz-tm s u{display:block;width:9px;height:2px;background:#ffc21a;text-decoration:none}.bz-tm s u.off{background:#2a2f3c}
 .bz-clk{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 8px;background:#161922;min-width:64px}
 .bz-clk b{font:400 11px/1.2 'Press Start 2P',monospace;color:#f5f6f8}.bz-clk.run b{color:#ffc21a}
-.bz-clk span{font:700 9px/1.2 Inter,sans-serif;color:#9aa0ad;letter-spacing:.5px}
+.bz-clk span{font:700 9px/1.2 Inter,sans-serif;color:#9aa0ad;letter-spacing:.5px}.bz-clk.lp span{color:#ff5a5a}
 .bz-pc{display:flex;align-items:center;justify-content:center;padding:0 7px;font:400 9px 'Press Start 2P',monospace;color:#9aa0ad;background:#0b0d12;min-width:30px}
 .bz-pc.low{color:#ff3344}
 .bz-dd{display:flex;flex-direction:column;justify-content:center;padding:3px 9px;font:800 14px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.4px;color:#ffc21a;background:#0f1117;border:1px solid #262b38;border-radius:8px;white-space:nowrap}
@@ -2025,6 +2025,11 @@ gl_FragColor=vec4(c,1.0);}`;
     // fog are clear days as far as the field, the turf and the gameplay go; 13-sky.js does their skies)
     const WX = WXK === 'rain' || WXK === 'storm' ? 'rain' : WXK === 'snow' ? 'snow' : TOD === 'night' ? 'night' : 'clear';
     const FL = VN.FL, EZ = VN.EZ, HW = VN.HW, TB = VN.TB; // HW shadows the module-level stadium half width
+    // what the player reads: at Metcalf every red dash is 5 yards (the field is read as a 100-yard field at either size); the
+    // engine keeps its own yards for play. YD = a distance as shown, YL = a yard line from the own goal as shown (0..FLY).
+    const YDK = VN.world === 'metcalf' ? 100 / FL : 1, FLY = YDK === 1 ? FL : 100, MIDY = FLY / 2;
+    const YD = (n) => (YDK === 1 ? n : Math.round(n * YDK)), YL = (z) => Math.round(YDK === 1 ? z : z * YDK);
+    const ONEC = VN.world === 'metcalf'; // Metcalf house rules: one clock (no quarters), and a last play once time runs out
     // no first downs (Metcalf on its true-size field, FD 0): every possession gets four downs to score from wherever it starts, so
     // the line to gain is the goal line (fdAt) and the down-and-distance reads "& Goal"; FD stays 10 for the stadium's arithmetic
     const NOFD = !VN.FD, FD = VN.FD || 10;
@@ -2577,7 +2582,7 @@ gl_FragColor=vec4(c,1.0);}`;
       g.fillStyle = '#ffc21a'; g.font = '900 240px "Barlow Condensed", Impact, sans-serif';
       g.fillText(String(typeof hs === 'number' ? hs : 0), 256, 280); g.fillText(String(typeof as === 'number' ? as : 0), 768, 280);
       g.fillStyle = '#c9ccd4'; g.font = '800 66px "Barlow Condensed", Impact, sans-serif';
-      g.fillText(typeof qtr === 'number' ? (qtr > 4 ? 'OT' : 'Q' + qtr) + '   ' + fmtClock(clock) : '', 512, 450);
+      g.fillText(typeof qtr === 'number' ? (qtr > 4 ? 'OT' : VN.world === 'metcalf' ? 'GAME' : 'Q' + qtr) + '   ' + fmtClock(clock) : '', 512, 450);
       if (typeof down === 'number' && typeof phase === 'string' && phase !== 'splash') { g.font = '800 48px "Barlow Condensed", Impact, sans-serif'; g.fillStyle = '#9aa0ad'; g.fillText(ddTxt().toUpperCase() + '  ·  ' + ballTxt(los).toUpperCase(), 512, 395); }
       g.fillStyle = 'rgba(0,0,0,0.35)'; for (let y = 0; y < 512; y += 4) g.fillRect(0, y, 1024, 1);
       return boardC;
@@ -7006,7 +7011,7 @@ gl_FragColor=vec4(col,1.0);}`;
   }
 
     // ---------- game state ----------
-    let phase = 'splash', qtr = 1, clock = QS, hs = 0, as = 0;
+    let phase = 'splash', qtr = 1, clock = ONEC ? QS * 4 : QS, hs = 0, as = 0;
     let los = TB, down = 1, fdz = fdAt(TB), play = PLAYS.find((p) => p.id === 'slant'), flip = false, hot = {}, dcall = null, tryMode = false, lastCat = 'short', hist = [];
     const RUNOFF = 4; // seconds the clock keeps running after a play that ends in bounds
     let runoff = 0;
@@ -7020,9 +7025,9 @@ gl_FragColor=vec4(col,1.0);}`;
     const input = { l: 0, r: 0, u: 0, d: 0, stick: null, sprint: false };
     const GRAV = 12;
     const fmtClock = (c) => { c = Math.max(0, Math.ceil(c)); return Math.floor(c / 60) + ':' + String(c % 60).padStart(2, '0'); };
-    const ballTxt = (z) => { z = Math.round(z); return z === MID ? 'Midfield' : z < MID ? 'Own ' + z : 'Opp ' + Math.round(FL - z); };
-    const ddTxt = () => (tryMode ? 'Try' : `${ORD[Math.min(down, 4)]} & ${fdz >= FL ? 'Goal' : Math.max(1, Math.round(fdz - los))}`);
-    const WARN = QS >= 240 ? 120 : Math.round(QS * 0.25);
+    const ballTxt = (z) => { z = YL(z); return z === MIDY ? 'Midfield' : z < MIDY ? 'Own ' + z : 'Opp ' + Math.round(FLY - z); };
+    const ddTxt = () => (tryMode ? 'Try' : `${ORD[Math.min(down, 4)]} & ${fdz >= FL ? 'Goal' : Math.max(1, YL(fdz - los))}`);
+    const WARN = ONEC ? Math.min(120, Math.round(QS)) : QS >= 240 ? 120 : Math.round(QS * 0.25); // (one clock: 2:00 of a game of 4 x QS)
 
     function mkP(side, role, key, x, z, o) {
       const p = Object.assign({ side, role, key, x, z, y: 0, vx: 0, vz: 0, h: side ? Math.PI : 0, ph: crand() * 6, fall: 0, fallT: 0, down: false, getup: 0, rising: 0, stun: 0, eng: null, engT: 0, shed: 2, imm: 0, immOf: null,
@@ -9204,7 +9209,7 @@ gl_FragColor=vec4(col,1.0);}`;
       else if (out.k === 'safety') { addPts('home', 2); dramaCpu('DOWNS'); cont = () => goHome(VN.SAFE); }
       else { dramaCpu('INT'); cont = () => goHome(out.at); }
       boardDirty = true; setControls(true);
-      if (clock <= 0 && !(out && out.k === 'pick6' && VN.pat)) endQuarter(out ? cont : () => startCpuDrive(clamp(Math.round(S.spot), 1, FL - 1))); else cont();
+      if (clock <= 0 && !(out && out.k === 'pick6' && VN.pat)) endQuarter(out ? cont : ONEC ? defpResume : () => startCpuDrive(clamp(Math.round(S.spot), 1, FL - 1))); else cont(); // (Metcalf: the drive goes on for its last snap)
     }
     function defpClockOut() {
       const S = DEFP.st; closeDSheet(); DEFP.on = false; DEFP.ctl = null; DEFP.res = null; defpFlip(false); clearBanner(); poss = 'away'; clockRun = false;
@@ -9213,6 +9218,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function defpResume() {
       const S = DEFP.st, clk = { q: qtr, t: clock };
       const log = [], r = simCpu(S.spot, clk, log, S.arch ? { arch: S.arch } : S.call, { dn: S.dn, fd: S.fd, key: defpKeyCheck });
+      if (r.lp) LP = 2;
       if (r.plays > 0) { clockRun = false; runoff = 0; } // the simulated snaps ran the clock themselves; straight into another live snap, it keeps running
       phase = 'cpu'; poss = 'away'; los = clamp(FL - S.spot, 1, FL - 1); down = 1; fdz = fdAt(los);
       setupPlay(); hideTags();
@@ -9510,6 +9516,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function snap() {
       if (phase !== 'pre' || finished) return;
       if (VS && VS.waitD) { pop('Waiting for their defensive call…', '#ffc21a', null, null, true); return; }
+      if (LP === 1 && !tryMode) LP = 2; // Metcalf: this is the last play
       phase = 'live'; tPlay = 0; introT0(); clearBanner(); closeSheet(); resetPtr(); // a new play: no finger from the last one carries over
       sfx.play('hike'); sfx.crowd(0.18 + excite * 0.3);
       const qb = OK.QB, under = FORMS[play.form].under;
@@ -10721,6 +10728,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function fgPct(d) { return clamp(1.08 - Math.max(0, d - 22) * (0.019 - (KK - 50) * 0.00012) - DIFF * 0.03 - WET * 0.06, 0.08, 0.98); }
     function startKick(type) {
       if (finished) return;
+      if (LP === 1 && !tryMode && type !== 'xp') LP = 2; // Metcalf: a kick on the last play is it
       clearBanner(); closeSheet(); hideTags();
       clearPlayers();
       const kz = type === 'punt' ? los - 13 : los - 7;
@@ -11077,6 +11085,10 @@ gl_FragColor=vec4(col,1.0);}`;
 
     // ---------- scoring helpers ----------
     let poss = 'home', go4 = false, warnPend = false, sheetOpen = false;
+    // Metcalf's last play (ONEC): 0 = time left, 1 = time is up and one more snap is owed to whoever has the ball, 2 = that snap is played
+    let LP = 0;
+    const vqOf = (t) => (t > QS * 3 ? 1 : t > QS * 2 ? 2 : t > QS ? 3 : 4); // one clock: the stretch of the game it is in (for the late-game logic)
+    function vqSync() { if (ONEC && qtr <= 4) { const q = vqOf(clock); if (q !== qtr) { qtr = q; boardDirty = true; } } }
     const PCL = Math.round(25 + (1 - DIFF) * 15);
     function addPts(side, n) {
       if (side === 'home') hs += n; else as += n;
@@ -11099,12 +11111,12 @@ gl_FragColor=vec4(col,1.0);}`;
       let head = '', sub = '', col = '#ffc21a', line = '';
       closeP = null; clockRun = true;
       const endZ = kind === 'td' || kind === 'krtd' ? FL : spot;
-      const gained = Math.round(endZ - los);
+      const gained = Math.round(endZ - los), gD = YDK === 1 ? gained : Math.round((endZ - los) * YDK); // gD: the gain as shown
       playRes = kind; if ((kind === 'run' || kind === 'tackle' || kind === 'oob' || kind === 'catch') && endZ >= fdz && !tryMode) playRes = 'first';
       if (!ko && poss === 'home') filmResult(gained, kind === 'td' || playRes === 'first' || gained >= 10);
       if (ko) {
         kick = null; clockRun = false;
-        const ret = Math.round(endZ - (P.start || 0));
+        const ret = Math.round(endZ - (P.start || 0)), retD = YDK === 1 ? ret : Math.round((endZ - (P.start || 0)) * YDK);
         if (kind === 'fumlost') {
           const s = clamp(Math.round(FL - endZ), 1, FL - 1); nx.next = ['cpu', s]; head = 'FUMBLE LOST'; sub = `${esc(AWAY.name)} recover`; col = '#ff3344'; TS.turnovers++;
           line = 'The return man coughs it up and the kicking team falls on it.';
@@ -11118,10 +11130,10 @@ gl_FragColor=vec4(col,1.0);}`;
           line = MOPT.touch ? 'He brings it out, then gets touched down back in his own end zone. Safety.' : 'He brings it out, then gets taken down back in his own end zone. Safety.';
         } else {
           const s = endZ <= 0.5 ? TB : clamp(Math.round(endZ), 1, FL - 1);
-          const toS = s === MID ? 'midfield' : s < MID ? 'your ' + Math.round(s) : 'their ' + Math.round(FL - s); // "to your 8", not "to the own 8"
-          nx.next = ['home', s, 'same']; head = endZ <= 0.5 ? 'TOUCHBACK' : 'RETURN'; sub = endZ <= 0.5 ? `Ball at your ${TB}` : `${Math.max(0, ret)}-yard return to ${toS}`; col = '#c9ccd4';
+          const sY = YL(s), toS = sY === MIDY ? 'midfield' : sY < MIDY ? 'your ' + sY : 'their ' + (FLY - sY); // "to your 8", not "to the own 8"
+          nx.next = ['home', s, 'same']; head = endZ <= 0.5 ? 'TOUCHBACK' : 'RETURN'; sub = endZ <= 0.5 ? `Ball at your ${YL(TB)}` : `${Math.max(0, retD)}-yard return to ${toS}`; col = '#c9ccd4';
           line = endZ <= 0.5 ? 'Downed in the end zone. Touchback.' : `<b>${esc(nm(carrier))}</b> brings it out to ${toS}${MOPT.touch && kind === 'tackle' ? ', where he is tagged' : ''}.`;
-          if (ret >= DZ(30)) { addHL(`${nm(carrier)} ${ret}-yd ${VN.koType === 'throw' ? 'throw-off' : 'kick'} return`); markBig('big'); }
+          if (ret >= DZ(30)) { addHL(`${nm(carrier)} ${retD}-yd ${VN.koType === 'throw' ? 'throw-off' : 'kick'} return`); markBig('big'); }
         }
       } else {
         TS.plays++;
@@ -11133,9 +11145,9 @@ gl_FragColor=vec4(col,1.0);}`;
           else {
             addPts('home', VN.pat ? 6 : VN.tdPts); head = 'TOUCHDOWN!'; col = '#2bd46b'; nx.next = VN.pat ? ['pat'] : ['cpu', TB, 'ko'];
             sub = `${HOME.abbr} ${hs} – ${as} ${AWAY.abbr}`;
-            if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b>, ${yd(gained)}, TOUCHDOWN!`;
-            else line = `<b>${esc(nm(rus || carrier))}</b> punches it in from ${yd(gained)} out!`;
-            addHL(P.caught ? `${nm(passer)} ${gained}-yd TD to ${nm(rec)}` : `${nm(rus || carrier)} ${gained}-yd TD run`);
+            if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b>, ${yd(gD)}, TOUCHDOWN!`;
+            else line = `<b>${esc(nm(rus || carrier))}</b> punches it in from ${yd(gD)} out!`;
+            addHL(P.caught ? `${nm(passer)} ${gD}-yd TD to ${nm(rec)}` : `${nm(rus || carrier)} ${gD}-yd TD run`);
             markBig('td');
             if (P.scoop && carrier) { const big = carrier.role === 'OL'; head = big ? 'BIG MAN TOUCHDOWN!' : 'SCOOP AND SCORE!'; moment(big ? 'bigman' : 'scoop6', carrier, big ? 'BIG MAN TOUCHDOWN!' : 'SCOOP AND SCORE!', { a: carrier, victim: 'away', col: '#2bd46b', snd: 'good' }); }
             benchParty(0);
@@ -11173,10 +11185,10 @@ gl_FragColor=vec4(col,1.0);}`;
             if (kind === 'sack') { head = MOPT.touch ? 'TOUCH SACK!' : 'SACKED!'; col = '#ff3344'; if (!slid) { TS.sacks++; if (qbS) qbS.sacked++; sfx.play('bad'); } else head = 'DOWN'; }
             else if (kind === 'oob') { head = 'OUT OF BOUNDS'; clockRun = false; }
             else head = MOPT.touch ? 'TOUCHED DOWN' : 'TACKLED';
-            sub = gained > 0 ? `+${yd(gained)}` : gained < 0 ? `${gained} yards` : 'No gain';
-            if (kind === 'sack') line = slid ? `<b>${esc(nm(carrier))}</b> slides for ${yd(gained)}.` : MOPT.touch ? `<b>${esc(nm(OK.QB))}</b> is touched down behind the line, a loss of ${Math.abs(gained)}.` : `<b>${esc(nm(OK.QB))}</b> is sacked for a loss of ${Math.abs(gained)}.`;
-            else if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b> for ${yd(gained)}${P.notes && P.notes[0] ? ' · ' + P.notes[0].toLowerCase().replace('!', '') : ''}.`;
-            else line = `<b>${esc(nm(rus || carrier))}</b> ${gained >= 8 ? 'breaks free' : 'runs'} for ${yd(gained)}.`;
+            sub = gained > 0 ? `+${yd(gD)}` : gained < 0 ? `${gD} yards` : 'No gain';
+            if (kind === 'sack') line = slid ? `<b>${esc(nm(carrier))}</b> slides for ${yd(gained)}.` : MOPT.touch ? `<b>${esc(nm(OK.QB))}</b> is touched down behind the line, a loss of ${Math.abs(gD)}.` : `<b>${esc(nm(OK.QB))}</b> is sacked for a loss of ${Math.abs(gD)}.`;
+            else if (P.caught) line = `<b>${esc(nm(passer))}</b> to <b>${esc(nm(rec))}</b> for ${yd(gD)}${P.notes && P.notes[0] ? ' · ' + P.notes[0].toLowerCase().replace('!', '') : ''}.`;
+            else line = `<b>${esc(nm(rus || carrier))}</b> ${gained >= 8 ? 'breaks free' : 'runs'} for ${yd(gD)}.`;
             if (MOPT.touch && kind === 'tackle' && P.touchBy) line += ` Touched down by <b>${esc(nm(P.touchBy))}</b>.`;
             if (nx.los >= fdz && !tryMode) {
               const close = nx.los - fdz < 0.6;
@@ -11197,12 +11209,12 @@ gl_FragColor=vec4(col,1.0);}`;
             if (qbS) { qbS.passYds += gained; if (kind === 'td') qbS.passTD++; }
             if (recS) { recS.rec++; recS.recYds += gained; recS.yac += Math.max(0, Math.round(endZ - (P.catchZ || los))); recS.long = Math.max(recS.long, gained); if (kind === 'td') recS.recTD++; }
             TS.passYds += gained;
-            if (gained >= DZ(25) && kind !== 'td') { addHL(`${nm(passer)} ${gained}-yd strike to ${nm(rec)}`); markBig('big'); }
+            if (gained >= DZ(25) && kind !== 'td') { addHL(`${nm(passer)} ${gD}-yd strike to ${nm(rec)}`); markBig('big'); }
             if (P.notes && P.notes.length && (P.wild || P.notes[0] === 'TOE TAP!' || P.notes[0] === 'DIVING CATCH!' || P.notes[0] === 'HIGH-POINTED!')) { addHL(`${nm(rec)} ${P.notes[0].toLowerCase().replace('!', '')}`); markBig('big'); }
           } else if (P.kind === 'rush' && rus && kind !== 'sack') {
             if (rusS) { rusS.rushAtt++; rusS.rushYds += gained; rusS.long = Math.max(rusS.long, gained); if (kind === 'td') rusS.rushTD++; }
             TS.rushYds += gained;
-            if (gained >= DZ(20) && kind !== 'td') { addHL(`${nm(rus)} ${gained}-yd run`); markBig('big'); }
+            if (gained >= DZ(20) && kind !== 'td') { addHL(`${nm(rus)} ${gD}-yd run`); markBig('big'); }
           }
         }
       }
@@ -11242,7 +11254,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (VS) VS.dc = null; // head to head: a new call from the other side every snap
       phase = 'pre'; poss = 'home'; setupPlay(); playClock = PCL;
       voicePre();
-      if (down === 3 && !tryMode && !isNewDrive) voice.say('third_down', { dist: String(Math.max(1, Math.min(99, Math.round(fdz - los)))) }, 1, 0.3);
+      if (down === 3 && !tryMode && !isNewDrive) voice.say('third_down', { dist: String(Math.max(1, Math.min(99, YL(fdz - los)))) }, 1, 0.3);
       if (down === 4 && !tryMode && !VN.punt && !VN.fg) go4 = true; // nothing to kick: every 4th down is a go
       sheetOpen = !(down === 4 && !tryMode) || go4;
       if (!isNewDrive) clearBanner();
@@ -11335,11 +11347,14 @@ gl_FragColor=vec4(col,1.0);}`;
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
       const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;
       const lead = as - hs, endHalf = clk.q === 2 || clk.q >= 4;
-      const L = (e) => { if (log) log.push(Object.assign({ dn, fd, sp: spot }, e)); return e; };
-      const fin = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t), kinds });
-      const tick = (t) => { t = Math.min(t, clk.t); used += t; clk.t -= t; };
+      // Metcalf: once the clock is out the CPU still gets its last snap (lpOK), if it is owed one; the drive ends after it
+      const lpOK = ONEC && clk.q <= 4 && LP < 2 && !VS; let lpArm = false;
+      const L = (e) => { if (log) log.push(Object.assign(lpArm ? { dn, fd, sp: spot, lp: 1 } : { dn, fd, sp: spot }, e)); return e; };
+      const fin0 = (res) => ({ res, plays, yds: Math.max(0, Math.round(spot - start)), spot: Math.round(spot), used, t: Math.max(0, clk.t), kinds });
+      const fin = lpOK ? (res) => Object.assign(fin0(res), lpArm && res !== 'KEY' ? { lp: 1 } : {}) : fin0;
+      const tick = (t) => { t = Math.min(t, clk.t); used += t; clk.t -= t; if (ONEC && clk.q <= 4) clk.q = vqOf(clk.t); };
       for (let guard = 0; guard < 60; guard++) {
-        if (clk.t <= 0) return fin('CLOCK');
+        if (clk.t <= 0) { if (!lpOK || lpArm) return fin('CLOCK'); lpArm = true; }
         const needTD = clk.q >= 4 && lead + 3 <= 0 && clk.t < QS * 0.6;
         if (VN.fg && spot >= FL - VN.CPUFG && ((endHalf && clk.t < 14 && !needTD) || (dn === 4 && !needTD) || (suddenDeath && dn >= 3))) {
           const d = FL + EZ + 7 - spot; tick(5); plays++;
@@ -11382,10 +11397,10 @@ gl_FragColor=vec4(col,1.0);}`;
       // the player calls the defense first (a few seconds, then the suggested call is made for him), then the drive is played out
       cpuD = { r: null, start, c0: clock, t: 0, dur: 1, shown: false, el: el('div', 'bz-dcard'), pick: true };
       cpuD.el.style.setProperty('--oc', OPPCSS);
-      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `${NOFD ? '1st & Goal' : '1st & ' + FD} at their ${start} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, NOFD ? FL - start : FD, start, hs - as, qtr >= 4 && clock < 75] });
+      openDSheet({ arch: true, title: `${AWAY.name} ball · pick the plan`, sub: `${NOFD ? '1st & Goal' : '1st & ' + YD(FD)} at their ${YL(start)} · your defense for the drive`, T: 9, cur: DRAMA.arch || '', fn: chooseArch, situation: [1, NOFD ? FL - start : FD, start, hs - as, qtr >= 4 && clock < 75] });
       setControls(true);
-      say(`<b>${esc(AWAY.name)}</b> ball at their ${start}. Pick the plan for the drive.`);
-      voice.say('cpu_drive_start', { away: AWAY.name, spot: start === MID ? 'midfield' : 'the ' + start }, 1, 0.3);
+      say(`<b>${esc(AWAY.name)}</b> ball at their ${YL(start)}. Pick the plan for the drive.`);
+      voice.say('cpu_drive_start', { away: AWAY.name, spot: start === MID ? 'midfield' : 'the ' + YL(start) }, 1, 0.3);
     }
     // the drive plan (34-dsheet.js DARCH): every snap of the drive runs a call from it
     function chooseArch(id) {
@@ -11396,6 +11411,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (!d.el.isConnected) fx.appendChild(d.el);
       DEFP.left = DEFMODE === 'high' ? 2 + ((rng() * 3) | 0) : DEFMODE === 'medium' ? 1 + ((rng() * 2) | 0) : 0; DEFP.dnum = 0; // live snaps this drive: two to four (High), one or two (Medium); clutch time and the goal line are live anyway
       const clk = { q: qtr, t: clock }, log = [], r = simCpu(d.start, clk, log, { arch: A }, { key: defpKeyCheck });
+      if (r.lp) LP = 2; // the CPU's last play is in this drive
       d.log = log; d.arch = A;
       if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = FL; } // tests: force the drive's result
       CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
@@ -11425,14 +11441,14 @@ gl_FragColor=vec4(col,1.0);}`;
       const k = d.shown ? 1 : Math.min(1, d.t / d.dur), f = k * n, i = Math.min(n - 1, Math.floor(f));
       return { L, n, i, u: d.shown ? 1 : f - i, e: L[i] };
     }
-    const driveSpot = (sp) => (Math.round(sp) === MID ? 'midfield' : sp < MID ? 'their ' + Math.round(sp) : 'your ' + Math.round(FL - sp));
+    const driveSpot = (sp) => { const y = YL(sp); return y === MIDY ? 'midfield' : y < MIDY ? 'their ' + y : 'your ' + (FLY - y); };
     function playTxt(e, done) {
       if (e.k === 'fg') return done ? (e.good ? `${e.d}-yard field goal: GOOD` : `${e.d}-yard field goal: NO GOOD`) : `${e.d}-yard field goal try`;
       if (e.k === 'punt') return 'Punt';
       if (!done) return PLAYN[e.k] + '...';
       if (e.to) return e.to === 'INT' ? 'Intercepted!' : 'Fumble! Your ball';
       if (e.td) return `${PLAYN[e.k]}: TOUCHDOWN`;
-      const pass = e.k !== 'run', g = e.g;
+      const pass = e.k !== 'run', g = YD(e.g);
       if (pass && e.stop && g === 0) return 'Incomplete';
       if (g < 0) return pass ? `Sacked for ${-g}` : `Run, stuffed for ${-g}`;
       return `${PLAYN[e.k]} for ${g}` + (e.sp + g >= e.fd ? ' · first down' : '');
@@ -11472,13 +11488,13 @@ gl_FragColor=vec4(col,1.0);}`;
       }
       const P = drivePlay(d), q = (s) => d.el.querySelector(s);
       if (P && !d.shown) {
-        const e = P.e, togo = e.fd - e.sp, done = P.u > 0.8;
-        d.dd = e.k === 'fg' ? 'Field goal' : e.k === 'punt' ? '4th down' : `${ORD[Math.min(e.dn, 4)] || e.dn} & ${e.fd >= FL ? 'Goal' : Math.max(1, Math.round(togo))}`; d.ddAt = e.sp;
+        const e = P.e, lpT = e.lp ? 'LAST PLAY · ' : '', togo = e.fd - e.sp, done = P.u > 0.8;
+        d.dd = e.k === 'fg' ? 'Field goal' : e.k === 'punt' ? '4th down' : `${ORD[Math.min(e.dn, 4)] || e.dn} & ${e.fd >= FL ? 'Goal' : Math.max(1, YL(togo))}`; d.ddAt = e.sp;
         q('.mf-dd').innerHTML = `<b>${esc(d.dd)}</b> at ${esc(driveSpot(e.sp))}`;
-        q('.mf-lp').textContent = playTxt(e, done) + (e.call ? ` · vs ${callName(e.call)}` : '');
+        q('.mf-lp').textContent = lpT + playTxt(e, done) + (e.call ? ` · vs ${callName(e.call)}` : '');
       } else if (d.shown) { d.dd = null; q('.mf-dd').innerHTML = ''; q('.mf-lp').textContent = P ? playTxt(P.L[P.n - 1], true) : ''; }
-      q('.mf-st').innerHTML = `Plays <b>${n}</b> · Yards <b>${y}</b>`;
-      q('.mf-pl').innerHTML = `Started at their ${d.start} · your plan: <b>${esc(d.arch ? d.arch.name : callName(d.call))}</b>`;
+      q('.mf-st').innerHTML = `Plays <b>${n}</b> · Yards <b>${YD(y)}</b>`;
+      q('.mf-pl').innerHTML = `Started at their ${YL(d.start)} · your plan: <b>${esc(d.arch ? d.arch.name : callName(d.call))}</b>`;
       q('.mf-rs').innerHTML = (d.shown && r.kinds ? `<p style="margin:2px 0 0;font-size:12px;color:#9aa0ad">They ran: ${kindsTxt(r.kinds)}</p>` : '') +
         (d.shown ? `<p class="bz-dres" style="color:${res[1]}">${label}</p>${r.two ? `<p style="margin:4px 0 0;color:${r.two.good ? '#ff3344' : '#2bd46b'}">2-PT TRY ${r.two.good ? 'GOOD' : 'NO GOOD'}</p>` : ''}<p class="bz-dsc">${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}</p>` : '');
       drawField(d);
@@ -11520,6 +11536,11 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     function endQuarter(cont) {
       clockRun = false; clock = 0; boardDirty = true;
+      if (ONEC && qtr <= 4) { // one clock, no quarters: time is up, and the team with the ball gets one last (untimed) snap
+        qtr = 4;
+        if (LP === 0) { LP = 1; brkTo('LAST PLAY', 'Time is up · one more snap, then it\'s over', cont, 2.4); say('Time is up. <b>Last play</b>: one more snap, then the game is over.'); return; }
+        if (LP === 1) { cont(); return; } // still owed (a return or a try first): the snap comes next
+      }
       const sc = `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, vsc = { hs: n99(hs), as: n99(as), home: HOME.name, away: AWAY.name };
       if (qtr >= 4 && hs === as) voice.say('overtime', {}, 3); else if (qtr === 2) voice.say('halftime', vsc, 2); else if (qtr === 1) voice.say('end_q1', vsc, 2, 0.8); else if (qtr === 3) voice.say('end_q3', vsc, 2, 0.8);
       if (qtr >= 4) {
@@ -11542,6 +11563,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function clockTick(dt) {
       const before = clock; clock = Math.max(0, clock - dt);
       if (poss === 'home') TS.timeOfPoss += dt;
+      if (ONEC) vqSync();
       const wi = qtr === 2 ? 0 : qtr === 4 ? 1 : -1;
       if (wi >= 0 && !warned[wi] && before > WARN && clock <= WARN && clock > 0) { warned[wi] = true; if (phase === 'live' || phase === 'kick') warnPend = true; else twoMin(); }
       if (((before * 2) | 0) !== ((clock * 2) | 0)) boardDirty = true;
@@ -11550,7 +11572,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function callTimeout() {
       if (!canTimeout() || finished) return;
       toLeft--; clockRun = false; sfx.play('whistle'); playClock = PCL; voice.say('timeout', { team: HOME.name }, 1, 0.7);
-      banner('TIMEOUT', `${toLeft} left this half · clock stopped`, '#ffc21a'); say(`<b>${esc(HOME.name)}</b> call timeout.`);
+      banner('TIMEOUT', `${toLeft} left ${ONEC ? 'this game' : 'this half'} · clock stopped`, '#ffc21a'); say(`<b>${esc(HOME.name)}</b> call timeout.`);
       setControls(true);
     }
     const canTimeout = () => clockRun && toLeft > 0 && clock > 0 && ((phase === 'pre' || phase === 'dead') && poss === 'home' || !VS && (DEFP.on || phase === 'dcall') && (phase === 'dead' || phase === 'dcall' || phase === 'dpre')); // on defense too (live snaps against the CPU)
@@ -11587,7 +11609,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // or less from about half to about two thirds at Pro (38% to 55% at Legend) and cuts 21-point blowouts by two thirds, while
     // who wins hardly moves.
     const DRAMA = { streak: 0, fireOn: false, fires: 0, cpuStreak: 0, cpuHot: false, clutch: false, clutchShown: false, call: '', calls: {}, beatT: 0, flameT: 0, winners: 0, log: [] };
-    function gameProg() { const q = Math.min(qtr, 4); return clamp(((q - 1) * QS + (QS - clock)) / (QS * 4), 0, 1); }
+    function gameProg() { if (ONEC && qtr <= 4) return clamp((QS * 4 - clock) / (QS * 4), 0, 1); const q = Math.min(qtr, 4); return clamp(((q - 1) * QS + (QS - clock)) / (QS * 4), 0, 1); }
     function rubber() { if (DBG && DBG.noRubber) return 0; return clamp((hs - as) / 12, -1, 1) * (0.4 + 0.6 * gameProg()); }
     // nudges for the player's own close calls: up when he trails, down when he leads, plus the streak
     const dramaCatch = () => -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
@@ -12083,7 +12105,7 @@ gl_FragColor=vec4(col,1.0);}`;
         get avail() { return avail; }, set avail(v) { avail = v; }, get queue() { return q.length; }, get busy() { return !!cur; }, get stats() { return VST; }, get recent() { return recent; }, get pending() { return Object.keys(pending).length; }, get events() { return EV; },
       };
     })();
-    const yb = (n) => String(Math.max(1, Math.min(99, Math.round(Math.abs(+n || 0))))); // yards as the voice says them: 1 to 99, each its own clip
+    const yb = (n) => String(Math.max(1, Math.min(99, Math.round(Math.abs(+n || 0) * YDK)))); // (Metcalf: a red dash is 5 yards) // yards as the voice says them: 1 to 99, each its own clip
     const n99 = (n) => String(Math.max(0, Math.min(99, Math.round(+n || 0))));
     const spotTxt = (z) => (Math.round(z) === MID ? 'midfield' : 'the ' + (z < MID ? Math.round(z) : Math.round(FL - Math.round(z))));
     let VD0 = 0, VMIN = 0, VBLOW = false, VCOME = false;
@@ -12177,7 +12199,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // ---------- live play-by-play and the between-plays booth ----------
     function voiceLive(e, vars, chance) { return voice.say(e, vars, 4, chance); }
     const VI = { t: 0, prev: 0, idle: 0, last: -99, lastCat: '', cd: {}, sitKey: '', cpuKey: -1 };
-    const PERIOD = () => (qtr === 1 ? 'first quarter' : qtr === 2 ? 'second quarter' : qtr === 3 ? 'third quarter' : qtr === 4 ? 'fourth quarter' : 'overtime');
+    const PERIOD = () => (ONEC && qtr <= 4 ? 'game' : qtr === 1 ? 'first quarter' : qtr === 2 ? 'second quarter' : qtr === 3 ? 'third quarter' : qtr === 4 ? 'fourth quarter' : 'overtime');
     const cool = (e, s) => { const t = VI.cd[e]; return t == null || VI.t - t > s; };
     // the announcer fills quiet stretches between plays: situation, the drive, the clock and score, stat lines, perks, coaching talk and color
     function voiceIdle(dt) {
@@ -12718,6 +12740,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function step(dt) {
       if (DBG && DBG.bot) { try { DBG.bot(api, dt); } catch (e) { console.error(e); DBG.bot = null; } }
       if (finished) return;
+      if (ONEC) vqSync(); // one clock: keep the stretch of the game in step with it
       // Metcalf: somebody gets the ball back from over the fence (13-metpeople.js). Time out: nothing else in the game moves on
       if (phase === 'fetch') { metFetchStep(dt); return; }
       if (METCALF) metFetchWatch(); // Metcalf: has the ball gone over a fence?
@@ -14375,23 +14398,24 @@ gl_FragColor=vec4(col,1.0);}`;
     function updBug() {
       const pc = Math.ceil(playClock), running = clockRun || phase === 'live' || (phase === 'kick' && kick && kick.st === 'fly');
       const simDD = phase === 'cpu' && cpuD && cpuD.dd ? cpuD.dd + '@' + Math.round(cpuD.ddAt) : '';
-      const key = [hs, as, qtr, Math.ceil(clock), toLeft, poss, phase === 'pre' ? pc : '', down, Math.round(los * 2), fdz, tryMode, running, phase, DRAMA.fireOn, DRAMA.cpuHot, simDD].join('|');
+      const key = [hs, as, qtr, LP, Math.ceil(clock), toLeft, poss, phase === 'pre' ? pc : '', down, Math.round(los * 2), fdz, tryMode, running, phase, DRAMA.fireOn, DRAMA.cpuHot, simDD].join('|');
       if (key === bugCache) return; bugCache = key;
       bH.classList.toggle('fire', DRAMA.fireOn); bA.classList.toggle('fire', DRAMA.cpuHot);
       bH.querySelector('em').textContent = hs; bA.querySelector('em').textContent = as;
       bH.classList.toggle('pos', poss === 'home'); bA.classList.toggle('pos', poss === 'away');
       bH.querySelector('s').innerHTML = Array.from({ length: TOS }, (_, i) => `<u class="${i < toLeft ? '' : 'off'}"></u>`).join('');
-      bClk.querySelector('b').textContent = fmtClock(clock); bClk.querySelector('span').textContent = qtr > 4 ? (qtr > 5 ? 'OT' + (qtr - 4) : 'OT') : 'Q' + qtr;
+      bClk.querySelector('b').textContent = fmtClock(clock); bClk.querySelector('span').textContent = qtr > 4 ? (qtr > 5 ? 'OT' + (qtr - 4) : 'OT') : ONEC ? (LP && phase !== 'over' && phase !== 'box' ? 'LAST PLAY' : 'GAME') : 'Q' + qtr;
+      if (ONEC) bClk.classList.toggle('lp', !!LP && qtr <= 4);
       bClk.classList.toggle('run', running);
       bPc.textContent = phase === 'pre' ? pc : '';
       bPc.classList.toggle('low', phase === 'pre' && pc <= 5);
       const cpuBall = poss === 'away' || phase === 'cpu';
       // on defense: their down and distance, and the ball from your side of the field (a simulated drive: the snap on its card)
-      const theirSpot = (z) => (Math.round(z) === MID ? 'Midfield' : z < MID ? 'Their ' + Math.round(z) : 'Your ' + Math.round(FL - z));
+      const theirSpot = (z) => { const y = YL(z); return y === MIDY ? 'Midfield' : y < MIDY ? 'Their ' + y : 'Your ' + (FLY - y); };
       const liveD = DEFP.on || phase === 'dcall' || phase === 'dpre';
       bDD.innerHTML = cpuBall && simDD ? `<b>${esc(cpuD.dd)}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(cpuD.ddAt)}</span>` :
         cpuBall && liveD ? `<b>${ddTxt()}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(los)}</span>` :
-        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? '<b>Kickoff</b><span>Your kick</span>' : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, Math.round(FL - los)) : ballTxt(los)}</span>`;
+        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? '<b>Kickoff</b><span>Your kick</span>' : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, FLY - YL(los)) : ballTxt(los)}</span>`;
       const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
     }
     let sprintBtn = null, staCache = -1;
@@ -14466,7 +14490,7 @@ gl_FragColor=vec4(col,1.0);}`;
         btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
       } else if (phase === 'pat') {
         btn('bz-y', `Kick XP<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => chooseTry(false));
-        btn('', `Go for 2<small>one play from the ${VN.TWO}</small>${K('2')}`, () => chooseTry(true));
+        btn('', `Go for 2<small>one play from the ${YD(VN.TWO)}</small>${K('2')}`, () => chooseTry(true));
       } else if (phase === 'koc') {
         btn('bz-y', `Kick deep<small>they start at their ${TB}</small>${K('1')}`, () => chooseKo(false));
         btn('', `Onside kick<small>a long shot: stop the marker in the green</small>${K('2')}`, () => chooseKo(true));
@@ -14503,7 +14527,7 @@ gl_FragColor=vec4(col,1.0);}`;
       } else if (phase === 'live') {
         msg(carrier && carrier.side === 1 ? '<span>Interception! Chase him down…</span>' : kick && kick.type === 'ko' ? (kick.onside ? '<span>Onside kick · live ball once it goes 10 yards…</span>' : VN.koType === 'throw' ? '<span>Throw-off · get under it…</span>' : '<span>Kickoff · get under it…</span>') : ball && ball.st === 'loose' ? '<span>Ball is loose!</span>' : handed || play.type === 'run' ? '<span>Handoff…</span>' : '<span>…</span>');
       } else if (phase === 'kick') {
-        if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the ${VN.TWO}</small>${K('2')}`, () => switchTry(true));
+        if (kick.type === 'xp' && kick.st === 'power') btn('', `Go for 2 instead<small>one play from the ${YD(VN.TWO)}</small>${K('2')}`, () => switchTry(true));
         btn('bz-y bz-wide', `${kick.st === 'power' ? 'Set power' : kick.st === 'acc' ? 'Set aim' : 'Kicking…'}${K('SPACE')}`, kickTap, 'pointerdown');
       } else if (phase === 'dead') {
         const nxt = pend && pend.next; // after a score or a turnover the next snap is not this drive's
@@ -14801,9 +14825,9 @@ gl_FragColor=vec4(col,1.0);}`;
       const mine = VS ? Object.values(VS.flipped ? SQ2 : SQ) : Object.values(DEFP.flipped ? SQ2 : SQ), myK = VS && VS.flipped ? KR2 : KR; // head to head: only our own players
       const pl = mine.filter((q, i, A) => q.pid && ST[q.pid] && A.findIndex((x) => x.pid === q.pid) === i);
       const S = (q) => ST[q.pid];
-      const pass = rows(pl, (q) => S(q).passAtt ? `<tr><td>${esc(q.name)}</td><td>${S(q).passCmp}/${S(q).passAtt}</td><td>${S(q).passYds}</td><td>${S(q).passTD}</td><td>${S(q).passInt}</td><td>${S(q).sacked}</td></tr>` : '');
-      const rush = rows(pl, (q) => S(q).rushAtt ? `<tr><td>${esc(q.name)}</td><td>${S(q).rushAtt}</td><td>${S(q).rushYds}</td><td>${S(q).rushTD}</td><td>${S(q).long}</td></tr>` : '');
-      const recv = rows(pl, (q) => S(q).rec ? `<tr><td>${esc(q.name)}</td><td>${S(q).rec}</td><td>${S(q).recYds}</td><td>${S(q).recTD}</td><td>${S(q).yac}</td></tr>` : '');
+      const pass = rows(pl, (q) => S(q).passAtt ? `<tr><td>${esc(q.name)}</td><td>${S(q).passCmp}/${S(q).passAtt}</td><td>${YD(S(q).passYds)}</td><td>${S(q).passTD}</td><td>${S(q).passInt}</td><td>${S(q).sacked}</td></tr>` : '');
+      const rush = rows(pl, (q) => S(q).rushAtt ? `<tr><td>${esc(q.name)}</td><td>${S(q).rushAtt}</td><td>${YD(S(q).rushYds)}</td><td>${S(q).rushTD}</td><td>${YD(S(q).long)}</td></tr>` : '');
+      const recv = rows(pl, (q) => S(q).rec ? `<tr><td>${esc(q.name)}</td><td>${S(q).rec}</td><td>${YD(S(q).recYds)}</td><td>${S(q).recTD}</td><td>${YD(S(q).yac)}</td></tr>` : '');
       const kS = myK.pid && ST[myK.pid];
       const top = Math.round(TS.timeOfPoss), cTop = Math.round(CPUS.top);
       const box = el('div', 'bz-box', `
@@ -14812,7 +14836,7 @@ gl_FragColor=vec4(col,1.0);}`;
         ${VS ? `<p class="bz-vscoins">${vsCoinsTxt()}</p>` : ''}
         <div class="fs"><span style="color:${HOMECSS}">${esc(HOME.name)}</span>${hs}<span style="color:#6f7584">–</span>${as}<span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
         <h3>Team</h3><table><tr><th></th><th>${esc(HOME.abbr)}</th><th>${esc(AWAY.abbr)}</th></tr>
-        <tr><td>Total yards</td><td>${TS.yards}</td><td>${CPUS.yards}</td></tr><tr><td>Passing / rushing</td><td>${TS.passYds} / ${TS.rushYds}</td><td>–</td></tr>
+        <tr><td>Total yards</td><td>${YD(TS.yards)}</td><td>${YD(CPUS.yards)}</td></tr><tr><td>Passing / rushing</td><td>${YD(TS.passYds)} / ${YD(TS.rushYds)}</td><td>–</td></tr>
         <tr><td>Plays</td><td>${TS.plays}</td><td>${CPUS.plays}</td></tr>${NOFD ? '' : `<tr><td>First downs</td><td>${TS.firstDowns}</td><td>–</td></tr>`}
         ${NOFD ? '' : `<tr><td>3rd down</td><td>${TS.thirdDownConv}/${TS.thirdDownAtt}</td><td>–</td></tr>`}<tr><td>Turnovers</td><td>${TS.turnovers}</td><td>–</td></tr>
         <tr><td>Sacks allowed</td><td>${TS.sacks}</td><td>–</td></tr><tr><td>Time of possession</td><td>${fmtClock(top)}</td><td>${fmtClock(cTop)}</td></tr></table>
@@ -15119,7 +15143,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const splash = el('div', 'bz-splash', `
       <div class="bz-title">BLITZ 3D</div>
       <div class="bz-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
-      <div class="bz-goal">${opts.label ? esc(opts.label) : lvlName} · ${wxName}<br>4 quarters × <em>${fmtClock(QS)}</em> · clock stops between plays · <em>${TOS}</em> timeouts a half</div>
+      <div class="bz-goal">${opts.label ? esc(opts.label) : lvlName} · ${wxName}<br>${ONEC ? `One clock · <em>${fmtClock(QS * 4)}</em> · then a last play · clock stops between plays · <em>${TOS}</em> timeouts a game` : `4 quarters × <em>${fmtClock(QS)}</em> · clock stops between plays · <em>${TOS}</em> timeouts a half`}</div>
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}${ovrBadge(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       ${ovrPanel()}
       ${VS ? '' : `<div class="bz-dslide"><div class="bz-dslide-h"><b>Defense</b><span>how many of their snaps you play yourself</span></div><input type="range" min="0" max="4" step="1" value="${DEFMODES.indexOf(DEFMODE)}" aria-label="How much defense you play"><div class="bz-dslide-t">${DEFMODES.map((m) => `<i class="${m === DEFMODE ? 'on' : ''}">${DEFLBL[m][0]}</i>`).join('')}</div><p class="bz-dslide-d">${DEFLBL[DEFMODE][1]}</p></div>`}
