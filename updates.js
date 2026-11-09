@@ -287,6 +287,16 @@ const UPDATES = [
       "Double or Nothing and Double or Double at Metcalf: pick the true-size or the big field and two-hand touch if you want. The crowd is always on.",
     ],
   },
+  {
+    n: 26,
+    date: '2026-11-09',
+    title: 'Metcalf: a real CPU, and change the setup between run games',
+    items: [
+      "Double or Nothing and Double or Double: after each win you can change the next game's setup right on the win screen: where you play (The Stadium or Metcalf), the big field and two-hand touch at Metcalf, the time of day and the weather. It starts from your last game's choices; the crowd is always on at Metcalf in a run.",
+      "The CPU offense at Metcalf is a lot better: its quarterback sees the defender you're controlling and goes elsewhere, checks down or throws it away instead of forcing it, and throws more accurately. On defense you'll get picks far less often (they were coming almost every drive); a hand on the ball is usually a breakup now.",
+      "The CPU defense at Metcalf covers deep for real: deep balls on the small field get the full deep-coverage rules (counted in the yards you see, 5 per dash), and since nobody rushes before 7 banana, coverage tightens the longer you hold the ball.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
