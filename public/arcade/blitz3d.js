@@ -7340,9 +7340,9 @@ gl_FragColor=vec4(col,1.0);}`;
       // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
       // Metcalf, the CPU defending you: sure tacklers who rally to the ball, a step quicker the better the defense (31-mdef.js)
       if (mDef()) { MDS.pl++; const k = mdK(); for (const d of def) { d.tackle *= lerp(1.12, 1.25, k); d.v *= lerp(1.0, 1.02, k); } }
-      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.2, +(DBG && DBG.m7v1) || 1.28, k), tk = lerp(0.58, 0.48, k);
+      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), cl = clamp(1 - (as - hs) / 14, 0.15, 1.4), sp = 1 + (lerp(+(DBG && DBG.m7v0) || 1.12, +(DBG && DBG.m7v1) || 1.17, k) - 1) * cl, tk = 1 - (1 - lerp(0.72, 0.62, k)) * cl; // (cl: the CPU's edge shrinks when it leads, grows when it trails)
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
-        for (const d of def) { d.tackle *= tk; d.v *= lerp(0.9, 0.86, k); } }
+        for (const d of def) { d.tackle *= tk; d.v *= 1 - (1 - lerp(0.93, 0.9, k)) * cl; } }
       // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
       // a touch quicker and harder to bring down, the leading side's defense a step slower to react, more as the game gets late
       if (METCALF && !kick) { const ln = clamp(mLean(), -1.5, 1.5);
@@ -9091,7 +9091,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // enough (agg, cpuBrain) and he hangs in a beat longer for a man to come open downfield
     function m7Brain(k) {
       const behind = as < hs, late = gameProg() > 0.75, agg = behind ? (late ? 0.82 : 0.92) : 1;
-      return { err: lerp(0.35, 0.15, k), terr: lerp(0.1, 0.03, k), rd: lerp(0.4, 0.26, k), smart: rng() < 0.93 + 0.07 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
+      return { err: lerp(0.5, 0.25, k), terr: lerp(0.14, 0.05, k), rd: lerp(0.5, 0.34, k), smart: rng() < 0.85 + 0.12 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
     }
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
@@ -11624,7 +11624,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // stadium's gains cut to a third (yardK) left the CPU scoring on about one drive in twenty. Seven on seven there is a passing
     // game with room to run after the catch, so a gain keeps more of its length, more the better the CPU (CS): about a third of its
     // drives score at Rookie, over half at Legend. (The big field keeps the stadium's yards and first downs.)
-    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 1.3, +(DBG && DBG.myk1) || 1.0, clamp(CS, 0, 1)) : 0;
+    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 1.05, +(DBG && DBG.myk1) || 0.78, clamp(CS, 0, 1)) : 0;
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
       const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;
@@ -11655,7 +11655,7 @@ gl_FragColor=vec4(col,1.0);}`;
         else if (r < T.loss + T.big) g = 15 + Math.floor(rng() * 35);
         else if (r < T.loss + T.big + T.inc) { g = 0; stop = true; } // incomplete
         else g = Math.round(T.g * (0.2 + 1.6 * rng()));
-        if (MYK) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * MYK); // Metcalf's blacktop: 7 on 7 gains (MYK)
+        if (MYK) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * MYK * clamp(1 - (as - hs) / 21, 0.45, 1.3)); // Metcalf's blacktop (the drive's gains ease off when the CPU leads, grow when it trails): 7 on 7 gains (MYK)
         else if (VN.yardK !== 1) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * VN.yardK); // a shorter field: shorter gains
         if (MOPT.touch && g > 1) g = Math.round(g * TOUCH_YK); // two-hand touch: no yards after contact (no falling forward, no dragging tacklers)
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds

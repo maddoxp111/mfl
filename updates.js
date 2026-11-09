@@ -345,6 +345,14 @@ const UPDATES = [
       "The CPU offense at Metcalf is really good now: a sharp, accurate quarterback who finds the open man, faster receivers and backs, and drives that move the ball.",
     ],
   },
+  {
+    n: 32,
+    date: '2026-11-09',
+    title: 'Metcalf: close games',
+    items: [
+      "Metcalf: the CPU offense is toned down, and how good it plays now depends on the score: when it's ahead it eases off, when it's behind it pushes harder. Games should stay close at every level.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
