@@ -741,7 +741,7 @@ module.exports = function arcade(app, h) {
       if (!G) return next();
       const db = load();
       const name = currentUser(req);
-      if (name === 'mpedon') { try { await fixQuitRun(); } catch (e) {} }
+      if (name === 'mpedon') { try { await fixAll(); } catch (e) {} }
       const { user, acct } = await loadAccount(db, name);
       const fullLineup = !!user && myLineup(db, user).filter(Boolean).length === POSITIONS.length;
       const lineupOk = id !== 'bowl' || fullLineup;
@@ -981,8 +981,24 @@ module.exports = function arcade(app, h) {
     console.log('arcade fix', FLAG, m ? `refunded ${m.id} (run step ${m.run.step})` : 'no matching game');
     return true;
   }
+  // Second one-time fix (Nov 9): that run's game 4 got cashed out by accident; undo the cash-out so the choice is waiting again.
+  async function fixUncash() {
+    const name = 'mpedon', FLAG = 'dod-uncash-2026-11-09';
+    const user = await getDoc(userKey(name), { fresh: true });
+    if (!user || !Array.isArray(user.arcade)) return false;
+    if (user.fixes && user.fixes[FLAG]) return true;
+    const m = user.arcade.filter((x) => x.game === 'blitz3d' && x.run && x.run.mode === 'dod' && x.status === 'won' && x.run.cashedOut && Date.parse(x.at) > Date.parse('2026-11-09T00:00:00Z'))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+    const later = m ? user.arcade.filter((x) => x.run && x.run.id === m.run.id && x.run.step > m.run.step && x.status !== 'void') : [];
+    if (m && !later.length) { m.payout = 0; m.run.cashedOut = false; m.run.pending = true; m.run.rolled = false; delete m.run.auto; m.uncashed = { at: new Date().toISOString() }; }
+    user.fixes = Object.assign({}, user.fixes, { [FLAG]: m && !later.length ? { id: m.id, step: m.run.step, at: new Date().toISOString() } : { none: true, at: new Date().toISOString() } });
+    await putDoc(userKey(name), user);
+    console.log('arcade fix', FLAG, m && !later.length ? `uncashed ${m.id} (run step ${m.run.step})` : 'no matching game');
+    return true;
+  }
+  const fixAll = async () => (await fixQuitRun()) && (await fixUncash());
   let fixTries = 0;
-  const fixLoop = async () => { let done = false; try { done = await fixQuitRun(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
+  const fixLoop = async () => { let done = false; try { done = await fixAll(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
   setTimeout(fixLoop, 8000);
 
   return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, challengeDays, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData };
