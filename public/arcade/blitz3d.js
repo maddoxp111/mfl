@@ -5336,10 +5336,10 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
           else { W[J_TB] = 0.35; W[J_HP] = 0.6; W[J_LP] = W[J_RP] = 0.2; W[J_LE] = W[J_RE] = 0.2; W[J_AY] = 0; W[J_TY] = 0.4 * (r.v - 0.8); }
         } else if (r.k === 'ooh') {
           W[J_LP] = W[J_RP] = 2.3; W[J_LR] = W[J_RR] = 0.85; W[J_LE] = W[J_RE] = 2.35; W[J_AY] = 0; W[J_TB] = 0.15;
-        } else if (r.k === 'stomp') {
+        } else if (r.k === 'stomp') { // (no leg movement: it read as walking in place)
           // the same foot every beat (most stomp with their right), a quick low lift and a slam with a little dip: a knee-high lift
           // on a random foot each beat read as walking on the spot (the end-line rows face the camera)
-          if (!sitting) { const x = Math.min(1, u / r.d), up = x < 0.35 ? Math.sin(x / 0.35 * Math.PI / 2) : x < 0.55 ? Math.cos((x - 0.35) / 0.2 * Math.PI / 2) : 0, dip = x > 0.55 && x < 0.85 ? Math.sin((x - 0.55) / 0.3 * Math.PI) : 0, lf = (q.ph * 7.31) % 1 < 0.22;
+          if (false) { const x = Math.min(1, u / r.d), up = x < 0.35 ? Math.sin(x / 0.35 * Math.PI / 2) : x < 0.55 ? Math.cos((x - 0.35) / 0.2 * Math.PI / 2) : 0, dip = x > 0.55 && x < 0.85 ? Math.sin((x - 0.55) / 0.3 * Math.PI) : 0, lf = (q.ph * 7.31) % 1 < 0.22;
             W[lf ? J_LH : J_RH] = 0.3 * up; W[lf ? J_LK : J_RK] = 0.55 * up; W[J_LK] += 0.14 * dip; W[J_RK] += 0.14 * dip; W[J_LH] += 0.06 * dip; W[J_RH] += 0.06 * dip; wy = -0.02 * dip; }
         }
         for (let i = 0; i < 16; i++) T[i] += (W[i] - T[i]) * f; y += (wy - y) * f;
@@ -5420,7 +5420,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     const L = PPL.look, b = ball, tgt = FETCH.on && FETCH.lookAt ? FETCH.lookAt : b ? (b.holder ? [b.holder.x, 1, b.holder.z] : [b.x, b.y || 0, b.z]) : [0, 0, MID];
     L[0] += (tgt[0] - L[0]) * Math.min(1, dt * 4); L[1] = 1; L[2] += (tgt[2] - L[2]) * Math.min(1, dt * 4);
     // a home touchdown: the front rows rush in a few steps, then drift back
-    if (hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < (MOPT.big ? 0.35 : 0.7)) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
+    if (false && hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < (MOPT.big ? 0.35 : 0.7)) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
     PPL.hs0 = hs; PPL.as0 = as;
     const ex = excite, lean = (phase === 'pre' || phase === 'dpre' || phase === 'live') && PULSE.v > 0.5;
     // far LOD: whoever stands at home beyond farD is drawn by the far crowd's vertex shader and costs nothing here
@@ -7340,9 +7340,9 @@ gl_FragColor=vec4(col,1.0);}`;
       // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
       // Metcalf, the CPU defending you: sure tacklers who rally to the ball, a step quicker the better the defense (31-mdef.js)
       if (mDef()) { MDS.pl++; const k = mdK(); for (const d of def) { d.tackle *= lerp(1.12, 1.25, k); d.v *= lerp(1.0, 1.02, k); } }
-      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.1, +(DBG && DBG.m7v1) || 1.15, k), tk = lerp(0.72, 0.62, k);
+      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.16, +(DBG && DBG.m7v1) || 1.22, k), tk = lerp(0.62, 0.52, k);
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
-        for (const d of def) { d.tackle *= tk; d.v *= lerp(0.93, 0.89, k); } }
+        for (const d of def) { d.tackle *= tk; d.v *= lerp(0.9, 0.86, k); } }
       // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
       // a touch quicker and harder to bring down, the leading side's defense a step slower to react, more as the game gets late
       if (METCALF && !kick) { const ln = clamp(mLean(), -1.5, 1.5);
@@ -8610,11 +8610,11 @@ gl_FragColor=vec4(col,1.0);}`;
       if (deepK(ball) > 0) { d.findK = rng() < clamp(0.7 + 0.27 * clamp(KDEF, 0, 1) + ((d.agi || 60) - 60) / 400, 0.55, 0.97) ? 1 : 0; d.jErr = (rng() - 0.5) * 2 * lerp(0.2, 0.07, clamp(KDEF, 0, 1)); } else { d.findK = 0; d.jErr = 0; }
       let k;
       if (a.t === 'man' && a.tgt === target && target) {
-        if (inPhase(d, target) || (mDef() && dist(d, target) < 1.8 + 0.4 * mdK())) { d.inPh = 1; k = 0.9; }
+        if (inPhase(d, target) || (mDeepD() && dist(d, target) < 2.6 + 0.6 * mdK())) { d.inPh = 1; k = 0.9; }
         else { const arr = ball.cp ? ball.cp.t : 1; d.breakAt = tPlay + clamp(arr - 0.35, base * 1.1, base * 2.4); return; }
       } else if (a.t === 'man') k = 1.25; // his own man isn't the one: his back is to the throw
       else k = a.deep ? (d.even ? 1.2 : 0.85) : eyes > 0.45 ? 0.85 : eyes > -0.3 ? 1 : 1.25; // a deep zone bails with his eyes on the QB
-      d.breakAt = tPlay + base * k * (1.1 - aw * 0.2) * (mDef() ? lerp(0.92, 0.75, mdK()) : 1); // (Metcalf: eyes on the quarterback, a jump on the throw)
+      d.breakAt = tPlay + base * k * (1.1 - aw * 0.2) * (mDeepD() ? lerp(0.7, 0.45, mdK()) : 1); // (Metcalf: eyes on the quarterback, a jump on the throw)
     }
     // Metcalf, the CPU covering your receivers: nobody rushes until 7 banana (4.75 s), so the coverage has to hold that long. From
     // 2.2 s on the CPU's defenders stay stuck to their men (no lag behind the route, a zone defender sits on the man in his area,
@@ -8851,7 +8851,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const b = ball, cp = b.cp, tl = Math.max(0.02, cp.t), dd = Math.hypot(cp.x - d.x, cp.z - d.z);
       const canSee = tPlay >= (d.breakAt || 0);
       if (!canSee) return false;
-      const sp = effV(d) * (d.spdK || 1) * (mDef() ? 1.0 + 0.03 * mdK() : 1); // (Metcalf: a closing burst on the ball)
+      const sp = effV(d) * (d.spdK || 1) * (mDeepD() ? 1.05 + 0.07 * mdK() : 1); // (Metcalf: a closing burst on the ball)
       const arrive = dd / sp;
       staminaStep(d, dt, dd < 14);
       if (dd < 16 && arrive < tl + 0.2) {
@@ -8905,7 +8905,10 @@ gl_FragColor=vec4(col,1.0);}`;
     // Seven on seven on the blacktop with nobody rushing until 7 banana: five receivers against six in coverage, so the defense
     // has to win with technique, not numbers. Everything here runs only at Metcalf, only when the CPU defends you (not head to
     // head, not your own key defensive plays); the stadium never calls it.
-    const mDef = () => M7 && !VS && !DEFP.on;
+    // The owner asked for the old Metcalf defense back (Nov 9): the full CPU-defense package is off; only its deep-ball smarts stay,
+    // on deep throws (mDeepD: a pass the deep rules count as deep, the CPU defending the player)
+    const mDef = () => false;
+    const mDeepD = () => M7 && !VS && !DEFP.on && !!ball && deepK(ball) > 0;
     const mdK = () => clamp(KDEF, 0, 1);
     // what you have been doing this game (the defensive coordinator's notes): deep shots, the quick game, holding it past the
     // count, runs. Kept per game; the calls lean on the last plays more than the first ones.
@@ -9088,7 +9091,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // enough (agg, cpuBrain) and he hangs in a beat longer for a man to come open downfield
     function m7Brain(k) {
       const behind = as < hs, late = gameProg() > 0.75, agg = behind ? (late ? 0.82 : 0.92) : 1;
-      return { err: lerp(0.7, 0.3, k), terr: lerp(0.2, 0.06, k), rd: lerp(0.55, 0.36, k), smart: rng() < 0.75 + 0.25 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
+      return { err: lerp(0.45, 0.2, k), terr: lerp(0.12, 0.04, k), rd: lerp(0.45, 0.3, k), smart: rng() < 0.9 + 0.1 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
     }
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
@@ -10166,7 +10169,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function contestOf(r) {
       let best = null, bd = 9;
       for (const d of def) { if (d.rag || d.stun > 0 || d.eng) continue; const dd = Math.hypot(d.x - ball.x, d.z - ball.z); if (dd < bd) { bd = dd; best = d; } }
-      const R = mDef() ? 1.42 + 0.12 * mdK() : 1.35; // (Metcalf, the CPU covering you: a defender in phase gets a hand in from a step farther)
+      const R = mDeepD() ? 1.7 + 0.2 * mdK() : 1.35; // (Metcalf, the CPU covering you: a defender in phase gets a hand in from a step farther)
       return [best, clamp((R - bd) / R, 0, 1)];
     }
     // does the defender see the ball coming (it is not arriving over his back)?
@@ -10241,7 +10244,7 @@ gl_FragColor=vec4(col,1.0);}`;
       dif += WET * 0.05 + (b.wobA > 0.08 ? 0.03 : 0);                                    // a wet ball, a wobbling duck
       // a defender arriving with the ball: a hand in his face, and the hit at the catch point (worse in the air or laid out)
       const hit = dN ? clamp((Math.hypot(dN.vx, dN.vz) - 2) / 5, 0, 1) : 0;
-      dif += cf * (0.07 + 0.07 * KDX() + (mDef() ? 0.01 + 0.03 * mdK() : 0)) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
+      dif += cf * (0.07 + 0.07 * KDX() + (mDeepD() ? 0.05 + 0.08 * mdK() : 0)) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
       const crowd = crowdAt(r), [pkb, pks] = perkCatch(r, false);
       let p = 0.55 + r.cat * 0.0045 + pkb - dif;
       if (crowd >= 2) p *= Math.pow(CROWDK, crowd - 1);
@@ -11621,7 +11624,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // stadium's gains cut to a third (yardK) left the CPU scoring on about one drive in twenty. Seven on seven there is a passing
     // game with room to run after the catch, so a gain keeps more of its length, more the better the CPU (CS): about a third of its
     // drives score at Rookie, over half at Legend. (The big field keeps the stadium's yards and first downs.)
-    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 0.95, +(DBG && DBG.myk1) || 0.6, clamp(CS, 0, 1)) : 0;
+    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 1.15, +(DBG && DBG.myk1) || 0.85, clamp(CS, 0, 1)) : 0;
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
       const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;

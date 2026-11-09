@@ -318,6 +318,16 @@ const UPDATES = [
       "The Metcalf CPU defense is eased a lot: it was smothering every throw. Corners play off more, coverage only tightens late in a play, and it wins fewer jump balls.",
     ],
   },
+  {
+    n: 29,
+    date: '2026-11-09',
+    title: 'Metcalf: old defense back, tougher CPU offense',
+    items: [
+      "Metcalf: the old CPU defense is back (the newer one smothered everything); it just plays deep balls smarter: deep defenders stay with the receiver, find the ball sooner and close on it.",
+      "The CPU offense at Metcalf is a lot better: sharper, more accurate quarterback and quicker receivers and backs.",
+      "The Metcalf crowd stands still now: no more stepping in place or rushing in after a touchdown.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

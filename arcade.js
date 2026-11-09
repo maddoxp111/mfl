@@ -968,12 +968,12 @@ module.exports = function arcade(app, h) {
   // game is refunded as if it never happened (stake back) and the run goes back to the choice after the game before it, so the run
   // carries on from there. Runs once (flag on the account): at start-up (retrying until the account loads) and whenever he opens
   // the Arcade.
-  async function fixQuitRun() {
-    const name = 'mpedon', FLAG = 'dod-quit-2026-11-09c';
+  async function fixQuitRun(FLAG = 'dod-quit-2026-11-09c', SINCE = '2026-11-09T02:00:00Z') {
+    const name = 'mpedon';
     const user = await getDoc(userKey(name), { fresh: true });
     if (!user || !Array.isArray(user.arcade)) return false;
     if (user.fixes && user.fixes[FLAG]) return true;
-    const cands = user.arcade.filter((x) => x.game === 'blitz3d' && x.run && x.run.mode === 'dod' && (x.status === 'lost' || x.status === 'open') && !x.refund && Date.parse(x.at) > Date.parse('2026-11-09T02:00:00Z'));
+    const cands = user.arcade.filter((x) => x.game === 'blitz3d' && x.run && x.run.mode === 'dod' && (x.status === 'lost' || x.status === 'open') && !x.refund && Date.parse(x.at) > Date.parse(SINCE));
     const m = cands.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
     if (m) { if (m.status === 'open') m.status = 'lost'; refundMatch(user, m, 'quit: Metcalf defense too hard (admin fix)'); }
     user.fixes = Object.assign({}, user.fixes, { [FLAG]: m ? { id: m.id, step: m.run.step, at: new Date().toISOString() } : { none: true, at: new Date().toISOString() } });
@@ -996,7 +996,8 @@ module.exports = function arcade(app, h) {
     console.log('arcade fix', FLAG, m && !later.length ? `uncashed ${m.id} (run step ${m.run.step})` : 'no matching game');
     return true;
   }
-  const fixAll = async () => (await fixQuitRun()) && (await fixUncash());
+  // Third (Nov 9): the game 5 he played on after that (10:46 PM, Metcalf defense still too hard) is refunded the same way.
+  const fixAll = async () => (await fixQuitRun()) && (await fixUncash()) && (await fixQuitRun('dod-quit-2026-11-09e', '2026-11-09T04:40:00Z'));
   let fixTries = 0;
   const fixLoop = async () => { let done = false; try { done = await fixAll(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
   setTimeout(fixLoop, 8000);
