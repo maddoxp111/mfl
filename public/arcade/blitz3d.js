@@ -818,7 +818,7 @@ if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11||s==24){ // fabrics: wove
 }
 if(s==2||s==9){mode=1;rough=mix(0.55,0.3,uSweat);specOcc=0.6+0.5*uSweat;if(s==9){ // face: photo blended into skin at the edges
   vec2 q=(vT-uFaceUV.xy)/uFaceUV.zw;float m=1.0-smoothstep(0.44,0.8,length((q-vec2(0.5,0.5))*vec2(1.0,0.8))*2.0);base=mix(toLin(uCol[2]),base,m*t.a);}}
-if(s==25){mode=1;rough=mix(0.6,0.38,uSweat);specOcc=0.55+0.4*uSweat;}
+if(s==25){rough=0.92;specOcc=0.1;base*=0.8;} // scanned heads: their texture already holds the photo's light, so matte with no skin sheen
 if(s==18){ // eyes: sclera with an iris that looks along uGaze
   float g=dot(N,normalize(uGaze));float ir=smoothstep(0.80,0.86,g),pu=smoothstep(0.955,0.965,g);
   base=mix(vec3(0.78,0.72,0.68),mix(c*0.5,c*0.15,smoothstep(0.86,0.95,g)),ir);base=mix(base,vec3(0.01),pu);rough=0.08;specOcc=2.5;}
@@ -834,7 +834,7 @@ if(s==23){ // hair: fine streaks along the strands, soft sheen
   float a=atan(vP.x,vP.z);float st=noise(vec2(a*34.0,vP.y*70.0))*0.6+noise(vec2(a*90.0,vP.y*160.0))*0.4;base*=0.72+0.5*st;rough=0.5;specOcc=0.55;}
 if(s==15){rough=0.05;base=mix(base,vec3(0.02,0.025,0.03),0.7);alpha=uAlpha;specOcc=2.0;metal=0.3;}
 if(s==20){rough=0.9;}
-if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9||s==25)){rough=mix(rough,0.18,uWet*0.5);}
+if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
 // card effects (uFx: mode, strength, time, seed; uFxC: colour)
 vec3 emis=vec3(0.0);float fm=uFx.x,fk=uFx.y,ft=uFx.z;
 if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23||s==25);
