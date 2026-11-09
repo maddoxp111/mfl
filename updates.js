@@ -297,6 +297,18 @@ const UPDATES = [
       "The CPU defense at Metcalf covers deep for real: deep balls on the small field get the full deep-coverage rules (counted in the yards you see, 5 per dash), and since nobody rushes before 7 banana, coverage tightens the longer you hold the ball.",
     ],
   },
+  {
+    n: 27,
+    date: '2026-11-09',
+    title: 'Metcalf: real defense, close games',
+    items: [
+      "Metcalf: the CPU defense covers much tighter. No free hitches against soft zones, the running back is covered, corners line up closer, deep safeties come down on short routes, and defenders break on the ball sooner. Runs and catches get swarmed with better angles and surer tackles.",
+      "The Metcalf CPU defense learns what you run: deep shots get two deep safeties, quick throws get press man, holding the ball gets a blitz on 7 banana, and a lot of runs gets a stacked box.",
+      "Close games at Metcalf: the comeback logic works there now. Whoever is behind gets a lift that grows late in the game, and a big lead gets harder to keep, so games stay closer and swing more.",
+      "The CPU offense at Metcalf picks plays that beat the defense you called and gets more aggressive late when it's behind.",
+      "Fixed: a harder level was making your own defenders better at interceptions on Metcalf key plays. Now the harder level helps the CPU, not you.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

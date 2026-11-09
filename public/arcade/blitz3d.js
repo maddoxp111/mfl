@@ -7194,6 +7194,7 @@ gl_FragColor=vec4(col,1.0);}`;
       // they've seen you go deep over and over: two deep (quarters, Cover 2, or Cover 3 with the corners bailing), no all-out blitz
       if (FILM.heat > 0 && !(DBG && DBG.defKind != null) && !tryMode && rng() < FILM.heat * 0.9) { const r = rng(), cov = r < 0.45 ? 4 : r < 0.8 ? 2 : 3; return { cov, blitz: 0, stunt: rng() < 0.15, disguise: rng() < DP.disguise, name: COVN[cov], film: true }; }
       if (DBG && DBG.defKind != null) return /^c[0-4]$/.test(DBG.defKind) ? { cov: +DBG.defKind[1], blitz: DBG.defKind === 'c0' ? 2 : 0, stunt: false, disguise: false, name: COVN[+DBG.defKind[1]] } : DEFK(DBG.defKind); // tests
+      if (mDef() && !tryMode) return mdCall(); // Metcalf 7 on 7 against you: its own calls, adapting to what you run (31-mdef.js)
       const togo = fdz - los, rz = los >= FL - VN.RZ - 2;
       let w;
       if (KDEF < 0.25) w = [0, 0.08, 0.35, 0.57, 0];
@@ -7233,6 +7234,12 @@ gl_FragColor=vec4(col,1.0);}`;
       else if (c === 2) Object.assign(A, { CB1: Z_(-16, 4), CB2: Z_(16, 4), FS: Z_(-10, 20, 1), SS: Z_(10, 20, 1), LBM: Z_(-6, 9), LBS: Z_(6, 9) });
       else if (c === 3) Object.assign(A, { CB1: Z_(-16, 20, 1), CB2: Z_(16, 20, 1), FS: Z_(0, 23, 1), SS: Z_(sgn * 13, 6), LBS: Z_(sgn * 4, 9), LBM: Z_(-sgn * 11, 6) });
       else Object.assign(A, { CB1: Z_(-17, 18, 1), FS: Z_(-6, 21, 1), SS: Z_(6, 21, 1), CB2: Z_(17, 18, 1), LBM: Z_(-8, 7), LBS: Z_(8, 7) });
+      // (the CPU defending you: in two-deep the middle linebacker takes the back out of the backfield man to man; the lineman's
+      // short-middle rat covers the hook he leaves until 7 banana, 31-mdef.js)
+      // and in three-deep or quarters the corners match the outside receivers man to man with the safeties over the top (soft deep
+      // thirds on the blacktop handed every hitch and out to the outside man)
+      if (mDef() && (c === 2 || c === 4) && !dk && mdK() > 0.2) A.LBM = man('RB');
+      if (mDef() && (c === 3 || c === 4) && !dk && mdK() > 0.2) Object.assign(A, { CB1: man('X'), CB2: man('Z') });
       if (dk === 'prev') Object.assign(A, { CB1: Z_(-16, 22, 1), CB2: Z_(16, 22, 1), FS: Z_(-6, 28, 1), SS: Z_(6, 28, 1), LBM: Z_(-8, 10), LBS: Z_(8, 10) }); // four deep, two under
       else if (dk === 'spy') A.LBM = { t: 'spy' };
       else if (dk === 'box') Object.assign(A, { LBM: Z_(0, 3.5), FS: Z_(0, 17, 1) });
@@ -7267,7 +7274,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (isRunPlay(play)) for (const k of ['X', 'Z', 'S', 'Y']) if (k !== RK && (!play.routes[k] || play.routes[k] === 'B')) { OK[k].R = null; OK[k].blk = 'block'; }
       filmPrep(); // has the defense seen this play (and this receiver) too often?
       dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
-      const sgn = OK.Y.x >= 0 ? 1 : -1, cush = DP.cush;
+      const sgn = OK.Y.x >= 0 ? 1 : -1, cush = mdCush();
       const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
       const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
       if (M7) { // 7 on 7: one down lineman shaded on the center, the middle linebacker stacked to the weak side behind him
@@ -7329,14 +7336,16 @@ gl_FragColor=vec4(col,1.0);}`;
       }
       // Metcalf's key defensive plays: four downs to go the whole blacktop (no first downs), so the CPU's 7-on-7 offense has to make
       // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
+      // Metcalf, the CPU defending you: sure tacklers who rally to the ball, a step quicker the better the defense (31-mdef.js)
+      if (mDef()) { MDS.pl++; const k = mdK(); for (const d of def) { d.tackle *= lerp(1.3, 1.45, k); d.v *= lerp(1.0, 1.05, k); } }
       if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.1, +(DBG && DBG.m7v1) || 1.15, k), tk = lerp(0.72, 0.62, k);
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
         for (const d of def) { d.tackle *= tk; d.v *= lerp(0.93, 0.89, k); } }
       // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
       // a touch quicker and harder to bring down, the leading side's defense a step slower to react, more as the game gets late
       if (METCALF && !kick) { const ln = clamp(mLean(), -1.5, 1.5);
-        for (const p of off) if (p.role !== 'OL') p.v *= 1 + 0.05 * ln;
-        for (const d of def) { d.tackle *= clamp(1 - 0.26 * ln, 0.55, 1.45); d.lagK *= clamp(1 + 0.26 * ln, 0.65, 1.4); d.v *= 1 - 0.04 * ln; } }
+        for (const p of off) if (p.role !== 'OL') p.v *= 1 + 0.07 * ln;
+        for (const d of def) { d.tackle *= clamp(1 - 0.34 * ln, 0.45, 1.5); d.lagK *= clamp(1 + 0.34 * ln, 0.6, 1.55); d.v *= 1 - 0.055 * ln; } }
       // the offense tackles too once the defense has the ball (an interception or fumble return): the same rating as the defense
       // (no roll, so the play's random sequence is unchanged)
       // (at the easy levels the CPU defense tackles poorly, but a returner still goes down when they get to him)
@@ -8078,7 +8087,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const dbl = helped(d), hk = dbl ? 0.4 : 1;
       const pow = (d.str - 50) / 55 + ((d.mass || 1) - 1) * 0.7, anc = (b.str - 50) / 55 + ((b.mass || 1) - 1) * 0.7;
       // yards a second he walks the blocker back: a bull rush by how much stronger he is, any other rush just leans on him
-      let give = clamp(0.3 + (pow - anc) * 0.8, 0.05, 1.3) * (d.rm === 'bull' ? 1 : 0.35) * hk * (d.engT < 0.35 ? 0.35 : 1);
+      let give = clamp(0.3 + (pow - anc) * 0.8, 0.05, 1.3) * (d.rm === 'bull' ? 1 : 0.35) * hk * (d.engT < 0.35 ? 0.35 : 1) * (mDef() ? 1.6 + 0.8 * mdK() : 1); // (Metcalf: one rusher on one center, he drives him)
       if (b.pkStout) give = 0;
       let vx = gx * give, vz = gz * give, bk = 0.97;
       if (d.rm === 'speed') {
@@ -8092,7 +8101,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (d.cor < -0.9 || d.z < qb.z - 0.5) { d.rm = 'bull'; d.cor = 0; } // run past the pocket: he has to come back inside with power
       } else if (d.rm !== 'bull' && d.engT >= d.rmT) {
         // the hands: a swim over or a rip under, by quickness against the blocker's feet
-        const p = clamp(0.04 + (d.agi - b.agi - 12) / 80 + (d.str - b.str) / 250 + (KDEF - 0.5) * 0.16 - d.rmN * 0.04, 0.03, 0.5) * (dbl ? 0.35 : 1);
+        const p = clamp(0.04 + (d.agi - b.agi - 12) / 80 + (d.str - b.str) / 250 + (KDEF - 0.5) * 0.16 - d.rmN * 0.04 + (mDef() ? 0.12 + 0.18 * mdK() : 0), 0.03, 0.6) * (dbl ? 0.35 : 1);
         if (rng() < p) { beatBlock(d, b, d.rm); return; }
         d.rmN++; d.rmT = d.engT + 0.65 + rng() * 0.7; if (d.rmN >= 2) d.rm = 'bull'; // stuffed: reset, then try to walk him back
       }
@@ -8459,6 +8468,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const qb = OK.QB || { x: 0, z: los - 5 };
       const runMode = runSeen >= 0;
       if (thrown && ball && ball.kind === 'pass' && ball.st === 'air' && !ball.dRead) { ball.dRead = 1; for (const d of def) throwRead(d, qb); } // the ball is out: who sees it, and how soon
+      const md = mDef(); if (md) mdWatch();
       for (const d of def) {
         d.face2 = null;
         if (d.flipT > 0) d.flipT -= dt;
@@ -8472,12 +8482,12 @@ gl_FragColor=vec4(col,1.0);}`;
         if (ball && ball.st === 'loose') { steer(d, ball.x, ball.z, effV(d), dt, 9); continue; }
         if (carrier && d.koSafe && kick && kick.type === 'ko' && carrier.side === 0 && koSafety(d, dt)) continue;
         if (carrier) {
-          const readT = (d.role === 'DL' ? 0 : d.role === 'LB' ? DP.read : DP.read * 1.2) * (dcall && dcall.kind === 'box' ? 0.45 : 1); // a stacked box reads the run fast
+          const readT = (d.role === 'DL' ? 0 : d.role === 'LB' ? DP.read : DP.read * 1.2) * (dcall && dcall.kind === 'box' ? 0.45 : 1) * (md ? lerp(0.5, 0.35, mdK()) : 1); // a stacked box reads the run fast (Metcalf: fits the run at once)
           if (!runMode || tPlay - runSeen > readT || dist(d, carrier) < 4 || carrier.z > los + 1) { pursue(d, dt); continue; }
         }
         if (thrown && ball && ball.st === 'air') { if (playBall(d, dt)) continue; }
         const a = d.ass || { t: 'rush' };
-        if (a.t === 'rush') { rushQB(d, dt); continue; }
+        if (a.t === 'rush') { if (md && banHeld()) mdLurk(d, dt, qb); else rushQB(d, dt); continue; }
         if (a.t === 'spy') { spyQB(d, dt); continue; }
         if (a.t === 'bracket') { bracketCover(d, dt); continue; }
         // play-action: the linebackers bite; with eight in the box the strong safety bites too (and the corners peek: see setupPlay)
@@ -8513,16 +8523,16 @@ gl_FragColor=vec4(col,1.0);}`;
       if (deepK(ball) > 0) { d.findK = rng() < clamp(0.7 + 0.27 * clamp(KDEF, 0, 1) + ((d.agi || 60) - 60) / 400, 0.55, 0.97) ? 1 : 0; d.jErr = (rng() - 0.5) * 2 * lerp(0.2, 0.07, clamp(KDEF, 0, 1)); } else { d.findK = 0; d.jErr = 0; }
       let k;
       if (a.t === 'man' && a.tgt === target && target) {
-        if (inPhase(d, target)) { d.inPh = 1; k = 0.9; }
+        if (inPhase(d, target) || (mDef() && dist(d, target) < 2.6 + 0.6 * mdK())) { d.inPh = 1; k = 0.9; }
         else { const arr = ball.cp ? ball.cp.t : 1; d.breakAt = tPlay + clamp(arr - 0.35, base * 1.1, base * 2.4); return; }
       } else if (a.t === 'man') k = 1.25; // his own man isn't the one: his back is to the throw
       else k = a.deep ? (d.even ? 1.2 : 0.85) : eyes > 0.45 ? 0.85 : eyes > -0.3 ? 1 : 1.25; // a deep zone bails with his eyes on the QB
-      d.breakAt = tPlay + base * k * (1.1 - aw * 0.2);
+      d.breakAt = tPlay + base * k * (1.1 - aw * 0.2) * (mDef() ? lerp(0.7, 0.45, mdK()) : 1); // (Metcalf: eyes on the quarterback, a jump on the throw)
     }
     // Metcalf, the CPU covering your receivers: nobody rushes until 7 banana (4.75 s), so the coverage has to hold that long. From
     // 2.2 s on the CPU's defenders stay stuck to their men (no lag behind the route, a zone defender sits on the man in his area,
     // a little closing burst); a step won early is still a step
-    const metStick = () => (METCALF && !VS && !DEFP.on && !thrown ? clamp((tPlay - 2.2) / 1.2, 0, 1) : 0);
+    const metStick = () => (METCALF && !VS && !DEFP.on && !thrown ? Math.max(mdStick0(), clamp((tPlay - 2.2) / 1.2, 0, 1)) : 0); // (31-mdef.js: tight from the snap)
     function manCover(d, dt) {
       const r = d.ass.tgt, mk = metStick();
       if (!r) { zoneCover(d, dt); return; }
@@ -8530,7 +8540,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (r.R && !thrown && !(r.blk === 'chip' && tPlay < r.R.blk)) {
         const lag = DP.lag * d.lagK * (1 - 0.75 * mk), q = posAt(r.R, Math.max(0, (r.rtT != null ? r.rtT : tPlay - (r.jam || 0)) - lag + (d.read || 0))); // where the receiver really is on his route; read: he knows where it's going
         const k = Math.max(0, 1 - tPlay / 1.6), sp = Math.hypot(q.vx, q.vz) || 1;
-        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + (SMALL ? DZ(DP.cush + (d.bail || 0) * 3) : DP.cush + (d.bail || 0) * 3) * k - (q.vz / sp) * 0.5 * (1 - k);
+        tx = q.x - r.R.s * 0.4 - (q.vx / sp) * 0.5; tz = q.z + (SMALL ? DZ(mdCush() + (d.bail || 0) * 3) : mdCush() + (d.bail || 0) * 3) * k - (q.vz / sp) * 0.5 * (1 - k);
       } else { tx = r.x; tz = r.z + 1.2; }
       // a vertical route: once the receiver is even with him or by him going upfield, he opens his hips and runs with him, aimed at
       // his inside hip (not where the route was a beat ago) at a sprint, and a good corner has a closing gear: he stays in phase,
@@ -8540,7 +8550,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (SMALL) tz = Math.min(tz, ZEND - 0.3); // nobody covers from behind the end line
       staminaStep(d, dt, vert || dist(d, r) > 2.5 && tPlay > 1);
       // a corner who got beaten (lost the jam, came up on a fake) can't make the step back up: no faster than the man he chases
-      let spd = effV(d) * d.spdK * (vert && !d.beaten ? 1.02 + 0.07 * KDEF : 1) * (1 + 0.06 * mk);
+      let spd = effV(d) * d.spdK * (vert && !d.beaten ? 1.02 + 0.07 * KDEF : 1) * (1 + (0.06 + 0.05 * (mDef() ? mdK() : 0)) * mk);
       if (vert) { runFace(d, tx - d.x, Math.max(1, tz - d.z), true); if (d.flipT > 0) spd *= 0.8; } else runFace(d, 0, 0, false);
       steer(d, tx, tz, vert && d.beaten ? Math.min(spd, Math.hypot(r.vx, r.vz) * 0.97) : spd, dt, vert ? 10 : 8);
     }
@@ -8559,7 +8569,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // the quarterback's eyes: a defender in the area of a long stare drifts toward where he is looking
     function eyesPull(d, t) {
       if (!(aim && aim.spot && aim.dur > 0.25)) return;
-      const s = DP.stare * clamp((aim.dur - 0.25) / 1.2, 0, 1) * (Math.hypot(aim.spot.x - d.x, aim.spot.z - d.z) < 14 ? 1 : 0.3);
+      const s = Math.min(0.9, DP.stare * clamp((aim.dur - 0.25) / 1.2, 0, 1) * (Math.hypot(aim.spot.x - d.x, aim.spot.z - d.z) < 14 ? 1 : 0.3) * (mDef() ? 1.6 + 0.6 * mdK() : 1)); // (Metcalf: the zones read the eyes hard)
       t[0] = lerp(t[0], aim.spot.x, s * 0.55); t[1] = lerp(t[1], aim.spot.z, s * 0.4);
     }
     const zt = [0, 0];
@@ -8578,13 +8588,13 @@ gl_FragColor=vec4(col,1.0);}`;
         if (Math.abs(r.vx) > 3.5 && Math.abs(dx) > 8 && dx * r.vx > 0) continue; // a crosser on his way out of the zone: passed on
         // the flat defender (a short zone out wide) owns everything outside him and short, out to the sideline, widest first
         const dd = Math.hypot(dx, dz * 1.25), flat = SMALL ? Math.abs(Sx) >= 8 && r.x * Lx > 0 && Math.abs(LXI(r.x)) > Math.abs(Sx) - 1 && dz < 7 : Math.abs(Lx) >= 8 && r.x * Lx > 0 && Math.abs(r.x) > Math.abs(Lx) - 1 && r.z < Lz + 7;
-        if (dd > 8.5 && !flat) continue;
+        if (dd > (mDef() ? 10.5 + 1.5 * mdK() : 8.5) && !flat) continue; // (Metcalf: six cover five, a zone reaches farther to find his man)
         const s = flat ? Math.abs(dz) * 0.5 + 1 : dd;
         if (s < bs) { bs = s; best = r; }
       }
       let carry = false;
       if (best) {
-        const mk = metStick(), k = Math.min(1, DP.zoneTight * (SMALL ? lerp(VPL.zoneK[0], VPL.zoneK[1], clamp(KDEF, 0, 1)) : 1) * (d.read ? 1.25 : 1) * (1 + 0.6 * mk)), bp = d.read && best.R ? posAt(best.R, tPlay + d.read) : best; // read: undercut where it's going
+        const mk = metStick(), k = Math.min(1, DP.zoneTight * (SMALL ? lerp(VPL.zoneK[0], VPL.zoneK[1], clamp(KDEF, 0, 1)) : 1) * (d.read ? 1.25 : 1) * (1 + 0.6 * mk) * (mDef() ? 1.35 + 0.35 * mdK() : 1)), bp = d.read && best.R ? posAt(best.R, tPlay + d.read) : best; // read: undercut where it's going
         tx = lerp(Lx, bp.x, k); tz = lerp(Lz, bp.z - 0.5, k * 0.9);
         if (!flatMan && best.vz > 3.8 && best.z > los + 4 && best.z < los + DZ(15)) { // a seam through the hook: carry him, inside and under
           const inside = best.x > 0 ? -1 : 1; tx = best.x + inside * 0.8; tz = Math.min(best.z - 0.6, los + DZ(15)); carry = true;
@@ -8626,10 +8636,11 @@ gl_FragColor=vec4(col,1.0);}`;
         tx = lerp(Lx, bx0, mid ? 0.65 : half ? 0.85 : 0.88); if (!mid) tx = SMALL ? (Lx < 0 ? Math.min(tx, LX(Sx + lim)) : Math.max(tx, LX(Sx - lim))) : Lx < 0 ? Math.min(tx, Lx + lim) : Math.max(tx, Lx - lim);
         tz = Math.max(Lz - 3, best.z + cush); // just over the top of the deepest one, matched across
         if (best.z > d.z - 1 && best.vz > 3) d.even = 1;
-      } else if (mid && tPlay > 2 && KDEF > 0.4 && dcall && (dcall.cov === 1 || dcall.cov === 3) && !dcall.kind) {
+      } else if ((mid && tPlay > 2 && KDEF > 0.4 && dcall && (dcall.cov === 1 || dcall.cov === 3) && !dcall.kind) || (mDef() && tPlay > 0.9 - 0.4 * mdK() && !prev)) { // (Metcalf: any deep man with nothing deep comes down on a route)
+        const mdR = mDef() && !prev;
         let o = null, od = 1e9;
-        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag) continue; const dz = SMALL ? DZI(r.z - los) : r.z - los, dx = Math.abs(SMALL ? LXI(r.x) - Sx : r.x - Lx); if (dz < 6 || dz > 18 || dx > 14) continue; const s = dx + Math.abs(dz - 12); if (s < od) { od = s; o = r; } }
-        if (o) { tx = lerp(Lx, o.x, 0.55); tz = Math.max(o.z + 3, los + DZ(11)); rob = true; }
+        for (const r of off) { if (!ZR[r.key] || !r.R || r.rag) continue; const dz = SMALL ? DZI(r.z - los) : r.z - los, dx = Math.abs(SMALL ? LXI(r.x) - Sx : r.x - Lx); if (dz < (mdR ? 2.5 : 6) || dz > 18 || dx > 14) continue; const s = dx + Math.abs(dz - (mdR ? 8 : 12)); if (s < od) { od = s; o = r; } }
+        if (o) { tx = lerp(Lx, o.x, mdR ? 0.8 : 0.55); tz = mdR ? o.z + 1.4 + (d.bail || 0) * 1.5 : Math.max(o.z + 3, los + DZ(11)); rob = true; } // (Metcalf: right on top of the short route)
       }
       if (SMALL) { tx = clamp(tx, -(HW - 0.6), HW - 0.6); tz = Math.min(tz, ZEND - 0.5); }
       const threat = best && best.vz > 4 && best.z > d.z - 7;
@@ -8699,7 +8710,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const dd = dist(d, c);
       // the open field after a catch (a run fit at and through the line keeps playing its gaps and the cutback the old way, and a
       // return is the kick coverage's lane race)
-      const live = !!carrier && !carrier.rag && !kick && c.side === 0 && !!(pr && pr.caught);
+      const live = !!carrier && !carrier.rag && !kick && c.side === 0 && (!!(pr && pr.caught) || (mDef() && carrier.z > los + 1)); // (Metcalf: a runner through the line gets the open-field angles too)
       staminaStep(d, dt, live ? dd > 1.5 : dd < 11 && dd > 1.5); // rally to the ball: everybody runs, not just the men near him
       const sp = effV(d) * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1);
       const cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz);
@@ -8753,7 +8764,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const b = ball, cp = b.cp, tl = Math.max(0.02, cp.t), dd = Math.hypot(cp.x - d.x, cp.z - d.z);
       const canSee = tPlay >= (d.breakAt || 0);
       if (!canSee) return false;
-      const sp = effV(d) * (d.spdK || 1);
+      const sp = effV(d) * (d.spdK || 1) * (mDef() ? 1.05 + 0.07 * mdK() : 1); // (Metcalf: a closing burst on the ball)
       const arrive = dd / sp;
       staminaStep(d, dt, dd < 14);
       if (dd < 16 && arrive < tl + 0.2) {
@@ -8803,6 +8814,61 @@ gl_FragColor=vec4(col,1.0);}`;
       staminaStep(c, dt, true);
       steerDir(c, ux / l, uz / l, effV(c) * 1.02, dt, 8);
     }
+    // ---------- Metcalf: the CPU defense against your offense ----------
+    // Seven on seven on the blacktop with nobody rushing until 7 banana: five receivers against six in coverage, so the defense
+    // has to win with technique, not numbers. Everything here runs only at Metcalf, only when the CPU defends you (not head to
+    // head, not your own key defensive plays); the stadium never calls it.
+    const mDef = () => M7 && !VS && !DEFP.on;
+    const mdK = () => clamp(KDEF, 0, 1);
+    // what you have been doing this game (the defensive coordinator's notes): deep shots, the quick game, holding it past the
+    // count, runs. Kept per game; the calls lean on the last plays more than the first ones.
+    const MDS = { n: 0, deep: 0, quick: 0, hold: 0, run: 0, sk: -1, pl: 0 };
+    function mdNote(kind) {
+      for (const k of ['deep', 'quick', 'hold', 'run']) MDS[k] *= 0.88;
+      MDS.n = MDS.n * 0.88 + 1;
+      if (kind) MDS[kind] += 1;
+    }
+    // once per snap: what kind of play you ran (read from the live play, nothing stored on the players)
+    function mdWatch() {
+      if (!mDef() || kick || phase !== 'live') return;
+      if (MDS.sk === MDS.pl) return;
+      if (thrown && ball && ball.kind === 'pass') {
+        const air = (ball.air != null ? ball.air : 8) * YDK;
+        MDS.sk = MDS.pl; mdNote(air >= 16 ? 'deep' : tPlay < 2.1 ? 'quick' : tPlay > 4.2 ? 'hold' : null);
+      } else if (runSeen >= 0) { MDS.sk = MDS.pl; mdNote('run'); }
+      else if (tPlay > BAN_T + 0.4 && !thrown) { MDS.sk = MDS.pl; mdNote('hold'); }
+    }
+    // the call. Cover 1 (a man on every receiver, a free safety over the top) is the 7-on-7 base; the better the defense, the
+    // more man and the fewer soft zones. Then the notes: deep shots bring two deep (Cover 2 / quarters), the quick game brings
+    // press man, holding the ball past the count brings a blitz on 7, a run game brings Stack the Box.
+    function mdCall() {
+      const k = mdK(), n = Math.max(3, MDS.n), dS = MDS.deep / n, qS = MDS.quick / n, hS = MDS.hold / n, rS = MDS.run / n;
+      const w = [0.03 + 0.07 * k + hS * 0.25 * k, 0.3 + 0.25 * k + qS * 0.45, 0.14 + dS * 0.55, Math.max(0.05, 0.38 - 0.28 * k), 0.15 + dS * 0.7];
+      let r = rng() * w.reduce((a, b) => a + b, 0), cov = 0;
+      for (; cov < 4 && r > w[cov]; cov++) r -= w[cov];
+      if (rS > 0.45 && rng() < rS * 0.5) return DEFK('box');
+      if (cov === 1 && rng() < (0.15 + 0.5 * qS) * (0.5 + k)) return DEFK('press');
+      const blitz = cov === 0 ? 2 : cov === 1 && rng() < (0.1 + 0.9 * hS) * (0.4 + 0.6 * k) ? 1 : 0;
+      return { cov, blitz, stunt: false, disguise: rng() < DP.disguise, name: COVN[cov] + (blitz && cov ? ' Blitz' : '') };
+    }
+    // before 7 banana a rusher has nothing to rush: the lone lineman sits in the short middle (the rat: walls the drag, reads the
+    // quarterback, hands up in the throwing lane) and a blitzer lurks under the routes (the robber). Both are back on the line
+    // in time to go on 7. A quarterback who takes off gets chased right away.
+    const MD_RAT = { t: 'zone', x: 0, z: 0, xs: 0, zs: 0, deep: false };
+    function mdLurk(d, dt, qb) {
+      const go = BAN_T - (d.role === 'DL' ? 0.55 : 0.9) - 0.15 * mdK();
+      if (qb && mode === 'aim' && Math.hypot(qb.vx, qb.vz) > 3.2) { const ip = interceptPt(d, qb, effV(d)); steer(d, ip[0], Math.max(ip[1], banLine() + 0.2), effV(d), dt, 9); return; }
+      if (tPlay >= go) { banWait(d, qb, dt); if (Math.abs(d.z - banLine()) > 0.8) steer(d, d.x + clamp(qb.x - d.x, -1.6, 1.6) * 0.5, banLine() + 0.3, effV(d), dt, 9); return; }
+      const zs = d.role === 'DL' ? 3.5 : 7.5;
+      MD_RAT.z = DZ(zs); MD_RAT.zs = zs; MD_RAT.x = qb ? clamp(qb.x * 0.5, -LX(4), LX(4)) : 0; MD_RAT.xs = SMALL ? LXI(MD_RAT.x) : MD_RAT.x;
+      const sv = d.ass; d.ass = MD_RAT; zoneCover(d, dt); d.ass = sv;
+      if (d.role === 'DL') d.face2 = Math.atan2(qb.x - d.x, qb.z - d.z);
+    }
+    // man coverage, how tight from the snap: the base of the stickiness the coverage reaches by 2.2 s (30-ai.js metStick)
+    const mdStick0 = () => (mDef() ? 0.3 + 0.45 * mdK() : 0);
+    // the corners' cushion at the snap: off coverage on a blacktop gives every hitch and quick out away for free, so they line up
+    // close and stay on top (the better the defense, the closer)
+    const mdCush = () => (mDef() ? DP.cush * lerp(0.62, 0.45, mdK()) : DP.cush);
     // ---------- film study: the defense learns your tendencies over the game ----------
     // Every snap counts the play and every throw counts the receiver. A play you keep calling gets recognized: more often the
     // more you have run it, sooner when it keeps working, and more at the harder levels. Recognized, the CPU calls the coverage
@@ -10013,7 +10079,8 @@ gl_FragColor=vec4(col,1.0);}`;
     function contestOf(r) {
       let best = null, bd = 9;
       for (const d of def) { if (d.rag || d.stun > 0 || d.eng) continue; const dd = Math.hypot(d.x - ball.x, d.z - ball.z); if (dd < bd) { bd = dd; best = d; } }
-      return [best, clamp((1.35 - bd) / 1.35, 0, 1)];
+      const R = mDef() ? 1.7 + 0.2 * mdK() : 1.35; // (Metcalf, the CPU covering you: a defender in phase gets a hand in from a step farther)
+      return [best, clamp((R - bd) / R, 0, 1)];
     }
     // does the defender see the ball coming (it is not arriving over his back)?
     function facesBall(d) { const b = ball, hv = Math.hypot(b.vx, b.vz) || 1; return Math.sin(d.h) * -b.vx / hv + Math.cos(d.h) * -b.vz / hv > -0.35 || Math.hypot(d.vx, d.vz) < 1.5; }
@@ -10087,7 +10154,7 @@ gl_FragColor=vec4(col,1.0);}`;
       dif += WET * 0.05 + (b.wobA > 0.08 ? 0.03 : 0);                                    // a wet ball, a wobbling duck
       // a defender arriving with the ball: a hand in his face, and the hit at the catch point (worse in the air or laid out)
       const hit = dN ? clamp((Math.hypot(dN.vx, dN.vz) - 2) / 5, 0, 1) : 0;
-      dif += cf * (0.07 + 0.07 * KDX()) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
+      dif += cf * (0.07 + 0.07 * KDX() + (mDef() ? 0.05 + 0.08 * mdK() : 0)) * (dN && dN.jumpY > 0.1 ? 1.3 : 1) * (1 + hit * (jumping || diving ? 0.8 : 0.4));
       const crowd = crowdAt(r), [pkb, pks] = perkCatch(r, false);
       let p = 0.55 + r.cat * 0.0045 + pkb - dif;
       if (crowd >= 2) p *= Math.pow(CROWDK, crowd - 1);
@@ -11748,18 +11815,18 @@ gl_FragColor=vec4(col,1.0);}`;
       if (DBG && DBG.noRubber) return 0;
       const d = hs - as, p = gameProg(), a = Math.min(Math.abs(d), 28);
       const m = Math.min(1, a / 14) + Math.max(0, a - 14) / 28; // one score 0.5, two 1, four 1.5
-      return Math.sign(d) * m * (0.5 + 0.7 * Math.pow(p, 1.6) + (isClutch() ? 0.15 : 0));
+      return Math.sign(d) * m * (0.75 + 0.8 * Math.pow(p, 1.6) + (isClutch() ? 0.2 : 0));
     }
     // the Metcalf lean for whoever has the ball live: + helps the offense on this snap (the CPU's when the player defends a key play)
     const mLean = () => { const k = mRub(); return DEFP.on ? k * (k > 0 ? 1 : 0.6) : -k * (k < 0 ? 1 : 0.6); };
     // nudges for the player's own close calls: up when he trails, down when he leads, plus the streak
     // (Metcalf: for whoever has the ball, the CPU's offense included on the key plays, and a hot CPU gets the streak's edge)
-    const dramaCatch = () => METCALF ? mLean() * 0.1 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
-    const dramaBreak = () => METCALF ? mLean() * 0.1 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.06 + (DRAMA.fireOn ? 0.08 : 0);
+    const dramaCatch = () => METCALF ? mLean() * 0.15 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
+    const dramaBreak = () => METCALF ? mLean() * 0.15 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.06 + (DRAMA.fireOn ? 0.08 : 0);
     // the drive's base table (the comeback logic and a hot CPU); the call is matched against each snap in simCpu (matchT)
     function cpuTable(call) {
       const k = METCALF ? mRub() : rubber(), K = { g: 1, big: 1, loss: 1, to: 1, inc: 1, slow: 0 };
-      const cs = clamp(CS + k * (METCALF ? 0.5 : 0.3) + (DRAMA.cpuHot ? 0.08 : 0), 0, 1.25), c = Math.pow(cs, 1.3), toK = clamp(1 - k * 0.8, 0.2, METCALF ? 2.2 : 1.8);
+      const cs = clamp(CS + k * (METCALF ? 0.9 : 0.3) + (DRAMA.cpuHot ? 0.08 : 0), 0, 1.25), c = Math.pow(cs, 1.3), toK = clamp(1 - k * (METCALF ? 1.2 : 0.8), 0.2, METCALF ? 3 : 1.8);
       return { g: lerp(5.7, 9.4, c) * K.g, big: lerp(0.075, 0.22, c) * K.big, loss: lerp(0.14, 0.055, c) * K.loss, to: lerp(0.038, 0.014, c) * K.to * toK, fg: lerp(0.8, 0.96, c), inc: lerp(0.18, 0.1, c) * K.inc, oob: 0.1, go4: lerp(1, 3, c), slow: K.slow, rz: K.rz || null };
     }
     // clutch time: the fourth quarter (or overtime) inside the last minute with one score in it
