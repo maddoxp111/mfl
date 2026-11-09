@@ -353,6 +353,18 @@ const UPDATES = [
       "Metcalf: the CPU offense is toned down, and how good it plays now depends on the score: when it's ahead it eases off, when it's behind it pushes harder. Games should stay close at every level.",
     ],
   },
+  {
+    n: 33,
+    date: '2026-11-09',
+    title: 'Blackjack in the Arcade',
+    items: [
+      'New in the Arcade: Blackjack. Bet any amount from 100 to 150,000 coins a hand (up to what you have) and play the dealer to 21.',
+      'A win pays 1:1, a blackjack pays 3:2 and a push gives your bet back. Double down on any first two cards, and split pairs once.',
+      'Six decks, shuffled fresh every hand. The dealer stands on all 17s and checks for blackjack with an ace or a ten showing.',
+      'Leaving or refreshing mid-hand never costs you: the hand is still there when you come back, and it is played out as a stand when you deal the next one.',
+      'Blackjack hands show in your coin history and on the Earn coins page. They do not count toward daily challenges or the Arcade Champ Pack.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

@@ -497,7 +497,7 @@ module.exports = function fun(app, h) {
     if (!packs.some((p) => p.type === 'daily' && p.local?.slice(0, 10) === day)) out.push({ type: 'daily', key: day });
     if (db.games.some((g) => g.date === day && g.status !== 'postponed') && !has('gameday', day)) out.push({ type: 'gameday', key: day, note: "It's game day!" });
     if (!has('weekly', wk)) out.push({ type: 'weekly', key: wk, note: `Week of ${h.shortDate(wk)}` });
-    const arcWins = (user.arcade || []).filter((m) => m.status === 'won' && m.local?.slice(0, 10) === day).length;
+    const arcWins = (user.arcade || []).filter((m) => m.status === 'won' && m.game !== 'blackjack' && m.local?.slice(0, 10) === day).length; // Blackjack hands don't count
     if (arcWins >= 3 && !has('arcade', day)) out.push({ type: 'arcade', key: day, note: 'You won 3 Arcade games today!' });
     return out;
   }

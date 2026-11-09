@@ -10,6 +10,8 @@ const crypto = require('crypto');
 const path = require('path');
 const { Worker } = require('worker_threads');
 const cards = require('./cards');
+const bjMod = require('./blackjack');
+const BJ = bjMod.BJ;
 
 // Levels by stored index. 3D Blitz alone has the two past Legend: GOAT (index 4) and Hall of Fame (index 5, between Legend and
 // GOAT; added later, so it keeps a new index and saved GOAT games stay GOAT). LEVEL_ORDER is easiest to hardest.
@@ -112,7 +114,7 @@ function markWon(user, m, why) {
 // (void, stake back), and in a run the run goes back to the choice after the game before it, as an admin refund does.
 const SERVER_START = Date.now();
 function cutOffByRestart(user, m) {
-  if (!m || m.status !== 'open' || m.versus || !(Date.parse(m.at) < SERVER_START)) return false;
+  if (!m || m.status !== 'open' || m.versus || m.game === 'blackjack' || !(Date.parse(m.at) < SERVER_START)) return false; // a blackjack hand is never cut off: it is still there to finish
   m.status = 'void'; m.refund = { why: 'restart', at: new Date().toISOString() };
   if (m.run && m.run.step > 1) {
     const prev = (user.arcade || []).find((x) => x.run && x.run.id === m.run.id && x.run.step === m.run.step - 1 && x.status === 'won');
@@ -251,6 +253,7 @@ function rngFrom(seed) {
 }
 function matchNet(m) {
   if (m.status === 'void') return 0;
+  if (m.game === 'blackjack') return m.status === 'open' ? -(m.stake || 0) : (m.payout || 0) - (m.stake || 0); // a lost split can still pay back one hand's bet
   const e = runEffective(m);
   if (m.status === 'won') return e.payout - e.stake;
   return -e.stake; // open or lost
@@ -289,7 +292,7 @@ module.exports = function arcade(app, h) {
 
   // What a user did on one day (for challenges).
   function dayFacts(user, day) {
-    const ms = (user.arcade || []).filter((m) => m.local?.slice(0, 10) === day);
+    const ms = (user.arcade || []).filter((m) => m.local?.slice(0, 10) === day && m.game !== 'blackjack'); // Blackjack hands are bets, not games: they don't count for challenges
     const won = ms.filter((m) => m.status === 'won' && !(m.versus && m.versus.reason !== 'final'));
     const winsBy = {}; for (const m of won) winsBy[m.game] = (winsBy[m.game] || 0) + 1;
     return {
@@ -329,6 +332,8 @@ module.exports = function arcade(app, h) {
     // won = what wins paid on top of their stakes; lost = stakes lost (Risk mode). Career games are in here too.
     let won = 0, lost = 0, played = 0;
     for (const m of user.arcade || []) { const n = matchNet(m); if (n > 0) won += n; else lost -= n; if (m.status === 'won' || m.status === 'lost') played++; }
+    const bo = user.bjOld; // older Blackjack hands, folded together (blackjack.js)
+    if (bo) { won += bo.wonNet || 0; lost += bo.lostNet || 0; played += (bo.won || 0) + (bo.lost || 0); }
     return { arcade: won - lost, arcadeWon: won, arcadeLost: lost, arcadePlayed: played, challenges: challengeCoins(user), checkins: (user.checkins || []).length * CHECKIN };
   }
   h.arcadeCoins = arcadeCoins;
@@ -510,7 +515,7 @@ module.exports = function arcade(app, h) {
       user.arcade = user.arcade || [];
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule). A live Head to Head
       // match (m.versus) is settled by versus.js, not here.
-      for (const m of user.arcade) if (m.status === 'open' && !m.versus && !cutOffByRestart(user, m)) { m.status = 'lost'; m.forfeit = true; }
+      for (const m of user.arcade) if (m.status === 'open' && !m.versus && m.game !== 'blackjack' && !cutOffByRestart(user, m)) { m.status = 'lost'; m.forfeit = true; } // a Blackjack hand is never forfeited (blackjack.js)
       settlePending(user);
       const step = runMode ? runFirst(runMode, level) : null;
       const stake = runMode ? step.charge : risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line; a run's risk is never capped by the balance
@@ -553,7 +558,7 @@ module.exports = function arcade(app, h) {
     }
     // play on: the won step is rolled into the next one, at the level asked for (Legend x1.5, GOAT x2); dod charges the risk's growth now
     m.run.rolled = true;
-    for (const x of user.arcade) if (x.status === 'open' && !x.versus && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
+    for (const x of user.arcade) if (x.status === 'open' && !x.versus && x.game !== 'blackjack' && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
     const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(req.body.venue != null ? req.body : m.run.opts, true) } }; // the setup picked on the play-on screen (cleaned: a run at Metcalf has the crowd), else the run's setup so far (a run from before had the stadium)
     user.arcade.push(n);
@@ -573,6 +578,7 @@ module.exports = function arcade(app, h) {
       const m = (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
       if (!m) return json(res, { ok: false, error: 'That game was not found.' });
       if (m.versus) return json(res, { ok: false, error: 'Head to Head games are settled by the server.' });
+      if (m.game === 'blackjack' || !GAMES[m.game]) return json(res, { ok: false, error: 'Blackjack hands are played on the Blackjack page.' });
       if (m.status !== 'open') return json(res, { ok: false, error: m.forfeit ? 'That game was forfeited when another one started.' : 'That game already ended.' });
       const G = GAMES[m.game], r = req.body.result || {};
       const secs = (Date.now() - Date.parse(m.at)) / 1000;
@@ -633,6 +639,7 @@ module.exports = function arcade(app, h) {
   }
   const WAYS = [
     ['🏈', 'Arcade games', 'Win any Arcade game. Risk mode multiplies it up to 5×.'],
+    [BJ.emoji, 'Blackjack', `Bet up to ${fmt(BJ.max)} a hand. A win pays 1:1, a blackjack ${BJ.pays.join(':')}.`],
     ['✅', 'Daily challenges', 'Three new challenges every day.'],
     ['📍', 'Game-day check-in', `+${CHECKIN} for showing up on game days.`],
     ['🏆', 'Achievements', '+150 for every achievement you unlock.'],
@@ -649,18 +656,20 @@ module.exports = function arcade(app, h) {
       const { user, acct } = await loadAccount(db, name);
       const tile = (id) => { const G = GAMES[id];
         return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(Math.max(...G.prizes.map((p, i) => Math.round(p * RISK_MULT[i]))))}</span>${user ? `<span class="arc-left">${paidToday(user, id)} paid ${paidToday(user, id) === 1 ? 'win' : 'wins'} today</span>` : ''}</a>`; };
+      const bjTile = `<a class="arc-tile" href="/arcade/blackjack"><span class="arc-emoji">${BJ.emoji}</span><div><b>${esc(BJ.name)} <span class="arc-new">NEW</span></b><small>${esc(BJ.tag)}</small></div><span class="arc-pay">Blackjack pays ${BJ.pays.join(':')}</span></a>`;
+      const tiles = ORDER.map(tile); tiles.splice(ORDER.indexOf('bowl') + 1, 0, bjTile); // after the two big football tiles
       const recent = user ? (user.arcade || []).filter((m) => m.status !== 'open').slice(-6).reverse() : [];
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
-              <p>${ORDER.length} games, 4 levels each (6 in 3D Blitz: Hall of Fame and GOAT past Legend), Risk mode for up to ${Math.max(...RISK_MULT)}× the coins, and two runs in 3D Blitz: Double or Nothing and Double or Double.</p>
+              <p>${ORDER.length} games plus Blackjack (bet up to ${fmt(BJ.max)} a hand), 4 levels each (6 in 3D Blitz: Hall of Fame and GOAT past Legend), Risk mode for up to ${Math.max(...RISK_MULT)}× the coins, and two runs in 3D Blitz: Double or Nothing and Double or Double.</p>
               <div class="arc-cta"><a class="btn" href="/arcade/blitz3d?mode=don">${RUNS.don.emoji} Double or Nothing</a><a class="btn ghost" href="/arcade/blitz3d/versus">🆚 Head to Head</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>
         <div class="wrap">${req.query.m === 'checkin' ? '<div class="toast">Checked in ✓</div>' : ''}
-          <div class="arc-grid">${ORDER.map(tile).join('')}</div>
+          <div class="arc-grid">${tiles.join('')}</div>
           <div class="home-grid"><div class="col">${earnList(user, db)}
-            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || m.game)}</b><small>${m.versus ? `Head to Head vs @${esc(m.versus.opp)}` : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.versus && !m.stake ? (m.status === 'won' ? 'Win' : 'Loss') : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`).join('')}</ol></section>` : ''}</div>
+            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || (m.game === 'blackjack' ? BJ.name : m.game))}</b>${m.game === 'blackjack' ? `<small>${esc(bjMod.detail(m))}</small><span class="${matchNet(m) > 0 ? 'up' : 'down'}">${matchNet(m) > 0 ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Push'}</span></li>` : `<small>${m.versus ? `Head to Head vs @${esc(m.versus.opp)}` : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.versus && !m.stake ? (m.status === 'won' ? 'Win' : 'Loss') : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`}`).join('')}</ol></section>` : ''}</div>
             <div class="col"><section class="card"><div class="card-h"><h2>Every way to earn coins</h2></div><div class="ways">${WAYS.map(([e, t, d]) => `<div><span>${e}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div></section>
             <section class="card"><div class="card-h"><h2>How Arcade coins work</h2></div><ul class="how">
               <li>Pick a level: Rookie, Pro, All-Pro or Legend, and in 3D Blitz also Hall of Fame and GOAT. Harder levels pay more.</li>
@@ -735,6 +744,8 @@ module.exports = function arcade(app, h) {
     json(res, { ok: true });
   });
 
+  // Blackjack has its own page and JSON actions (blackjack.js), registered before /arcade/:game
+  require('./blackjack')(app, h);
   app.get('/arcade/:game', async (req, res, next) => {
     try {
       const id = req.params.game, G = !HIDDEN.has(id) && GAMES[id];
@@ -817,8 +828,8 @@ module.exports = function arcade(app, h) {
       ${req.query.msg ? `<p class="notice" style="margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,194,26,.12);border:1px solid rgba(255,194,26,.4)">${esc(String(req.query.msg).slice(0, 300))}</p>` : ''}
       <form method="get" action="/admin/arcade" class="row" style="gap:8px;margin:8px 0"><input name="u" value="${esc(req.query.u || '')}" placeholder="Filter by player"><button class="btn ghost sm">Filter</button></form>
       <table class="tbl"><thead><tr><th class="l">When</th><th class="l">Player</th><th class="l">Game</th><th>Level</th><th>Time</th><th>Score</th><th>Coins</th><th></th></tr></thead><tbody>
-      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || m.game)}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}</td><td>${LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}${m.quit ? ' (quit)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
-        <td>${m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' || m.status === 'open' || (m.status === 'void' && m.refund) ? (m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : m.status === 'open' ? '<span class="muted sm">open</span>' : '<span class="muted sm">refunded</span>') + (!m.versus ? form('/admin/arcade/won', u, m, 'Mark won') : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
+      ${rows.map(({ u, m }) => `<tr><td class="l">${esc(m.local || '')}</td><td class="l">@${esc(u)}</td><td class="l">${esc(GAMES[m.game]?.name || (m.game === 'blackjack' ? BJ.name : m.game))}${m.run ? ` · ${RUNS[m.run.mode].name} game ${m.run.step}` : ''}${m.game === 'blackjack' ? ` · ${esc(bjMod.label(m))}` : ''}</td><td>${m.game === 'blackjack' ? 'Bet ' + fmt(m.stake) : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}</td><td>${m.secs != null ? m.secs + 's' : ''}</td><td>${scoreOf(m)}${m.tie ? ' (tie)' : ''}${m.quit ? ' (quit)' : ''}</td><td>${m.status === 'void' ? (m.refund ? 'refunded' : 'void') : m.run && m.run.pending ? 'choice waiting' : m.run && m.run.rolled ? 'played on' : (matchNet(m) >= 0 ? '+' : '') + fmt(matchNet(m))}</td>
+        <td>${m.game === 'blackjack' && m.status === 'open' ? '<span class="muted sm">in play</span>' : m.status === 'won' && !(m.run && (m.run.pending || m.run.rolled)) ? form('/admin/arcade/void', u, m, 'Void') : m.status === 'lost' || m.status === 'open' || (m.status === 'void' && m.refund) ? (m.status === 'lost' ? form('/admin/arcade/refund', u, m, 'Refund') : m.status === 'open' ? '<span class="muted sm">open</span>' : '<span class="muted sm">refunded</span>') + (!m.versus && m.game !== 'blackjack' ? form('/admin/arcade/won', u, m, 'Mark won') : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`));
   });
   // ---------- admin: how each real player looks (Modern Bowl and 3D Blitz) and their 3D build ----------
   const LOOK_OPTS = { skin: [0, 1, 2, 3, 4], height: ['short', 'normal', 'tall'], cleats: ['black', 'white', 'team', 'gold', 'red'] };

@@ -6,6 +6,7 @@ const cards = require('./cards');
 const sv = require('./survivor');
 const badges = require('./badges');
 const AR = require('./arcade');
+const BJM = require('./blackjack');
 
 module.exports = function earn(app, h) {
   const { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS } = h;
@@ -41,6 +42,8 @@ module.exports = function earn(app, h) {
     const bonus = user.bonuses || [], pb = user.pointBonuses || [], arc = user.arcade || [];
     const net = (f) => arc.filter(f).reduce((s, m) => s + E.matchNet(m), 0);
     const h2h = net((m) => m.versus), career = net((m) => m.career && !m.versus);
+    const bjOld = user.bjOld || null, bjHands = arc.filter((m) => m.game === 'blackjack' && m.status !== 'open');
+    const bj = net((m) => m.game === 'blackjack') + (bjOld ? (bjOld.wonNet || 0) - (bjOld.lostNet || 0) : 0), bjN = bjHands.length + (bjOld ? bjOld.hands || 0 : 0);
     const h2hN = arc.filter((m) => m.versus && (m.status === 'won' || m.status === 'lost'));
     const daily = bonus.filter((b) => b.reason === 'Daily'), bail = bonus.filter((b) => b.reason === 'Bailout'), gifts = bonus.filter((b) => b.reason !== 'Daily' && b.reason !== 'Bailout');
     const sold = pb.filter((b) => /^Sold /.test(b.reason || '')), otherPb = pb.filter((b) => !/^Sold /.test(b.reason || ''));
@@ -48,7 +51,7 @@ module.exports = function earn(app, h) {
     const bought = (user.packs || []).filter((p) => p.currency === 'coins' && p.cost);
     const nGames = P.fan && P.fan.results ? P.fan.results.length : 0;
     const playerCoins = ['player', 'playerPay', 'playerCoins'].map((k) => P[k]).find((v) => typeof v === 'number');
-    const arcGames = arc.filter((m) => !m.versus && !m.career && (m.status === 'won' || m.status === 'lost'));
+    const arcGames = arc.filter((m) => !m.versus && !m.career && m.game !== 'blackjack' && (m.status === 'won' || m.status === 'lost'));
     const rows = [
       ['Sign-up coins', pk.START_COINS, 'Everyone starts here', '#other', true],
       ["Pick'em picks", acct.profit, `${acct.won} won · ${acct.lost} lost`, '#pickem'],
@@ -57,7 +60,8 @@ module.exports = function earn(app, h) {
       ['Lineup', P.fantasy || 0, nGames ? `${plural(nGames, 'game')} scored${rate !== 1 ? ` · ${fmt(rate)} coins a point` : ''}` : '', '#lineup'],
       ['Your player', playerCoins || 0, '', '#player'],
       ['Survivor', P.survivor || 0, P.survivor ? plural(P.survivor / sv.PRIZE, 'round') + ' won' : '', '#survivor'],
-      ['Arcade games', (P.arcade || 0) - h2h - career, arcGames.length ? plural(arcGames.length, 'game') + ' played' : '', '#arcade'],
+      ['Arcade games', (P.arcade || 0) - h2h - career - bj, arcGames.length ? plural(arcGames.length, 'game') + ' played' : '', '#arcade'],
+      ['Blackjack', bj, bjN ? plural(bjN, 'hand') + ' played' : '', '#arcade'],
       ['Head to Head', h2h, h2hN.length ? `${h2hN.filter((m) => m.status === 'won').length} won · ${h2hN.filter((m) => m.status === 'lost').length} lost` : '', '#h2h'],
       ['Career wins', career, '', '#career'],
       ['Daily challenges', P.challenges || 0, '', '#daily'],
@@ -108,8 +112,10 @@ module.exports = function earn(app, h) {
         add(end, b.status === 'won' ? 'Pick won' : 'Pick refunded', b.payout, what, 'pickem');
       }
     }
+    if (user.bjOld && user.bjOld.hands) { const o = user.bjOld; add(o.to, 'Blackjack · older hands', (o.wonNet || 0) - (o.lostNet || 0), `${plural(o.hands, 'hand')}: ${fmt(o.won)} won, ${fmt(o.lost)} lost, ${fmt(o.push)} pushed`, 'arcade'); }
     for (const m of user.arcade || []) {
       const n = E.matchNet(m); if (!n) continue;
+      if (m.game === 'blackjack') { add(m.ended || m.at, `Blackjack · ${BJM.label(m)}`, n, BJM.detail(m) + (m.status === 'open' ? ' · hand in play' : ''), 'arcade'); continue; }
       const G = (GAMES[m.game] || {}).name || m.game, lv = E.LEVELS && E.LEVELS[m.level];
       const mode = m.versus ? `Head to Head vs @${m.versus.opp || '?'}` : m.run ? `${(E.RUNS && E.RUNS[m.run.mode] && E.RUNS[m.run.mode].name) || 'Run'} game ${m.run.step}` : m.career ? 'Career' : m.risk ? 'Risk mode' : '';
       // what actually happened, not just which way the coins went: a run's won game pays nothing until the cash out (its coins
@@ -213,6 +219,8 @@ module.exports = function earn(app, h) {
           p: `A run of ${esc(B.name)} games with nothing up front. Win at ${esc(lv(main))} and you can cash out ${fmt(don.cash(main))}, or play one more. Each more win multiplies it by the next game's level: ${factors}. So ${fmt(don.cash(main))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main]))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main] ** 2))}… One loss and the run pays nothing.`, href: '/arcade/blitz3d?mode=don', go: 'Start a run' })}
         ${item({ t: `${dod.emoji} ${esc(dod.name)}`, amt: `${amt(Math.round(dod.cash(main)))} and up`, when: 'As many runs as you like',
           p: `The bold one. At ${esc(lv(main))} you put ${fmt(dod.stake(main))} at risk to cash out ${fmt(Math.round(dod.cash(main)))}, and both grow with every win (${factors}). Lose and you lose everything at risk, even if it takes you below zero.`, href: '/arcade/blitz3d?mode=dod', go: 'Start a run' })}
+        ${item({ t: `${BJM.BJ.emoji} ${esc(BJM.BJ.name)}`, amt: `Bet up to ${amt(BJM.BJ.max)}`, when: 'Every hand you win',
+          p: `Bet ${fmt(BJM.BJ.min)} to ${fmt(BJM.BJ.max)} coins a hand against the dealer (never more than you have). A win pays 1:1, a <b>blackjack pays ${BJM.BJ.pays.join(':')}</b> (a ${fmt(BJM.BJ.max)} bet wins ${fmt(BJM.bjWin(BJM.BJ.max))}) and a push gives your bet back. Double down (one card, twice the bet) and split pairs once. ${BJM.BJ.decks} decks shuffled every hand, the dealer stands on all 17s. Lose the hand and you lose the bet.`, href: '/arcade/blackjack', go: 'Play Blackjack' })}
         ${item({ t: esc(PK.arcade.name), amt: 'Free pack', when: 'Once a day', p: `${esc(PK.arcade.desc)} ${PK.arcade.cards} cards${PK.arcade.min ? `, ${esc(R[PK.arcade.min].name)} or better guaranteed` : ''}.`, href: '/pickem/packs', go: 'Packs' })}`);
 
       // ---------- Head to Head ----------
@@ -264,6 +272,7 @@ module.exports = function earn(app, h) {
         <li><b>Packs</b>: ${fmt(pp.lo)} to ${fmt(pp.hi)} coins.</li>
         <li><b>Risk mode and Double or Double</b> games you lose. Double or Double can take you below zero.</li>
         <li><b>Head to Head</b> games you lose: your wager.</li>
+        <li><b>Blackjack</b> hands you lose: your bet (and the extra on a double or split).</li>
         ${S.picked < 0 ? `<li><b>Lineup mistakes</b>: a card loses ${fmt(Math.abs(S.picked * rate))} when its player throws an interception.</li>` : ''}
         ${neg.length ? `<li><b>Your player</b>: ${neg.map((r) => `${esc(r.label.toLowerCase())} ${signed(r.v)}`).join(', ')}.</li>` : ''}
         <li><b>Voided games</b>: if the commissioner voids a game, anything a pick on it paid is taken back.</li></ul></section>`;
