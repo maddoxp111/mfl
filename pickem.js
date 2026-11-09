@@ -232,7 +232,7 @@ function allMarkets(db, g) {
     const sTd = shares('td', 0.5), sPass = shares('pass', 0.3), sInt = shares('int', 0.3);
     const atLeast = (x, k) => { let c = 0, term = Math.exp(-x); for (let i = 0; i < k; i++) { c += term; term *= x / (i + 1); } return 1 - c; };
     for (const pl of t.roster) {
-      if (isOut(g, t.id, pl.id)) continue; // no picks on players ruled out
+      if (isOut(g, t.id, pl.id) || pl.ir) continue; // no picks on players ruled out or on injured reserve
       const x = lam * sTd[pl.id], y = lam * passFrac * sPass[pl.id], z = ti * sInt[pl.id];
       const o = { team: t.id, player: pl.id };
       add('Touchdown scorers', `ptd:${t.id}:${pl.id}`, `${pl.name} scores a TD`, atLeast(x, 1), o);

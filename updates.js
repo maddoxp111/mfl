@@ -328,6 +328,14 @@ const UPDATES = [
       "The Metcalf crowd stands still now: no more stepping in place or rushing in after a touchdown.",
     ],
   },
+  {
+    n: 30,
+    date: '2026-11-09',
+    title: 'Injured reserve',
+    items: [
+      "Injured reserve: the admin can put a player on IR (with the injury and an expected return date). He gets a red IR badge on the rosters, his player page shows the injury, Pick'em has no props on him, and he's marked as not playing when a game is scored.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

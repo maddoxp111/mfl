@@ -187,6 +187,9 @@ function logo(t, size = 40, cls = '') {
   return `<span class="logo mono ${cls}" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.32)}px;background:${esc(t.color)};color:${readableOn(t.color)}">${esc(t.abbr)}</span>`;
 }
 const TAG_NAMES = { C: 'Captain', TR: 'Team Rep', FA: 'Free Agent' };
+// injured reserve (set in Admin > Players): a red IR badge and a line with the injury and expected return
+const irBadge = (p) => (p && p.ir ? ' <span class="ir-b" title="Injured reserve">IR</span>' : '');
+const irText = (p) => (p && p.ir ? ['Injured reserve', p.ir.note, p.ir.back ? 'back ' + new Date(p.ir.back + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ') : '');
 const tagName = (tag) => TAG_NAMES[tag] || (tag?.startsWith('Rd') ? 'Draft · ' + tag.replace('Rd', 'Round') : tag || '');
 const playerUrl = (tm, p) => `/players/${tm.id}/${p.id}`;
 // Lineup groups a player likes to play (set in admin): p.pref = ['QB', 'WR'].
@@ -441,7 +444,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=81">
+<link rel="stylesheet" href="/static/style.css?v=82">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -904,7 +907,7 @@ app.get('/teams/:id', (req, res) => {
       <div class="col">
         ${recapBox}
         <div class="card"><div class="card-h"><h2>Roster</h2><span class="muted sm">Captain: ${esc(tm.captain)}</span></div><div class="roster">
-          ${tm.roster.map((p) => `<a class="pl" href="${playerUrl(tm, p)}">${avatar(tm, p, 46)}<div><b>${p.number ? `<span class="num">#${esc(p.number)}</span> ` : ''}${esc(p.name)}</b><small>${esc([p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
+          ${tm.roster.map((p) => `<a class="pl" href="${playerUrl(tm, p)}">${avatar(tm, p, 46)}<div><b>${p.number ? `<span class="num">#${esc(p.number)}</span> ` : ''}${esc(p.name)}${irBadge(p)}</b><small>${esc([p.position, tagName(p.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
         <div class="card"><div class="card-h"><h2>Recent Results</h2></div><div class="list">${done.map((g) => gameCard(db, g)).join('') || '<p class="muted">No games yet.</p>'}</div></div>
       </div>
@@ -992,7 +995,7 @@ app.get('/players/:team/:pid', (req, res) => {
   const rt = ratings(db).find((x) => x.t.id === tm.id && x.p.id === p.id);
   const opp = (g, t) => db.teams[g.home === t ? g.away : g.home];
   const mates = tm.roster.filter((x) => x.id !== p.id);
-  const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)], ['Likes to play', prefList(p).join(' · ')]].filter(([, v]) => v);
+  const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)], ['Injury', irText(p)], ['Likes to play', prefList(p).join(' · ')]].filter(([, v]) => v);
   res.send(layout(req, p.name, `
     <section class="pp-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">
       <div class="pp-photo">${avatar(tm, p, 220, 'xl')}${p.number ? `<span class="pp-num">${esc(p.number)}</span>` : ''}</div>
@@ -1019,7 +1022,7 @@ app.get('/players/:team/:pid', (req, res) => {
           ${p.aiScout.comparison ? `<p class="scout-cmp">${icon('star')} ${esc(p.aiScout.comparison)}</p>` : ''}</div>` : ''}
         ${(() => { const bs = badges.playerBadges(db, tm, p, (g) => mvpKeyOf(db, g)); return `<div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">${bs.length} of ${badges.PLAYER_BADGES.length}</span></div>${bs.length ? `<div class="achv">${bs.map(([, e, n, d]) => `<div class="achv-b" title="${esc(d)}"><span>${e}</span><b>${esc(n)}</b><small>${esc(d)}</small></div>`).join('')}</div>` : '<p class="muted sm">No badges yet. Hat tricks, pick-sixes, MVPs and more unlock them.</p>'}</div>`; })()}
         <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/teams/${tm.id}">Team ${icon('arrow')}</a></div><div class="mates">
-          ${mates.map((m) => `<a class="mate" href="${playerUrl(tm, m)}">${avatar(tm, m, 36)}<div><b>${esc(m.name)}</b><small>${esc([m.position, tagName(m.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
+          ${mates.map((m) => `<a class="mate" href="${playerUrl(tm, m)}">${avatar(tm, m, 36)}<div><b>${esc(m.name)}${irBadge(m)}</b><small>${esc([m.position, tagName(m.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
       </div>
     </div>`));
@@ -2941,7 +2944,7 @@ function gameForm(db, g, isNew, scorer = false) {
     <section class="card">
       <div class="card-h"><h2>Did not play</h2><span class="muted sm" id="outCount"></span></div>
       <p class="muted sm">Tap anyone who was out. Every pick on them is cancelled: singles are refunded, and combos drop that pick and count the rest.</p>
-      ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}</span></label>`).join('')}</div></div>`).join('')}
+      ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) || (!g.out && p.ir) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}${irBadge(p)}</span></label>`).join('')}</div></div>`).join('')}
     </section>
 
     ${scorer ? '' : `<section class="card ${g.betsVoid ? 'void-on' : ''}">
@@ -3197,7 +3200,7 @@ app.get('/admin/players', requireAdmin, (req, res) => {
   const db = load();
   res.send(layout(req, 'Players', pageHead('Admin', 'Players', 'Click a player to edit their bio, photo, number, position and the Lineup positions he likes to play. Add or remove players under Teams.') + `<div class="wrap">${adminNav('/admin/players')}${savedMsg(req)}
     ${Object.values(db.teams).map((tm) => `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 28)} ${esc(teamFull(tm))}</h2></div><div class="roster">
-      ${tm.roster.map((p) => `<a class="pl" href="/admin/players/${tm.id}/${p.id}">${avatar(tm, p, 46)}<div><b>${esc(p.name)}</b><small>${p.photo ? '' : 'No photo · '}${p.bio ? 'Has bio' : 'No bio'}</small>${prefList(p).length ? `<span class="pref-tags">${prefList(p).map((x) => `<i>${x}</i>`).join('')}</span>` : '<small class="pref-none">No positions set</small>'}</div></a>`).join('')}
+      ${tm.roster.map((p) => `<a class="pl" href="/admin/players/${tm.id}/${p.id}">${avatar(tm, p, 46)}<div><b>${esc(p.name)}${irBadge(p)}</b><small>${p.photo ? '' : 'No photo · '}${p.bio ? 'Has bio' : 'No bio'}</small>${prefList(p).length ? `<span class="pref-tags">${prefList(p).map((x) => `<i>${x}</i>`).join('')}</span>` : '<small class="pref-none">No positions set</small>'}</div></a>`).join('')}
     </div></div>`).join('')}</div>`, { ticker: false }));
 });
 
@@ -3235,6 +3238,13 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
         <label>Grade<input name="grade" value="${esc(p.grade || '')}" placeholder="e.g. 8th"></label>
         <label>Status tag<input name="tag" value="${esc(p.tag || '')}" placeholder="C, TR, Rd 1, FA"></label>
         <label class="wide">Bio<textarea name="bio" rows="8" placeholder="Write something about this player…">${esc(p.bio || '')}</textarea></label>
+      </div>
+      <h3 id="ir">Injured reserve</h3>
+      <p class="muted sm">A player on IR shows an IR badge on his team and player pages, gets no Pick'em props and is marked as not playing when you score a game. Take him off when he's back.</p>
+      <div class="fgrid">
+        <label class="chk wide"><input type="checkbox" name="ir" value="1" ${p.ir ? 'checked' : ''}> On injured reserve (IR)</label>
+        <label>Injury<input name="irNote" value="${esc(p.ir?.note || '')}" maxlength="60" placeholder="e.g. Ankle"></label>
+        <label>Expected back<input name="irBack" type="date" value="${esc(p.ir?.back || '')}"></label>
       </div>
       <h3 id="prefs">Positions he likes to play</h3>
       <p class="muted sm">Tap the Lineup spots he likes. Fans can filter their cards by these when they pick a Lineup, and auto-pick puts him there first. Leave them all off to let his ratings decide.</p>
@@ -3338,6 +3348,8 @@ app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   p.grade = String(b.grade || '').slice(0, 20);
   p.tag = String(b.tag || '').slice(0, 10);
   p.bio = String(b.bio || '').slice(0, 4000);
+  if (b.ir) p.ir = { note: String(b.irNote || '').trim().slice(0, 60), back: /^\d{4}-\d{2}-\d{2}$/.test(String(b.irBack || '')) ? String(b.irBack) : '', since: p.ir?.since || new Date().toISOString().slice(0, 10) };
+  else delete p.ir;
   if (b.prefSet) { const got = [].concat(b.pref || []).map(String); p.pref = PREF_POS.map(([k]) => k).filter((k) => got.includes(k)); }
   const jpeg = (v) => {
     const m = /^data:image\/jpeg;base64,(.+)$/.exec(v || '');
