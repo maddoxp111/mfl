@@ -46,11 +46,15 @@ const RUNS = {
   dod: { name: 'Double or Double', emoji: '🔥', stake: (level) => GAMES.blitz3d.prizes[level], cash: (level) => GAMES.blitz3d.prizes[level] * RISK_MULT[level] },
 };
 // 3D Blitz setup choices: where (The Stadium or Metcalf), Metcalf's three settings (crowd, big field, two-hand touch) and the
-// time of day and weather (every mode). A run (Double or Nothing / Double or Double) at Metcalf always has the crowd and the big
-// field and plays tackle, whatever the client sends; a run keeps the choices it started with for every game (m.run.opts).
+// time of day and weather (every mode). A run (Double or Nothing / Double or Double) at Metcalf always has the crowd, whatever the
+// client sends (the big field and two-hand touch are picked). Each game of a run keeps the run's choices (m.run.opts) unless the
+// player changes them on the play-on screen before the next game (where, big field, two-hand touch, time of day, weather).
 // "Usual" (anything not on the lists) is the venue's own look: the stadium on a clear night, Metcalf on a sunny noon.
 const BLITZ_TODS = ['morning', 'noon', 'sunset', 'night'], BLITZ_WX = ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'];
 const BLITZ_USUAL = { stadium: { tod: 'night', weather: 'clear' }, metcalf: { tod: 'noon', weather: 'clear' } };
+// a short label of a run's setup, for the run-waiting banner: "Metcalf · Big field · Sunset · Snow"
+const BLITZ_TOD_N = { morning: 'Morning', noon: 'Noon', sunset: 'Sunset', night: 'Night' }, BLITZ_WX_N = { clear: 'Sunny', cloudy: 'Partly cloudy', overcast: 'Overcast', rain: 'Rain', storm: 'Thunderstorm', snow: 'Snow', fog: 'Fog' };
+const blitzLabel = (o) => [o.venue === 'metcalf' ? 'Metcalf' : 'The Stadium', o.big ? 'Big field' : '', o.touch ? 'Two-hand touch' : '', BLITZ_TOD_N[o.tod], o.weather === 'clear' && o.tod === 'night' ? 'Clear' : BLITZ_WX_N[o.weather]].filter(Boolean).join(' · ');
 function blitzSetup(b, run) {
   b = b || {};
   const venue = b.venue === 'metcalf' ? 'metcalf' : 'stadium', met = venue === 'metcalf', on = (v) => [true, 1, '1', 'true', 'on'].includes(v);
@@ -70,7 +74,7 @@ function runEffective(m) {
   return { stake: cur.charge, payout: m.payout ? cur.cash : 0, cash: cur.cash, atRisk: cur.atRisk };
 }
 // what the page and the client need to show a run step: the offer now, and the offer after one more win at either level
-const runInfo = (m) => { const e = runEffective(m), cur = { step: m.run.step, level: m.run.level || 3, cash: e.cash || m.run.cash, atRisk: e.atRisk != null ? e.atRisk : m.run.atRisk }; return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: cur.step, level: cur.level, levelName: LEVELS[cur.level], cash: cur.cash, atRisk: cur.atRisk, charge: e.stake, factor: RUN_FACTOR, order: RUN_LEVELS, main: RUN_MAIN, next: Object.fromEntries(RUN_LEVELS.map((l) => [l, { ...runNext(cur, l), levelName: LEVELS[l] }])) }; };
+const runInfo = (m) => { const e = runEffective(m), cur = { step: m.run.step, level: m.run.level || 3, cash: e.cash || m.run.cash, atRisk: e.atRisk != null ? e.atRisk : m.run.atRisk }; return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: cur.step, level: cur.level, levelName: LEVELS[cur.level], cash: cur.cash, atRisk: cur.atRisk, charge: e.stake, factor: RUN_FACTOR, order: RUN_LEVELS, main: RUN_MAIN, next: Object.fromEntries(RUN_LEVELS.map((l) => [l, { ...runNext(cur, l), levelName: LEVELS[l] }])), opts: blitzSetup(m.run.opts, true) }; };
 // Refund a lost coin game: it becomes void (a void match nets 0, so its stake comes back). In a run, the run goes back to where it
 // was before that game: the game before it is won again with its choice waiting (cash out, or play on).
 function refundMatch(user, m, why) {
@@ -551,7 +555,7 @@ module.exports = function arcade(app, h) {
     m.run.rolled = true;
     for (const x of user.arcade) if (x.status === 'open' && !x.versus && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
-    const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(m.run.opts, true) } }; // every game of a run keeps the run's setup (a run from before had the stadium)
+    const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(req.body.venue != null ? req.body : m.run.opts, true) } }; // the setup picked on the play-on screen (cleaned: a run at Metcalf has the crowd), else the run's setup so far (a run from before had the stadium)
     user.arcade.push(n);
     if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
     await putDoc(userKey(name), user);
@@ -757,7 +761,7 @@ module.exports = function arcade(app, h) {
           <a class="card bf-promo" href="/arcade/blitz3d/versus"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your Lineup against theirs. Put coins on it (the winner takes both wagers) or play a friendly.</small></div><span class="btn">Find a game ${icon('arrow')}</span></a>` : ''}
         ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career/bowl">Play Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
-          ${pending ? `<div class="run-wait" id="runWait"><b>${RUNS[pending.run.mode].emoji} Your ${RUNS[pending.run.mode].name} run is waiting.</b><span>You won game ${pending.run.step}. Cash out ${fmt(runInfo(pending).cash)}, or play one more for ${((xs) => xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1])(RUN_LEVELS.map((l) => `${fmt(runInfo(pending).next[l].cash)} at ${LEVELS[l]}`))}.</span><button type="button" class="btn" id="runResume">Decide now</button></div>` : ''}
+          ${pending ? `<div class="run-wait" id="runWait"><b>${RUNS[pending.run.mode].emoji} Your ${RUNS[pending.run.mode].name} run is waiting.</b><span>You won game ${pending.run.step}. Cash out ${fmt(runInfo(pending).cash)}, or play one more for ${((xs) => xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1])(RUN_LEVELS.map((l) => `${fmt(runInfo(pending).next[l].cash)} at ${LEVELS[l]}`))}.</span><small class="run-wait-nx">Next game: ${esc(blitzLabel(runInfo(pending).opts))}. You can change where you play, the field, the time of day and the weather before it starts.</small><button type="button" class="btn" id="runResume">Decide now</button></div>` : ''}
           <div class="arc-modes ${runs.length ? 'four' : ''}">${['coins', 'practice', ...runs].map((m) => `<label class="mode ${runs.includes(m) ? 'run ' + m : ''}"><input type="radio" name="mode" value="${m}" ${m === want ? 'checked' : ''} ${m !== 'practice' && !user ? 'disabled' : ''}><span>${modeLabel(m)}</span></label>`).join('')}</div>
           ${runInfoHtml}
           ${!user ? `<p class="muted sm"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins${runs.length ? ' or start a run' : ''}. Practice is free.</p>` : ''}

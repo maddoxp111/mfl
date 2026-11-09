@@ -121,14 +121,51 @@
     const post = async (url, body) => { try { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return await r.json(); } catch (err) { return { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + ').' }; } };
     const again = `<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/arcade">Arcade</a></div>`;
     const balLine = (r) => (r && r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins${r.balance < 0 ? ' (in debt)' : ''}</p>` : '');
+    // 3D Blitz runs: the next game's setup can change before it starts (where, Metcalf's big field and two-hand touch, time of day,
+    // weather). It starts from the last game's (run.opts); a run at Metcalf always has the crowd. Picks are remembered like the setup screen's.
+    const NX_TOD = [['morning', '🌄', 'Morning'], ['noon', '☀️', 'Noon'], ['sunset', '🌇', 'Sunset'], ['night', '🌙', 'Night']];
+    const NX_WX = [['clear', '☀️', 'Sunny'], ['cloudy', '⛅', 'Partly cloudy'], ['overcast', '☁️', 'Overcast'], ['rain', '🌧️', 'Rain'], ['storm', '⛈️', 'Thunder&shy;storm'], ['snow', '❄️', 'Snow'], ['fog', '🌫️', 'Fog']];
+    const nxPut = (k, v) => { try { localStorage.setItem('mfl-blitz-' + k, v); } catch (e) {} };
+    function runOptsHtml(o) {
+      const chip = (n, v, e, t, on) => `<label><input type="radio" name="nx-${n}" value="${v}" ${on ? 'checked' : ''}><span><i>${e}</i><b ${n === 'weather' && v === 'clear' ? 'data-nx-sunny' : ''}>${t}</b></span></label>`;
+      const tog = (k, e, t, on, lk) => `<label class="bz-tog ${lk ? 'locked' : ''}"><input type="checkbox" name="nx-${k}" value="1" ${on ? 'checked' : ''} ${lk ? 'disabled' : ''}><span><i>${e}</i><b>${t}</b></span></label>`;
+      return `<details class="run-opts" id="runOpts"><summary><span>Next game</span><b data-nx-sum></b><em data-nx-tg>Change</em></summary><div class="run-opts-in">
+        <fieldset class="bz-defmode"><legend>Where</legend><div class="bz-chips run-vn">${chip('venue', 'stadium', '🏟️', 'The Stadium', o.venue !== 'metcalf')}${chip('venue', 'metcalf', '🏫', 'Metcalf', o.venue === 'metcalf')}</div></fieldset>
+        <fieldset class="bz-defmode" data-nx-met><legend>Metcalf settings</legend><div class="bz-togs">${tog('crowd', '👥', 'Crowd', true, true)}${tog('big', '📏', 'Big field', o.big)}${tog('touch', '✋', 'Two-hand touch', o.touch)}</div><p class="bz-lock">🔒 A run always has the crowd on.</p></fieldset>
+        <fieldset class="bz-defmode"><legend>Time of day</legend><div class="bz-chips run-tod">${NX_TOD.map(([v, e, t]) => chip('tod', v, e, t, o.tod === v)).join('')}</div></fieldset>
+        <fieldset class="bz-defmode"><legend>Weather</legend><div class="bz-chips run-wx">${NX_WX.map(([v, e, t]) => chip('weather', v, e, t, o.weather === v)).join('')}</div></fieldset></div></details>`;
+    }
+    function runOptsRead(o) {
+      const val = (n, d) => { const i = o.querySelector(`input[name=nx-${n}]:checked`); return i ? i.value : d; }, on = (k) => { const i = o.querySelector(`input[name=nx-${k}]`); return !!(i && i.checked); };
+      const venue = val('venue', 'stadium'), met = venue === 'metcalf';
+      return { venue, crowd: met, big: met && on('big'), touch: met && on('touch'), tod: val('tod', met ? 'noon' : 'night'), weather: val('weather', 'clear') };
+    }
+    function runOptsWire(o) {
+      const d = o.querySelector('#runOpts'); if (!d) return;
+      const sync = () => {
+        const x = runOptsRead(o), clr = x.tod === 'night' ? 'Clear' : 'Sunny', nm = (L, v) => (L.find((r) => r[0] === v) || [])[2] || '';
+        o.querySelectorAll('[data-nx-met]').forEach((e) => { e.hidden = x.venue !== 'metcalf'; });
+        o.querySelectorAll('[data-nx-sunny]').forEach((e) => { e.textContent = clr; });
+        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Metcalf' : 'The Stadium', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
+      };
+      d.addEventListener('toggle', () => { d.querySelector('[data-nx-tg]').textContent = d.open ? 'Done' : 'Change'; });
+      d.addEventListener('change', (e) => {
+        const n = e.target && e.target.name ? e.target.name.replace(/^nx-/, '') : '';
+        if (n === 'venue' || n === 'tod' || n === 'weather') nxPut(n, e.target.value);
+        if (n === 'big' || n === 'touch') { let m = {}; try { m = JSON.parse(localStorage.getItem('mfl-blitz-met') || '{}') || {}; } catch (x) {} m[n] = e.target.checked; nxPut('met', JSON.stringify(m)); }
+        sync();
+      });
+      sync();
+    }
     // a won game of a run: cash out, or play one more at the level picked (its multiplier: Legend x1.5, Hall of Fame x2, GOAT x2.5)
     function runChoice(run) {
       const dod = run.mode === 'dod', nx = run.next || {};
       const go = (l) => nx[l] ? `<button type="button" class="btn ghost ${+l === run.main ? 'main' : ''}" data-go="${l}">${+l === run.main ? '<em>Main</em>' : ''}Play on at ${nx[l].levelName} ×${run.factor ? run.factor[l] : ''}: ${fmt(nx[l].cash)}${dod ? `<small>${fmt(nx[l].atRisk)} at risk (${fmt(nx[l].charge)} more now)</small>` : ''}</button>` : '';
       const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}${run.levelName ? ' at ' + run.levelName : ''}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
         <p class="muted">${dod ? `Cash out and ${fmt(run.cash)} goes to your balance, ${fmt(run.cash - run.atRisk)} more than the ${fmt(run.atRisk)} you have at risk.` : 'Cash out now, or play one more.'}</p>
-        <div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button>${(run.order || Object.keys(nx)).map(go).join('')}<button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
-      const busy = (t) => { o.querySelectorAll('button').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
+        ${run.opts ? runOptsHtml(run.opts) : ''}<div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button>${(run.order || Object.keys(nx)).map(go).join('')}<button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
+      runOptsWire(o);
+      const busy = (t) => { o.querySelectorAll('button,input').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
       o.querySelector('#runLater').addEventListener('click', () => { o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
       o.querySelector('#runCash').addEventListener('click', async () => {
         busy('Cashing out…');
@@ -138,8 +175,8 @@
         document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
       });
       o.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
-        busy();
-        const r = await post('/arcade/run/double', { id: run.id, level: +b.getAttribute('data-go') });
+        const nx = run.opts ? runOptsRead(o) : {}; busy();
+        const r = await post('/arcade/run/double', { id: run.id, level: +b.getAttribute('data-go'), ...nx });
         if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not start the next game.'}</p>${again}`);
         o.hidden = true;
         launch(r);
