@@ -7332,6 +7332,11 @@ gl_FragColor=vec4(col,1.0);}`;
       if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.1, +(DBG && DBG.m7v1) || 1.15, k), tk = lerp(0.72, 0.62, k);
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
         for (const d of def) { d.tackle *= tk; d.v *= lerp(0.93, 0.89, k); } }
+      // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
+      // a touch quicker and harder to bring down, the leading side's defense a step slower to react, more as the game gets late
+      if (METCALF && !kick) { const ln = clamp(mLean(), -1.5, 1.5);
+        for (const p of off) if (p.role !== 'OL') p.v *= 1 + 0.05 * ln;
+        for (const d of def) { d.tackle *= clamp(1 - 0.26 * ln, 0.55, 1.45); d.lagK *= clamp(1 + 0.26 * ln, 0.65, 1.4); d.v *= 1 - 0.04 * ln; } }
       // the offense tackles too once the defense has the ball (an interception or fumble return): the same rating as the defense
       // (no roll, so the play's random sequence is unchanged)
       // (at the easy levels the CPU defense tackles poorly, but a returner still goes down when they get to him)
@@ -8923,8 +8928,15 @@ gl_FragColor=vec4(col,1.0);}`;
     const DEF_ORDER = M7 ? ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBS', 'DT1'] : ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2']; // (Metcalf: the seven)
     // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
     // rd: how long his eyes stay on each read; smart: he throws it away rather than eat a sack
-    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? { err: lerp(0.8, 0.38, k), terr: lerp(0.22, 0.07, k), rd: lerp(0.62, 0.4, k) } : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
+    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? m7Brain(k) : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
 
+    // Metcalf's CPU quarterback: sharper reads at every level (a quicker eye down the progression, more of them the smart kind who
+    // throws it away instead of taking the sack), and late in a game he is behind in he lets it rip: a smaller cushion is open
+    // enough (agg, cpuBrain) and he hangs in a beat longer for a man to come open downfield
+    function m7Brain(k) {
+      const behind = as < hs, late = gameProg() > 0.75, agg = behind ? (late ? 0.82 : 0.92) : 1;
+      return { err: lerp(0.7, 0.3, k), terr: lerp(0.2, 0.06, k), rd: lerp(0.55, 0.36, k), smart: rng() < 0.75 + 0.25 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
+    }
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
       if (DBG && DBG.defKey === 'every') return !VS; // tests: every CPU snap is played live
@@ -8984,7 +8996,12 @@ gl_FragColor=vec4(col,1.0);}`;
     };
     if (M7) { KIND_PLAYS.quick.push('rub', 'spotfl'); KIND_PLAYS.mid.push('yoption'); KIND_PLAYS.run = KIND_PLAYS.run.filter((id) => id !== 'trap'); } // Metcalf's 7-on-7 book
     function defpPickPlay(S) {
-      const togo = S.fd - S.spot, kind = pickKind(cpuKindW(S.dn, togo, S.spot, { q: qtr, t: clock }, as - hs));
+      const togo = S.fd - S.spot, w0 = cpuKindW(S.dn, togo, S.spot, { q: qtr, t: clock }, as - hs);
+      // Metcalf: the CPU reads the defense you show at the line and checks into what beats it (more surely the better it is), and
+      // behind late it looks downfield
+      if (M7 && DEFP.call) { const F = DFIT[DEFP.call.id] || DFIT.c3, ck = lerp(1.2, 2.6, clamp(DIFF_OFF, 0, 1)); for (const k of DKINDS) w0[k] = (w0[k] || 0) * Math.exp(-ck * (F[k] || 0));
+        if (as < hs && gameProg() > 0.7 && togo > 2) { w0.mid *= 1.3; w0.deep *= 1.4; w0.run *= 0.6; } }
+      const kind = pickKind(w0);
       let ids = KIND_PLAYS[kind];
       if (kind === 'run' && togo <= 1.5) ids = ['power', 'iso', 'hbdive', S.fd >= FL ? 'qbpower' : 'sneak'];
       if (S.spot >= FL - VN.NEAR && kind === 'deep') ids = ['rzfade'];
@@ -9164,7 +9181,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (t < B.t0) return;
         const pz = pressure(), hot = pz > 0.45, last = B.ri === B.prog.length - 1;
         const e = cur ? cpuEval(cur, qb) : null;
-        if (e && e.s > QSEP(last ? 1.7 : B.ri === 0 ? 2.3 : 2.05)) { cpuThrow(B, e); return; }
+        if (e && e.s > QSEP(last ? 1.7 : B.ri === 0 ? 2.3 : 2.05) * (B.agg || 1)) { cpuThrow(B, e); return; }
         if (hot || t > B.hold) {
           // flushed or out of time: the best he can see now (a man in his face: something quick), else throw it away or run
           let best = null; for (const r of B.prog) { const q = cpuEval(r, qb); if (q && (!best || q.s > best.s) && (!hot || q.d < 15 || q.s > 3)) best = q; }
@@ -11721,13 +11738,28 @@ gl_FragColor=vec4(col,1.0);}`;
     const DRAMA = { streak: 0, fireOn: false, fires: 0, cpuStreak: 0, cpuHot: false, clutch: false, clutchShown: false, call: '', calls: {}, beatT: 0, flameT: 0, winners: 0, log: [] };
     function gameProg() { if (ONEC && qtr <= 4) return clamp((QS * 4 - clock) / (QS * 4), 0, 1); const q = Math.min(qtr, 4); return clamp(((q - 1) * QS + (QS - clock)) / (QS * 4), 0, 1); }
     function rubber() { if (DBG && DBG.noRubber) return 0; return clamp((hs - as) / 12, -1, 1) * (0.4 + 0.6 * gameProg()); }
+    // Metcalf's comeback logic (-1.5..1.5, above 0: the player leads). The blacktop has no field goals or tries, touchdowns are 7
+    // and most of the CPU's snaps are key plays the player defends live, so the stadium's curve (built on 8-point scores and the
+    // simulated drive table) barely touched a game there. Here a score is 7, the lean starts at half strength and grows through the
+    // last third of the game (clutch time is full strength), and a blowout leans harder still. The side that is behind gets the
+    // lift on both sides of the ball (its own snaps and the other side's), the leader's edge is only trimmed (0.6 of it), so a
+    // lead still feels earned. (DBG.noRubber turns it off for tests.)
+    function mRub() {
+      if (DBG && DBG.noRubber) return 0;
+      const d = hs - as, p = gameProg(), a = Math.min(Math.abs(d), 28);
+      const m = Math.min(1, a / 14) + Math.max(0, a - 14) / 28; // one score 0.5, two 1, four 1.5
+      return Math.sign(d) * m * (0.5 + 0.7 * Math.pow(p, 1.6) + (isClutch() ? 0.15 : 0));
+    }
+    // the Metcalf lean for whoever has the ball live: + helps the offense on this snap (the CPU's when the player defends a key play)
+    const mLean = () => { const k = mRub(); return DEFP.on ? k * (k > 0 ? 1 : 0.6) : -k * (k < 0 ? 1 : 0.6); };
     // nudges for the player's own close calls: up when he trails, down when he leads, plus the streak
-    const dramaCatch = () => -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
-    const dramaBreak = () => -rubber() * 0.06 + (DRAMA.fireOn ? 0.08 : 0);
+    // (Metcalf: for whoever has the ball, the CPU's offense included on the key plays, and a hot CPU gets the streak's edge)
+    const dramaCatch = () => METCALF ? mLean() * 0.1 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.05 + (DRAMA.fireOn ? 0.08 : 0);
+    const dramaBreak = () => METCALF ? mLean() * 0.1 + (DEFP.on ? (DRAMA.cpuHot ? 0.05 : 0) : (DRAMA.fireOn ? 0.08 : 0)) : -rubber() * 0.06 + (DRAMA.fireOn ? 0.08 : 0);
     // the drive's base table (the comeback logic and a hot CPU); the call is matched against each snap in simCpu (matchT)
     function cpuTable(call) {
-      const k = rubber(), K = { g: 1, big: 1, loss: 1, to: 1, inc: 1, slow: 0 };
-      const cs = clamp(CS + k * 0.3 + (DRAMA.cpuHot ? 0.08 : 0), 0, 1.25), c = Math.pow(cs, 1.3), toK = clamp(1 - k * 0.8, 0.2, 1.8);
+      const k = METCALF ? mRub() : rubber(), K = { g: 1, big: 1, loss: 1, to: 1, inc: 1, slow: 0 };
+      const cs = clamp(CS + k * (METCALF ? 0.5 : 0.3) + (DRAMA.cpuHot ? 0.08 : 0), 0, 1.25), c = Math.pow(cs, 1.3), toK = clamp(1 - k * 0.8, 0.2, METCALF ? 2.2 : 1.8);
       return { g: lerp(5.7, 9.4, c) * K.g, big: lerp(0.075, 0.22, c) * K.big, loss: lerp(0.14, 0.055, c) * K.loss, to: lerp(0.038, 0.014, c) * K.to * toK, fg: lerp(0.8, 0.96, c), inc: lerp(0.18, 0.1, c) * K.inc, oob: 0.1, go4: lerp(1, 3, c), slow: K.slow, rz: K.rz || null };
     }
     // clutch time: the fourth quarter (or overtime) inside the last minute with one score in it
