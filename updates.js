@@ -271,6 +271,22 @@ const UPDATES = [
       "Onside kicks are much harder (a perfect tap works about 1 in 3 at Rookie and 1 in 7 at the top level) and the onside bar now has the green in the middle with a TAP! prompt and a PERFECT/GOOD/OK/MISS flash. CPU onside kicks land at realistic rates.",
     ],
   },
+  {
+    n: 25,
+    date: '2026-11-09',
+    title: 'Metcalf: 7 on 7, 7 banana, one clock',
+    items: [
+      "Metcalf is 7 on 7 now: your QB, RB, WR1-3, TE and OL1 (the center) play, and the defense has one lineman, two linebackers, two corners and two safeties. Metcalf has its own playbook for it, and the Lineup page marks which spots play at Metcalf.",
+      "No rushing the QB at Metcalf until 7 banana (4.75 seconds). The count fills in at the top of the screen, then RUSH!",
+      "Metcalf plays one 8-minute clock (no quarters, no halftime). When time runs out, the team with the ball gets one last play, then the game is over.",
+      "At Metcalf every red dash on the side of the field is 5 yards, so spots, distances, gains and the box score read like a 100-yard field.",
+      "The CPU offense at Metcalf actually scores now, more often the higher the level.",
+      "Players at Metcalf are drawn at their real listed heights (they were too tall), and the black fences are chin-high like the real ones.",
+      "The big Metcalf field is a true zoom of the real place: the playground, buildings, trees, hoops and cars scale up with the field instead of looking mini.",
+      "A packed crowd on the big field (rows several deep all the way around, about 1,800 fans), and more fans on the true-size field. With the crowd on, Metcalf is loud: almost as loud as the stadium. Fans behind the goal lines no longer look like they're walking in place.",
+      "Double or Nothing and Double or Double at Metcalf: pick the true-size or the big field and two-hand touch if you want. The crowd is always on.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

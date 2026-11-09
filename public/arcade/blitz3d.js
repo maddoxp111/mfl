@@ -606,6 +606,32 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
     { id: 'qbdraw', name: 'QB Draw', form: 'empty', cat: 'trick', type: 'qbdraw', yd: 7, risk: 0.25, clk: 0.8, desc: 'Show pass, then take off up the middle', routes: { X: GO, Z: GO, S: SEAM, Y: SEAM, RB: OUT } },
     { id: 'screengo', name: 'Screen and Go', form: 'gun', cat: 'trick', type: 'pass', yd: 24, risk: 0.55, clk: 0, desc: 'Fake the bubble, the slot takes off', routes: { S: R([[3, -2], [3, 0], [0, 32]]), X: R([[0, 34]], { blk: 0.7 }), Z: POST, Y: BLK, RB: CHK } },
   ];
+  // Metcalf is 7 on 7: the QB, the back, three receivers, the tight end and one lineman (the center) against one down lineman, two
+  // linebackers, two corners and two safeties. The playbook there is this table laid over the one above: null drops a play that
+  // needs a full line (a trap needs a guard to pull and kick out), an object renames or redraws one, ADD has plays drawn for 7 on 7.
+  // The run game has no guards to pull: Power and Counter become lead and cutback runs behind the center and the back.
+  const M7BOOK = {
+    trap: null,
+    zone: { desc: 'Downhill behind the center, read the hole' },
+    ozone: { desc: 'Stretch it wide, the receivers seal the edge' },
+    power: { name: 'Lead Strong', desc: 'The fullback leads off the tight end' },
+    iso: { desc: 'The fullback leads straight at the linebacker' },
+    counter: { name: 'Cutback', desc: 'Jab step right, cut it back left' },
+    hbdive: { desc: 'Short yardage behind the center and the fullback' },
+    sneak: { desc: 'Short yardage push behind the center' },
+    qbpower: { name: 'QB Lead', desc: 'QB keeps it behind the back' },
+    leaddraw: { desc: 'Pass look, then the back follows the fullback' },
+    swing: { desc: 'Swing it wide, the slot and tight end block in front' },
+    rbscreen: { desc: 'Let the rusher in, dump it over him' },
+    pashot: { desc: 'Back and tight end stay in, two deep' },
+  };
+  const M7ADD = [
+    { id: 'rub', name: 'Bunch Rub', form: 'bunch', cat: 'quick', type: 'pass', yd: 7, risk: 0.2, clk: 0.5, desc: 'The bunch crosses, someone comes open off the rub', routes: { Z: R([[0, 7], [5, 7]]), S: R([[2, 1], [8, 2.5]]), Y: R([[0, 3], [-9, 8]]), X: CURL, RB: CHK } },
+    { id: 'yoption', name: 'Y Option', form: 'gun', cat: 'mid', type: 'pass', yd: 9, risk: 0.25, clk: 0.4, desc: 'One linebacker over the middle: the tight end breaks away from him', routes: { Y: R([[0, 7], [-1, 8.5]], { sit: 1 }), X: GO, Z: GO, S: R([[0, 12], [-10, 16]]), RB: R([[3, 0], [8, 1.5]]) } },
+    { id: 'spotfl', name: 'Spot', form: 'trips', cat: 'quick', type: 'pass', yd: 7, risk: 0.2, clk: 0.5, desc: 'Corner, spot and flat flood one side', routes: { Z: CORNER, S: SNAG, Y: FLAT, X: SLANT, RB: CHK } },
+  ];
+  const m7Plays = (L) => { const out = []; for (const p of L) { if (!(p.id in M7BOOK)) out.push(p); else if (M7BOOK[p.id]) out.push(Object.assign({}, p, M7BOOK[p.id])); } for (const p of M7ADD) out.push(p); return out; };
+  const PLAYS_STD = PLAYS;
   const CATS = [['coach', 'Coach'], ['run', 'Run'], ['quick', 'Quick'], ['mid', 'Mid'], ['deep', 'Deep'], ['pa', 'PA'], ['trick', 'Trick']];
   const ROUTE_NAMES = { go: 'Go', slant: 'Slant', out: 'Out', curl: 'Curl', post: 'Post' };
   const HOT = { go: R([[0, 40]]), slant: R([[0, 3], [-10, 10]]), out: R([[0, 6], [6, 6]]), curl: R([[0, 10], [1, 8.5]], { sit: 1 }), post: R([[0, 12], [-9, 26]]) };
@@ -2027,6 +2053,11 @@ gl_FragColor=vec4(c,1.0);}`;
     // stadium's football-player size (there a 5'4" rating draws about 2 m tall). STAND_H = the top of the skull standing straight at
     // hs 1 in yards (bind pose: hips 1.08 + spine, chest, neck, head bones 0.78 + the casual head's crown 0.028 + 1.1 x 0.284)
     const MHT = VN0.world === 'metcalf' && !MOPT.big, STAND_H = 2.2004;
+    // Metcalf is 7 on 7 on both field sizes (00-head.js M7BOOK): the offense is the QB, the back, WR1-3, the tight end and the center
+    // (OL2, the Lineup's OL1); the other four linemen sit. The defense is one down lineman (DT1), two linebackers (LBM, LBS), two
+    // corners and two safeties. OLI = the linemen who take the field; PLAYS is Metcalf's playbook there.
+    const M7 = VN0.world === 'metcalf', OLI = M7 ? [2] : [0, 1, 2, 3, 4];
+    const PLAYS = M7 ? m7Plays(PLAYS_STD) : PLAYS_STD;
     // time of day ('morning' | 'noon' | 'sunset' | 'night'; opts.tod, tests __blitzDebug.tod); the default is the venue's usual look: Metcalf
     // at noon, the stadium at night unless a weather was named (the old clear / rain / snow days were daytime games)
     const TODO = DBG && DBG.tod !== undefined ? DBG.tod : opts.tod;
@@ -7191,6 +7222,25 @@ gl_FragColor=vec4(col,1.0);}`;
         p.bones = null; p.rag = null; p.down = false; p.fall = 0; p.fallT = 0; p.rising = 0;
       }
     }
+    // 7 on 7 (Metcalf) assignments: the same calls with six in coverage and one rusher. Man: the corners on the outside receivers,
+    // the nickel linebacker (LBS) on the slot, the strong safety on the tight end, the middle linebacker on the back. Cover 2, 3 and 4
+    // keep their deep shells and play two underneath (Cover 3: the strong safety in the curl-flat, LBS the hook, LBM the weak flat).
+    // A blitz sends the middle linebacker; the other slides toward the hole he left. DT1 always rushes.
+    function m7Assign(A, c, blitz, dk, sgn, Z_, man, pos) {
+      pos = pos || DK; const zx = (q) => (q.xs != null ? q.xs : q.x), zz = (q) => (q.zs != null ? q.zs : q.z);
+      if (c === 0) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), FS: { t: 'rush' } });
+      else if (c === 1) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: blitz ? { t: 'rush' } : man('RB'), FS: Z_(0, 22, 1) });
+      else if (c === 2) Object.assign(A, { CB1: Z_(-16, 4), CB2: Z_(16, 4), FS: Z_(-10, 20, 1), SS: Z_(10, 20, 1), LBM: Z_(-6, 9), LBS: Z_(6, 9) });
+      else if (c === 3) Object.assign(A, { CB1: Z_(-16, 20, 1), CB2: Z_(16, 20, 1), FS: Z_(0, 23, 1), SS: Z_(sgn * 13, 6), LBS: Z_(sgn * 4, 9), LBM: Z_(-sgn * 11, 6) });
+      else Object.assign(A, { CB1: Z_(-17, 18, 1), FS: Z_(-6, 21, 1), SS: Z_(6, 21, 1), CB2: Z_(17, 18, 1), LBM: Z_(-8, 7), LBS: Z_(8, 7) });
+      if (dk === 'prev') Object.assign(A, { CB1: Z_(-16, 22, 1), CB2: Z_(16, 22, 1), FS: Z_(-6, 28, 1), SS: Z_(6, 28, 1), LBM: Z_(-8, 10), LBS: Z_(8, 10) }); // four deep, two under
+      else if (dk === 'spy') A.LBM = { t: 'spy' };
+      else if (dk === 'box') Object.assign(A, { LBM: Z_(0, 3.5), FS: Z_(0, 17, 1) });
+      // zones belong to the side of the field (see sideUp in setupPlay): each mirrored pair goes to whoever is lined up on that side
+      for (const [k1, k2] of [['CB1', 'CB2'], ['LBM', 'LBS'], ['FS', 'SS']]) { const z1 = A[k1], z2 = A[k2], d1 = pos[k1], d2 = pos[k2]; if (z1 && z2 && d1 && d2 && z1.t === 'zone' && z2.t === 'zone' && z1.x * z2.x < 0 && (d1.x - d2.x) * (z1.x - z2.x) < 0) { A[k1] = z2; A[k2] = z1; } }
+      if (c >= 2 && blitz && !dk && A.LBM && A.LBM.t === 'zone') { const hole = A.LBM; A.LBM = { t: 'rush' }; if (A.LBS && A.LBS.t === 'zone' && !A.LBS.deep) A.LBS = Z_((zx(A.LBS) + zx(hole)) / 2, Math.max(zz(A.LBS), zz(hole))); }
+      A.DT1 = { t: 'rush' };
+    }
     function setupPlay() {
       clearPlayers();
       tPlay = 0; ctrl = null; carrier = null; mode = 'none'; thrown = false; handed = false; runSeen = -1; crossed = false; aim = null; target = null; passer = null; playRes = '';
@@ -7202,8 +7252,8 @@ gl_FragColor=vec4(col,1.0);}`;
         if (k === 'Y' && play.form === 'gun' && play.id !== 'rbscreen') x = LX(3.9) * fx;
         addOff(offPlayer(k, x, z));
       }
-      for (let i = 0; i < 5; i++) {
-        addOff(olPlayer(i, LX((i - 2) * 1.95), los - 0.9)); // (LX: shoulder-to-shoulder splits on the narrow field)
+      for (const i of OLI) {
+        addOff(olPlayer(i, LX((i - 2) * 1.95), los - 0.9)); // (LX: shoulder-to-shoulder splits on the narrow field; Metcalf: the center only)
       }
       const RK = play.carrier || 'RB'; // who takes the handoff on a run (jet sweeps and end arounds hand it to a receiver)
       for (const k of ['X', 'Z', 'S', 'Y', 'RB']) {
@@ -7219,10 +7269,15 @@ gl_FragColor=vec4(col,1.0);}`;
       dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
       const sgn = OK.Y.x >= 0 ? 1 : -1, cush = DP.cush;
       const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
+      const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
+      if (M7) { // 7 on 7: one down lineman shaded on the center, the middle linebacker stacked to the weak side behind him
+        D('DL', 'DT1', LX(-0.7 * sgn), los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
+        D('LB', 'LBM', LX(-2.4) * sgn, zc(los + 4.8), { num: 50 });
+      } else {
       D('DL', 'DE1', LX(-4.6), los + 0.9, { w: 1.2, rad: 0.5, num: 91 }); D('DL', 'DT1', LX(-1.35), los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
       D('DL', 'DT2', LX(1.35), los + 0.9, { w: 1.2, rad: 0.5, num: 93 }); D('DL', 'DE2', LX(4.6), los + 0.9, { w: 1.2, rad: 0.5, num: 99 });
-      const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
       D('LB', 'LBW', LX(-4.2) * sgn, zc(los + 4.6), { num: 54 }); D('LB', 'LBM', LX(0.3), zc(los + 4.9), { num: 50 }); // (zc only binds in a shallow end zone)
+      }
       D('LB', 'LBS', nickel ? slot.x - Math.sign(slot.x) * 0.9 : LX(4.2) * sgn, zc(los + (nickel ? 4.2 : 4.6)), { num: nickel ? 26 : 52, v: nickel ? DP.cbV * 0.97 : DP.lbV });
       const dk = dcall.kind || '', press = dk === 'press' || (!dk && KDEF > 0.7 && rng() < 0.35);
       const X = OK.X, Z = OK.Z;
@@ -7236,11 +7291,13 @@ gl_FragColor=vec4(col,1.0);}`;
         D('S', 'FS', twoHigh ? LX(-10 * sgn) : 0, zc(los + DZ(twoHigh ? 13 : 14.5)), { num: 31 }); // the strong safety on the tight end's side, two-high or not
         D('S', 'SS', LX(twoHigh ? 10 * sgn : 5 * sgn), zc(los + DZ(twoHigh ? 13 : 7.5)), { num: 42 });
       }
-      if (dk === 'box') for (const k of ['LBW', 'LBM', 'LBS']) if (DK[k].num !== 26) DK[k].z = zc(los + 3.3); // linebackers up in the box
+      if (dk === 'box') for (const k of ['LBW', 'LBM', 'LBS']) if (DK[k] && DK[k].num !== 26) DK[k].z = zc(los + 3.3); // linebackers up in the box
       // a zone landmark: where it is on this field (x, z from the line) and where the design puts it (xs, zs: stadium terms)
       const Z_ = (x, z, deep) => ({ t: 'zone', x: xin(LX(x), 1.5), z: DZ(z), xs: x, zs: z, deep: !!deep });
       const man = (k) => ({ t: 'man', tgt: OK[k] });
       const A = {}, c = dcall.cov;
+      if (M7) m7Assign(A, c, dcall.blitz, dk, sgn, Z_, man);
+      else {
       if (c === 0) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), LBW: { t: 'rush' }, FS: { t: 'rush' } });
       else if (c === 1) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), FS: Z_(0, 22, 1), LBW: dcall.blitz ? { t: 'rush' } : Z_(0, 8) });
       else if (c === 2) Object.assign(A, { CB1: Z_(-16, 4), CB2: Z_(16, 4), FS: Z_(-10, 20, 1), SS: Z_(10, 20, 1), LBW: Z_(-8, 9), LBM: Z_(0, 10), LBS: Z_(8, 9) });
@@ -7263,17 +7320,23 @@ gl_FragColor=vec4(col,1.0);}`;
       sideUp(); // again for the Prevent and Stack the Box zones
       for (const k of ['DE1', 'DT1', 'DT2', 'DE2']) A[k] = { t: 'rush' };
       if (dk === 'prev') A[sgn > 0 ? 'DE1' : 'DE2'] = Z_(0, 5); // only three rush: the weak-side end drops into the middle
+      }
       for (const k in A) if (A[k].t === 'man' && A[k].tgt && A[k].tgt.blk === 'block') A[k] = KDEF > 0.5 && rng() < 0.5 ? { t: 'rush' } : Z_(0, 8);
       for (const d of def) {
         d.ass = A[d.key] || Z_(0, 9);
         d.lagK = 0.8 + rng() * 0.45; d.spdK = 0.96 + rng() * 0.08;
         d.tackle = DP.tackle * (0.9 + rng() * 0.2);
       }
+      // Metcalf's key defensive plays: four downs to go the whole blacktop (no first downs), so the CPU's 7-on-7 offense has to make
+      // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
+      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.06, +(DBG && DBG.m7v1) || 1.12, k), tk = lerp(0.8, 0.7, k);
+        for (const p of off) if (p.role !== 'OL') p.v *= sp;
+        for (const d of def) { d.tackle *= tk; d.v *= lerp(0.93, 0.89, k); } }
       // the offense tackles too once the defense has the ball (an interception or fumble return): the same rating as the defense
       // (no roll, so the play's random sequence is unchanged)
       // (at the easy levels the CPU defense tackles poorly, but a returner still goes down when they get to him)
       for (const p of off) p.tackle = Math.max(DP.tackle, 60 + 16 * clamp(KDEF, 0, 1));
-      if (dcall.stunt) { DK.DT1.stunt = -1; DK.DE1.stunt = 1; }
+      if (dcall.stunt && DK.DE1) { DK.DT1.stunt = -1; DK.DE1.stunt = 1; }
       filmApply();
       // Press Man: each corner jams his man at the line. Win it and the receiver is late into his route; lose it and the corner is
       // a step behind him the whole way.
@@ -8853,10 +8916,10 @@ gl_FragColor=vec4(col,1.0);}`;
     // offense player has. The result goes back into the simulated drive. In Head to Head the defending screen controls a defender
     // the same way; its stick and buttons travel to the screen in charge (vsDefIn in 77-versus.js).
     const DEFP = { on: false, flipped: false, left: 0, dnum: 0, ctl: null, manT: -9, call: null, st: null, cd: 0, res: null, log: [], brain: null, sug: 'c3' };
-    const DEF_ORDER = ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2'];
+    const DEF_ORDER = M7 ? ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBS', 'DT1'] : ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2']; // (Metcalf: the seven)
     // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
     // rd: how long his eyes stay on each read; smart: he throws it away rather than eat a sack
-    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null }; };
+    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? { err: lerp(1.3, 0.6, k), terr: lerp(0.22, 0.07, k), rd: lerp(0.7, 0.45, k) } : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
 
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
@@ -8915,6 +8978,7 @@ gl_FragColor=vec4(col,1.0);}`;
       mid: ['dagger', 'levels', 'sail', 'flood', 'smash', 'comebacks', 'ycross', 'drive'], deep: ['verts', 'postcorner', 'dblpost', 'deepcross', 'sluggo', 'seamshot'],
       screen: ['rbscreen', 'tunnel', 'bubble', 'wrscreen', 'slip'], pa: ['papost', 'padig', 'pacross', 'boot', 'waggle'],
     };
+    if (M7) { KIND_PLAYS.quick.push('rub', 'spotfl'); KIND_PLAYS.mid.push('yoption'); KIND_PLAYS.run = KIND_PLAYS.run.filter((id) => id !== 'trap'); } // Metcalf's 7-on-7 book
     function defpPickPlay(S) {
       const togo = S.fd - S.spot, kind = pickKind(cpuKindW(S.dn, togo, S.spot, { q: qtr, t: clock }, as - hs));
       let ids = KIND_PLAYS[kind];
@@ -8939,7 +9003,8 @@ gl_FragColor=vec4(col,1.0);}`;
       DEFP.flipped = on;
     }
     // our defenders wear our own players: names, numbers, faces and looks from the Lineup (their cards stay on offense)
-    const DEF_SQ = { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBW: 'QB', LBS: 'OL0', DE1: 'OL1', DT1: 'OL2', DT2: 'OL3', DE2: 'OL4' };
+    const DEF_SQ = M7 ? { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBS: 'QB', DT1: 'OL2' } // 7 on 7: the seven who play (the center is the down lineman)
+      : { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBW: 'QB', LBS: 'OL0', DE1: 'OL1', DT1: 'OL2', DT2: 'OL3', DE2: 'OL4' };
     const defSq = (key) => { if (!(DEFP.flipped || VS) || !SQ2) return null; const q = SQ2[DEF_SQ[key]]; return q && (q.real !== false) ? q : null; };
     function defSqOpts(key) {
       const q = defSq(key); if (!q) return {};
@@ -9135,7 +9200,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function cpuProg(B) {
       const L = off.filter((r) => isRec(r) && !r.rag && r.R && r.blk !== 'block');
       const dep = (r) => Math.min(DZ(25), r.R.pts[r.R.pts.length - 1][1] - los), yd = DZ(play.yd || 8);
-      const blitz = def.filter((d) => d.ass && d.ass.t === 'rush').length >= 6;
+      const blitz = def.filter((d) => d.ass && d.ass.t === 'rush').length >= (M7 ? 3 : 6); // (7 on 7: three rushing is everything they have)
       L.sort((a, b) => (blitz ? dep(a) - dep(b) : dep(b) - dep(a)));
       let prim = L[0]; if (!blitz) for (const r of L) if (Math.abs(dep(r) - yd) < Math.abs(dep(prim) - yd)) prim = r;
       if (play.scr && OK[play.scr] && L.includes(OK[play.scr])) prim = OK[play.scr];
@@ -9392,14 +9457,17 @@ gl_FragColor=vec4(col,1.0);}`;
     function defLayout(C) {
       const sgn = 1, kind = C.kind || '', cov = C.cov, cush = 6, P = {};
       const put = (k, x, z) => { P[k] = { x, z }; };
-      put('DE1', -4.6, 0.9); put('DT1', -1.35, 0.9); put('DT2', 1.35, 0.9); put('DE2', 4.6, 0.9);
-      put('LBW', -4.2, 4.6); put('LBM', 0.3, 4.9); put('LBS', 7.4, 4.2);
+      if (M7) { put('DT1', -0.7, 0.9); put('LBM', -2.4, 4.8); put('LBS', 7.4, 4.2); } // 7 on 7 (Metcalf): one down lineman, two linebackers
+      else { put('DE1', -4.6, 0.9); put('DT1', -1.35, 0.9); put('DT2', 1.35, 0.9); put('DE2', 4.6, 0.9);
+      put('LBW', -4.2, 4.6); put('LBM', 0.3, 4.9); put('LBS', 7.4, 4.2); }
       const cbz = kind === 'press' ? 1.4 : kind === 'prev' ? 8.5 : cush; put('CB1', -14.4, cbz); put('CB2', 14.4, cbz);
       const twoHigh = [2, 4].indexOf(cov) >= 0 ? !C.dis : !!C.dis;
       if (kind === 'prev') { put('FS', -9, 18); put('SS', 9, 18); }
-      else if (kind === 'box') { put('FS', 0, 14.5); put('SS', 5.2, 4.6); for (const k of ['LBW', 'LBM']) P[k].z = 3.3; }
+      else if (kind === 'box') { put('FS', 0, 14.5); put('SS', 5.2, 4.6); for (const k of ['LBW', 'LBM']) if (P[k]) P[k].z = 3.3; }
       else { put('FS', twoHigh ? -10 : 0, twoHigh ? 13 : 14.5); put('SS', twoHigh ? 10 : 5, twoHigh ? 13 : 7.5); }
       const Z_ = (x, z, deep) => ({ t: 'zone', x, z, deep: !!deep }), man = (k) => ({ t: 'man', tgt: k }), A = {};
+      if (M7) m7Assign(A, cov, C.blitz, kind, sgn, Z_, man, P);
+      else {
       if (cov === 0) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), LBW: { t: 'rush' }, FS: { t: 'rush' } });
       else if (cov === 1) Object.assign(A, { CB1: man('X'), CB2: man('Z'), LBS: man('S'), SS: man('Y'), LBM: man('RB'), FS: Z_(0, 22, 1), LBW: C.blitz ? { t: 'rush' } : Z_(0, 8) });
       else if (cov === 2) Object.assign(A, { CB1: Z_(-16, 4), CB2: Z_(16, 4), FS: Z_(-10, 20, 1), SS: Z_(10, 20, 1), LBW: Z_(-8, 9), LBM: Z_(0, 10), LBS: Z_(8, 9) });
@@ -9411,6 +9479,7 @@ gl_FragColor=vec4(col,1.0);}`;
       else if (kind === 'box') Object.assign(A, { LBW: Z_(-3.5, 3.5), LBM: Z_(0, 3.5), FS: Z_(0, 17, 1) });
       for (const k of ['DE1', 'DT1', 'DT2', 'DE2']) A[k] = { t: 'rush' };
       if (kind === 'prev') A.DE1 = Z_(0, 5);
+      }
       if (SMALL) { // the small field: the same maps the game lines them up with (LX across, DZ in depth)
         for (const k in P) P[k] = { x: xin(LX(P[k].x), 1), z: DZ(P[k].z) };
         for (const k in A) if (A[k].t === 'zone') A[k] = Z_(xin(LX(A[k].x), 1.5), DZ(A[k].z), A[k].deep);
@@ -9430,7 +9499,7 @@ gl_FragColor=vec4(col,1.0);}`;
       // zones first (under everything): deep ones blue, underneath ones yellow
       for (const k in L.A) { const a = L.A[k]; if (a.t !== 'zone') continue; g.fillStyle = a.deep ? 'rgba(77,170,255,.30)' : 'rgba(255,214,60,.28)'; g.strokeStyle = a.deep ? 'rgba(120,195,255,.85)' : 'rgba(255,214,60,.85)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(X(a.x), Y(a.z), SMALL ? (a.deep ? 6.5 : 4.5) * LK * W / (2 * (HW + 1.2)) * 1.4 : (a.deep ? 6.5 : 4.5) * W / 38, SMALL ? (a.deep ? 3.6 : 2.6) * DKN * H / 22 * 1.3 : (a.deep ? 3.6 : 2.6) * H / 33, 0, 0, 6.3); g.fill(); g.stroke(); g.setLineDash([]); const p = L.P[k]; g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(p.x), Y(p.z)); g.lineTo(X(a.x), Y(a.z)); g.stroke(); g.setLineDash([]); }
       // offense: the usual spread look
-      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(X(LX((i - 2) * 1.95)), Y(-0.9), 3, 0, 6.3); g.fill(); }
+      g.fillStyle = '#f5f6f8'; for (const i of OLI) { g.beginPath(); g.arc(X(LX((i - 2) * 1.95)), Y(-0.9), 3, 0, 6.3); g.fill(); }
       for (const k in DFORM) { const [x0, z] = DFORM[k], x = SMALL ? xin(LX(x0), 1.5) : x0; g.fillStyle = k === 'QB' ? '#ffc21a' : '#f5f6f8'; g.beginPath(); g.arc(X(x), Y(z), 3.4, 0, 6.3); g.fill(); }
       const tip = (x0, y0, x1, y1, col) => { const a = Math.atan2(y1 - y0, x1 - x0); g.fillStyle = col; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k in L.A) {
@@ -9440,7 +9509,7 @@ gl_FragColor=vec4(col,1.0);}`;
         else if (a.t === 'spy') { const qb = DFORM.QB; g.strokeStyle = '#c084fc'; g.setLineDash([2, 3]); g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(X(qb[0]), Y(qb[1])); g.stroke(); g.setLineDash([]); }
       }
       for (const k in L.P) { const p = L.P[k], x = X(p.x), y = Y(p.z), col = L.A[k] && L.A[k].t === 'rush' ? '#ff6b78' : '#ffffff'; g.strokeStyle = col; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x - 3.5, y - 3.5); g.lineTo(x + 3.5, y + 3.5); g.moveTo(x + 3.5, y - 3.5); g.lineTo(x - 3.5, y + 3.5); g.stroke(); }
-      const tag = DCAT_OF[C.id] === 'blitz' ? ['BLITZ', '#ff6b78'] : C.kind === 'prev' ? ['PREVENT', '#7cc4ff'] : C.kind === 'box' ? ['8 IN THE BOX', '#ffc21a'] : C.kind === 'press' ? ['PRESS', '#ffffff'] : C.kind === 'spy' ? ['SPY', '#c084fc'] : C.dis ? ['DISGUISE', '#7cc4ff'] : null;
+      const tag = DCAT_OF[C.id] === 'blitz' ? ['BLITZ', '#ff6b78'] : C.kind === 'prev' ? ['PREVENT', '#7cc4ff'] : C.kind === 'box' ? [M7 ? 'STACK THE BOX' : '8 IN THE BOX', '#ffc21a'] : C.kind === 'press' ? ['PRESS', '#ffffff'] : C.kind === 'spy' ? ['SPY', '#c084fc'] : C.dis ? ['DISGUISE', '#7cc4ff'] : null;
       if (tag) { g.fillStyle = tag[1]; g.font = 'bold 10px Inter,sans-serif'; g.fillText(tag[0], 4, 12); }
     }
 
@@ -10751,14 +10820,14 @@ gl_FragColor=vec4(col,1.0);}`;
       clearBanner(); closeSheet(); hideTags();
       clearPlayers();
       const kz = type === 'punt' ? los - 13 : los - 7;
-      for (let i = 0; i < 5; i++) addOff(olPlayer(i, (i - 2) * 1.95, los - 0.9, { v: 5.6 }));
+      for (const i of OLI) addOff(olPlayer(i, (i - 2) * 1.95, los - 0.9, { v: 5.6 })); // (Metcalf: the center snaps it, the rest sit)
       // the kicker: the Lineup player with the best leg when there is one (the RB holds if he is the QB)
       const kq = KQ || { key: 'K', look: KLOOK, num: 3 }, hq = KQ === SQ.QB ? SQ.RB : SQ.QB;
       const kp = addOff(mkP(0, 'K', 'K', type === 'punt' ? 0 : -1.0, type === 'punt' ? kz - 0.4 : kz - 1.4, { num: kq.num, lk: kq.look || KLOOK, sq: KQ, face: KQ ? KQ.cell : -1, v: 5, spd: 50, fx: KQ ? KQ.fx : null }));
       kp.h = type === 'punt' ? 0 : 0.35;
       if (type !== 'punt') { const h = addOff(mkP(0, 'QB', 'H', 0.3, kz - 0.1, { num: hq.num, lk: hq.look, sq: hq, face: hq.cell, spd: 50, fx: hq.fx })); h.h = 0.6; }
-      for (let i = 0; i < 4; i++) addDef(mkP(1, 'DL', 'DL' + i, (i - 1.5) * 2.2, los + 0.9, { w: 1.2, rad: 0.5, v: DP.dlV, num: 90 + i }));
-      for (let i = 0; i < 3; i++) addDef(mkP(1, 'LB', 'LB' + i, (i - 1) * 4, los + 3.5, { v: DP.lbV, num: 50 + i }));
+      for (let i = 0; i < (M7 ? 1 : 4); i++) addDef(mkP(1, 'DL', 'DL' + i, M7 ? 0 : (i - 1.5) * 2.2, los + 0.9, { w: 1.2, rad: 0.5, v: DP.dlV, num: 90 + i }));
+      for (let i = M7 ? 1 : 0; i < 3; i++) addDef(mkP(1, 'LB', 'LB' + i, M7 ? (i - 1.5) * 4 : (i - 1) * 4, los + 3.5, { v: DP.lbV, num: 50 + i }));
       if (type === 'punt') addDef(mkP(1, 'S', 'PR', 0, Math.min(ZEND - emg(2), los + 40), { v: DP.sV, num: 23 }));
       finalizePlayers();
       for (const p of everyone) setPose(p, p.key === 'H' ? 'kneel' : p.role === 'OL' || p.role === 'DL' ? 'stance3' : p.key === 'K' ? 'idle' : 'stance2');
@@ -11362,6 +11431,11 @@ gl_FragColor=vec4(col,1.0);}`;
     // log (optional) gets every snap: down, first-down spot and ball spot before it, the kind of play, the call, the gain, and how it
     // ended (stop: incomplete or out of bounds; to: a turnover; td), plus the field goal or punt that ends a drive.
     const TOUCH_YK = 0.85;
+    // Metcalf's true-size blacktop (no first downs: four downs to score from the restart at the CPU's 4, about 26 yards to go): the
+    // stadium's gains cut to a third (yardK) left the CPU scoring on about one drive in twenty. Seven on seven there is a passing
+    // game with room to run after the catch, so a gain keeps more of its length, more the better the CPU (CS): about a third of its
+    // drives score at Rookie, over half at Legend. (The big field keeps the stadium's yards and first downs.)
+    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 0.95, +(DBG && DBG.myk1) || 0.6, clamp(CS, 0, 1)) : 0;
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
       const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;
@@ -11392,7 +11466,8 @@ gl_FragColor=vec4(col,1.0);}`;
         else if (r < T.loss + T.big) g = 15 + Math.floor(rng() * 35);
         else if (r < T.loss + T.big + T.inc) { g = 0; stop = true; } // incomplete
         else g = Math.round(T.g * (0.2 + 1.6 * rng()));
-        if (VN.yardK !== 1) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * VN.yardK); // a shorter field: shorter gains
+        if (MYK) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * MYK); // Metcalf's blacktop: 7 on 7 gains (MYK)
+        else if (VN.yardK !== 1) g = g < 0 ? Math.min(-1, Math.round(g * VN.yardK)) : Math.round(g * VN.yardK); // a shorter field: shorter gains
         if (MOPT.touch && g > 1) g = Math.round(g * TOUCH_YK); // two-hand touch: no yards after contact (no falling forward, no dragging tacklers)
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
@@ -14672,7 +14747,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const line = (d, col) => { if (Y(d) < 0 || Y(d) > H) return; g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(d)); g.lineTo(X(HW), Y(d)); g.stroke(); };
       line(FL - los, '#ff5a5a'); line(ZEND - los, '#ffffff'); line(-los, '#ff5a5a'); line(ZBACK - los, '#ffffff'); // goal lines red, end lines white
       g.strokeStyle = '#5aa0ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-HW), Y(0)); g.lineTo(X(HW), Y(0)); g.stroke();
-      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) g.fillRect(X(LX((i - 2) * 1.95)) - 3, Y(-0.9) - 3, 6, 6);
+      g.fillStyle = '#f5f6f8'; for (const i of OLI) g.fillRect(X(LX((i - 2) * 1.95)) - 3, Y(-0.9) - 3, 6, 6); // the line (Metcalf: the center)
       const tip = (x0, y0, x1, y1) => { const a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k of ['X', 'Z', 'S', 'Y', 'RB', 'QB']) {
         let x = xin(LX(F[k][0]), 1.5), d = Math.max(bf(F[k][1]), ZBACK + emg(1.5) - los); if (k === 'Y' && pl.form === 'gun' && pl.id !== 'rbscreen') x = LX(3.9);
@@ -14706,7 +14781,7 @@ gl_FragColor=vec4(col,1.0);}`;
       g.fillStyle = '#1f6a32'; g.fillRect(0, 0, W, H);
       g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1; for (let d = -5; d <= 25; d += 5) { g.beginPath(); g.moveTo(0, Y(d)); g.lineTo(W, Y(d)); g.stroke(); }
       g.strokeStyle = '#5aa0ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
-      g.fillStyle = '#f5f6f8'; for (let i = 0; i < 5; i++) g.fillRect(X((i - 2) * 1.95) - 3, Y(-0.9) - 3, 6, 6);
+      g.fillStyle = '#f5f6f8'; for (const i of OLI) g.fillRect(X((i - 2) * 1.95) - 3, Y(-0.9) - 3, 6, 6);
       const tip = (x0, y0, x1, y1) => { const a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 6 * Math.cos(a - 0.5), y1 - 6 * Math.sin(a - 0.5)); g.lineTo(x1 - 6 * Math.cos(a + 0.5), y1 - 6 * Math.sin(a + 0.5)); g.closePath(); g.fill(); };
       for (const k of ['X', 'Z', 'S', 'Y', 'RB', 'QB']) {
         let [x, d] = F[k]; if (k === 'Y' && pl.form === 'gun' && pl.id !== 'rbscreen') x = 3.9;
@@ -14976,7 +15051,7 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // the matchup before kickoff: your Lineup's overall against theirs, and your superstars with what they do
     function teamOvr(T, S) {
-      const os = []; for (const k in S) { const o = ovrOfSq(S[k]); if (o) os.push(o); }
+      const os = []; for (const k in S) { if (M7 && S[k].ol && OLI.indexOf(+k.slice(2)) < 0) continue; const o = ovrOfSq(S[k]); if (o) os.push(o); } // (Metcalf: only the seven who play)
       return os.length ? Math.round(os.reduce((a, b) => a + b, 0) / os.length) : Math.round((T.ovrOff + T.ovrDef) / 2);
     }
     function ovrPanel() {
@@ -14984,7 +15059,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const bar = (o, c) => `<span class="bz-mubar"><i style="width:${clamp((o - 40) / 59, 0.05, 1) * 100}%;background:${c}"></i></span>`;
       const col = (o) => (o >= 99 ? '#ff9de8' : o >= 90 ? '#ffd23f' : o >= 80 ? '#dfe4ee' : '#9aa0ad');
       const stars = [];
-      for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y', 'OL0', 'OL1', 'OL2', 'OL3', 'OL4']) {
+      for (const k of ['QB', 'RB', 'X', 'Z', 'S', 'Y'].concat(OLI.map((i) => 'OL' + i))) {
         const q = SQ[k], o = ovrOfSq(q); if (o < 90) continue;
         const role = k === 'QB' ? 'QB' : k === 'RB' ? 'RB' : k === 'Y' ? 'TE' : k.startsWith('OL') ? 'OL' : 'WR';
         const ab = o >= 95 ? STAR_AB[starAbility({ role, str: q.r.str, agi: q.r.agi })] : 'Superstar';
