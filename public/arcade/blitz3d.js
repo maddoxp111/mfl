@@ -778,14 +778,15 @@ vec3 col=shadePBR(base,N,rough,metal,ao,cav,0,specOcc);
 if(uMatW.w>0.0)col+=base*uMatW.w;
 gl_FragColor=vec4(fogIt(col),1.0);}`;
   // ---- skinned athletes: two bone weights per vertex ----
-  // slots (SL): 0 jer 1 pant 2 skin 3 helm 4 trim 5 cleat 6 pad 7 mask 8 num 9 face 10 arm 11 name 12 glove 13 sock 14 sole 15 visor 16 snum 17 wht 18 eye 19 tape 20 towel 21 stripes
+  // slots (SL): 0 jer 1 pant 2 skin 3 helm 4 trim 5 cleat 6 pad 7 mask 8 num 9 face 10 arm 11 name 12 glove 13 sock 14 sole 15 visor 16 snum 17 wht 18 eye 19 tape 20 towel 21 stripes 22 mouth 23 hair 24 cloth 25 scanned head (22-heads.js)
   const VS_SKIN = `attribute vec3 aP;attribute vec3 aN;attribute vec2 aB;attribute float aW;attribute float aS;attribute vec2 aT;attribute float aA;
-uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uNumUV;uniform HP vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uTowel;uniform float uSway;uniform float uMouth;uniform vec4 uFxV;
+uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uVP;uniform HP vec3 uEye;uniform HP vec3 uCamF;uniform vec4 uNumUV;uniform HP vec4 uFaceUV;uniform vec4 uNameUV;uniform float uVis;uniform float uTowel;uniform float uSway;uniform float uMouth;uniform vec4 uFxV;uniform float uHead;
 varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vS;varying float vA;varying vec3 vP;
 vec3 skinP(int b,vec4 p){return vec3(dot(uBones[b],p),dot(uBones[b+1],p),dot(uBones[b+2],p));}
 vec3 skinN(int b,vec3 n){return vec3(dot(uBones[b].xyz,n),dot(uBones[b+1].xyz,n),dot(uBones[b+2].xyz,n));}
 void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;int s=int(aS);vec3 lp=aP*uScale;
 if((s==15&&uVis<0.5)||(s==20&&uTowel<0.5)||(s==22&&uMouth<0.5))lp=vec3(0.0);
+if(uHead>0.5&&aB.x>3.5&&aB.x<4.5&&aW>0.999&&aP.y>0.8&&s!=25)lp=vec3(0.0); // bone 4 = head (05-anim BONES)
 if(s==20){float k=clamp(-aP.y*4.0,0.0,1.0);lp.z+=uSway*k*k;lp.x+=uSway*0.35*k;}
 lp+=aN*uFxV.x;
 vec4 p=vec4(lp,1.0);float w0=aW,w1=1.0-aW;
@@ -793,7 +794,7 @@ vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 n=normalize(skinN(b0,aN)*w0+skinN(b1,a
 bool num=(s==8||s==16);
 vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
 vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
-  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[25];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
+  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[26];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
 varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
 #LIB#
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -803,7 +804,7 @@ vec3 N=normalize(vN);vec3 c=uCol[s];
 bool kit=(s==0||s==1||s==3||s==12||s==13||s==21);bool numS=(s==8||s==16);
 vec4 t=vec4(1.0);
 if(kit){t=texture2D(uKit,vT);base=toLin(t.rgb);}
-else if(s==9){t=texture2D(uTex,vT);base=toLin(t.rgb);}
+else if(s==9||s==25){t=texture2D(uTex,vT);base=toLin(t.rgb);}
 else if(numS||s==11){t=texture2D(uTex,vT);if(t.a<0.45)discard;base=toLin(c*t.rgb);}
 else base=toLin(c);
 if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11||s==24){ // fabrics: woven normal map, roughness from the kit alpha
@@ -817,6 +818,7 @@ if(s==0||s==1||s==13||s==21||s==10||s==12||numS||s==11||s==24){ // fabrics: wove
 }
 if(s==2||s==9){mode=1;rough=mix(0.55,0.3,uSweat);specOcc=0.6+0.5*uSweat;if(s==9){ // face: photo blended into skin at the edges
   vec2 q=(vT-uFaceUV.xy)/uFaceUV.zw;float m=1.0-smoothstep(0.44,0.8,length((q-vec2(0.5,0.5))*vec2(1.0,0.8))*2.0);base=mix(toLin(uCol[2]),base,m*t.a);}}
+if(s==25){mode=1;rough=mix(0.6,0.38,uSweat);specOcc=0.55+0.4*uSweat;}
 if(s==18){ // eyes: sclera with an iris that looks along uGaze
   float g=dot(N,normalize(uGaze));float ir=smoothstep(0.80,0.86,g),pu=smoothstep(0.955,0.965,g);
   base=mix(vec3(0.78,0.72,0.68),mix(c*0.5,c*0.15,smoothstep(0.86,0.95,g)),ir);base=mix(base,vec3(0.01),pu);rough=0.08;specOcc=2.5;}
@@ -832,10 +834,10 @@ if(s==23){ // hair: fine streaks along the strands, soft sheen
   float a=atan(vP.x,vP.z);float st=noise(vec2(a*34.0,vP.y*70.0))*0.6+noise(vec2(a*90.0,vP.y*160.0))*0.4;base*=0.72+0.5*st;rough=0.5;specOcc=0.55;}
 if(s==15){rough=0.05;base=mix(base,vec3(0.02,0.025,0.03),0.7);alpha=uAlpha;specOcc=2.0;metal=0.3;}
 if(s==20){rough=0.9;}
-if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
+if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9||s==25)){rough=mix(rough,0.18,uWet*0.5);}
 // card effects (uFx: mode, strength, time, seed; uFxC: colour)
 vec3 emis=vec3(0.0);float fm=uFx.x,fk=uFx.y,ft=uFx.z;
-if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23);
+if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23||s==25);
  if(fm>19.5){float rim=pow(fres,1.5);gl_FragColor=vec4(uFxC*fk*(0.1+rim*1.8),clamp(rim*1.3,0.0,1.0)*min(fk,1.0));return;}
  else if(fm<1.5){base=mix(base,vec3(0.2,0.14,0.08)+lum*vec3(1.15,0.92,0.62),0.85*fk);}
  else if(fm<2.5){base=mix(base,vec3(0.62,0.45,0.26)*(0.6+0.6*lum),0.85*fk);rough=1.0;specOcc=0.2;
@@ -865,8 +867,8 @@ vec3 col=shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis;
 gl_FragColor=vec4(fogIt(col),alpha);}`;
   // ---- depth-only passes (shadow cascades) ----
   const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
-  const VS_DEPTH_S = `attribute vec3 aP;attribute vec2 aB;attribute float aW;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;uniform float uTowel;uniform float uMouth;
-void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;vec3 lp=aP*uScale;if((aS>14.5&&aS<15.5&&uVis<0.5)||(aS>19.5&&aS<20.5&&uTowel<0.5)||(aS>21.5&&aS<22.5&&uMouth<0.5))lp=vec3(0.0);vec4 p=vec4(lp,1.0);
+  const VS_DEPTH_S = `attribute vec3 aP;attribute vec2 aB;attribute float aW;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;uniform float uTowel;uniform float uMouth;uniform float uHead;
+void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;vec3 lp=aP*uScale;if(uHead>0.5&&aB.x>3.5&&aB.x<4.5&&aW>0.999&&aP.y>0.8&&aS<24.5)lp=vec3(0.0);if((aS>14.5&&aS<15.5&&uVis<0.5)||(aS>19.5&&aS<20.5&&uTowel<0.5)||(aS>21.5&&aS<22.5&&uMouth<0.5))lp=vec3(0.0);vec4 p=vec4(lp,1.0);
 vec3 w=vec3(dot(uBones[b0],p),dot(uBones[b0+1],p),dot(uBones[b0+2],p))*aW+vec3(dot(uBones[b1],p),dot(uBones[b1+1],p),dot(uBones[b1+2],p))*(1.0-aW);gl_Position=uLVP*vec4(w,1.0);}`;
   const FS_DEPTH_PACK = `precision mediump float;void main(){vec4 e=fract(gl_FragCoord.z*vec4(1.0,255.0,65025.0,16581375.0));gl_FragColor=e-e.yzww*vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);}`;
   const FS_DEPTH_NONE = `precision mediump float;void main(){gl_FragColor=vec4(1.0);}`;
@@ -7434,6 +7436,91 @@ gl_FragColor=vec4(col,1.0);}`;
       return meshFor(s);
     }
     function casPrebuild() { for (const k in BODY) if (!BODY[k].noGear) meshFor(casSpec(BODY[k], CAS_BASE)); }
+    // =====================================================================================
+    // Real heads (Metcalf): every league player with a scanned head (public/arcade/heads, built offline by tools/heads.js from his
+    // site photo) wears his own head instead of the drawn one. The index loads when the game starts; a player's head (mesh + texture)
+    // loads the first time he is drawn, and until it is ready, or if it fails, he keeps the drawn head. The head is skinned to the
+    // head bone like the rest of the body (bind-pose body space, weight 1), so it follows every animation, ragdoll and the bobblehead
+    // card; the drawn head, face, ears and hair are dropped in the shader (uHead). One draw per head, with the shared athlete shader
+    // (light, shadows, fog, card effects); the full 8,000-triangle mesh up close, a 1,500-triangle one further out and in the shadow
+    // map, and the drawn head again past RH_FAR. At the stadium the helmet stays: nothing here runs there.
+    // =====================================================================================
+    const RH_BASE = '/static/arcade/heads/', RH_NEAR = 9, RH_FAR = 40; // yards from the camera: full mesh within RH_NEAR, drawn head past RH_FAR
+    const RH = { idx: null, by: {}, heads: {}, on: METCALF && !(DBG && DBG.noHeads) };
+    const rhKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+    if (RH.on) {
+      try {
+        fetch(RH_BASE + 'index.json').then((r) => (r.ok ? r.json() : null)).then((j) => {
+          if (!j || !j.heads) return;
+          RH.idx = j; for (const n in j.heads) RH.by[rhKey(n)] = j.heads[n];
+        }).catch(() => {});
+      } catch (e) {}
+    }
+    // a head's GL objects (rebuilt after a lost context: they belong to the G they were made for)
+    function rhGL(h) {
+      if (h.g === G) return true;
+      if (!h.vd || !h.img || glLost) return false;
+      try {
+        h.vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, h.vb); gl.bufferData(gl.ARRAY_BUFFER, h.vd, gl.STATIC_DRAW);
+        h.ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, h.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, h.id, gl.STATIC_DRAW);
+        h.tex = mkTex(h.img, false, false, 4); h.g = G;
+        return true;
+      } catch (e) { h.failed = true; return false; }
+    }
+    // unpack a head (.bin, see tools/heads.js) into the athlete vertex layout: pos3 nrm3 bone2 weight slot uv2 ao
+    function rhUnpack(h, ab) {
+      const dv = new DataView(ab);
+      if (dv.getUint32(0, true) !== 0x3144484d) throw new Error('bad head file'); // 'MHD1'
+      const nv = dv.getUint32(4, true), n0 = dv.getUint32(8, true), n1 = dv.getUint32(12, true), q = dv.getFloat32(16, true);
+      const p4 = (n) => (n + 3) & ~3, oP = 20, oN = oP + p4(nv * 6), oT = oN + nv * 4, oI = oT + nv * 4;
+      const P = new Int16Array(ab, oP, nv * 3), N = new Int8Array(ab, oN, nv * 4), T = new Uint16Array(ab, oT, nv * 2), a = h.e.anchor || [0, 0.831, 0];
+      const V = new Float32Array(nv * VSTRIDE);
+      for (let i = 0; i < nv; i++) {
+        const o = i * VSTRIDE;
+        V[o] = a[0] + P[i * 3] * q; V[o + 1] = a[1] + P[i * 3 + 1] * q; V[o + 2] = a[2] + P[i * 3 + 2] * q;
+        V[o + 3] = N[i * 4] / 127; V[o + 4] = N[i * 4 + 1] / 127; V[o + 5] = N[i * 4 + 2] / 127;
+        V[o + 6] = B.head; V[o + 7] = B.neck; V[o + 8] = 1; V[o + 9] = 25; V[o + 10] = T[i * 2] / 65535; V[o + 11] = T[i * 2 + 1] / 65535; V[o + 12] = 1;
+      }
+      h.vd = V; h.id = new Uint16Array(ab.slice(oI, oI + (n0 + n1) * 2)); h.n0 = n0; h.n1 = n1;
+    }
+    function rhLoad(e) {
+      const h = RH.heads[e.slug] = { e, g: null, failed: false };
+      const fail = () => { h.failed = true; };
+      try {
+        fetch(RH_BASE + e.slug + '.bin').then((r) => { if (!r.ok) throw new Error('head ' + r.status); return r.arrayBuffer(); }).then((ab) => rhUnpack(h, ab)).catch(fail);
+        const im = new Image(); im.onload = () => { h.img = im; }; im.onerror = fail; im.src = RH_BASE + e.slug + '.jpg';
+      } catch (err) { fail(); }
+      return h;
+    }
+    // the ready head for a player (null while loading, for generated players, or when there is none)
+    function rhFor(p) {
+      if (!RH.idx || p.side === 2) return null;
+      if (p.rhE === undefined) {
+        const q = p.sq, e = q && q.pid != null && q.name ? RH.by[rhKey(q.name)] : null;
+        p.rhE = e || null;
+      }
+      const e = p.rhE; if (!e) return null;
+      if (p.cas) p.cas.top = e.anchor[1] + e.top - 0.772; // the top of his hair over the head bone (props above the head)
+      const h = RH.heads[e.slug] || rhLoad(e);
+      if (h.failed || !rhGL(h)) return null;
+      return h;
+    }
+    // which head mesh a player wears this frame: 0 the full mesh, 1 the light one, -1 the drawn head
+    function rhLevel(p, d, depthOnly) {
+      if (!RH.on || !p.cas) return -1;
+      const h = rhFor(p); if (!h) return -1;
+      p.rhH = h;
+      if (depthOnly) return 1;
+      return d > RH_FAR ? -1 : d < (quality === 0 ? 0 : RH_NEAR) ? 0 : 1;
+    }
+    // draw a player's head with the athlete program whose bones and colours are already set for him
+    function rhDraw(P, h, lvl) {
+      bindMesh(P, h);
+      if (P.u.uKit) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, h.tex); }
+      if (lvl === 0) { gl.drawElements(gl.TRIANGLES, h.n0, gl.UNSIGNED_SHORT, 0); DRAWS.tris += h.n0 / 3; }
+      else { gl.drawElements(gl.TRIANGLES, h.n1, gl.UNSIGNED_SHORT, h.n0 * 2); DRAWS.tris += h.n1 / 3; }
+      DRAWS.n++;
+    }
 
     // ---------- animation runtime: semantic pose -> clip, blending, procedural layers, ragdoll ----------
     const ONE_SHOT = { throw: 0.56, jump: 1.05, dive: 0.75, juke: 0.36, spin: 0.5, stiff: 0.6, tackle: 0.45, getup: 0.9, kick: 0.8, stumble: 0.5, hurdle: 0.62 };
@@ -13778,7 +13865,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const worldMat = (P, mat, kind) => { gl.uniform4f(P.u.uMatW, mat[0], mat[1], mat[2], mat[3]); gl.uniform1f(P.u.uKind, kind || 0); };
     const DIRTC = METCALF ? [0.33, 0.33, 0.31] : WX === 'rain' ? [0.16, 0.12, 0.07] : WX === 'snow' ? [0.3, 0.3, 0.3] : [0.25, 0.3, 0.1];
     function playerUniforms(P, p) {
-      const C = p.side === 2 ? REFC : p.side ? DEFC : OFFC, lk = p.lk, skin = lk.tone || SKIN[lk.skin];
+      const C = p.side === 2 ? REFC : p.side ? DEFC : OFFC, lk = p.lk, skin = (p.rhH && p.rhE && p.rhE.skin) || lk.tone || SKIN[lk.skin];
       const iris = lk.skin >= 3 ? [0.22, 0.12, 0.05] : lk.skin === 2 ? [0.3, 0.18, 0.07] : lk.eyes || [0.28, 0.2, 0.1];
       // SL order: jer pant skin helm trim cleat pad mask num face arm name glove sock sole visor snum wht eye tape towel stripes
       const cols = [C.jer, C.pant, skin, C.helm, C.stripe, lk.cleat, C.pad, C.mask, C.num, skin, lk.sleeves ? C.jer : skin, WHITEC, C.glove, C.sock, lk.cleat === CLEATS.white ? DARKC : WHITEC, VISORC, C.num, WHITEC, iris, WHITEC, lum(C.pant) > 0.6 ? C.jer : WHITEC, WHITEC, lk.mouthC || C.jer];
@@ -13819,6 +13906,8 @@ gl_FragColor=vec4(col,1.0);}`;
         if (!p.bones) continue;
         const d = depthOnly ? 99 : Math.hypot(p.x - cam.e[0], p.z - cam.e[2]);
         const mesh = meshForP(p)[d < (quality === 0 ? 9 : LOD_D) && !depthOnly ? 0 : 1];
+        const rh = METCALF ? rhLevel(p, d, depthOnly) : -1; // his own scanned head in place of the drawn one (22-heads.js)
+        if (rh >= 0) gl.uniform1f(P.u.uHead, 1);
         if (mesh !== cur) { cur = mesh; bindMesh(P, mesh); }
         if (!depthOnly && p.side !== curSide) { curSide = p.side; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, p.side === 2 ? G.kitR : p.side ? G.kitD : G.kitO); gl.activeTexture(gl.TEXTURE0); }
         skinCommon(P, p, mesh);
@@ -13826,6 +13915,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (mesh.vin) { gl.drawElements(gl.TRIANGLES, mesh.vi0, gl.UNSIGNED_SHORT, 0); gl.drawElements(gl.TRIANGLES, mesh.n - mesh.vi0 - mesh.vin, gl.UNSIGNED_SHORT, (mesh.vi0 + mesh.vin) * 2); DRAWS.n += 2; }
         else { gl.drawElements(gl.TRIANGLES, mesh.n, gl.UNSIGNED_SHORT, 0); DRAWS.n++; }
         DRAWS.tris += mesh.n / 3;
+        if (rh >= 0) { rhDraw(P, p.rhH, rh); gl.uniform1f(P.u.uHead, 0); cur = null; if (!depthOnly) gl.bindTexture(gl.TEXTURE_2D, G.atlas); }
         if (!depthOnly && p.lk.visor && mesh.vin && d < LOD_D) visors.push([p, mesh]);
       }
       if (!depthOnly && visors.length) { // tinted visors: blended over the face
@@ -14618,7 +14708,10 @@ gl_FragColor=vec4(col,1.0);}`;
         skinCommon(P, p, mesh); playerUniforms(P, p);
         const c = C3(r.o), k = clamp(0.35 + 0.35 * (p.fxK || 0.6), 0.3, 1.0) * (0.85 + 0.15 * Math.sin(now * 4 + p.ph));
         gl.uniform4f(P.u.uFx, 20, k, 0, 0); gl.uniform3f(P.u.uFxC, c[0], c[1], c[2]); gl.uniform4f(P.u.uFxV, 0.022, 0, 0, 0);
+        const rh = METCALF ? rhLevel(p, d, false) : -1;
+        if (rh >= 0) gl.uniform1f(P.u.uHead, 1);
         gl.drawElements(gl.TRIANGLES, mesh.vi0, gl.UNSIGNED_SHORT, 0); DRAWS.n++;
+        if (rh >= 0) { rhDraw(P, p.rhH, rh); gl.uniform1f(P.u.uHead, 0); cur = null; gl.bindTexture(gl.TEXTURE_2D, G.atlas); }
       }
       gl.uniform4f(P.u.uFxV, 0, 0, 0, 0); gl.uniform4f(P.u.uFx, 0, 0, 0, 0);
       gl.depthMask(true); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.disable(gl.BLEND);
@@ -15449,6 +15542,7 @@ gl_FragColor=vec4(col,1.0);}`;
       coach() { return coachPicks().map((c) => [c.p.id, c.why, Math.round(c.s * 100) / 100]); },
       get plays() { return PLAYS.map((p) => p.id); }, get playList() { return PLAYS.map((p) => ({ id: p.id, type: p.type, name: p.name })); }, get cats() { return CATS.map((c) => c[0]); }, get sheetCat() { return sheetCat; },
       hurdle() { doMove('hurdle'); }, move(m) { doMove(m); },
+      get rh() { return RH; }, // real heads (tests): the index and the loaded heads
       // card effects: set a player's card (by key or index) and read the table
       setBuild(k, b, wgt) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; const B6 = BUILDS6[b] || {}, base = BODY[p.role] || BODY.WR; p.lk = Object.assign({}, p.lk, { build: BUILDS6[b] ? b : null, hs: base.hs * (B6.hs || 1), ll: B6.ll || 1 }); if (wgt != null) p.wgt = wgt; p.body = bodySpec(base, p.lk, p.wgt); if (p.cas) p.body = casSpec(p.body, p.cas.g); p.lk.sw = p.body.sw; p.rag = null; p.fl = null; return p.body; },
       setFx(k, f) { const p = typeof k === 'number' ? everyone[k] : OK[k] || DK[k]; if (!p) return null; p.fx = f; p.body = bodySpec(BODY[p.role] || BODY.WR, p.lk, p.wgt); if (p.cas) p.body = casSpec(p.body, p.cas.g); fxSetup(p); return p.fxr; }, fxRecipe, get fxIds() { return { variants: Object.keys(FXV), sets: Object.keys(FXS) }; }, get fxCount() { return fxParts.length; },

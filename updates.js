@@ -309,6 +309,15 @@ const UPDATES = [
       "Fixed: a harder level was making your own defenders better at interceptions on Metcalf key plays. Now the harder level helps the CPU, not you.",
     ],
   },
+  {
+    n: 28,
+    date: '2026-11-09',
+    title: '3D Blitz: real faces at Metcalf',
+    items: [
+      "Every league player now has their own 3D head at Metcalf, made from their player photo: the real face on the player in the game. (At the stadium everyone still wears a helmet.)",
+      "The Metcalf CPU defense is eased a lot: it was smothering every throw. Corners play off more, coverage only tightens late in a play, and it wins fewer jump balls.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
