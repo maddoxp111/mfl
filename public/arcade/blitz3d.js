@@ -8619,7 +8619,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // Metcalf, the CPU covering your receivers: nobody rushes until 7 banana (4.75 s), so the coverage has to hold that long. From
     // 2.2 s on the CPU's defenders stay stuck to their men (no lag behind the route, a zone defender sits on the man in his area,
     // a little closing burst); a step won early is still a step
-    const metStick = () => (METCALF && !VS && !DEFP.on && !thrown ? Math.max(mdStick0(), 0.55 * clamp((tPlay - 3.2) / 1.8, 0, 1)) : 0); // (31-mdef.js: tight from the snap)
+    const metStick = () => (METCALF && !VS && !DEFP.on && !thrown ? Math.max(mdStick0(), clamp((tPlay - 2.2) / 1.2, 0, 1)) : 0); // (31-mdef.js: tight from the snap)
     function manCover(d, dt) {
       const r = d.ass.tgt, mk = metStick();
       if (!r) { zoneCover(d, dt); return; }
@@ -8908,7 +8908,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // The owner asked for the old Metcalf defense back (Nov 9): the full CPU-defense package is off; only its deep-ball smarts stay,
     // on deep throws (mDeepD: a pass the deep rules count as deep, the CPU defending the player)
     const mDef = () => false;
-    const mDeepD = () => M7 && !VS && !DEFP.on && !!ball && deepK(ball) > 0;
+    const mDeepD = () => false; // (Nov 9: the owner asked for the old defense completely: the deep-ball extras are off too)
     const mdK = () => clamp(KDEF, 0, 1);
     // what you have been doing this game (the defensive coordinator's notes): deep shots, the quick game, holding it past the
     // count, runs. Kept per game; the calls lean on the last plays more than the first ones.
