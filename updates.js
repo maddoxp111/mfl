@@ -336,6 +336,15 @@ const UPDATES = [
       "Injured reserve: the admin can put a player on IR (with the injury and an expected return date). He gets a red IR badge on the rosters, his player page shows the injury, Pick'em has no props on him, and he's marked as not playing when a game is scored.",
     ],
   },
+  {
+    n: 31,
+    date: '2026-11-09',
+    title: 'Metcalf: the original defense, a really good CPU offense',
+    items: [
+      "Metcalf: the CPU defense is back to the easier one from when Metcalf first came out. All the later defense changes are gone.",
+      "The CPU offense at Metcalf is really good now: a sharp, accurate quarterback who finds the open man, faster receivers and backs, and drives that move the ball.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

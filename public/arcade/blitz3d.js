@@ -7340,7 +7340,7 @@ gl_FragColor=vec4(col,1.0);}`;
       // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
       // Metcalf, the CPU defending you: sure tacklers who rally to the ball, a step quicker the better the defense (31-mdef.js)
       if (mDef()) { MDS.pl++; const k = mdK(); for (const d of def) { d.tackle *= lerp(1.12, 1.25, k); d.v *= lerp(1.0, 1.02, k); } }
-      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.16, +(DBG && DBG.m7v1) || 1.22, k), tk = lerp(0.62, 0.52, k);
+      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), sp = lerp(+(DBG && DBG.m7v0) || 1.2, +(DBG && DBG.m7v1) || 1.28, k), tk = lerp(0.58, 0.48, k);
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
         for (const d of def) { d.tackle *= tk; d.v *= lerp(0.9, 0.86, k); } }
       // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
@@ -8619,7 +8619,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // Metcalf, the CPU covering your receivers: nobody rushes until 7 banana (4.75 s), so the coverage has to hold that long. From
     // 2.2 s on the CPU's defenders stay stuck to their men (no lag behind the route, a zone defender sits on the man in his area,
     // a little closing burst); a step won early is still a step
-    const metStick = () => (METCALF && !VS && !DEFP.on && !thrown ? Math.max(mdStick0(), clamp((tPlay - 2.2) / 1.2, 0, 1)) : 0); // (31-mdef.js: tight from the snap)
+    const metStick = () => (false && METCALF && !VS && !DEFP.on && !thrown ? Math.max(mdStick0(), clamp((tPlay - 2.2) / 1.2, 0, 1)) : 0); // (31-mdef.js: tight from the snap)
     function manCover(d, dt) {
       const r = d.ass.tgt, mk = metStick();
       if (!r) { zoneCover(d, dt); return; }
@@ -9091,7 +9091,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // enough (agg, cpuBrain) and he hangs in a beat longer for a man to come open downfield
     function m7Brain(k) {
       const behind = as < hs, late = gameProg() > 0.75, agg = behind ? (late ? 0.82 : 0.92) : 1;
-      return { err: lerp(0.45, 0.2, k), terr: lerp(0.12, 0.04, k), rd: lerp(0.45, 0.3, k), smart: rng() < 0.9 + 0.1 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
+      return { err: lerp(0.35, 0.15, k), terr: lerp(0.1, 0.03, k), rd: lerp(0.4, 0.26, k), smart: rng() < 0.93 + 0.07 * k, agg, hold: lerp(3.0, 2.3, k) + 1.5 + (agg < 1 ? 0.4 : 0) };
     }
     // Is this snap of a simulated CPU drive one of the game's key plays? (called by simCpu before each play it runs)
     function defpKeyCheck(spot, dn, fd, clk, lead, plays) {
@@ -10180,7 +10180,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // (Metcalf, your passes against the CPU: the yards the player reads, so a 20-yard shot on the true-size blacktop (6 real yards,
     // where the short formula left a covered receiver the favourite) is a covered deep ball; blended in from 12 shown yards, all of it
     // from 18. The big field is near 100 yards already and keeps the stadium's numbers; the CPU's own passes keep them too.)
-    const deepK = (b) => (b && b.kind === 'pass' && !b.tipped ? (METCALF && !VS && !DEFP.on && YDK > 1.2 ? clamp(((b.air != null ? b.air : b.D - 6) * YDK - 12) / 6, 0, 1) : clamp(((b.air != null ? b.air : b.D - 6) - DZ(14)) / Math.max(1, DZ(20) - DZ(14)), 0, 1)) : 0);
+    const deepK = (b) => (b && b.kind === 'pass' && !b.tipped ? (false && METCALF && !VS && !DEFP.on && YDK > 1.2 ? clamp(((b.air != null ? b.air : b.D - 6) * YDK - 12) / 6, 0, 1) : clamp(((b.air != null ? b.air : b.D - 6) - DZ(14)) / Math.max(1, DZ(20) - DZ(14)), 0, 1)) : 0);
     const seesBall = (d) => facesBall(d) || (!!d.trk && deepK(ball) > 0);
     // how a receiver's leap was timed for this ball: the top of his leap (0.16 s crouch, then the rise) against the moment the ball
     // comes down through high-point height (about a foot over his standing reach). Within a tenth of a second: perfect; within two:
@@ -11624,7 +11624,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // stadium's gains cut to a third (yardK) left the CPU scoring on about one drive in twenty. Seven on seven there is a passing
     // game with room to run after the catch, so a gain keeps more of its length, more the better the CPU (CS): about a third of its
     // drives score at Rookie, over half at Legend. (The big field keeps the stadium's yards and first downs.)
-    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 1.15, +(DBG && DBG.myk1) || 0.85, clamp(CS, 0, 1)) : 0;
+    const MYK = METCALF && NOFD ? lerp(+(DBG && DBG.myk0) || 1.3, +(DBG && DBG.myk1) || 1.0, clamp(CS, 0, 1)) : 0;
     function simCpu(spot, clk, log, call, o) {
       const A = call && call.arch ? call.arch : null, CD = cpuTable(A ? null : call), kinds = {};
       const start = spot; let dn = (o && o.dn) || 1, fd = (o && o.fd) || (NOFD ? FL : spot + FD), plays = 0, used = 0, yds = 0;
