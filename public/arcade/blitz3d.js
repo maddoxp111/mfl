@@ -7092,11 +7092,10 @@ gl_FragColor=vec4(col,1.0);}`;
   // z 0 the south goal line, +z north); the field runs with the street grid (Main Street is due north-south), so nothing is turned.
   //  west: aluminium bleachers built against the east wall of Horton Field House (front x -38.5, back -66, z -4..99), the old
   //        press box on top at the 50 (now the coaches' booths), five portals halfway up; Horton's white roof behind.
-  //  east: the 2013 grandstand (5,000 red chair-backs, 28 rows from x 37.5 to 65, z -12..98), a band of club windows above the seats,
-  //        the press box and suites with "ILLINOIS STATE UNIVERSITY REDBIRDS" on its sill, the flat canopy roof with the light bank
-  //        on top, brick stair towers at both ends, the building back to Main Street (x 100).
-  //  south: the Touchdown Terrace (a grass berm behind the end zone), the white hospitality tent behind it (x -24.5..24.8,
-  //        z -26..-34.5) and the end-zone video board (31.5 x 64.5 ft, the speakers above it) behind the tent.
+  //  east: the 2013 grandstand, the building back to Main Street and Main Street itself, measured in 14-hk-east.js.
+  //  south: the Touchdown Terrace (a grass berm behind the end zone, the white frame tent on it, x -29..20, z -24.8..-32.2), the
+  //        fence, the small scoring board and the two south light poles (14-hk-south.js, which also builds the 2026 video
+  //        board: it stands on the north slope, where the 2013 board stood).
   //  north: the turf runs on 12 yards, a low brick wall, a grass slope with the older scoreboard on a brick base and the flag;
   //        the Kaufman Football Building in the north-east corner, the white indoor practice dome, Ropp, Vitro, the water tower.
   //  lights: poles at the north-west, south-west and south-east corners, the long bank on the east canopy.
@@ -7107,7 +7106,7 @@ gl_FragColor=vec4(col,1.0);}`;
   // in the true north frame (the campus, the streets, the lights) is turned by that angle about the field's centre (spinOut).
   const HK = { fans: 0 };
   if (HANCOCK) { // the four point-light slots and their lens flares: the two corner poles on the west side and the east canopy bank
-    const L4 = [[-56.8, 37.5, 123.8, 2.0], [-73.7, 37.5, -36.8, 2.0], [70, 31, 68, 1.35], [70, 31, 32, 1.35]]; // x, y, z, intensity vs the stadium's towers (farther away); the poles as turned onto the field's axis
+    const L4 = [[-56.8, 37.5, 123.8, 2.0], [-73.9, 37.5, -31.8, 2.0], [69.6, 34, 63, 1.35], [69.6, 34, 37, 1.35]]; // x, y, z, intensity vs the stadium's towers (farther away); the poles as turned onto the field's axis
     L4.forEach((q, i) => { LPOS[i][0] = q[0]; LPOS[i][1] = q[1]; LPOS[i][2] = q[2]; LPOS[i][3] *= q[3]; TOWERS[i][0] = q[0] + (q[0] < 0 ? -3.5 : 3.5); TOWERS[i][1] = q[1] + 2.5; TOWERS[i][2] = q[2]; });
   }
   // the seat rows (red chair-backs on the east side, aluminium planks on the west): one 256 x 128 tile, u repeats along a row
@@ -7163,7 +7162,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const tree = (x, z, s) => { const h = (5 + crand() * 5) * s, r = (2.2 + crand() * 1.6) * s, a = crand() * 1.57, col = crand() < 0.5 ? C.tree : C.treeB;
       P.wbox(x - 0.18 * s, 0, z - 0.18 * s, x + 0.18 * s, h * 0.45, z + 0.18 * s, C.trunk);
       P.box(rot(Math.cos(a), Math.sin(a), x, z), 0, h * 0.62, 0, r * 2, h * 0.62, r * 2, col); P.box(rot(Math.cos(a + 0.785), Math.sin(a + 0.785), x, z), 0, h * 0.68, 0, r * 1.5, h * 0.55, r * 1.5, col); };
-    const keepOut = [[-155, -20, 105, 160], [-45, -50, 45, 150], [20, -20, 155, 150], [-115, 150, -30, 232], [-95, -220, 0, -55], [-265, -220, -145, -85], [-40, 145, 75, 262], [65, 135, 120, 260], [150, -115, 235, 125]];
+    const keepOut = [[-155, -20, 105, 160], [-45, -50, 45, 150], [20, -20, 155, 150], [-115, 150, -30, 312], [-95, -220, 0, -55], [-265, -220, -145, -85], [-40, 145, 75, 262], [65, 135, 120, 260], [150, -115, 235, 125]];
     const free = (x, z) => !keepOut.some((k) => x > k[0] && x < k[2] && z > k[1] && z < k[3]);
     // what is measured in the true-north frame is turned onto the field's axis (1.74 deg) about the field's centre: mark the
     // batches before building it, spinOut(mark) after
@@ -7177,8 +7176,7 @@ gl_FragColor=vec4(col,1.0);}`;
     if (typeof hancockFieldItems !== 'function') gq(TW, TS, TE, TN, -0.02, C.turf);
     gq(-45, -45, TW, 122, -0.05, C.conc); gq(TE, -45, 130, 125, -0.05, C.conc); gq(TW, -45, TE, TS, -0.05, C.conc); gq(-45, TN, 45, 122.5, -0.05, C.walk);
     const mGround = mark();
-    gq(102, -40, 129, 104, -0.04, C.asph); // the lot along Main Street
-    gq(130, -320, 150, 400, -0.06, C.asph); for (let z = -315; z < 395; z += 6) gq(139.85, z, 140.15, z + 3, -0.03, [0.55, 0.45, 0.1, 1]); // Main Street, its centre line
+    // (the lot along Main Street and Main Street itself: the east section, 14-hk-east.js)
     gq(156, 23, 228, 117, -0.08, C.asph); gq(158, -107, 223, -15, -0.08, C.asph); gq(-37, 147, 68, 258, -0.08, C.asph); gq(8, -288, 132, -158, -0.08, C.asph); gq(-141, -206, -74, -71, -0.08, C.asph);
     { const cav = [[150, -128], [60, -160], [-23, -197], [-120, -228], [-217, -243], [-340, -252]]; // College Avenue (14 yards wide)
       for (let i = 0; i + 1 < cav.length; i++) { const [ax, az] = cav[i], [bx, bz] = cav[i + 1], l = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / l * 7, nz = (bx - ax) / l * 7;
@@ -7186,13 +7184,16 @@ gl_FragColor=vec4(col,1.0);}`;
       gq(150, -136, 340, -122, -0.06, C.asph); } // and east of Main
     for (const [x0, z0, x1, z1] of [[-62, -60, 120, -52], [-20, 126, -16, 147], [100, 126, 130, 130], [-150, 98, -66, 104]]) gq(x0, z0, x1, z1, -0.05, C.walk); // campus walks
     spinOut(mGround);
-    // ---- crowd: one sprite per fan (the stadium's crowd shader), mostly in Redbird red ----
+    // ---- crowd: one sprite per fan (the stadium's crowd shader); the look by section comes from hkxFan (14-hk-x.js) ----
     const CR = [], RED = [0.86, 0.05, 0.08, 1];
     const pal = [RED, RED, shade(RED, 0.75), [0.9, 0.9, 0.9, 1], [0.1, 0.1, 0.12, 1], [0.35, 0.36, 0.4, 1], TEAM, shade(TEAM, 0.7), [0.16, 0.23, 0.42, 1], [0.5, 0.14, 0.14, 1], [0.25, 0.3, 0.28, 1], [0.18, 0.16, 0.14, 1]];
     const secPal = (sec) => { const h = Math.abs(Math.sin(sec * 12.9898) * 43758.5453) % 1; return h < 0.62 ? 0 : h < 0.74 ? 2 : h < 0.8 ? 9 : h < 0.86 ? 4 : h < 0.92 ? 6 : h < 0.96 ? 3 : 5; };
     const seat = (x, y, z, fx, fz, amp, sec) => { // as the stadium's: one quad per fan facing (fx, fz); aM: phase, amp, stand threshold, phone flag
-      const rx = -fz, rz = fx, k = (crand() * 16) | 0, w = 0.4, h = 1.6, ph = crand() * 6.28, thr = 0.25 + crand() * 0.75, phone = SKY.night && crand() < 0.18 ? 1 : 0;
-      const c0 = pal[crand() < 0.12 ? (crand() * pal.length) | 0 : secPal(sec || 0)], c = shade(c0, 0.6 + crand() * 0.45);
+      const rx = -fz, rz = fx, k = (crand() * 16) | 0, w = 0.4, h = 1.6, ph = crand() * 6.28, phone = SKY.night && crand() < 0.18 ? 1 : 0;
+      let thr = 0.25 + crand() * 0.75, c0 = pal[crand() < 0.12 ? (crand() * pal.length) | 0 : secPal(sec || 0)];
+      const f = typeof hkxFan === 'function' ? hkxFan(x, z, fx, sec) : null; // the section's own look: the red-out, the students, the band
+      if (f) { c0 = f.c; thr = f.thr; amp *= f.amp; }
+      const c = shade(c0, 0.6 + crand() * 0.45);
       const u0 = k / 48, u1 = (k + 1) / 48;
       const a = [x - rx * w, y + h, z - rz * w], b = [x + rx * w, y + h, z + rz * w], c2 = [x + rx * w, y, z + rz * w], d = [x - rx * w, y, z - rz * w];
       for (const [v, u, t] of [[a, u0, 0], [b, u1, 0], [c2, u1, 1], [a, u0, 0], [c2, u1, 1], [d, u0, 1]]) CR.push(v[0], v[1], v[2], c[0], c[1], c[2], ph, amp, thr, phone, u, t);
@@ -7218,132 +7219,52 @@ gl_FragColor=vec4(col,1.0);}`;
       return { top: yb, back: xe };
     };
     // ===== west: the bleachers against Horton Field House =====
-    { const x0 = TW - 0.7, y0 = 1.3, z0 = -4, z1 = 99, portals = [13.6, 30.3, 47.2, 64.2, 81.4];
-      P.wbox(x0, 0, z0, TW, y0, z1, [0.55, 0.53, 0.5, 1]); P.wbox(TW - 0.05, y0 - 0.32, z0, TW + 0.02, y0 - 0.08, z1, C.red); // front wall at the turf's edge, red stripe
-      for (let z = z0; z <= z1; z += 2.6) P.wbox(TW - 0.06, y0, z - 0.03, TW, y0 + 1.0, z + 0.03, C.alu); P.wbox(TW - 0.08, y0 + 0.96, z0, TW + 0.02, y0 + 1.04, z1, C.alu); // rail
-      const d = deck({ x0, y0, z0, z1, fx: 1, rows: 33, tread: 0.83, rise: 0.38, vr: [0.52, 0.98], tile: 4.4, riser: [0.26, 0.27, 0.29, 1], aisleC: [0.62, 0.63, 0.65, 1], endC: [0.4, 0.4, 0.42, 1],
-        aisles: [3.5, 22, 38.8, 55.7, 72.7, 90], sp: 0.7,
-        skip: (z, r) => portals.some((pz) => Math.abs(z - pz) < 1.6) && r >= 14 && r <= 18,
-        fill: (z, r) => (z > 25 && z < 75 ? 0.82 : 0.6) * (r > 28 ? 0.7 : 1) });
-      for (const pz of portals) { const xa = x0 - 14 * 0.83, xb = x0 - 18.6 * 0.83, yt = y0 + 14 * 0.38; // the portals: a dark opening with rails
-        P.wbox(xb, 0, pz - 1.5, xa, yt + 0.05, pz + 1.5, C.dark); for (const s of [-1, 1]) P.wbox(xb, yt, pz + s * 1.55 - 0.03, xa, yt + 1, pz + s * 1.55 + 0.03, C.alu); }
-      // the old press box at the top (coaches' booths): a long box with glass to the field
-      P.wbox(-69, d.top, 30, d.back + 1.2, d.top + 4.2, 70, [0.55, 0.52, 0.47, 1]); P.wbox(-69.3, d.top + 4.2, 29.6, d.back + 1.6, d.top + 4.6, 70.4, C.roofG);
-      W.glass.quad([d.back + 1.25, d.top + 1.4, 30.5], [d.back + 1.25, d.top + 1.4, 69.5], [d.back + 1.25, d.top + 3.6, 69.5], [d.back + 1.25, d.top + 3.6, 30.5], [1, 0, 0], C.glassC);
-      GL.wbox(d.back + 0.6, d.top + 1.5, 31, d.back + 0.8, d.top + 3.5, 69, [0.1, 0.09, 0.07, 1]);
-      for (let z = 30.5; z <= 69.6; z += 3.25) P.wbox(d.back + 1.2, d.top + 1.4, z - 0.08, d.back + 1.32, d.top + 3.6, z + 0.08, C.steel);
-      // Horton Field House: brick walls, the big white roof; McCormick and the dorms beyond
-      P.wbox(-150, 0, -12, -66, 17.5, 96, [0.45, 0.32, 0.24, 1]); P.wbox(-149.5, 17.5, -11.5, -66.5, 18.6, 95.5, C.roofW);
-      for (let z = -8; z < 94; z += 6) P.wbox(-66.1, 14.8, z, -65.9, 17, z + 3.5, C.dark);
-      P.wbox(-66.2, d.top, z0 - 8, -65.8, 17.5, z0, [0.45, 0.32, 0.24, 1]); P.wbox(-66.2, d.top, z1, -65.8, 17.5, 96, [0.45, 0.32, 0.24, 1]);
-      const mDorm = mark(); block(-215, -30, -150, 20, 12, [0.3, 0.2, 0.16, 1], C.roofD, true); block(-215, 30, -152, 96, 14, [0.32, 0.22, 0.17, 1], C.roofD, true); block(-150, 96, -112, 140, 11, [0.35, 0.24, 0.18, 1], C.roofG, true); spinOut(mDorm); }
-    // ===== east: the 2013 grandstand =====
-    { const x0 = TE, y0 = 2.4, z0 = -12, z1 = 98;
-      P.wbox(x0, 0, z0, x0 + 0.9, y0, z1, [0.6, 0.56, 0.5, 1]); P.wbox(x0 - 0.05, 0.5, z0, x0, 1.6, z1, C.red); // podium wall, red padding band
-      for (let z = z0; z <= z1; z += 2.4) P.wbox(x0 + 0.05, y0, z - 0.03, x0 + 0.11, y0 + 1.0, z + 0.03, C.steel); P.wbox(x0 + 0.03, y0 + 0.96, z0, x0 + 0.13, y0 + 1.04, z1, C.steel);
-      const tunnels = [33, 67];
-      const d = deck({ x0: x0 + 0.9, y0, z0, z1, fx: -1, rows: 28, tread: 0.94, rise: 0.5, vr: [0.02, 0.48], tile: 4.4, riser: [0.5, 0.47, 0.43, 1], aisleC: [0.55, 0.53, 0.5, 1], endC: [0.5, 0.47, 0.42, 1],
-        aisles: [-2.5, 7, 16.5, 26, 40, 50, 60, 74, 83.5, 93], sp: 0.66,
-        skip: (z, r) => r < 7 && tunnels.some((t) => Math.abs(z - t) < 3),
-        fill: (z, r) => (z > 0 && z < 86 ? 0.88 : 0.7) * (r > 24 ? 0.8 : 1) });
-      for (const t of tunnels) { P.wbox(x0 - 0.05, 0, t - 2.4, x0 + 0.9 + 7 * 0.94, y0 + 7 * 0.5, t + 2.4, [0.55, 0.52, 0.47, 1]); P.wbox(x0 - 0.1, 0, t - 1.8, x0 + 0.95, 2.6, t + 1.8, C.dark);
-        for (const s of [-1, 1]) P.wbox(x0, y0 + 3.5, t + s * 2.4 - 0.05, x0 + 7.5, y0 + 4.4, t + s * 2.4 + 0.05, C.steel); }
-      const xt = d.back, yt = d.top; // ~65, ~16.4
-      // club level: windows the full length above the last row
-      P.wbox(xt, yt, z0 + 3, xt + 7, yt + 4.8, z1 - 3, C.beige); W.glass.quad([xt - 0.05, yt + 0.8, z0 + 4], [xt - 0.05, yt + 0.8, z1 - 4], [xt - 0.05, yt + 4.2, z1 - 4], [xt - 0.05, yt + 4.2, z0 + 4], [-1, 0, 0], C.glassC);
-      GL.wbox(xt + 0.35, yt + 0.9, z0 + 4.5, xt + 0.5, yt + 4.1, z1 - 4.5, [0.11, 0.1, 0.08, 1]);
-      for (let z = z0 + 4; z <= z1 - 3.9; z += 2.5) P.wbox(xt - 0.12, yt + 0.8, z - 0.07, xt + 0.02, yt + 4.2, z + 0.07, C.cream);
-      P.wbox(xt - 0.6, yt + 0.6, z0 + 3, xt, yt + 0.8, z1 - 3, C.cream); // the sill and its rail
-      // press box and suites: the lettered sill, a second glass row, the flat canopy that overhangs, the light bank on top
-      const y2 = yt + 4.8, zp0 = 14, zp1 = 86;
-      P.wbox(xt + 1.5, y2, zp0, xt + 13, y2 + 6.6, zp1, C.cream); P.wbox(xt + 2.5, y2, z0 + 3, xt + 13, y2 + 3, z1 - 3, C.beige);
-      sign([xt + 1.45, zp1 - 6], [xt + 1.45, zp0 + 6], y2 + 0.35, y2 + 1.75, 'isu', [-1, 0, 0]);
-      W.glass.quad([xt + 1.45, y2 + 2.2, zp0 + 1], [xt + 1.45, y2 + 2.2, zp1 - 1], [xt + 1.45, y2 + 6.1, zp1 - 1], [xt + 1.45, y2 + 6.1, zp0 + 1], [-1, 0, 0], C.glassC);
-      GL.wbox(xt + 1.8, y2 + 2.3, zp0 + 1.5, xt + 1.95, y2 + 6, zp1 - 1.5, [0.12, 0.11, 0.09, 1]);
-      for (let z = zp0 + 1; z <= zp1 - 0.9; z += 3) P.wbox(xt + 1.38, y2 + 2.2, z - 0.07, xt + 1.5, y2 + 6.1, z + 0.07, C.cream);
-      const yc = y2 + 6.6; P.wbox(xt - 4.5, yc, zp0 - 9, xt + 16, yc + 0.8, zp1 + 9, C.roofW); P.wbox(xt - 4.6, yc - 0.3, zp0 - 9.1, xt - 4.4, yc + 0.85, zp1 + 9.1, [0.6, 0.6, 0.62, 1]);
-      P.wbox(xt + 4.6, yc + 0.7, zp0, xt + 5.4, yc + 5, zp1, C.steel); P.wbox(xt + 3.4, yc + 2.4, zp0 - 0.5, xt + 4.6, yc + 4.9, zp1 + 0.5, [0.16, 0.17, 0.19, 1]);
-      for (let r = 0; r < 2; r++) for (let z = zp0 + 0.2; z < zp1 - 0.8; z += 1.5) GL.wbox(xt + 3.32, yc + 2.55 + r * 1.2, z, xt + 3.4, yc + 3.6 + r * 1.2, z + 1.2, C.lamp);
-      // brick stair towers at both ends, the building back to Main Street
-      for (const [za, zb] of [[z0 - 4.5, z0], [z1, z1 + 4.5]]) { P.wbox(xt - 6, 0, za, xt + 8, yt + 7.5, zb, C.brick); P.wbox(xt - 6.3, yt + 7.5, za - 0.3, xt + 8.3, yt + 8.2, zb + 0.3, C.cream); P.wbox(xt - 6.05, 3, za + 0.8, xt - 5.95, yt + 6, zb - 0.8, C.dark); }
-      P.wbox(xt + 7, 0, z0 - 3, 100, yt + 4.8, z1 + 3, C.brick); P.wbox(xt + 7.2, yt + 4.8, z0 - 2.8, 99.8, yt + 5.1, z1 + 2.8, C.roofG);
-      P.wbox(x0 + 0.9, 0, z0 - 4.5, xt - 6, y0 + 1, z0, C.brickD); P.wbox(x0 + 0.9, 0, z1, xt - 6, y0 + 1, z1 + 4.5, C.brickD); }
-    // ===== south: the Touchdown Terrace, the tent, the video board =====
-    { const zf = TS, zt = -26, yb = 2.5;
-      P.quad([-27, 0, zf], [27, 0, zf], [27, yb, zt], [-27, yb, zt], [0, 0.95, 0.3], C.berm); // the berm
-      for (const s of [-1, 1]) P.quad([s * 27, 0, zf], [s * 27, 0, zt], [s * 27, yb, zt], [s * 27, 0, zt], [s, 0, 0], C.berm);
-      P.wbox(-27, 0, zt - 9, 27, yb, zt, C.concD);
-      for (let i = 0; i < 80; i++) { const x = -25 + crand() * 50, t = 0.15 + crand() * 0.8, z = zf + (zt - zf) * t; seat(x, yb * t - 0.3, z, 0, 1, 0.05 + crand() * 0.08, 5); }
-      // the tent: white, open to the field, a gable roof; the lettered banner at its front
-      const ta = -26, tb = -34.5, ye = yb + 3.2, yr = yb + 5;
-      P.quad([-24.5, ye, ta], [24.8, ye, ta], [24.8, yr, (ta + tb) / 2], [-24.5, yr, (ta + tb) / 2], [0, 0.85, 0.5], C.tent); P.quad([-24.5, ye, tb], [24.8, ye, tb], [24.8, yr, (ta + tb) / 2], [-24.5, yr, (ta + tb) / 2], [0, 0.85, -0.5], C.tent);
-      for (const x of [-24.5, 24.8]) P.quad([x, yb, ta], [x, yb, tb], [x, ye, tb], [x, ye, ta], [Math.sign(x), 0, 0], C.tent);
-      P.quad([-24.5, yb, tb], [24.8, yb, tb], [24.8, ye, tb], [-24.5, ye, tb], [0, 0, 1], C.tent); P.wbox(-24.5, ye - 0.5, ta - 0.05, 24.8, ye, ta + 0.05, C.tent);
-      for (let x = -24.5; x <= 24.9; x += 4.9) P.wbox(x - 0.06, yb, ta - 0.06, x + 0.06, ye, ta + 0.06, C.alu);
-      sign([23.5, ta + 0.1], [-23.5, ta + 0.1], yb + 0.05, yb + 1.15, 'terrace', [0, 0, 1]);
-      P.wbox(-23.6, yb, ta + 0.02, 23.6, yb + 1.2, ta + 0.07, C.alu);
-      for (let i = 0; i < 70; i++) seat(-23 + crand() * 46, yb + 0.02, ta - 1.2 - crand() * 6.5, 0, 1, 0.06, 5);
-      // the video board (2026): 64.5 x 31.5 ft on two legs behind the tent, the speaker cluster above; reads to the north
-      const zb = -38.2, bx = 10.75, by0 = 9.2, by1 = 19.7;
-      P.wbox(-bx - 0.8, by0 - 0.8, zb - 1.4, bx + 0.8, by1 + 0.8, zb, [0.06, 0.065, 0.075, 1]);
-      W.board.quad([bx, by0, zb + 0.06], [-bx, by0, zb + 0.06], [-bx, by1, zb + 0.06], [bx, by1, zb + 0.06], [0, 0, 0], white, [0, 1, 1, 1, 1, 0, 0, 0]);
-      P.wbox(-4.5, by1 + 0.8, zb - 1.6, 4.5, by1 + 3.2, zb + 0.2, [0.13, 0.13, 0.15, 1]); P.wbox(-0.4, by1 + 0.8, zb - 1, 0.4, by1 + 1, zb - 0.4, C.steel);
-      for (const s of [-1, 1]) { P.wbox(s * 6.5 - 0.6, 0, zb - 1.3, s * 6.5 + 0.6, by0 - 0.8, zb - 0.1, [0.2, 0.2, 0.22, 1]); P.wbox(s * 6.5 - 1.4, 0, zb - 1.9, s * 6.5 + 1.4, 0.6, zb + 0.5, C.concD); }
-      P.wbox(-bx - 0.8, by0 - 1.3, zb + 0.1, bx + 0.8, by0 - 1.2, zb + 1.1, C.steel); }
-    // ===== north: the wall, the grass slope, the old scoreboard, the flag, Kaufman =====
-    { P.wbox(-45, 0, 122.5, 30, 1.1, 123.2, C.brick); P.wbox(-45.1, 1.1, 122.4, 30.1, 1.25, 123.3, C.cream);
-      P.quad([-45, 0.9, 123.2], [30, 0.9, 123.2], [30, 3.2, 143], [-45, 3.2, 143], [0, 0.99, -0.12], C.berm); P.wbox(-45, 0, 143, 30, 3.2, 147, C.berm);
-      P.wbox(-9, 0, 134.6, 6, 4, 136.4, C.brick); P.wbox(-8.5, 4, 134.9, 5.5, 11.2, 136, [0.06, 0.065, 0.075, 1]);
-      W.board.quad([-7.9, 4.5, 134.84], [4.9, 4.5, 134.84], [4.9, 10.7, 134.84], [-7.9, 10.7, 134.84], [0, 0, 0], white, [0, 1, 1, 1, 1, 0, 0, 0]);
-      P.wbox(-23.15, 0, 131.85, -22.85, 24, 132.15, C.alu); P.wbox(-22.85, 20.6, 131.97, -16.8, 23.8, 132.03, [0.75, 0.75, 0.78, 1]); P.wbox(-22.85, 22.2, 131.96, -19.6, 23.8, 132.04, [0.18, 0.22, 0.45, 1]);
-      for (let k = 0; k < 4; k++) P.wbox(-19.6, 20.6 + k * 0.8, 131.95, -16.8, 21.0 + k * 0.8, 132.05, [0.62, 0.08, 0.1, 1]);
-      mOut = mark(); // (from Kaufman to the light poles: the true-north frame)
-      // Kaufman Football Building: brick, a glass upper floor and terrace facing the field
-      P.wbox(29.4, 0, 122, 57.9, 9.5, 149, C.brick); P.wbox(29.2, 9.5, 121.8, 58.1, 10.1, 149.2, C.cream); P.wbox(41.6, 0, 104, 57.9, 5.2, 122, C.brick); P.wbox(41.4, 5.2, 103.8, 58.1, 5.6, 122.2, C.cream);
-      W.glass.quad([29.35, 5.6, 146], [29.35, 5.6, 124], [29.35, 9, 124], [29.35, 9, 146], [-1, 0, 0], C.glassC); GL.wbox(29.6, 5.7, 124.5, 29.75, 8.9, 145.5, [0.1, 0.09, 0.07, 1]);
-      W.glass.quad([31, 5.6, 121.95], [41.5, 5.6, 121.95], [41.5, 9, 121.95], [31, 9, 121.95], [0, 0, -1], C.glassC);
-      P.wbox(29.4, 5.2, 116, 41.6, 5.5, 122, C.cream); P.wbox(29.4, 5.5, 115.9, 41.6, 6.5, 116.05, C.alu);
-      W.glass.quad([41.55, 1, 106], [41.55, 1, 120], [41.55, 4.4, 120], [41.55, 4.4, 106], [-1, 0, 0], C.glassC);
-      P.wbox(52, 0, 98, 60, 4, 104, [0.55, 0.52, 0.47, 1]);
-      for (const [x, z] of [[-40, 140], [-34, 144], [-27, 141], [-10, 145], [12, 146], [20, 141], [26, 145]]) tree(x, z, 1);
-      // the indoor practice dome (white, air-supported): a half barrel with rounded ends
-      const dx0 = -108, dx1 = -38, dz0 = 158, dz1 = 226, dh = 19, cx = (dx0 + dx1) / 2, hw = (dx1 - dx0) / 2, N = 10;
-      for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI, a1 = ((i + 1) / N) * Math.PI, xa = cx - Math.cos(a0) * hw, xb = cx - Math.cos(a1) * hw, ya = Math.sin(a0) * dh, yb = Math.sin(a1) * dh, am = (a0 + a1) / 2;
-        P.quad([xa, ya, dz0 + 6], [xb, yb, dz0 + 6], [xb, yb, dz1 - 6], [xa, ya, dz1 - 6], [-Math.cos(am), Math.sin(am), 0], [0.86, 0.87, 0.88, 1]);
-        for (const [ze, s] of [[dz0, -1], [dz1, 1]]) P.quad([xa, ya, ze + -s * 6], [xb, yb, ze + -s * 6], [xb, yb * 0.55, ze], [xa, ya * 0.55, ze], [0, 0.5, s], [0.84, 0.85, 0.86, 1]); }
-      block(71, 139, 115, 218, 13, [0.42, 0.3, 0.22, 1], C.roofD, true); block(11, 238, 49, 254, 8, [0.5, 0.4, 0.3, 1], C.roofG, true); block(88, 239, 112, 256, 8, [0.45, 0.3, 0.22, 1], C.roofG, true);
-      // the water tower (white, NORMAL on the tank)
-      const wx = 86, wz = 280; for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.785; P.wbox(wx + Math.cos(a) * 5 - 0.5, 0, wz + Math.sin(a) * 5 - 0.5, wx + Math.cos(a) * 5 + 0.5, 34, wz + Math.sin(a) * 5 + 0.5, [0.85, 0.86, 0.87, 1]); }
+    if (typeof hancockWest === 'function') hancockWest({ P, GL, GLS: W.glass, seat, C, TW }); // the stand, the press box, Horton and beyond (14-hk-west.js)
+    // ===== east: the 2013 grandstand, the building to Main Street, Main Street (14-hk-east.js) =====
+    HK.east = hancockEast({ P, GL, GZ: W.glass, ST, seat, C });
+    // ===== south: the Touchdown Terrace, the tent, the fence and gate, the small board, the two south light poles; the 2026 video board (north slope) =====
+    hkSouthEnd({ P, GL, W, C, seat, tree }); // 14-hk-south.js
+    // ===== north: the end behind the north end line, Kaufman, the north-west pole, the practice dome and the view beyond (14-hk-north.js) =====
+    { const SGN = typeof hkNorth === 'function' ? hkNorth({ P, GL, glass: W.glass, C, ring, tree, block, rot, TN, TE, snow }) : null; if (SGN) HK.northSigns = SGN;
+      mOut = mark(); // (the water tower and the light poles: the true-north frame)
+      // the water tower (OSM water_tower at x 88..108, z 274..294)
+      const wx = 98, wz = 284; for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.785; P.wbox(wx + Math.cos(a) * 5 - 0.5, 0, wz + Math.sin(a) * 5 - 0.5, wx + Math.cos(a) * 5 + 0.5, 34, wz + Math.sin(a) * 5 + 0.5, [0.85, 0.86, 0.87, 1]); }
       P.wbox(wx - 1.2, 0, wz - 1.2, wx + 1.2, 34, wz + 1.2, [0.85, 0.86, 0.87, 1]);
       ring(wx, wz, 2.5, 30, 34, 12, [0.88, 0.89, 0.9, 1], 9); ring(wx, wz, 9, 34, 42, 12, [0.9, 0.91, 0.92, 1]); ring(wx, wz, 9, 42, 47, 12, [0.88, 0.89, 0.9, 1], 1);
       { const dx = -wx, dz = 50 - wz, l = Math.hypot(dx, dz), nx = dx / l, nz = dz / l, tx = -nz, tz = nx, r = 9.05; // faces the field
         sign([wx + nx * r - tx * 6.5, wz + nz * r - tz * 6.5], [wx + nx * r + tx * 6.5, wz + nz * r + tz * 6.5], 36, 40, 'normal', [nx, 0, nz]); } }
     // ===== further out: Turner Hall, the arena, east of Main Street, the trees, the far tree line =====
     { block(-62, -100, -18, -61, 9, [0.4, 0.22, 0.16, 1], C.roofG, true); block(-86, -140, -7, -100, 10, [0.42, 0.24, 0.17, 1], C.roofG, true); block(-60, -213, -20, -140, 9, [0.4, 0.22, 0.16, 1], C.roofG, true);
-      ring(-206, -151, 54, 0, 12, 20, [0.55, 0.53, 0.5, 1]); ring(-206, -151, 54, 12, 26, 20, [0.86, 0.87, 0.88, 1], 6); ring(-206, -151, 6, 26, 27.5, 8, [0.6, 0.6, 0.62, 1], 1); // CEFCU (Redbird) Arena
+      ring(-206, -151, 54, 0, 14, 20, [0.55, 0.53, 0.5, 1]); ring(-206, -151, 54, 14, 31, 20, [0.86, 0.87, 0.88, 1], 7); ring(-206, -151, 7, 31, 32.8, 8, [0.6, 0.6, 0.62, 1], 1); // CEFCU (Redbird) Arena (30 m, OSM)
       block(161, -12, 217, 23, 10, [0.45, 0.33, 0.25, 1], C.roofG, true); block(184, 140, 210, 210, 8, [0.5, 0.42, 0.33, 1], [0.2, 0.3, 0.25, 1], true); block(175, -200, 240, -150, 12, [0.42, 0.3, 0.22, 1], C.roofD, true);
       block(240, 40, 300, 110, 14, [0.4, 0.3, 0.24, 1], C.roofD, true); block(-300, 120, -230, 180, 12, [0.38, 0.27, 0.2, 1], C.roofD, true); block(-150, 260, -90, 300, 9, [0.42, 0.3, 0.22, 1], C.roofD, true);
       for (let i = 0; i < 260; i++) { const x = -330 + crand() * 660, z = -270 + crand() * 650; if (!free(x, z) || Math.hypot(x, z - 50) > 330 || (x > 125 && x < 155)) continue; tree(x, z, 0.9 + crand() * 0.6); }
       for (let i = 0; i < 48; i++) { const a = (i / 48) * 6.2832, r = 345 + crand() * 25, x = Math.cos(a) * r, z = 50 + Math.sin(a) * r * 0.95; // the far tree line (and the town) in the haze
         P.box(rot(Math.cos(a + 1.57), Math.sin(a + 1.57), x, z), 0, 5, 0, 52, 10 + crand() * 8, 12, crand() < 0.7 ? C.tree : [0.2, 0.17, 0.15, 1]); } }
     // ===== the lights: steel poles at three corners, their heads aimed at the field =====
-    for (const [x, z] of [[-59, 122], [-71, -39], [61, -48]]) {
+    for (const [x, z] of []) { // (all the poles now live in their ends' files: the two south ones in 14-hk-south.js, the north-west one in 14-hk-north.js)
       const H = 39, dx = -x, dz = 50 - z, l = Math.hypot(dx, dz), m = rot(dx / l, dz / l, x, z);
       P.wbox(x - 0.45, 0, z - 0.45, x + 0.45, H - 4, z + 0.45, [0.5, 0.51, 0.53, 1]); P.wbox(x - 0.9, 0, z - 0.9, x + 0.9, 1.2, z + 0.9, C.concD);
       P.box(m, -0.4, H - 4.5, 0, 0.5, 0.3, 7.4, C.steel); P.box(m, 0, H - 2.4, 0, 0.6, 5, 7.6, [0.15, 0.16, 0.18, 1]);
       for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) GL.box(m, 0.33, H - 4.3 + r * 1.2, -3.2 + q * 1.28, 0.1, 0.95, 1.05, C.lamp);
     }
     spinOut(mOut);
-    // ===== the sidelines: benches, coolers, kicking nets; goal posts, nets, pylons =====
+    // ===== the sidelines: the team benches (the Redbirds east, the visitors west), coolers, kicking nets; the walls' graphics and
+    // the far skyline (hkxBuild, 14-hk-x.js) =====
     for (const s of [-1, 1]) {
-      const bx = s * 35.4;
-      P.wbox(bx - 0.65, 0.42, 30, bx + 0.65, 0.5, 70, [0.72, 0.72, 0.74, 1]);
-      for (let z = 31; z <= 69; z += 6) P.wbox(bx - 0.5, 0, z - 0.06, bx + 0.5, 0.42, z + 0.06, C.steel);
-      P.wbox(bx + s * 0.6, 0.5, 30, bx + s * 0.7, 1.0, 70, [0.72, 0.72, 0.74, 1]);
-      for (const z of [27, 28.2]) { P.wbox(bx - 0.3, 0, z - 0.3, bx + 0.3, 0.75, z + 0.3, [0.95, 0.4, 0.05, 1]); P.wbox(bx - 0.32, 0.75, z - 0.32, bx + 0.32, 0.8, z + 0.32, [0.95, 0.95, 0.95, 1]); }
+      const bx = s > 0 ? 35.2 : -36.2, seatC = [0.72, 0.72, 0.74, 1], home = s > 0;
+      for (const [z0, z1] of [[31, 48.5], [51.5, 69]]) { // two runs of aluminium benches with backs, a gap at the 50
+        P.wbox(bx - 0.3, 0.42, z0, bx + 0.3, 0.48, z1, seatC); P.wbox(bx + s * 0.28, 0.48, z0, bx + s * 0.34, 0.95, z1, seatC);
+        for (let z = z0 + 0.4; z <= z1; z += 2.9) { P.wbox(bx - 0.28, 0, z - 0.03, bx + 0.28, 0.42, z + 0.03, C.steel); P.wbox(bx + s * 0.28, 0.42, z - 0.03, bx + s * 0.34, 0.95, z + 0.03, C.steel); }
+      }
+      for (const z of [27, 28.2, 71.8, 73]) { // water coolers on their stands (red for the Redbirds)
+        const cc = home ? [0.72, 0.06, 0.08, 1] : [0.85, 0.85, 0.86, 1];
+        P.wbox(bx - 0.3, 0, z - 0.3, bx + 0.3, 0.45, z + 0.3, C.steel); P.wbox(bx - 0.27, 0.45, z - 0.27, bx + 0.27, 1.05, z + 0.27, cc); P.wbox(bx - 0.29, 1.05, z - 0.29, bx + 0.29, 1.1, z + 0.29, [0.95, 0.95, 0.95, 1]); }
+      P.wbox(bx - 0.4, 0.72, 23.6, bx + 0.4, 0.76, 25.4, [0.9, 0.9, 0.9, 1]); for (const z of [23.7, 25.3]) P.wbox(bx - 0.35, 0, z - 0.03, bx + 0.35, 0.72, z + 0.03, C.steel); // a table for the cups
       W.plain.wbox(bx - 0.1, 0, 75.5, bx + 0.1, 3.0, 75.6, C.steel); W.plain.wbox(bx - 0.1, 0, 78.4, bx + 0.1, 3.0, 78.5, C.steel); W.plain.wbox(bx - 0.1, 2.95, 75.5, bx + 0.1, 3.05, 78.5, C.steel);
       for (const z of [-7, 107]) { P.wbox(s * 20 - 0.08, 0, z - 0.08, s * 20 + 0.08, 1.4, z + 0.08, C.steel); P.wbox(s * 20 - 0.25, 1.4, z - 0.35, s * 20 + 0.25, 1.75, z + 0.35, [0.1, 0.1, 0.12, 1]); }
     }
+    HK.x = typeof hkxBuild === 'function' ? hkxBuild(W, P, GL, C, TW, TE, TS, TN) : null;
     if (typeof hancockFieldItems === 'function') hancockFieldItems(W); // the turf apron, team areas, goal posts, pylons (14-hancockfield.js)
     else {
       const gp = [1, 0.84, 0.1, 1];
@@ -7365,8 +7286,9 @@ gl_FragColor=vec4(col,1.0);}`;
         statics.push({ k, b: buf, n: b.n, tex: t, cast, kind: 0, mat }); };
       add('hkseat', ST, hkSeatCanvas(), true, [0.75, 0, 0, 0], true);
       add('hksign', SG, hkSignCanvas(), false, [0.6, 0, 0, 0.15], false);
+      if (HK.northSigns) add('hknsign', HK.northSigns, hknCanvas(), false, [0.6, 0, 0, 0.1], false);
     }
-    if (DBG) DBG.hkStats = { plain: P.n, glow: GL.n, glass: W.glass.n, board: W.board.n, seatRows: ST.n, signs: SG.n, fans: HK.fans, crowdVerts: W.crowd.n };
+    if (DBG) DBG.hkStats = { plain: P.n, glow: GL.n, glass: W.glass.n, board: W.board.n, seatRows: ST.n, signs: SG.n, fans: HK.fans, crowdVerts: W.crowd.n, hkx: HK.x };
     return W;
   }
   // =====================================================================================
@@ -7384,7 +7306,8 @@ gl_FragColor=vec4(col,1.0);}`;
   //   - outside the border (beyond this canvas, built as flat quads by hancockFieldItems): green turf to the walls, a red team
   //     area 4 to 8 yards out between the 25s on both sides, the coaching lines (solid, the 15 to the 15, 8 yards out) and the
   //     dashed limit line 4 yards out that steps around the team area
-  //   - midfield: a big Redbird head like the real field's (our own drawing, not the university's artwork)
+  //   - midfield: the Redbird head logo, 14 yards tall, its top toward the east sideline; State Farm logos on both 25s
+  //     (the program's own artwork, drawn from SVG path data below; used with the school's permission per the site owner)
   // The canvas honours fieldCanvas's contract exactly: the same size (1024k x 2048k), the same mapping (VN.tex: x -30..30,
   // z -12..112), and fieldC / fieldScale are set so scuff() keeps working.
   // =====================================================================================
@@ -7399,7 +7322,9 @@ gl_FragColor=vec4(col,1.0);}`;
     turf: [-39, 36.4, -17, 120.5],   // the synthetic turf reaches the walls: x west, x east, z south, z north
     ezText: [105.5, -4.85],          // the lettering's centre line in the north and the south end zone
     ezW: 38.4, ezH: 5.2,             // lettering size (width, cap height)
-    postBack: 2.0, postTop: 9.6,     // goal post: the gooseneck's base 2 yards behind the end line; uprights to 29 ft
+    postBack: 2.0, postTop: 9.6,
+    logo: [14, 50.7],                // midfield logo height (yards) and its centre line
+    sf: 1.4,                         // State Farm logo height (about 10 yards long)     // goal post: the gooseneck's base 2 yards behind the end line; uprights to 29 ft
   };
   // turf / paint colours for the weather (canvas css), shared by the canvas and the apron quads
   function hkPal() {
@@ -7415,6 +7340,21 @@ gl_FragColor=vec4(col,1.0);}`;
   }
   // texel spots in the canvas the off-canvas quads sample from (flat swatches of the base colours, painted last): [x, z]
   const HK_SW = { apron: [-29.35, 60.5], red: [-25.6, 109.4], band: [-27.65, 60.5] };
+  // draws SVG path artwork (Path2D data, [colour, d, clip?] in a w x h viewBox; clip = the index of an entry whose path it is
+  // clipped to) onto the ground canvas, centred at (x, z), its width along the world direction R (x, z) and its top toward
+  // U = (-Rz, Rx), hYd yards tall
+  function hkArt(g, art, w, h, R, x, z, hYd, SX, SZ, PX, PZ) {
+    if (typeof Path2D !== 'function') return;
+    const U = [-R[1], R[0]], k = hYd / h;
+    g.save(); g.setTransform(R[0] * SX * k, R[1] * SZ * k, -U[0] * SX * k, -U[1] * SZ * k, PX(x), PZ(z)); g.translate(-w / 2, -h / 2);
+    for (const [col, d, clip] of art) { g.save(); if (clip !== undefined) g.clip(new Path2D(art[clip][1])); g.fillStyle = col; g.fill(new Path2D(d)); g.restore(); }
+    g.restore();
+  }
+  // the Redbird head (Illinois State athletics, viewBox 436 x 507, the registered mark left off; as painted on the
+  // field it has no white outer border, so its white layer is clipped to the black silhouette, keeping the eye and throat) and the State Farm logo
+  // (viewBox 192 x 27.8, ovals and wordmark)
+  const HK_BIRD = [["#000", "M211.89,164.29c-9.94-4.43-30.53-17.35-31.74-17.37-1.1-.02,8.27,19.33,9.84,22.12l21.9-4.75Z"], ["#000", "M129.1,70.91c-29.57-12.42-46.13-28.97-45.2-27,3.71,7.83,9.08,14.94,17.2,22.36,20.92,19.12,69.92,19.85,69.92,19.85,0,0-25.89-8.47-41.92-15.21Z"], ["#000", "M413.86,262.48c-4.28-6.37-8.97-11.87-13.37-16.83-3.74-4.2-7.32-8.05-10.35-11.77,2.09-2.46,3.18-5.5,3.78-7.91.78-3.17.88-10.06.88-10.06,0,0-3.27,1.69-5.06,2.53.29-3.78.81-12.33.19-18.84-2.34-24.67-18.9-43.4-37.48-57.25-9.32-6.95-19.25-12.74-28.36-17.5-9.07-4.74-17.37-8.49-23.5-11.35-63.4-29.6-120.15-40.71-183.41-71.79-14.2-6.98-32.09-15.76-44.23-26.19l-2.95-2.53-1.76,5.5-3.75-2.8-6.56-4.61-.68,4.02c-1.53,8.99-1.11,24.84,2.83,35.88-1.08-.64-2.24-1.33-3.4-2-1.82-1.04-3.62-2.02-5.06-2.68-.83-.38-7.6-4.03-8.12-3.7-1.83,1.16-.48,4.6-.08,7.49,1.87,13.5,4.91,25.84,9.09,33.14,0,0-15.02-8.13-15.84-8.02-1.12.16-.92,2.72-.7,4.19,1.32,8.81,3,13.99,5.33,20.52,1.57,4.38,3.59,8.7,6.62,12.49.23.08.27.11.05.07-.02-.02-.03-.04-.05-.07-1.76-.62-15.12-4.46-15.12-4.46,0,0-.64,2.38.11,6.63,2.09,11.87,7.35,17.99,14.12,25.33,0,0-14.09-1.86-14.13-1.19l2.25,5.78c6.68,19.27,23.79,27.88,41.58,33.49-25.35,10.4-45.79,31.85-60.71,53.61l-3.63,5.52,5.71.09c50.22.25,85.91,29.36,124.92,69.08.39.4,1,1.02,1,1.02,40.02,39.17,81.04,126.34,96.49,180.49l1.57,4.74,7.14-8.78c19.45-23.38,49.96-75.04,49.46-108.6l.26-7.63c7.58.64,29.1,2.22,43.82,1.17,20.43-1.46,47.25-8.87,53.41-10.37,5.12,2.46,9.14,10.33,9.48,13.61l.57,5.48,3.84-3.95c16.96-17.45,18.99-36.28,19.12-59.78.13-22.26-6.74-38.45-15.33-51.24ZM340.76,233.7l-3.4.22c.05.55-1.1,3.5-1.12,4.59l.08,4.65c-.13,7.65,6.96,10.71,12.57,12.85l5.52.03c-2.7,4.11-8.56,10.27-14.13,10.17-1.09-.02-2.99-.86-4.58-1.98-5.25-3.69-5.37-8.49-9.22-13.61-4.57-6.07-10.35-9.58-12.61-14.85-.89-2.14-1.18-5.19-1.74-7.79,0,0-.4-7.28.21-11.86.85-6.37,3.36-13.14,4.74-15.78l1.62.69c3.93,2.7,7.67,5.15,11.88,7.55,3.97,2.84,4.74,4.56,7.06,7.04l.35.32c1.52,1.36,4.82,4.5,7.38,6.78,0,0-2.96,2.51-4.38,4.51-1.18,1.66-2.68,4-2.54,4.71l2.31,1.77ZM340.68,208.45c-1.09-1.13-19.43-18.59-26.52-18.72l-13.54.64c-3.24-.06-7.86,1.82-11.73,3.22,8.59-9.09,23.04-9.55,35.58-13.36,9.59,1.43,14.25,10.24,22.12,18.15,11.91,11.96,19.36,27.09,33.13,29.58-2.51,2.98-6.41,3.03-9.93,4.08-12.45-1.1-20.38-16.67-29.12-23.6ZM185.21,234.39c7.63,6,37.44,22.18,37.44,22.18l-16.77,3.4,16.53,9.18c.77,3.26-31.94,58.87-36.51,66.12-11.45-12.35-40.48-51.88-74.07-76.13-15.46-11.17-24-18.54-41.8-25.39-11.6-4.46-20.86-7.66-30.86-7.91l2.91-2.92c29.87-22.24,39.44-34.36,83.44-43.86,1.21-.91-16.94-4.35-16.94-4.35-12.86-1.94-37.34-10-37.34-10-6.22-2.77-13.61-6.19-14.7-13.74,15.99,2.26,28.99,4.01,44.36,3.89,0,0-15.78-3.31-23.87-9.12-17.75-12.75-20.02-24.71-20.02-24.71,13.53,5.7,29.31,8.83,43.39,13.08,0,0-48.12-24.37-44.56-43.85,15.79,5.64,31.15,12.52,46.07,20.13,1.32-1.55-8.29-6.01-15.4-11.77-12.15-9.84-25.76-22.88-23.94-39.94,1.93,1.75,6.51,4.39,10.73,7.09,13.09,8.4,34.48,21.7,34.47,20.06-18.24-11.61-34.99-30.86-35.49-53.11l.55-8.17c4.73,2.98,14.46,17.48,34.47,26.08,65.88,28.3,114.03,44.08,171.42,65.5,0,0,22.21,9.08,32.31,14.66,0,0,67.31,35.91,66.53,71.17-.15,7.02.36,14.67-2.81,17.78-14.93-15.57-24.45-34.98-44.38-47.7-7.61-.13-16.03-.28-24.35,1.62l-130.14-58.24c5.23,7.04,13.42,13.08,19.34,20.19l41.14,38.8s-30.7,4.31-38.75,3.55l22.51,19.75c-11.27-2.63-50.43-13.16-50.43-13.16,0,0,35.35,25.81,53.61,36.04l-40.37-7.99,41.74,27.56c4.1,2.09-35.04-6.76-39.44-5.78ZM284.94,371.7c-.68,38.73-23.2,72.03-37.78,90.97,0,0-6.98-20.28-10.84-30.52,8.79-7.49,16.75-16.92,20.79-27.86l.7-.99c4.8-12.71,11.19-24.08,14.03-37.44,2.36-.68,10.02-2,13.14-3.28l-.05,9.12ZM410.27,357.63s-9.73-15.12-18.14-18.93c-43.03-19.54-92.84-68.39-107.96-74.81,0,0,6.63-1.84,10.98-2.32,4.6-.51,11.41.34,11.88-.06-20.93-12.39-65.04-13.47-65.6,18.27l.12,3.7,1.13,6.23h2.24c-.51-3.88-.77-8.84,1.24-12.26l2.84,1.09c.43.57,119.75,53.37,142.75,67.58-5.66,2.66-38.22,10.25-44.22,9.5,0,0-25.56.86-41.42-2.33-48.62-9.78-98.61-59.22-62.91-103.94,8.03-10.05,17.55-11.9,30.39-12.83,22-1.58,41.93,6.96,49.27,27.76,0,0,3.27,8.31,14.1,11.17,8.41,2.22,13.77-3.17,20.61-8.54,10.25-8.05,15.72-29.5,15.72-29.5,8.94,6.78,21.51,21.43,21.51,21.43,15.7,15.11,28.29,41.63,24.5,70.49-1.51,11.48-6.78,23.55-9.05,28.28ZM265.85,276.85c4.89.09,12.2-5.94,17.7-5.85,2.42.04,6.84,3.41,8.24,4.67l.85,1.04c-4.54,1.31-9.84,3.06-14.14,4.22l-.02,1.09c.79.36,1.57.35,2.67.37,1.1.02,13.9-3.98,13.9-3.98,0,0,6.76,7.04,8,7.1-2.65,1.7-7.1,3.86-7.1,3.86.78.36.77.98,1.87,1,1.1.02,5.44-3.4,6.23-2.64,2.93,2.8,11.59,10.84,11.92,11.92-20.48-9.44-42.12-14.33-61.08-24,1.39-4.75,6.28-7.02,11.74-8.46,4.14-1.09,10.98.19,10.98.19,1.1.02,1.8.91,2.84.99,0,0-11.1,4.84-16.79,6.98.42.71,1.09,1.48,2.19,1.5Z"], ["#000", "M58.8,220.02c-.03,1.54,16.99,9.53,16.99,9.53,0,0,14.97-16.53,26.26-25.08,12.77-9.67,23.84-13.39,35.67-20.38,0,0-41.14,7.93-64.95,24.15-.82.13-13.9,8.42-13.96,11.77Z"], ["#000", "M407.29,312.86c.05,9.79-1.11,21.02-3.08,24.91l5.95,8.41c1.92-4.74,3.88-16.93,3.88-16.93.93-18.98-4.43-36.27-13.89-52.68,1.87,12.14,7.08,21.86,7.15,36.29Z"], ["#000", "M76.12,75.65c-1.65-1.28,5.62,9.54,10.49,14.56,11.59,11.94,22.11,15.34,38.45,18.47,12.06,2.31,31.48-.02,31.48-.02-6.24-2.28-20.48-4.87-26.79-6.59-20.32-5.54-35.5-15.81-53.63-26.41Z"], ["#000", "M368.3,268.47c-1.79-3.03,4.26-7.94,4.26-7.94,0,0-1.56-1.16-2.94-.29-3.69,1.59-8.9,5.65-7.29,10.3.57,1.65,1.1,2.78,2.62,3.63,1.71.95,3.12.55,5.02.09,5.09-1.25,7.33-11.26,7.33-11.26,0,0-6.91,9.02-9,5.48Z"], ["#000", "M194.07,283.61s-3.92,24.46-4.01,33.25l22.53-40.01-18.52,6.76Z"], ["#cf0a2c", "M326.55,233.56c-.22,1.35-.35,1.97.23,5.98,1.13,7.46,4.19,9.71,6.98,13.25,5.78,5.55,15.14,3.21,15.14,3.21l5.51.02-5.52-.03c-5.61-2.14-12.7-5.2-12.57-12.85l-.08-4.65c.02-1.09,1.17-4.05,1.12-4.59l-.44.03-10.37-.38Z"], ["#cf0a2c", "M345.36,222.71c-2.56-2.28-5.86-5.42-7.38-6.78,0,0-3.26,2.66-5.04,4.67-1.65,1.87-3.76,5.16-3.76,5.16,2.11,1.02,4.95,2.99,7.2,4.58.41.29.79.59,1.14.87l.92.71c-.15-.71,1.35-3.04,2.54-4.71,1.42-2,4.38-4.51,4.38-4.51Z"], ["#cf0a2c", "M224.65,240.17l-41.74-27.56,40.37,7.99c-18.26-10.23-53.61-36.04-53.61-36.04,0,0,39.15,10.53,50.43,13.16l-22.51-19.75c8.06.76,38.75-3.55,38.75-3.55l-41.14-38.8c-5.92-7.11-14.12-13.15-19.34-20.19l130.14,58.24c8.32-1.9,16.74-1.76,24.35-1.62,19.94,12.72,29.45,32.13,44.38,47.7,3.17-3.11,2.66-10.76,2.81-17.78.78-35.26-66.53-71.17-66.53-71.17-10.1-5.58-32.31-14.66-32.31-14.66-57.39-21.42-105.54-37.2-171.42-65.5-20.01-8.6-29.73-23.1-34.47-26.08l-.55,8.17c.5,22.25,17.25,41.5,35.49,53.11.01,1.64-21.38-11.67-34.47-20.06-4.22-2.71-8.8-5.35-10.73-7.09-1.82,17.05,11.8,30.09,23.94,39.94,7.11,5.76,16.73,10.22,15.4,11.77-14.92-7.61-30.28-14.49-46.07-20.13-3.56,19.48,44.56,43.85,44.56,43.85-14.09-4.25-29.86-7.38-43.39-13.08,0,0,2.27,11.96,20.02,24.71,8.1,5.81,23.87,9.12,23.87,9.12-15.37.12-28.37-1.62-44.36-3.89,1.1,7.55,8.49,10.97,14.7,13.74,0,0,24.47,8.06,37.34,10,0,0,18.15,3.44,16.94,4.35-44,9.5-53.57,21.62-83.44,43.86l-2.91,2.92c10,.25,19.26,3.45,30.86,7.91,17.8,6.84,26.34,14.22,41.8,25.39,33.58,24.25,62.62,63.78,74.07,76.13,4.57-7.25,37.29-62.86,36.51-66.12l-16.53-9.18,16.77-3.4s-29.81-16.18-37.44-22.18c4.4-.97,43.54,7.87,39.44,5.78ZM180.15,146.93c1.21.02,21.8,12.93,31.74,17.37l-21.9,4.75c-1.57-2.78-10.94-22.13-9.84-22.12ZM101.1,66.27c-8.12-7.42-13.49-14.54-17.2-22.36-.93-1.96,15.63,14.58,45.2,27,16.04,6.74,41.92,15.21,41.92,15.21,0,0-49-.73-69.92-19.85ZM102.04,204.47c-11.29,8.55-26.26,25.08-26.26,25.08,0,0-17.01-7.99-16.99-9.53.06-3.35,13.14-11.64,13.96-11.77,23.81-16.22,64.95-24.15,64.95-24.15-11.82,6.99-22.9,10.71-35.67,20.38ZM125.06,108.68c-16.34-3.13-26.87-6.53-38.45-18.47-4.87-5.02-12.14-15.84-10.49-14.56,18.13,10.6,33.32,20.88,53.63,26.41,6.32,1.72,20.55,4.31,26.79,6.59,0,0-19.42,2.33-31.48.02ZM194.07,283.61l18.52-6.76-22.53,40.01c.08-8.79,4.01-33.25,4.01-33.25Z"], ["#ffdb00", "M394.81,258.85s-12.57-14.65-21.51-21.43c0,0-5.47,21.45-15.72,29.5-6.84,5.37-12.2,10.76-20.61,8.54-10.83-2.86-14.1-11.17-14.1-11.17-7.34-20.81-27.27-29.34-49.27-27.76-12.83.92-22.36,2.77-30.39,12.83-35.71,44.72,14.29,94.16,62.91,103.94,15.86,3.19,41.42,2.33,41.42,2.33,6,.75,38.56-6.84,44.22-9.5-23-14.21-142.31-67.02-142.75-67.58l-2.84-1.09c-2.01,3.42-1.76,8.38-1.24,12.25h-2.24s-1.13-6.22-1.13-6.22l-.12-3.7c.55-31.73,44.67-30.65,65.6-18.27-.47.4-7.27-.45-11.88.06-4.35.48-10.98,2.32-10.98,2.32,15.12,6.43,64.94,55.28,107.96,74.81,8.41,3.82,18.14,18.93,18.14,18.93,2.27-4.74,7.54-16.8,9.05-28.28,3.78-28.86-8.81-55.38-24.5-70.49ZM369.97,274.25c-1.9.47-3.31.87-5.02-.09-1.52-.85-2.05-1.98-2.62-3.63-1.61-4.65,3.6-8.7,7.29-10.3,1.38-.87,2.94.29,2.94.29,0,0-6.05,4.92-4.26,7.94,2.09,3.54,9-5.48,9-5.48,0,0-2.24,10.01-7.33,11.26ZM414.04,329.25s-1.96,12.19-3.88,16.93l-5.95-8.41c1.97-3.89,3.13-15.12,3.08-24.91-.07-14.42-5.28-24.14-7.15-36.29,9.46,16.41,14.82,33.7,13.89,52.68Z"], ["#fff", "M419.46,258.72c-4.46-6.64-9.34-12.39-13.94-17.55-2.46-2.77-4.86-5.38-7.06-7.89.99-2.08,1.61-4.08,2-5.68.56-2.27.8-5.37.92-7.45.13-2.28.32-15.41.32-15.41l-4.75,2.45c.01-2.79-.07-5.65-.31-8.21-2.6-27.48-20.99-47.73-40.17-62.02-9.71-7.23-19.97-13.21-29.26-18.06-9.18-4.8-17.58-8.59-23.78-11.48-63.36-29.58-119.15-40.09-183.39-71.65-14.61-7.18-32.08-15.8-43.77-25.83l-9.38-8.05-2,6.24L53.36,0s-5.58,26.25-2.07,39.47c-7.55-3.13-14.85-7.16-14.85-7.16,0,0-1.89,25.12,4.41,37.7l-13.13-6.01s1.51,26.7,7.78,38.1l-10-3.02s-2.25,22.83,8.15,33.85c-6.37-.31-8.85-.31-8.85-.31,0,0,1.86,9.16,2.72,10.7l1.37,3.78c5.65,16.26,17.93,25.67,31.12,31.78-20.48,12.22-37.1,30.75-49.6,48.99l-10.42,15.84,18.04.28c47.23.23,81.23,27.4,120.17,67.05l1.04,1.07c38.82,37.99,79.51,124.06,94.82,177.71l5.49,16.55,14.86-18.27c19.57-23.52,51.48-77.13,51.03-113.28,10.16.7,26.08,1.48,37.79.64,18.48-1.32,42.08-7.38,51.59-9.8,2.06,2.09,3.98,5.81,4.1,7l2.05,19.85,13.91-14.31c18.89-19.44,20.89-40.61,21.03-64.45.14-23.84-7.27-41.33-16.47-55.04ZM410.06,373.5l-3.84,3.95-.57-5.48c-.34-3.27-4.36-11.14-9.48-13.61-6.16,1.5-32.98,8.9-53.41,10.37-14.71,1.05-36.23-.54-43.82-1.17l-.26,7.63c.51,33.56-30,85.22-49.46,108.6l-7.14,8.78-1.57-4.74c-15.46-54.15-56.47-141.32-96.49-180.49,0,0-.61-.62-1-1.02-39.01-39.72-74.7-68.83-124.92-69.08l-5.71-.09,3.63-5.52c14.92-21.76,35.35-43.21,60.71-53.61-17.79-5.62-34.9-14.23-41.58-33.49l-2.25-5.78c.04-.67,14.13,1.19,14.13,1.19-6.77-7.34-12.02-13.47-14.12-25.33-.75-4.25-.11-6.63-.11-6.63,0,0,13.35,3.83,15.12,4.46-3.04-3.79-5.06-8.11-6.62-12.49-2.34-6.53-4.01-11.71-5.33-20.52-.22-1.46-.42-4.03.7-4.19.81-.11,15.84,8.02,15.84,8.02-4.18-7.3-7.21-19.64-9.09-33.14-.4-2.89-1.75-6.33.08-7.49.52-.33,7.3,3.31,8.12,3.7,1.43.66,3.23,1.64,5.06,2.68,1.16.66,2.32,1.35,3.4,2-3.94-11.04-4.37-26.89-2.83-35.88l.68-4.02,6.56,4.61,3.75,2.8,1.76-5.5,2.95,2.53c12.14,10.43,30.03,19.21,44.23,26.19,63.26,31.08,120.01,42.19,183.41,71.79,6.13,2.86,14.43,6.6,23.5,11.35,9.11,4.76,19.04,10.55,28.36,17.5,18.59,13.85,35.15,32.58,37.48,57.25.62,6.5.1,15.06-.19,18.84,1.79-.84,5.06-2.53,5.06-2.53,0,0-.1,6.89-.88,10.06-.6,2.4-1.69,5.45-3.78,7.91,3.02,3.72,6.61,7.57,10.35,11.77,4.41,4.95,9.1,10.46,13.37,16.83,8.59,12.79,15.45,28.98,15.33,51.24-.13,23.5-2.16,42.33-19.12,59.78Z", 2], ["#fff", "M369.8,232.04c3.52-1.05,7.42-1.1,9.93-4.08-13.77-2.49-21.22-17.62-33.13-29.58-7.87-7.91-12.53-16.72-22.12-18.15-12.54,3.8-26.99,4.27-35.58,13.36,3.86-1.4,8.48-3.28,11.73-3.22l13.54-.64c7.09.12,25.43,17.59,26.52,18.72,8.74,6.92,16.67,22.5,29.12,23.6Z"], ["#fff", "M277.62,267.38s-6.84-1.29-10.98-.19c-5.46,1.44-10.35,3.72-11.74,8.46,18.96,9.67,40.6,14.56,61.08,24-.32-1.08-8.99-9.12-11.92-11.92-.79-.76-5.13,2.66-6.23,2.64-1.1-.02-1.09-.65-1.87-1,0,0,4.45-2.16,7.1-3.86-1.24-.06-8-7.1-8-7.1,0,0-12.8,4-13.9,3.98-1.1-.02-1.88-.01-2.67-.37l.02-1.09c4.3-1.17,9.6-2.92,14.14-4.22l-.85-1.04c-1.4-1.25-5.82-4.63-8.24-4.67-5.5-.1-12.8,5.93-17.7,5.85-1.1-.02-1.77-.79-2.19-1.5,5.69-2.14,16.79-6.98,16.79-6.98-1.04-.08-1.74-.97-2.84-.99Z"], ["#fff", "M257.82,403.3l-.7.99c-4.04,10.94-12,20.38-20.79,27.86,3.86,10.24,10.84,30.52,10.84,30.52,14.58-18.94,37.11-52.24,37.78-90.97l.05-9.12c-3.12,1.28-10.78,2.59-13.14,3.28-2.84,13.36-9.23,24.73-14.03,37.44Z"], ["#fff", "M336.39,230.34c-2.25-1.59-5.1-3.56-7.2-4.58,0,0,2.11-3.3,3.76-5.16,1.77-2.01,5.04-4.67,5.04-4.67l-.35-.32c-2.32-2.47-3.09-4.19-7.06-7.04-4.21-2.4-7.95-4.85-11.88-7.55l-1.62-.69c-1.38,2.64-3.9,9.41-4.74,15.78-.61,4.59-.21,11.86-.21,11.86.56,2.6.85,5.65,1.74,7.79,2.25,5.28,8.04,8.78,12.61,14.85,3.85,5.12,3.97,9.92,9.22,13.61,1.59,1.12,3.49,1.96,4.58,1.98,5.57.1,11.42-6.06,14.13-10.17l-5.51-.02s-9.37,2.34-15.14-3.21c-2.79-3.54-5.85-5.8-6.98-13.25-.57-4.01-.45-4.64-.23-5.98l10.37.38.44-.03,3.4-.22-2.31-1.77-.92-.71-1.14-.87Z"]];
+  const HK_SF = [["#e01b22", "M116.943,8.163L117,8.072l-0.061,0.091c-1.033-0.709-2.527-1.038-3.99-1.038c-3.316,0.003-5.686,1.643-7.245,3.947c-1.55,2.311-2.28,5.288-2.28,7.938c0,1.915,0.288,3.701,1.455,5.313c0.575,0.787,1.969,2.678,6.475,2.684c3.129-0.002,4.611-0.813,5.414-1.282l0.134-0.181c0.157-0.686,0.685-3.801,0.9-4.582l-0.162-0.124c-1.582,1.254-3.307,2.17-5.266,2.17c-1.314,0-2.313-0.312-2.987-0.914c-0.672-0.597-1.001-1.48-1.001-2.574c0-0.403,0.033-0.771,0.064-1.174l0.01-0.095l0.092-0.003c3.063-0.078,4.624-0.12,7.189-0.12c0.838,0,1.783,0.004,2.924,0.013l0.198-0.138c0.255-1.189,0.531-2.549,0.531-4.222C119.394,12.296,119.236,9.656,116.943,8.163 M114.914,14.669l-0.017,0.087l-3.002,0.038l-2.968,0.039l0.027-0.1l0.014-0.044c0.06-0.208,0.125-0.437,0.2-0.67c0.204-0.654,0.496-1.366,1.013-2.019c0.091-0.111,0.186-0.225,0.287-0.331c0.92-1.006,1.791-1.162,2.355-1.162c0.795,0,1.377,0.318,1.751,0.791c0.063,0.083,0.116,0.164,0.168,0.257c0.185,0.315,0.298,0.673,0.339,1.048c0.02,0.134,0.027,0.275,0.027,0.41C115.109,13.575,115.009,14.127,114.914,14.669 M103.258,11.289l-0.204,0.202l-2.956-0.076l-1.369,6.446c-0.189,0.808-0.607,2.825-0.607,3.475c-0.004,0.607,0.225,1.021,0.545,1.267c0.316,0.249,0.712,0.331,1.066,0.332c0.822,0,1.109-0.229,1.657-0.438l0.097,0.09L100.76,26.3l-0.25,0.243c-1.012,0.214-1.765,0.39-2.83,0.39c-2.75-0.016-4.735-0.939-4.746-4.144c0-1.5,0.606-4.231,1.057-6.261l1.091-5.117l-2.321,0.079l-0.14-0.202L93.3,7.682l0.211-0.116h2.358l0.943-4.749l0.184-0.208c2.361-0.604,3.042-0.895,5.193-1.603l0.114,0.128l-0.713,3.059l-0.739,3.445l3.028-0.093l0.079,0.158L103.258,11.289z M139.712,5.206l-0.163,0.181l-7.801-0.019l-1.269,6.509l6.827-0.206l0.101,0.162c-0.562,1.871-0.692,2.4-1.07,4.032l-0.173,0.165l-6.492-0.014l-0.853,4.516l-1.08,5.865l-0.144,0.135l-5.591,0.144l-0.068-0.144l0.969-4.993l1.483-7.049c1.118-5.477,1.438-7.226,2.495-13.193l0.168-0.164h8.169l5.188-0.136l0.1,0.136L139.712,5.206z M150.732,8.374c-1.085-0.765-2.817-1.158-5.193-1.158c-1.173,0-2.356,0.113-3.544,0.338c-1.062,0.202-1.721,0.373-2.282,0.534l-0.154,0.156l-0.771,3.949l0.249,0.15c0.495-0.228,1.221-0.508,2.179-0.847c0.98-0.345,1.882-0.518,2.696-0.518c1.191,0,2.099,0.163,2.716,0.5c0.636,0.342,1.092,1.093,1.089,1.919c0,0.204-0.017,0.383-0.045,0.545c-0.031,0.152-0.05,0.264-0.058,0.328l-0.013,0.084c0,0-0.385,0.027-0.794,0.062c-0.27,0.026-0.614,0.065-1.012,0.111c-0.651,0.07-1.4,0.162-2.054,0.272c-1.568,0.261-5.98,0.948-7.304,3.903c-1.388,2.421-1.151,5.633,0.212,7.196c0.481,0.553,1.214,1.073,2.205,1.273l-0.002,0.003c0.043,0.015,0.195,0.034,0.229,0.042c3.815,0.59,6.552-2.734,6.552-2.734l-0.409,2.049l0.168,0.144l4.286-0.144l0.178-0.155l2.523-12.672c0.052-0.267,0.095-0.583,0.127-0.942c0.028-0.364,0.046-0.659,0.046-0.876C152.549,10.264,151.815,9.138,150.732,8.374 M146.319,21.044c0,0-1.025,1.61-2.501,2.187c-1.481,0.573-2.55,0.121-2.968-0.452c-0.338-0.448-1.04-1.862,0.293-3.453c1.352-1.607,5.82-1.71,5.82-1.71L146.319,21.044z M167.128,6.958l-1.05,5.45l-0.22,0.223c-0.3-0.054-0.682-0.098-1.134-0.098c-1.415,0-3.427,0.454-5.001,2.54l-0.017,0.017l-2.168,11.309l-0.153,0.135l-4.708,0.143l-0.122-0.124l3.703-18.985l0.201-0.199l4.66-0.451l0.184,0.199l-0.537,2.75l0.229-0.208c0.974-0.883,1.838-1.493,2.803-2.043c0.956-0.55,1.915-0.823,2.879-0.823c0.093,0,0.188,0,0.288,0.004L167.128,6.958z M192.333,11.735c0,1.147-0.259,2.338-0.513,3.497l-2.187,11.166l-0.168,0.135l-4.928,0.174l-0.122-0.174c0,0,2.525-12.334,2.525-12.947c0-0.559-0.295-2.057-1.863-2.057c-1.235,0-2.512,1.247-2.512,1.247l-2.661,13.623l-0.164,0.135l-2.121,0.074l-1.899,0.064l-0.938,0.031l-0.057-0.077l-0.061-0.093c0,0,0.381-1.877,0.853-4.202h-0.013c0.736-3.636,1.677-8.371,1.677-8.745c0-0.559-0.294-2.057-1.864-2.057c-1.231,0-2.508,1.247-2.508,1.247l-2.662,13.623l-0.168,0.135l-0.761,0.026l-4.194,0.141l-0.107-0.167l3.694-18.966l0.186-0.187l4.915-0.463l0.199,0.199l-0.521,2.67c0,0,2.372-2.6,5.396-2.66c2.822-0.053,3.412,2.66,3.412,2.66s2.808-2.722,5.803-2.66C189.516,7.139,192.325,7.807,192.333,11.735 M89.432,8.374c-1.083-0.765-2.813-1.158-5.188-1.158c-1.177,0-2.358,0.113-3.542,0.338c-1.064,0.202-1.723,0.373-2.286,0.534l-0.153,0.156l-0.771,3.949l0.249,0.15c0.495-0.228,1.222-0.508,2.178-0.847c0.981-0.345,1.882-0.518,2.696-0.518c1.192,0,2.094,0.163,2.718,0.5c0.633,0.342,1.086,1.093,1.086,1.919c0,0.204-0.014,0.383-0.042,0.545c-0.033,0.152-0.051,0.264-0.059,0.328l-0.012,0.084c0,0-0.384,0.027-0.793,0.062c-0.269,0.026-0.617,0.065-1.012,0.111c-0.652,0.07-1.402,0.162-2.053,0.272c-1.571,0.261-5.981,0.948-7.306,3.903c-1.388,2.421-1.15,5.633,0.213,7.196c0.477,0.553,1.212,1.073,2.204,1.273l-0.002,0.003c0.042,0.015,0.195,0.034,0.227,0.042c3.817,0.59,6.554-2.734,6.554-2.734l-0.41,2.049l0.167,0.144l4.289-0.144l0.177-0.155l2.52-12.672c0.055-0.267,0.098-0.583,0.133-0.942c0.025-0.364,0.044-0.659,0.044-0.876C91.254,10.264,90.523,9.138,89.432,8.374 M85.022,21.044c0,0-1.022,1.61-2.5,2.187c-1.48,0.573-2.547,0.121-2.97-0.452c-0.335-0.448-1.036-1.862,0.3-3.453c1.347-1.607,5.819-1.71,5.819-1.71L85.022,21.044z M74.691,11.289l-0.206,0.202l-2.953-0.076l-1.368,6.446c-0.192,0.808-0.612,2.825-0.612,3.475c-0.001,0.607,0.226,1.021,0.545,1.267c0.32,0.249,0.714,0.331,1.067,0.332c0.823,0,1.111-0.229,1.657-0.438l0.098,0.09L72.193,26.3l-0.25,0.243c-1.008,0.214-1.765,0.39-2.832,0.39c-2.744-0.016-4.733-0.939-4.744-4.144c0-1.5,0.608-4.231,1.057-6.261l1.09-5.117l-2.322,0.079l-0.14-0.202l0.681-3.606l0.21-0.116H67.3l0.944-4.749l0.185-0.208c2.357-0.604,3.04-0.895,5.195-1.603l0.11,0.128l-0.713,3.059L72.288,7.64l3.022-0.093l0.083,0.158L74.691,11.289z M63.589,2.531l-0.898,4.624l-0.198,0.063c-0.357-0.502-0.573-0.699-1.07-1.083c-1.104-0.85-2.414-1.331-3.751-1.331c-1.048,0-1.919,0.327-2.523,0.872c-0.609,0.543-0.955,1.316-0.955,2.179c0.003,1.632,1.12,2.428,3.105,3.617l0.772,0.438c1.663,1.09,4.246,2.762,4.246,6.557c-0.006,4.313-2.769,8.64-9.398,8.65c-1.625,0-3.216-0.291-4.747-0.862c-1.033-0.396-1.531-0.739-2.156-1.202l-0.052-0.297l0.88-4.511l0.197-0.066c0.399,0.516,0.899,0.938,1.647,1.433c1.597,1.065,3.129,1.179,3.782,1.179c2.34-0.002,4.18-1.338,4.18-3.413c-0.002-1.858-1.471-2.789-3.005-3.693l-1.061-0.654c-1.67-1.092-3.985-2.577-3.992-6.3c0-1.432,0.412-3.487,1.68-5.17c1.672-2.213,4.301-3.008,6.949-3.008c3.409,0,5.359,1.207,6.273,1.792L63.589,2.531z M15.653,10.676c1.343,0.829,3.23,1.356,5.354,1.356c2.121,0,4.026-0.527,5.389-1.356c1.368-0.828,2.174-1.946,2.177-3.126c-0.003-1.183-0.804-2.29-2.166-3.111c-1.358-0.82-3.258-1.336-5.385-1.34c-2.123,0.004-4.013,0.52-5.362,1.34c-1.35,0.822-2.143,1.925-2.146,3.108C13.517,8.733,14.308,9.848,15.653,10.676 M15.992,17.072c-1.358-0.821-3.259-1.338-5.382-1.338c-2.125,0-4.015,0.517-5.363,1.334C3.896,17.89,3.103,18.989,3.1,20.172c0.003,1.187,0.792,2.302,2.14,3.134c1.342,0.823,3.229,1.351,5.354,1.355c2.125-0.005,4.03-0.532,5.392-1.359c1.365-0.828,2.171-1.943,2.175-3.126C18.156,18.997,17.354,17.894,15.992,17.072 M36.773,17.072c-1.36-0.821-3.262-1.338-5.386-1.338c-2.123,0-4.016,0.517-5.361,1.334c-1.351,0.821-2.142,1.921-2.144,3.107c0.002,1.183,0.789,2.298,2.138,3.13c1.343,0.823,3.229,1.351,5.352,1.355c2.123-0.005,4.03-0.532,5.394-1.359c1.365-0.828,2.171-1.943,2.173-3.126C38.937,18.997,38.135,17.894,36.773,17.072 M31.364,12.635c-0.96,0-1.887,0.091-2.768,0.256c1.925-1.374,3.11-3.265,3.11-5.352c0-4.199-4.768-7.54-10.688-7.54C15.099,0,10.38,3.341,10.38,7.54c0,2.09,1.163,3.981,3.069,5.355c-0.898-0.169-1.84-0.26-2.812-0.26C4.718,12.635,0,15.977,0,20.172c0,4.192,4.693,7.597,10.614,7.597c5.039,0,9.263-2.464,10.413-5.784c1.121,3.32,5.272,5.784,10.312,5.784c5.92,0,10.715-3.404,10.715-7.597C42.054,15.977,37.281,12.635,31.364,12.635 M12.31,7.536c0.007-1.891,1.443-3.168,2.285-3.763c1.684-1.197,3.966-1.842,6.424-1.842c2.466,0,4.756,0.648,6.453,1.842c0.849,0.599,2.302,1.878,2.309,3.763c-0.028,3.152-4.075,5.661-8.788,5.668c-2.448,0-4.72-0.655-6.397-1.861C13.135,10.296,12.31,8.947,12.31,7.536 M10.614,25.836c-2.451,0-4.721-0.656-6.403-1.864c-1.454-1.043-2.281-2.392-2.281-3.8c0.008-1.891,1.443-3.171,2.282-3.767c1.686-1.189,3.967-1.838,6.426-1.842c2.467,0.004,4.757,0.652,6.454,1.847c0.85,0.598,2.305,1.875,2.313,3.762C19.376,23.32,15.326,25.829,10.614,25.836 M21.03,18.364c-0.464-1.337-1.428-2.531-2.743-3.476c0.863,0.161,1.768,0.247,2.701,0.247c0.96,0,1.887-0.09,2.771-0.256C22.448,15.825,21.485,17.02,21.03,18.364 M31.338,25.836c-2.448,0-4.72-0.656-6.4-1.864c-1.457-1.043-2.286-2.392-2.286-3.8c0.006-1.891,1.446-3.168,2.288-3.767c1.682-1.189,3.965-1.838,6.423-1.842c2.467,0.004,4.756,0.652,6.458,1.847c0.849,0.598,2.298,1.878,2.302,3.762C40.1,23.32,36.051,25.829,31.338,25.836"]];
   function hancockGroundCanvas(k) {
     cs = 20251031;
     const c = document.createElement('canvas'); const CW = 1024 * k, CH = 2048 * k; c.width = CW; c.height = CH; const g = c.getContext('2d');
@@ -7478,25 +7418,12 @@ gl_FragColor=vec4(col,1.0);}`;
     const ezStroke = 'rgba(14,14,14,0.92)', ezFill = 'rgba(244,244,238,0.95)';
     wtxt('REDBIRDS', 0, HKF.ezText[0], [1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
     wtxt('REDBIRDS', 0, HKF.ezText[1], [-1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
-    // midfield: a big Redbird head, like the real field's (our own drawing of a cardinal's head in profile, not the university's
-    // artwork): crested red head, black mask, gold beak, white eye, a white then black outline; it reads upright from the east
-    // grandstand (its up points west), about 14 yards tall
-    {
-      const R = [0, 1], U = [-1, 0], K = 1.05;
-      g.save(); g.setTransform(R[0] * SX, R[1] * SZ, -U[0] * SX, -U[1] * SZ, PX(0), PZ(50)); g.scale(K, K); g.lineJoin = 'round'; g.lineCap = 'round';
-      const path = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); };
-      const head = [[-4.6, 6.2], [-5.4, 2.6], [-5.6, -0.6], [-7.6, -3.6], [-4.6, -2.6], [-5.6, -6.4], [-2.6, -4.0], [-1.9, -7.2], [0.2, -4.2], [1.7, -3.4], [2.5, -1.6], [2.9, 1.9], [2.3, 3.4], [3.0, 6.2]];
-      path(head); g.strokeStyle = 'rgba(244,244,238,0.95)'; g.lineWidth = 1.1; g.stroke();
-      g.fillStyle = snow ? '#b4685e' : '#c8281e'; g.fill();
-      g.strokeStyle = 'rgba(120,10,8,0.55)'; g.lineWidth = 0.22; // feather lines in the crest and the nape
-      for (const [x0, y0, x1, y1] of [[-3.4, -1.0, -5.6, -3.1], [-1.6, -2.0, -3.4, -4.2], [-0.4, -2.6, -1.5, -5.4], [-3.6, 1.6, -4.6, 4.2], [-2.0, 2.6, -2.6, 5.0]]) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
-      path([[-0.3, -1.9], [2.6, -1.7], [2.95, 1.7], [1.5, 2.9], [-0.9, 1.5], [-0.7, -0.6]]); g.fillStyle = '#121212'; g.fill(); // the black mask
-      path([[2.5, -1.45], [6.6, 0.35], [2.75, 1.65]]); g.fillStyle = '#f2a516'; g.fill(); g.strokeStyle = '#121212'; g.lineWidth = 0.16; g.stroke(); // beak
-      g.beginPath(); g.moveTo(2.7, 0.15); g.lineTo(5.9, 0.35); g.stroke();
-      g.beginPath(); g.arc(0.95, -0.35, 0.62, 0, Math.PI * 2); g.fillStyle = '#f4f4ee'; g.fill(); g.beginPath(); g.arc(1.1, -0.35, 0.3, 0, Math.PI * 2); g.fillStyle = '#121212'; g.fill(); // eye
-      path(head); g.strokeStyle = '#121212'; g.lineWidth = 0.22; g.stroke();
-      g.restore();
-    }
+    // midfield: the Redbird head (the athletics department's own artwork, 14 yards tall) with its top toward the east
+    // sideline, as on the real field (fitted to the aerial: centre 0.7 yards north of the 50, no mirror)
+    hkArt(g, HK_BIRD, 436, 507, [0, -1], 0, HKF.logo[1], HKF.logo[0], SX, SZ, PX, PZ);
+    // State Farm on both 25-yard lines (placement and colour not confirmed by a photo: centred on the line, reading like the
+    // midfield logo, in the brand red)
+    for (const z of [25, 75]) hkArt(g, HK_SF, 192, 27.8, [0, -1], 0, z, HKF.sf, SX, SZ, PX, PZ);
     // yard numbers: one digit each side of the line, bottoms toward the sideline; arrows on the goal side, near the tops
     const numCol = 'rgba(240,243,236,0.92)';
     for (let z = 10; z <= 90; z += 10) {
@@ -7557,6 +7484,1097 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // pylons at the corners of both end zones
     for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) W.plain.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
+  }
+  // ---------- Hancock Stadium: the east grandstand (2013), the building behind it and Main Street ----------
+  // Measured in engine yards (x 0 the field's centre line, +x east, z 0 the south goal line, +z north) from Esri imagery at
+  // 5.7 cm a pixel (the yard lines give 16.17 px a yard; the field's sideline, hashes and goal lines anchor it) and from photos
+  // from the field (the 50, a level camera at 1.9 m), the west stands, the corners and Main Street:
+  //  - a grey concrete sideline wall at the turf's edge (x 36.4, 2.1 high), five low rows of red chair-backs behind it, then the
+  //    cross-aisle walkway (x 40.7 .. 43.7, 2.3 up) behind a tan picket rail;
+  //  - the tan precast podium wall (x 43.7, 3 yards) with four vomitories (z 6.7, 40.45, 59.7, 94.1): tan boxes whose roofs meet the
+  //    seats 4.6 rows up, a dark opening onto the walkway;
+  //  - the bowl: 29 rows of red chair-backs (tread 0.8, rise 0.41, x 43.7 .. 66.9, z -11.5 .. 97.8) in eight sections (101-108,
+  //    13.3 yards each, aisles at 50 +/- 6.65, 19.95, 33.25 and 3.6) with centre handrails; in the middle three sections
+  //    (z 29.8 .. 70.2) the last four rows are the club seats behind a cross aisle and a glass rail;
+  //  - the tan parapet and the open concourse along the top (17.2 up), the wings' window band under the long low roof (22.8);
+  //  - the central block: the club's glass box (z 33 .. 67), the white sign band with ILLINOIS STATE UNIVERSITY REDBIRDS, the
+  //    press box glass, the camera strip, the deep white top roof (27.4) with its sloped soffit and a wider brow roof below it;
+  //    the light bank on three posts on the roof (x 70 .. 73.8, z 34 .. 67, lamps to 34.5);
+  //  - behind: the building to Main Street (wings x 69.3 .. 84.7, the tall T-shaped pavilion out to x 90.9 over z 20 .. 80 with its
+  //    brick piers, the arch, the glass curtain wall and ILLINOIS STATE UNIVERSITY on the fascia, the HANCOCK STADIUM marquee),
+  //    brick stair towers with the Redbird head at the north-east and south-east corners and their banners;
+  //  - the brick plaza, the lot, the red pylon sign, Main Street (four lanes and a turn lane, true north: turned 1.74 degrees).
+  // Things the photos don't settle (the exact rake, the club box's depth, the towers' height) are fitted to the photos' proportions.
+  const HKE = { x0: 36.4, wallH: 2.1, walk: [40.7, 43.7, 2.3], podY: 5.3, rows: 29, tread: 0.8, rise: 0.41, z0: -11.5, z1: 97.8,
+    vom: [6.7, 40.45, 59.7, 94.1], aisles: [3.6, 16.75, 30.05, 43.35, 56.65, 69.95, 83.25], club: [29.8, 70.2], clubRow: 22 };
+  // the east side's own lettering and pictures: one 2048 x 1024 canvas (rows in HKE_ATL, v from the top)
+  const HKE_ATL = { band: [0, 96], fasc: [96, 192], marq: [192, 256], logo: [256, 512], banner: [512, 1024], pylon: [256, 512] };
+  function hkeRedbird(g, s) { // a Redbird head in profile facing right (our drawing of the school's mark), in a 1-unit box scaled by s
+    g.save(); g.scale(s, s); g.lineJoin = 'round';
+    const P = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); };
+    const head = [[0.30, 0.92], [0.24, 0.62], [0.05, 0.52], [0.16, 0.44], [0.0, 0.30], [0.2, 0.30], [0.08, 0.12], [0.32, 0.2], [0.30, 0.02], [0.48, 0.16], [0.6, 0.18], [0.7, 0.3], [0.74, 0.5], [0.66, 0.66], [0.62, 0.92]];
+    P(head); g.fillStyle = '#ffffff'; g.lineWidth = 0.09; g.strokeStyle = '#ffffff'; g.stroke(); g.fill();
+    P(head); g.fillStyle = '#c8102e'; g.fill(); g.lineWidth = 0.025; g.strokeStyle = '#111'; g.stroke();
+    P([[0.44, 0.3], [0.72, 0.32], [0.76, 0.52], [0.62, 0.62], [0.42, 0.52], [0.4, 0.4]]); g.fillStyle = '#111'; g.fill(); // mask
+    P([[0.68, 0.34], [1.0, 0.5], [0.94, 0.56], [0.7, 0.6]]); g.fillStyle = '#f2b51c'; g.fill(); g.lineWidth = 0.02; g.stroke(); // beak
+    g.beginPath(); g.moveTo(0.7, 0.5); g.lineTo(0.95, 0.53); g.stroke();
+    P([[0.5, 0.38], [0.64, 0.36], [0.62, 0.46], [0.52, 0.46]]); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(0.585, 0.415, 0.03, 0, 6.3); g.fillStyle = '#111'; g.fill(); // eye
+    P([[0.46, 0.34], [0.68, 0.3], [0.66, 0.35], [0.48, 0.38]]); g.fillStyle = '#c8102e'; g.fill(); // the brow
+    g.restore();
+  }
+  function hkeAtlas() {
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 1024; const g = c.getContext('2d');
+    const font = (w, px) => w + ' ' + px + 'px "Arial Narrow", "Barlow Condensed", "Helvetica Neue", Arial, sans-serif';
+    // the field-side sign band: red capitals on the light panel (the letters run z 38.4 .. 63.3 of the 34-yard band)
+    g.fillStyle = '#dcdee2'; g.fillRect(0, 0, 2048, 96); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 88, 2048, 8);
+    g.fillStyle = '#c8102e'; g.font = font(900, 76); g.textAlign = 'center'; g.textBaseline = 'middle';
+    { const t = 'ILLINOIS STATE UNIVERSITY REDBIRDS', w = g.measureText(t).width, k = 1760 / w; g.save(); g.translate(1024, 50); g.scale(k, 1); g.fillText(t, 0, 0); g.restore(); }
+    // Main Street's fascia: ILLINOIS STATE UNIVERSITY on the grey metal band
+    g.fillStyle = '#c9ccd2'; g.fillRect(0, 96, 2048, 96); g.fillStyle = 'rgba(255,255,255,0.25)'; for (let x = 0; x < 2048; x += 128) g.fillRect(x, 96, 2, 96);
+    g.fillStyle = '#c8102e'; g.font = font(800, 70);
+    { const t = 'ILLINOIS STATE UNIVERSITY', w = g.measureText(t).width, k = 1180 / w; g.save(); g.translate(1024, 146); g.scale(k, 1); g.fillText(t, 0, 0); g.restore(); }
+    // the arched marquee: HANCOCK STADIUM cut in the brushed steel
+    { const gr = g.createLinearGradient(0, 192, 0, 256); gr.addColorStop(0, '#a9adb3'); gr.addColorStop(0.5, '#d6d9dd'); gr.addColorStop(1, '#8c9096'); g.fillStyle = gr; g.fillRect(0, 192, 2048, 64); }
+    g.fillStyle = '#34373c'; g.font = font(700, 46); { const t = 'H A N C O C K   S T A D I U M', w = g.measureText(t).width, k = 1300 / w; g.save(); g.translate(1024, 226); g.scale(k, 1); g.fillText(t, 0, 0); g.restore(); }
+    // the stair towers' crown: the Redbird head on white (256 x 256 at x 0)
+    g.fillStyle = '#f4f4f2'; g.fillRect(0, 256, 256, 256); g.save(); g.translate(28, 270); hkeRedbird(g, 210); g.restore();
+    // the pylon by Main Street: ILLINOIS STATE wordmark panel (256 x 256 at x 256)
+    g.fillStyle = '#f2f2f0'; g.fillRect(256, 256, 256, 256); g.fillStyle = '#c8102e'; g.fillRect(256, 256, 256, 40);
+    g.save(); g.translate(300, 300); hkeRedbird(g, 70); g.restore(); g.fillStyle = '#c8102e'; g.font = font(800, 30); g.textAlign = 'center'; g.fillText('HANCOCK', 410, 330); g.fillText('STADIUM', 410, 362);
+    g.fillStyle = '#16181c'; g.fillRect(270, 392, 228, 108); g.fillStyle = '#e8b02a'; g.font = font(700, 22); g.fillText('GO REDBIRDS', 384, 446);
+    // the towers' vertical banners: two players in red on a dark field, THIS IS REDBIRD FOOTBALL (256 x 512 at x 0 and 256)
+    for (const bx of [0, 256]) {
+      const gr = g.createLinearGradient(0, 512, 0, 1024); gr.addColorStop(0, '#2a0b0e'); gr.addColorStop(0.6, '#6d0f17'); gr.addColorStop(1, '#a5121f'); g.fillStyle = gr; g.fillRect(bx, 512, 256, 512);
+      const pl = (x, y, s, k) => { g.fillStyle = '#c8102e'; g.beginPath(); g.ellipse(x, y + 60 * s, 34 * s, 62 * s, 0, 0, 6.3); g.fill(); g.fillStyle = '#f2f2f2'; g.beginPath(); g.arc(x, y, 24 * s, 0, 6.3); g.fill(); g.fillStyle = '#c8102e'; g.fillRect(x - 24 * s, y - 4 * s, 48 * s, 8 * s);
+        g.fillStyle = '#fff'; g.font = font(800, 30 * s); g.fillText(k, x, y + 70 * s); };
+      pl(bx + 92, 610, 1.4, '7'); pl(bx + 170, 640, 1.2, '55');
+      g.fillStyle = '#fff'; g.font = font(800, 30); g.fillText('THIS IS', bx + 128, 860); g.font = font(800, 44); g.fillText('REDBIRD', bx + 128, 902); g.fillText('FOOTBALL', bx + 128, 946);
+      g.fillStyle = '#c8102e'; g.fillRect(bx + 20, 976, 216, 4);
+    }
+    return c;
+  }
+  // brick, laid in running bond (4 x 4 yards a tile): a repeat texture for the towers, piers, the pavilion and the wings
+  function hkeBrick() {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = '#b5a493'; g.fillRect(0, 0, 256, 256); let s = 11; const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const ch = 256 / 54, bw = 16;
+    for (let k = 0; k < 54; k++) { const y = k * ch, off = k % 2 ? bw / 2 : 0;
+      for (let x = -bw; x < 256 + bw; x += bw) { const v = 0.85 + r() * 0.3, red = Math.round(150 * v), gr = Math.round(66 * v * (0.9 + r() * 0.2)), b = Math.round(50 * v);
+        g.fillStyle = `rgb(${red},${gr},${b})`; g.fillRect(x + off + 0.6, y + 0.7, bw - 1.2, ch - 1.2); } }
+    return c;
+  }
+  // o: the world batches and the crowd's seat() from buildHancock
+  function hancockEast(o) {
+    const { P, GL, GZ, ST, seat, C } = o, rot = (dx, dz, tx, tz) => [dx, 0, -dz, tx, 0, 1, 0, 0, dz, 0, dx, tz], up = [0, 1, 0], white = [1, 1, 1, 1], night = !!(SKY && SKY.night);
+    const SGN = new Batch(400), BR = new Batch(3000), n0 = [P.n, GL.n, GZ.n, ST.n, HK.fans];
+    const K = { conc: [0.62, 0.6, 0.57, 1], concL: [0.7, 0.68, 0.64, 1], wall: [0.55, 0.54, 0.53, 1], tan: [0.73, 0.68, 0.62, 1], tanD: [0.62, 0.58, 0.53, 1],
+      rail: [0.78, 0.72, 0.6, 1], steel: [0.52, 0.54, 0.57, 1], steelD: [0.3, 0.31, 0.33, 1], glass: [0.2, 0.23, 0.27, 1], glassL: [0.5, 0.58, 0.64, 1],
+      white: [1.0, 1.04, 1.14, 1], soffit: [0.82, 0.85, 0.92, 1], panel: [0.8, 0.83, 0.9, 1], lampH: [0.72, 0.74, 0.76, 1], dark: [0.04, 0.04, 0.045, 1], red: [0.74, 0.07, 0.11, 1],
+      seat: [0.78, 0.1, 0.13, 1], seatT: [1.35, 1.05, 1.05, 1], brick: [0.5, 0.21, 0.15, 1], pave: [0.46, 0.27, 0.22, 1], asph: [0.09, 0.09, 0.1, 1], yellow: [0.92, 0.75, 0.15, 1],
+      lit: [0.13, 0.11, 0.08, 1], frost: [0.84, 0.86, 0.87, 1], redStep: [0.62, 0.12, 0.12, 1], litW: [0.95, 0.85, 0.65, 1], mull: [0.66, 0.68, 0.7, 1] };
+    const box = (x0, y0, z0, x1, y1, z1, c, B) => (B || P).wbox(x0, y0, z0, x1, y1, z1, c);
+    const fW = (x, y0, y1, z0, z1, c, B) => (B || P).quad([x, y0, z0], [x, y0, z1], [x, y1, z1], [x, y1, z0], [-1, 0, 0], c); // a face toward the field
+    const fE = (x, y0, y1, z0, z1, c, B) => (B || P).quad([x, y0, z1], [x, y0, z0], [x, y1, z0], [x, y1, z1], [1, 0, 0], c);
+    const fN = (z, y0, y1, x0, x1, c, B, s) => (B || P).quad([x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z], [0, 0, s || 1], c);
+    const flat = (x0, z0, x1, z1, y, c, B) => (B || P).quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, c);
+    // brick boxes: world-mapped UVs (4 yards a tile), five faces
+    const bq = (a, b, c, d, n, u0, v0, u1, v1) => BR.quad(a, b, c, d, n, white, [u0, v1, u1, v1, u1, v0, u0, v0]);
+    const bbox = (x0, y0, z0, x1, y1, z1) => { const t = 4;
+      bq([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], z0 / t, -y1 / t, z1 / t, -y0 / t);
+      bq([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], -z1 / t, -y1 / t, -z0 / t, -y0 / t);
+      bq([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], -x1 / t, -y1 / t, -x0 / t, -y0 / t);
+      bq([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], x0 / t, -y1 / t, x1 / t, -y0 / t);
+      flat(x0, z0, x1, z1, y1, K.brick); };
+    const atl = (key, u0, u1, v0, v1) => { const r = HKE_ATL[key]; return [u0, r[0] / 1024 + (r[1] - r[0]) / 1024 * v0, u1, r[0] / 1024 + (r[1] - r[0]) / 1024 * v1]; };
+    const sgnW = (x, y0, y1, z0, z1, t) => SGN.quad([x, y0, z1], [x, y0, z0], [x, y1, z0], [x, y1, z1], [-1, 0, 0], white, [t[0], t[3], t[2], t[3], t[2], t[1], t[0], t[1]]); // reads from the west
+    const sgnE = (x, y0, y1, z0, z1, t) => SGN.quad([x, y0, z0], [x, y0, z1], [x, y1, z1], [x, y1, z0], [1, 0, 0], white, [t[0], t[3], t[2], t[3], t[2], t[1], t[0], t[1]]); // reads from the east
+    const sgnN = (z, y0, y1, x0, x1, t, s) => SGN.quad([x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z], [0, 0, s], white, [t[0], t[3], t[2], t[3], t[2], t[1], t[0], t[1]]);
+    const pane = (x, y0, y1, z0, z1, side, litK) => { // a window: reflective glass by day, warm and lit at night (litK: how many are lit)
+      if (night && crand() < (litK === undefined ? 0.8 : litK)) { const c = shade(K.lit, 0.7 + crand() * 0.6); GL.quad([x, y0, z0], [x, y0, z1], [x, y1, z1], [x, y1, z0], [0, 0, 0], c); }
+      else GZ.quad([x, y0, z0], [x, y0, z1], [x, y1, z1], [x, y1, z0], [side, 0, 0], K.glass); };
+    const { x0: XW, wallH, rows, tread, rise, z0: Z0, z1: Z1 } = HKE, [WX0, WX1, WY] = HKE.walk, XP = WX1, YP = HKE.podY;
+    const XB = XP + rows * tread, rowY = (r) => YP + r * rise, YB = rowY(rows - 1) + rise; // the bowl's back (66.9) and the concourse (17.2)
+    const inClub = (z) => z > HKE.club[0] && z < HKE.club[1];
+
+    // ---- the sideline wall, the low rows and the walkway ----
+    box(XW, 0, Z0, XW + 0.45, wallH, Z1, K.wall); box(XW - 0.04, wallH, Z0, XW + 0.5, wallH + 0.1, Z1, K.concL);
+    for (let r = 0; r < 5; r++) { // five rows behind the wall (floors 0.95 .. 2.15)
+      const xa = XW + 0.45 + r * 0.76, xb = xa + 0.76, y = 0.95 + r * 0.3;
+      flat(xa, Z0, xb, Z1, y, K.conc); fW(xa, y - 0.3, y, Z0, Z1, K.concL);
+      ST.quad([xa + 0.5, y + 0.15, Z1], [xa + 0.5, y + 0.15, Z0], [xa + 0.55, y + 0.85, Z0], [xa + 0.55, y + 0.85, Z1], [-1, 0.2, 0], K.seatT, [0, 0.36, (Z1 - Z0) / 4.4, 0.36, (Z1 - Z0) / 4.4, 0.05, 0, 0.05]);
+      for (let z = Z0 + 0.5 + crand() * 0.3; z < Z1 - 0.4; z += 0.56 * (0.92 + crand() * 0.2)) if (crand() < (z > 0 && z < 90 ? 0.75 : 0.55)) seat(xa + 0.3, y + 0.02, z, -1, 0, 0.04 + crand() * 0.08, Math.floor(z / 13.3) * 7 + 90);
+    }
+    fW(XW + 0.45 + 5 * 0.76, 2.15, WY, Z0, Z1, K.concL);
+    flat(WX0, Z0, WX1, Z1, WY, K.concL);
+    // the walkway's rail: tan posts, top and mid rails, pickets (one-sided quads)
+    for (let z = Z0; z <= Z1 + 0.01; z += 2.2) box(WX0 + 0.02, WY, z - 0.04, WX0 + 0.1, WY + 1.05, z + 0.04, K.rail);
+    box(WX0, WY + 1.0, Z0, WX0 + 0.12, WY + 1.08, Z1, K.rail); box(WX0 + 0.03, WY + 0.12, Z0, WX0 + 0.09, WY + 0.17, Z1, K.rail);
+    for (let z = Z0 + 0.15; z < Z1; z += 0.32) fW(WX0 + 0.06, WY + 0.17, WY + 1.0, z - 0.02, z + 0.02, K.rail);
+    // ---- the podium wall and the four vomitories ----
+    fW(XP, WY, YP, Z0, Z1, K.tan); for (const y of [3.3, 4.3]) box(XP - 0.03, y - 0.03, Z0, XP, y + 0.03, Z1, K.tanD);
+    box(XP - 0.05, YP - 0.08, Z0, XP + 0.02, YP + 0.05, Z1, K.concL);
+    for (const zt of HKE.vom) {
+      const xb = XP + 3.8, yt = YP + 4.75 * rise + 0.12;
+      box(XP, YP - 0.2, zt - 2.3, xb, yt, zt + 2.3, K.tan); box(XP - 0.06, yt - 0.06, zt - 2.38, xb, yt + 0.06, zt + 2.38, K.concL);
+      fW(XP - 0.02, WY, WY + 2.45, zt - 1.25, zt + 1.25, K.dark); box(XP - 0.05, WY + 2.45, zt - 1.4, XP + 0.02, WY + 2.6, zt + 1.4, K.tanD);
+      for (const s of [-1, 1]) { box(XP + 0.1, yt + 0.06, zt + s * 2.25 - 0.03, xb, yt + 1.05, zt + s * 2.25 + 0.03, K.steel); box(XP + 0.1, yt + 1.0, zt + s * 2.25 - 0.04, xb, yt + 1.06, zt + s * 2.25 + 0.04, K.steel); }
+      box(XP + 0.07, yt + 0.06, zt - 2.25, XP + 0.13, yt + 1.05, zt + 2.25, K.steel); box(XP + 0.05, yt + 1.0, zt - 2.25, XP + 0.15, yt + 1.06, zt + 2.25, K.steel);
+    }
+    // stairs from the walkway to the low rows (gaps in the rail are not cut: the rail is see-through)
+    // ---- the bowl: rows, seats, aisles and their handrails, fans ----
+    const AW = 0.62, edges = [Z0 + 1.25, ...HKE.aisles, Z1 - 1.25]; // aisle half width; the end aisles (red steps) along both ends
+    const vomAt = (z, x) => HKE.vom.some((zt) => Math.abs(z - zt) < 2.35) && x < XP + 3.85;
+    for (let r = 0; r < rows; r++) {
+      const xa = XP + r * tread, xb = xa + tread, y = rowY(r);
+      const club = r >= HKE.clubRow - 1; // in the club stretch, row 21 is the cross aisle and 22.. are the club seats (to the box at 64.5)
+      for (let s = 0; s + 1 < edges.length; s++) {
+        let za = edges[s] + (s > 0 ? AW : 0), zb = edges[s + 1] - (s + 1 < edges.length - 1 ? AW : 0);
+        const mid = (za + zb) / 2; if (club && inClub(mid) && r > HKE.clubRow + 3) continue; // behind the club seats: the box
+        flat(xa, za, xb, zb, y, K.conc); if (r > 0) fW(xa, y - rise, y, za, zb, K.concL);
+        if (club && inClub(mid) && r === HKE.clubRow - 1) { box(xa + 0.03, y + 0.98, za, xa + 0.12, y + 1.04, zb, K.mull); box(xa + 0.05, y + 0.1, za, xa + 0.1, y + 0.15, zb, K.mull); for (let z = za; z < zb; z += 0.3) fW(xa + 0.07, y + 0.15, y + 0.98, z - 0.02, z + 0.02, K.mull); continue; }
+        // the seat backs (folded pans): a red face along the row, gaps where the vomitories cut in
+        const segs = []; let c0 = za;
+        for (const zt of HKE.vom) if (xa < XP + 3.85 && zt + 2.35 > za && zt - 2.35 < zb) { if (zt - 2.35 > c0) segs.push([c0, zt - 2.35]); c0 = zt + 2.35; }
+        if (c0 < zb) segs.push([c0, zb]);
+        const sc = club && inClub(mid) ? 1.0 : 1;
+        for (const [sa, sb] of segs) { const L = (sb - sa) / 4.4 * sc;
+          ST.quad([xa + 0.5, y + 0.16, sb], [xa + 0.5, y + 0.16, sa], [xa + 0.58, y + 0.86, sa], [xa + 0.58, y + 0.86, sb], [-1, 0.15, 0], K.seatT, [0, 0.36, L, 0.36, L, 0.05, 0, 0.05]);
+          P.quad([xa + 0.58, y + 0.86, sa], [xa + 0.7, y + 0.86, sa], [xa + 0.7, y + 0.86, sb], [xa + 0.58, y + 0.86, sb], up, shade(K.seat, 0.8)); }
+        // fans
+        const fill = club && inClub(mid) ? 0.7 : (mid > 0 && mid < 88 ? 0.86 : 0.66) * (r > 25 ? 0.75 : 1);
+        for (const [sa, sb] of segs) for (let z = sa + 0.3 + crand() * 0.2; z < sb - 0.25; z += 0.56 * (0.92 + crand() * 0.2)) if (crand() < fill) seat(xa + 0.36, y + 0.02, z, -1, 0, 0.04 + crand() * 0.08, s * 7 + Math.floor(r / 7) * 31 + 3);
+      }
+      // the aisles: two steps a row, a centre handrail post every other row
+      for (const az of [Z0 + 0.62, ...HKE.aisles, Z1 - 0.62]) {
+        const ca = club && inClub(az) && r > HKE.clubRow + 3; if (ca) continue;
+        const end = az < Z0 + 1 || az > Z1 - 1, tc = end ? K.redStep : K.concL, rc = end ? shade(K.redStep, 0.8) : K.conc;
+        flat(xa, az - AW, xa + tread / 2, az + AW, y - rise / 2, tc); flat(xa + tread / 2, az - AW, xb, az + AW, y, tc);
+        fW(xa, y - rise, y - rise / 2, az - AW, az + AW, rc); fW(xa + tread / 2, y - rise / 2, y, az - AW, az + AW, rc);
+        if (end) continue;
+        if (r % 2 === 0 && !vomAt(az, xa)) box(xa + 0.36, y, az - 0.03, xa + 0.42, y + 0.95, az + 0.03, K.steel);
+      }
+    }
+    for (const az of HKE.aisles) { const xe = inClub(az) ? XP + (HKE.clubRow - 1) * tread : XB; // the aisles' handrails, following the rake
+      P.quad([XP + 0.4, YP + 0.95, az - 0.04], [xe, YP + 0.95 + (xe - XP - 0.4) / tread * rise, az - 0.04], [xe, YP + 1.02 + (xe - XP - 0.4) / tread * rise, az + 0.04], [XP + 0.4, YP + 1.02, az + 0.04], up, K.steel);
+      P.quad([XP + 0.4, YP + 0.95, az], [xe, YP + 0.95 + (xe - XP - 0.4) / tread * rise, az], [xe, YP + 1.04 + (xe - XP - 0.4) / tread * rise, az], [XP + 0.4, YP + 1.04, az], [0, 0, 1], K.steel); }
+    // the bowl's ends: guard rails along the edge, the end faces (concrete over the open steel), a stair down at each end
+    for (const [z, s] of [[Z0, -1], [Z1, 1]]) {
+      P.quad([XP, YP, z], [XB, YB, z], [XB, 0, z], [XP, 0, z], [0, 0, s], shade(K.wall, 0.85));
+      P.quad([XP, YP + 0.05, z], [XB, YB + 0.05, z], [XB, YB - 0.6, z + s * 0.02], [XP, YP - 0.6, z + s * 0.02], [0, 0, s], K.concL);
+      P.quad([XW, 0, z], [XP, 0, z], [XP, YP, z], [XW, wallH + 0.1, z], [0, 0, s], K.brick); // the podium's brick end
+      for (let x = XP + 2; x < XB; x += 4.8) box(x - 0.15, 0, z - s * 0.4 - 0.15, x + 0.15, YP + (x - XP) / tread * rise - 0.3, z - s * 0.4 + 0.15, K.steelD); // columns under the rake
+      for (let k = 0; k < 2; k++) { const ry = 1.0 + k * 0.5; P.quad([XP, YP + ry, z + s * 0.05], [XB, YB + ry, z + s * 0.05], [XB, YB + ry + 0.07, z + s * 0.05], [XP, YP + ry + 0.07, z + s * 0.05], [0, 0, s], K.steel); }
+      for (let x = XP; x <= XB; x += 2.4) box(x - 0.03, YP + (x - XP) / tread * rise, z + s * 0.02 - 0.03, x + 0.03, YP + (x - XP) / tread * rise + 1.55, z + s * 0.02 + 0.03, K.steel);
+    }
+    // ---- the top: the parapet, the concourse, the wings' window band and the long low roof ----
+    const ZW0 = -11.5, ZW1 = 100, XWall = 69.3, PZ0 = 29.5, PZ1 = 70.5; // the wing building's length; the pavilion's field-side width
+    for (const [za, zb] of [[Z0, HKE.club[0]], [HKE.club[1], Z1]]) { box(XB, YB - 0.4, za, XB + 0.3, YB + 1.1, zb, K.tan); box(XB - 0.05, YB + 1.1, za, XB + 0.35, YB + 1.18, zb, K.concL); }
+    flat(XB, ZW0, XWall, ZW1, YB, K.conc);
+    for (const [za, zb] of [[ZW0 + 0.5, PZ0], [PZ1, ZW1 - 0.5]]) {
+      fW(XWall, YB, YB + 1.4, za, zb, K.tanD); fW(XWall - 0.05, 21.1, 21.7, za, zb, K.panel);
+      for (let z = za; z < zb - 0.1; z += 3.1) { const zz = Math.min(zb, z + 3.1); pane(XWall - 0.02, YB + 1.4, 21.1, z, zz, -1, 0.5); box(XWall - 0.12, YB + 1.4, z - 0.06, XWall, 21.1, z + 0.06, K.mull); }
+      box(XWall - 0.1, 20.0, za, XWall, 20.07, zb, K.mull);
+    }
+    // the low roof: front fascia at x 66, sloped soffit to the wall, white top (22.8)
+    { const xf = 66.0, yt = 22.8;
+      for (const [za, zb] of [[ZW0, PZ0 - 4.8], [PZ1 + 4.8, ZW1]]) {
+        fW(xf, yt - 1.35, yt, za, zb, K.white); fW(xf - 0.01, yt - 1.35, yt - 1.2, za, zb, K.panel); P.quad([xf, yt - 1.35, za], [xf, yt - 1.35, zb], [XWall, 21.3, zb], [XWall, 21.3, za], [0, -1, 0], K.soffit);
+        flat(xf, za, 84.7, zb, yt, K.white); }
+      for (const z of [ZW0, ZW1]) fN(z, 21.7, yt, xf, XWall, K.panel, P, z < 50 ? -1 : 1);
+      for (let z = ZW0 + 6; z < ZW1 - 3; z += 9.6) if (z < PZ0 - 5 || z > PZ1 + 5) box(XB + 0.4, YB + 1.1, z - 0.12, XB + 0.6, yt - 1.35, z + 0.12, K.steel); // the roof's slim columns
+    }
+    // ---- the central block: club box, sign band, press box, camera strip, the top roof and the brow ----
+    { const xc = 64.5, za = 33, zb = 67, yc0 = rowY(HKE.clubRow + 3) + rise; // 15.55: the club box sits on the last club row
+      { const za = PZ0, zb = PZ1;
+      fW(xc, yc0, 16.6, za, zb, K.tan); fW(xc - 0.02, yc0 + 0.05, 16.55, 34.2, 35.3, K.dark); // the parapet and its door
+      // frosted white glass panels, then the club's clear glass to the sign band
+      fW(xc - 0.01, 16.6, 17.95, za, zb, K.frost); for (let z = za; z <= zb + 0.01; z += (zb - za) / 21) box(xc - 0.08, 16.6, z - 0.035, xc, 17.95, z + 0.035, K.mull);
+      box(xc - 0.1, 16.55, za, xc, 16.65, zb, K.mull); box(xc - 0.1, 17.9, za, xc, 18.0, zb, K.mull);
+      for (let z = za; z < zb - 0.1; z += (zb - za) / 5) { pane(xc - 0.01, 18.0, 20.5, z, Math.min(zb, z + (zb - za) / 5), -1, 0.95); box(xc - 0.12, 18.0, z - 0.08, xc, 20.5, z + 0.08, K.mull);
+        for (let k = 1; k < 4; k++) box(xc - 0.06, 18.0, z + k * (zb - za) / 20 - 0.03, xc, 20.5, z + k * (zb - za) / 20 + 0.03, K.mull); }
+      box(xc - 0.12, 17.95, zb - 0.08, xc, 20.5, zb + 0.08, K.mull); box(xc - 0.15, 20.4, za, xc, 20.55, zb, K.panel); }
+      // the sign band (white panel, red letters) proud of the glass
+      box(xc - 0.35, 20.5, za, xc, 22.05, zb, K.panel); { const t = atl('band', 0.01, 0.99, 0.06, 0.94); sgnW(xc - 0.36, 20.62, 21.95, za + 0.3, zb - 0.3, t); }
+      // the press box: tall glass, lights inside
+      { const xt = xc - 0.55; // the press box's glass leans out at the top
+        for (let z = za; z < zb - 0.1; z += (zb - za) / 8) { const z1 = Math.min(zb, z + (zb - za) / 8), lit = night;
+          (lit ? GL : GZ).quad([xc, 22.05, z], [xc, 22.05, z1], [xt, 24.2, z1], [xt, 24.2, z], lit ? [0, 0, 0] : [-0.97, 0.25, 0], lit ? shade(K.lit, 1.2) : K.glass);
+          P.quad([xc - 0.06, 22.05, z - 0.05], [xc - 0.06, 22.05, z + 0.05], [xt - 0.06, 24.2, z + 0.05], [xt - 0.06, 24.2, z - 0.05], [-1, 0, 0], K.mull); }
+        box(xt - 0.15, 24.2, za, xc, 24.35, zb, K.panel); }
+      for (let z = za + 1; z < zb - 1; z += 2.6) GL.wbox(xc + 0.6, 23.95, z, xc + 0.9, 24.05, z + 0.5, K.litW); // the press box's ceiling lights
+      // the camera strip, set back a little
+      fW(xc + 0.5, 24.35, 25.2, za, zb, K.dark); for (let z = za; z < zb; z += 1.1) box(xc + 0.42, 24.35, z - 0.03, xc + 0.5, 25.2, z + 0.03, K.mull);
+      box(xc + 0.4, 25.15, za, xc + 0.5, 25.25, zb, K.panel);
+      // tan stone piers at the box's ends, up to the brow
+      for (const [a, b] of [[PZ0, za], [zb, PZ1]]) { box(xc - 0.2, 20.55, a, xc + 2.5, 25.2, b, K.tan); for (let y = 21.7; y < 25; y += 1.15) box(xc - 0.23, y, a, xc - 0.17, y + 0.04, b, K.tanD); }
+      // the top roof: the white edge (x 62.7), the soffit rising from the wall, the flat top back to Main Street
+      const xr = 62.7, yr = 27.4;
+      fW(xr, yr - 0.45, yr, PZ0, PZ1, K.white); P.quad([xr, yr - 0.45, PZ0], [xr, yr - 0.45, PZ1], [xc + 0.5, 25.25, PZ1], [xc + 0.5, 25.25, PZ0], [-0.6, -0.8, 0], K.soffit);
+      for (const z of [PZ0, PZ1]) P.quad([xr, yr - 0.45, z], [xc + 0.5, 25.25, z], [xc + 0.5, yr, z], [xr, yr, z], [0, 0, z < 50 ? -1 : 1], K.panel);
+      flat(xr, PZ0, 90.9, PZ1, yr, K.white);
+      // the brow: a wider, lower canopy with tapered ends (z 24.7 .. 75.3), its front at 63.6
+      const xbw = 63.6, yb0 = 25.4;
+      for (const [a, b] of [[24.7, PZ0], [PZ1, 75.3]]) {
+        fW(xbw, yb0 - 0.35, yb0, a, b, K.white); flat(xbw, a, XWall + 1, b, yb0, K.white);
+        P.quad([xbw, yb0 - 0.35, a], [xbw, yb0 - 0.35, b], [XWall, 23.2, b], [XWall, 23.2, a], [-0.5, -0.85, 0], K.soffit);
+        const ze = a < 50 ? a : b, s = a < 50 ? -1 : 1; P.quad([xbw, yb0 - 0.35, ze], [XWall, 23.2, ze], [XWall, yb0, ze], [xbw, yb0, ze], [0, 0, s], K.panel);
+        box(66, 22.8, a < 50 ? b - 3 : a, XWall, 23.25, a < 50 ? b : a + 3, K.tan);
+      }
+      // the box's upper walls behind (field side to the light bank): grey panels
+      fW(xc + 0.6, 25.25, yr - 0.45, PZ0, PZ1, K.panel);
+      // the light bank: three posts, a box truss, two rows of lamp heads aimed at the field
+      const lx0 = 70, lx1 = 73.8, lz0 = 33.6, lz1 = 66.6, ly = 31;
+      for (const z of [39.2, 50.1, 61.0]) { box(71.6, yr, z - 0.3, 72.2, ly, z + 0.3, K.steel); box(71.2, yr, z - 0.6, 72.6, yr + 0.3, z + 0.6, K.steel); }
+      box(lx0, ly, lz0, lx1, ly + 0.25, lz1, K.steel); box(lx0, ly + 2.1, lz0, lx1, ly + 2.3, lz1, K.steel); // chords
+      for (const x of [lx0, lx1]) { for (let z = lz0; z <= lz1 + 0.01; z += 2.2) box(x - 0.05, ly, z - 0.05, x + 0.05, ly + 2.3, z + 0.05, K.steel);
+        for (let z = lz0; z < lz1 - 0.1; z += 2.2) P.quad([x, ly + 0.2, z], [x, ly + 0.2, z + 0.06], [x, ly + 2.15, z + 2.2], [x, ly + 2.15, z + 2.14], [x < 72 ? -1 : 1, 0, 0], K.steel); }
+      flat(lx0, lz0, lx1, lz1, ly + 1.15, K.steelD); // the catwalk
+      const nL = 25; // heads face west, tilted down
+      for (let rr = 0; rr < 2; rr++) for (let i = 0; i < nL; i++) {
+        const z = lz0 + 0.7 + i * (lz1 - lz0 - 1.4) / (nL - 1), x = lx0 + 0.6 + rr * 1.2, y = ly + 2.6 + rr * 0.55;
+        box(x - 0.3, y - 0.3, z - 0.34, x + 0.25, y + 0.3, z + 0.34, K.lampH); GL.quad([x - 0.32, y - 0.26, z - 0.3], [x - 0.32, y - 0.26, z + 0.3], [x - 0.42, y + 0.26, z + 0.3], [x - 0.42, y + 0.26, z - 0.3], [0, 0, 0], C.lamp);
+        box(x - 0.05, ly + 2.3, z - 0.05, x + 0.05, y - 0.4, z + 0.05, K.steel);
+      }
+    }
+    // ---- the building back to Main Street ----
+    { const xe = 84.7, xe2 = 90.9, yw = 22.8, PE0 = 29, PE1 = 71, WP0 = 19.6, WP1 = 81.8;
+      // the wings' east side: brick piers, the open ground floor, a grey band, brick, the window band, the white fascia; next to the
+      // pavilion the wings step out to the pavilion's face (z 19.6 .. 29 and 71 .. 81.8)
+      for (const [za, zb, xf] of [[0.5, WP0, xe], [WP0, PE0, xe2], [PE1, WP1, xe2], [WP1, 99.5, xe]]) {
+        flat(XWall, za, xf, zb, yw, K.white); fE(xf, 21.6, yw, za, zb, K.panel); fE(xf - 0.6, 17.4, 21.6, za, zb, K.panel);
+        for (let z = za + 0.4; z < zb - 0.2; z += 3.2) { const zz = Math.min(zb - 0.2, z + 3.2); pane(xf - 0.55, 17.9, 21.2, z, zz, 1, 0.45); box(xf - 0.55, 17.9, z - 0.05, xf - 0.45, 21.2, z + 0.05, K.mull); }
+        bbox(xf - 0.6, 11.5, za, xf, 17.4, zb); fE(xf + 0.01, 10.2, 11.5, za, zb, K.panel);
+        fE(xf - 3, 0, 10.2, za, zb, K.dark); flat(xf - 3, za, xf, zb, 10.2, K.steelD);
+        for (let z = za; z <= zb + 0.01; z += (zb - za) / Math.max(1, Math.round((zb - za) / 9.5))) bbox(xf - 0.4, 0, z - 0.8, xf + 0.5, 10.2, z + 0.8);
+        box(xf - 0.5, 0, za, xf + 0.55, 1.3, zb, K.tan);
+      }
+      // beyond the stair towers the ends are open steel: the bowl's underside, raking beams and columns, a white-clad box on top
+      P.quad([XP, YP - 0.55, Z0], [XP, YP - 0.55, Z1], [XB, YB - 0.55, Z1], [XB, YB - 0.55, Z0], [0, -1, 0], [0.42, 0.2, 0.2, 1]);
+      for (const [za, zb] of [[ZW0, 0.5], [99.5, ZW1]]) {
+        box(XWall, 17.2, za, xe + 1.2, yw, zb, K.white); fE(xe + 1.21, 18.2, 21.4, za + 0.6, zb - 0.6, K.panel);
+        for (let z = za + 0.2; z < zb; z += 5.8) { for (const x of [XP + 7, XP + 15, XB - 0.4, 76, xe]) { const yt = x <= XB ? YP + (x - XP) / tread * rise - 0.6 : 17.2; box(x - 0.2, 0, z - 0.2, x + 0.2, yt, z + 0.2, K.steel); }
+          P.quad([XP + 2, YP - 0.6, z - 0.15], [XB, YB - 0.6, z - 0.15], [XB, YB - 1.4, z + 0.15], [XP + 2, YP - 1.4, z + 0.15], [0, 0, 1], K.steel); box(XB, 16.2, z - 0.15, xe + 1.2, 17.2, z + 0.15, K.steel); }
+        for (const y of [6, 11.5]) box(XB - 0.4, y, za, xe, y + 0.3, zb, K.steel);
+      }
+      for (const z of [WP0, WP1]) { const s = z < 50 ? -1 : 1; bq([xe, 0, z], [xe2, 0, z], [xe2, 17.4, z], [xe, 17.4, z], [0, 0, s], xe / 4, -17.4 / 4, xe2 / 4, 0); fN(z, 17.4, yw, xe, xe2, K.panel, P, s); }
+      for (const [z, s] of [[ZW0, -1], [ZW1, 1]]) { fN(z, YB, yw, XWall, xe, K.white, P, s); fN(z, 10.2, YB, XB, xe, K.panel, P, s);
+        P.quad([XWall, yw + 0.02, z - s * 0.3], [xe, yw + 0.02, z - s * 0.3], [xe, yw + 1.1, z - s * 0.3], [XWall, yw + 1.1, z - s * 0.3], [0, 0, s], K.yellow); } // the roof terraces' yellow rail
+      // the stair towers at the north-east and south-east corners: brick shafts, the white crown with the Redbird, the banner
+      for (const [za, zb] of [[0.5, 8.5], [91.5, 99.5]]) {
+        const xa = 79.5, xb = 86.2, yt = 25.8, yk = 21.8;
+        bbox(xa, 0, za, xb, yk, zb); box(xa - 0.05, 0, za - 0.05, xb + 0.05, 1.2, zb + 0.05, K.tan); box(xa - 0.1, yk - 0.4, za - 0.1, xb + 0.1, yk, zb + 0.1, K.tan);
+        box(xa, yk, za, xb, yt, zb, K.white); flat(xa + 0.3, za + 0.3, xb - 0.3, zb - 0.3, yt + 0.01, K.dark);
+        const L = atl('logo', 0, 0.125, 0, 1); sgnE(xb + 0.02, yk + 0.2, yt - 0.2, za + 0.6, zb - 0.6, L);
+        sgnN(za < 50 ? za - 0.02 : zb + 0.02, yk + 0.3, yt - 0.3, za < 50 ? xb - 0.8 : xa + 0.8, za < 50 ? xa + 0.8 : xb - 0.8, L, za < 50 ? -1 : 1);
+        const Bn = atl('banner', za < 50 ? 0 : 0.125, za < 50 ? 0.125 : 0.25, 0, 1); sgnE(xb + 0.03, 4.5, 18.5, za + 1.6, zb - 1.6, Bn);
+      }
+      // the pavilion (z 29 .. 71, out to x 90.9): the deep white roof, brick piers at the corners, the curtain wall, the fascia letters
+      const yr = 27.4, xo = xe2 + 1.8, ys = 26.3; // a white edge over a flat soffit, the grey fascia with the letters below
+      flat(76, PE0 - 1.2, xo, PE1 + 1.2, yr, K.white); fE(xo, ys, yr, PE0 - 1.2, PE1 + 1.2, K.white); flat(xe2, PE0 - 1.2, xo, PE1 + 1.2, ys, K.soffit);
+      for (const z of [PE0 - 1.2, PE1 + 1.2]) { const s = z < 50 ? -1 : 1; fN(z, ys, yr, 76, xo, K.white, P, s); flat(76, Math.min(z, z - s * 1.2), xe2, Math.max(z, z - s * 1.2), ys, K.soffit); }
+      for (const z of [PE0, PE1]) { const s = z < 50 ? -1 : 1; fN(z, yw, ys, 76, xe2, K.panel, P, s); }
+      fE(xe2 + 0.02, 22.4, ys, PE0, PE1, K.panel); for (let z = PE0 + 3; z < PE1; z += 3) box(xe2, 22.4, z - 0.02, xe2 + 0.05, ys, z + 0.02, K.soffit);
+      sgnE(xe2 + 0.06, 23.4, 25.6, 33, 67, atl('fasc', 0.1, 0.9, 0.08, 0.92));
+      // the piers at the corners (brick to the fascia, tan caps) and the grey panel walls beside the glass
+      for (const [a, b] of [[PE0, PE0 + 5], [PE1 - 5, PE1]]) { bbox(xe2 - 0.5, 0, a, xe2 + 0.7, 22.4, b); box(xe2 + 0.65, 19.8, a - 0.05, xe2 + 0.85, 22.4, b + 0.05, K.tan); box(xe2 + 0.65, 0, a - 0.05, xe2 + 0.85, 1.6, b + 0.05, K.tan); }
+      fE(xe2 - 0.3, 13.6, 22.4, PE0 + 5, 37.5, K.panel); fE(xe2 - 0.3, 13.6, 22.4, 62.5, PE1 - 5, K.panel);
+      for (let z = 37.5; z < 62.4; z += 25 / 12) { pane(xe2 - 0.25, 13.8, 21.8, z, Math.min(62.5, z + 25 / 12), 1, 0.7); box(xe2 - 0.3, 13.8, z - 0.05, xe2 - 0.15, 21.8, z + 0.05, K.mull); }
+      for (const y of [13.8, 15.8, 17.8, 19.8, 21.8]) box(xe2 - 0.3, y - 0.05, 37.5, xe2 - 0.15, y + 0.05, 62.5, K.mull);
+      box(xe2 - 0.3, 12.9, PE0 + 5, xe2 + 0.35, 13.6, PE1 - 5, K.tan); // the precast band on the arch
+      // the arch: brick spandrel over six bays, five brick columns, the open concourse behind
+      const za = PE0 + 5, zb = PE1 - 5, cz = (za + zb) / 2, hw = (zb - za) / 2, ya = 3.2, yk = 10.6, N = 14;
+      fE(xe2 - 6, 0, 12.9, za, zb, [0.16, 0.16, 0.17, 1]); flat(xe2 - 6, za, xe2, zb, 7.6, [0.62, 0.62, 0.64, 1]); fE(xe2 - 2, 7.6, 12.9, za, zb, [0.5, 0.5, 0.52, 1]);
+      for (let i = 0; i < N; i++) { const t0 = i / N, t1 = (i + 1) / N, z0 = za + (zb - za) * t0, z1 = za + (zb - za) * t1, ar = (z) => ya + (yk - ya) * Math.sqrt(Math.max(0, 1 - ((z - cz) / hw) ** 2));
+        const y0a = ar(z0), y0b = ar(z1); BR.quad([xe2, y0b, z1], [xe2, y0a, z0], [xe2, 12.9, z0], [xe2, 12.9, z1], [1, 0, 0], white, [-z1 / 4, -y0b / 4, -z0 / 4, -y0a / 4, -z0 / 4, -12.9 / 4, -z1 / 4, -12.9 / 4]);
+        BR.quad([xe2 - 0.6, y0a, z0], [xe2 - 0.6, y0b, z1], [xe2, y0b, z1], [xe2, y0a, z0], [0, -1, 0], white, [0, 0, 0.1, 0, 0.1, 0.1, 0, 0.1]);
+        P.quad([xe2 + 0.02, y0a - 0.4, z0], [xe2 + 0.02, y0b - 0.4, z1], [xe2 + 0.02, y0b, z1], [xe2 + 0.02, y0a, z0], [1, 0, 0], K.tanD); }
+      for (let k = 1; k < 6; k++) { const z = za + (zb - za) * k / 6; bbox(xe2 - 1.0, 0, z - 0.7, xe2 - 0.1, 7.5, z + 0.7); }
+      // the HANCOCK STADIUM marquee: a curved steel band on posts over the middle bays, logo panels and ticket windows under it
+      { const mz0 = cz - 11, mz1 = cz + 11, my = 4.6, Nm = 10;
+        for (let i = 0; i < Nm; i++) { const t0 = i / Nm, t1 = (i + 1) / Nm, z0 = mz0 + (mz1 - mz0) * t0, z1 = mz0 + (mz1 - mz0) * t1, bow = (t) => 1.4 * Math.sin(t * Math.PI);
+          const T = atl('marq', 0.05 + 0.9 * t0, 0.05 + 0.9 * t1, 0, 1); SGN.quad([xe2 + 1.5 + bow(t0), my, z0], [xe2 + 1.5 + bow(t1), my, z1], [xe2 + 1.5 + bow(t1), my + 0.8, z1], [xe2 + 1.5 + bow(t0), my + 0.8, z0], [1, 0, 0], white, [T[0], T[3], T[2], T[3], T[2], T[1], T[0], T[1]]);
+          P.quad([xe2 + 1.5 + bow(t0), my, z0], [xe2 + 1.5 + bow(t1), my, z1], [xe2, my + 0.1, z1], [xe2, my + 0.1, z0], [0, -1, 0], K.steel); }
+        for (const z of [cz - 6, cz + 6]) { box(xe2 + 0.1, 2.2, z - 2.6, xe2 + 0.2, 4.4, z + 2.6, K.white); sgnE(xe2 + 0.22, 2.4, 4.2, z - 1.6, z + 1.6, atl('logo', 0, 0.125, 0, 1)); }
+        box(xe2 - 0.2, 0, cz - 4, xe2 + 0.1, 2.2, cz + 4, K.brick); for (let k = 0; k < 6; k++) fE(xe2 + 0.11, 0.9, 1.9, cz - 3.4 + k * 1.2, cz - 2.6 + k * 1.2, K.glassL); }
+      // brick plaza, landscaping, light poles
+      flat(xe, WP0 - 2, 97.8, WP1 + 2, -0.025, K.pave); flat(xe, ZW0 - 6, 97.8, ZW1 + 2, -0.03, K.concL);
+      for (let z = ZW0; z < ZW1; z += 13) if (z < WP0 - 3 || z > WP1 + 3) flat(xe + 4, z, 96, z + 9, -0.02, [0.24, 0.2, 0.15, 1]);
+    }
+    // ---- Main Street and the lot: in the true-north frame (Main Street runs due north), turned onto the field's axis ----
+    { const SP = 1.74 * Math.PI / 180, cs = Math.cos(SP), sn = Math.sin(SP);
+      const T = (x, z) => [x * cs + (z - 50) * sn, 50 + (z - 50) * cs - x * sn];
+      const g4 = (x0, z0, x1, z1, y, c) => { const a = T(x0, z0), b = T(x1, z0), d = T(x1, z1), e = T(x0, z1); P.quad([a[0], y, a[1]], [b[0], y, b[1]], [d[0], y, d[1]], [e[0], y, e[1]], up, c); };
+      const bx = (x0, y0, z0, x1, y1, z1, c) => { const [cx, cz] = T((x0 + x1) / 2, (z0 + z1) / 2); P.box(rot(cs, -sn, cx, cz), 0, (y0 + y1) / 2, 0, x1 - x0, y1 - y0, z1 - z0, c); };
+      const ZS0 = -320, ZS1 = 400;
+      g4(97.8, -60, 121.3, 140, -0.022, K.concL); // the lot (concrete)
+      for (const xs of [100.5, 118.6]) for (let z = -58; z < 138; z += 2.75) g4(xs - 2.6, z, xs + 2.6, z + 0.08, -0.015, [0.85, 0.85, 0.84, 1]); // stall lines
+      g4(108.3, -60, 110.8, 140, -0.018, [0.28, 0.26, 0.2, 1]); // the median strip
+      for (let z = -50; z < 138; z += 22) { bx(109.4, 0, z - 0.12, 109.7, 9, z + 0.12, K.steel); bx(109.1, 8.9, z - 0.35, 110.0, 9.15, z + 0.35, K.steelD);
+        const [lx, lz] = T(109.55, z); GL.quad([lx - 0.35, 8.88, lz - 0.3], [lx + 0.35, 8.88, lz - 0.3], [lx + 0.35, 8.88, lz + 0.3], [lx - 0.35, 8.88, lz + 0.3], [0, 0, 0], C.lamp); }
+      g4(121.3, ZS0, 122.5, ZS1, -0.03, [0.2, 0.26, 0.12, 1]); g4(122.5, ZS0, 125.6, ZS1, -0.02, K.concL); g4(125.6, ZS0, 126.0, ZS1, 0.06, K.concL); // grass strip, sidewalk, curb
+      g4(126.0, ZS0, 149.0, ZS1, -0.04, K.asph); g4(149, ZS0, 149.4, ZS1, 0.06, K.concL); g4(149.4, ZS0, 152.6, ZS1, -0.02, K.concL);
+      for (const xl of [130.6, 144.4]) for (let z = ZS0; z < ZS1; z += 12) g4(xl - 0.06, z, xl + 0.06, z + 3.3, -0.03, [0.86, 0.86, 0.84, 1]); // lane lines
+      for (const xl of [135.0, 135.25, 139.75, 140.0]) g4(xl - 0.05, ZS0, xl + 0.05, ZS1, -0.03, [0.86, 0.68, 0.12, 1]); // the turn lane's yellow lines
+      for (let z = ZS0 + 10; z < ZS1; z += 38) { bx(123.6, 0, z - 0.1, 123.8, 10, z + 0.1, K.steelD); bx(123.7, 9.8, z - 0.1, 125.8, 10, z + 0.1, K.steelD); } // street lights
+      // the pylon sign by Main Street: red frame, white crown, the wordmark panel
+      { const pz = -6, px = 120.8; bx(px - 0.25, 0, pz - 2.3, px + 0.25, 8.3, pz - 1.9, K.red); bx(px - 0.25, 0, pz + 1.9, px + 0.25, 8.3, pz + 2.3, K.red); bx(px - 0.3, 7.9, pz - 2.3, px + 0.3, 8.6, pz + 2.3, K.red);
+        bx(px - 0.15, 3.0, pz - 1.9, px + 0.15, 7.9, pz + 1.9, K.white); const [qx, qz] = T(px + 0.17, pz); sgnE(qx, 3.1, 7.8, qz - 1.85, qz + 1.85, atl('pylon', 0.125, 0.25, 0, 1)); }
+    }
+    // the textured layers: lettering and pictures, brick
+    if (typeof gl !== 'undefined' && gl && G) {
+      const add = (k, b, src, repeat, mat, cast) => { if (!b.n) return; const t = mkTex(src, repeat, false, 8); G.texs.push(t); const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, b.f.subarray(0, b.n * 12), gl.STATIC_DRAW); G.bufs.push(buf);
+        statics.push({ k, b: buf, n: b.n, tex: t, cast, kind: 0, mat }); };
+      add('hkebrick', BR, hkeBrick(), true, [0.85, 0, 0, 0], true);
+      add('hkesign', SGN, hkeAtlas(), false, [0.55, 0, 0, night ? 0.35 : 0.08], false);
+    }
+    const out = { plainTris: (P.n - n0[0]) / 3, glowTris: (GL.n - n0[1]) / 3, glassTris: (GZ.n - n0[2]) / 3, seatTris: (ST.n - n0[3]) / 3, signTris: SGN.n / 3, brickTris: BR.n / 3, fans: HK.fans - n0[4] };
+    if (DBG) DBG.hkEast = out;
+    return out;
+  }
+  // =====================================================================================
+  // Hancock Stadium: the north end, the north-west light pole and the view beyond (called from buildHancock's north section).
+  // Everything here is in the stadium's frame (yards; x 0 the field's centre line, +x east, z 0 the south goal line, +z north):
+  // OpenStreetMap outlines turned onto the field's axis, Esri World Imagery (0.11 and 0.23 m a pixel, registered on the north end
+  // zone) and photos from the field (training camp, August 2026), the west stands (2008) and the Kaufman building's own pages.
+  //  - behind the north end line the turf stops at z 120.5. The old grass slope was dug out for the 2026 video board (whose own
+  //    model is the south section's, on four columns at about x -10 .. 8, z 131 .. 139): bare graded soil from the turf to a
+  //    black windscreen fence (z 130.2, x -41 .. 31, about 2.2 yd, a red "Illinois" banner on its west half), the ground rising
+  //    behind it to a grassed crest (about 1.6 yd at z 140 .. 146) and back down to the parking lot (z 150)
+  //  - spruces in two groups behind the fence (x -35 .. -12 and 11 .. 29), the flag on its pole at (16.5, 131)
+  //  - the north-east corner: a brick retaining wall at the turf's edge (rising from x 8 to 1.35 yd, then along the corner's
+  //    chamfer and down the east side to the grandstand), a concrete walk on top of it to the Kaufman building's door
+  //  - the north-west corner: the asphalt service yard (x -78 .. -36) with its storage building, the concrete retaining wall and
+  //    chain-link fence along the stadium's diagonal boundary, and the light pole at (-53.5, 117.5): galvanized, tapered, about
+  //    38 yd, a head of six rows of five round fixtures aimed at the field
+  //  - the Kaufman Football Building (2000) on its OSM outline (x 32.3 .. 59.5, z 102.5 .. 147): red-brown brick, a band of
+  //    light panels under the coping, the north wing with KAUFMAN FOOTBALL BUILDING on its west face, the glass-block entrance in
+  //    the corner with the second-floor terrace over it, the south wing with its cream ILLINOIS STATE / Redbirds panel between two
+  //    window bands, the curved glass clerestory on the roof and the round glass stair on the east face; floor level 1.35 yd
+  //  - the indoor practice facility (2023, the OSF HealthCare Athletics Training Center): a white air dome over x -101.3 .. -33.8,
+  //    z 162 .. 306 (67.5 x 144 yd from the imagery), about 24 yd high, rounded ends, a Redbird head on its south end
+  //  - beyond: the parking lot (cars), the greenhouse, Ropp Agriculture (brick, flat roof), Vitro Center and Hudelson (pitched
+  //    maroon roofs), their trees
+  // =====================================================================================
+  const HKN_C = { // the lettering canvas (1024 x 512): pixel boxes [x0, y0, x1, y1]
+    bird: [0, 0, 256, 256], flag: [264, 4, 504, 130], banner: [512, 0, 1024, 128],
+    kauf: [264, 140, 760, 250], isu: [512, 260, 1024, 420], kaufT: [0, 260, 500, 420],
+  };
+  function hknCanvas() {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = '#8a4636'; g.fillRect(0, 0, 1024, 512);
+    // the Redbird head on the dome (on the dome's white): crest, black mask, gold beak, white eye, a black outline
+    { const [x0, y0, x1, y1] = HKN_C.bird; g.fillStyle = '#e9eaeb'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      g.save(); g.translate((x0 + x1) / 2 - 10, (y0 + y1) / 2 + 6); g.scale(15, 15); g.lineJoin = 'round';
+      const path = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); };
+      const head = [[-4.6, 6.2], [-5.4, 2.6], [-5.6, -0.6], [-7.6, -3.6], [-4.6, -2.6], [-5.6, -6.4], [-2.6, -4.0], [-1.9, -7.2], [0.2, -4.2], [1.7, -3.4], [2.5, -1.6], [2.9, 1.9], [2.3, 3.4], [3.0, 6.2]];
+      path(head); g.strokeStyle = '#141414'; g.lineWidth = 0.9; g.stroke(); g.fillStyle = '#c8102e'; g.fill();
+      path([[-0.3, -1.9], [2.6, -1.7], [2.95, 1.7], [1.5, 2.9], [-0.9, 1.5], [-0.7, -0.6]]); g.fillStyle = '#121212'; g.fill();
+      path([[2.5, -1.45], [6.6, 0.35], [2.75, 1.65]]); g.fillStyle = '#f2b21b'; g.fill(); g.strokeStyle = '#121212'; g.lineWidth = 0.2; g.stroke();
+      g.beginPath(); g.arc(0.95, -0.35, 0.62, 0, Math.PI * 2); g.fillStyle = '#f4f4ee'; g.fill(); g.beginPath(); g.arc(1.1, -0.35, 0.3, 0, Math.PI * 2); g.fillStyle = '#121212'; g.fill();
+      g.restore(); }
+    { // the flag: 13 stripes, the canton
+      const [x0, y0, x1, y1] = HKN_C.flag, h = (y1 - y0) / 13;
+      for (let i = 0; i < 13; i++) { g.fillStyle = i & 1 ? '#f2f2f0' : '#b22234'; g.fillRect(x0, y0 + i * h, x1 - x0, h + 0.5); }
+      g.fillStyle = '#3c3b6e'; g.fillRect(x0, y0, (x1 - x0) * 0.4, h * 7); g.fillStyle = '#f2f2f0';
+      for (let r = 0; r < 9; r++) for (let k = 0; k < (r & 1 ? 5 : 6); k++) g.fillRect(x0 + 6 + k * 15.5 + (r & 1 ? 7.7 : 0), y0 + 4 + r * 7.4, 2.6, 2.6);
+    }
+    { // the red "Illinois" banner on the windscreen
+      const [x0, y0, x1, y1] = HKN_C.banner; g.fillStyle = '#c8102e'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      g.strokeStyle = '#f4f4f0'; g.lineWidth = 6; g.strokeRect(x0 + 10, y0 + 10, x1 - x0 - 20, y1 - y0 - 20);
+      g.fillStyle = '#f4f4f0'; g.font = 'italic 700 82px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Illinois', (x0 + x1) / 2, (y0 + y1) / 2 + 4);
+    }
+    { // KAUFMAN / FOOTBALL / BUILDING: light cast letters on the brick
+      const [x0, y0, x1, y1] = HKN_C.kaufT; g.fillStyle = '#8a4636'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      g.fillStyle = '#d9cdb8'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '600 60px Georgia, "Times New Roman", serif'; g.fillText('KAUFMAN', (x0 + x1) / 2, y0 + 40);
+      g.font = '600 38px Georgia, "Times New Roman", serif'; g.fillText('FOOTBALL', (x0 + x1) / 2, y0 + 92); g.fillText('BUILDING', (x0 + x1) / 2, y0 + 134);
+    }
+    { // the cream panel: ILLINOIS STATE in caps, Redbirds in script under it (engraved, a shade darker than the stone)
+      const [x0, y0, x1, y1] = HKN_C.isu; g.fillStyle = '#d6d0c2'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      g.fillStyle = 'rgba(0,0,0,0.06)'; for (let x = x0; x < x1; x += 128) g.fillRect(x, y0, 2, y1 - y0);
+      g.fillStyle = '#8e877a'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '500 54px Georgia, "Times New Roman", serif'; g.fillText('ILLINOIS STATE', (x0 + x1) / 2, y0 + 50);
+      g.font = 'italic 500 62px "Brush Script MT", "Segoe Script", cursive'; g.fillText('Redbirds', (x0 + x1) / 2 + 10, y0 + 112);
+    }
+    return c;
+  }
+  // K: { P, GL, glass, C, tree, block, TN, TE, snow }; returns its own textured batch (the lettering) for buildHancock to add
+  function hkNorth(K) {
+    const P = K.P, GL = K.GL, GLS = K.glass, C = K.C, up = [0, 1, 0], white = [1, 1, 1, 1], snow = K.snow;
+    const TN = K.TN, TE = K.TE, SG = new Batch(400);
+    const tex = (box, x0f, y0f, x1f, y1f) => { const [a, b, c, d] = box, u0 = (a + (c - a) * (x0f || 0)) / 1024, u1 = (a + (c - a) * (x1f === undefined ? 1 : x1f)) / 1024, v0 = (b + (d - b) * (y0f || 0)) / 512, v1 = (b + (d - b) * (y1f === undefined ? 1 : y1f)) / 512; return [u0, v1, u1, v1, u1, v0, u0, v0]; };
+    // a vertical lettered quad from pa to pb (x, z), y0..y1, facing n
+    const sign = (pa, pb, y0, y1, n, box) => SG.quad([pa[0], y0, pa[1]], [pb[0], y0, pb[1]], [pb[0], y1, pb[1]], [pa[0], y1, pa[1]], n, white, tex(box));
+    const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    const col = {
+      dirt: snow ? [0.62, 0.62, 0.63, 1] : [0.47, 0.37, 0.27, 1], dirtD: snow ? [0.58, 0.58, 0.6, 1] : [0.41, 0.32, 0.23, 1],
+      grass: snow ? [0.6, 0.62, 0.63, 1] : [0.16, 0.25, 0.09, 1], brick: [0.54, 0.28, 0.21, 1], brickD: [0.45, 0.23, 0.17, 1],
+      band: [0.74, 0.73, 0.69, 1], coping: [0.5, 0.5, 0.5, 1], cream: [0.76, 0.73, 0.65, 1], frame: [0.85, 0.85, 0.83, 1], gblock: [0.62, 0.67, 0.64, 1],
+      blk: [0.025, 0.025, 0.03, 1], galv: [0.56, 0.58, 0.6, 1], conc: [0.5, 0.49, 0.46, 1], asph: [0.09, 0.09, 0.1, 1], dome: snow ? [0.9, 0.91, 0.92, 1] : [0.88, 0.89, 0.9, 1],
+      roof: [0.2, 0.2, 0.21, 1], maroon: [0.32, 0.09, 0.08, 1], spruce: snow ? [0.32, 0.38, 0.33, 1] : [0.07, 0.15, 0.08, 1], spruceB: snow ? [0.36, 0.42, 0.37, 1] : [0.09, 0.18, 0.1, 1],
+    };
+    // ---- the ground behind the end line: graded soil to the fence, the rise to the grassed crest, down to the lot ----
+    const ZF = 130.2; // the windscreen fence
+    const xW = (z) => z < 139.7 ? -45.5 + Math.max(0, z - 119.6) / 20.1 * 8.3 : -37.2; // the stadium's diagonal north-west boundary
+    const nz = (x, z) => 0.06 * Math.sin(x * 0.9 + z * 0.4) * Math.sin(z * 1.3 - x * 0.2); // graded soil, not quite flat
+    const hN = (x, z) => {
+      let y = z <= ZF ? 0.03 + 0.42 * sm((z - TN) / (ZF - TN)) : z <= 140 ? 0.45 + 1.15 * sm((z - ZF) / 9.8) : z <= 146 ? 1.6 : 1.6 - 1.65 * sm((z - 146) / 4);
+      if (z > TN + 0.5 && z < 137) y += nz(x, z) * Math.min(1, (z - TN) / 3);
+      return y;
+    };
+    { const rows = [TN, 122, 124, 126, 128, ZF, 132, 134, 136, 138, 140, 142, 146, 148, 150], XE = 33, NX = 18;
+      const vtx = (z, s) => { const x = xW(z) + (XE - xW(z)) * s; return [x, hN(x, z), z]; };
+      const nrm = (x, z) => { const e = 0.3, gx = (hN(x + e, z) - hN(x - e, z)) / (2 * e), gz = (hN(x, z + e) - hN(x, z - e)) / (2 * e), l = Math.hypot(gx, 1, gz); return [-gx / l, 1 / l, -gz / l]; };
+      for (let r = 0; r + 1 < rows.length; r++) for (let i = 0; i < NX; i++) {
+        const a = vtx(rows[r], i / NX), b = vtx(rows[r], (i + 1) / NX), c = vtx(rows[r + 1], (i + 1) / NX), d = vtx(rows[r + 1], i / NX);
+        const zm = (rows[r] + rows[r + 1]) / 2, xm = (a[0] + c[0]) / 2, grassy = zm > 137 || (zm > 133.5 && (xm > 9 || xm < -12));
+        const cc = grassy ? shade(col.grass, 0.92 + crand() * 0.16) : shade(crand() < 0.5 ? col.dirt : col.dirtD, 0.9 + crand() * 0.2);
+        P.quad(a, b, c, d, nrm(xm, zm), cc);
+      }
+      // the north-west retaining wall along the diagonal (concrete, the yard side), the chain-link fence on it
+      for (let k = 0; k < 10; k++) { const z0 = TN + (139.7 - TN) * k / 10, z1 = TN + (139.7 - TN) * (k + 1) / 10, x0 = xW(z0), x1 = xW(z1), y0 = hN(x0, z0) + 0.25, y1 = hN(x1, z1) + 0.25;
+        P.quad([x0, -0.05, z0], [x0, y0, z0], [x1, y1, z1], [x1, -0.05, z1], [-0.92, 0, 0.38], col.conc); P.quad([x0, y0, z0], [x0 + 0.35, y0, z0], [x1 + 0.35, y1, z1], [x1, y1, z1], up, col.conc);
+        P.wbox(x0 + 0.1, y0, z0 - 0.04, x0 + 0.18, y0 + 1.95, z0 + 0.04, col.galv); P.quad([x0 + 0.14, y0 + 1.9, z0], [x1 + 0.14, y1 + 1.9, z1], [x1 + 0.14, y1 + 1.97, z1], [x0 + 0.14, y0 + 1.97, z0], [-0.92, 0, 0.38], col.galv); }
+      P.quad([-37.2, -0.05, 139.7], [-37.2, 1.85, 139.7], [-37.2, hN(-37.2, 150) + 0.1, 150], [-37.2, -0.05, 150], [-1, 0, 0], col.conc);
+      // the steps up from the yard (OSM: from (-35.9, 141.4) to (-29, 147.3))
+      for (let k = 0; k < 8; k++) P.wbox(-37.4 - 0.3 + k * 0.05, 0, 141 + k * 0.75, -36.6, 0.2 * (k + 1), 141.75 + k * 0.75, col.conc);
+    }
+    // ---- the black windscreen fence across the end, the red Illinois banner ----
+    { const x0 = xW(ZF), x1 = 31, H = 2.2;
+      for (let x = x0; x < x1; x += 3.05) { const xb = Math.min(x + 3.05, x1), ya = hN(x, ZF), yb = hN(xb, ZF);
+        P.quad([x, ya + 0.05, ZF], [xb, yb + 0.05, ZF], [xb, yb + H, ZF], [x, ya + H, ZF], [0, 0, -1], col.blk); P.quad([xb, yb + 0.05, ZF + 0.03], [x, ya + 0.05, ZF + 0.03], [x, ya + H, ZF + 0.03], [xb, yb + H, ZF + 0.03], [0, 0, 1], col.blk);
+        P.wbox(x - 0.04, ya - 0.2, ZF - 0.04, x + 0.04, ya + H + 0.08, ZF + 0.07, [0.16, 0.16, 0.17, 1]); }
+      P.wbox(x0, hN(0, ZF) + H, ZF - 0.03, x1, hN(0, ZF) + H + 0.06, ZF + 0.06, [0.16, 0.16, 0.17, 1]);
+      const bx = -23.5, by = hN(bx, ZF) + 0.35; sign([bx - 1.6, ZF - 0.05], [bx + 1.6, ZF - 0.05], by, by + 0.82, [0, 0, -1], HKN_C.banner); }
+    // ---- spruces behind the fence, the flag ----
+    const spruce = (x, z, h) => { const y = hN(x, z), r = h * 0.3, c0 = crand() < 0.5 ? col.spruce : col.spruceB;
+      P.wbox(x - 0.15, y, z - 0.15, x + 0.15, y + h * 0.2, z + 0.15, C.trunk);
+      K.ring(x, z, r, y + h * 0.12, y + h * 0.55, 7, c0, r * 0.55); K.ring(x, z, r * 0.8, y + h * 0.45, y + h * 0.82, 7, shade(c0, 1.06), r * 0.36); K.ring(x, z, r * 0.5, y + h * 0.75, y + h, 7, shade(c0, 1.1), 0.02); };
+    for (const [x, z, h] of [[-33, 136, 6.5], [-27.5, 139.5, 7.5], [-21, 136.5, 6], [-16.5, 141, 7], [-29, 145, 7], [-20.5, 146, 6.5],
+      [13, 137, 6.5], [17.5, 141, 7.5], [22, 136.5, 7], [27.5, 142.5, 12.5], [15, 146, 7], [21.5, 146.5, 8]]) spruce(x, z, h);
+    { const fx = 16.5, fz = 131, fy = hN(fx, fz), H = 13; P.wbox(fx - 0.09, fy, fz - 0.09, fx + 0.09, fy + H, fz + 0.09, [0.78, 0.79, 0.8, 1]); P.wbox(fx - 0.16, fy + H, fz - 0.16, fx + 0.16, fy + H + 0.3, fz + 0.16, [0.8, 0.7, 0.3, 1]);
+      SG.quad([fx + 0.12, fy + H - 2.3, fz], [fx + 4.2, fy + H - 2.5, fz + 0.5], [fx + 4.2, fy + H - 0.2, fz + 0.5], [fx + 0.12, fy + H - 0.05, fz], [-0.12, 0, -1], white, tex(HKN_C.flag));
+      SG.quad([fx + 4.2, fy + H - 2.5, fz + 0.52], [fx + 0.12, fy + H - 2.3, fz + 0.02], [fx + 0.12, fy + H - 0.05, fz + 0.02], [fx + 4.2, fy + H - 0.2, fz + 0.52], [0.12, 0, 1], white, tex(HKN_C.flag, 1, 0, 0, 1)); }
+    // ---- the north-east corner: the brick retaining wall at the turf's edge and the walk on it ----
+    { const B = 1.35, xs = 30, zc = 114.8, hx = (x) => B * sm((x - 6) / 10);
+      for (let x = 6; x < xs; x += 2) { const xb = Math.min(xs, x + 2), ya = hx(x), yb = hx(xb);
+        P.quad([x, -0.02, TN], [xb, -0.02, TN], [xb, yb, TN], [x, ya, TN], [0, 0, -1], col.brick); P.quad([x, ya, TN], [xb, yb, TN], [xb, yb + 0.1, TN + 0.35], [x, ya + 0.1, TN + 0.35], up, col.brickD);
+        P.quad([x, ya + 0.1, TN + 0.35], [xb, yb + 0.1, TN + 0.35], [xb, yb + 0.08, TN + 5.2], [x, ya + 0.08, TN + 5.2], up, col.conc); }
+      const cA = [xs, TN], cB = [TE, zc], cn = [-(cB[1] - cA[1]), cB[0] - cA[0]], cl = Math.hypot(cn[0], cn[1]); // the chamfer
+      P.quad([cA[0], -0.02, cA[1]], [cB[0], -0.02, cB[1]], [cB[0], B, cB[1]], [cA[0], B, cA[1]], [cn[0] / cl, 0, cn[1] / cl], col.brick);
+      P.quad([cA[0], B, cA[1]], [cB[0], B, cB[1]], [43, B + 0.08, 121], [33.5, B + 0.08, TN + 5.2], up, col.conc);
+      P.quad([cA[0], B, cA[1] + 5.2], [cA[0], B, cA[1]], [33.5, B + 0.08, TN + 5.2], [33.5, B + 0.08, TN + 5.2], up, col.conc);
+      P.wbox(TE, -0.02, 98.5, TE + 0.4, B, zc, col.brick); P.wbox(TE - 0.05, B, 98.5, TE + 0.45, B + 0.1, zc, col.brickD); P.wbox(TE + 0.4, B - 0.05, 98.5, 43, B + 0.08, zc + 0.5, col.conc);
+      for (const [x, z, s] of [[6.5, TN + 6.5, 0.8], [3, TN + 7, 0.7]]) K.tree(x, z, s); }
+    // ---- the north-west yard: asphalt, the storage building, containers ----
+    { P.quad([-78, -0.03, 100], [-36.5, -0.03, 100], [-36.5, -0.03, 140], [-78, -0.03, 140], up, col.asph);
+      P.quad([-50.5, -0.025, 121], [-46, -0.025, 121], [-37.4, -0.025, 141], [-41.4, -0.025, 141], up, col.conc);
+      K.block(-100.7, 124.5, -73.8, 133.3, 5.5, [0.66, 0.63, 0.57, 1], C.roofG, false);
+      for (const [x, z, r] of [[-68, 127, 0], [-64, 131, 1]]) P.wbox(x, 0, z, x + (r ? 2.4 : 6.1), 2.6, z + (r ? 6.1 : 2.4), r ? [0.5, 0.52, 0.55, 1] : [0.58, 0.18, 0.12, 1]); }
+    // ---- the north-west light pole ----
+    { const x = -53.5, z = 117.5, H = 38, dx = -x, dz = 50 - z, l = Math.hypot(dx, dz), m = K.rot(dx / l, dz / l, x, z);
+      K.ring(x, z, 0.62, 0, H - 4.5, 8, col.galv, 0.32); P.wbox(x - 1, -0.05, z - 1, x + 1, 0.9, z + 1, C.concD);
+      P.box(m, -0.5, H - 3.3, 0, 0.35, 0.35, 0.5, col.galv); // the stub to the head
+      for (let r = 0; r < 6; r++) { const y = H - 6 + r * 1.05; P.box(m, -0.15, y + 0.5, 0, 0.12, 0.1, 5.9, col.galv); // crossarms
+        for (let q = 0; q < 5; q++) { const lz = -2.36 + q * 1.18; P.box(m, 0.2, y, lz, 0.6, 0.78, 0.78, [0.42, 0.43, 0.45, 1]); GL.box(m, 0.52, y, lz, 0.05, 0.62, 0.62, C.lamp); } }
+      P.box(m, -0.15, H - 3.4, -3.05, 0.12, 6.4, 0.12, col.galv); P.box(m, -0.15, H - 3.4, 3.05, 0.12, 6.4, 0.12, col.galv); }
+    // ---- the Kaufman Football Building ----
+    { const B = 1.35, T = 10.45, gwin = (pa, pb, y0, y1, n, step) => { // a window band: dark glass, the lit room behind at night, white mullions
+        GLS.quad([pa[0], y0, pa[1]], [pb[0], y0, pb[1]], [pb[0], y1, pb[1]], [pa[0], y1, pa[1]], n, C.glassC);
+        const L = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]), ux = (pb[0] - pa[0]) / L, uz = (pb[1] - pa[1]) / L, ox = -n[0] * 0.25, oz = -n[2] * 0.25;
+        GL.quad([pa[0] + ox, y0 + 0.1, pa[1] + oz], [pb[0] + ox, y0 + 0.1, pb[1] + oz], [pb[0] + ox, y1 - 0.1, pb[1] + oz], [pa[0] + ox, y1 - 0.1, pa[1] + oz], [0, 0, 0], [0.09, 0.08, 0.06, 1]);
+        const fx = n[0] * 0.03, fz = n[2] * 0.03, t = 0.07;
+        for (let d = 0; d <= L + 0.01; d += L / Math.max(1, Math.round(L / step))) { const px = pa[0] + ux * d + fx, pz = pa[1] + uz * d + fz; P.quad([px - ux * t, y0, pz - uz * t], [px + ux * t, y0, pz + uz * t], [px + ux * t, y1, pz + uz * t], [px - ux * t, y1, pz - uz * t], n, col.frame); }
+        P.quad([pa[0] + fx, y0 - 0.1, pa[1] + fz], [pb[0] + fx, y0 - 0.1, pb[1] + fz], [pb[0] + fx, y0 + 0.05, pb[1] + fz], [pa[0] + fx, y0 + 0.05, pa[1] + fz], n, col.frame);
+        P.quad([pa[0] + fx, y1 - 0.05, pa[1] + fz], [pb[0] + fx, y1 - 0.05, pb[1] + fz], [pb[0] + fx, y1 + 0.1, pb[1] + fz], [pa[0] + fx, y1 + 0.1, pa[1] + fz], n, col.frame); };
+      const band = (x0, z0, x1, z1) => { P.wbox(x0 - 0.06, T - 1.25, z0 - 0.06, x1 + 0.06, T - 0.15, z1 + 0.06, col.band); P.wbox(x0 - 0.12, T - 0.15, z0 - 0.12, x1 + 0.12, T, z1 + 0.12, col.coping);
+        for (const [xa, za, xb, zb] of [[x0, z0, x1, z0], [x0, z1, x1, z1], [x0, z0, x0, z1], [x1, z0, x1, z1]]) { const L = Math.hypot(xb - xa, zb - za); const ux = (xb - xa) / L, uz = (zb - za) / L, nn = [uz !== 0 ? (xa === x0 ? -1 : 1) : 0, 0, ux !== 0 ? (za === z0 ? -1 : 1) : 0], ox = nn[0] * 0.08, oz = nn[2] * 0.08;
+          for (let d = 0; d <= L; d += 1.6) { const px = xa + ux * d + ox, pz = za + uz * d + oz; P.quad([px - ux * 0.05, T - 1.25, pz - uz * 0.05], [px + ux * 0.05, T - 1.25, pz + uz * 0.05], [px + ux * 0.05, T - 0.15, pz + uz * 0.05], [px - ux * 0.05, T - 1.25 + 1.1, pz - uz * 0.05], nn, [0.62, 0.62, 0.6, 1]); } } };
+      // the north wing and the south wing
+      P.wbox(32.4, -0.1, 128, 58.8, T, 147, col.brick); band(32.4, 128, 58.8, 147); P.wbox(32.6, T, 128.2, 58.6, T + 0.02, 146.8, col.roof);
+      P.wbox(43, -0.1, 102.6, 59.5, T, 128, col.brick); band(43, 102.6, 59.5, 128); P.wbox(43.2, T, 102.8, 59.3, T + 0.02, 127.8, col.roof);
+      P.wbox(32.3, B - 0.4, 128, 59.6, B, 147.1, col.brickD); P.wbox(42.9, B - 0.4, 102.5, 59.6, B, 128, col.brickD); // the soldier course at the floor line
+      // west face of the north wing: the name, a door; the second-floor windows by the terrace
+      sign([32.33, 133.4], [32.33, 140.4], B + 5.2, B + 7.4, [-1, 0, 0], HKN_C.kaufT); P.wbox(32.25, B, 130.2, 32.4, B + 2.3, 131.5, [0.35, 0.36, 0.38, 1]);
+      gwin([32.33, 128.4], [32.33, 130.0], B + 4.6, B + 7.5, [-1, 0, 0], 0.8);
+      // south face of the north wing over the terrace, west face of the south wing over the terrace
+      gwin([33.2, 127.97], [42.6, 127.97], B + 4.6, B + 7.6, [0, 0, -1], 1.2); gwin([42.97, 121.3], [42.97, 127.6], B + 4.6, B + 7.6, [-1, 0, 0], 1.25);
+      // the south wing's west face: ground-floor windows between piers, the cream panel, the second-floor band
+      gwin([42.97, 103.4], [42.97, 120.4], B + 0.55, B + 2.5, [-1, 0, 0], 2.1);
+      P.wbox(42.45, B + 2.85, 104, 43, B + 5.5, 119.8, col.cream); sign([42.43, 119.4], [42.43, 104.4], B + 3.0, B + 5.35, [-1, 0, 0], HKN_C.isu);
+      gwin([42.97, 103.4], [42.97, 120.4], B + 5.9, B + 8.0, [-1, 0, 0], 1.55);
+      // the other faces: window rows
+      gwin([59.53, 103.5], [59.53, 123], B + 0.6, B + 2.5, [1, 0, 0], 2); gwin([59.53, 103.5], [59.53, 123], B + 5.9, B + 8.0, [1, 0, 0], 1.6);
+      gwin([58.83, 133], [58.83, 146], B + 5.9, B + 8.0, [1, 0, 0], 1.6); gwin([33.5, 147.03], [57.5, 147.03], B + 5.9, B + 8.0, [0, 0, 1], 1.6); gwin([44, 102.57], [58.5, 102.57], B + 5.9, B + 8.0, [0, 0, -1], 1.6);
+      // the glass-block entrance in the corner, the terrace on it
+      const VE = [[33.6, 125.3], [37.4, 125.1], [38.4, 123.3], [40.4, 121.6], [43, 120.9]], yv = B + 4.0;
+      for (let i = 0; i + 1 < VE.length; i++) { const [ax, az] = VE[i], [bx, bz] = VE[i + 1], nx = -(bz - az), nzz = bx - ax, l = Math.hypot(nx, nzz);
+        P.quad([ax, -0.1, az], [bx, -0.1, bz], [bx, yv, bz], [ax, yv, az], [nx / l, 0, nzz / l], i === 0 ? col.brick : col.gblock); }
+      P.quad([33.6, -0.1, 125.3], [33.6, yv, 125.3], [33.6, yv, 128], [33.6, -0.1, 128], [-1, 0, 0], col.brick);
+      for (let i = 0; i + 1 < VE.length; i++) P.quad([VE[i][0], yv, VE[i][1]], [43, yv, 128], [43, yv, 128], [VE[i + 1][0], yv, VE[i + 1][1]], up, col.conc);
+      P.quad([33.6, yv, 125.3], [33.6, yv, 128], [43, yv, 128], [37.4, yv, 125.1], up, col.conc);
+      P.wbox(39.1, B, 122.45, 41, B + 2.4, 122.9, [0.3, 0.32, 0.34, 1]); // the doors
+      for (let i = 0; i + 1 < VE.length; i++) { const [ax, az] = VE[i], [bx, bz] = VE[i + 1]; P.quad([ax - 0.05, yv, az - 0.05], [bx - 0.05, yv, bz - 0.05], [bx - 0.05, yv + 1.05, bz - 0.05], [ax - 0.05, yv + 1.05, az - 0.05], [0, 0, 0], [0.55, 0.62, 0.64, 1]); // glass rail
+        P.wbox(Math.min(ax, bx) - 0.06, yv + 1.0, Math.min(az, bz) - 0.06, Math.max(ax, bx) + 0.06, yv + 1.1, Math.max(az, bz) + 0.06, col.frame); }
+      // the curved glass clerestory over the south wing, the round glass stair on the east face, rooftop units
+      { const xa = 47.4, xb = 58, za = 117, zb = 127, zm = (za + zb) / 2, hr = (zb - za) / 2, ht = 2.3, N = 8;
+        for (let i = 0; i < N; i++) { const a0 = Math.PI * i / N, a1 = Math.PI * (i + 1) / N, p0 = [zm - Math.cos(a0) * hr, T + Math.sin(a0) * ht], p1 = [zm - Math.cos(a1) * hr, T + Math.sin(a1) * ht], am = (a0 + a1) / 2, n = [0, Math.sin(am), -Math.cos(am)];
+          const gl = i < 3; (gl ? GLS : P).quad([xa, p0[1], p0[0]], [xb, p0[1], p0[0]], [xb, p1[1], p1[0]], [xa, p1[1], p1[0]], n, gl ? [0.5, 0.58, 0.64, 1] : [0.72, 0.74, 0.76, 1]);
+          for (const [xe, s] of [[xa, -1], [xb, 1]]) GLS.quad([xe, T, zm], [xe, p0[1], p0[0]], [xe, p1[1], p1[0]], [xe, T, zm], [s, 0, 0], [0.36, 0.45, 0.52, 1]); }
+        for (let x = xa; x <= xb + 0.01; x += (xb - xa) / 6) P.wbox(x - 0.06, T, za - 0.05, x + 0.06, T + 1.0, za + 0.3, col.frame); }
+      { const cx = 59.5, cz = 128, r = 3.1, N = 8; for (let i = 0; i < N; i++) { const a0 = -Math.PI / 2 + Math.PI * i / N, a1 = -Math.PI / 2 + Math.PI * (i + 1) / N, am = (a0 + a1) / 2;
+          GLS.quad([cx + Math.cos(a0) * r, B, cz + Math.sin(a0) * r], [cx + Math.cos(a1) * r, B, cz + Math.sin(a1) * r], [cx + Math.cos(a1) * r, T + 0.8, cz + Math.sin(a1) * r], [cx + Math.cos(a0) * r, T + 0.8, cz + Math.sin(a0) * r], [Math.cos(am), 0, Math.sin(am)], [0.36, 0.45, 0.52, 1]);
+          P.quad([cx, T + 1.4, cz], [cx + Math.cos(a1) * (r + 0.3), T + 0.8, cz + Math.sin(a1) * (r + 0.3)], [cx + Math.cos(a0) * (r + 0.3), T + 0.8, cz + Math.sin(a0) * (r + 0.3)], [cx, T + 1.4, cz], [Math.cos(am) * 0.2, 1, Math.sin(am) * 0.2], [0.6, 0.62, 0.64, 1]); } }
+      for (const [x, z, w, d, h] of [[36, 131, 2.2, 1.6, 0.9], [40, 136, 1.4, 1.4, 0.8], [46, 140, 2.6, 2, 1.1], [52, 133, 1.6, 1.6, 0.9], [55, 143, 2, 1.4, 0.9], [50, 108, 2.4, 1.8, 1], [55, 112, 1.4, 1.4, 0.8], [38, 143, 1.2, 1.2, 0.7]])
+        P.wbox(x, T, z, x + w, T + h, z + d, [0.7, 0.71, 0.72, 1]); }
+    // ---- the indoor practice facility: the white air dome ----
+    { const X0 = -101.3, X1 = -33.8, Z0 = 162, Z1 = 306, H = 24, E = 21, p = 2.6, xc = (X0 + X1) / 2, hw = (X1 - X0) / 2, zc = (Z0 + Z1) / 2, hl = (Z1 - Z0) / 2;
+      const se = (t) => Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, Math.abs(t)), p)), 1 / p);
+      const wv = (z) => Math.max(0, (Math.abs(z - zc) - (hl - E)) / E);
+      const hD = (x, z) => H * se((x - xc) / hw) * se(wv(z));
+      const nD = (x, z) => { const e = 0.25, gx = (hD(x + e, z) - hD(x - e, z)) / (2 * e), gz = (hD(x, z + e) - hD(x, z - e)) / (2 * e), l = Math.hypot(gx, 1, gz); return [-gx / l, 1 / l, -gz / l]; };
+      const us = []; for (let i = 0; i <= 16; i++) us.push(xc - Math.cos(Math.PI * i / 16) * hw * 0.9995);
+      const zs = []; for (let i = 0; i <= 6; i++) zs.push(Z0 + E * (1 - Math.cos(Math.PI / 2 * i / 6)));
+      for (let z = Z0 + E + 6; z < Z1 - E - 0.5; z += 6) zs.push(z); for (let i = 0; i <= 6; i++) zs.push(Z1 - E * (1 - Math.sin(Math.PI / 2 * i / 6)));
+      for (let j = 0; j + 1 < zs.length; j++) for (let i = 0; i + 1 < us.length; i++) {
+        const a = [us[i], hD(us[i], zs[j]), zs[j]], b = [us[i + 1], hD(us[i + 1], zs[j]), zs[j]], c = [us[i + 1], hD(us[i + 1], zs[j + 1]), zs[j + 1]], d = [us[i], hD(us[i], zs[j + 1]), zs[j + 1]];
+        const xm = (us[i] + us[i + 1]) / 2, zm = (zs[j] + zs[j + 1]) / 2; P.quad(a, d, c, b, nD(xm, zm), shade(col.dome, (j & 1) ? 0.96 : 1)); }
+      P.wbox(X0 - 0.3, -0.1, Z0 - 0.3, X1 + 0.3, 0.45, Z1 + 0.3, [0.42, 0.42, 0.42, 1]); // the grade beam
+      // the Redbird head on the south end, facing the stadium: a grid laid on the dome's surface
+      { const N = 6, S = 10.5, yc = 11, xL = xc, zAt = (x, y) => { const su = se((x - xc) / hw), w = Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, y / (H * su)), p)), 1 / p); return zc - (hl - E) - E * w; };
+        for (let i = 0; i < N; i++) for (let k = 0; k < N; k++) {
+          const pt = (ii, kk) => { const x = xL + (ii / N - 0.5) * S, y = yc + (kk / N - 0.5) * S, z = zAt(x, y), n = nD(x, z); return [x + n[0] * 0.25, y + n[1] * 0.25, z + n[2] * 0.25]; };
+          const a = pt(i, k), b = pt(i + 1, k), c = pt(i + 1, k + 1), d = pt(i, k + 1), n = nD(xL + ((i + 0.5) / N - 0.5) * S, zAt(xL + ((i + 0.5) / N - 0.5) * S, yc + ((k + 0.5) / N - 0.5) * S));
+          SG.quad(a, b, c, d, n, white, tex(HKN_C.bird, i / N, 1 - k / N, (i + 1) / N, 1 - (k + 1) / N)); } }
+      // the entrance vestibules at the south end, the mechanical building at the north end
+      for (const x of [-74, -61]) { P.wbox(x - 2, 0, Z0 - 3.2, x + 2, 3, Z0 + 1, [0.62, 0.63, 0.64, 1]); P.wbox(x - 0.8, 0, Z0 - 3.25, x + 0.8, 2.4, Z0 - 3.15, [0.15, 0.16, 0.17, 1]); }
+      P.wbox(-78, 0, Z1 + 0.5, -52, 4.2, Z1 + 6.5, [0.5, 0.48, 0.45, 1]); P.wbox(-76, 4.2, Z1 + 1.5, -70, 5.6, Z1 + 4.5, [0.6, 0.61, 0.62, 1]);
+      P.quad([-108, -0.04, 150], [-30, -0.04, 150], [-30, -0.04, 316], [-108, -0.04, 316], up, shade(C.lawn, 1.05)); }
+    // ---- beyond: the lot and its cars, the greenhouse, Ropp, Vitro Center, Hudelson ----
+    { const carC = [[0.75, 0.76, 0.78, 1], [0.12, 0.12, 0.13, 1], [0.45, 0.46, 0.48, 1], [0.55, 0.08, 0.08, 1], [0.85, 0.85, 0.84, 1], [0.15, 0.2, 0.32, 1], [0.3, 0.3, 0.32, 1]];
+      const lotC = [0.55, 0.53, 0.49, 1]; // the lot is concrete (OSM outline, simplified), its aisles run north-south
+      for (const [x0, z0, x1, z1] of [[-30, 150.5, 64.3, 232], [-30, 232, 16.3, 258], [64.3, 163.4, 71.8, 201]]) P.quad([x0, 0.0, z0], [x1, 0.0, z0], [x1, 0.0, z1], [x0, 0.0, z1], up, lotC);
+      for (const [xr, z0, z1] of [[-26, 158, 250], [-8.5, 160, 252], [3.5, 160, 252], [12.5, 160, 229], [24.5, 160, 229], [32, 160, 229], [44, 160, 229], [52, 160, 229], [64, 165, 199]]) for (let z = z0; z < z1; z += 2.9) { if (crand() < (xr < -20 ? 0.75 : 0.35)) continue;
+        const c0 = carC[(crand() * carC.length) | 0], dx = xr < 0 ? -1 : 1, x0 = xr - 2.4, x1 = xr + 2.4, zz = z + (crand() - 0.5) * 0.3;
+        P.wbox(x0, 0.15, zz - 0.95, x1, 0.95, zz + 0.95, c0); P.wbox(x0 + 1.0 + (dx < 0 ? 0.3 : 0), 0.95, zz - 0.85, x1 - 1.0 - (dx > 0 ? 0.3 : 0), 1.5, zz + 0.85, shade(c0, 0.55)); }
+      for (const [x, z] of [[10.5, 180], [10.5, 214], [31, 180], [31, 214], [51, 196]]) { P.wbox(x - 0.12, 0, z - 0.12, x + 0.12, 10, z + 0.12, [0.3, 0.31, 0.33, 1]); P.wbox(x - 0.5, 9.8, z - 0.3, x + 0.5, 10.1, z + 0.3, [0.2, 0.2, 0.22, 1]); GL.wbox(x - 0.4, 9.76, z - 0.22, x + 0.4, 9.8, z + 0.22, C.lamp); }
+      // the greenhouse (white glass, a gable along x)
+      P.wbox(85.1, 0, 126.9, 105.2, 2.6, 136.9, [0.78, 0.8, 0.8, 1]); P.quad([85.1, 2.6, 126.9], [105.2, 2.6, 126.9], [105.2, 4.4, 131.9], [85.1, 4.4, 131.9], [0, 0.94, -0.34], [0.84, 0.86, 0.86, 1]); P.quad([105.2, 2.6, 136.9], [85.1, 2.6, 136.9], [85.1, 4.4, 131.9], [105.2, 4.4, 131.9], [0, 0.94, 0.34], [0.8, 0.82, 0.82, 1]);
+      for (const x of [85.1, 105.2]) P.quad([x, 2.6, 126.9], [x, 2.6, 136.9], [x, 4.4, 131.9], [x, 4.4, 131.9], [x < 90 ? -1 : 1, 0, 0], [0.78, 0.8, 0.8, 1]);
+      // Ropp Agriculture: brick, four floors, a flat roof (the OSM outline: a 105.8 .. 117.7 notch at the north-east)
+      K.block(76, 136.8, 117.7, 204.4, 12, [0.45, 0.27, 0.2, 1], C.roofD, true); K.block(76, 204.4, 105.8, 214.9, 12, [0.45, 0.27, 0.2, 1], C.roofD, true);
+      // Vitro Center and Hudelson: light walls, pitched maroon roofs
+      const gable = (x0, z0, x1, z1, h, rh, wall, roof) => { P.wbox(x0, 0, z0, x1, h, z1, wall); const zm = (z0 + z1) / 2;
+        P.quad([x0 - 0.4, h, z0 - 0.6], [x1 + 0.4, h, z0 - 0.6], [x1 + 0.4, h + rh, zm], [x0 - 0.4, h + rh, zm], [0, 0.8, -0.6], roof); P.quad([x1 + 0.4, h, z1 + 0.6], [x0 - 0.4, h, z1 + 0.6], [x0 - 0.4, h + rh, zm], [x1 + 0.4, h + rh, zm], [0, 0.8, 0.6], roof);
+        for (const x of [x0, x1]) P.quad([x, h, z0], [x, h, z1], [x, h + rh, zm], [x, h + rh, zm], [x === x0 ? -1 : 1, 0, 0], wall);
+        for (let x = x0 + 2; x < x1 - 2; x += 3.2) { P.wbox(x, 1.2, z0 - 0.05, x + 1.6, 3.2, z0, C.dark); P.wbox(x, 1.2, z1, x + 1.6, 3.2, z1 + 0.05, C.dark); } };
+      gable(17.3, 237.3, 55.2, 252.7, 5.2, 3.2, [0.8, 0.78, 0.72, 1], col.maroon); gable(94.5, 236.3, 117.5, 252.2, 5.5, 3.4, [0.55, 0.38, 0.3, 1], col.maroon);
+      for (const [x, z, s] of [[64, 106, 1.3], [66, 116, 1.4], [64.5, 127, 1.3], [67, 138, 1.4], [70, 112, 1.2], [63, 150, 1.2], [66, 160, 1.3], [64, 172, 1.1], [62, 230, 1.2], [9, 243, 1.1], [-25, 262, 1.3], [-12, 262, 1.2], [70, 245, 1.2], [78, 225, 1.1], [124, 150, 1.1], [124, 175, 1.2], [-115, 170, 1.3], [-115, 200, 1.2], [-115, 235, 1.3], [-112, 268, 1.2], [-28, 312, 1.3], [-20, 290, 1.1]]) K.tree(x, z, s); }
+    return SG;
+  }
+  // =====================================================================================
+  // Hancock Stadium: the south end, its two light poles, and the end-zone video board (called from buildHancock's south section).
+  // Measured in the stadium's frame (yards; x 0 the field's centre line, +x east, z 0 the south goal line, +z north) from Esri
+  // World Imagery at 0.11 m a pixel (spring 2024), registered on the south end zone, with photos from the field and the stands:
+  //  - the Touchdown Terrace: a grass berm from the turf's edge (z -17) up to about 0.75 yd, the white frame tent on it
+  //    (x -29 .. 20, z -24.8 .. -32.2, about 45 x 6.8 m: ten frames 5.4 yd apart, a gable roof with its ridge along the end
+  //    line), a raised deck under it with a rail and the white TOUCHDOWN TERRACE banner (dark red serif letters, a Redbird head at
+  //    each end); open to the field, white side wall at the back
+  //  - behind it a concrete walk and the black chain-link fence (z -34.5, x -55 .. 59) with the terrace's private gate frame,
+  //    a small kiosk with a hip roof and a fenced equipment pen; the small scoring board on its steel tower behind the tent
+  //    (x about -7 .. 0), "DOWN / TO GO / BALL ON / QTR" and "T.O.L." under the score, a lettered crest on an arched truss
+  //  - concrete plazas east (x 20 .. 59, with the fenced pen in the corner) and west (picnic tables) of the berm; the lawn,
+  //    the curving campus walk and its trees south of the fence
+  //  - light poles (galvanized, tapered, about 41 yd): south-west at (-73.9, -31.8) with two rows of seven fixtures, south-east
+  //    at (58.5, -49.8) beyond the fence with one row of six; both aimed into the field
+  //  - the video board (2026): 64.3 x 31.5 ft of LED (10 mm, 1960 x 960) with the non-lit "JAY & LORI BERGMAN FIELD" header over
+  //    it, on four black steel columns. It stands where the 2013 board stood, on the NORTH slope (centre x -0.8, face z 135),
+  //    not in the south end: the imagery shows the old board's catwalks and arched truss there, and the maker's rendering puts the
+  //    new one on the same spot with the championships banner and the play clock between its legs.
+  // =====================================================================================
+  const HKS_C = { // the lettering canvas (1024 x 1024): v ranges of its rows
+    terrace: [0, 96], header: [128, 240], crest: [336, 464], champs: [480, 608], face: [640, 896],
+  };
+  function hksBird(g, cx, cy, s, flip) { // a Redbird head in profile, beak to the right (flip: to the left)
+    g.save(); g.translate(cx, cy); g.scale(flip ? -s : s, s);
+    g.fillStyle = '#c8102e'; g.beginPath(); // crest and head
+    g.moveTo(-0.55, 0.5); g.lineTo(-0.8, -0.05); g.lineTo(-0.95, -0.75); g.lineTo(-0.5, -0.45); g.lineTo(-0.35, -0.95); g.lineTo(-0.05, -0.5);
+    g.lineTo(0.3, -0.7); g.lineTo(0.35, -0.3); g.lineTo(0.6, -0.1); g.lineTo(0.45, 0.45); g.closePath(); g.fill();
+    g.fillStyle = '#111'; g.beginPath(); g.moveTo(-0.2, -0.25); g.lineTo(0.62, -0.18); g.lineTo(0.55, 0.2); g.lineTo(0.05, 0.25); g.lineTo(-0.3, 0.05); g.closePath(); g.fill(); // mask
+    g.fillStyle = '#ffc72c'; g.beginPath(); g.moveTo(0.4, -0.12); g.lineTo(1.0, 0.1); g.lineTo(0.5, 0.42); g.closePath(); g.fill(); // beak
+    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(0.2, -0.04, 0.15, 0.11, 0, 0, 6.2832); g.fill();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(0.25, -0.03, 0.06, 0, 6.2832); g.fill();
+    g.fillStyle = '#c8102e'; g.beginPath(); g.moveTo(0.0, -0.22); g.lineTo(0.45, -0.1); g.lineTo(0.45, -0.18); g.lineTo(0.0, -0.3); g.closePath(); g.fill(); // brow
+    g.restore();
+  }
+  function hksCanvas() {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 1024; const g = c.getContext('2d');
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    // the terrace banner: white, dark red serif capitals, a Redbird at each end
+    { const [y0, y1] = HKS_C.terrace, h = y1 - y0; g.fillStyle = '#f3f1ec'; g.fillRect(0, y0, 1024, h);
+      g.fillStyle = '#9c2229'; g.font = '700 62px Georgia, "Times New Roman", serif'; g.fillText('TOUCHDOWN', 330, y0 + h / 2 + 4); g.fillText('TERRACE', 718, y0 + h / 2 + 4);
+      hksBird(g, 52, y0 + h / 2, 38, false); hksBird(g, 972, y0 + h / 2, 38, true); }
+    // the board's header panel: black, the field's name in a box, a Redbird either side
+    { const [y0, y1] = HKS_C.header, h = y1 - y0; g.fillStyle = '#0b0b0d'; g.fillRect(0, y0, 1024, h);
+      g.fillStyle = '#050506'; g.fillRect(318, y0 + 8, 388, h - 16); g.strokeStyle = '#2a2a2e'; g.lineWidth = 3; g.strokeRect(318, y0 + 8, 388, h - 16);
+      g.fillStyle = '#f4f4f4'; g.font = '800 46px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText('JAY & LORI BERGMAN FIELD', 512, y0 + h / 2 + 3, 370);
+      hksBird(g, 250, y0 + h / 2, 42, false); hksBird(g, 776, y0 + h / 2, 42, false); }
+    // the crest on the small board: the wordmark under a Redbird, red on white
+    { const [y0, y1] = HKS_C.crest, h = y1 - y0; g.fillStyle = '#f6f6f4'; g.fillRect(0, y0, 512, h);
+      g.fillStyle = '#c8102e'; g.font = 'italic 900 50px "Barlow Condensed", Impact, sans-serif'; g.fillText('ILLINOIS', 200, y0 + 40); g.fillText('STATE', 200, y0 + 86);
+      g.fillStyle = '#111'; g.font = '700 16px Arial, sans-serif'; g.fillText('REDBIRDS', 200, y0 + 116); hksBird(g, 400, y0 + h / 2, 48, false); }
+    // the championships banner between the video board's legs
+    { const [y0, y1] = HKS_C.champs, h = y1 - y0; g.fillStyle = '#c3141f'; g.fillRect(0, y0, 1024, h); g.fillStyle = '#9a0f18'; g.fillRect(0, y0 + 86, 1024, 4);
+      g.fillStyle = '#fff'; g.textAlign = 'left'; g.font = '800 30px "Barlow Condensed", Arial, sans-serif'; g.fillText('MVFC CHAMPIONSHIPS', 120, y0 + 24); g.fillText('NCAA D-I FCS PLAYOFFS', 520, y0 + 24);
+      g.font = '700 20px Arial, sans-serif'; g.fillText('1999 · 2014 · 2015', 120, y0 + 60); g.fillText('1998 · 1999 · 2006 · 2012 · 2014', 520, y0 + 52); g.fillText('2015 · 2016 · 2019', 520, y0 + 74);
+      g.textAlign = 'center'; g.font = '800 30px "Barlow Condensed", Arial, sans-serif'; g.fillText('2015 NCAA D-I FCS NATIONAL CHAMPION RUNNER-UP', 512, y0 + 108);
+      hksBird(g, 60, y0 + 46, 34, false); }
+    // the small board's face (a scoring board, its lamps dark between games): white rules, the captions, T.O.L. in the corners
+    { const [y0, y1] = HKS_C.face, h = y1 - y0; g.fillStyle = '#070809'; g.fillRect(0, y0, 512, h); g.strokeStyle = '#d8d8d8'; g.lineWidth = 3;
+      g.strokeRect(6, y0 + 6, 500, h - 12); g.strokeRect(190, y0 + 14, 132, 90); g.beginPath(); g.moveTo(6, y0 + 150); g.lineTo(506, y0 + 150); g.stroke();
+      g.fillStyle = '#e8e8e8'; g.font = '700 22px Arial, sans-serif'; g.fillText('ILLINOIS STATE', 98, y0 + 30); g.fillText('GUESTS', 414, y0 + 30); g.fillText('QTR', 256, y0 + 122);
+      g.font = '700 24px Arial, sans-serif'; [['DOWN', 110], ['TO GO', 200], ['BALL ON', 300], ['QTR', 400]].forEach(([t, x]) => g.fillText(t, x, y0 + 196));
+      g.font = '700 18px Arial, sans-serif'; g.fillText('T.O.L.', 40, y0 + 236); g.fillText('T.O.L.', 472, y0 + 236);
+      g.fillStyle = '#1a1206'; for (const x of [70, 128, 384, 442]) g.fillRect(x - 24, y0 + 50, 48, 80); for (const x of [214, 298]) g.fillRect(x - 18, y0 + 30, 36, 60); }
+    return c;
+  }
+  // o: { P, GL, W, C, seat, tree } from buildHancock; returns nothing (the lettering layer registers its own static)
+  function hkSouthEnd(o) {
+    const { P, GL, W, C, seat, tree } = o, up = [0, 1, 0], white = [1, 1, 1, 1], SB = new Batch(200);
+    const n0 = [P.n, GL.n, W.board.n];
+    const steel = [0.08, 0.085, 0.095, 1], galv = [0.58, 0.6, 0.62, 1], tentW = [0.9, 0.9, 0.88, 1], fenceC = [0.06, 0.065, 0.07, 1];
+    const gq = (x0, z0, x1, z1, y, col) => P.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, col);
+    const tex = (key, pa, pb, y0, y1, n, u0, u1) => { const v0 = HKS_C[key][0] / 1024, v1 = HKS_C[key][1] / 1024; u0 = u0 || 0; u1 = u1 === undefined ? 1 : u1;
+      SB.quad([pa[0], y0, pa[1]], [pb[0], y0, pb[1]], [pb[0], y1, pb[1]], [pa[0], y1, pa[1]], n, white, [u0, v1, u1, v1, u1, v0, u0, v0]); };
+    const TS = -17, BX0 = -39.6, BX1 = 47, BY = 0.75; // the berm: from the turf's edge up to BY at z -22, flat to the tent
+    // ---- the ground: grass berm, concrete walks and plazas, the lawn south of the fence ----
+    P.quad([BX0, 0, TS], [BX1, 0, TS], [BX1, BY, -22], [BX0, BY, -22], [0, 0.99, 0.15], C.berm);
+    P.quad([BX0, BY, -22], [BX1, BY, -22], [BX1, BY, -24.6], [BX0, BY, -24.6], up, C.berm);
+    P.quad([BX0, BY, -24.6], [-29, BY, -24.6], [-29, 0, -26.5], [BX0, 0, -26.5], [0, 0.95, -0.3], C.berm); P.quad([20, BY, -24.6], [BX1, BY, -24.6], [BX1, 0, -26.5], [20, 0, -26.5], [0, 0.95, -0.3], C.berm);
+    for (const [x, s] of [[BX0, -1], [BX1, 1]]) { P.quad([x, 0, TS], [x + s * 2, 0, TS], [x + s * 2, 0, -24.6], [x, BY, -22], [s, 0.9, 0], C.berm); P.quad([x, BY, -22], [x, BY, -24.6], [x + s * 2, 0, -24.6], [x, 0, TS], [s, 0.9, 0], C.berm); }
+    const walk = [0.47, 0.46, 0.43, 1];
+    gq(-55, -26.5, 59, -34.5, -0.03, walk); gq(47, TS, 59, -26.5, -0.03, walk); gq(-55, -10, BX0, -26.5, -0.03, walk); // concrete round the berm
+    gq(-60, -34.5, 59.2, -46, -0.035, C.lawn); gq(-60, -46, 70, -75, -0.035, C.lawn);
+    { const pts = [[-66, -44], [-44, -42.5], [-24, -39.6], [-9, -38.2], [5, -39.6], [17, -42.8], [29, -48.5], [41, -55.5], [52, -62], [64, -66]]; // the campus walk
+      for (let i = 0; i + 1 < pts.length; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1], l = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / l * 1.4, nz = (bx - ax) / l * 1.4;
+        P.quad([ax - nx, -0.02, az - nz], [bx - nx, -0.02, bz - nz], [bx + nx, -0.02, bz + nz], [ax + nx, -0.02, az + nz], up, walk); } }
+    for (const [x, z, s] of [[-43, -33.5, 1.1], [-46, -50, 1], [-22, -47, 0.8], [-31, -55, 1], [26, -38.5, 0.9], [33, -51, 1.1], [43, -44, 1], [14, -58, 1], [4, -50, 0.7], [-8, -60, 1], [54, -56, 0.9]]) tree(x, z, s);
+    // ---- the tent (frame tent, open to the field) on its raised deck ----
+    const tx0 = -29, tx1 = 20, tz0 = -24.8, tz1 = -32.2, tzm = (tz0 + tz1) / 2, yd = 1.0, ye = 5.0, yr = 6.7;
+    P.wbox(tx0 + 0.3, 0, tz0 + 0.25, tx1 - 0.3, yd, tz1 - 0.1, [0.2, 0.2, 0.21, 1]); // the deck and its skirt
+    P.quad([tx0, yd + 0.01, tz0], [tx1, yd + 0.01, tz0], [tx1, yd + 0.01, tz1], [tx0, yd + 0.01, tz1], up, [0.42, 0.4, 0.37, 1]);
+    P.quad([tx0, ye, tz0], [tx1, ye, tz0], [tx1, yr, tzm], [tx0, yr, tzm], [0, 0.94, 0.33], tentW); P.quad([tx0, ye, tz1], [tx1, ye, tz1], [tx1, yr, tzm], [tx0, yr, tzm], [0, 0.94, -0.33], tentW);
+    P.quad([tx0, ye - 0.02, tz0], [tx1, ye - 0.02, tz0], [tx1, yr - 0.05, tzm], [tx0, yr - 0.05, tzm], [0, -1, 0], [0.62, 0.62, 0.6, 1]); // the roof's underside, in its own shade
+    P.quad([tx0, ye - 0.02, tz1], [tx1, ye - 0.02, tz1], [tx1, yr - 0.05, tzm], [tx0, yr - 0.05, tzm], [0, -1, 0], [0.62, 0.62, 0.6, 1]);
+    for (const x of [tx0, tx1]) { P.quad([x, yd, tz0], [x, yd, tz1], [x, ye, tz1], [x, ye, tz0], [Math.sign(x), 0, 0], tentW); P.quad([x, ye, tz0], [x, ye, tz1], [x, yr, tzm], [x, yr, tzm], [Math.sign(x), 0, 0], tentW); }
+    P.wbox(tx0, ye - 0.45, tz1 - 0.04, tx1, ye, tz1 + 0.04, tentW); // the back valance (the back stays open to the fence)
+    for (let i = 0; i < 9; i++) GL.wbox(tx0 + 3 + i * 5.4 - 0.9, yr - 0.6, tzm - 0.08, tx0 + 3 + i * 5.4 + 0.9, yr - 0.5, tzm + 0.08, [0.55, 0.52, 0.45, 1]); // the tent's lights under the ridge
+    P.wbox(tx0, ye - 0.45, tz0 - 0.04, tx1, ye, tz0 + 0.04, tentW); // the valance along the front
+    for (let i = 0; i <= 9; i++) { const x = tx0 + (tx1 - tx0) * i / 9; // ten frames: uprights both sides, the rafters and a tie
+      for (const z of [tz0, tz1]) P.wbox(x - 0.06, yd, z - 0.06, x + 0.06, ye, z + 0.06, C.alu);
+      for (const za of [tz0, tz1]) P.quad([x - 0.05, ye - 0.04, za], [x + 0.05, ye - 0.04, za], [x + 0.05, yr - 0.08, tzm], [x - 0.05, yr - 0.08, tzm], [0, -1, 0], C.alu); // the rafters
+      P.wbox(x - 0.05, ye - 0.1, tz1, x + 0.05, ye, tz0, C.alu); }
+    P.wbox(tx0, yr - 0.15, tzm - 0.06, tx1, yr - 0.03, tzm + 0.06, C.alu);
+    // the front: a rail along the deck, white skirting, the lettered banner in the middle
+    P.wbox(tx0 + 0.3, yd + 1.22, tz0 + 0.15, tx1 - 0.3, yd + 1.29, tz0 + 0.25, C.alu); for (let x = tx0 + 0.3; x <= tx1 - 0.2; x += 2.45) P.wbox(x - 0.03, yd, tz0 + 0.17, x + 0.03, yd + 1.27, tz0 + 0.23, C.alu);
+    const bxa = -15.6, bxb = 6.6, by0 = BY + 0.02, by1 = yd + 1.25;
+    P.quad([tx0 + 0.3, by0, tz0 + 0.12], [bxa, by0, tz0 + 0.12], [bxa, by1, tz0 + 0.12], [tx0 + 0.3, by1, tz0 + 0.12], [0, 0, 1], [0.86, 0.86, 0.84, 1]);
+    P.quad([bxb, by0, tz0 + 0.12], [tx1 - 0.3, by0, tz0 + 0.12], [tx1 - 0.3, by1, tz0 + 0.12], [bxb, by1, tz0 + 0.12], [0, 0, 1], [0.86, 0.86, 0.84, 1]);
+    tex('terrace', [bxb, tz0 + 0.1], [bxa, tz0 + 0.1], by0, by1, [0, 0, 1]);
+    for (let i = 0; i < 9; i++) { const x = tx0 + 3 + i * 5.4; P.wbox(x - 0.35, yd, -30.6, x + 0.35, yd + 1.05, -29.9, [0.15, 0.15, 0.16, 1]); P.wbox(x - 0.5, yd + 1.05, -30.75, x + 0.5, yd + 1.1, -29.75, [0.85, 0.85, 0.85, 1]); } // high-top tables
+    for (let k = 0; k < 3; k++) P.wbox(-26, yd + k * 0.35, -31.9 + k * 0.6, -18, yd + k * 0.35 + 0.35, -31.3 + k * 0.6, k % 2 ? C.alu : [0.62, 0.64, 0.67, 1]); // a short bleacher
+    // the people: standing at the rail and the tables, sitting on the berm
+    for (let i = 0; i < 70; i++) { const x = tx0 + 1 + crand() * (tx1 - tx0 - 2), z = crand() < 0.6 ? tz0 - 0.5 - crand() * 0.8 : tz0 - 2 - crand() * 5; seat(x, yd + 0.02, z, 0, 1, 0.04 + crand() * 0.05, 5); }
+    for (let i = 0; i < 90; i++) { const x = -37 + crand() * 82, t = 0.2 + crand() * 0.75, z = TS + (-22 - TS) * t; seat(x, BY * t - 0.45, z, 0, 1, 0.05 + crand() * 0.08, 5); }
+    // ---- behind the tent: the fence, the terrace gate, the kiosk, the equipment pen ----
+    const fence = (pts, h) => { for (let i = 0; i + 1 < pts.length; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1], l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(l / 3));
+        for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; P.wbox(x - 0.04, 0, z - 0.04, x + 0.04, h + 0.05, z + 0.04, fenceC); }
+        for (const y of [h, 0.12]) P.box(rot2(bx - ax, bz - az, (ax + bx) / 2, (az + bz) / 2), 0, y, 0, l, 0.05, 0.05, fenceC);
+        const nx = -(bz - az) / l, nz = (bx - ax) / l; // the mesh, as a faint dark veil
+        P.quad([ax, 0.1, az], [bx, 0.1, bz], [bx, h, bz], [ax, h, az], [nx, 0, nz], [0.2, 0.21, 0.22, 1]); } };
+    const rot2 = (dx, dz, tx, tz) => { const l = Math.hypot(dx, dz); dx /= l; dz /= l; return [dx, 0, -dz, tx, 0, 1, 0, 0, dz, 0, dx, tz]; };
+    fence([[-55, -34.5], [-16.3, -34.5]], 2); fence([[-10.6, -34.5], [59, -34.5], [59, -26.2], [51, -26.2], [51, -33]], 2);
+    fence([[0.4, -35], [0.4, -39], [7.4, -39], [7.4, -35]], 1.6);
+    { const red = [0.62, 0.08, 0.1, 1], x0 = 1.6, x1 = 4.0, z0 = -37.7, z1 = -35.3, h = 8.4; // the end-zone camera tower: red scaffold, a roofed deck on top
+      for (const x of [x0, x1]) for (const z of [z0, z1]) P.wbox(x - 0.08, 0, z - 0.08, x + 0.08, h, z + 0.08, red);
+      for (let y = 1.4; y < h; y += 1.4) { P.wbox(x0, y, z0 - 0.05, x1, y + 0.08, z0 + 0.05, red); P.wbox(x0, y, z1 - 0.05, x1, y + 0.08, z1 + 0.05, red); P.wbox(x0 - 0.05, y, z0, x0 + 0.05, y + 0.08, z1, red); P.wbox(x1 - 0.05, y, z0, x1 + 0.05, y + 0.08, z1, red); }
+      P.wbox(x0 - 0.2, h, z0 - 0.2, x1 + 0.2, h + 0.12, z1 + 0.2, [0.1, 0.1, 0.11, 1]); P.wbox(x0 - 0.2, h + 0.12, z0 - 0.2, x1 + 0.2, h + 1.1, z0 - 0.1, [0.1, 0.1, 0.11, 1]); P.wbox(x0 - 0.3, h + 2.2, z0 - 0.3, x1 + 0.3, h + 2.35, z1 + 0.3, [0.1, 0.1, 0.11, 1]);
+      for (const x of [x0 - 0.2, x1 + 0.2]) P.wbox(x - 0.04, h, z0 - 0.24, x + 0.04, h + 2.2, z0 - 0.16, [0.1, 0.1, 0.11, 1]);
+      P.wbox(4.6, 0.25, -38.6, 7.1, 1.7, -35.9, red); }
+    for (const x of [-16.1, -10.8]) for (const z of [-32.7, -36.8]) P.wbox(x - 0.1, 0, z - 0.1, x + 0.1, 3.1, z + 0.1, steel); // the terrace's gate frame
+    for (const z of [-32.7, -36.8]) P.wbox(-16.3, 2.95, z - 0.12, -10.6, 3.2, z + 0.12, steel); for (const x of [-16.1, -10.8]) P.wbox(x - 0.12, 2.95, -36.8, x + 0.12, 3.2, -32.7, steel);
+    P.wbox(-7.3, 0, -39.2, -3.5, 2.7, -35.5, [0.19, 0.23, 0.21, 1]); // the kiosk, a hip roof
+    P.quad([-7.6, 2.7, -35.2], [-3.2, 2.7, -35.2], [-4.6, 3.6, -36.6], [-6.2, 3.6, -36.6], [0, 0.85, 0.5], [0.45, 0.46, 0.47, 1]); P.quad([-7.6, 2.7, -39.5], [-3.2, 2.7, -39.5], [-4.6, 3.6, -38.1], [-6.2, 3.6, -38.1], [0, 0.85, -0.5], [0.45, 0.46, 0.47, 1]);
+    P.quad([-7.6, 2.7, -35.2], [-7.6, 2.7, -39.5], [-6.2, 3.6, -38.1], [-6.2, 3.6, -36.6], [-0.5, 0.85, 0], [0.42, 0.43, 0.44, 1]); P.quad([-3.2, 2.7, -35.2], [-3.2, 2.7, -39.5], [-4.6, 3.6, -38.1], [-4.6, 3.6, -36.6], [0.5, 0.85, 0], [0.42, 0.43, 0.44, 1]);
+    P.wbox(54.6, 0, -30.3, 57.8, 1.5, -28.6, [0.16, 0.5, 0.5, 1]); // equipment: the generator, the transformer
+    for (const [x, z] of [[-38.6, -28.6], [-37.2, -30.4], [-35.6, -28.8], [-36.8, -27.2]]) { P.wbox(x - 0.55, 0.72, z - 0.55, x + 0.55, 0.8, z + 0.55, [0.42, 0.3, 0.2, 1]); P.wbox(x - 0.07, 0, z - 0.07, x + 0.07, 0.72, z + 0.07, steel); } // picnic tables
+    // ---- the small scoring board on its tower behind the tent ----
+    { const x0 = -8.15, x1 = 0.85, zf = -33.3, y0 = 7.4, y1 = 12.1;
+      for (const x of [-5.1, -2.2]) P.wbox(x - 0.18, 0, -34.0, x + 0.18, y0 + 0.2, -33.6, steel);
+      P.wbox(-5.1, 1.5, -33.85, -2.2, 1.6, -33.75, steel); P.wbox(-5.1, 4.5, -33.85, -2.2, 4.6, -33.75, steel);
+      P.wbox(x0 - 0.15, y0 - 0.15, zf - 0.75, x1 + 0.15, y1 + 0.15, zf, [0.04, 0.045, 0.05, 1]); // the cabinet
+      tex('face', [x1, zf + 0.02], [x0, zf + 0.02], y0, y1, [0, 0, 1], 0, 0.5);
+      P.wbox(x0 - 0.4, y0 - 0.5, zf - 1.6, x1 + 0.4, y0 - 0.4, zf - 0.75, steel); for (const x of [x0 - 0.4, x1 + 0.4]) P.wbox(x - 0.03, y0 - 0.4, zf - 1.6, x + 0.03, y0 + 0.6, zf - 0.75, steel); // the catwalk behind
+      P.wbox(-1.6, 0, -34.6, -0.8, y0 - 0.4, -34.4, steel); // the ladder cage
+      const cx = (x0 + x1) / 2; // the crest on its arched truss
+      for (let i = 0; i < 8; i++) { const a0 = (i / 8) * Math.PI, a1 = ((i + 1) / 8) * Math.PI, r = (x1 - x0) / 2;
+        const xa = cx - Math.cos(a0) * r, ya = y1 + 0.15 + Math.sin(a0) * 1.0, xb = cx - Math.cos(a1) * r, yb = y1 + 0.15 + Math.sin(a1) * 1.0;
+        P.quad([xa, ya, zf - 0.35], [xb, yb, zf - 0.35], [xb, yb + 0.08, zf - 0.35], [xa, ya + 0.08, zf - 0.35], [0, 0, 1], steel); P.wbox(xa - 0.03, y1 + 0.15, zf - 0.38, xa + 0.03, ya, zf - 0.32, steel); }
+      tex('crest', [cx + 1.6, zf - 0.3], [cx - 1.6, zf - 0.3], y1 + 0.3, y1 + 1.6, [0, 0, 1], 0, 0.5); }
+    // ---- the light poles: galvanized, tapered, a crossarm head of fixtures aimed into the field ----
+    for (const [x, z, rows, per] of [[-73.9, -31.8, 2, 7], [58.5, -49.8, 1, 6]]) {
+      const H = 41.5, tx = 0, tz = 35, dx = tx - x, dz = tz - z, l = Math.hypot(dx, dz), m = rot2(dx / l, dz / l, x, z);
+      P.wbox(x - 0.75, -0.1, z - 0.75, x + 0.75, 0.6, z + 0.75, C.concD);
+      for (let k = 0; k < 4; k++) { const r = 0.42 - k * 0.07, y0 = k * (H - 3) / 4, y1 = (k + 1) * (H - 3) / 4 + 0.3; P.wbox(x - r, y0, z - r, x + r, y1, z + r, galv); }
+      P.box(m, 0.2, H - 3.2, 0, 0.9, 0.25, 0.25, galv); // the head's yoke
+      for (let r = 0; r < rows; r++) { const yy = H - 2.6 + r * 1.25, w = per * 0.78;
+        P.box(m, 0.55, yy - 0.5, 0, 0.18, 0.14, w + 0.2, galv);
+        for (let q = 0; q < per; q++) { const lz = -w / 2 + (q + 0.5) * w / per; P.box(m, 0.75, yy, lz, 0.45, 0.62, 0.62, [0.22, 0.23, 0.25, 1]); GL.box(m, 1.0, yy - 0.04, lz, 0.06, 0.5, 0.5, C.lamp); } }
+    }
+    // ---- the video board (2026), on the north slope ----
+    hksBoard2026({ P, W, tex, steel });
+    // the lettering layer: its own static with the canvas above
+    if (typeof gl !== 'undefined' && gl && G && SB.n) {
+      const t = mkTex(hksCanvas(), false, false, 8); G.texs.push(t); const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, SB.f.subarray(0, SB.n * 12), gl.STATIC_DRAW); G.bufs.push(b);
+      statics.push({ k: 'hksouth', b, n: SB.n, tex: t, cast: false, kind: 0, mat: [0.6, 0, 0, 0.15] });
+    }
+    if (DBG) DBG.hksStats = { tris: Math.round((P.n - n0[0] + GL.n - n0[1] + W.board.n - n0[2] + SB.n) / 3), plainTris: Math.round((P.n - n0[0]) / 3), glowTris: Math.round((GL.n - n0[1]) / 3), signTris: SB.n / 3, draws: 1 };
+  }
+  // The 2026 end-zone board: 64.3 x 31.5 ft of LED (21.43 x 10.5 yd) in a black frame, the 7 ft header panel over it, four black
+  // steel columns (the two new beams and the old pair), the speaker cluster on top; the championships banner and the play clock
+  // hang between the inner columns. Footprint: x -11.6 .. 10.0, face z 135.0, columns z 136.5; LED y 6.0 .. 16.5, top 19.4.
+  function hksBoard2026(o) {
+    const { P, W, tex, steel } = o, white = [1, 1, 1, 1], blk = [0.035, 0.037, 0.042, 1];
+    const cx = -0.8, hw = 10.715, zf = 135.0, y0 = 6.0, y1 = y0 + 10.5, yh = y1 + 2.43;
+    P.wbox(cx - hw - 0.25, y0 - 0.3, zf, cx + hw + 0.25, yh + 0.25, zf + 1.1, blk); // the cabinet and frame
+    W.board.quad([cx - hw, y0, zf - 0.02], [cx + hw, y0, zf - 0.02], [cx + hw, y1, zf - 0.02], [cx - hw, y1, zf - 0.02], [0, 0, 0], white, [0, 1, 1, 1, 1, 0, 0, 0]);
+    tex('header', [cx - hw, zf - 0.03], [cx + hw, zf - 0.03], y1 + 0.08, yh, [0, 0, -1]);
+    P.wbox(cx - hw - 0.25, y1 - 0.02, zf - 0.06, cx + hw + 0.25, y1 + 0.08, zf, blk);
+    P.wbox(cx - 2.4, yh + 0.25, zf + 0.2, cx + 2.4, yh + 1.35, zf + 1.0, [0.06, 0.06, 0.065, 1]); // the speaker cluster
+    for (const x of [-10.4, -6.4, 4.8, 8.8]) { P.wbox(x - 0.3, -1, zf + 1.1, x + 0.3, yh, zf + 1.6, steel); P.wbox(x - 0.55, -0.5, zf + 0.85, x + 0.55, 0.15, zf + 1.85, [0.4, 0.4, 0.4, 1]); }
+    for (const [xa, xb] of [[-10.4, -6.4], [4.8, 8.8]]) P.wbox(xa, y0 - 0.9, zf + 1.25, xb, y0 - 0.65, zf + 1.45, steel); // the ties between the column pairs
+    tex('champs', [-6.1, zf + 1.05], [4.5, zf + 1.05], 2.6, 4.45, [0, 0, -1]); // the banner on the old frame (the slope is about 2.2 yd up here)
+    P.wbox(cx - 1.2, 4.6, zf + 1.0, cx + 1.2, 5.6, zf + 1.4, blk); // the play clock
+  }
+  // ---------- Hancock Stadium, the west side: the bleachers, the old press box, Horton Field House and the buildings beyond ----------
+  // Measured in the field's own frame (engine yards: +x east, +z north, z 0 the south goal line) from aerial imagery turned onto
+  // the field's axis, and from photos of the stand (from the field, the east press box and both ends):
+  //  - the stand is the 1963 concrete one with aluminium benches (2011): z -0.5 .. 100.5, a red wall at the turf's edge (x -39,
+  //    1.4 m), a walkway behind it, 32 rows (0.65 yd deep, 0.31 yd rise) to x -62.5, a red fascia at the back with the walkway
+  //    against Horton's east wall (x -64.8) behind it
+  //  - five portals (vomitories) halfway up, one on the 50 and every 16.75 yards (rows 8 to 15), red side walls with pipe rails,
+  //    a red head wall at the back; an aisle runs up the south side of each portal; six sections lettered A to F on white plaques
+  //    on the fascia, "REDBIRD FOOTBALL" on the fascia north of the press box, a row of flag poles behind it
+  //  - the old press box (coaches' booths now) on top, z 26.5 .. 52.5: two levels of window bands in white siding behind the red
+  //    fascia, two red booths on its roof; a light pole on the back walkway just north of it
+  //  - Horton Field House (1963): a white barrel roof spanning east-west (x -64.8 .. -131.6, eaves 15.6 yd, ridge 25.6 yd) over a
+  //    hall from z 4.5 to 100, its two ends drawn out to a shallow point (z -0.6 and 105.5), glazed (blue-green panels) under
+  //    the arch; a low annex on the south-west corner; the rest of the Horton complex west of it (two gym wings with rows of roof
+  //    lights either side of a flat-roofed core), the Linkins Center and the three South Campus towers (Haynie, Wilkins, Wright)
+  const HKW = {
+    z0: -0.5, z1: 100.5, wallH: 1.55, xRow: -41.7, rows: 32, tread: 0.65, rise: 0.31,
+    portals: [16.5, 33.25, 50, 66.75, 83.5], pHalf: 1.35, pRow0: 7, pRow1: 15, aisleOff: 2.05, aisleW: 1.2,
+    xFas: -62.5, walk: 11.8, xHorton: -64.8, pressZ: [26.5, 52.5], booths: [[27.5, 34.3], [44.4, 51.2]],
+    pole: [-63.9, 55.4],
+  };
+  // the west side's own lettering: "REDBIRD FOOTBALL" (white on the fascia's red) and the section plaques A-F
+  function hkWestCanvas() {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = '#c4121c'; g.fillRect(0, 0, 1024, 64);
+    g.fillStyle = '#f6f1e6'; g.font = '700 46px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('REDBIRD', 256, 35); g.fillText('FOOTBALL', 768, 35);
+    for (let i = 0; i < 6; i++) { const x = i * 64; g.fillStyle = '#f4f4f2'; g.fillRect(x + 2, 66, 60, 60); g.strokeStyle = '#c4121c'; g.lineWidth = 3; g.strokeRect(x + 5, 69, 54, 54);
+      g.fillStyle = '#c4121c'; g.font = '800 44px Arial, sans-serif'; g.fillText('ABCDEF'[i], x + 32, 98); }
+    return c;
+  }
+  // o: { P, GL, GLS (glass), seat (the crowd's seat()), C (palette), TW (the turf's west edge) }
+  function hancockWest(o) {
+    const { P, GL, GLS, seat } = o, H = HKW, up = [0, 1, 0], white = [1, 1, 1, 1];
+    const SW = new Batch(400);
+    const K = {
+      red: [0.74, 0.07, 0.09, 1], redD: [0.55, 0.05, 0.07, 1], conc: [0.6, 0.6, 0.58, 1], concR: [0.47, 0.47, 0.46, 1], concL: [0.66, 0.66, 0.64, 1],
+      alu: [0.78, 0.8, 0.83, 1], tunnel: [0.8, 0.8, 0.78, 1], dark: [0.03, 0.03, 0.035, 1], brick: [0.46, 0.22, 0.16, 1], brickD: [0.38, 0.18, 0.13, 1],
+      siding: [0.84, 0.84, 0.82, 1], trim: [0.94, 0.94, 0.93, 1], wallW: [0.86, 0.86, 0.85, 1], roofW: [0.9, 0.91, 0.92, 1], roofE: [0.8, 0.81, 0.82, 1],
+      glass: [0.42, 0.48, 0.54, 1], glassH: [0.3, 0.5, 0.52, 1], mull: [0.85, 0.86, 0.86, 1], steel: [0.52, 0.53, 0.55, 1], lit: [0.07, 0.06, 0.045, 1],
+      roofD: [0.13, 0.14, 0.15, 1], roofG: [0.42, 0.42, 0.41, 1], tower: [0.8, 0.76, 0.66, 1], towerD: [0.17, 0.17, 0.18, 1], sky: [0.7, 0.78, 0.82, 1],
+    };
+    const TW = o.TW, xW = TW - 0.35; // the wall's face and back
+    const yT = (r) => H.wallH + (r + 1) * H.rise; // tread height of row r
+    const xa = (r) => H.xRow - r * H.tread; // front edge of row r
+    const yTop = yT(H.rows - 1), xBack = xa(H.rows); // the last tread, the back of the rows
+    const aisles = H.portals.map((p) => p - H.aisleOff);
+    // where row r is open (not aisle, not portal) along z: the solid runs [z0, z1]
+    const runs = (r) => { const cut = aisles.map((a) => [a - H.aisleW / 2, a + H.aisleW / 2]);
+      if (r >= H.pRow0 && r < H.pRow1) for (const p of H.portals) cut.push([p - H.pHalf - 0.12, p + H.pHalf + 0.12]);
+      cut.sort((a, b) => a[0] - b[0]); const out = []; let z = H.z0; for (const [a, b] of cut) { if (a > z) out.push([z, a]); z = Math.max(z, b); } if (z < H.z1) out.push([z, H.z1]); return out; };
+    // ---- the front wall, its cap, the walkway behind it and the red pipe rail ----
+    P.wbox(xW, 0, H.z0, TW, H.wallH, H.z1, K.red); P.wbox(xW - 0.02, H.wallH - 0.02, H.z0, TW + 0.03, H.wallH + 0.04, H.z1, K.redD);
+    P.quad([xW, H.wallH + 0.01, H.z0], [xW, H.wallH + 0.01, H.z1], [H.xRow, H.wallH + 0.01, H.z1], [H.xRow, H.wallH + 0.01, H.z0], up, K.concL);
+    { const xr = TW - 0.2, yr = H.wallH + 1.05; P.wbox(xr - 0.03, yr - 0.04, H.z0, xr + 0.03, yr + 0.02, H.z1, K.red); P.wbox(xr - 0.025, yr - 0.5, H.z0, xr + 0.025, yr - 0.46, H.z1, K.red);
+      for (let z = H.z0 + 0.4; z < H.z1; z += 2.5) P.wbox(xr - 0.03, H.wallH, z - 0.03, xr + 0.03, yr, z + 0.03, K.red); }
+    // ---- the rows: concrete risers and treads, an aluminium bench on each, the crowd ----
+    for (let r = 0; r < H.rows; r++) {
+      const x0 = xa(r), x1 = xa(r + 1), y = yT(r), yp = y - H.rise;
+      for (const [za, zb] of runs(r)) {
+        P.quad([x0, yp, za], [x0, yp, zb], [x0, y, zb], [x0, y, za], [1, 0, 0], K.concR); // riser
+        P.quad([x0, y, za], [x0, y, zb], [x1, y, zb], [x1, y, za], up, K.conc); // tread
+        P.wbox(x1 + 0.05, y + 0.41, za + 0.05, x1 + 0.34, y + 0.46, zb - 0.05, K.alu); // bench (17 in.)
+        P.wbox(x1 + 0.3, y + 0.24, za + 0.05, x1 + 0.33, y + 0.41, zb - 0.05, [0.6, 0.62, 0.65, 1]); // its skirt
+        for (let z = za + 0.35 + crand() * 0.3; z < zb - 0.3; z += 0.7 * (0.92 + crand() * 0.2)) {
+          if (crand() > (z > 25 && z < 75 ? 0.82 : 0.6) * (r > 28 ? 0.7 : 1)) continue;
+          seat(x0 - H.tread * 0.6, y + 0.02, z, 1, 0, 0.04 + crand() * 0.08, Math.floor((z - H.z0) / 9) * 7 + Math.floor(r / 7) * 31);
+        }
+      }
+      // aisle steps: two per row
+      for (const a of aisles) { const za = a - H.aisleW / 2, zb = a + H.aisleW / 2, xm = (x0 + x1) / 2, ym = yp + H.rise / 2;
+        P.quad([x0, yp, za], [x0, yp, zb], [x0, ym, zb], [x0, ym, za], [1, 0, 0], K.concR); P.quad([x0, ym, za], [x0, ym, zb], [xm, ym, zb], [xm, ym, za], up, K.concL);
+        P.quad([xm, ym, za], [xm, ym, zb], [xm, y, zb], [xm, y, za], [1, 0, 0], K.concR); P.quad([xm, y, za], [xm, y, zb], [x1, y, zb], [x1, y, za], up, K.concL); }
+    }
+    // ---- the ends: brick under the rows, red rails (south: pipe rail; north: a solid red panel) ----
+    for (const [z, s] of [[H.z0, -1], [H.z1, 1]]) {
+      P.quad([xW, 0, z], [TW, 0, z], [TW, H.wallH, z], [xW, H.wallH, z], [0, 0, s], K.red);
+      P.quad([H.xRow, 0, z], [xW, 0, z], [xW, H.wallH, z], [H.xRow, H.wallH, z], [0, 0, s], K.brick);
+      for (let r = 0; r < H.rows; r++) { const yb = Math.min(yT(r), 1.2 + 0.42 * (yT(r) - 1.2)); // brick to about 40% of the height, the concrete steps' ends above it
+        P.quad([xa(r + 1), 0, z], [xa(r), 0, z], [xa(r), yb, z], [xa(r + 1), yb, z], [0, 0, s], K.brick); P.quad([xa(r + 1), yb, z], [xa(r), yb, z], [xa(r), yT(r), z], [xa(r + 1), yT(r), z], [0, 0, s], K.concR); }
+      P.quad([H.xHorton, 0, z], [xBack, 0, z], [xBack, H.walk, z], [H.xHorton, H.walk, z], [0, 0, s], K.brick);
+      const zi = z - s * 0.1;
+      if (s > 0) for (let r = 0; r < H.rows; r += 2) { const x0 = xa(r), x1 = xa(Math.min(H.rows, r + 2)), y0 = yT(r), y1 = yT(Math.min(H.rows - 1, r + 2));
+        P.quad([x1, y1, zi], [x0, y0, zi], [x0, y0 + 1.1, zi], [x1, y1 + 1.1, zi], [0, 0, -1], K.red); P.quad([x0, y0, zi + 0.12], [x1, y1, zi + 0.12], [x1, y1 + 1.1, zi + 0.12], [x0, y0 + 1.1, zi + 0.12], [0, 0, 1], K.red);
+        P.quad([x1, y1 + 1.1, zi], [x0, y0 + 1.1, zi], [x0, y0 + 1.1, zi + 0.12], [x1, y1 + 1.1, zi + 0.12], up, K.redD); }
+      else { P.tube([xa(0), yT(0) + 1.05, zi], [xBack, yTop + 1.05, zi], 0.035, K.red, 5); P.tube([xa(0), yT(0) + 0.55, zi], [xBack, yTop + 0.55, zi], 0.03, K.red, 5);
+        for (let r = 0; r <= H.rows; r += 4) { const rr = Math.min(H.rows - 1, r); P.wbox(xa(rr) - 0.33, yT(rr), zi - 0.03, xa(rr) - 0.27, yT(rr) + 1.05, zi + 0.03, K.red); } }
+    }
+    // ---- the steps up to the front walkway at the south end, with their rails ----
+    for (let i = 0; i < 6; i++) { const y = (i + 1) * H.wallH / 6, z = H.z0 - 2.7 + i * 0.42; P.wbox(H.xRow + 0.1, 0, z, xW, y, z + 0.42 + (i === 5 ? 0.3 : 0), K.concL); }
+    for (const x of [H.xRow + 0.15, xW - 0.05]) { P.tube([x, 1.0, H.z0 - 2.7], [x, H.wallH + 1.0, H.z0], 0.03, K.red, 4); P.wbox(x - 0.03, 0, H.z0 - 2.72, x + 0.03, 1.0, H.z0 - 2.66, K.red); }
+    // ---- the portals: an opening through rows 8-15, the tunnel floor running down into the stand, red walls and rails ----
+    for (const p of H.portals) {
+      const xf = xa(H.pRow0), xb = xa(H.pRow1), yf = yT(H.pRow0 - 1), yb = yT(H.pRow1 - 1), fb = yf - 2.2, hw = H.pHalf;
+      P.quad([xf, yf, p - hw], [xf, yf, p + hw], [xb, fb, p + hw], [xb, fb, p - hw], [0.4, 0.92, 0], K.conc); // the floor
+      P.quad([xb, fb, p - hw], [xb, fb, p + hw], [xb, yb - 0.55, p + hw], [xb, yb - 0.55, p - hw], [1, 0, 0], K.dark); // into the stand
+      for (const s of [-1, 1]) { const zi = p + s * hw, zo = zi + s * 0.24, tf = yf + 1.0, tb = yb + 1.0;
+        P.quad([xf, yf, zi], [xb, fb, zi], [xb, tb, zi], [xf, tf, zi], [0, 0, -s], K.tunnel); // inside face
+        P.quad([xb, fb, zo], [xf, yf, zo], [xf, tf, zo], [xb, tb, zo], [0, 0, s], K.red); // outside face
+        P.quad([xf, tf, zi], [xb, tb, zi], [xb, tb, zo], [xf, tf, zo], up, K.redD); // top
+        P.quad([xf, yf - H.rise, zi], [xf, yf - H.rise, zo], [xf, tf, zo], [xf, tf, zi], [1, 0, 0], K.red); // front end
+        const zr = zi + s * 0.12; P.tube([xf + 0.1, tf + 0.42, zr], [xb, tb + 0.42, zr], 0.035, K.red, 5);
+        P.wbox(xf + 0.07, tf, zr - 0.03, xf + 0.13, tf + 0.42, zr + 0.03, K.red); P.wbox((xf + xb) / 2 - 0.03, (tf + tb) / 2, zr - 0.03, (xf + xb) / 2 + 0.03, (tf + tb) / 2 + 0.42, zr + 0.03, K.red); }
+      P.wbox(xb - 0.24, yb - 0.55, p - hw - 0.24, xb, yb + 1.0, p + hw + 0.24, K.red); // the head wall
+    }
+    // ---- the back: the red fascia, the walkway, Horton's wall above it, the section plaques, the lettering, the flag poles ----
+    const xF = xBack, yF0 = yTop, yF1 = H.walk + 1.15;
+    P.wbox(xF - 0.25, yF0 - 0.05, H.z0, xF, yF1, H.z1, K.red); P.wbox(xF - 0.28, yF1, H.z0, xF + 0.03, yF1 + 0.06, H.z1, K.redD);
+    P.quad([xF - 0.25, H.walk, H.z0], [xF - 0.25, H.walk, H.z1], [H.xHorton, H.walk, H.z1], [H.xHorton, H.walk, H.z0], up, K.concL);
+    P.tube([H.xHorton + 0.15, H.walk + 1.05, H.z0], [H.xHorton + 0.15, H.walk + 1.05, H.z1], 0.03, K.steel, 4);
+    const sec = [H.z0, ...aisles, H.z1];
+    for (let i = 0; i < 6; i++) { const zc = (sec[i] + sec[i + 1]) / 2 + (i === 2 ? 3.5 : 0), u0 = i * 64 / 1024, u1 = (i * 64 + 64) / 1024;
+      const xs = i === 2 ? -62.15 : xF + 0.02, ys = i === 2 ? 12.75 : yF1 + 0.08; // C sits on the press box's base
+      SW.quad([xs, ys, zc - 0.45], [xs, ys, zc + 0.45], [xs, ys + 0.9, zc + 0.45], [xs, ys + 0.9, zc - 0.45], [1, 0, 0], white, [u0, 128 / 256, u1, 128 / 256, u1, 64 / 256, u0, 64 / 256]);
+      if (i !== 2) { P.wbox(xF - 0.12, yF1, zc - 0.03, xF - 0.06, ys + 0.1, zc + 0.03, K.steel); P.wbox(xF - 0.04, ys - 0.02, zc - 0.48, xF + 0.0, ys + 0.92, zc + 0.48, K.trim); } }
+    SW.quad([xF + 0.01, yF0 + 0.2, 74.5], [xF + 0.01, yF0 + 0.2, 89.5], [xF + 0.01, yF1 - 0.05, 89.5], [xF + 0.01, yF1 - 0.05, 74.5], [1, 0, 0], white, [0, 64 / 256, 1, 64 / 256, 1, 0, 0, 0]);
+    for (let z = 58.5; z < 98; z += 5.4) P.cyl(H.xHorton + 0.6, z, H.walk, H.walk + 7.5, 0.05, 0.035, K.trim, 5);
+    // ---- the old press box: two levels of windows in white siding, two red booths on the roof ----
+    { const [z0, z1] = H.pressZ, xf = -62.35, xbk = -69.4, y0 = H.walk, y1 = y0 + 1.8, y2 = y1 + 1.9;
+      P.wbox(xbk, y0, z0, xf, y2, z1, K.siding); P.wbox(xbk - 0.2, y2, z0 - 0.3, xf + 0.55, y2 + 0.3, z1 + 0.3, K.trim); P.wbox(xf, y1 - 0.12, z0, xf + 0.35, y1, z1, K.trim);
+      for (const [ya, yb] of [[y0 + 0.7, y1 - 0.25], [y1 + 0.45, y2 - 0.3]]) {
+        GLS.quad([xf + 0.02, ya, z0 + 0.6], [xf + 0.02, ya, z1 - 0.6], [xf + 0.02, yb, z1 - 0.6], [xf + 0.02, yb, z0 + 0.6], [1, 0, 0], K.glass);
+        GL.wbox(xf - 0.3, ya + 0.1, z0 + 0.8, xf - 0.2, yb - 0.1, z1 - 0.8, K.lit);
+        for (let z = z0 + 0.6; z <= z1 - 0.55; z += 1.02) P.wbox(xf, ya - 0.04, z - 0.05, xf + 0.06, yb + 0.04, z + 0.05, K.mull);
+        P.wbox(xf, ya - 0.06, z0 + 0.6, xf + 0.08, ya, z1 - 0.6, K.mull); P.wbox(xf, (ya + yb) / 2 - 0.03, z0 + 0.6, xf + 0.06, (ya + yb) / 2 + 0.03, z1 - 0.6, K.mull);
+      }
+      for (const z of [z0 - 0.15, z1 + 0.15]) P.wbox(xbk, y0, z - 0.15, xf, y2, z + 0.15, K.siding);
+      for (let z = z0 + 1.5; z < z1 - 1; z += 3.5) P.wbox(xbk - 0.05, y0 + 0.4, z, xbk, y2 - 0.4, z + 1.6, K.trim); // the back (towards Horton)
+      P.tube([xf + 0.4, y2 + 1.05, z0], [xf + 0.4, y2 + 1.05, z1], 0.03, K.steel, 4); // the roof deck's rail
+      for (const [b0, b1] of H.booths) { const bf = -62.8, bb = -68.2, yb0 = y2 + 0.3, yb1 = yb0 + 2.3;
+        P.wbox(bb, yb0, b0, bf, yb0 + 0.9, b1, K.red); P.wbox(bb, yb0 + 0.9, b0, bb + 0.8, yb1, b1, K.red);
+        for (const z of [b0, b1 - 0.9]) P.wbox(bb, yb0 + 0.9, z, bf, yb1, z + 0.9, K.red);
+        GLS.quad([bf - 0.05, yb0 + 0.95, b0 + 0.9], [bf - 0.05, yb0 + 0.95, b1 - 0.9], [bf - 0.05, yb1 - 0.25, b1 - 0.9], [bf - 0.05, yb1 - 0.25, b0 + 0.9], [1, 0, 0], K.glass);
+        GL.wbox(bf - 0.6, yb0 + 1.05, b0 + 1.0, bf - 0.5, yb1 - 0.35, b1 - 1.0, K.lit);
+        for (let z = b0 + 0.9; z <= b1 - 0.85; z += 0.85) P.wbox(bf - 0.06, yb0 + 0.9, z - 0.05, bf + 0.02, yb1 - 0.2, z + 0.05, K.trim);
+        P.wbox(bf - 0.06, yb0 + 0.9, b0, bf + 0.03, yb0 + 1.0, b1, K.trim);
+        P.wbox(bb - 0.15, yb1 - 0.25, b0 - 0.15, bf + 0.15, yb1 + 0.15, b1 + 0.15, K.trim); }
+      P.wbox(xbk + 0.3, y2 + 0.3, z0 + 8, xbk + 1.6, y2 + 1.4, z0 + 9.5, K.steel); // rooftop units
+    }
+    // ---- the light pole on the back walkway (its head turned to the field) ----
+    { const [x, z] = H.pole, Ht = 39, dx = -x, dz = 50 - z, l = Math.hypot(dx, dz), m = [dx / l, 0, -dz / l, x, 0, 1, 0, 0, dz / l, 0, dx / l, z];
+      P.cyl(x, z, H.walk, Ht - 4, 0.5, 0.36, [0.5, 0.51, 0.53, 1], 8); P.wbox(x - 0.7, H.walk, z - 0.7, x + 0.7, H.walk + 0.8, z + 0.7, K.conc);
+      P.box(m, -0.4, Ht - 4.5, 0, 0.5, 0.3, 6.2, K.steel); P.box(m, 0, Ht - 2.4, 0, 0.6, 5, 6.4, [0.15, 0.16, 0.18, 1]);
+      for (let r = 0; r < 4; r++) for (let q = 0; q < 5; q++) GL.box(m, 0.33, Ht - 4.3 + r * 1.2, -2.6 + q * 1.28, 0.1, 0.95, 1.05, [1, 0.97, 0.9, 1]); }
+    // ---- Horton Field House: the barrel roof over the hall, its glazed ends drawn to a point, the walls ----
+    { const xE = H.xHorton, xWst = -131.6, zS = 4.5, zN = 100, apS = -0.6, apN = 105.5, xAp = -97.5, eave = 15.6, ridge = 25.6;
+      const span = xE - xWst, sag = ridge - eave, R = (span * span / 4 + sag * sag) / (2 * sag), xc = (xE + xWst) / 2, yc = ridge - R;
+      const hAt = (x) => yc + Math.sqrt(Math.max(0, R * R - (x - xc) * (x - xc)));
+      const zEnd = (x, s) => { const t = x > xAp ? (xE - x) / (xE - xAp) : (x - xWst) / (xAp - xWst); return s < 0 ? zS + (apS - zS) * t : zN + (apN - zN) * t; };
+      const N = 18, xs = []; for (let i = 0; i <= N; i++) xs.push(xE - span * i / N); if (!xs.includes(xAp)) { xs.push(xAp); xs.sort((a, b) => b - a); }
+      for (let i = 0; i + 1 < xs.length; i++) { const xa0 = xs[i], xb0 = xs[i + 1], ha = hAt(xa0), hb = hAt(xb0), nx = -(hb - ha), ny = xa0 - xb0, nl = Math.hypot(nx, ny);
+        const n = [nx / nl, ny / nl, 0];
+        P.quad([xa0, ha, zEnd(xa0, -1)], [xa0, ha, zEnd(xa0, 1)], [xb0, hb, zEnd(xb0, 1)], [xb0, hb, zEnd(xb0, -1)], n, i % 2 ? K.roofW : [0.88, 0.89, 0.9, 1]);
+        for (const s of [-1, 1]) { const za = zEnd(xa0, s), zb = zEnd(xb0, s), ex = zb - za, ez = -(xb0 - xa0), el = Math.hypot(ex, ez) * -s, en = [ex / el, 0, ez / el];
+          P.quad([xa0, 0, za], [xb0, 0, zb], [xb0, 4.2, zb], [xa0, 4.2, za], en, K.brick); // the base
+          GLS.quad([xa0, 4.2, za], [xb0, 4.2, zb], [xb0, hb - 0.4, zb], [xa0, ha - 0.4, za], en, K.glassH); // the glazed end
+          P.quad([xa0, ha - 0.4, za], [xb0, hb - 0.4, zb], [xb0, hb, zb], [xa0, ha, za], en, K.roofE); // the arch's edge
+          P.wbox(xa0 - 0.08, 4.2, za - 0.08, xa0 + 0.08, ha - 0.4, za + 0.08, K.mull);
+          for (let y = 7.4; y < Math.max(ha, hb) - 1; y += 3.2) { const ya = Math.min(y, ha - 0.4), yb2 = Math.min(y, hb - 0.4); P.quad([xa0, ya, za], [xb0, yb2, zb], [xb0, yb2 + 0.14, zb], [xa0, ya + 0.14, za], en, K.mull); }
+          GL.quad([xa0, 4.5, za + s * 0.3], [xb0, 4.5, zb + s * 0.3], [xb0, Math.min(hb, 12), zb + s * 0.3], [xa0, Math.min(ha, 12), za + s * 0.3], en, [0.05, 0.05, 0.045, 1]); }
+      }
+      P.wbox(xE, H.walk, zS, xE + 0.3, eave, zN, K.wallW); P.wbox(xE + 0.3, eave - 0.6, zS, xE + 0.5, eave, zN, K.trim); // the east wall over the walkway
+      P.wbox(xWst - 0.3, 0, zS, xWst, eave, zN, K.brick); P.wbox(xWst - 0.35, eave - 3, zS, xWst - 0.3, eave, zN, K.wallW); // the west wall
+      for (let z = 9; z < 96; z += 8.3) for (const x of [-101.5, -84]) P.wbox(x - 0.7, hAt(x) - 0.2, z - 0.7, x + 0.7, hAt(x) + 0.9, z + 0.7, [0.7, 0.71, 0.72, 1]); // roof vents
+      P.wbox(-139, 0, 5, xWst, 7.5, 31, K.brick); P.wbox(-139.3, 7.5, 4.7, xWst, 7.8, 31.3, K.roofW); // the low south-west annex
+    }
+    // ---- the rest of the Horton complex, the Linkins Center, the South Campus towers ----
+    const box = (x0, z0, x1, z1, h, wall, roof, win) => { P.wbox(x0, 0, z0, x1, h, z1, wall); P.wbox(x0 - 0.2, h, z0 - 0.2, x1 + 0.2, h + 0.4, z1 + 0.2, roof);
+      if (win) for (let y = 1.6; y < h - 1.5; y += win) { P.wbox(x1, y, z0 + 1.5, x1 + 0.06, y + 1.3, z1 - 1.5, K.dark); P.wbox(x0 + 1.5, y, z0 - 0.06, x1 - 1.5, y + 1.3, z0, K.dark); P.wbox(x0 + 1.5, y, z1, x1 - 1.5, y + 1.3, z1 + 0.06, K.dark); } };
+    for (const [z0, z1] of [[56, 93.8], [-20, 21]]) { // the two gym wings: dark roofs set with rows of skylights
+      box(-205, z0, -166, z1, 11, K.brick, K.roofD, 0);
+      for (let x = -201; x < -168; x += 7.5) for (let z = z0 + 3; z < z1 - 2; z += 5.4) P.wbox(x - 0.8, 11.3, z - 1, x + 0.8, 12.2, z + 1, [0.74, 0.76, 0.78, 1]); }
+    box(-230, 21, -191, 56, 9, K.brick, K.roofG, 3.4); box(-191, 31, -131.9, 56, 10, K.brickD, K.roofD, 0); box(-191, 12.5, -139.2, 31, 10, K.brickD, K.roofD, 0);
+    box(-395, 17.5, -345, 68.8, 5.5, [0.66, 0.6, 0.5, 1], [0.78, 0.78, 0.77, 1], 2.7); // Linkins Center
+    for (const [x0, z0, x1, z1] of [[-406, 82, -363, 109], [-322, 34, -295, 79], [-369, -35, -325, -12.5]]) { // Wright, Haynie, Wilkins (about 13 floors)
+      const h = 40; P.wbox(x0, 0, z0, x1, h, z1, K.tower);
+      const lx = x1 - x0 > z1 - z0; // the long side runs along x
+      for (let i = 0; i < 9; i++) { const t = (i + 0.5) / 9; // vertical window strips on the long faces
+        if (lx) { const x = x0 + (x1 - x0) * t; P.wbox(x - 0.45, 3, z0 - 0.06, x + 0.45, h - 2, z0, K.towerD); P.wbox(x - 0.45, 3, z1, x + 0.45, h - 2, z1 + 0.06, K.towerD); }
+        else { const z = z0 + (z1 - z0) * t; P.wbox(x1, 3, z - 0.45, x1 + 0.06, h - 2, z + 0.45, K.towerD); P.wbox(x0 - 0.06, 3, z - 0.45, x0, h - 2, z + 0.45, K.towerD); } }
+      P.wbox(x0 - 0.06, 0, z0 - 0.06, x1 + 0.06, 3, z1 + 0.06, [0.25, 0.25, 0.27, 1]); // the glazed ground floor
+      P.wbox(x0 - 1.4, h, z0 - 1.4, x1 + 1.4, h + 1.6, z1 + 1.4, K.towerD); P.wbox(x0 + 4, h + 1.6, z0 + 4, x1 - 4, h + 4.6, z1 - 4, K.tower); // the dark cap, the penthouse
+      for (let k = 0; k < 6; k++) if (crand() < 0.6) { const y = 4 + ((crand() * 12) | 0) * 2.9; if (lx) { const x = x0 + (x1 - x0) * ((((crand() * 9) | 0) + 0.5) / 9); GL.wbox(x - 0.4, y, z0 - 0.08, x + 0.4, y + 1.3, z0 - 0.07, [0.6, 0.5, 0.3, 1]); }
+        else { const z = z0 + (z1 - z0) * ((((crand() * 9) | 0) + 0.5) / 9); GL.wbox(x1 + 0.07, y, z - 0.4, x1 + 0.08, y + 1.3, z + 0.4, [0.6, 0.5, 0.3, 1]); } }
+    }
+    // the lettering's own textured layer
+    if (typeof gl !== 'undefined' && gl && G && SW.n) {
+      const t = mkTex(hkWestCanvas(), false, false, 8); G.texs.push(t); const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, SW.f.subarray(0, SW.n * 12), gl.STATIC_DRAW); G.bufs.push(buf);
+      statics.push({ k: 'hkwsign', b: buf, n: SW.n, tex: t, cast: false, kind: 0, mat: [0.6, 0, 0, 0.15] });
+    }
+    return { top: yTop, back: xBack, signVerts: SW.n };
+  }
+  // ---------- Hancock Stadium: the bowl's dressing, the crowd's look, the light and the far skyline ----------
+  // (called from buildHancock in 14-hancock.js; everything here is Hancock-only and draws from crand, never rng)
+  //  - the sun where it really stands over Normal, Illinois (the field's +z is 1.74 deg west of true north), and the night sky of a
+  //    lit college town: near black overhead, a faint warm glow low down, few stars
+  //  - the crowd by section: a Redbird red-out (mostly red shirts, mixed per fan), the Red Alert student section standing in the
+  //    west bleachers north of the 50, the Big Red Marching Machine in black and red at the south end of the west side
+  //  - the field-level walls: the west wall red, the length of the bleachers, with white State Farm panels near both ends; red
+  //    State Farm panels at both ends of the east podium wall
+  //  - the team benches (the Redbirds on the east sideline, the visitors on the west)
+  //  - the far skyline: Watterson Towers (the two 28-storey dormitory towers, 91 m, about 950 yards east-south-east), drawn at a
+  //    third of their distance and a third of their size so they stand at the true bearing and the true angular size from the
+  //    field, inside the far plane; their rooms lit at night
+  if (HANCOCK) {
+    const hkSun = (az, el) => { const a = (az + 1.74) * Math.PI / 180, e = el * Math.PI / 180; return [Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)]; };
+    const clr = WXK === 'clear' || WXK === 'cloudy';
+    if (TOD !== 'night' && clr) { // early October: about 8:15 CDT, the 1:00 kickoff, 17:15 CDT (NOAA solar position for 40.51 N, 88.99 W)
+      SKY.L = TOD === 'morning' ? hkSun(108.8, 13.7) : TOD === 'sunset' ? hkSun(251.3, 13.3) : hkSun(196, 43.5);
+      const l = v3n(SKY.L); LDIR[0] = l[0]; LDIR[1] = l[1]; LDIR[2] = l[2];
+    }
+    if (TOD === 'night' && clr) { // the town's glow: near black overhead, warm and dim at the horizon; only the brightest stars
+      SKY.top = [0.002, 0.003, 0.007]; SKY.hor = [0.045, 0.038, 0.038]; SKY.fog = [0.012, 0.011, 0.012]; SKY.glow = 0.55;
+      SKX.on = true; SKX.star = 0.08; SKX.halo = [0, 0, 0]; SKX.band = [0, 0, 0]; SKX.disc = [0, 0, 0]; SKX.moon = 0;
+      const hl = SKY.hor.map((v) => v * (v * (v * 0.305306011 + 0.682171111) + 0.012522878)); SKX.horL = (hl[0] + hl[1] + hl[2]) / 3;
+      SKX.cloudD = hl.map((v) => v * 0.55); SKX.cloudL = hl.slice(); SKY.cloud = 0.2;
+    }
+  }
+  // the fans' clothes: [colour, weight]; picked per fan (crand) so a section is a speckle, not a block
+  const HKX_RED = [0.8, 0.06, 0.09, 1], HKX_RED2 = [0.6, 0.05, 0.08, 1], HKX_WHITE = [0.92, 0.92, 0.9, 1], HKX_BLACK = [0.09, 0.09, 0.1, 1], HKX_GREY = [0.45, 0.46, 0.5, 1];
+  const HKX_PAL = {
+    fans: [[HKX_RED, 0.58], [HKX_RED2, 0.13], [HKX_WHITE, 0.07], [HKX_BLACK, 0.08], [HKX_GREY, 0.06], [[0.13, 0.17, 0.3, 1], 0.03], [[0.55, 0.48, 0.36, 1], 0.025], [[0.25, 0.32, 0.45, 1], 0.025]],
+    students: [[HKX_RED, 0.62], [HKX_RED2, 0.1], [HKX_WHITE, 0.16], [HKX_BLACK, 0.08], [HKX_GREY, 0.04]],
+    band: [[HKX_BLACK, 0.55], [HKX_RED, 0.3], [HKX_WHITE, 0.15]],
+  };
+  const HKX_ZONE = { students: [55.7, 90], band: [3.5, 22] }; // west bleachers, between aisles (z); the band's end is not documented
+  function hkxPick(list) { let r = crand(); for (const [c, w] of list) { if (r < w) return c; r -= w; } return list[0][0]; }
+  // the look of the fan at (x, z) facing fx: colour, stand threshold (below 0 = always standing, above 1 = never), bob scale
+  function hkxFan(x, z, fx, sec) {
+    const west = fx > 0 && x < -38;
+    if (west && z > HKX_ZONE.students[0] && z < HKX_ZONE.students[1]) return { c: hkxPick(HKX_PAL.students), thr: crand() < 0.9 ? -1 : 0.2, amp: 1.7 };
+    if (west && z > HKX_ZONE.band[0] && z < HKX_ZONE.band[1]) return { c: hkxPick(HKX_PAL.band), thr: 2, amp: 0.5 };
+    return { c: hkxPick(HKX_PAL.fans), thr: 0.25 + crand() * 0.75, amp: 1 };
+  }
+  // the wall graphics (State Farm, the stadium's sponsor on its field walls): white panel, red lettering; red panel, white lettering
+  const HKXT = { sfW: [0, 128], sfR: [128, 256] };
+  function hkxSignCanvas() {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    const panel = (r, bg, fg) => { const [y0, y1] = r, cy = (y0 + y1) / 2; g.fillStyle = bg; g.fillRect(0, y0, 512, y1 - y0);
+      g.fillStyle = fg; g.beginPath(); for (const [dx, dy] of [[0, -14], [-13, 9], [13, 9]]) { g.moveTo(96 + dx + 13, cy + dy); g.ellipse(96 + dx, cy + dy, 13, 10, 0, 0, 6.2832); } g.fill(); // the three ovals
+      g.fillStyle = bg; g.beginPath(); for (const [dx, dy] of [[0, -14], [-13, 9], [13, 9]]) { g.moveTo(96 + dx + 6, cy + dy); g.ellipse(96 + dx, cy + dy, 6, 4, 0, 0, 6.2832); } g.fill();
+      g.fillStyle = fg; g.font = '700 58px Arial, Helvetica, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('State Farm', 128, cy + 3); };
+    panel(HKXT.sfW, '#f2f2f0', '#d62311'); panel(HKXT.sfR, '#c8102e', '#ffffff');
+    return c;
+  }
+  // Watterson Towers' facade (one face, one texture repeat): 28 floors of window bands in the sawtooth precast concrete, the
+  // full-height bays in shadow on one side; the top two floors a plain crown band
+  // (at night: dark concrete and the dorm rooms' lights, drawn emissive)
+  function hkxTowerCanvas(night) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = night ? '#0e0d0c' : '#cdbfa6'; g.fillRect(0, 0, 128, 512); // the light precast concrete
+    const fh = 480 / 28;
+    for (const [x0, x1] of [[10, 56], [72, 118]]) { // two bands of brown glazed bays either side of the stair core, full height
+      if (!night) { g.fillStyle = '#6b5d52'; g.fillRect(x0, 30, x1 - x0, 482); }
+      for (let f = 0; f < 28; f++) { const y = 32 + f * fh; for (let x = x0 + 2; x < x1 - 4; x += 9) {
+        g.fillStyle = !night ? '#35404c' : crand() < 0.4 ? (crand() < 0.75 ? '#e8c890' : '#b8c8e0') : '#060708'; g.fillRect(x, y + fh * 0.2, 6, fh * 0.6); } }
+      if (!night) for (let x = x0; x <= x1; x += 9) { g.fillStyle = 'rgba(230,222,205,0.5)'; g.fillRect(x, 30, 1.5, 482); } // the saw-tooth fins
+    }
+    if (!night) { g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(56, 30, 3, 482); g.fillRect(118, 30, 3, 482); }
+    return c;
+  }
+  // builds the dressing; P / GL the plain and glow batches, C the colours, (TW, TE, TS, TN) the turf's edge. The skyline is
+  // measured in the true-north frame and turned onto the field's axis here (turn), as spinOut does for the rest.
+  function hkxBuild(W, P, GL, C, TW, TE, TS, TN) {
+    const up = [0, 1, 0], white = [1, 1, 1, 1], XT = new Batch(200), TT = new Batch(40);
+    const SPIN = 1.74 * Math.PI / 180, sc = Math.cos(SPIN), sn = Math.sin(SPIN);
+    const turn = (x, z) => [x * sc + (z - 50) * sn, 50 + (z - 50) * sc - x * sn];
+    const panel = (key, pa, pb, y0, y1, n) => { const v0 = HKXT[key][0] / 256, v1 = HKXT[key][1] / 256;
+      XT.quad([pa[0], y0, pa[1]], [pb[0], y0, pb[1]], [pb[0], y1, pb[1]], [pa[0], y1, pa[1]], n, white, [0, v1, 1, v1, 1, v0, 0, v0]); };
+    // ---- the west wall: red, 1.3 yards, a light cap, the length of the bleachers (it ends with them); white State Farm panels ----
+    const WR = [0.7, 0.1, 0.08, 1], WRT = [0.66, 0.1, 0.08, 1], yw = 1.3;
+    P.quad([TW + 0.006, 0, -4], [TW + 0.006, 0, 99], [TW + 0.006, yw - 0.06, 99], [TW + 0.006, yw - 0.06, -4], [1, 0, 0], WR);
+    P.wbox(TW - 0.75, yw - 0.06, -4, TW + 0.02, yw, 99, WRT);
+    for (const z of [7, 92]) panel('sfW', [TW + 0.012, z - 2.25], [TW + 0.012, z + 2.25], 0.22, 1.1, [1, 0, 0]); // near both ends of the stand
+    // ---- the east podium wall: red State Farm panels at its ends (the wall itself is the east grandstand's) ----
+    for (const z of [3, 91]) panel('sfR', [TE - 0.012, z + 2.2], [TE - 0.012, z - 2.2], 0.15, 1.2, [-1, 0, 0]);
+    // ---- the far skyline: Watterson Towers (OSM way 1529269411: two 33-yard square towers, 91 m), true-north frame ----
+    { const R = 330, towers = [[787.5, -485.5], [836, -433]], H = 99.5, half = 17;
+      for (const [tx, tz] of towers) {
+        const dx = tx, dz = tz - 50, d = Math.hypot(dx, dz), k = R / d, cx = dx * k, cz = 50 + dz * k, h = H * k, s = half * k;
+        const q = [[cx - s, cz - s], [cx + s, cz - s], [cx + s, cz + s], [cx - s, cz + s]].map((p) => turn(p[0], p[1]));
+        const n0 = (a, b) => { const ex = b[0] - a[0], ez = b[1] - a[1], l = Math.hypot(ex, ez); return [ez / l, 0, -ex / l]; };
+        const nrm = (a, b) => { const ex = b[0] - a[0], ez = b[1] - a[1], l = Math.hypot(ex, ez); return [ez / l, 0, -ex / l]; };
+        for (let i = 0; i < 4; i++) { const a = q[i], b = q[(i + 1) % 4], n = nrm(a, b); // the face's outward normal
+          TT.quad([a[0], 0, a[1]], [b[0], 0, b[1]], [b[0], h, b[1]], [a[0], h, a[1]], n, white, [0, 1, 1, 1, 1, 0, 0, 0]);
+        }
+        for (const i of [0, 2]) { const p0 = q[i], p1 = q[(i + 1) % 4], f0 = 0.04, w = 0.07; // the tall pointed corner fins above the roof
+          const e = [p0[0] + (p1[0] - p0[0]) * f0, p0[1] + (p1[1] - p0[1]) * f0], e2 = [p0[0] + (p1[0] - p0[0]) * (f0 + w), p0[1] + (p1[1] - p0[1]) * (f0 + w)];
+          P.quad([e[0], h, e[1]], [e2[0], h, e2[1]], [e2[0], h * 1.07, e2[1]], [e[0], h * 1.1, e[1]], n0(p0, p1), [0.72, 0.68, 0.6, 1]); }
+        P.quad([q[0][0], h, q[0][1]], [q[3][0], h, q[3][1]], [q[2][0], h, q[2][1]], [q[1][0], h, q[1][1]], up, [0.5, 0.49, 0.47, 1]);
+        if (SKY.night) { const m = turn(cx, cz); GL.wbox(m[0] - 0.5, h, m[1] - 0.5, m[0] + 0.5, h + 0.9, m[1] + 0.5, [0.6, 0.02, 0.02, 1]); } // the red beacon
+      }
+      { const a = turn(787.5 * 330 / Math.hypot(787.5, -535.5), 50 - 535.5 * 330 / Math.hypot(787.5, -535.5)), b = turn(836 * 330 / Math.hypot(836, -483), 50 - 483 * 330 / Math.hypot(836, -483)); // the low link between them
+        P.wbox(Math.min(a[0], b[0]), 0, Math.min(a[1], b[1]), Math.max(a[0], b[0]), 3, Math.max(a[1], b[1]), [0.55, 0.52, 0.47, 1]); }
+    }
+    // ---- street lights (true-north frame): cobra heads on Main Street both sides and along College Avenue, the lots' poles ----
+    { const lamp = (x, z, hgt) => { const [a, b] = turn(x, z); P.wbox(a - 0.1, 0, b - 0.1, a + 0.1, hgt, b + 0.1, [0.32, 0.33, 0.35, 1]);
+        if (SKY.night) GL.wbox(a - 0.35, hgt - 0.12, b - 0.35, a + 0.35, hgt + 0.05, b + 0.35, [0.3, 0.24, 0.16, 1]); else P.wbox(a - 0.35, hgt - 0.12, b - 0.35, a + 0.35, hgt + 0.05, b + 0.35, [0.25, 0.26, 0.28, 1]); };
+      for (let z = -300; z < 390; z += 38) { lamp(129, z, 9); lamp(151, z + 19, 9); }
+      const cav = [[150, -128], [60, -160], [-23, -197], [-120, -228], [-217, -243], [-340, -252]];
+      for (let i = 0; i + 1 < cav.length; i++) { const [ax, az] = cav[i], [bx, bz] = cav[i + 1], l = Math.hypot(bx - ax, bz - az); for (let t = 0; t < l; t += 40) lamp(ax + (bx - ax) * t / l, az + (bz - az) * t / l + 7.5, 9); }
+      for (const [x0, z0, x1, z1] of [[156, 23, 228, 117], [158, -107, 223, -15], [-37, 147, 68, 258], [8, -288, 132, -158], [-141, -206, -74, -71]]) // the lots
+        for (let x = x0 + 12; x < x1; x += 36) for (let z = z0 + 14; z < z1; z += 40) lamp(x, z, 11); }
+    // the textured layers (their own statics, drawn like the stadium's seat rows)
+    if (typeof gl !== 'undefined' && gl && G) {
+      const add = (k, b, src, mat) => { if (!b.n) return; const t = mkTex(src, false, false, 8); G.texs.push(t); const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, b.f.subarray(0, b.n * 12), gl.STATIC_DRAW); G.bufs.push(buf);
+        statics.push({ k, b: buf, n: b.n, tex: t, cast: false, kind: 0, mat }); };
+      add('hkxsign', XT, hkxSignCanvas(), [0.6, 0, 0, 0.1]);
+      // the fans' sprite sheet laid out as the crowd shader reads it: one row of 48 cells (16 fans seated, the same 16 standing,
+      // the same 16 slumped; the shader adds a third of the width per state), so each fan shows one whole figure
+      if (G.crowdT && typeof crowdCanvas === 'function') {
+        const s0 = cs, src = crowdCanvas(); cs = s0;
+        const c = document.createElement('canvas'); c.width = 48 * 64; c.height = 128; const g2 = c.getContext('2d');
+        for (let st = 0; st < 3; st++) for (let k = 0; k < 16; k++) g2.drawImage(src, k * 96, st * 192, 96, 192, (st * 16 + k) * 64, 0, 64, 128);
+        G.crowdT = mkTex(c, false, false, 4); G.texs.push(G.crowdT);
+      }
+      add('hkxtower', TT, hkxTowerCanvas(!!SKY.night), [0.85, 0, 0, SKY.night ? 1.4 : 0]);
+    }
+    return { signs: XT.n, tower: TT.n };
   }
 
     // ---------- game state ----------
@@ -14788,7 +15806,7 @@ gl_FragColor=vec4(col,1.0);}`;
       disableAll(W);
       // crowd
       { const P = G.crowd; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uExcite, excite); gl.uniform1f(P.u.uWave, wave); gl.uniform1f(P.u.uMood, crowdMood); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]);
-        const dim = SKY.night ? 0.26 : 0.72; gl.uniform1f(P.u.uDim, dim); gl.uniform3f(P.u.uTint, SKY.amb[0] * 2.2 + 0.25, SKY.amb[1] * 2.2 + 0.25, SKY.amb[2] * 2.2 + 0.25);
+        const dim = SKY.night ? (HANCOCK ? 0.6 : 0.26) : 0.72; gl.uniform1f(P.u.uDim, dim); gl.uniform3f(P.u.uTint, SKY.amb[0] * 2.2 + 0.25, SKY.amb[1] * 2.2 + 0.25, SKY.amb[2] * 2.2 + 0.25);
         gl.uniform1i(P.u.uTex, 0); gl.bindTexture(gl.TEXTURE_2D, G.crowdT);
         gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 48, 0); gl.enableVertexAttribArray(P.a.aC); gl.vertexAttribPointer(P.a.aC, 3, gl.FLOAT, false, 48, 12); gl.enableVertexAttribArray(P.a.aM); gl.vertexAttribPointer(P.a.aM, 4, gl.FLOAT, false, 48, 24); gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 48, 40);
         gl.drawArrays(gl.TRIANGLES, 0, G.crowdN); DRAWS.n++; DRAWS.tris += G.crowdN / 3; disableAll(P); }

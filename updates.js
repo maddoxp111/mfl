@@ -453,6 +453,21 @@ const UPDATES = [
       'Still the real layout: red end zones, green stripes alternating every 5 yards, and solid red team areas from 25 to 25.',
     ],
   },
+  {
+    n: 42,
+    date: '2026-11-10',
+    title: 'Hancock Stadium rebuilt, as close to 1:1 as we can get',
+    items: [
+      'Hancock Stadium is rebuilt part by part from aerial imagery, building plans and hundreds of real photos, and checked side by side with them from the same spots.',
+      'The field: the real Redbird at midfield, REDBIRDS in both end zones, State Farm on the 25s, and the real stripes, numbers and red team areas.',
+      'East side: the 2013 grandstand with its 8 red chair-back sections, the tunnels, the club seats and glass, the press box with ILLINOIS STATE UNIVERSITY REDBIRDS, the canopy light bank, and the brick front on Main Street with its arch and HANCOCK STADIUM.',
+      'West side: 32 rows of aluminium bleachers with five red tunnels, the old press box on top, Horton Field House\'s white roof behind it, and the South Campus towers.',
+      'North end: the new 2026 video board on its posts (JAY & LORI BERGMAN FIELD on top; it shows the game), the black windscreen and pines, the Kaufman Football Building, and the white indoor practice dome.',
+      'South end: the Touchdown Terrace berm and tent in their real spot, the small scoring tower, the camera tower and fences, plus all the light poles where they really stand.',
+      'The crowd: a Redbird red-out. The student section stands and bounces in the west bleachers, and the band sits to the south of them.',
+      'Lighting: the real sun position for a fall game at Hancock, and a dark night sky under the lights. You can also see Watterson Towers, the water tower and Redbird Arena.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
