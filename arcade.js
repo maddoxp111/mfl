@@ -1026,7 +1026,7 @@ module.exports = function arcade(app, h) {
     console.log('arcade fix', FLAG, ok ? `uncashed ${m.id} (run step ${m.run.step})` : 'no matching game');
     return true;
   }
-  const fixAll = async () => (await fixQuitRun()) && (await fixUncash()) && (await fixQuitRun('dod-quit-2026-11-09e', '2026-11-09T04:40:00Z')) && (await fixUncashAuto());
+  const fixAll = async () => (await fixQuitRun()) && (await fixUncash()) && (await fixQuitRun('dod-quit-2026-11-09e', '2026-11-09T04:40:00Z')) && (await fixUncashAuto()) && (await fixQuitRun('dod-quit-2026-11-10b', '2026-11-10T03:00:00Z')); // (fifth, Nov 10: game 3, left in progress, voided so the run is back at the choice after game 2)
   let fixTries = 0;
   const fixLoop = async () => { let done = false; try { done = await fixAll(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
   setTimeout(fixLoop, 8000);
