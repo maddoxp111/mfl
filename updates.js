@@ -408,6 +408,15 @@ const UPDATES = [
       'The normal-size Metcalf field is unchanged: still 7 on 7, and nobody rushes until 7 banana.',
     ],
   },
+  {
+    n: 38,
+    date: '2026-11-10',
+    title: 'Runs wait for you',
+    items: [
+      'A Double or Nothing or Double or Double run that is waiting on your choice (cash out or play on) now stays waiting while you play other games. Playing a coins game in between no longer cashes it out.',
+      'Pick it back up any time on the 3D Blitz page with "Decide now".',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

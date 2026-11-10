@@ -122,7 +122,8 @@ function cutOffByRestart(user, m) {
   }
   return true;
 }
-// a won step whose choice was never made is cashed out when the player starts anything else: nobody loses coins by walking away
+// (no longer called: a run waiting on its cash-out / play-on choice stays waiting while you play anything else, Nov 10; kept for
+// reference) a won step whose choice was never made used to be cashed out when the player started anything else
 function settlePending(user) {
   let n = 0;
   for (const m of user.arcade || []) if (m.run && m.run.pending && m.status === 'won') { m.payout = m.run.cash; m.run.pending = false; m.run.cashedOut = true; m.run.auto = true; n++; }
@@ -516,7 +517,7 @@ module.exports = function arcade(app, h) {
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule). A live Head to Head
       // match (m.versus) is settled by versus.js, not here.
       for (const m of user.arcade) if (m.status === 'open' && !m.versus && m.game !== 'blackjack' && !cutOffByRestart(user, m)) { m.status = 'lost'; m.forfeit = true; } // a Blackjack hand is never forfeited (blackjack.js)
-      settlePending(user);
+      // a run waiting on its choice (cash out or play on) stays waiting: playing something else in between never ends it
       const step = runMode ? runFirst(runMode, level) : null;
       const stake = runMode ? step.charge : risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line; a run's risk is never capped by the balance
       if (stake && !runMode) {
@@ -1008,7 +1009,24 @@ module.exports = function arcade(app, h) {
     return true;
   }
   // Third (Nov 9): the game 5 he played on after that (10:46 PM, Metcalf defense still too hard) is refunded the same way.
-  const fixAll = async () => (await fixQuitRun()) && (await fixUncash()) && (await fixQuitRun('dod-quit-2026-11-09e', '2026-11-09T04:40:00Z'));
+  // Fourth (Nov 10): a coins game started while his Double or Double run waited on its choice auto-cashed the run (the old rule,
+  // now gone); undo that cash-out so the choice is waiting again.
+  async function fixUncashAuto(FLAG = 'dod-uncash-auto-2026-11-10', SINCE = '2026-11-09T20:00:00Z') {
+    const name = 'mpedon';
+    const user = await getDoc(userKey(name), { fresh: true });
+    if (!user || !Array.isArray(user.arcade)) return false;
+    if (user.fixes && user.fixes[FLAG]) return true;
+    const m = user.arcade.filter((x) => x.game === 'blitz3d' && x.run && x.status === 'won' && x.run.cashedOut && x.run.auto && Date.parse(x.at) > Date.parse(SINCE))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+    const later = m ? user.arcade.filter((x) => x.run && x.run.id === m.run.id && x.run.step > m.run.step && x.status !== 'void') : [];
+    const ok = m && !later.length;
+    if (ok) { m.payout = 0; m.run.cashedOut = false; m.run.pending = true; m.run.rolled = false; delete m.run.auto; m.uncashed = { at: new Date().toISOString() }; }
+    user.fixes = Object.assign({}, user.fixes, { [FLAG]: ok ? { id: m.id, step: m.run.step, at: new Date().toISOString() } : { none: true, at: new Date().toISOString() } });
+    await putDoc(userKey(name), user);
+    console.log('arcade fix', FLAG, ok ? `uncashed ${m.id} (run step ${m.run.step})` : 'no matching game');
+    return true;
+  }
+  const fixAll = async () => (await fixQuitRun()) && (await fixUncash()) && (await fixQuitRun('dod-quit-2026-11-09e', '2026-11-09T04:40:00Z')) && (await fixUncashAuto());
   let fixTries = 0;
   const fixLoop = async () => { let done = false; try { done = await fixAll(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
   setTimeout(fixLoop, 8000);
