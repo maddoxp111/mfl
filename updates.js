@@ -393,7 +393,7 @@ const UPDATES = [
     date: '2026-11-10',
     title: '3D Blitz: Xavier\'s dance',
     items: [
-      'When Xavier Davenport scores a touchdown, he always does his own dance, and it lasts a full 7 seconds.',
+      'When Xavier Davenport scores a touchdown, he always does his own dance, and it lasts a full 7 seconds. Knees bent, bouncing, and his ankles stay together the whole time.',
       'A few times a game, when the clock is stopped, he just starts dancing. The camera pans to him: "what is he doing?" A second later: "why is he kinda saucy with it tho 😯".',
       'You can skip it after 3 seconds. Otherwise it runs 10 seconds, then the game picks up right where it left off.',
     ],

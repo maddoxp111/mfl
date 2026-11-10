@@ -1256,16 +1256,20 @@ gl_FragColor=vec4(c,1.0);}`;
       [1, gfit(pb({ shR: [0.6, 0, 1.4], elR: [0.4], shL: [0.6, 0, -1.4], elL: [0.4], spine: [-0.1, 0, 0], neck: [-0.35, 0, 0], hipL: [0.15, 0, -0.25], hipR: [0.15, 0, 0.25], knL: [-0.3], knR: [-0.3] }, -0.05, -0.05, 0))],
     ]);
     if (k === 2) return gfit(pb({ shR: [0.3, 0, 2.95], elR: [0.1], shL: [0.9, 0, -0.5], elL: [1.9], spine: [-0.2, 0, 0.1], neck: [-0.7, 0, 0], head: [-0.3, 0, 0], hipL: [0.1, 0, -0.2], hipR: [0.1, 0, 0.2], knL: [-0.25], knR: [-0.25] }, 0, -0.1, 0.05));
-    if (k === 6) { // Xavier's dance (from his own video): a 1.35 s groove, knees bent and bouncing, hips and shoulders rolling side
-      // to side against each other, one knee popping in, arms hanging low and swinging across the front of his body
+    if (k === 6) { // Xavier's dance (from his own video): a 1.35 s groove, knees bent and bouncing, one knee popping forward at a
+      // time (that heel comes up), hips and shoulders rolling against each other, arms hanging low and swinging across the front of
+      // his body. His ankles stay together the whole time: both legs pulled in to meet under him, each foot kept right under its
+      // hip (knee bend = twice the hip bend), no side tilt of the body that would lift a foot away from the other
       const ph = t * 2 * Math.PI / 1.35, s = Math.sin(ph), a = Math.max(0, s), b = Math.max(0, -s), dip = 0.5 - 0.5 * Math.cos(2 * ph);
+      // (tuned by measuring the joints over the whole cycle: the ankles stay 9-12 cm apart centre to centre, i.e. touching, the
+      // knees about 18 cm apart, and the popping heel comes up under 5 cm)
+      const hL = 0.36 + 0.12 * a + 0.1 * dip, hR = 0.36 + 0.12 * b + 0.1 * dip;
       return gfit(pb({
-        hipL: [0.42 + 0.3 * a + 0.12 * dip, 0, -0.04 + 0.2 * a], hipR: [0.42 + 0.3 * b + 0.12 * dip, 0, 0.04 - 0.2 * b],
-        knL: [-0.72 - 0.45 * a - 0.2 * dip], knR: [-0.72 - 0.45 * b - 0.2 * dip], ftL: [0.2 + 0.2 * a], ftR: [0.2 + 0.2 * b],
+        hipL: [hL, 0, 0.12], hipR: [hR, 0, -0.12], knL: [-1.8 * hL], knR: [-1.8 * hR], ftL: [0.8 * hL + 0.25 * a], ftR: [0.8 * hR + 0.25 * b],
         shR: [0.25 + 0.55 * a, 0, 0.18 - 0.75 * a + 0.2 * b], elR: [0.35 + 0.35 * a], haR: [0.5],
         shL: [0.25 + 0.55 * b, 0, -0.18 + 0.75 * b - 0.2 * a], elL: [0.35 + 0.35 * b], haL: [0.5],
         spine: [0.2 + 0.06 * dip, -0.3 * s, 0.14 * s], chest: [0, -0.15 * s, 0.06 * s], neck: [-0.22, 0.32 * s, -0.12 * s], head: [-0.05, 0.08 * s, 0],
-      }, 0, 0.1, -0.07 * s, 0.26 * s)); }
+      }, 0, 0.1, 0, 0.22 * s)); }
     if (k === 4) { const s = Math.sin(t * 7.5), c = Math.cos(t * 7.5); return gfit(pb({ shR: [1.3 + 0.9 * s, 0, 0.9], elR: [1.3 + 0.6 * c], shL: [1.3 - 0.9 * s, 0, -0.9], elL: [1.3 - 0.6 * c], spine: [0.08, 0, 0.22 * s], neck: [-0.25, 0, -0.2 * s], hipL: [0.35 + 0.3 * s, 0, -0.2], hipR: [0.35 - 0.3 * s, 0, 0.2], knL: [-0.6 - 0.4 * s], knR: [-0.6 + 0.4 * s] }, 0, 0.05, 0.12 * s), 0.07 * Math.abs(c)); } // the dance
     if (k === 3) return gfit(pb({ shR: [0.4, 0, 1.7 + 0.1 * w], elR: [2.4], shL: [0.4, 0, -1.7 - 0.1 * w], elL: [2.4], spine: [0.2, 0, 0], neck: [-0.2, 0, 0], hipL: [0.5, 0, -0.3], hipR: [0.5, 0, 0.3], knL: [-0.7], knR: [-0.7] }, 0, 0.1, 0));
     return gfit(pb({ shR: [2.7 + 0.25 * w, 0, 0.5], elR: [0.35], shL: [2.7 - 0.25 * w, 0, -0.5], elL: [0.35], spine: [-0.1, 0, 0], neck: [-0.4, 0, 0], hipL: [0.3 - 0.2 * hop, 0, -0.15], hipR: [0.3 - 0.2 * hop, 0, 0.15], knL: [-0.5 + 0.3 * hop], knR: [-0.5 + 0.3 * hop] }, 0, -0.05, 0), 0.14 * hop);
@@ -7631,7 +7635,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (p.look) { const hm = bones[B.head], g = v3s(p.look, [hm[3], hm[7] + 0.18 * hs, hm[11]]); p.gaze = v3n(g); } else { p.gaze = [Math.sin(p.h), -0.05, Math.cos(p.h)]; }
         // towel sway from lateral motion and stride
         { const lat = p.vx * Math.cos(p.h) - p.vz * Math.sin(p.h), sp = Math.hypot(p.vx, p.vz); p.sway = clamp(-lat * 0.035, -0.3, 0.3) + 0.09 * Math.sin(p.ph) * Math.min(1, sp / 6); }
-        if ((!one || loco || clip === 'throw') && clip !== 'jump' && clip !== 'hurdle' && clip !== 'dive' && clip !== 'slide' && clip !== 'kick' && clip !== 'getup' && p.jumpY < 0.02 && !p.extra) footLock(p, bones, dt, loco ? an.g.yaw : 0, loco ? an.g : null);
+        if ((!one || loco || clip === 'throw') && clip !== 'jump' && clip !== 'hurdle' && clip !== 'dive' && clip !== 'slide' && clip !== 'kick' && clip !== 'getup' && p.jumpY < 0.02 && !p.extra && !(clip === 'celebrate' && p.celType === 6)) footLock(p, bones, dt, loco ? an.g.yaw : 0, loco ? an.g : null);
         if (clip === 'hk') { // hands on the knees
           for (const sd of [-1, 1]) { const km = bones[sd < 0 ? B.knL : B.knR]; armIK(bones, sd, [km[3] + km[2] * 0.06 * hs, km[7] + 0.1 * hs, km[11] + km[10] * 0.06 * hs], hs); }
         }
