@@ -365,6 +365,19 @@ const UPDATES = [
       'Blackjack hands show in your coin history and on the Earn coins page. They do not count toward daily challenges or the Arcade Champ Pack.',
     ],
   },
+  {
+    n: 34,
+    date: '2026-11-10',
+    title: '3D Blitz: more time to throw',
+    items: [
+      'Passing is easier in all of 3D Blitz, at the stadium and at Metcalf. The CPU defense is still there, just a step slower.',
+      'The pass rush takes longer to get off blocks and wins fewer hand fights, and edge rushers have a harder time turning the corner. On All-Pro you get about half a second more before the pressure arrives.',
+      'The stadium defense blitzes less often.',
+      'Defenders trail receivers a little more and break on the ball a little later, so receivers come open a bit more. Hall of Fame and All-Pro ease up the most.',
+      'Throws into a crowd still get picked. In testing, the same throws were picked off less often than before.',
+      'When you play defense, your own defenders are unchanged.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

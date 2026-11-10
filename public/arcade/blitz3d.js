@@ -2138,6 +2138,12 @@ gl_FragColor=vec4(c,1.0);}`;
     const CLEATS = { black: hex('#111318'), white: hex('#f2f4f7'), team: TEAM, gold: hex('#ffc21a'), red: hex('#d81f2a') };
     const KDEF = clamp(Math.pow(DIFF, 0.8) * 0.8 + (AWAY.ovrDef - 62) / 250 + 0.05, 0, 1.12);
     const DP = defParams(KDEF);
+    // Passing is a notch easier everywhere (stadium and Metcalf, every level, more so the higher it is): the CPU's rushers take
+    // longer to get off their blocks and win fewer hand fights (KRUSH), it sends fewer blitzes, and its coverage trails a touch
+    // more, breaks on the throw a touch later and squeezes its zones a touch less. Your own defenders (DP_HOME) are not touched.
+    const KPE = clamp(KDEF, 0, 1), KRUSH = KDEF * 0.7, kRush = () => (DEFP.on ? KDEF : KRUSH);
+    DP.shedPass *= 1.12 + 0.3 * KPE; if (VN.world !== 'metcalf') DP.blitz *= 0.7; // (Metcalf: nobody rushes before 7 banana, a blitzer is one fewer in coverage)
+    DP.lag *= 1.08 + 0.2 * KPE; DP.react *= 1.06 + 0.14 * KPE; DP.zoneTight *= 0.95 - 0.05 * KPE;
 
     // ---------- the user's roster ----------
     // Two shapes arrive: the 11-player Lineup (pos QB, RB, WR1-3, TE, UTIL1-2, OL1-3 with ratings in `r`) and the older lists
@@ -8179,16 +8185,18 @@ gl_FragColor=vec4(col,1.0);}`;
       let vx = gx * give, vz = gz * give, bk = 0.97;
       if (d.rm === 'speed') {
         // around the edge: the pair runs the arc (back and out), and the race for the corner decides it
-        const side = Math.sign(d.x - qb.x) || 1, ax = qb.x + side * 1.5 - d.x, az = qb.z - 0.8 - d.z, al = Math.hypot(ax, az) || 1, sp = 2.6 + (d.agi - 50) * 0.03;
+        // (the CPU's edge rusher, eased: a wider, deeper arc that carries him behind the QB unless he wins the corner, run a bit slower
+        // with the tackle riding him, and the corner is a longer race)
+        const pe = DEFP.on ? 0 : 1, side = Math.sign(d.x - qb.x) || 1, ax = qb.x + side * (1.5 + 0.5 * pe) - d.x, az = qb.z - 0.8 - 1.2 * pe - d.z, al = Math.hypot(ax, az) || 1, sp = (2.6 + (d.agi - 50) * 0.03) * (1 - 0.12 * pe);
         vx = ax / al * sp; vz = az / al * sp;
         // (linemen are slower than ends by nature: the race is quickness over what a lineman is expected to have)
-        d.cor += dt * ((((d.agi - b.agi - 15) + ((d.spd || 60) - (b.spd || 50) - 15) * 0.5) / 50) + (rng() - 0.45) * 0.9 + (KDEF - 0.5) * 0.25) * hk;
+        d.cor += dt * ((((d.agi - b.agi - 15) + ((d.spd || 60) - (b.spd || 50) - 15) * 0.5) / 50) + (rng() - 0.45) * 0.9 + (kRush() - 0.5) * 0.25) * hk * (1 - 0.42 * pe);
         bk = 1 - clamp(d.cor, 0, 1) * 0.3; // the tackle falls a step behind as he loses it
         if (d.cor > 1) { beatBlock(d, b, 'edge'); return; }
         if (d.cor < -0.9 || d.z < qb.z - 0.5) { d.rm = 'bull'; d.cor = 0; } // run past the pocket: he has to come back inside with power
       } else if (d.rm !== 'bull' && d.engT >= d.rmT) {
         // the hands: a swim over or a rip under, by quickness against the blocker's feet
-        const p = clamp(0.04 + (d.agi - b.agi - 12) / 80 + (d.str - b.str) / 250 + (KDEF - 0.5) * 0.16 - d.rmN * 0.04 + (mDef() ? 0.05 + 0.1 * mdK() : 0), 0.03, 0.6) * (dbl ? 0.35 : 1);
+        const p = clamp(0.04 + (d.agi - b.agi - 12) / 80 + (d.str - b.str) / 250 + (kRush() - 0.5) * 0.16 - d.rmN * 0.04 + (mDef() ? 0.05 + 0.1 * mdK() : 0), 0.03, 0.6) * (dbl ? 0.35 : 1);
         if (rng() < p) { beatBlock(d, b, d.rm); return; }
         d.rmN++; d.rmT = d.engT + 0.65 + rng() * 0.7; if (d.rmN >= 2) d.rm = 'bull'; // stuffed: reset, then try to walk him back
       }
