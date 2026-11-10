@@ -8069,14 +8069,24 @@ gl_FragColor=vec4(col,1.0);}`;
     const brace = (p, nx, nz) => (p.mass || 1) * (0.8 + (p.str || 60) / 250) * (p.rising > 0 || p.stun > 0 ? 0.25 : 1) * (p.vx * nx + p.vz * nz > 1 ? 1.15 : 1);
     function collide() {
       const n = everyone.length;
+      // a pass in the air: no pass interference. A defender can play the ball, but he can't body a receiver off his line to it:
+      // they slide past each other (a smaller contact circle), the defender gives all the ground, and the receiver keeps his speed.
+      const pi = ball && ball.kind === 'pass' && ball.st === 'air' && !ball.holder && phase === 'live';
       for (let i = 0; i < n; i++) {
         const a = everyone[i]; if (a.rag) continue;
         for (let j = i + 1; j < n; j++) {
           const b = everyone[j]; if (b.rag) continue;
           if (a.side !== b.side && ((a.mv === 'hurdle' && a.jumpY > 0.3) || (b.mv === 'hurdle' && b.jumpY > 0.3))) continue; // a hurdler is in the air over him
-          const dx = a.x - b.x, dz = a.z - b.z, rr = (a.rad + b.rad) * (a.side === b.side ? 0.74 : a.eng === b ? 1 : 0.9), d2 = dx * dx + dz * dz;
+          const rcv = pi && a.side !== b.side && a.eng !== b ? (isRec(a) ? a : isRec(b) ? b : null) : null;
+          const dx = a.x - b.x, dz = a.z - b.z, rr = (a.rad + b.rad) * (a.side === b.side ? 0.74 : a.eng === b ? 1 : 0.9) * (rcv ? 0.6 : 1), d2 = dx * dx + dz * dz;
           if (d2 >= rr * rr || d2 < 1e-6) continue;
           const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, pen = rr - d;
+          if (rcv) { // the defender moves out of his way and loses whatever speed he had into the receiver; the receiver is untouched
+            const df = rcv === a ? b : a, s = df === a ? 1 : -1;
+            df.x += nx * pen * s; df.z += nz * pen * s;
+            const into = -(df.vx * nx + df.vz * nz) * s; if (into > 0) { df.vx += nx * into * s; df.vz += nz * into * s; }
+            continue;
+          }
           const ma = brace(a, -nx, -nz), mb = brace(b, nx, nz), wa = mb / (ma + mb), wb = ma / (ma + mb); // the braced, heavier body gives less ground
           a.x += nx * pen * wa; a.z += nz * pen * wa; b.x -= nx * pen * wb; b.z -= nz * pen * wb;
           if (a.eng !== b) { // bodies bump: trade momentum along the contact, rub off a little across it

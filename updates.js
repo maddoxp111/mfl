@@ -378,6 +378,16 @@ const UPDATES = [
       'When you play defense, your own defenders are unchanged.',
     ],
   },
+  {
+    n: 35,
+    date: '2026-11-10',
+    title: '3D Blitz: no more pass interference',
+    items: [
+      'Once the ball is in the air, defenders can no longer block your receiver and stop him from getting to the ball.',
+      'Defenders can still play the ball, jump for it and pick it off, but they have to go around your receiver, not through him.',
+      'Your receiver keeps his speed all the way to the catch. This works the same at the stadium and at Metcalf, and when you are the one on defense.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
