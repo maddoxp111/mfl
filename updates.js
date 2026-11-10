@@ -430,6 +430,19 @@ const UPDATES = [
       'Every time of day and weather works there. The usual look is a clear night under the lights.',
     ],
   },
+  {
+    n: 40,
+    date: '2026-11-10',
+    title: 'Continue your Double game, no rage quits',
+    items: [
+      'If you leave a Double or Nothing or Double or Double game in the middle (close the tab, refresh, your phone kills the app, a site update), the 3D Blitz page shows "Continue game N". It picks up right where you left off: score, clock, down, distance, timeouts and stats.',
+      'Playing other Arcade games in between doesn\'t end it. Starting a new run does, and it asks you first. A game stays saved for 7 days, and time away doesn\'t count toward the time limit.',
+      'No rage quits: if you leave during a play, that play finishes without you, with nobody on the controls. A pick is still a pick and an incompletion is still an incompletion.',
+      'If the page gets cut off before it can finish the play, the play counts the worst way: a ball in the air is intercepted, and anything else is no gain with the down used. Leaving during one of your defensive snaps gives the CPU a first down.',
+      'A quit during the CPU\'s drive can\'t re-roll it: you get the same result when you continue.',
+      'In a run game the ✕ button now says FORFEIT?, because quitting that way is still a loss.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

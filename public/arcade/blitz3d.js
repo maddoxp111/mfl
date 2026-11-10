@@ -266,7 +266,9 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
     let h = 2166136261 >>> 0; const s = String(seed);
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     let a = h >>> 0;
-    return function () { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const f = function () { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    f.st = (v) => { if (v != null) a = v >>> 0; return a; }; // its state, for a game saved and picked up again (78-resume.js)
+    return f;
   }
   const HW = 26.65, ORD = ['', '1st', '2nd', '3rd', '4th'];
   let crand = (() => { let s = 7; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); })(); // cosmetic randomness; each game swaps in its own
@@ -14231,6 +14233,239 @@ gl_FragColor=vec4(col,1.0);}`;
     function vsCoins() { const e = root.querySelector('.bz-vscoins'); if (e) e.innerHTML = vsCoinsTxt(); }
     if (VS) vsInit();
 
+    // ---------- a run game you can come back to, with no do-overs ----------
+    // A game of a Double or Nothing / Double or Double run (opts.rsm, handed in by the Arcade page) can be continued after the page
+    // is closed, reloaded or killed, or the server restarts. At every stable point between plays the game takes a save: the whole
+    // situation (score, clock, down and distance, the spot, possession, timeouts, overtime, the box score, the drive, drama, film
+    // study and perk state, both random streams) and what comes next (go: the step that starts the next part of the game, run
+    // again on resume). A save goes to the server only when something was decided since the last one sent (a play's result, a
+    // pick, a timeout): everything in between follows from that save with no input, so a resumed game replays it the same way.
+    // No do-overs: at every snap (and when the pass is thrown, a kick goes up, a kickoff or onside kick is in the air) a save goes
+    // out with that play already settled against you (a ball in the air is picked off where it was going, anything else is no
+    // gain with the down used and the clock run, a kick misses, a return is downed short, the CPU's play on a live defensive snap
+    // gets its first down or, goal to go, scores). If the page goes away during a live play (hidden, closed, reloaded) the rest
+    // of the play runs at once with nobody on the controls, exactly as if you had let go, and its real result is saved and sent
+    // with a beacon in place of the settled one. Only when the app is killed before it can do that does the settled one stand.
+    const RSO = opts.rsm && typeof opts.rsm.save === 'function' && !VS ? opts.rsm : null;
+    const RS = { on: !!RSO, n: RSO ? RSO.seq | 0 : 0, res: null, last: null, dirty: true, quiet: false, q: null, busy: null, hidden: false, ff: false, gone: false, cpuSnap: null, defSnap: null };
+    const RS_MAX = 90000; // the server takes up to 96 KB a save
+    if (RSO && RSO.resume && typeof RSO.resume === 'object' && RSO.resume.v === 1 && RSO.resume.go) RS.res = RSO.resume;
+    // the venue a save belongs to: a save is only ever resumed into the same field and rules
+    const rsmV = () => ({ venue: VN0.id, big: !!MOPT.big, touch: !!MOPT.touch, crowd: !!MOPT.crowd });
+    const rsmIsP = (x) => !!(x && typeof x === 'object' && x.an && x.role && x.side != null);
+    // a plain copy (players, page elements, typed arrays and functions left out); omit: top-level keys to leave out
+    function rsmPl(v, omit) {
+      if (v == null || typeof v !== 'object') return v;
+      return JSON.parse(JSON.stringify(v, function (k, x) {
+        if (this === v && omit && omit.indexOf(k) >= 0) return undefined;
+        if (typeof x === 'function') return undefined;
+        if (x && typeof x === 'object' && (rsmIsP(x) || x.nodeType || ArrayBuffer.isView(x))) return undefined;
+        return x;
+      }));
+    }
+    // copy a save's object back over the live one: the same keys and values, except what was left out (omit) stays as it is
+    function rsmPut(t, s, omit) {
+      if (!t || !s || typeof s !== 'object') return;
+      for (const k of Object.keys(t)) if (!(k in s) && !(omit && omit.indexOf(k) >= 0)) delete t[k];
+      for (const k of Object.keys(s)) {
+        const a = t[k], b = s[k];
+        if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b) && !rsmIsP(a)) rsmPut(a, b);
+        else t[k] = b;
+      }
+    }
+    const RS_OMIT = { PK: ['list', 'ev', 'splats'], STAR: ['list', 'ev', 'thr'], DEFP: ['on', 'flipped', 'ctl', 'manT', 'call', 'st', 'cd', 'res', 'brain', 'dp0'] };
+    function rsmObjs() {
+      return { TS: rsmPl(TS), CPUS: rsmPl(CPUS), ST: rsmPl(ST), HL: HL.slice(), DRAMA: rsmPl(DRAMA), FILM: rsmPl(FILM), DBOOK: rsmPl(DBOOK), FUN: rsmPl(FUN),
+        PK: rsmPl(PK, RS_OMIT.PK), STAR: rsmPl(STAR, RS_OMIT.STAR), MDS: rsmPl(MDS), DEFP: rsmPl(DEFP, RS_OMIT.DEFP), XD: { n: XD.n, last: XD.last, r: XD.r },
+        PULSE: { v: PULSE.v, e: PULSE.e, tier: PULSE.tier } };
+    }
+    function rsmTake(go, live) {
+      return { v: 1, n: 0, go, live: live || null, V: rsmV(), r: rng.st(), c: cs,
+        S: { qtr, clock, hs, as, los, down, fdz, flip, tryMode, lastCat, runoff, clockRun, toLeft, recv2, otLeft, suddenDeath, driveStart, drivePlays, poss, go4, LP, lastPts,
+          play: play ? play.id : null, hot: Object.assign({}, hot), hist: rsmPl(hist), warned: warned.slice() },
+        O: rsmObjs() };
+    }
+    function rsmRestore(s) {
+      const S = s.S, O = s.O;
+      ({ qtr, clock, hs, as, los, down, fdz, flip, tryMode, lastCat, runoff, clockRun, toLeft, recv2, otLeft, suddenDeath, driveStart, drivePlays, poss, go4, LP, lastPts } = S);
+      play = PLAYS.find((p) => p.id === S.play) || play; hot = Object.assign({}, S.hot); hist = S.hist || []; warned = S.warned || [false, false];
+      for (const [t, k] of [[TS, 'TS'], [CPUS, 'CPUS'], [ST, 'ST'], [DRAMA, 'DRAMA'], [FILM, 'FILM'], [DBOOK, 'DBOOK'], [FUN, 'FUN'], [PK, 'PK'], [STAR, 'STAR'], [MDS, 'MDS'], [DEFP, 'DEFP']]) rsmPut(t, O[k], RS_OMIT[k]);
+      HL.length = 0; HL.push(...(O.HL || []));
+      Object.assign(XD, O.XD || {}); Object.assign(PULSE, O.PULSE || {});
+      rng.st(s.r); cs = s.c;
+      boardDirty = true; bugCache = '';
+    }
+    // ---------- sending ----------
+    // one save in flight at a time, and only the newest one waits behind it; a failed one is tried again (unless a newer one has
+    // come along). When the page is going away the newest goes out at once with a beacon.
+    function rsmPost(s) {
+      if (!RS.on || RS.gone) return;
+      if (RS.quiet) { s.n = RS.n; RS.last = s; return; }
+      s.n = ++RS.n; s.at = Date.now(); RS.last = s; RS.dirty = false;
+      if (DBG && DBG.rsmTap) DBG.rsmTap(s, true); // tests
+      let body = JSON.stringify(s);
+      if (body.length > RS_MAX) { for (const k of ['FILM', 'DRAMA', 'FUN', 'PK', 'DEFP']) if (s.O[k] && Array.isArray(s.O[k].log)) s.O[k].log = s.O[k].log.slice(-12); body = JSON.stringify(s); }
+      if (body.length > RS_MAX) return;
+      RS.q = { n: s.n, body, live: s.live };
+      if (RS.hidden) rsmBeacon(); else rsmPump();
+    }
+    function rsmPump() {
+      if (RS.busy || !RS.q || RS.gone) return;
+      const q = RS.busy = RS.q; RS.q = null;
+      const done = (ok) => {
+        RS.busy = null;
+        if (ok === 'gone') { RS.gone = true; return; } // the game is over on the server (finished, or forfeited elsewhere)
+        if (!ok) { if (!RS.q) RS.q = q; setTimeout(rsmPump, 2500); } else rsmPump();
+      };
+      let r; try { r = RSO.save(q.body, { seq: q.n, live: q.live, beacon: false }); } catch (e) { r = false; }
+      if (r && typeof r.then === 'function') r.then(done, () => done(false)); else done(r);
+    }
+    function rsmBeacon() {
+      const q = RS.q || RS.busy; if (!q || RS.gone) return;
+      try { RSO.save(q.body, { seq: q.n, live: q.live, beacon: true }); } catch (e) {}
+    }
+    // a stable point: take the save, and send it if something was decided since the last one (force: a play's result)
+    function rsmSave(go, force) {
+      if (!RS.on || finished) return null;
+      const s = rsmTake(go);
+      if (force || RS.dirty) rsmPost(s); else { s.n = RS.n; RS.last = s; if (DBG && DBG.rsmTap) DBG.rsmTap(s, false); }
+      return s;
+    }
+    const rsmClone = (s) => JSON.parse(JSON.stringify(s));
+    // the save just taken, with a decision written into it (the drive plan, the call on a live defensive snap)
+    function rsmAmend(s, add) { const c = rsmClone(s); Object.assign(c.go, add); rsmPost(c); return c; }
+    // ---------- the play settled against you: sent at the snap, and again at each point the play can't be taken back ----------
+    const rsmCpuAt = (z) => clamp(Math.round(FL - z), 1, FL - 1);
+    function rsmSt(st) { return st ? Object.assign(rsmPl(st, ['arch']), { arch: st.arch ? st.arch.id : null }) : null; }
+    function rsmHarsh(kind) {
+      if (!RS.on || finished || RS.gone) return;
+      const s = rsmTake(null, kind), S = s.S, O = s.O, PS = QS / 120;
+      const run = (secs) => { if (S.tryMode || S.clock <= 0) return; S.clock = Math.max(0, S.clock - secs * PS); S.clockRun = S.clock > 0; S.runoff = S.clockRun ? RUNOFF : 0; };
+      const stop = () => { S.clockRun = false; S.runoff = 0; };
+      if (kind === 'snap' || kind === 'pass') {
+        O.TS.plays++;
+        if (kind === 'pass') {
+          const tz = ball.tz, ez = VN.endLine && tz >= FL;
+          s.go = { k: 'next', pend: { los: S.los, down: S.down, fdz: S.fdz, next: S.tryMode ? ['cpu', TB, 'ko'] : ['cpu', ez ? TB : rsmCpuAt(tz)] } };
+          O.TS.turnovers++; const q = SQ.QB && SQ.QB.pid && O.ST[SQ.QB.pid]; if (q) q.passInt++;
+          run(Math.max(0, ball.T - ball.t)); stop();
+          s.msg = [S.tryMode ? 'TWO-POINT TRY FAILS' : 'INTERCEPTED', 'You left with the ball in the air'];
+        } else if (S.tryMode) { s.go = { k: 'next', pend: { los: S.los, down: S.down, fdz: S.fdz, next: ['cpu', TB, 'ko'] } }; s.msg = ['TWO-POINT TRY FAILS', 'You left during the play']; }
+        else {
+          const d = S.down + 1, td = d > 4;
+          s.go = { k: 'next', pend: { los: S.los, down: d, fdz: S.fdz, next: td ? ['cpu', rsmCpuAt(S.los)] : null } };
+          run(6); if (td) { stop(); O.TS.turnovers++; }
+          s.msg = [td ? 'TURNOVER ON DOWNS' : 'NO GAIN', 'You left during the play: the down is used'];
+        }
+      } else if (kind === 'kick') {
+        const k = kick;
+        if (k.type === 'xp') { s.go = { k: 'next', pend: { next: ['cpu', TB, 'ko'] } }; s.msg = ['NO GOOD', 'You left with the kick in the air']; }
+        else if (k.type === 'fg') {
+          const q = KR && KR.pid && O.ST[KR.pid]; if (q) q.fgAtt++;
+          s.go = { k: 'next', pend: { next: ['cpu', clamp(Math.round(FL - k.kz), VN.RESTART.fgMissMin, FL - 1)] } }; run(5); stop();
+          s.msg = ['NO GOOD', 'You left with the kick in the air'];
+        } else { s.go = { k: 'next', pend: { next: ['cpu', rsmCpuAt(S.los)] } }; run(6); stop(); O.TS.turnovers++; s.msg = ['TURNOVER ON DOWNS', 'You left during the punt']; }
+      } else if (kind === 'ko') {
+        const z = kick.lz, sp = z > 0.5 ? clamp(Math.round(z), 1, FL - 1) : Math.max(1, Math.round(TB / 2));
+        s.go = { k: 'next', pend: { next: ['home', sp, 'same'] } }; s.msg = ['DOWNED', 'You left during the return'];
+      } else if (kind === 'ons') {
+        s.go = { k: 'next', pend: { next: ['cpu', rsmCpuAt(kick.kz + (kick.home ? 10 : -10))] } }; s.msg = ['THEY RECOVER', 'You left during the onside kick'];
+      } else if (kind === 'dsnap') {
+        const st = rsmSt(DEFP.st); let res = null;
+        if (st.fd >= FL) res = { k: 'cputd' };
+        else { O.CPUS.yards += Math.round(st.fd - st.spot); st.spot = Math.min(st.fd, FL - 1); st.dn = 1; st.fd = Math.min(st.spot + FD, FL); }
+        st.plays++; O.CPUS.plays++; run(6); if (res) stop();
+        s.go = { k: 'defa', st, res }; s.msg = res ? ['TOUCHDOWN', 'You left during their play'] : ['FIRST DOWN', 'You left during their play'];
+      } else return;
+      rsmPost(s);
+    }
+    // ---------- the page goes away during a live play: play it out now, no hands on the controls ----------
+    const rsmLive = () => phase === 'live' || (phase === 'kick' && !!kick && kick.st !== 'power' && kick.st !== 'acc' && kick.st !== 'done');
+    function rsmFF() {
+      if (!rsmLive() || finished) return false;
+      try { input.l = input.r = input.u = input.d = 0; input.sprint = false; resetPtr(); } catch (e) {}
+      RS.ff = true;
+      try { for (let i = 0; i < 7200 && rsmLive() && !finished; i++) { input.stick = null; aim = null; step(1 / 60); } } finally { RS.ff = false; }
+      return true;
+    }
+    function rsmHide() {
+      if (!RS.on || finished) return;
+      RS.hidden = true;
+      rsmFF();
+      rsmBeacon();
+    }
+    const rsmVis = () => { if (document.hidden) rsmHide(); else RS.hidden = false; };
+    const rsmShow = () => { RS.hidden = false; };
+    // ---------- resume: put the save back, then run its next step ----------
+    function rsmGo(s0) {
+      const s = rsmClone(s0); // (the game must never write into the save it came from)
+      rsmRestore(rsmClone(s));
+      RS.n = Math.max(RS.n, s.n | 0); RS.dirty = false; RS.last = s;
+      const g = s.go;
+      if (g.k === 'pre') toPre(!!g.nd);
+      else if (g.k === 'ko') startKickoff(!!g.deep);
+      else if (g.k === 'cpu') { startCpuDrive(g.s); if (g.arch) { RS.quiet = true; try { if (g.r2 != null) rng.st(g.r2); chooseArch(g.arch); } finally { RS.quiet = false; } } }
+      else if (g.k === 'koc') startKoChoice();
+      else if (g.k === 'pat') startPAT();
+      else if (g.k === 'next') { pend = g.pend; phase = 'dead'; deadT = 0; nextPlay(); }
+      else if (g.k === 'defp') {
+        defpBegin(g.r, Object.assign({}, g.d, { arch: g.d.arch ? archOf(g.d.arch) : null }));
+        if (g.call) { RS.quiet = true; try { if (g.r2 != null) rng.st(g.r2); defpCall(g.call); } finally { RS.quiet = false; } }
+      } else if (g.k === 'defa') { DEFP.st = Object.assign({}, g.st, { arch: g.st.arch ? archOf(g.st.arch) : null }); DEFP.res = g.res; DEFP.on = true; phase = 'dead'; defpAfter(); }
+      if (s.msg) { banner(s.msg[0], s.msg[1], '#ff3344'); say(`<b>${esc(s.msg[0])}</b>: ${esc(s.msg[1])}. The play counts as if it went the worst way.`); }
+      else say('<b>Welcome back.</b> The game picks up where you left it.');
+      boardDirty = true; setControls(true);
+    }
+    // ---------- the hooks: each stable point takes a save on its way in, each play's end on its way out ----------
+    if (RS.on) {
+      const _toPre = toPre; toPre = function (nd) { rsmSave({ k: 'pre', nd: !!nd }); return _toPre(nd); };
+      const _startKickoff = startKickoff; startKickoff = function (deep) { rsmSave({ k: 'ko', deep: !!deep }); _startKickoff(deep); if (phase === 'live' && kick && kick.type === 'ko' && !kick.onside) rsmHarsh('ko'); };
+      const _startOnside = startOnside; startOnside = function (hk) { _startOnside(hk); if (phase === 'live' && kick && kick.onside) rsmHarsh('ons'); };
+      const _startCpuDrive = startCpuDrive; startCpuDrive = function (st) { RS.cpuSnap = rsmSave({ k: 'cpu', s: st }); return _startCpuDrive(st); };
+      const _chooseArch = chooseArch; chooseArch = function (id) { const pick = !!(cpuD && cpuD.pick), r2 = rng.st(); _chooseArch(id); if (pick && RS.cpuSnap) RS.last = rsmAmend(RS.cpuSnap, { arch: id, r2 }); };
+      const _startKoChoice = startKoChoice; startKoChoice = function () { rsmSave({ k: 'koc' }); return _startKoChoice(); };
+      const _startPAT = startPAT; startPAT = function () { rsmSave({ k: 'pat' }); return _startPAT(); };
+      const _defpBegin = defpBegin; defpBegin = function (r, d) {
+        RS.defSnap = rsmSave({ k: 'defp', r: { spot: r.spot, dn: r.dn, fd: r.fd, plays: r.plays }, d: { start: d.start, lastLive: d.lastLive || '', arch: d.arch ? d.arch.id : null, base: d.base ? rsmPl(d.base) : null } });
+        return _defpBegin(r, d);
+      };
+      const _defpCall = defpCall; defpCall = function (id) { const was = phase === 'dcall', r2 = rng.st(); _defpCall(id); if (was && DEFP.on && RS.defSnap) RS.last = rsmAmend(RS.defSnap, { call: id, r2 }); };
+      // decisions with no save of their own: the next stable point's save goes out
+      const _chooseKo = chooseKo; chooseKo = function (o) { RS.dirty = true; return _chooseKo(o); };
+      const _chooseTry = chooseTry; chooseTry = function (t) { RS.dirty = true; return _chooseTry(t); };
+      const _switchTry = switchTry; switchTry = function (t) { RS.dirty = true; return _switchTry(t); };
+      const _choose4th = choose4th; choose4th = function (k) { RS.dirty = true; return _choose4th(k); };
+      // a timeout: the last save again, with the timeout and the stopped clock in it
+      const _callTimeout = callTimeout; callTimeout = function () {
+        const t0 = toLeft; _callTimeout();
+        if (toLeft < t0 && RS.last && !RS.last.live) { const c = rsmClone(RS.last); Object.assign(c.S, { toLeft, clockRun, clock, runoff }); rsmPost(c); }
+      };
+      // the snap, the throw, the kick: no taking it back from here
+      const _snap = snap; snap = function () { const was = phase; _snap(); if (was === 'pre' && phase === 'live') rsmHarsh(DEFP.on ? 'dsnap' : 'snap'); };
+      const _releaseBall = releaseBall; releaseBall = function () { _releaseBall(); if (!DEFP.on && phase === 'live' && ball && ball.st === 'air' && ball.kind === 'pass') rsmHarsh('pass'); };
+      const _launchKick = launchKick; launchKick = function () { _launchKick(); if (phase === 'kick' && kick) rsmHarsh('kick'); };
+      // the play is dead: its result is in (the next step is nextPlay, or back into their drive)
+      const _endPlay = endPlay; endPlay = function (kind, spot, extra, slid) { const was = phase; _endPlay(kind, spot, extra, slid); if (was === 'live' && phase === 'dead' && !DEFP.on && pend) rsmSave({ k: 'next', pend: rsmPl(pend) }, true); };
+      const _finishSpecial = finishSpecial; finishSpecial = function (t, kd) { _finishSpecial(t, kd); if (phase === 'dead' && pend) rsmSave({ k: 'next', pend: rsmPl(pend) }, true); };
+      const _touchback = touchback; touchback = function () { const was = phase; _touchback(); if (was === 'live' && phase === 'dead' && pend) rsmSave({ k: 'next', pend: rsmPl(pend) }, true); };
+      const _defpEnd = defpEnd; defpEnd = function (kind, spot, extra, slid) { _defpEnd(kind, spot, extra, slid); rsmSave({ k: 'defa', st: rsmSt(DEFP.st), res: DEFP.res ? rsmPl(DEFP.res) : null }, true); };
+      // resume: the splash's button picks the game up from the save instead of the coin toss
+      const _begin = begin; begin = function () {
+        if (!RS.res) return _begin();
+        if (phase !== 'splash' || finished) return;
+        const s = RS.res; RS.res = null;
+        const V = rsmV(), ok = s.V && s.V.venue === V.venue && !!s.V.big === V.big && !!s.V.touch === V.touch;
+        if (!ok) return _begin(); // (never happens: the server hands back the same setup) a save from another field starts fresh
+        sfx.init(); sfx.play('whistle');
+        splash.remove(); fit(); scrollIn(); voice.start(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
+        try { cv.focus({ preventScroll: true }); } catch (e) {}
+        phase = 'break'; brk = { t: 0.01, then: () => rsmGo(s) };
+      };
+      document.addEventListener('visibilitychange', rsmVis); window.addEventListener('pagehide', rsmHide); window.addEventListener('pageshow', rsmShow);
+      const _cleanup = cleanup; cleanup = function () { document.removeEventListener('visibilitychange', rsmVis); window.removeEventListener('pagehide', rsmHide); window.removeEventListener('pageshow', rsmShow); return _cleanup(); };
+    }
+    if (DBG) DBG.rsm = { on: RS.on, get RS() { return RS; }, take: (go) => rsmTake(go || null), hide: rsmHide, ff: rsmFF, get live() { return rsmLive(); }, get resuming() { return !!RS.res; } };
+
     // ---------- camera & projection ----------
     const VP = new Float32Array(16), PREV_VP = new Float32Array(16); let INV = new Float32Array(16), PROJ = new Float32Array(16), VIEW = new Float32Array(16), INVP = new Float32Array(16);
     const CASC = [new Float32Array(16), new Float32Array(16), new Float32Array(16)];
@@ -15317,7 +15552,7 @@ gl_FragColor=vec4(col,1.0);}`;
     let quitArm = 0;
     quitBtn.addEventListener('click', () => {
       if (finished) return;
-      if (!quitArm) { quitArm = 1; quitBtn.textContent = 'QUIT?'; quitBtn.classList.add('sure'); setTimeout(() => { quitArm = 0; quitBtn.innerHTML = SVG_X; quitBtn.classList.remove('sure'); }, 2400); return; }
+      if (!quitArm) { quitArm = 1; quitBtn.textContent = RS.on ? 'FORFEIT?' : 'QUIT?'; quitBtn.classList.add('sure'); setTimeout(() => { quitArm = 0; quitBtn.innerHTML = SVG_X; quitBtn.classList.remove('sure'); }, 2400); return; }
       finishGame(true);
     });
     let bugCache = '';
@@ -16078,7 +16313,7 @@ gl_FragColor=vec4(col,1.0);}`;
       <div class="bz-squad">${['QB', 'RB', 'X', 'Z', 'S', 'Y'].map((k) => `<div>${faceHTML(SQ[k])}${ovrBadge(SQ[k])}<span>${esc(shortName(SQ[k].name))}</span><em>${{ QB: 'QB', RB: 'RB', X: 'WR', Z: 'WR', S: 'WR', Y: 'TE' }[k]} #${SQ[k].num}</em></div>`).join('')}</div>
       ${ovrPanel()}
       ${VS ? '' : `<div class="bz-dslide"><div class="bz-dslide-h"><b>Defense</b><span>how many of their snaps you play yourself</span></div><input type="range" min="0" max="4" step="1" value="${DEFMODES.indexOf(DEFMODE)}" aria-label="How much defense you play"><div class="bz-dslide-t">${DEFMODES.map((m) => `<i class="${m === DEFMODE ? 'on' : ''}">${DEFLBL[m][0]}</i>`).join('')}</div><p class="bz-dslide-d">${DEFLBL[DEFMODE][1]}</p></div>`}
-      <button type="button" class="bz-go">${VN.koType === 'throw' ? 'THROW OFF' : 'KICK OFF'}</button>`);
+      <button type="button" class="bz-go">${RS.res ? 'CONTINUE' : VN.koType === 'throw' ? 'THROW OFF' : 'KICK OFF'}</button>`);
     wrap.appendChild(splash);
     { const sl = splash.querySelector('.bz-dslide input'); // how much defense: kept in the browser, and in the game's gear panel too
       if (sl) { sl.addEventListener('pointerdown', (e) => e.stopPropagation()); sl.addEventListener('input', () => { const m = DEFMODES[sl.value | 0]; setDefMode(m); splash.querySelectorAll('.bz-dslide-t i').forEach((x, i) => x.classList.toggle('on', i === (sl.value | 0))); splash.querySelector('.bz-dslide-d').textContent = DEFLBL[m][1]; }); } }
@@ -16237,7 +16472,8 @@ gl_FragColor=vec4(col,1.0);}`;
         const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
         window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
           weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch,
-          label: (ctx.run ? `${ctx.run.name} · ${lvlN} · Game ${ctx.run.step}` : lvlN + ' · Arcade') + (where ? ' · ' + where : '') }).then((r) => {
+          rsm: ctx.run && ctx.rsm && typeof ctx.rsm.save === 'function' ? { save: ctx.rsm.save, seq: ctx.rsm.seq | 0, resume: ctx.rsm.snap || null } : null, // a run game: saves, and picking it up again (78-resume.js)
+          label: (ctx.run ? `${ctx.run.name} · ${lvlN} · Game ${ctx.run.step}${ctx.rsm && ctx.rsm.snap ? ' · Continued' : ''}` : lvlN + ' · Arcade') + (where ? ' · ' + where : '') }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
           let tds = 0; for (const k in r.stats || {}) tds += (r.stats[k].rushTD || 0) + (r.stats[k].recTD || 0);
           const ab = esc(home.abbr), nm = esc(away.name);

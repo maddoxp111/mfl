@@ -20,6 +20,25 @@ const LEVEL_ORDER = [0, 1, 2, 3, 5, 4];
 const RISK_MULT = [3, 4, 5, 6, 7, 6.5];
 const levelsOf = (G) => LEVEL_ORDER.filter((i) => i < G.prizes.length);
 const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
+// A 3D Blitz game of a run (Double or Nothing / Double or Double) can be continued where it was left: the page sends the game's
+// save (the latest only) to /api/m/save, kept in its own doc "blitzrun/<user>" = { id (the match), seq, at, last, act, snap, live,
+// sum, data (the start's data, so the game resumes with the same Lineup) }. A run game with a save is never forfeited by another
+// game (only by starting or playing on in a run) or voided by a restart, and its 'ran too long' limit counts active play time (act:
+// the time between saves, each gap counted up to RSM_GAP), so time away never counts. It stays resumable for RSM_KEEP after its
+// last save. The save carries no do-overs: the page sends one at every snap with that play already settled against the player,
+// replaced by the real result when the play ends (78-resume.js in the engine).
+const RSM_MAX = 96 * 1024, RSM_GAP = 5 * 60e3, RSM_KEEP = 7 * 24 * 3600e3;
+const rsKey = (name) => 'blitzrun/' + name;
+const rsOf = (doc, m) => (doc && m && doc.id === m.id && doc.seq > 0 && m.status === 'open' && m.run && m.game === 'blitz3d' ? doc : null);
+const rsLive = (doc, m) => !!rsOf(doc, m) && Date.now() - (Date.parse(doc.at) || 0) < RSM_KEEP;
+const rsActive = (doc) => (doc.act || 0) + Math.min(RSM_GAP, Math.max(0, Date.now() - (doc.last || 0))); // active play time so far (ms)
+// one save at a time per user (a beacon and a fetch can arrive together)
+const rsLocks = new Map();
+function rsLock(k, fn) {
+  const p = (rsLocks.get(k) || Promise.resolve()).then(fn, fn);
+  const t = p.catch(() => {}); rsLocks.set(k, t); t.then(() => { if (rsLocks.get(k) === t) rsLocks.delete(k); });
+  return p;
+}
 
 // prizes: coins for a win at each level (every win pays, no daily cap). minSec: fastest believable game.
 const GAMES = {
@@ -114,8 +133,9 @@ function markWon(user, m, why) {
 // A restart never turns a game into a loss: when the player starts something else and no result has come in, it is refunded
 // (void, stake back), and in a run the run goes back to the choice after the game before it, as an admin refund does.
 const SERVER_START = Date.now();
-function cutOffByRestart(user, m) {
+function cutOffByRestart(user, m, rs) {
   if (!m || m.status !== 'open' || m.versus || m.game === 'blackjack' || !(Date.parse(m.at) < SERVER_START)) return false; // a blackjack hand is never cut off: it is still there to finish
+  if (rsOf(rs, m)) return false; // a run game with a save was not cut off: it is still there to continue
   m.status = 'void'; m.refund = { why: 'restart', at: new Date().toISOString() };
   if (m.run && m.run.step > 1) {
     const prev = (user.arcade || []).find((x) => x.run && x.run.id === m.run.id && x.run.step === m.run.step - 1 && x.status === 'won');
@@ -517,7 +537,9 @@ module.exports = function arcade(app, h) {
       user.arcade = user.arcade || [];
       // Starting a new match forfeits any unfinished one (that's the "refresh = you still pay" rule). A live Head to Head
       // match (m.versus) is settled by versus.js, not here.
-      for (const m of user.arcade) if (m.status === 'open' && !m.versus && m.game !== 'blackjack' && !cutOffByRestart(user, m)) { m.status = 'lost'; m.forfeit = true; } // a Blackjack hand is never forfeited (blackjack.js)
+      // A run game with a save stays open to continue while anything but another run is played (starting a run ends it, as before).
+      const rs = await getDoc(rsKey(name), { fresh: true });
+      for (const m of user.arcade) if (m.status === 'open' && !m.versus && m.game !== 'blackjack' && !(!runMode && rsLive(rs, m)) && !cutOffByRestart(user, m, rs)) { m.status = 'lost'; m.forfeit = true; } // a Blackjack hand is never forfeited (blackjack.js)
       // a run waiting on its choice (cash out or play on) stays waiting: playing something else in between never ends it
       const step = runMode ? runFirst(runMode, level) : null;
       const stake = runMode ? step.charge : risk ? G.prizes[level] : 0; // Risk mode: the whole prize goes on the line; a run's risk is never capped by the balance
@@ -532,6 +554,7 @@ module.exports = function arcade(app, h) {
       user.arcade.push(m);
       if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
       await putDoc(userKey(name), user);
+      if (runMode) await rsLock(name, () => putDoc(rsKey(name), { id: m.id, seq: 0, act: 0, last: Date.now(), at: m.at, data }));
       json(res, { ok: true, id: m.id, seed, level, levelName: LEVELS[level], risk, stake, data, ...(runMode ? { run: runInfo(m) } : {}), ...(career ? { career: true, prize: G.prizes[level], lineup: !!(typeof bowlTeam === 'function' && bowlTeam(db, user, 'mine')) } : {}) });
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not start the game.' }); }
   });
@@ -560,16 +583,78 @@ module.exports = function arcade(app, h) {
     }
     // play on: the won step is rolled into the next one, at the level asked for (Legend x1.5, GOAT x2); dod charges the risk's growth now
     m.run.rolled = true;
-    for (const x of user.arcade) if (x.status === 'open' && !x.versus && x.game !== 'blackjack' && !cutOffByRestart(user, x)) { x.status = 'lost'; x.forfeit = true; }
+    const rs = await getDoc(rsKey(name), { fresh: true });
+    for (const x of user.arcade) if (x.status === 'open' && !x.versus && x.game !== 'blackjack' && !cutOffByRestart(user, x, rs)) { x.status = 'lost'; x.forfeit = true; }
     const level = runLevel(req.body.level), step = runNext(runInfo(m), level), seed = crypto.randomBytes(8).toString('hex');
     const n = { id: crypto.randomBytes(6).toString('hex'), game: 'blitz3d', level, risk: false, stake: step.charge, seed, at: new Date().toISOString(), local: pk.nowLocal(TZ), status: 'open', payout: 0, run: { id: m.run.id, mode: m.run.mode, step: step.step, level, cash: step.cash, atRisk: step.atRisk, v: RUN_V, opts: blitzSetup(req.body.venue != null ? req.body : m.run.opts, true) } }; // the setup picked on the play-on screen (cleaned: a run at Metcalf has the crowd), else the run's setup so far (a run from before had the stadium)
     user.arcade.push(n);
     if (user.arcade.length > 600) user.arcade = user.arcade.slice(-600);
     await putDoc(userKey(name), user);
-    json(res, { ok: true, id: n.id, seed, level, levelName: LEVELS[level], risk: false, stake: n.stake, data: { ...blitzData(db, user), ...n.run.opts }, run: runInfo(n) });
+    const data = { ...blitzData(db, user), ...n.run.opts };
+    await rsLock(name, () => putDoc(rsKey(name), { id: n.id, seq: 0, act: 0, last: Date.now(), at: n.at, data }));
+    json(res, { ok: true, id: n.id, seed, level, levelName: LEVELS[level], risk: false, stake: n.stake, data, run: runInfo(n) });
   }
   app.post('/arcade/run/cashout', (req, res) => runChoice(req, res, 'cashout').catch((e) => { console.error(e); json(res, { ok: false, error: 'Could not cash out.' }); }));
   app.post('/arcade/run/double', (req, res) => runChoice(req, res, 'double').catch((e) => { console.error(e); json(res, { ok: false, error: 'Could not start the next game.' }); }));
+
+  // ---------- 3D Blitz run games: save, and continue later ----------
+  // POST /api/m/save  body (text/plain JSON, so a page going away can send it with a beacon):
+  //   { id: match id, seq: the save's number (only a higher one replaces the one kept), live: null | the live play it was sent at
+  //     ('snap', 'pass', 'kick', 'ko', 'ons', 'dsnap': that play is already settled against the player in it), snap: the save }
+  const rsText = require('express').text({ type: 'text/plain', limit: '200kb' });
+  app.post('/api/m/save', rsText, async (req, res) => {
+    const name = currentUser(req);
+    if (!name) return json(res, { ok: false, error: 'Log in again.' });
+    let b = req.body;
+    if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }
+    const id = b && String(b.id || ''), seq = b ? Math.floor(+b.seq) : 0, snap = b && b.snap;
+    if (!id || !(seq > 0) || !snap || typeof snap !== 'object' || Array.isArray(snap)) return json(res, { ok: false, error: 'Bad save.' });
+    if (JSON.stringify(snap).length > RSM_MAX) return json(res, { ok: false, error: 'That save is too big.' });
+    try {
+      const out = await rsLock(name, async () => {
+        const user = await getDoc(userKey(name), { fresh: true });
+        const m = ((user && user.arcade) || []).find((x) => x.id === id);
+        if (!m || m.status !== 'open' || !m.run || m.game !== 'blitz3d') return { ok: false, gone: true, error: 'That game is not in progress.' };
+        let doc = await getDoc(rsKey(name), { fresh: true });
+        if (!doc || doc.id !== m.id) doc = { id: m.id, seq: 0, act: 0, last: Date.parse(m.at) || Date.now(), at: m.at, data: null };
+        if (seq <= (doc.seq || 0)) return { ok: true, stale: true, seq: doc.seq };
+        const now = Date.now(), S = snap.S || {}, n = (v) => (Number.isFinite(+v) ? +v : null);
+        doc.act = rsActive(doc); doc.last = now; doc.seq = seq; doc.snap = snap; doc.at = new Date(now).toISOString();
+        doc.live = b.live ? { kind: String(b.live).slice(0, 12), at: doc.at } : null; // a live play was on when this one was sent (it is the settled one)
+        doc.sum = { hs: n(S.hs), as: n(S.as), qtr: n(S.qtr), clock: n(S.clock) };
+        await putDoc(rsKey(name), doc);
+        return { ok: true, seq };
+      });
+      json(res, out);
+    } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not save the game.' }); }
+  });
+  // POST /api/m/resume { id }: the run game in progress, from its latest save (the same answer as /api/m/start, plus save)
+  app.post('/api/m/resume', async (req, res) => {
+    try {
+      const name = currentUser(req);
+      if (!name) return json(res, { ok: false, error: 'Log in to continue your game.' });
+      const db = load();
+      const user = await getDoc(userKey(name), { fresh: true });
+      const m = ((user && user.arcade) || []).find((x) => x.id === String(req.body.id || ''));
+      const out = await rsLock(name, async () => {
+        const doc = await getDoc(rsKey(name), { fresh: true });
+        if (!m || !rsLive(doc, m)) return null;
+        doc.last = Date.now(); doc.resumes = (doc.resumes || 0) + 1; // the time away never counts
+        await putDoc(rsKey(name), doc);
+        return doc;
+      });
+      if (!out) return json(res, { ok: false, error: m && m.status !== 'open' ? 'That game already ended.' : 'That game can\'t be continued.' });
+      json(res, { ok: true, id: m.id, seed: m.seed, level: m.level, levelName: LEVELS[m.level], risk: false, stake: m.stake, data: out.data || { ...blitzData(db, user), ...m.run.opts }, run: runInfo(m), save: { seq: out.seq, snap: out.snap }, resumed: true });
+    } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not continue the game.' }); }
+  });
+  // the run game this user can continue, for the 3D Blitz page
+  async function resumable(name, user) {
+    if (!name || !user) return null;
+    const doc = await getDoc(rsKey(name), { fresh: true });
+    const m = doc && doc.id ? (user.arcade || []).find((x) => x.id === doc.id) : null;
+    if (!m || !rsLive(doc, m)) return null;
+    return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: m.run.step, levelName: LEVELS[m.level], sum: doc.sum || null, at: doc.at };
+  }
 
   app.post(['/arcade/finish', '/api/m/finish'], async (req, res) => {
     try {
@@ -586,7 +671,8 @@ module.exports = function arcade(app, h) {
       const secs = (Date.now() - Date.parse(m.at)) / 1000;
       let won = !!r.won, note = '';
       const score = Number.isFinite(+r.score) ? +r.score : null;
-      if (secs > OPEN_MAX_MS / 1000) { won = false; note = 'That game ran too long.'; }
+      const rs = m.run ? rsOf(await getDoc(rsKey(name), { fresh: true }), m) : null; // a run game with a save: only the time spent playing counts
+      if ((rs ? rsActive(rs) : secs * 1000) > OPEN_MAX_MS) { won = false; note = 'That game ran too long.'; }
       if (won && secs < G.minSec) { won = false; note = 'That was too fast to count.'; }
       if (won && G.maxScore != null && score != null && (score < 0 || score > G.maxScore)) { won = false; note = 'That score is not possible.'; }
       if (won && G.need && score != null && score < G.need[m.level]) won = false;
@@ -614,8 +700,10 @@ module.exports = function arcade(app, h) {
       const tied = !won && !!r.tie && !r.quit && fm.stats && fm.stats.opp != null && fm.stats.opp === score;
       if (tied) { fm.tie = true; if (refundMatch(fresh, fm, 'tie')) note = 'A tie: your coins are back.'; }
       fm.secs = Math.round(secs);
+      if (rs) fm.secsPlayed = Math.round(rsActive(rs) / 1000);
       delete fm.secret;
       await putDoc(userKey(name), fresh);
+      if (fm.run) await rsLock(name, async () => { const d = await getDoc(rsKey(name), { fresh: true }); if (d && d.id === fm.id) await putDoc(rsKey(name), { id: null, done: fm.id, at: new Date().toISOString() }); });
       const bal = h.accountOf(db, fresh, await h.survivorNow(db)).balance;
       json(res, { ok: true, won, tie: !!fm.tie, net: fm.status === 'void' ? 0 : fm.status === 'won' ? fm.payout - fm.stake : -fm.stake, balance: bal, message: note, ...(fm.run ? { run: { ...runInfo(fm), choice: won, over: !won && !fm.tie } } : {}) });
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not save the result.' }); }
@@ -671,14 +759,14 @@ module.exports = function arcade(app, h) {
         <div class="wrap">${req.query.m === 'checkin' ? '<div class="toast">Checked in ✓</div>' : ''}
           <div class="arc-grid">${tiles.join('')}</div>
           <div class="home-grid"><div class="col">${earnList(user, db)}
-            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || (m.game === 'blackjack' ? BJ.name : m.game))}</b>${m.game === 'blackjack' ? `<small>${esc(bjMod.detail(m))}</small><span class="${matchNet(m) > 0 ? 'up' : 'down'}">${matchNet(m) > 0 ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Push'}</span></li>` : `<small>${m.versus ? `Head to Head vs @${esc(m.versus.opp)}` : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.versus && !m.stake ? (m.status === 'won' ? 'Win' : 'Loss') : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`}`).join('')}</ol></section>` : ''}</div>
+            ${recent.length ? `<section class="card"><div class="card-h"><h2>Your recent games</h2></div><ol class="lb">${recent.map((m) => `<li><b>${esc(GAMES[m.game]?.name || (m.game === 'blackjack' ? BJ.name : m.game))}</b>${m.game === 'blackjack' ? `<small>${esc(bjMod.detail(m))}</small><span class="${matchNet(m) > 0 ? 'up' : 'down'}">${matchNet(m) > 0 ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Push'}</span></li>` : `<small>${m.versus ? `Head to Head vs @${esc(m.versus.opp)}` : LEVELS[m.level]}${m.risk ? ' · Risk' : ''}${m.run ? ` · ${RUNS[m.run.mode].name} · game ${m.run.step}` : ''}</small><span class="${m.status === 'won' ? 'up' : 'down'}">${m.status === 'void' ? 'Refunded' : m.versus && !m.stake ? (m.status === 'won' ? 'Win' : 'Loss') : m.status === 'open' && m.run ? 'In progress' : m.run && m.run.pending ? 'Choice waiting' : m.run && m.run.rolled ? 'Played on' : m.status === 'won' ? '+' + fmt(matchNet(m)) : matchNet(m) ? fmt(matchNet(m)) : 'Loss'}</span></li>`}`).join('')}</ol></section>` : ''}</div>
             <div class="col"><section class="card"><div class="card-h"><h2>Every way to earn coins</h2></div><div class="ways">${WAYS.map(([e, t, d]) => `<div><span>${e}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div></section>
             <section class="card"><div class="card-h"><h2>How Arcade coins work</h2></div><ul class="how">
               <li>Pick a level: Rookie, Pro, All-Pro or Legend, and in 3D Blitz also Hall of Fame and GOAT. Harder levels pay more.</li>
               <li><b>Risk mode:</b> you put up the whole prize up front. Win and you get the prize × ${RISK_MULT.slice(0, 4).join(' / ')} (by level; ×${RISK_MULT[5]} at Hall of Fame and ×${RISK_MULT[4]} at GOAT in 3D Blitz). Lose and every coin you put up is gone.</li>
               <li><b>Double or Nothing (3D Blitz):</b> nothing up front. After every win, cash out or play one more; the next game's level sets the multiplier: Legend ×1.5, Hall of Fame ×2 (the main one), GOAT ×2.5. From Hall of Fame: ${fmt(RUNS.don.cash(5))}, then ${fmt(RUNS.don.cash(5) * 2)}, ${fmt(RUNS.don.cash(5) * 4)}… One loss and the run pays nothing.</li>
               <li><b>Double or Double (3D Blitz):</b> from Hall of Fame, ${fmt(RUNS.dod.stake(5))} at risk to cash out ${fmt(Math.round(RUNS.dod.cash(5)))} (Legend: ${fmt(RUNS.dod.stake(3))} to cash out ${fmt(RUNS.dod.cash(3))}; GOAT: ${fmt(RUNS.dod.stake(4))} to cash out ${fmt(RUNS.dod.cash(4))}), and the risk grows with the cash-out, ×1.5, ×2 or ×2.5 a game. The risk is never capped by your balance: lose and you go into debt.</li>
-              <li>Leaving or refreshing a game counts as a loss.</li>
+              <li>Leaving or refreshing a game counts as a loss, except a game of a 3D Blitz run (Double or Nothing / Double or Double): that one you can continue later, right where you left it.</li>
               <li>Every win pays, as many as you can get. <b>Practice</b> is always free and unlimited.</li></ul></section></div></div>
         </div>`));
     } catch (e) { next(e); }
@@ -764,6 +852,8 @@ module.exports = function arcade(app, h) {
       // Game code is inlined into the page: school web filters often block script URLs with words like "arcade" or "games".
       const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
       const runs = id === 'blitz3d' ? Object.keys(RUNS) : [], pending = id === 'blitz3d' ? pendingRun(user) : null;
+      const cont = id === 'blitz3d' ? await resumable(name, user) : null; // a run game left in progress
+      const contSum = (c) => { const q = c.sum; if (!q || q.hs == null) return ''; const t = Math.max(0, Math.ceil(q.clock || 0)), clk = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; return ` ${q.hs}–${q.as}, ${q.qtr >= 5 ? 'overtime' : 'Q' + q.qtr} ${clk}.`; };
       const want = user && runs.includes(String(req.query.mode)) ? String(req.query.mode) : (user ? 'coins' : 'practice');
       const modeLabel = (m) => m === 'coins' ? `${icon('coin')} Play for coins` : m === 'practice' ? `${icon('star')} Practice${id === 'bowl' ? ' / Exhibition' : ''}` : `${RUNS[m].emoji} ${RUNS[m].name}`;
       const runInfoHtml = runs.map((m) => { const R = RUNS[m], c = Math.round(R.cash(5)), r = R.stake(5); return `<div class="run-info" data-run="${m}" hidden>${m === 'don'
@@ -775,6 +865,7 @@ module.exports = function arcade(app, h) {
           <a class="card bf-promo" href="/arcade/blitz3d/versus"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your Lineup against theirs. Put coins on it (the winner takes both wagers) or play a friendly.</small></div><span class="btn">Find a game ${icon('arrow')}</span></a>` : ''}
         ${id === 'bowl' ? '<section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/career/bowl">Play Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>' : ''}
         <section class="arc-setup card"><form id="arcSetup">
+          ${cont ? `<div class="run-wait run-cont" id="runCont"><b>${cont.emoji} Your ${esc(cont.name)} game ${cont.step} is still going.</b><span>You left it at ${esc(cont.levelName)}:${contSum(cont)} Pick it up right where you left off. A play you left in the middle of counts the way it went (or, if the page was cut off, the worst way).</span><button type="button" class="btn" id="runContinue">Continue game ${cont.step}</button></div>` : ''}
           ${pending ? `<div class="run-wait" id="runWait"><b>${RUNS[pending.run.mode].emoji} Your ${RUNS[pending.run.mode].name} run is waiting.</b><span>You won game ${pending.run.step}. Cash out ${fmt(runInfo(pending).cash)}, or play one more for ${((xs) => xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1])(RUN_LEVELS.map((l) => `${fmt(runInfo(pending).next[l].cash)} at ${LEVELS[l]}`))}.</span><small class="run-wait-nx">Next game: ${esc(blitzLabel(runInfo(pending).opts))}. You can change where you play, the field, the time of day and the weather before it starts.</small><button type="button" class="btn" id="runResume">Decide now</button></div>` : ''}
           <div class="arc-modes ${runs.length ? 'four' : ''}">${['coins', 'practice', ...runs].map((m) => `<label class="mode ${runs.includes(m) ? 'run ' + m : ''}"><input type="radio" name="mode" value="${m}" ${m === want ? 'checked' : ''} ${m !== 'practice' && !user ? 'disabled' : ''}><span>${modeLabel(m)}</span></label>`).join('')}</div>
           ${runInfoHtml}
@@ -808,7 +899,7 @@ module.exports = function arcade(app, h) {
         </form></section>
         <section id="arcStage" class="arc-stage" hidden></section>
       </div>
-      <script>window.MFL_ARCADE=${JSON.stringify({ game: id, pending: pending ? runInfo(pending) : null })};
+      <script>window.MFL_ARCADE=${JSON.stringify({ game: id, pending: pending ? runInfo(pending) : null, resume: cont })};
       (function(){const f=document.getElementById('arcSetup');const RUN=${JSON.stringify(runs)};const sync=()=>{const m=f.mode?f.mode.value:'coins',p=m==='practice',run=RUN.includes(m);
         f.querySelectorAll('[data-coins]').forEach(e=>e.hidden=p||run);f.querySelectorAll('[data-norun]').forEach(e=>e.hidden=run);f.querySelectorAll('[data-practice]').forEach(e=>e.hidden=!p);f.querySelectorAll('[data-run]').forEach(e=>{if(e.tagName!=='BUTTON')e.hidden=e.getAttribute('data-run')!==m;});
         if((p||run)&&f.risk)f.risk.checked=false;
