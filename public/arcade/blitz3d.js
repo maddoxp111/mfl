@@ -1256,6 +1256,16 @@ gl_FragColor=vec4(c,1.0);}`;
       [1, gfit(pb({ shR: [0.6, 0, 1.4], elR: [0.4], shL: [0.6, 0, -1.4], elL: [0.4], spine: [-0.1, 0, 0], neck: [-0.35, 0, 0], hipL: [0.15, 0, -0.25], hipR: [0.15, 0, 0.25], knL: [-0.3], knR: [-0.3] }, -0.05, -0.05, 0))],
     ]);
     if (k === 2) return gfit(pb({ shR: [0.3, 0, 2.95], elR: [0.1], shL: [0.9, 0, -0.5], elL: [1.9], spine: [-0.2, 0, 0.1], neck: [-0.7, 0, 0], head: [-0.3, 0, 0], hipL: [0.1, 0, -0.2], hipR: [0.1, 0, 0.2], knL: [-0.25], knR: [-0.25] }, 0, -0.1, 0.05));
+    if (k === 6) { // Xavier's dance (from his own video): a 1.35 s groove, knees bent and bouncing, hips and shoulders rolling side
+      // to side against each other, one knee popping in, arms hanging low and swinging across the front of his body
+      const ph = t * 2 * Math.PI / 1.35, s = Math.sin(ph), a = Math.max(0, s), b = Math.max(0, -s), dip = 0.5 - 0.5 * Math.cos(2 * ph);
+      return gfit(pb({
+        hipL: [0.42 + 0.3 * a + 0.12 * dip, 0, -0.04 + 0.2 * a], hipR: [0.42 + 0.3 * b + 0.12 * dip, 0, 0.04 - 0.2 * b],
+        knL: [-0.72 - 0.45 * a - 0.2 * dip], knR: [-0.72 - 0.45 * b - 0.2 * dip], ftL: [0.2 + 0.2 * a], ftR: [0.2 + 0.2 * b],
+        shR: [0.25 + 0.55 * a, 0, 0.18 - 0.75 * a + 0.2 * b], elR: [0.35 + 0.35 * a], haR: [0.5],
+        shL: [0.25 + 0.55 * b, 0, -0.18 + 0.75 * b - 0.2 * a], elL: [0.35 + 0.35 * b], haL: [0.5],
+        spine: [0.2 + 0.06 * dip, -0.3 * s, 0.14 * s], chest: [0, -0.15 * s, 0.06 * s], neck: [-0.22, 0.32 * s, -0.12 * s], head: [-0.05, 0.08 * s, 0],
+      }, 0, 0.1, -0.07 * s, 0.26 * s)); }
     if (k === 4) { const s = Math.sin(t * 7.5), c = Math.cos(t * 7.5); return gfit(pb({ shR: [1.3 + 0.9 * s, 0, 0.9], elR: [1.3 + 0.6 * c], shL: [1.3 - 0.9 * s, 0, -0.9], elL: [1.3 - 0.6 * c], spine: [0.08, 0, 0.22 * s], neck: [-0.25, 0, -0.2 * s], hipL: [0.35 + 0.3 * s, 0, -0.2], hipR: [0.35 - 0.3 * s, 0, 0.2], knL: [-0.6 - 0.4 * s], knR: [-0.6 + 0.4 * s] }, 0, 0.05, 0.12 * s), 0.07 * Math.abs(c)); } // the dance
     if (k === 3) return gfit(pb({ shR: [0.4, 0, 1.7 + 0.1 * w], elR: [2.4], shL: [0.4, 0, -1.7 - 0.1 * w], elL: [2.4], spine: [0.2, 0, 0], neck: [-0.2, 0, 0], hipL: [0.5, 0, -0.3], hipR: [0.5, 0, 0.3], knL: [-0.7], knR: [-0.7] }, 0, 0.1, 0));
     return gfit(pb({ shR: [2.7 + 0.25 * w, 0, 0.5], elR: [0.35], shL: [2.7 - 0.25 * w, 0, -0.5], elL: [0.35], spine: [-0.1, 0, 0], neck: [-0.4, 0, 0], hipL: [0.3 - 0.2 * hop, 0, -0.15], hipR: [0.3 - 0.2 * hop, 0, 0.15], knL: [-0.5 + 0.3 * hop], knR: [-0.5 + 0.3 * hop] }, 0, -0.05, 0), 0.14 * hop);
@@ -11521,7 +11531,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (tryMode) clockRun = false; // a try is untimed: no run-off after it either
       runoff = clockRun ? RUNOFF : 0;
       pend = nx; deadTot = deadT;
-      if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : 0.6; deadTot = deadT; }
+      if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : closeP.celType === 6 && !VS ? XD_TD : 0.6; deadTot = deadT; } // (Xavier's dance: a full 7 s)
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
       if (lastBig && lastBig.kind === 'td') { deadT += 0.3; deadTot = deadT; }
       voiceResult(kind, P, gained, nx, head, extra, slid, spot);
@@ -12240,8 +12250,9 @@ gl_FragColor=vec4(col,1.0);}`;
       if (!c) return;
       const nearSide = Math.abs(c.x) > HW - 9;
       let t = DBG && DBG.celType != null ? DBG.celType : (crand() * 6) | 0; if (t === 5 && (!nearSide && !(DBG && DBG.celType === 5) || !VN.leap)) t = 4; // no stands to leap into at every venue
+      if (isXav(c)) t = 6; // Xavier always does his dance (72-xdance.js)
       c.celType = t === 5 ? 0 : t; c.celAt = 0.55; c.leap = t === 5 ? { t: 0, sx: Math.sign(c.x) || 1 } : null;
-      if (t === 1 || t === 4 || t === 5) voice.say(t === 1 ? 'spike' : t === 4 ? 'dance' : 'leap', { player: nm(c) }, 2, 0.8);
+      if (t === 1 || t === 4 || t === 5 || t === 6) voice.say(t === 1 ? 'spike' : t === 4 || t === 6 ? 'dance' : 'leap', { player: nm(c) }, 2, 0.8);
       const L = ['', 'THE SPIKE!', '', '', 'DANCE PARTY!', 'INTO THE STANDS!'][t];
       FUN.celebs[t] = (FUN.celebs[t] || 0) + 1;
       if (L) setTimeout(() => { if (!finished && (phase === 'dead' || phase === 'replay')) bigPop(c, L, '#2bd46b'); }, 700 / ((DBG && DBG.speed) || 1));
@@ -12273,6 +12284,67 @@ gl_FragColor=vec4(col,1.0);}`;
       if (R === 'PUNT' && rng() < 0.08 * funGate()) { r.shank = true; return ['cpushank', 'SHANKED PUNT!']; }
       return null;
     }
+    // ---------- Xavier Davenport's dance ----------
+    // His touchdown celebration is always his own dance (05-anim clipCeleb 6) and it runs a full 7 seconds. And a few times a game,
+    // with the clock stopped between plays, he just starts doing it: the camera pans to him, "what is he doing?", then a second
+    // later "why is he kinda saucy with it tho 😯". Skippable after 3 s, over at 10 s. Off in Head to Head and on key defensive plays.
+    // Its dice are its own (never the game's), so a game without him on the field plays exactly as before.
+    const XD_TD = 7.4, XD_LEN = 10, XD_SKIP = 3, XD_MAX = 3;
+    const isXav = (p) => !!(p && p.sq && /^xavier\b/i.test(String(p.sq.name || '').trim()));
+    const XD = { on: false, n: 0, last: -99, t: 0, p: null, save: null, cont: null, caps: [], cam: null, skipOK: false, said: 0, ang: 0, r: 0x2f6b9d13 };
+    const xdRand = () => { XD.r = (Math.imul(XD.r, 1664525) + 1013904223) >>> 0; return XD.r / 4294967296; };
+    function xdStart(cont) {
+      if (XD.on || VS || DEFP.on || finished || clockRun || (DBG && DBG.noXd && !DBG.xdForce)) return false;
+      if (qtr >= 4 && clock <= 0) return false; // the game is over
+      const p = everyone.find((q) => (isXav(q) || (DBG && DBG.xdAny && q.side === 0 && q.key === 'X')) && !q.rag && q.rising <= 0 && q.lk);
+      if (!p) return false;
+      if (!(DBG && DBG.xdForce)) {
+        if (XD.n >= XD_MAX || FUN.plays < 3 || FUN.plays - XD.last < 5 || (closeP && closeP.celType === 6)) return false;
+        if (xdRand() > (qtr >= 3 && XD.n < 2 ? 0.45 : 0.28)) return false; // a few times a game
+      } else DBG.xdForce = false;
+      XD.on = true; XD.n++; XD.last = FUN.plays; XD.t = 0; XD.p = p; XD.cont = cont; XD.skipOK = false; XD.said = 0;
+      XD.save = everyone.map((q) => ({ q, pose: q.pose, poseT: q.poseT, face2: q.face2, celType: q.celType, vx: q.vx, vz: q.vz, x: q.x, z: q.z, h: q.h, look: q.look }));
+      XD.ph0 = phase; phase = 'xdance';
+      // he turns to the camera and starts; everyone near him turns to look
+      XD.ang = Math.atan2(cam.e[0] - p.x, cam.e[2] - p.z);
+      p.vx = p.vz = 0; p.face2 = XD.ang; p.celType = 6; setPose(p, 'celebrate', true);
+      for (const q of everyone) { if (q === p) continue; q.vx = q.vz = 0; if (!q.rag && Math.hypot(q.x - p.x, q.z - p.z) < 14) q.face2 = Math.atan2(p.x - q.x, p.z - q.z); }
+      xdCam(); clearBanner(); setControls(true); sfx.play('cheer');
+      return true;
+    }
+    function xdCam() {
+      const p = XD.p, hh = 2.0 * (p.lk ? p.lk.hs : 1), a = XD.ang + 0.5 - 0.1 * XD.t, d = hh * (2.6 - 0.06 * Math.min(XD.t, 6));
+      XD.cam = { e: [p.x + Math.sin(a) * d, hh * 0.8, p.z + Math.cos(a) * d], c: [p.x, hh * 0.5, p.z] };
+    }
+    function xdCap(txt, big) {
+      try {
+        if (!document.getElementById('bz-xd-css')) { const st = document.createElement('style'); st.id = 'bz-xd-css';
+          st.textContent = ".bz-xd{position:absolute;left:50%;transform:translateX(-50%);max-width:92%;text-align:center;color:#fff;font:900 26px/1.12 'Barlow Condensed',Inter,sans-serif;text-shadow:0 0 3px #000,0 2px 0 #000,0 0 10px rgba(0,0,0,.8);z-index:6;pointer-events:none;animation:bzxd .35s ease-out both}.bz-xd.sm{font-size:21px}@keyframes bzxd{from{opacity:0;transform:translate(-50%,8px) scale(.92)}to{opacity:1;transform:translate(-50%,0) scale(1)}}";
+          document.head.appendChild(st); }
+        const b = el('div', 'bz-xd' + (big ? '' : ' sm'), esc(txt)); b.style.top = (XD.caps.length ? 17 : 8) + '%'; fx.appendChild(b); XD.caps.push(b);
+      } catch (e) {}
+    }
+    function xdStep(dt) {
+      if (!XD.on) return;
+      XD.t += dt; const p = XD.p;
+      for (const q of everyone) { if (q.rag) continue; q.vx = q.vz = 0; integrate(q, dt); }
+      p.face2 = XD.ang;
+      if (XD.said === 0 && XD.t > 0.35) { XD.said = 1; xdCap('what is he doing?', true); }
+      if (XD.said === 1 && XD.t > 1.35) { XD.said = 2; xdCap('why is he kinda saucy with it tho 😯', false); }
+      if (XD.t > XD_SKIP && !XD.skipOK) { XD.skipOK = true; setControls(true); }
+      xdCam();
+      if (XD.t >= XD_LEN) xdEnd();
+    }
+    function xdSkip() { if (XD.on && XD.skipOK) { sfx.play('tap'); xdEnd(); } }
+    function xdEnd() {
+      if (!XD.on) return;
+      XD.on = false; XD.cam = null;
+      for (const s of XD.save) { const q = s.q; q.pose = s.pose; q.poseT = s.poseT; q.face2 = s.face2; q.celType = s.celType; q.vx = s.vx; q.vz = s.vz; q.x = s.x; q.z = s.z; q.h = s.h; q.look = s.look; }
+      for (const b of XD.caps) { try { b.remove(); } catch (e) {} } XD.caps = [];
+      XD.p = null; XD.save = null; phase = XD.ph0 === 'dead' ? 'dead' : XD.ph0; setControls(true);
+      const c = XD.cont; XD.cont = null; if (c) c();
+    }
+    if (DBG) DBG.xd = () => ({ on: XD.on, n: XD.n, t: XD.t, skipOK: XD.skipOK });
 
     // ---------- voice commentary: one spoken line per event, picked from VOICE_LINES without repeats, clips made on the server and cached ----------
     const voice = (() => {
@@ -13061,6 +13133,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (METCALF) banHud(); // Metcalf: the banana count at the top of the screen (76-banana.js)
       // Metcalf: somebody gets the ball back from over the fence (13-metpeople.js). Time out: nothing else in the game moves on
       if (phase === 'fetch') { metFetchStep(dt); return; }
+      if (phase === 'xdance') { xdStep(dt); return; }
       if (METCALF) metFetchWatch(); // Metcalf: has the ball gone over a fence?
       voiceIdle(dt); dramaStep(dt);
       excite = Math.max(0, excite - dt * 0.09);
@@ -13097,7 +13170,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (ball && (ball.st === 'dead' || ball.st === 'loose' || ball.st === 'kick')) groundStep(ball, dt);
         deadT -= dt;
         if (deadT <= 0 && DEFP.on) { if (METCALF && metFetchStart(defpAfter)) return; defpAfter(); return; }
-        if (deadT <= 0) { if (METCALF && metFetchStart(deadDone)) return; deadDone(); } // Metcalf: a ball over the fence is fetched first
+        if (deadT <= 0) { if (METCALF && metFetchStart(deadDone)) return; if (xdStart(deadDone)) return; deadDone(); } // Metcalf: a ball over the fence is fetched first
         return;
       }
       if (phase === 'replay') { replayStep(dt); return; }
@@ -13728,6 +13801,8 @@ gl_FragColor=vec4(col,1.0);}`;
       } else if (phase === 'replay' && replay && ball) {
         const a = replay.orbit + replay.t * 0.35, bx = ball.x || 0, bz = ball.z || los;
         e = [bx + Math.sin(a) * (5.5 + 3 * por), 1.6 + 2.0 * por, bz + Math.cos(a) * (5.5 + 3 * por) - 1.5]; c = [bx, 1.0, bz]; rate = 5; cdk = LENSK * 0.8; replayCam = 1;
+      } else if (phase === 'xdance' && XD.cam) { // Xavier just starts dancing (72-xdance.js)
+        e = XD.cam.e.slice(); c = XD.cam.c.slice(); rate = 2.2; cdk = 1;
       } else if (phase === 'fetch' && FETCH.cam) { // Metcalf: the ball over the fence (13-metpeople.js)
         e = FETCH.cam.e.slice(); c = FETCH.cam.c.slice(); rate = 2.4; cdk = 1;
       } else if (DEFP.on && (phase === 'dpre' || phase === 'live' || phase === 'dead')) { // a key defensive play: behind our defense
@@ -14934,6 +15009,9 @@ gl_FragColor=vec4(col,1.0);}`;
         if (VS.oPh === 'pre' || VS.oPh === 'dead') btn('bz-to' + (toLeft > 0 ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, vsTimeout);
       } else if (phase === 'vsk') {
         msg('<span>Your kickoff · pick it on the card</span>');
+      } else if (phase === 'xdance') { // Xavier dancing; skippable after 3 seconds
+        msg('<span>Clock stopped…</span>');
+        if (XD.skipOK) btn('bz-y', 'Skip', xdSkip, 'pointerdown').style.flex = '0 0 96px';
       } else if (phase === 'fetch') { // Metcalf: the ball went over the fence (13-metpeople.js); skippable after 3 seconds
         msg('<span>Ball over the fence…</span>');
         if (metFetchSkipOK()) btn('bz-y', 'Skip', metFetchSkip, 'pointerdown').style.flex = '0 0 96px';
@@ -15400,6 +15478,7 @@ gl_FragColor=vec4(col,1.0);}`;
         else if (phase === 'kick') kickTap();
         else if (phase === 'live' && kick && kick.onside && kick.st === 'meter') onsideTap(false);
         else if (phase === 'replay') endReplay();
+        else if (phase === 'xdance') xdSkip();
         else if (phase === 'fetch') metFetchSkip(); // Metcalf: the ball over the fence (after 3 s)
         else if (mode === 'catch') doJump(ctrl);
         else if (mode === 'run') doMove('dive');
@@ -15443,6 +15522,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (phase === 'live' && kick && kick.onside && kick.st === 'meter') { onsideTap(false); e.preventDefault(); return; }
       if (phase === 'vsk' && VS && VS.ons) { vsOnsideTap(false); e.preventDefault(); return; }
       if (phase === 'replay') { endReplay(); return; }
+      if (phase === 'xdance') { xdSkip(); return; }
       if (phase === 'fetch') { metFetchSkip(); return; } // Metcalf: the ball over the fence (skippable after 3 s)
       if (pid != null && (e.pointerId === pid || ptrStale() || performance.now() - ptT > 8000)) resetPtr(); // the old finger is gone
       if (pid != null) { if (ptype === 'aim' && e.pointerId !== pid) { setArc(arc === 0 ? 1 : 0); e.preventDefault(); } return; } // second finger while aiming: Touch <-> Bullet only (Lob -> Bullet); Lob is its own button or the 3 key
