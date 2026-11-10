@@ -7384,7 +7384,7 @@ gl_FragColor=vec4(col,1.0);}`;
   //   - outside the border (beyond this canvas, built as flat quads by hancockFieldItems): green turf to the walls, a red team
   //     area 4 to 8 yards out between the 25s on both sides, the coaching lines (solid, the 15 to the 15, 8 yards out) and the
   //     dashed limit line 4 yards out that steps around the team area
-  //   - midfield: the real field has the university's bird-head logo there; it is left as plain turf on purpose (no logos)
+  //   - midfield: a big Redbird head like the real field's (our own drawing, not the university's artwork)
   // The canvas honours fieldCanvas's contract exactly: the same size (1024k x 2048k), the same mapping (VN.tex: x -30..30,
   // z -12..112), and fieldC / fieldScale are set so scuff() keeps working.
   // =====================================================================================
@@ -7475,9 +7475,28 @@ gl_FragColor=vec4(col,1.0);}`;
       g.restore();
     };
     // end zones: REDBIRDS at both ends, reading from the field (bottoms toward the goal line)
-    const ezStroke = snow ? 'rgba(120,60,55,0.8)' : 'rgba(110,20,16,0.85)', ezFill = 'rgba(244,244,238,0.95)';
+    const ezStroke = 'rgba(14,14,14,0.92)', ezFill = 'rgba(244,244,238,0.95)';
     wtxt('REDBIRDS', 0, HKF.ezText[0], [1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
     wtxt('REDBIRDS', 0, HKF.ezText[1], [-1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
+    // midfield: a big Redbird head, like the real field's (our own drawing of a cardinal's head in profile, not the university's
+    // artwork): crested red head, black mask, gold beak, white eye, a white then black outline; it reads upright from the east
+    // grandstand (its up points west), about 14 yards tall
+    {
+      const R = [0, 1], U = [-1, 0], K = 1.05;
+      g.save(); g.setTransform(R[0] * SX, R[1] * SZ, -U[0] * SX, -U[1] * SZ, PX(0), PZ(50)); g.scale(K, K); g.lineJoin = 'round'; g.lineCap = 'round';
+      const path = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); };
+      const head = [[-4.6, 6.2], [-5.4, 2.6], [-5.6, -0.6], [-7.6, -3.6], [-4.6, -2.6], [-5.6, -6.4], [-2.6, -4.0], [-1.9, -7.2], [0.2, -4.2], [1.7, -3.4], [2.5, -1.6], [2.9, 1.9], [2.3, 3.4], [3.0, 6.2]];
+      path(head); g.strokeStyle = 'rgba(244,244,238,0.95)'; g.lineWidth = 1.1; g.stroke();
+      g.fillStyle = snow ? '#b4685e' : '#c8281e'; g.fill();
+      g.strokeStyle = 'rgba(120,10,8,0.55)'; g.lineWidth = 0.22; // feather lines in the crest and the nape
+      for (const [x0, y0, x1, y1] of [[-3.4, -1.0, -5.6, -3.1], [-1.6, -2.0, -3.4, -4.2], [-0.4, -2.6, -1.5, -5.4], [-3.6, 1.6, -4.6, 4.2], [-2.0, 2.6, -2.6, 5.0]]) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+      path([[-0.3, -1.9], [2.6, -1.7], [2.95, 1.7], [1.5, 2.9], [-0.9, 1.5], [-0.7, -0.6]]); g.fillStyle = '#121212'; g.fill(); // the black mask
+      path([[2.5, -1.45], [6.6, 0.35], [2.75, 1.65]]); g.fillStyle = '#f2a516'; g.fill(); g.strokeStyle = '#121212'; g.lineWidth = 0.16; g.stroke(); // beak
+      g.beginPath(); g.moveTo(2.7, 0.15); g.lineTo(5.9, 0.35); g.stroke();
+      g.beginPath(); g.arc(0.95, -0.35, 0.62, 0, Math.PI * 2); g.fillStyle = '#f4f4ee'; g.fill(); g.beginPath(); g.arc(1.1, -0.35, 0.3, 0, Math.PI * 2); g.fillStyle = '#121212'; g.fill(); // eye
+      path(head); g.strokeStyle = '#121212'; g.lineWidth = 0.22; g.stroke();
+      g.restore();
+    }
     // yard numbers: one digit each side of the line, bottoms toward the sideline; arrows on the goal side, near the tops
     const numCol = 'rgba(240,243,236,0.92)';
     for (let z = 10; z <= 90; z += 10) {

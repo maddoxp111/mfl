@@ -443,6 +443,16 @@ const UPDATES = [
       'In a run game the ✕ button now says FORFEIT?, because quitting that way is still a loss.',
     ],
   },
+  {
+    n: 41,
+    date: '2026-11-10',
+    title: 'Hancock Stadium: the real field',
+    items: [
+      'The Hancock field now has its big Redbird at midfield, facing the main grandstand.',
+      'REDBIRDS in the end zones is now white with a black outline, like the real field.',
+      'Still the real layout: red end zones, green stripes alternating every 5 yards, and solid red team areas from 25 to 25.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
