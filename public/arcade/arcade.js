@@ -130,7 +130,7 @@
       const chip = (n, v, e, t, on) => `<label><input type="radio" name="nx-${n}" value="${v}" ${on ? 'checked' : ''}><span><i>${e}</i><b ${n === 'weather' && v === 'clear' ? 'data-nx-sunny' : ''}>${t}</b></span></label>`;
       const tog = (k, e, t, on, lk) => `<label class="bz-tog ${lk ? 'locked' : ''}"><input type="checkbox" name="nx-${k}" value="1" ${on ? 'checked' : ''} ${lk ? 'disabled' : ''}><span><i>${e}</i><b>${t}</b></span></label>`;
       return `<details class="run-opts" id="runOpts"><summary><span>Next game</span><b data-nx-sum></b><em data-nx-tg>Change</em></summary><div class="run-opts-in">
-        <fieldset class="bz-defmode"><legend>Where</legend><div class="bz-chips run-vn">${chip('venue', 'stadium', '🏟️', 'The Stadium', o.venue !== 'metcalf')}${chip('venue', 'metcalf', '🏫', 'Metcalf', o.venue === 'metcalf')}</div></fieldset>
+        <fieldset class="bz-defmode"><legend>Where</legend><div class="bz-chips run-vn">${chip('venue', 'stadium', '🏟️', 'The Stadium', o.venue !== 'metcalf' && o.venue !== 'hancock')}${chip('venue', 'metcalf', '🏫', 'Metcalf', o.venue === 'metcalf')}${chip('venue', 'hancock', '🔴', 'Hancock Stadium', o.venue === 'hancock')}</div></fieldset>
         <fieldset class="bz-defmode" data-nx-met><legend>Metcalf settings</legend><div class="bz-togs">${tog('crowd', '👥', 'Crowd', true, true)}${tog('big', '📏', 'Big field', o.big)}${tog('touch', '✋', 'Two-hand touch', o.touch)}</div><p class="bz-lock">🔒 A run always has the crowd on.</p></fieldset>
         <fieldset class="bz-defmode"><legend>Time of day</legend><div class="bz-chips run-tod">${NX_TOD.map(([v, e, t]) => chip('tod', v, e, t, o.tod === v)).join('')}</div></fieldset>
         <fieldset class="bz-defmode"><legend>Weather</legend><div class="bz-chips run-wx">${NX_WX.map(([v, e, t]) => chip('weather', v, e, t, o.weather === v)).join('')}</div></fieldset></div></details>`;
@@ -146,7 +146,7 @@
         const x = runOptsRead(o), clr = x.tod === 'night' ? 'Clear' : 'Sunny', nm = (L, v) => (L.find((r) => r[0] === v) || [])[2] || '';
         o.querySelectorAll('[data-nx-met]').forEach((e) => { e.hidden = x.venue !== 'metcalf'; });
         o.querySelectorAll('[data-nx-sunny]').forEach((e) => { e.textContent = clr; });
-        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Metcalf' : 'The Stadium', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
+        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Metcalf' : x.venue === 'hancock' ? 'Hancock Stadium' : 'The Stadium', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
       };
       d.addEventListener('toggle', () => { d.querySelector('[data-nx-tg]').textContent = d.open ? 'Done' : 'Change'; });
       d.addEventListener('change', (e) => {

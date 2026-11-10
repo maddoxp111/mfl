@@ -2048,6 +2048,9 @@ gl_FragColor=vec4(c,1.0);}`;
         play: { dk: 0.45, zoneK: [0.95, 0.72], qbSep: 0.7, cam: 0.62, core: 0.75, wide: 1.95, edge: 0.75 } },
     };
     // Head to Head always plays the stadium (both screens must run the same field); tests can pick one with __blitzDebug.venue
+    // Hancock Stadium (Illinois State's home field in Normal): the stadium's rules exactly (100 yards, kickoffs, punts, field goals,
+    // always tackle), its own world (buildHancock, 14-hancock*.js) and field markings (hancockGroundCanvas)
+    VENUES.hancock = Object.assign({}, VENUES.stadium, { id: 'hancock', name: 'Hancock Stadium', look: 'hancock' });
     const VN0 = VENUES[opts.versus ? 'stadium' : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
     // Metcalf settings from the setup screen (false at the stadium): crowd = spectators around the blacktop who act like a stadium
     // crowd; big = the whole map scaled up by MET_K so the field is about the size of a real one; touch = two-hand touch instead of
@@ -2068,6 +2071,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // real heights on Metcalf's true-size blacktop: each player stands at his listed height (6'2" = 1.88 m), not at the
     // stadium's football-player size (there a 5'4" rating draws about 2 m tall). STAND_H = the top of the skull standing straight at
     // hs 1 in yards (bind pose: hips 1.08 + spine, chest, neck, head bones 0.78 + the casual head's crown 0.028 + 1.1 x 0.284)
+    const HANCOCK = VN0.look === 'hancock'; // (gameplay is the stadium's; only the world and the look change)
     const MHT = VN0.world === 'metcalf' && !MOPT.big, STAND_H = 2.2004;
     // Metcalf is 7 on 7 on both field sizes (00-head.js M7BOOK): the offense is the QB, the back, WR1-3, the tight end and the center
     // (OL2, the Lineup's OL1); the other four linemen sit. The defense is one down lineman (DT1), two linebackers (LBM, LBS), two
@@ -2517,7 +2521,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const ezOwn = shade(TEAM, 0.5), ezFar = shade(DEFA, 0.55);
     let fieldC = null, fieldScale = 1;
     // the ground texture: the venue's own painter (12-venue.js) when it is there, else the stadium turf
-    function groundCanvas(k) { return VN.world === 'metcalf' && typeof metcalfGroundCanvas === 'function' ? metcalfGroundCanvas(k) : fieldCanvas(k); }
+    function groundCanvas(k) { return VN.world === 'metcalf' && typeof metcalfGroundCanvas === 'function' ? metcalfGroundCanvas(k) : HANCOCK && typeof hancockGroundCanvas === 'function' ? hancockGroundCanvas(k) : fieldCanvas(k); }
     function fieldCanvas(k) {
       cs = 20240611;
       const c = document.createElement('canvas'); const CW = 1024 * k, CH = 2048 * k; c.width = CW; c.height = CH; const g = c.getContext('2d');
@@ -2786,6 +2790,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- stadium ----------
     function buildWorld() {
       if (METCALF) return buildMetcalf(); // the Metcalf blacktop (12-venue.js)
+      if (HANCOCK && typeof buildHancock === 'function') return buildHancock(); // Hancock Stadium (14-hancock*.js)
       cs = 777;
       const W = { plain: new Batch(14000), seats: new Batch(3000), field: new Batch(12), glow: new Batch(1200), board: new Batch(12), ribbon: new Batch(60), glass: new Batch(60), crowd: null };
       const up = [0, 1, 0];
@@ -2873,19 +2878,22 @@ gl_FragColor=vec4(c,1.0);}`;
         const lc = [1, 0.97, 0.9, 1];
         for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) { const yy = H - 5.1 + r * 1.2, zz = z - 3.7 + q * 1.35; W.glow.wbox(x + sx * 3.42, yy, zz, x + sx * 3.5, yy + 0.95, zz + 1.05, lc); }
       }
-      // goal posts with pads, nets behind them
-      const gp = [1, 0.84, 0.1, 1];
-      for (const [zl, dir] of [[110, 1], [-10, -1]]) {
-        const zb = zl + dir * 1.2;
-        W.plain.wbox(-0.15, 0, zb - 0.15, 0.15, 3.35, zb + 0.15, gp);
-        W.plain.wbox(-0.12, 3.2, Math.min(zb, zl) - 0.1, 0.12, 3.4, Math.max(zb, zl) + 0.1, gp);
-        W.plain.wbox(-3.1, 3.25, zl - 0.1, 3.1, 3.45, zl + 0.1, gp);
-        for (const s of [-1, 1]) { W.plain.wbox(s * 3.08 - 0.08, 3.25, zl - 0.08, s * 3.08 + 0.08, 11, zl + 0.08, gp); W.plain.wbox(s * 3.08 - 0.05, 11, zl - 0.05, s * 3.08 + 0.05, 11.6, zl + 0.05, [1, 0.3, 0.2, 1]); }
-        W.plain.wbox(-0.42, 0, zb - 0.42, 0.42, 1.9, zb + 0.42, shade(TEAM, 0.8));
-        // field-goal net frame
-        const zn = zl + dir * 9; for (const s of [-1, 1]) W.plain.wbox(s * 8 - 0.1, 0, zn - 0.1, s * 8 + 0.1, 14, zn + 0.1, steel); W.plain.wbox(-8, 13.9, zn - 0.1, 8, 14.1, zn + 0.1, steel);
+      // goal posts with pads, nets behind them, and the pylons (Hancock's own when that field is up: 14-hancockfield.js)
+      if (HANCOCK && typeof hancockFieldItems === 'function') hancockFieldItems(W);
+      else {
+        const gp = [1, 0.84, 0.1, 1];
+        for (const [zl, dir] of [[110, 1], [-10, -1]]) {
+          const zb = zl + dir * 1.2;
+          W.plain.wbox(-0.15, 0, zb - 0.15, 0.15, 3.35, zb + 0.15, gp);
+          W.plain.wbox(-0.12, 3.2, Math.min(zb, zl) - 0.1, 0.12, 3.4, Math.max(zb, zl) + 0.1, gp);
+          W.plain.wbox(-3.1, 3.25, zl - 0.1, 3.1, 3.45, zl + 0.1, gp);
+          for (const s of [-1, 1]) { W.plain.wbox(s * 3.08 - 0.08, 3.25, zl - 0.08, s * 3.08 + 0.08, 11, zl + 0.08, gp); W.plain.wbox(s * 3.08 - 0.05, 11, zl - 0.05, s * 3.08 + 0.05, 11.6, zl + 0.05, [1, 0.3, 0.2, 1]); }
+          W.plain.wbox(-0.42, 0, zb - 0.42, 0.42, 1.9, zb + 0.42, shade(TEAM, 0.8));
+          // field-goal net frame
+          const zn = zl + dir * 9; for (const s of [-1, 1]) W.plain.wbox(s * 8 - 0.1, 0, zn - 0.1, s * 8 + 0.1, 14, zn + 0.1, steel); W.plain.wbox(-8, 13.9, zn - 0.1, 8, 14.1, zn + 0.1, steel);
+        }
+        for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) W.plain.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
       }
-      for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) W.plain.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
       W.crowd = { f: new Float32Array(CR), n: CR.length / 12 };
       return W;
     }
@@ -7076,6 +7084,458 @@ gl_FragColor=vec4(col,1.0);}`;
         } catch (e) {}
       }, delay * 1000);
     };
+  }
+  // ---------- Hancock Stadium (Illinois State University, Normal IL): the stands, the boards, the lights and the campus ----------
+  // Measured from aerial imagery and OpenStreetMap, in engine yards around the real field (x 0 at the field's centre line, +x east,
+  // z 0 the south goal line, +z north); the field runs with the street grid (Main Street is due north-south), so nothing is turned.
+  //  west: aluminium bleachers built against the east wall of Horton Field House (front x -38.5, back -66, z -4..99), the old
+  //        press box on top at the 50 (now the coaches' booths), five portals halfway up; Horton's white roof behind.
+  //  east: the 2013 grandstand (5,000 red chair-backs, 28 rows from x 37.5 to 65, z -12..98), a band of club windows above the seats,
+  //        the press box and suites with "ILLINOIS STATE UNIVERSITY REDBIRDS" on its sill, the flat canopy roof with the light bank
+  //        on top, brick stair towers at both ends, the building back to Main Street (x 100).
+  //  south: the Touchdown Terrace (a grass berm behind the end zone), the white hospitality tent behind it (x -24.5..24.8,
+  //        z -26..-34.5) and the end-zone video board (31.5 x 64.5 ft, the speakers above it) behind the tent.
+  //  north: the turf runs on 12 yards, a low brick wall, a grass slope with the older scoreboard on a brick base and the flag;
+  //        the Kaufman Football Building in the north-east corner, the white indoor practice dome, Ropp, Vitro, the water tower.
+  //  lights: poles at the north-west, south-west and south-east corners, the long bank on the east canopy.
+  // Further out: Main Street and its lots to the east, Turner Hall and the arena to the south-west, College Avenue to the south.
+  // The field's own items (the turf out to the walls, the team areas, the goal posts and pylons) come from hancockFieldItems(W)
+  // (14-hancockfield.js); the walls stand at its turf edge (HKF.turf: x -39 .. 36.4, z -17 .. 120.5).
+  // The field's long axis is 1.74 degrees west of true north: the stands are built square to the field, and everything measured
+  // in the true north frame (the campus, the streets, the lights) is turned by that angle about the field's centre (spinOut).
+  const HK = { fans: 0 };
+  if (HANCOCK) { // the four point-light slots and their lens flares: the two corner poles on the west side and the east canopy bank
+    const L4 = [[-56.8, 37.5, 123.8, 2.0], [-73.7, 37.5, -36.8, 2.0], [70, 31, 68, 1.35], [70, 31, 32, 1.35]]; // x, y, z, intensity vs the stadium's towers (farther away); the poles as turned onto the field's axis
+    L4.forEach((q, i) => { LPOS[i][0] = q[0]; LPOS[i][1] = q[1]; LPOS[i][2] = q[2]; LPOS[i][3] *= q[3]; TOWERS[i][0] = q[0] + (q[0] < 0 ? -3.5 : 3.5); TOWERS[i][1] = q[1] + 2.5; TOWERS[i][2] = q[2]; });
+  }
+  // the seat rows (red chair-backs on the east side, aluminium planks on the west): one 256 x 128 tile, u repeats along a row
+  function hkSeatCanvas() {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#4a4c52'; g.fillRect(0, 0, 256, 64); // concrete tread
+    for (let i = 0; i < 8; i++) { const x = i * 32 + 3; g.fillStyle = '#9c1a20'; g.fillRect(x, 6, 26, 30); g.fillStyle = '#b8222a'; g.fillRect(x + 1, 6, 24, 9); g.fillStyle = '#7a1218'; g.fillRect(x, 36, 26, 10); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, 46, 26, 6); }
+    g.fillStyle = '#8d9096'; g.fillRect(0, 64, 256, 64); // aluminium decking
+    for (let k = 0; k < 2; k++) { const y = 64 + 8 + k * 26; g.fillStyle = '#c9ccd2'; g.fillRect(0, y, 256, 14); g.fillStyle = '#e4e6ea'; g.fillRect(0, y, 256, 3); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, y + 14, 256, 3); }
+    for (let x = 0; x < 256; x += 64) { g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(x, 64, 2, 64); }
+    return c;
+  }
+  // lettering really on the stadium (plain type, no artwork): rows of a 2048 x 512 canvas, v ranges in HKSIGN
+  const HKSIGN = { isu: [0, 64], terrace: [64, 128], normal: [128, 256], isu2: [256, 320] };
+  function hkSignCanvas() {
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 512; const g = c.getContext('2d');
+    const row = (r, bg, fg, txt, font, spread) => { const [y0, y1] = r; g.fillStyle = bg; g.fillRect(0, y0, 2048, y1 - y0); g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+      if (!spread) { g.fillText(txt, 1024, (y0 + y1) / 2 + 2); return; } txt.forEach((t, i) => g.fillText(t, (2048 / txt.length) * (i + 0.5), (y0 + y1) / 2 + 2)); };
+    row(HKSIGN.isu, '#d9cdb4', '#c8102e', 'ILLINOIS STATE UNIVERSITY REDBIRDS', '800 52px "Barlow Condensed", Arial, sans-serif');
+    row(HKSIGN.terrace, '#f4f2ee', '#a31b22', ['TOUCHDOWN', 'TERRACE'], '700 50px Georgia, "Times New Roman", serif', true);
+    row(HKSIGN.normal, '#eef0f2', '#3a3d44', 'NORMAL', '800 104px Arial, sans-serif');
+    row(HKSIGN.isu2, '#c8102e', '#ffffff', ['ILLINOIS STATE', 'REDBIRDS', 'ILLINOIS STATE', 'REDBIRDS'], '800 44px "Barlow Condensed", Arial, sans-serif', true);
+    return c;
+  }
+  function buildHancock() {
+    cs = 777;
+    const W = { plain: new Batch(40000), seats: new Batch(12), field: new Batch(12), glow: new Batch(6000), board: new Batch(24), ribbon: new Batch(6), glass: new Batch(600), crowd: null };
+    const P = W.plain, GL = W.glow, up = [0, 1, 0], white = [1, 1, 1, 1];
+    const ST = new Batch(12000), SG = new Batch(60); // textured: seat rows, lettering
+    W.field.quad([-30, 0, -12], [30, 0, -12], [30, 0, 112], [-30, 0, 112], up, white, [0, 0, 1, 0, 1, 1, 0, 1]);
+    const snow = WX === 'snow';
+    const C = {
+      lawn: snow ? [0.55, 0.57, 0.58, 1] : [0.13, 0.2, 0.08, 1], berm: snow ? [0.6, 0.62, 0.63, 1] : [0.17, 0.27, 0.1, 1],
+      turf: snow ? [0.5, 0.52, 0.5, 1] : [0.1, 0.24, 0.12, 1],
+      asph: [0.075, 0.078, 0.085, 1], conc: [0.34, 0.33, 0.31, 1], concD: [0.24, 0.24, 0.24, 1], walk: [0.42, 0.41, 0.38, 1],
+      brick: [0.36, 0.13, 0.09, 1], brickD: [0.27, 0.1, 0.07, 1], beige: [0.62, 0.56, 0.45, 1], cream: [0.78, 0.74, 0.65, 1], roofW: [0.8, 0.81, 0.82, 1], roofG: [0.32, 0.33, 0.35, 1], roofD: [0.12, 0.12, 0.13, 1],
+      steel: [0.3, 0.31, 0.34, 1], alu: [0.55, 0.57, 0.6, 1], dark: [0.03, 0.03, 0.035, 1], red: [0.7, 0.06, 0.1, 1], redD: [0.42, 0.04, 0.06, 1], tent: [0.88, 0.88, 0.86, 1],
+      glassC: [0.28, 0.36, 0.46, 1], lit: [0.06, 0.05, 0.035, 1], lamp: [1, 0.97, 0.9, 1], tree: snow ? [0.4, 0.42, 0.4, 1] : [0.1, 0.17, 0.07, 1], treeB: snow ? [0.45, 0.47, 0.46, 1] : [0.13, 0.2, 0.09, 1], trunk: [0.16, 0.12, 0.09, 1],
+    };
+    // ---- helpers ----
+    const gq = (x0, z0, x1, z1, y, col) => P.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, col);
+    const rot = (dx, dz, tx, tz) => [dx, 0, -dz, tx, 0, 1, 0, 0, dz, 0, dx, tz]; // local +x turned to (dx, dz), placed at (tx, tz)
+    const ring = (cx, cz, r, y0, y1, seg, col, r1) => { r1 = r1 === undefined ? r : r1; for (let i = 0; i < seg; i++) { const a0 = (i / seg) * 6.2832, a1 = ((i + 1) / seg) * 6.2832, am = (a0 + a1) / 2;
+      P.quad([cx + Math.cos(a0) * r, y0, cz + Math.sin(a0) * r], [cx + Math.cos(a1) * r, y0, cz + Math.sin(a1) * r], [cx + Math.cos(a1) * r1, y1, cz + Math.sin(a1) * r1], [cx + Math.cos(a0) * r1, y1, cz + Math.sin(a0) * r1], [Math.cos(am), (r - r1) / Math.max(0.5, y1 - y0), Math.sin(am)], col); } };
+    const sign = (pa, pb, y0, y1, key, n, u0, u1) => { const v0 = HKSIGN[key][0] / 512, v1 = HKSIGN[key][1] / 512; u0 = u0 || 0; u1 = u1 === undefined ? 1 : u1;
+      SG.quad([pa[0], y0, pa[1]], [pb[0], y0, pb[1]], [pb[0], y1, pb[1]], [pa[0], y1, pa[1]], n, white, [u0, v1, u1, v1, u1, v0, u0, v0]); };
+    const block = (x0, z0, x1, z1, h, wall, roof, win) => { // a campus building: walls, a flat roof with a parapet, window bands on every face
+      P.wbox(x0, 0, z0, x1, h, z1, wall); P.wbox(x0 + 0.4, h, z0 + 0.4, x1 - 0.4, h + 0.08, z1 - 0.4, roof);
+      if (!win) return;
+      for (let y = 1.4; y < h - 1.2; y += 3.6) { P.wbox(x0 - 0.06, y, z0 + 1, x1 + 0.06, y + 1.5, z1 - 1, C.dark); P.wbox(x0 + 1, y, z0 - 0.06, x1 - 1, y + 1.5, z1 + 0.06, C.dark);
+        if (crand() < 0.55) GL.wbox(x0 + 2 + crand() * (x1 - x0 - 8), y + 0.15, z0 - 0.09, x0 + 2 + crand() * (x1 - x0 - 8) + 3 + crand() * 4, y + 1.35, z0 - 0.07, C.lit); }
+    };
+    const tree = (x, z, s) => { const h = (5 + crand() * 5) * s, r = (2.2 + crand() * 1.6) * s, a = crand() * 1.57, col = crand() < 0.5 ? C.tree : C.treeB;
+      P.wbox(x - 0.18 * s, 0, z - 0.18 * s, x + 0.18 * s, h * 0.45, z + 0.18 * s, C.trunk);
+      P.box(rot(Math.cos(a), Math.sin(a), x, z), 0, h * 0.62, 0, r * 2, h * 0.62, r * 2, col); P.box(rot(Math.cos(a + 0.785), Math.sin(a + 0.785), x, z), 0, h * 0.68, 0, r * 1.5, h * 0.55, r * 1.5, col); };
+    const keepOut = [[-155, -20, 105, 160], [-45, -50, 45, 150], [20, -20, 155, 150], [-115, 150, -30, 232], [-95, -220, 0, -55], [-265, -220, -145, -85], [-40, 145, 75, 262], [65, 135, 120, 260], [150, -115, 235, 125]];
+    const free = (x, z) => !keepOut.some((k) => x > k[0] && x < k[2] && z > k[1] && z < k[3]);
+    // what is measured in the true-north frame is turned onto the field's axis (1.74 deg) about the field's centre: mark the
+    // batches before building it, spinOut(mark) after
+    const SPIN = 1.74 * Math.PI / 180, sc = Math.cos(SPIN), sn = Math.sin(SPIN);
+    const mark = () => [P.n, GL.n, W.glass.n, SG.n]; let mOut = null;
+    const spinOut = (m) => [P, GL, W.glass, SG].forEach((b, i) => { const f = b.f; for (let k = m[i]; k < b.n; k++) { const o = k * 12;
+      for (const j of [0, 3]) { const x = f[o + j], z = f[o + j + 2] - (j ? 0 : 50); f[o + j] = x * sc + z * sn; f[o + j + 2] = (j ? 0 : 50) + z * sc - x * sn; } } });
+    // ---- the ground: lawns, the turf around the field, concrete concourses, lots and streets ----
+    gq(-340, -280, 340, 400, -0.14, C.lawn);
+    const [TW, TE, TS, TN] = typeof HKF !== 'undefined' ? HKF.turf : [-39, 36.4, -17, 120.5]; // the turf's edge (14-hancockfield.js)
+    if (typeof hancockFieldItems !== 'function') gq(TW, TS, TE, TN, -0.02, C.turf);
+    gq(-45, -45, TW, 122, -0.05, C.conc); gq(TE, -45, 130, 125, -0.05, C.conc); gq(TW, -45, TE, TS, -0.05, C.conc); gq(-45, TN, 45, 122.5, -0.05, C.walk);
+    const mGround = mark();
+    gq(102, -40, 129, 104, -0.04, C.asph); // the lot along Main Street
+    gq(130, -320, 150, 400, -0.06, C.asph); for (let z = -315; z < 395; z += 6) gq(139.85, z, 140.15, z + 3, -0.03, [0.55, 0.45, 0.1, 1]); // Main Street, its centre line
+    gq(156, 23, 228, 117, -0.08, C.asph); gq(158, -107, 223, -15, -0.08, C.asph); gq(-37, 147, 68, 258, -0.08, C.asph); gq(8, -288, 132, -158, -0.08, C.asph); gq(-141, -206, -74, -71, -0.08, C.asph);
+    { const cav = [[150, -128], [60, -160], [-23, -197], [-120, -228], [-217, -243], [-340, -252]]; // College Avenue (14 yards wide)
+      for (let i = 0; i + 1 < cav.length; i++) { const [ax, az] = cav[i], [bx, bz] = cav[i + 1], l = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / l * 7, nz = (bx - ax) / l * 7;
+        P.quad([ax - nx, -0.06, az - nz], [bx - nx, -0.06, bz - nz], [bx + nx, -0.06, bz + nz], [ax + nx, -0.06, az + nz], up, C.asph); }
+      gq(150, -136, 340, -122, -0.06, C.asph); } // and east of Main
+    for (const [x0, z0, x1, z1] of [[-62, -60, 120, -52], [-20, 126, -16, 147], [100, 126, 130, 130], [-150, 98, -66, 104]]) gq(x0, z0, x1, z1, -0.05, C.walk); // campus walks
+    spinOut(mGround);
+    // ---- crowd: one sprite per fan (the stadium's crowd shader), mostly in Redbird red ----
+    const CR = [], RED = [0.86, 0.05, 0.08, 1];
+    const pal = [RED, RED, shade(RED, 0.75), [0.9, 0.9, 0.9, 1], [0.1, 0.1, 0.12, 1], [0.35, 0.36, 0.4, 1], TEAM, shade(TEAM, 0.7), [0.16, 0.23, 0.42, 1], [0.5, 0.14, 0.14, 1], [0.25, 0.3, 0.28, 1], [0.18, 0.16, 0.14, 1]];
+    const secPal = (sec) => { const h = Math.abs(Math.sin(sec * 12.9898) * 43758.5453) % 1; return h < 0.62 ? 0 : h < 0.74 ? 2 : h < 0.8 ? 9 : h < 0.86 ? 4 : h < 0.92 ? 6 : h < 0.96 ? 3 : 5; };
+    const seat = (x, y, z, fx, fz, amp, sec) => { // as the stadium's: one quad per fan facing (fx, fz); aM: phase, amp, stand threshold, phone flag
+      const rx = -fz, rz = fx, k = (crand() * 16) | 0, w = 0.4, h = 1.6, ph = crand() * 6.28, thr = 0.25 + crand() * 0.75, phone = SKY.night && crand() < 0.18 ? 1 : 0;
+      const c0 = pal[crand() < 0.12 ? (crand() * pal.length) | 0 : secPal(sec || 0)], c = shade(c0, 0.6 + crand() * 0.45);
+      const u0 = k / 48, u1 = (k + 1) / 48;
+      const a = [x - rx * w, y + h, z - rz * w], b = [x + rx * w, y + h, z + rz * w], c2 = [x + rx * w, y, z + rz * w], d = [x - rx * w, y, z - rz * w];
+      for (const [v, u, t] of [[a, u0, 0], [b, u1, 0], [c2, u1, 1], [a, u0, 0], [c2, u1, 1], [d, u0, 1]]) CR.push(v[0], v[1], v[2], c[0], c[1], c[2], ph, amp, thr, phone, u, t);
+      HK.fans++;
+    };
+    // a seating deck along x (rows run north-south): front edge x0 at height y0, rows step away from the field (fx = the way fans
+    // face, +1 east / -1 west); vr = the seat texture's v range, tile = yards per texture repeat; fill(z, r) = chance a seat is taken
+    const deck = (o) => {
+      const fx = o.fx, L = o.z1 - o.z0, [v0, v1] = o.vr;
+      for (let r = 0; r < o.rows; r++) {
+        const y = o.y0 + r * o.rise, xa = o.x0 - fx * r * o.tread, xb = xa - fx * o.tread;
+        ST.quad([xa, y, o.z0], [xa, y, o.z1], [xb, y, o.z1], [xb, y, o.z0], up, white, [0, v0, L / o.tile, v0, L / o.tile, v1, 0, v1]);
+        P.quad([xb, y, o.z0], [xb, y, o.z1], [xb, y + o.rise, o.z1], [xb, y + o.rise, o.z0], [fx, 0, 0], o.riser);
+        for (const az of o.aisles) P.quad([xa, y + 0.012, az - 0.6], [xa, y + 0.012, az + 0.6], [xb, y + 0.012, az + 0.6], [xb, y + 0.012, az - 0.6], up, o.aisleC);
+        for (let z = o.z0 + 0.4 + crand() * 0.3; z < o.z1 - 0.3; z += o.sp * (0.92 + crand() * 0.2)) {
+          if (o.aisles.some((az) => Math.abs(z - az) < 0.9) || (o.skip && o.skip(z, r))) continue;
+          if (crand() > o.fill(z, r)) continue;
+          seat(xa - fx * o.tread * 0.55, y + 0.02, z, fx, 0, 0.04 + crand() * 0.08, Math.floor((z - o.z0) / 9) * 7 + Math.floor(r / 7) * 31 + (fx > 0 ? 3 : 0));
+        }
+      }
+      const yb = o.y0 + o.rows * o.rise, xe = o.x0 - fx * o.rows * o.tread; // the ends of the deck, closed
+      for (const z of [o.z0, o.z1]) P.quad([o.x0, 0, z], [xe, 0, z], [xe, yb, z], [o.x0, o.y0, z], [0, 0, z === o.z0 ? -1 : 1], o.endC);
+      return { top: yb, back: xe };
+    };
+    // ===== west: the bleachers against Horton Field House =====
+    { const x0 = TW - 0.7, y0 = 1.3, z0 = -4, z1 = 99, portals = [13.6, 30.3, 47.2, 64.2, 81.4];
+      P.wbox(x0, 0, z0, TW, y0, z1, [0.55, 0.53, 0.5, 1]); P.wbox(TW - 0.05, y0 - 0.32, z0, TW + 0.02, y0 - 0.08, z1, C.red); // front wall at the turf's edge, red stripe
+      for (let z = z0; z <= z1; z += 2.6) P.wbox(TW - 0.06, y0, z - 0.03, TW, y0 + 1.0, z + 0.03, C.alu); P.wbox(TW - 0.08, y0 + 0.96, z0, TW + 0.02, y0 + 1.04, z1, C.alu); // rail
+      const d = deck({ x0, y0, z0, z1, fx: 1, rows: 33, tread: 0.83, rise: 0.38, vr: [0.52, 0.98], tile: 4.4, riser: [0.26, 0.27, 0.29, 1], aisleC: [0.62, 0.63, 0.65, 1], endC: [0.4, 0.4, 0.42, 1],
+        aisles: [3.5, 22, 38.8, 55.7, 72.7, 90], sp: 0.7,
+        skip: (z, r) => portals.some((pz) => Math.abs(z - pz) < 1.6) && r >= 14 && r <= 18,
+        fill: (z, r) => (z > 25 && z < 75 ? 0.82 : 0.6) * (r > 28 ? 0.7 : 1) });
+      for (const pz of portals) { const xa = x0 - 14 * 0.83, xb = x0 - 18.6 * 0.83, yt = y0 + 14 * 0.38; // the portals: a dark opening with rails
+        P.wbox(xb, 0, pz - 1.5, xa, yt + 0.05, pz + 1.5, C.dark); for (const s of [-1, 1]) P.wbox(xb, yt, pz + s * 1.55 - 0.03, xa, yt + 1, pz + s * 1.55 + 0.03, C.alu); }
+      // the old press box at the top (coaches' booths): a long box with glass to the field
+      P.wbox(-69, d.top, 30, d.back + 1.2, d.top + 4.2, 70, [0.55, 0.52, 0.47, 1]); P.wbox(-69.3, d.top + 4.2, 29.6, d.back + 1.6, d.top + 4.6, 70.4, C.roofG);
+      W.glass.quad([d.back + 1.25, d.top + 1.4, 30.5], [d.back + 1.25, d.top + 1.4, 69.5], [d.back + 1.25, d.top + 3.6, 69.5], [d.back + 1.25, d.top + 3.6, 30.5], [1, 0, 0], C.glassC);
+      GL.wbox(d.back + 0.6, d.top + 1.5, 31, d.back + 0.8, d.top + 3.5, 69, [0.1, 0.09, 0.07, 1]);
+      for (let z = 30.5; z <= 69.6; z += 3.25) P.wbox(d.back + 1.2, d.top + 1.4, z - 0.08, d.back + 1.32, d.top + 3.6, z + 0.08, C.steel);
+      // Horton Field House: brick walls, the big white roof; McCormick and the dorms beyond
+      P.wbox(-150, 0, -12, -66, 17.5, 96, [0.45, 0.32, 0.24, 1]); P.wbox(-149.5, 17.5, -11.5, -66.5, 18.6, 95.5, C.roofW);
+      for (let z = -8; z < 94; z += 6) P.wbox(-66.1, 14.8, z, -65.9, 17, z + 3.5, C.dark);
+      P.wbox(-66.2, d.top, z0 - 8, -65.8, 17.5, z0, [0.45, 0.32, 0.24, 1]); P.wbox(-66.2, d.top, z1, -65.8, 17.5, 96, [0.45, 0.32, 0.24, 1]);
+      const mDorm = mark(); block(-215, -30, -150, 20, 12, [0.3, 0.2, 0.16, 1], C.roofD, true); block(-215, 30, -152, 96, 14, [0.32, 0.22, 0.17, 1], C.roofD, true); block(-150, 96, -112, 140, 11, [0.35, 0.24, 0.18, 1], C.roofG, true); spinOut(mDorm); }
+    // ===== east: the 2013 grandstand =====
+    { const x0 = TE, y0 = 2.4, z0 = -12, z1 = 98;
+      P.wbox(x0, 0, z0, x0 + 0.9, y0, z1, [0.6, 0.56, 0.5, 1]); P.wbox(x0 - 0.05, 0.5, z0, x0, 1.6, z1, C.red); // podium wall, red padding band
+      for (let z = z0; z <= z1; z += 2.4) P.wbox(x0 + 0.05, y0, z - 0.03, x0 + 0.11, y0 + 1.0, z + 0.03, C.steel); P.wbox(x0 + 0.03, y0 + 0.96, z0, x0 + 0.13, y0 + 1.04, z1, C.steel);
+      const tunnels = [33, 67];
+      const d = deck({ x0: x0 + 0.9, y0, z0, z1, fx: -1, rows: 28, tread: 0.94, rise: 0.5, vr: [0.02, 0.48], tile: 4.4, riser: [0.5, 0.47, 0.43, 1], aisleC: [0.55, 0.53, 0.5, 1], endC: [0.5, 0.47, 0.42, 1],
+        aisles: [-2.5, 7, 16.5, 26, 40, 50, 60, 74, 83.5, 93], sp: 0.66,
+        skip: (z, r) => r < 7 && tunnels.some((t) => Math.abs(z - t) < 3),
+        fill: (z, r) => (z > 0 && z < 86 ? 0.88 : 0.7) * (r > 24 ? 0.8 : 1) });
+      for (const t of tunnels) { P.wbox(x0 - 0.05, 0, t - 2.4, x0 + 0.9 + 7 * 0.94, y0 + 7 * 0.5, t + 2.4, [0.55, 0.52, 0.47, 1]); P.wbox(x0 - 0.1, 0, t - 1.8, x0 + 0.95, 2.6, t + 1.8, C.dark);
+        for (const s of [-1, 1]) P.wbox(x0, y0 + 3.5, t + s * 2.4 - 0.05, x0 + 7.5, y0 + 4.4, t + s * 2.4 + 0.05, C.steel); }
+      const xt = d.back, yt = d.top; // ~65, ~16.4
+      // club level: windows the full length above the last row
+      P.wbox(xt, yt, z0 + 3, xt + 7, yt + 4.8, z1 - 3, C.beige); W.glass.quad([xt - 0.05, yt + 0.8, z0 + 4], [xt - 0.05, yt + 0.8, z1 - 4], [xt - 0.05, yt + 4.2, z1 - 4], [xt - 0.05, yt + 4.2, z0 + 4], [-1, 0, 0], C.glassC);
+      GL.wbox(xt + 0.35, yt + 0.9, z0 + 4.5, xt + 0.5, yt + 4.1, z1 - 4.5, [0.11, 0.1, 0.08, 1]);
+      for (let z = z0 + 4; z <= z1 - 3.9; z += 2.5) P.wbox(xt - 0.12, yt + 0.8, z - 0.07, xt + 0.02, yt + 4.2, z + 0.07, C.cream);
+      P.wbox(xt - 0.6, yt + 0.6, z0 + 3, xt, yt + 0.8, z1 - 3, C.cream); // the sill and its rail
+      // press box and suites: the lettered sill, a second glass row, the flat canopy that overhangs, the light bank on top
+      const y2 = yt + 4.8, zp0 = 14, zp1 = 86;
+      P.wbox(xt + 1.5, y2, zp0, xt + 13, y2 + 6.6, zp1, C.cream); P.wbox(xt + 2.5, y2, z0 + 3, xt + 13, y2 + 3, z1 - 3, C.beige);
+      sign([xt + 1.45, zp1 - 6], [xt + 1.45, zp0 + 6], y2 + 0.35, y2 + 1.75, 'isu', [-1, 0, 0]);
+      W.glass.quad([xt + 1.45, y2 + 2.2, zp0 + 1], [xt + 1.45, y2 + 2.2, zp1 - 1], [xt + 1.45, y2 + 6.1, zp1 - 1], [xt + 1.45, y2 + 6.1, zp0 + 1], [-1, 0, 0], C.glassC);
+      GL.wbox(xt + 1.8, y2 + 2.3, zp0 + 1.5, xt + 1.95, y2 + 6, zp1 - 1.5, [0.12, 0.11, 0.09, 1]);
+      for (let z = zp0 + 1; z <= zp1 - 0.9; z += 3) P.wbox(xt + 1.38, y2 + 2.2, z - 0.07, xt + 1.5, y2 + 6.1, z + 0.07, C.cream);
+      const yc = y2 + 6.6; P.wbox(xt - 4.5, yc, zp0 - 9, xt + 16, yc + 0.8, zp1 + 9, C.roofW); P.wbox(xt - 4.6, yc - 0.3, zp0 - 9.1, xt - 4.4, yc + 0.85, zp1 + 9.1, [0.6, 0.6, 0.62, 1]);
+      P.wbox(xt + 4.6, yc + 0.7, zp0, xt + 5.4, yc + 5, zp1, C.steel); P.wbox(xt + 3.4, yc + 2.4, zp0 - 0.5, xt + 4.6, yc + 4.9, zp1 + 0.5, [0.16, 0.17, 0.19, 1]);
+      for (let r = 0; r < 2; r++) for (let z = zp0 + 0.2; z < zp1 - 0.8; z += 1.5) GL.wbox(xt + 3.32, yc + 2.55 + r * 1.2, z, xt + 3.4, yc + 3.6 + r * 1.2, z + 1.2, C.lamp);
+      // brick stair towers at both ends, the building back to Main Street
+      for (const [za, zb] of [[z0 - 4.5, z0], [z1, z1 + 4.5]]) { P.wbox(xt - 6, 0, za, xt + 8, yt + 7.5, zb, C.brick); P.wbox(xt - 6.3, yt + 7.5, za - 0.3, xt + 8.3, yt + 8.2, zb + 0.3, C.cream); P.wbox(xt - 6.05, 3, za + 0.8, xt - 5.95, yt + 6, zb - 0.8, C.dark); }
+      P.wbox(xt + 7, 0, z0 - 3, 100, yt + 4.8, z1 + 3, C.brick); P.wbox(xt + 7.2, yt + 4.8, z0 - 2.8, 99.8, yt + 5.1, z1 + 2.8, C.roofG);
+      P.wbox(x0 + 0.9, 0, z0 - 4.5, xt - 6, y0 + 1, z0, C.brickD); P.wbox(x0 + 0.9, 0, z1, xt - 6, y0 + 1, z1 + 4.5, C.brickD); }
+    // ===== south: the Touchdown Terrace, the tent, the video board =====
+    { const zf = TS, zt = -26, yb = 2.5;
+      P.quad([-27, 0, zf], [27, 0, zf], [27, yb, zt], [-27, yb, zt], [0, 0.95, 0.3], C.berm); // the berm
+      for (const s of [-1, 1]) P.quad([s * 27, 0, zf], [s * 27, 0, zt], [s * 27, yb, zt], [s * 27, 0, zt], [s, 0, 0], C.berm);
+      P.wbox(-27, 0, zt - 9, 27, yb, zt, C.concD);
+      for (let i = 0; i < 80; i++) { const x = -25 + crand() * 50, t = 0.15 + crand() * 0.8, z = zf + (zt - zf) * t; seat(x, yb * t - 0.3, z, 0, 1, 0.05 + crand() * 0.08, 5); }
+      // the tent: white, open to the field, a gable roof; the lettered banner at its front
+      const ta = -26, tb = -34.5, ye = yb + 3.2, yr = yb + 5;
+      P.quad([-24.5, ye, ta], [24.8, ye, ta], [24.8, yr, (ta + tb) / 2], [-24.5, yr, (ta + tb) / 2], [0, 0.85, 0.5], C.tent); P.quad([-24.5, ye, tb], [24.8, ye, tb], [24.8, yr, (ta + tb) / 2], [-24.5, yr, (ta + tb) / 2], [0, 0.85, -0.5], C.tent);
+      for (const x of [-24.5, 24.8]) P.quad([x, yb, ta], [x, yb, tb], [x, ye, tb], [x, ye, ta], [Math.sign(x), 0, 0], C.tent);
+      P.quad([-24.5, yb, tb], [24.8, yb, tb], [24.8, ye, tb], [-24.5, ye, tb], [0, 0, 1], C.tent); P.wbox(-24.5, ye - 0.5, ta - 0.05, 24.8, ye, ta + 0.05, C.tent);
+      for (let x = -24.5; x <= 24.9; x += 4.9) P.wbox(x - 0.06, yb, ta - 0.06, x + 0.06, ye, ta + 0.06, C.alu);
+      sign([23.5, ta + 0.1], [-23.5, ta + 0.1], yb + 0.05, yb + 1.15, 'terrace', [0, 0, 1]);
+      P.wbox(-23.6, yb, ta + 0.02, 23.6, yb + 1.2, ta + 0.07, C.alu);
+      for (let i = 0; i < 70; i++) seat(-23 + crand() * 46, yb + 0.02, ta - 1.2 - crand() * 6.5, 0, 1, 0.06, 5);
+      // the video board (2026): 64.5 x 31.5 ft on two legs behind the tent, the speaker cluster above; reads to the north
+      const zb = -38.2, bx = 10.75, by0 = 9.2, by1 = 19.7;
+      P.wbox(-bx - 0.8, by0 - 0.8, zb - 1.4, bx + 0.8, by1 + 0.8, zb, [0.06, 0.065, 0.075, 1]);
+      W.board.quad([bx, by0, zb + 0.06], [-bx, by0, zb + 0.06], [-bx, by1, zb + 0.06], [bx, by1, zb + 0.06], [0, 0, 0], white, [0, 1, 1, 1, 1, 0, 0, 0]);
+      P.wbox(-4.5, by1 + 0.8, zb - 1.6, 4.5, by1 + 3.2, zb + 0.2, [0.13, 0.13, 0.15, 1]); P.wbox(-0.4, by1 + 0.8, zb - 1, 0.4, by1 + 1, zb - 0.4, C.steel);
+      for (const s of [-1, 1]) { P.wbox(s * 6.5 - 0.6, 0, zb - 1.3, s * 6.5 + 0.6, by0 - 0.8, zb - 0.1, [0.2, 0.2, 0.22, 1]); P.wbox(s * 6.5 - 1.4, 0, zb - 1.9, s * 6.5 + 1.4, 0.6, zb + 0.5, C.concD); }
+      P.wbox(-bx - 0.8, by0 - 1.3, zb + 0.1, bx + 0.8, by0 - 1.2, zb + 1.1, C.steel); }
+    // ===== north: the wall, the grass slope, the old scoreboard, the flag, Kaufman =====
+    { P.wbox(-45, 0, 122.5, 30, 1.1, 123.2, C.brick); P.wbox(-45.1, 1.1, 122.4, 30.1, 1.25, 123.3, C.cream);
+      P.quad([-45, 0.9, 123.2], [30, 0.9, 123.2], [30, 3.2, 143], [-45, 3.2, 143], [0, 0.99, -0.12], C.berm); P.wbox(-45, 0, 143, 30, 3.2, 147, C.berm);
+      P.wbox(-9, 0, 134.6, 6, 4, 136.4, C.brick); P.wbox(-8.5, 4, 134.9, 5.5, 11.2, 136, [0.06, 0.065, 0.075, 1]);
+      W.board.quad([-7.9, 4.5, 134.84], [4.9, 4.5, 134.84], [4.9, 10.7, 134.84], [-7.9, 10.7, 134.84], [0, 0, 0], white, [0, 1, 1, 1, 1, 0, 0, 0]);
+      P.wbox(-23.15, 0, 131.85, -22.85, 24, 132.15, C.alu); P.wbox(-22.85, 20.6, 131.97, -16.8, 23.8, 132.03, [0.75, 0.75, 0.78, 1]); P.wbox(-22.85, 22.2, 131.96, -19.6, 23.8, 132.04, [0.18, 0.22, 0.45, 1]);
+      for (let k = 0; k < 4; k++) P.wbox(-19.6, 20.6 + k * 0.8, 131.95, -16.8, 21.0 + k * 0.8, 132.05, [0.62, 0.08, 0.1, 1]);
+      mOut = mark(); // (from Kaufman to the light poles: the true-north frame)
+      // Kaufman Football Building: brick, a glass upper floor and terrace facing the field
+      P.wbox(29.4, 0, 122, 57.9, 9.5, 149, C.brick); P.wbox(29.2, 9.5, 121.8, 58.1, 10.1, 149.2, C.cream); P.wbox(41.6, 0, 104, 57.9, 5.2, 122, C.brick); P.wbox(41.4, 5.2, 103.8, 58.1, 5.6, 122.2, C.cream);
+      W.glass.quad([29.35, 5.6, 146], [29.35, 5.6, 124], [29.35, 9, 124], [29.35, 9, 146], [-1, 0, 0], C.glassC); GL.wbox(29.6, 5.7, 124.5, 29.75, 8.9, 145.5, [0.1, 0.09, 0.07, 1]);
+      W.glass.quad([31, 5.6, 121.95], [41.5, 5.6, 121.95], [41.5, 9, 121.95], [31, 9, 121.95], [0, 0, -1], C.glassC);
+      P.wbox(29.4, 5.2, 116, 41.6, 5.5, 122, C.cream); P.wbox(29.4, 5.5, 115.9, 41.6, 6.5, 116.05, C.alu);
+      W.glass.quad([41.55, 1, 106], [41.55, 1, 120], [41.55, 4.4, 120], [41.55, 4.4, 106], [-1, 0, 0], C.glassC);
+      P.wbox(52, 0, 98, 60, 4, 104, [0.55, 0.52, 0.47, 1]);
+      for (const [x, z] of [[-40, 140], [-34, 144], [-27, 141], [-10, 145], [12, 146], [20, 141], [26, 145]]) tree(x, z, 1);
+      // the indoor practice dome (white, air-supported): a half barrel with rounded ends
+      const dx0 = -108, dx1 = -38, dz0 = 158, dz1 = 226, dh = 19, cx = (dx0 + dx1) / 2, hw = (dx1 - dx0) / 2, N = 10;
+      for (let i = 0; i < N; i++) { const a0 = (i / N) * Math.PI, a1 = ((i + 1) / N) * Math.PI, xa = cx - Math.cos(a0) * hw, xb = cx - Math.cos(a1) * hw, ya = Math.sin(a0) * dh, yb = Math.sin(a1) * dh, am = (a0 + a1) / 2;
+        P.quad([xa, ya, dz0 + 6], [xb, yb, dz0 + 6], [xb, yb, dz1 - 6], [xa, ya, dz1 - 6], [-Math.cos(am), Math.sin(am), 0], [0.86, 0.87, 0.88, 1]);
+        for (const [ze, s] of [[dz0, -1], [dz1, 1]]) P.quad([xa, ya, ze + -s * 6], [xb, yb, ze + -s * 6], [xb, yb * 0.55, ze], [xa, ya * 0.55, ze], [0, 0.5, s], [0.84, 0.85, 0.86, 1]); }
+      block(71, 139, 115, 218, 13, [0.42, 0.3, 0.22, 1], C.roofD, true); block(11, 238, 49, 254, 8, [0.5, 0.4, 0.3, 1], C.roofG, true); block(88, 239, 112, 256, 8, [0.45, 0.3, 0.22, 1], C.roofG, true);
+      // the water tower (white, NORMAL on the tank)
+      const wx = 86, wz = 280; for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.785; P.wbox(wx + Math.cos(a) * 5 - 0.5, 0, wz + Math.sin(a) * 5 - 0.5, wx + Math.cos(a) * 5 + 0.5, 34, wz + Math.sin(a) * 5 + 0.5, [0.85, 0.86, 0.87, 1]); }
+      P.wbox(wx - 1.2, 0, wz - 1.2, wx + 1.2, 34, wz + 1.2, [0.85, 0.86, 0.87, 1]);
+      ring(wx, wz, 2.5, 30, 34, 12, [0.88, 0.89, 0.9, 1], 9); ring(wx, wz, 9, 34, 42, 12, [0.9, 0.91, 0.92, 1]); ring(wx, wz, 9, 42, 47, 12, [0.88, 0.89, 0.9, 1], 1);
+      { const dx = -wx, dz = 50 - wz, l = Math.hypot(dx, dz), nx = dx / l, nz = dz / l, tx = -nz, tz = nx, r = 9.05; // faces the field
+        sign([wx + nx * r - tx * 6.5, wz + nz * r - tz * 6.5], [wx + nx * r + tx * 6.5, wz + nz * r + tz * 6.5], 36, 40, 'normal', [nx, 0, nz]); } }
+    // ===== further out: Turner Hall, the arena, east of Main Street, the trees, the far tree line =====
+    { block(-62, -100, -18, -61, 9, [0.4, 0.22, 0.16, 1], C.roofG, true); block(-86, -140, -7, -100, 10, [0.42, 0.24, 0.17, 1], C.roofG, true); block(-60, -213, -20, -140, 9, [0.4, 0.22, 0.16, 1], C.roofG, true);
+      ring(-206, -151, 54, 0, 12, 20, [0.55, 0.53, 0.5, 1]); ring(-206, -151, 54, 12, 26, 20, [0.86, 0.87, 0.88, 1], 6); ring(-206, -151, 6, 26, 27.5, 8, [0.6, 0.6, 0.62, 1], 1); // CEFCU (Redbird) Arena
+      block(161, -12, 217, 23, 10, [0.45, 0.33, 0.25, 1], C.roofG, true); block(184, 140, 210, 210, 8, [0.5, 0.42, 0.33, 1], [0.2, 0.3, 0.25, 1], true); block(175, -200, 240, -150, 12, [0.42, 0.3, 0.22, 1], C.roofD, true);
+      block(240, 40, 300, 110, 14, [0.4, 0.3, 0.24, 1], C.roofD, true); block(-300, 120, -230, 180, 12, [0.38, 0.27, 0.2, 1], C.roofD, true); block(-150, 260, -90, 300, 9, [0.42, 0.3, 0.22, 1], C.roofD, true);
+      for (let i = 0; i < 260; i++) { const x = -330 + crand() * 660, z = -270 + crand() * 650; if (!free(x, z) || Math.hypot(x, z - 50) > 330 || (x > 125 && x < 155)) continue; tree(x, z, 0.9 + crand() * 0.6); }
+      for (let i = 0; i < 48; i++) { const a = (i / 48) * 6.2832, r = 345 + crand() * 25, x = Math.cos(a) * r, z = 50 + Math.sin(a) * r * 0.95; // the far tree line (and the town) in the haze
+        P.box(rot(Math.cos(a + 1.57), Math.sin(a + 1.57), x, z), 0, 5, 0, 52, 10 + crand() * 8, 12, crand() < 0.7 ? C.tree : [0.2, 0.17, 0.15, 1]); } }
+    // ===== the lights: steel poles at three corners, their heads aimed at the field =====
+    for (const [x, z] of [[-59, 122], [-71, -39], [61, -48]]) {
+      const H = 39, dx = -x, dz = 50 - z, l = Math.hypot(dx, dz), m = rot(dx / l, dz / l, x, z);
+      P.wbox(x - 0.45, 0, z - 0.45, x + 0.45, H - 4, z + 0.45, [0.5, 0.51, 0.53, 1]); P.wbox(x - 0.9, 0, z - 0.9, x + 0.9, 1.2, z + 0.9, C.concD);
+      P.box(m, -0.4, H - 4.5, 0, 0.5, 0.3, 7.4, C.steel); P.box(m, 0, H - 2.4, 0, 0.6, 5, 7.6, [0.15, 0.16, 0.18, 1]);
+      for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) GL.box(m, 0.33, H - 4.3 + r * 1.2, -3.2 + q * 1.28, 0.1, 0.95, 1.05, C.lamp);
+    }
+    spinOut(mOut);
+    // ===== the sidelines: benches, coolers, kicking nets; goal posts, nets, pylons =====
+    for (const s of [-1, 1]) {
+      const bx = s * 35.4;
+      P.wbox(bx - 0.65, 0.42, 30, bx + 0.65, 0.5, 70, [0.72, 0.72, 0.74, 1]);
+      for (let z = 31; z <= 69; z += 6) P.wbox(bx - 0.5, 0, z - 0.06, bx + 0.5, 0.42, z + 0.06, C.steel);
+      P.wbox(bx + s * 0.6, 0.5, 30, bx + s * 0.7, 1.0, 70, [0.72, 0.72, 0.74, 1]);
+      for (const z of [27, 28.2]) { P.wbox(bx - 0.3, 0, z - 0.3, bx + 0.3, 0.75, z + 0.3, [0.95, 0.4, 0.05, 1]); P.wbox(bx - 0.32, 0.75, z - 0.32, bx + 0.32, 0.8, z + 0.32, [0.95, 0.95, 0.95, 1]); }
+      W.plain.wbox(bx - 0.1, 0, 75.5, bx + 0.1, 3.0, 75.6, C.steel); W.plain.wbox(bx - 0.1, 0, 78.4, bx + 0.1, 3.0, 78.5, C.steel); W.plain.wbox(bx - 0.1, 2.95, 75.5, bx + 0.1, 3.05, 78.5, C.steel);
+      for (const z of [-7, 107]) { P.wbox(s * 20 - 0.08, 0, z - 0.08, s * 20 + 0.08, 1.4, z + 0.08, C.steel); P.wbox(s * 20 - 0.25, 1.4, z - 0.35, s * 20 + 0.25, 1.75, z + 0.35, [0.1, 0.1, 0.12, 1]); }
+    }
+    if (typeof hancockFieldItems === 'function') hancockFieldItems(W); // the turf apron, team areas, goal posts, pylons (14-hancockfield.js)
+    else {
+      const gp = [1, 0.84, 0.1, 1];
+      for (const [zl, dir] of [[110, 1], [-10, -1]]) {
+        const zb = zl + dir * 1.2;
+        P.wbox(-0.15, 0, zb - 0.15, 0.15, 3.35, zb + 0.15, gp);
+        P.wbox(-0.12, 3.2, Math.min(zb, zl) - 0.1, 0.12, 3.4, Math.max(zb, zl) + 0.1, gp);
+        P.wbox(-3.1, 3.25, zl - 0.1, 3.1, 3.45, zl + 0.1, gp);
+        for (const s of [-1, 1]) { P.wbox(s * 3.08 - 0.08, 3.25, zl - 0.08, s * 3.08 + 0.08, 11, zl + 0.08, gp); P.wbox(s * 3.08 - 0.05, 11, zl - 0.05, s * 3.08 + 0.05, 11.6, zl + 0.05, [1, 0.3, 0.2, 1]); }
+        P.wbox(-0.42, 0, zb - 0.42, 0.42, 1.9, zb + 0.42, C.red);
+      }
+      for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) P.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
+    }
+    for (const [zl, dir] of [[110, 1], [-10, -1]]) { const zn = zl + dir * 6.5; for (const s of [-1, 1]) P.wbox(s * 8 - 0.1, 0, zn - 0.1, s * 8 + 0.1, 14, zn + 0.1, C.steel); P.wbox(-8, 13.9, zn - 0.1, 8, 14.1, zn + 0.1, C.steel); }
+    W.crowd = { f: new Float32Array(CR), n: CR.length / 12 };
+    // the textured layers (their own statics, drawn like the stadium's seat rows)
+    if (typeof gl !== 'undefined' && gl && G) {
+      const add = (k, b, src, repeat, mat, cast) => { if (!b.n) return; const t = mkTex(src, repeat, false, 8); G.texs.push(t); const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, b.f.subarray(0, b.n * 12), gl.STATIC_DRAW); G.bufs.push(buf);
+        statics.push({ k, b: buf, n: b.n, tex: t, cast, kind: 0, mat }); };
+      add('hkseat', ST, hkSeatCanvas(), true, [0.75, 0, 0, 0], true);
+      add('hksign', SG, hkSignCanvas(), false, [0.6, 0, 0, 0.15], false);
+    }
+    if (DBG) DBG.hkStats = { plain: P.n, glow: GL.n, glass: W.glass.n, board: W.board.n, seatRows: ST.n, signs: SG.n, fans: HK.fans, crowdVerts: W.crowd.n };
+    return W;
+  }
+  // =====================================================================================
+  // Hancock Stadium (Normal, Illinois): the playing surface and everything painted on it, plus the goal posts, pylons and the
+  // turf apron around the field. Measured from aerial imagery of the field as it is today (the frame is the stadium's: engine z 0
+  // = the south goal line, x = +/-HW the sidelines, +x east; the real field's long axis points 1.7 degrees west of true north,
+  // which is the surroundings' business, not the field's):
+  //   - synthetic turf in two shades laid in 5-yard bands, light from each goal line out (0-5, 10-15, ... 40-45), one dark
+  //     10-yard band across midfield (45-55), then mirrored
+  //   - both end zones solid red, "REDBIRDS" in white bold serif capitals (about 38 x 5.2 yards) reading from the field
+  //   - a 2-yard (6 ft) white border all the way round outside the sidelines and end lines
+  //   - college markings: hash marks 20 yards in from each sideline (x = +/-6.67), short yard marks at the sidelines, the try
+  //     mark on each 3, small crosses on both 35s; serif numbers 6 ft tall between 7 and 9 yards in from the sidelines, their
+  //     bottoms toward the sideline, with arrows on the goal side
+  //   - outside the border (beyond this canvas, built as flat quads by hancockFieldItems): green turf to the walls, a red team
+  //     area 4 to 8 yards out between the 25s on both sides, the coaching lines (solid, the 15 to the 15, 8 yards out) and the
+  //     dashed limit line 4 yards out that steps around the team area
+  //   - midfield: the real field has the university's bird-head logo there; it is left as plain turf on purpose (no logos)
+  // The canvas honours fieldCanvas's contract exactly: the same size (1024k x 2048k), the same mapping (VN.tex: x -30..30,
+  // z -12..112), and fieldC / fieldScale are set so scuff() keeps working.
+  // =====================================================================================
+  // measured layout (yards, engine frame)
+  const HKF = {
+    border: 2,                       // white border outside the sidelines and the end lines
+    hash: 6.67,                      // hash marks 60 ft (20 yd) in from each sideline
+    numIn: 7, numH: 2,               // numbers from 7 to 9 yards in from the sideline (6 ft tall)
+    team: [4, 8, 25, 75],            // red team areas: 4 to 8 yards outside the sideline, between the 25s
+    coach: [15, 85],                 // coaching lines 8 yards out from the 15 to the 15, with cross lines at 15/20/25
+    limit: 4, limitTeam: 9.7,        // dashed limit line 4 yards out, stepping out to 9.7 around the team area (23 to 77)
+    turf: [-39, 36.4, -17, 120.5],   // the synthetic turf reaches the walls: x west, x east, z south, z north
+    ezText: [105.5, -4.85],          // the lettering's centre line in the north and the south end zone
+    ezW: 38.4, ezH: 5.2,             // lettering size (width, cap height)
+    postBack: 2.0, postTop: 9.6,     // goal post: the gooseneck's base 2 yards behind the end line; uprights to 29 ft
+  };
+  // turf / paint colours for the weather (canvas css), shared by the canvas and the apron quads
+  function hkPal() {
+    const snow = WX === 'snow', wet = WX === 'rain';
+    return {
+      light: snow ? '#73907a' : wet ? '#2c5a37' : '#40764a',
+      dark: snow ? '#68846e' : wet ? '#22482c' : '#32623b',
+      apron: snow ? '#6c8a72' : wet ? '#265031' : '#3a6c42',
+      red: snow ? '#b4685e' : wet ? '#962f24' : '#c43c2c',
+      band: snow ? '#d4dad7' : wet ? '#b9c0bf' : '#d2d9d7',
+      line: 'rgba(240,243,236,0.94)',
+    };
+  }
+  // texel spots in the canvas the off-canvas quads sample from (flat swatches of the base colours, painted last): [x, z]
+  const HK_SW = { apron: [-29.35, 60.5], red: [-25.6, 109.4], band: [-27.65, 60.5] };
+  function hancockGroundCanvas(k) {
+    cs = 20251031;
+    const c = document.createElement('canvas'); const CW = 1024 * k, CH = 2048 * k; c.width = CW; c.height = CH; const g = c.getContext('2d');
+    fieldC = c; fieldScale = k;
+    const T = VN.tex, SX = CW / T[2], SZ = CH / T[3], PX = (x) => (x + T[0]) * SX, PZ = (z) => (z + T[1]) * SZ;
+    const P = hkPal(), snow = WX === 'snow', B = HKF.border;
+    const rect = (x0, z0, x1, z1, col) => { g.fillStyle = col; g.fillRect(PX(x0), PZ(z0), PX(x1) - PX(x0), PZ(z1) - PZ(z0)); };
+    // apron turf everywhere, then the field in its 5-yard bands (end zones and the border painted over them below)
+    rect(-T[0], -T[1], T[2] - T[0], T[3] - T[1], P.apron);
+    for (let i = -2; i < 22; i++) {
+      const z0 = i * 5, light = i < 0 || i > 19 ? false : i < 9 ? i % 2 === 0 : i > 10 ? i % 2 === 1 : false;
+      rect(-HW, z0, HW, z0 + 5, light ? P.light : P.dark);
+    }
+    // synthetic turf: gentle large-scale tone variation and fibre strokes (no bare earth on this surface)
+    for (let i = 0; i < 380 * k; i++) { const x = crand() * CW, y = crand() * CH, r = (12 + crand() * 46) * k; const gr = g.createRadialGradient(x, y, 0, x, y, r); const dk = crand() < 0.5; gr.addColorStop(0, dk ? 'rgba(10,35,15,0.05)' : 'rgba(150,190,130,0.035)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    const nb = 36000 * k * k;
+    for (let i = 0; i < nb; i++) {
+      const x = crand() * CW, y = crand() * CH, l = (2 + crand() * 4) * k, v = crand();
+      g.strokeStyle = v < 0.35 ? 'rgba(150,200,140,0.08)' : v < 0.7 ? 'rgba(0,25,5,0.1)' : 'rgba(20,20,20,0.05)'; g.lineWidth = k;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (crand() - 0.5) * 2 * k, y - l); g.stroke();
+    }
+    // infill scuffing between the hashes, heaviest in the middle of the field (rubber crumb shows dark on worn turf)
+    for (let i = 0; i < 500 * k; i++) { const zz = 3 + crand() * 94, mid = 1 - Math.abs(zz - 50) / 50; if (crand() > 0.25 + 0.6 * mid) continue; g.fillStyle = 'rgba(25,30,22,' + (0.03 + crand() * 0.05) + ')'; g.beginPath(); g.ellipse(PX((crand() - 0.5) * 2 * (3 + crand() * 7)), PZ(zz), (4 + crand() * 12) * k, (2 + crand() * 5) * k, crand() * 3, 0, 6.3); g.fill(); }
+    // end zones: solid red, with the same fibre texture
+    rect(-HW, -10, HW, 0, P.red); rect(-HW, 100, HW, 110, P.red);
+    for (let i = 0; i < 7000 * k; i++) { g.fillStyle = crand() < 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.07)'; const zz = crand() < 0.5 ? -10 + crand() * 10 : 100 + crand() * 10; g.fillRect(PX(-HW + crand() * 2 * HW), PZ(zz), (1 + crand() * 2) * k, (2 + crand() * 4) * k); }
+    // the white border round the field (outside the sidelines and the end lines)
+    rect(-HW - B, -10 - B, -HW, 110 + B, P.band); rect(HW, -10 - B, HW + B, 110 + B, P.band);
+    rect(-HW, -10 - B, HW, -10, P.band); rect(-HW, 110, HW, 110 + B, P.band);
+    for (let i = 0; i < 5000 * k; i++) { const s = crand() < 0.5 ? -1 : 1, onSide = crand() < 0.8; g.fillStyle = crand() < 0.6 ? 'rgba(60,80,65,0.06)' : 'rgba(255,255,255,0.06)'; const x = onSide ? s * (HW + crand() * B) : -HW + crand() * 2 * HW, z = onSide ? -12 + crand() * 124 : (s < 0 ? -10 - crand() * B : 110 + crand() * B); g.fillRect(PX(x), PZ(z), (1 + crand() * 2) * k, (1 + crand() * 3) * k); }
+    if (snow) for (let i = 0; i < 20000 * k; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.1 + crand() * 0.3) + ')'; g.fillRect(crand() * CW, crand() * CH, (2 + crand() * 6) * k, (2 + crand() * 6) * k); }
+    // painted lines (4 inches: drawn a touch wider so they hold up at a distance) with a soft bleed halo
+    const paint = (x0, z0, x1, z1, a) => { for (const [o, al] of [[1.4 * k, 0.2], [0, 0.94 * (a || 1)]]) { g.fillStyle = `rgba(240,243,236,${al})`; g.fillRect(PX(x0) - o, PZ(z0) - o, PX(x1) - PX(x0) + o * 2, PZ(z1) - PZ(z0) + o * 2); } };
+    const lw = 0.075;
+    for (let z = 5; z < 100; z += 5) paint(-HW, z - lw, HW, z + lw);
+    paint(-HW, -0.12, HW, 0.06); paint(-HW, 99.94, HW, 100.12); // goal lines (the white edge of the red end zones)
+    for (let z = 1; z < 100; z++) {
+      if (z % 5 === 0) { for (const hx of [-HKF.hash, HKF.hash]) paint(hx - 0.08, z - 0.33, hx + 0.08, z + 0.33); continue; }
+      for (const hx of [-HKF.hash, HKF.hash]) paint(hx - 0.33, z - 0.055, hx + 0.33, z + 0.055);
+      paint(-HW + 0.11, z - 0.055, -HW + 0.78, z + 0.055); paint(HW - 0.78, z - 0.055, HW - 0.11, z + 0.055);
+    }
+    paint(-0.33, 2.95, 0.33, 3.05); paint(-0.33, 96.95, 0.33, 97.05); // try marks on the 3s
+    for (const z of [35, 65]) for (const d of [-1, 1]) { g.save(); g.translate(PX(0), PZ(z)); g.scale(SX, SZ); g.rotate(d * Math.PI / 4); g.fillStyle = 'rgba(240,243,236,0.9)'; g.fillRect(-0.3, -0.04, 0.6, 0.08); g.restore(); }
+    // the coaching cross lines inside the canvas (border edge to the canvas edge; the rest is hancockFieldItems')
+    for (const s of [-1, 1]) for (const z of [HKF.coach[0], 20, HKF.team[2], HKF.team[3], 80, HKF.coach[1]]) { const a = s * (HW + B), b = s * T[0]; paint(Math.min(a, b), z - 0.055, Math.max(a, b), z + 0.055); }
+    // lettering: world reading direction R (x, z) and the glyphs' up U = (-Rz, Rx); sized to a cap height and a width in yards
+    const SERIF = 'Georgia, Charter, "Bitstream Charter", "Times New Roman", "DejaVu Serif", serif';
+    const wtxt = (s, x, z, R, capH, maxW, fit, fill, stroke) => { // fit: stretch to exactly maxW; else only squeeze to it
+      g.save();
+      const U = [-R[1], R[0]];
+      g.setTransform(R[0] * SX, R[1] * SZ, -U[0] * SX, -U[1] * SZ, PX(x), PZ(z)); // 1 unit = 1 yard; text y runs down = -U
+      g.font = `700 100px ${SERIF}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      const m = g.measureText(s), asc = m.actualBoundingBoxAscent || 72, w = m.width || 1;
+      const ky = capH / asc, kx = fit ? maxW / w : Math.min(ky, maxW / w);
+      g.scale(kx, ky); g.translate(0, asc / 2);
+      if (stroke) { g.lineJoin = 'round'; g.lineWidth = 0.2 / ky; g.strokeStyle = stroke; g.strokeText(s, 0, 0); }
+      g.fillStyle = fill; g.fillText(s, 0, 0);
+      g.restore();
+    };
+    // end zones: REDBIRDS at both ends, reading from the field (bottoms toward the goal line)
+    const ezStroke = snow ? 'rgba(120,60,55,0.8)' : 'rgba(110,20,16,0.85)', ezFill = 'rgba(244,244,238,0.95)';
+    wtxt('REDBIRDS', 0, HKF.ezText[0], [1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
+    wtxt('REDBIRDS', 0, HKF.ezText[1], [-1, 0], HKF.ezH, HKF.ezW, true, ezFill, ezStroke);
+    // yard numbers: one digit each side of the line, bottoms toward the sideline; arrows on the goal side, near the tops
+    const numCol = 'rgba(240,243,236,0.92)';
+    for (let z = 10; z <= 90; z += 10) {
+      const n = String(z <= 50 ? z : 100 - z);
+      for (const s of [-1, 1]) {
+        const Rv = s < 0 ? [0, -1] : [0, 1]; // tops toward the field centre: the west side reads facing east (running south), the east side running north
+        const xc = s * (HW - HKF.numIn - HKF.numH / 2);
+        wtxt(n[0], xc, z - Rv[1] * 0.92, Rv, HKF.numH, 1.25, false, numCol);
+        wtxt(n[1], xc, z + Rv[1] * 0.92, Rv, HKF.numH, 1.25, false, numCol);
+        if (z !== 50) {
+          const dz = z < 50 ? -1 : 1, xa = xc - s * 0.45; // nearer the tops (toward the field centre)
+          g.fillStyle = numCol; g.beginPath();
+          g.moveTo(PX(xa - 0.3), PZ(z + dz * 1.95)); g.lineTo(PX(xa + 0.3), PZ(z + dz * 1.95)); g.lineTo(PX(xa), PZ(z + dz * 2.85)); g.fill();
+        }
+      }
+    }
+    // flat swatches the off-canvas quads sample (each the exact base colour; a few pixels, invisible among the noise)
+    for (const [key, col] of [['apron', P.apron], ['red', P.red], ['band', P.band]]) { const [x, z] = HK_SW[key]; g.fillStyle = col; g.fillRect(Math.round(PX(x)) - 3 * k, Math.round(PZ(z)) - 3 * k, 6 * k, 6 * k); }
+    return c;
+  }
+  // On-field items at Hancock: goal posts, pylons, and the turf around the field beyond the ground
+  // canvas (apron, team areas, coaching and limit lines). buildHancock calls this with its world batches (W.field holds the
+  // field quad mapped to the ground canvas; W.plain the plain geometry). Flat pieces go in W.field, each quad sampling one flat
+  // swatch of the ground canvas (a constant UV samples the full-size texel), so they light and wet exactly like the turf.
+  function hancockFieldItems(W) {
+    const up = [0, 1, 0], T = VN.tex, B = HKF.border;
+    const uv = (key) => { const [x, z] = HK_SW[key], u = (x + T[0]) / T[2], v = (z + T[1]) / T[3]; return [u, v, u, v, u, v, u, v]; };
+    const flat = (x0, z0, x1, z1, key, y, tint) => { if (x1 - x0 < 0.001 || z1 - z0 < 0.001) return; W.field.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], up, tint || [1, 1, 1, 1], uv(key)); };
+    // apron turf from the canvas edge to the walls
+    const [tw, te, ts, tn] = HKF.turf, ex = T[0], ez0 = -T[1], ez1 = T[3] - T[1];
+    flat(tw, ts, -ex, tn, 'apron', 0); flat(ex, ts, te, tn, 'apron', 0);
+    flat(-ex, ts, ex, ez0, 'apron', 0); flat(-ex, ez1, ex, tn, 'apron', 0);
+    // team areas (red) and the white lines round them; paint sits a hair above the turf
+    const white = [1.1, 1.1, 1.08, 1], yP = 0.012, yL = 0.02, lw = 0.055;
+    for (const s of [-1, 1]) {
+      const a = HW + HKF.team[0], b = HW + HKF.team[1];
+      flat(s < 0 ? -b : a, HKF.team[2], s < 0 ? -a : b, HKF.team[3], 'red', yP);
+      // solid coaching lines: 8 yards out from the 15 to the 15, cross lines from the canvas edge out to it
+      flat(s < 0 ? -b - lw : b - lw, HKF.coach[0] - lw, s < 0 ? -b + lw : b + lw, HKF.coach[1] + lw, 'band', yL, white);
+      for (const z of [HKF.coach[0], 20, HKF.team[2], HKF.team[3], 80, HKF.coach[1]]) flat(s < 0 ? -b : ex, z - lw, s < 0 ? -ex : b, z + lw, 'band', yL, white);
+      // dashed limit line: 4 yards out, stepping out round the team area (12-inch dashes every 2 feet)
+      const L = HW + HKF.limit, LT = HW + HKF.limitTeam, d0 = HKF.team[2] - 2, d1 = HKF.team[3] + 2;
+      const dashZ = (x, z0, z1) => { for (let z = z0; z < z1 - 0.1; z += 0.667) flat(x - lw, z, x + lw, Math.min(z + 0.333, z1), 'band', yL, white); };
+      const dashX = (z, x0, x1) => { for (let x = x0; x < x1 - 0.1; x += 0.667) flat(x, z - lw, Math.min(x + 0.333, x1), z + lw, 'band', yL, white); };
+      dashZ(s * L, -10 - HKF.limit, d0); dashZ(s * L, d1, 110 + HKF.limit); dashZ(s * LT, d0, d1);
+      for (const z of [d0, d1]) dashX(z, Math.min(s * L, s * LT), Math.max(s * L, s * LT));
+    }
+    for (const z of [-10 - HKF.limit, 110 + HKF.limit]) { const L = HW + HKF.limit; for (let x = -L; x < L - 0.1; x += 0.667) flat(x, z - lw, Math.min(x + 0.333, L), z + lw, 'band', yL, white); }
+    // goal posts: white single-pedestal goosenecks, base 2 yards behind the end line in a red pad; crossbar 10 ft, 18'6" wide
+    const gp = [0.93, 0.94, 0.93, 1], pad = [0.62, 0.1, 0.12, 1];
+    for (const [zl, dir] of [[110, 1], [-10, -1]]) {
+      const zb = zl + dir * HKF.postBack;
+      W.plain.wbox(-0.14, 0, zb - 0.14, 0.14, 3.42, zb + 0.14, gp);
+      W.plain.wbox(-0.11, 3.24, Math.min(zb, zl) - 0.1, 0.11, 3.44, Math.max(zb, zl) + 0.1, gp);
+      W.plain.wbox(-3.12, 3.24, zl - 0.09, 3.12, 3.43, zl + 0.09, gp);
+      for (const s of [-1, 1]) { W.plain.wbox(s * 3.08 - 0.07, 3.24, zl - 0.07, s * 3.08 + 0.07, HKF.postTop, zl + 0.07, gp); W.plain.wbox(s * 3.08 - 0.04, HKF.postTop, zl - 0.04, s * 3.08 + 0.04, HKF.postTop + 0.55, zl + 0.04, [0.85, 0.12, 0.1, 1]); }
+      W.plain.wbox(-0.4, 0, zb - 0.4, 0.4, 2.0, zb + 0.4, pad);
+    }
+    // pylons at the corners of both end zones
+    for (const z of [-10, 0, 100, 110]) for (const s of [-1, 1]) W.plain.wbox(s * HW - 0.17, 0, z - 0.17, s * HW + 0.17, 0.55, z + 0.17, [1, 0.45, 0.05, 1]);
   }
 
     // ---------- game state ----------
@@ -15745,7 +16205,7 @@ gl_FragColor=vec4(col,1.0);}`;
   // =====================================================================================
   window.MFLBlitz = {
     version: 2,
-    venues: ['stadium', 'metcalf'], // opts.venue (Head to Head always plays the stadium)
+    venues: ['stadium', 'metcalf', 'hancock'], // opts.venue (Head to Head always plays the stadium)
     tods: ['morning', 'noon', 'sunset', 'night'], // opts.tod (default: the venue's usual, the stadium at night, Metcalf at noon)
     weathers: ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'], // opts.weather ('night' = the stadium's usual clear night)
     play(root, opts) {
@@ -15770,10 +16230,10 @@ gl_FragColor=vec4(col,1.0);}`;
         // the setup screen's choices (the server checks them and fixes a run's): where, Metcalf's settings, time of day, weather.
         // A run at Metcalf always has the crowd (the field size and two-hand touch are picked). The stadium's usual look (a clear night) goes
         // to the engine as the legacy weather 'night'.
-        const api = window.MFLBlitz, venue = data.venue === 'metcalf' ? 'metcalf' : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
+        const api = window.MFLBlitz, venue = data.venue === 'metcalf' || data.venue === 'hancock' ? data.venue : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
         const tod = api.tods.indexOf(data.tod) >= 0 ? data.tod : met ? 'noon' : 'night', wx = api.weathers.indexOf(data.weather) >= 0 ? data.weather : 'clear';
         const crowd = met && (runMet || !!data.crowd), big = met && !!data.big, touch = met && !!data.touch;
-        const where = met ? ['Metcalf', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
+        const where = venue === 'hancock' ? 'Hancock Stadium' : met ? ['Metcalf', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
         const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
         window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
           weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch,

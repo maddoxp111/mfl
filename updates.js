@@ -417,6 +417,19 @@ const UPDATES = [
       'Pick it back up any time on the 3D Blitz page with "Decide now".',
     ],
   },
+  {
+    n: 39,
+    date: '2026-11-10',
+    title: '3D Blitz: Hancock Stadium',
+    items: [
+      'New place to play: Hancock Stadium, Illinois State\'s stadium right here in Normal. Pick it under "Where" in 3D Blitz, or in a run\'s next-game settings.',
+      'It plays exactly like The Stadium: 100 yards, kickoffs, punts, field goals, and always tackle.',
+      'Built from aerial photos: the red east grandstand with the press box and canopy lights, the aluminium bleachers on the west in front of Horton Field House, the Touchdown Terrace and video board in the south end, the north scoreboard and the Kaufman Football Building, plus the light poles.',
+      'Outside the stadium you can see the water tower, Redbird Arena, Main Street and campus.',
+      'The field: two-tone stripes, red end zones with REDBIRDS, serif yard numbers, red team areas and white goal posts. There is no logo at midfield.',
+      'Every time of day and weather works there. The usual look is a clear night under the lights.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
