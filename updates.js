@@ -398,6 +398,16 @@ const UPDATES = [
       'You can skip it after 3 seconds. Otherwise it runs 10 seconds, then the game picks up right where it left off.',
     ],
   },
+  {
+    n: 37,
+    date: '2026-11-10',
+    title: 'Metcalf big field: 11 on 11',
+    items: [
+      'On the big field at Metcalf it is now a full 11 on 11: your whole Lineup plays, and the defense has its full line.',
+      'There is no 7 banana count on the big field: the pass rush comes at the snap, the same as at the stadium.',
+      'The normal-size Metcalf field is unchanged: still 7 on 7, and nobody rushes until 7 banana.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

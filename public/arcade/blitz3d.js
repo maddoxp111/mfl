@@ -2072,7 +2072,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // Metcalf is 7 on 7 on both field sizes (00-head.js M7BOOK): the offense is the QB, the back, WR1-3, the tight end and the center
     // (OL2, the Lineup's OL1); the other four linemen sit. The defense is one down lineman (DT1), two linebackers (LBM, LBS), two
     // corners and two safeties. OLI = the linemen who take the field; PLAYS is Metcalf's playbook there.
-    const M7 = VN0.world === 'metcalf', OLI = M7 ? [2] : [0, 1, 2, 3, 4];
+    const M7 = VN0.world === 'metcalf' && !MOPT.big, OLI = M7 ? [2] : [0, 1, 2, 3, 4];
     const PLAYS = M7 ? m7Plays(PLAYS_STD) : PLAYS_STD;
     // time of day ('morning' | 'noon' | 'sunset' | 'night'; opts.tod, tests __blitzDebug.tod); the default is the venue's usual look: Metcalf
     // at noon, the stadium at night unless a weather was named (the old clear / rain / snow days were daytime games)
@@ -2156,7 +2156,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // longer to get off their blocks and win fewer hand fights (KRUSH), it sends fewer blitzes, and its coverage trails a touch
     // more, breaks on the throw a touch later and squeezes its zones a touch less. Your own defenders (DP_HOME) are not touched.
     const KPE = clamp(KDEF, 0, 1), KRUSH = KDEF * 0.7, kRush = () => (DEFP.on ? KDEF : KRUSH);
-    DP.shedPass *= 1.12 + 0.3 * KPE; if (VN.world !== 'metcalf') DP.blitz *= 0.7; // (Metcalf: nobody rushes before 7 banana, a blitzer is one fewer in coverage)
+    DP.shedPass *= 1.12 + 0.3 * KPE; if (VN.world !== 'metcalf' || MOPT.big) DP.blitz *= 0.7; // (Metcalf: nobody rushes before 7 banana, a blitzer is one fewer in coverage)
     DP.lag *= 1.08 + 0.2 * KPE; DP.react *= 1.06 + 0.14 * KPE; DP.zoneTight *= 0.95 - 0.05 * KPE;
 
     // ---------- the user's roster ----------
@@ -9116,7 +9116,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const DEF_ORDER = M7 ? ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBS', 'DT1'] : ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2']; // (Metcalf: the seven)
     // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
     // rd: how long his eyes stay on each read; smart: he throws it away rather than eat a sack
-    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? m7Brain(k) : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
+    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF && !MOPT.big ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? m7Brain(k) : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
 
     // Metcalf's CPU quarterback: sharper reads at every level (a quicker eye down the progression, more of them the smart kind who
     // throws it away instead of taking the sack), and late in a game he is behind in he lets it rip: a smaller cushion is open
@@ -11681,7 +11681,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const cl = A ? archCall(A, dn, fd - spot, spot, lead, endHalf && clk.t < 75) : call;
         const kind = pickKind(cpuKindW(dn, fd - spot, spot, clk, lead)); kinds[kind] = (kinds[kind] || 0) + 1; DBOOK.calls.push(cl); if (DBOOK.calls.length > 30) DBOOK.calls.shift();
         const r = rng(), T = matchT(CD, cl, kind);
-        if (METCALF && kind !== 'run') T.loss *= kind === 'quick' || kind === 'screen' ? 0.75 : 0.4; // Metcalf: no rush before 7 banana, so far fewer sacks
+        if (METCALF && !MOPT.big && kind !== 'run') T.loss *= kind === 'quick' || kind === 'screen' ? 0.75 : 0.4; // Metcalf: no rush before 7 banana, so far fewer sacks
         let g, stop = false;
         if (r < T.loss) g = -1 - Math.floor(rng() * 5);
         else if (r < T.loss + T.big) g = 15 + Math.floor(rng() * 35);
@@ -13290,14 +13290,15 @@ gl_FragColor=vec4(col,1.0);}`;
       replay = null;
       nextPlay();
     }
-    // ---------- Metcalf house rule: nobody rushes the quarterback until the count reaches 7 banana ----------
+    // ---------- Metcalf house rule: nobody rushes the quarterback until the count reaches 7 banana (not on the big field: there it is
+    // 11 on 11 and the rush comes at the snap, like the stadium) ----------
     // After the snap no defender crosses the line of scrimmage until "1 banana, 2 banana ... 7 banana" (4.75 seconds, one banana
     // every 4.75/7 s). Before that the rushers wait at the line (mirror the quarterback, spy, drop into coverage): no contact
     // with the quarterback, no sacks. Once the ball is handed off, pitched or thrown, or the quarterback runs past the line, the
     // count no longer matters. Generic: whoever is assigned to rush, on any roster. The count shows at the top of the screen.
     const BAN_N = 7, BAN_T = 4.75, BAN_S = BAN_T / BAN_N, BAN_Z = 0.45;
     function banHeld() {
-      if (!METCALF || phase !== 'live' || kick || !OK.QB || !ball || tPlay >= BAN_T || thrown || crossed) return false;
+      if (!METCALF || MOPT.big || phase !== 'live' || kick || !OK.QB || !ball || tPlay >= BAN_T || thrown || crossed) return false;
       if (carrier && carrier !== OK.QB) return false;
       return ball.st === 'snap' || ball.holder === OK.QB;
     }
