@@ -2145,6 +2145,37 @@ function aiTeamInput(db, t) {
 }
 const RECAP_COOLDOWN = 30 * 60 * 1000;
 const recapBusy = new Set();
+// The play notes of one game for the coin review: every play with its index (the index playerpay.js looks up), the rosters.
+function aiPayInput(db, g) {
+  const team = (id) => db.teams[id] || { name: id, roster: [] };
+  return { game: { date: g.date, home: team(g.home).name, away: team(g.away).name, score: `${team(g.home).name} ${g.homeScore}, ${team(g.away).name} ${g.awayScore}` },
+    rosters: [g.home, g.away].map((id) => ({ team: team(id).name, players: team(id).roster.map((p) => p.name) })),
+    plays: (g.events || []).map((e, i) => ({ i, type: e.type, team: team(e.team).name, player: e.player || '', passer: e.passer || '', note: String(e.note || '').slice(0, 300) })) };
+}
+async function genPayReview(id, inp, h) {
+  const out = await ai.reviewPlays(inp);
+  const db = load(), g = db.games.find((x) => x.id === id);
+  if (!g) return;
+  const ev = g.events || [], plays = {};
+  for (const p of out.plays || []) {
+    const e = ev[p.i];
+    if (e && (e.type === 'CATCH' || e.type === 'PLAY') && Number.isFinite(p.coins)) plays[p.i] = Math.max(25000, Math.min(100000, Math.round(p.coins / 1000) * 1000));
+  }
+  // bonuses: only players really in this game (exact roster name), capped per bonus and per game
+  const names = new Map();
+  for (const tid of [g.home, g.away]) for (const p of (db.teams[tid] || { roster: [] }).roster) names.set(p.name.trim().toLowerCase(), { name: p.name, team: tid });
+  const bonus = []; let total = 0;
+  for (const b of out.bonus || []) {
+    const who = names.get(String(b.player || '').trim().toLowerCase());
+    if (!who || !Number.isFinite(b.coins) || b.coins <= 0) continue;
+    const c = Math.min(50000, Math.round(b.coins / 1000) * 1000), room = 300000 - total;
+    if (c <= 0 || room <= 0) continue;
+    bonus.push({ player: who.name, team: who.team, coins: Math.min(c, room), why: String(b.why || '').slice(0, 90), i: Number.isInteger(b.i) ? b.i : null }); total += Math.min(c, room);
+  }
+  g.aiPay = { hash: h, at: new Date().toISOString(), plays, bonus, why: Object.fromEntries((out.plays || []).filter((p) => plays[p.i] > 25000).map((p) => [p.i, String(p.why || '').slice(0, 90)])) };
+  await save();
+  console.log(`pay review: game ${id}: ${Object.keys(plays).length} rated plays, ${bonus.length} bonuses (${total})`);
+}
 async function genGameRecap(id) {
   if (recapBusy.has(id)) return;
   recapBusy.add(id);
@@ -2214,6 +2245,16 @@ async function runAI() {
       const g = db.games.find((x) => x.id === id);
       if (!g || freshRecap(db, g)) continue;
       await genGameRecap(id);
+    }
+    // 1b. The coin review of each final game's play notes (rated notable catches/plays, bonuses; playerpay.js pays from it), redone
+    // only when that game's plays or notes change. A first run backfills every past game.
+    for (const id of db.games.filter(isFinal).map((g) => g.id)) {
+      db = load();
+      const g = db.games.find((x) => x.id === id);
+      if (!g || !(g.events || []).length) continue;
+      const inp = aiPayInput(db, g), h = hashOf({ v: 1, inp });
+      if (g.aiPay && g.aiPay.hash === h) continue;
+      try { await genPayReview(id, inp, h); } catch (e) { console.error('pay review failed', id, e && e.message); }
     }
     // 2. Ratings for the whole league (after recaps, since the MVPs feed into them), only when something they depend on changed.
     db = load();
@@ -3539,7 +3580,7 @@ app.post('/admin/player-pay', requireAdmin, async (req, res) => {
     const v = String(req.body[k] ?? '').trim();
     if (v !== '' && Number.isFinite(+v) && Math.trunc(+v) !== PP.PAYOUTS[k]) pay[k] = Math.trunc(+v);
   }
-  db.playerPay = pay;
+  db.playerPay = pay; db.playerPayV = PP.PAY_V;
   await save();
   res.redirect('/admin/pickem?saved=1#player-pay');
 });

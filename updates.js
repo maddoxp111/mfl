@@ -527,6 +527,17 @@ const UPDATES = [
       'The pre-game "who wins?" fan poll stays.',
     ],
   },
+  {
+    n: 49,
+    date: '2026-11-11',
+    title: 'Your player: bigger payouts, and the AI rates every play',
+    items: [
+      'New amounts for your real games: your team wins +100,000, you score a TD +150,000, you throw a TD pass +150,000, you get an interception +100,000.',
+      'A notable catch or play now pays at least 25,000. After each game the AI reads its note and pays more for a better one, up to 100,000 for something spectacular.',
+      'The AI also reads every play note and gives bonus coins to the players it credits: tipping a ball that got picked, forcing a bobble, the block that sprang a TD, a 4th-down or game-winning play. Bonuses show as "Bonus from the play notes" with the reason.',
+      'Everything is backfilled: every game already played pays at the new amounts and gets its AI review, so balances go up for every linked player.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

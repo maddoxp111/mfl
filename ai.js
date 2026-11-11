@@ -168,5 +168,14 @@ const writeMidweek = (input) => ask(MIDWEEK_SYSTEM, input, MIDWEEK_SCHEMA);
 const rateLeague = (input) => ask(RATINGS_SYSTEM, input, RATINGS_SCHEMA);
 const writeTeamRecap = (input) => ask(TEAM_SYSTEM, input, TEAM_SCHEMA);
 const writeRecap = (input) => ask(RECAP_SYSTEM, input, RECAP_SCHEMA);
+// The coin review of one game's play notes (playerpay.js pays from it): how good each notable catch / notable play was, and
+// bonus coins for players the notes credit beyond the box score.
+const PAYREVIEW_SYSTEM = `You review the plays of one finished game in ${LEAGUE}, to decide coins for the real players. Each play has an index i, a type (TD = touchdown, INT = interception, CATCH = notable catch, PLAY = notable play, PBU = pass breakup, PEN = penalty, FLAG = flag pull, SACK), the team it is credited to, the player credited, the passer when there is one, and the commissioner's note (may be empty).
+1. For EVERY play of type CATCH or PLAY, rate how good it was from its note and context and give its coins: 25000 for a routine notable catch/play or an empty note, about 40000-50000 for a good one, 60000-80000 for a great one (one-handed, diving, toe-tap, "moss" over a defender, a big play on 4th down or late), and up to 100000 only for something truly spectacular. Return one entry per CATCH/PLAY index.
+2. Bonuses: read every note (all play types) and give extra coins to players the note credits for something the box score does not pay, and for genuinely special plays: e.g. the defender who tipped the ball that was intercepted, the player who forced the bobble, the blocker who sprang a touchdown, a pick-six, a game-winning or 4th-down touchdown, a touchdown with a highlight description. Use a player's exact name from the rosters given (any player in the game, either team, credited on the play or not). Typical bonus 10000-30000, a big one up to 50000. Never invent anything the notes do not say; most plays get no bonus, and an empty note never gets one. Give a short reason (under 12 words) for every rating above 25000 and every bonus, in plain words, no betting language.`;
+const PAYREVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['plays', 'bonus'], properties: {
+  plays: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['i', 'coins', 'why'], properties: { i: { type: 'integer' }, coins: { type: 'integer' }, why: { type: 'string' } } } },
+  bonus: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['player', 'coins', 'why', 'i'], properties: { player: { type: 'string' }, coins: { type: 'integer' }, why: { type: 'string' }, i: { type: 'integer' } } } } } };
+const reviewPlays = (input) => ask(PAYREVIEW_SYSTEM, input, PAYREVIEW_SCHEMA);
 
-module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeBowlShow, writeScouting, answerQuestion, writeMidweek, describeError, degamble };
+module.exports = { MODEL, apiKey, setApiKey, keySource, rateLeague, writeRecap, writeTeamRecap, writePreview, writeBowlShow, writeScouting, answerQuestion, writeMidweek, reviewPlays, describeError, degamble };

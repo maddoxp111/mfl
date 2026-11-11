@@ -5,13 +5,13 @@
 
 // Coins per game. The admin can change each one on /admin/pickem (saved in db.playerPay).
 const PAYOUTS = {
-  win: 50000, //       his team wins the game
-  tdScored: 125000, // he scores a TD (a catch or a run)
-  tdPass: 75000, //    he throws a TD pass
-  int: 50000, //       he intercepts a pass
+  win: 100000, //      his team wins the game
+  tdScored: 150000, // he scores a TD (a catch or a run)
+  tdPass: 150000, //   he throws a TD pass
+  int: 100000, //      he intercepts a pass
   pbu: 25000, //       pass breakup
-  catch: 25000, //     notable catch
-  play: 25000, //      notable play
+  catch: 25000, //     notable catch: the least it pays; the AI review of its note can pay up to 4x (aiPay below)
+  play: 25000, //      notable play: the same
   threwInt: -25000, // he throws an interception
   pen: -25000, //      a penalty called on him
   flag: 0, //          flag pull (he pulled someone's flag)
@@ -30,14 +30,22 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 const sgn = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 
-// The defaults with the admin's changes on top.
+// The defaults with the admin's changes on top. Nov 11, 2026 the owner set new amounts (win 100k, TD 150k, TD pass 150k,
+// INT 100k, notable catch/play from 25k by the AI review): changes saved before that (no playerPayV 2) don't override those six.
+const PAY_V = 2, NEW_V2 = new Set(['win', 'tdScored', 'tdPass', 'int', 'catch', 'play']);
 function payTable(db) {
-  const out = { ...PAYOUTS };
+  const out = { ...PAYOUTS }, old = !db || db.playerPayV !== PAY_V;
   for (const [k, v] of Object.entries((db && db.playerPay) || {})) {
+    if (old && NEW_V2.has(k)) continue;
     if (k in PAYOUTS && v !== '' && v != null && Number.isFinite(+v)) out[k] = Math.max(-MAX_PAY, Math.min(MAX_PAY, Math.trunc(+v)));
   }
   return out;
 }
+// The AI's review of one game's play notes (server.js stores it on the game as g.aiPay, made once per version of the plays):
+// { hash, plays: { [event index]: coins for that notable catch/play }, bonus: [{ player, team, coins, why, i }] }.
+// A notable catch/play pays what the review says (never less than the table's amount, at most 4x it); a bonus pays the named
+// player (anyone in the game, credited on the play or not: a tip that set up a pick, a block that sprang a TD, a great TD).
+const aiPlay = (g, i, base) => { const v = g.aiPay && g.aiPay.plays && g.aiPay.plays[i]; return Number.isFinite(v) ? Math.max(base, Math.min(base * 4, Math.round(v))) : base; };
 
 // The linked player as he is now: { team (null once released), p }. Links are saved as
 // { team, pid, name }; a trade can move him (and change his id), so fall back to his id
@@ -100,15 +108,17 @@ function playerGames(db, link) {
     const opp = other(g, team);
     const my = g.home === team ? g.homeScore : g.awayScore, their = g.home === team ? g.awayScore : g.homeScore;
     const result = my > their ? 'W' : my < their ? 'L' : 'T';
-    const n = Object.fromEntries(ORDER.map((k) => [k, 0]));
+    const n = Object.fromEntries(ORDER.map((k) => [k, 0])), amt = {}; // amt: notable catches/plays at the AI review's amounts
     n.win = result === 'W' ? 1 : 0;
-    for (const e of g.events || []) {
+    (g.events || []).forEach((e, i) => {
       const mine = e.team === team, by = low(e.player) === name, threw = low(e.passer) === name;
       if (e.type === 'TD') { if (mine && by) n.tdScored++; if (mine && threw) n.tdPass++; }
       else if (e.type === 'INT') { if (mine && by) n.int++; if (e.team === opp && threw) n.threwInt++; }
-      else if (PLAY_KEY[e.type] && mine && by) n[PLAY_KEY[e.type]]++;
-    }
-    const lines = ORDER.filter((k) => n[k] && pay[k]).map((k) => ({ key: k, label: LABELS[k], n: n[k], each: pay[k], coins: n[k] * pay[k] }));
+      else if (PLAY_KEY[e.type] && mine && by) { const k = PLAY_KEY[e.type]; n[k]++; if ((k === 'catch' || k === 'play') && pay[k] > 0) amt[k] = (amt[k] || 0) + aiPlay(g, i, pay[k]); }
+    });
+    const lines = ORDER.filter((k) => n[k] && pay[k]).map((k) => (amt[k] != null && amt[k] !== n[k] * pay[k] ? { key: k, label: LABELS[k] + ' (rated from its note)', n: n[k], each: null, coins: amt[k] } : { key: k, label: LABELS[k], n: n[k], each: pay[k], coins: n[k] * pay[k] }));
+    const bon = ((g.aiPay && g.aiPay.bonus) || []).filter((b) => low(b.player) === name && (!b.team || b.team === team) && Number.isFinite(b.coins) && b.coins > 0);
+    if (bon.length) lines.push({ key: 'aiBonus', label: 'Bonus from the play notes', n: bon.length, each: null, coins: bon.reduce((s, b) => s + Math.round(b.coins), 0), why: bon.map((b) => b.why).filter(Boolean) });
     const raw = lines.reduce((s, l) => s + l.coins, 0);
     const voided = !!g.betsVoid;
     out.push({ game: g, team, opp, won: result === 'W', result, my, their, score: `${my}–${their}`, lines, raw, total: voided ? 0 : Math.max(0, raw), voided });
@@ -127,7 +137,7 @@ function resultText(db, gp) {
 }
 // One game's lines as rows (the same look as the coin breakdown).
 function linesHtml(gp, totalLabel) {
-  const rows = gp.lines.map((l) => `<div><span>${esc(l.label)}${l.n > 1 ? ` × ${l.n}<small>${sgn(l.each)} each</small>` : ''}</span><b class="${l.coins > 0 ? 'up' : 'down'}">${sgn(l.coins)}</b></div>`).join('');
+  const rows = gp.lines.map((l) => `<div><span>${esc(l.label)}${l.n > 1 ? ` × ${l.n}${l.each != null ? `<small>${sgn(l.each)} each</small>` : ''}` : ''}${l.why && l.why.length ? `<small>${esc(l.why.join(' · '))}</small>` : ''}</span><b class="${l.coins > 0 ? 'up' : 'down'}">${sgn(l.coins)}</b></div>`).join('');
   const note = gp.voided ? 'The commissioner voided this game, so it pays no coins.' : gp.raw < 0 ? 'Deductions stop at 0: playing never costs you coins.' : '';
   return `<div class="pb-rows">${rows || '<div><span class="muted">No plays that pay this game</span><b class="zero">0</b></div>'}${totalLabel ? `<div class="tot"><span>${totalLabel}</span><b>${sgn(gp.total)}</b></div>` : ''}</div>${note ? `<p class="pp-note">${note}</p>` : ''}`;
 }
@@ -144,8 +154,8 @@ function popups(db, link, seenUrl, max = 5) {
     const total = back.reduce((s, x) => s + x.total, 0);
     // what his earlier games added up to, line by line (a game that went below 0 paid 0: that shows as its own line)
     const sum = {};
-    for (const x of back) for (const l of x.lines) { const o = sum[l.key] || (sum[l.key] = { key: l.key, label: l.label, n: 0, each: l.each, coins: 0 }); o.n += l.n; o.coins += l.coins; }
-    const lines = ORDER.map((k) => sum[k]).filter(Boolean), raw = lines.reduce((t, l) => t + l.coins, 0);
+    for (const x of back) for (const l of x.lines) { const o = sum[l.key] || (sum[l.key] = { key: l.key, label: l.label, n: 0, each: l.each, coins: 0 }); o.n += l.n; o.coins += l.coins; if (o.each !== l.each) o.each = null; }
+    const lines = ORDER.concat('aiBonus').map((k) => sum[k]).filter(Boolean), raw = lines.reduce((t, l) => t + l.coins, 0);
     if (total > raw) lines.push({ key: 'floor', label: 'Not taken (a game never pays below 0)', n: 1, each: total - raw, coins: total - raw });
     const linked = `<p>Your account is now linked to your real player: <b>${esc(who.p.name)}</b>${who.team ? ` (${esc(who.team.name)})` : ''}.</p>`;
     pops.push({ id: 'pp-welcome', title: back.length && total > 0 ? 'You got coins!' : 'Your player', seen: seenUrl, button: "Let's go",
@@ -162,4 +172,4 @@ function popups(db, link, seenUrl, max = 5) {
   return pops;
 }
 
-module.exports = { PAYOUTS, LABELS, RULES, ORDER, payTable, findPlayer, playerGames, playerTotal, resultText, linesHtml, popups };
+module.exports = { PAY_V, PAYOUTS, LABELS, RULES, ORDER, payTable, findPlayer, playerGames, playerTotal, resultText, linesHtml, popups };

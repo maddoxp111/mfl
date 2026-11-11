@@ -25,7 +25,7 @@ module.exports = function earn(app, h) {
   const section = (id, em, title, href, go, body, sub) => `<section class="card earn-sec" id="${id}"><div class="card-h"><h2><span class="em" aria-hidden="true">${em}</span>${esc(title)}</h2>${href ? `<a href="${href}">${go} ${icon('arrow')}</a>` : ''}</div>${sub ? `<p class="earn-sub">${sub}</p>` : ''}${body}</section>`;
 
   // "Your player": coins for an account the commissioner linked to a real MFL player (playerpay.js, when it's there).
-  const PAY_LABEL = { win: 'Your team wins', tdScored: 'You score a touchdown', tdPass: 'You throw a TD pass', int: 'You get an interception', pbu: 'You break up a pass', catch: 'You make a notable catch', play: 'You make a notable play', sack: 'You get a sack', mvp: "You're the game MVP", threwInt: 'You throw an interception', pen: 'A penalty on you' };
+  const PAY_LABEL = { win: 'Your team wins', tdScored: 'You score a touchdown', tdPass: 'You throw a TD pass', int: 'You get an interception', pbu: 'You break up a pass', catch: 'You make a notable catch (at least: the AI rates its note, up to 4×)', play: 'You make a notable play (at least: the AI rates its note, up to 4×)', sack: 'You get a sack', mvp: "You're the game MVP", threwInt: 'You throw an interception', pen: 'A penalty on you' };
   function payTable() {
     let pay = null, mod = null;
     try { mod = require('./playerpay'); pay = mod.payTable(load()); } catch {}
@@ -195,6 +195,7 @@ module.exports = function earn(app, h) {
         ? `<p class="earn-sub">Play in the MFL? Once the commissioner links your account to you, you earn coins for your team's wins and your own stats, every game you play.</p>
           <div class="scroll"><table class="tbl earn-tbl"><thead><tr><th class="l">When</th><th class="r">Coins</th></tr></thead><tbody>
           ${pay.map((r) => `<tr><td class="l">${esc(r.label)}</td><td class="r ${r.v < 0 ? 'down' : 'up'}">${signed(r.v)}</td></tr>`).join('')}</tbody></table></div>
+          <p class="earn-sub">After every game the AI reads all the notes on the plays. A notable catch or play pays more the better it was, and it can give bonus coins to anyone the notes credit: tipping the ball that got picked, the block that sprang a touchdown, a big play on 4th down.</p>
           <div class="ei-meta"><span class="ei-when">${icon('clock')} Every game you play</span><a href="/stats/players">Player stats →</a></div>`
         : `<div class="soon"><b>Coming soon</b><p>MFL players will earn coins for their team's wins and their own stats, once the commissioner links their account.</p></div>`);
 
