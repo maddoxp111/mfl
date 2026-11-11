@@ -2412,7 +2412,7 @@ app.post('/analyst', async (req, res) => {
   } catch (e) { console.error('Analyst:', e); res.send(analystPage(req, q, '', "The Analyst couldn't answer right now. Try again soon.")); }
 });
 
-// ---------- fan polls: who wins (before the game) and fan MVP (after) ----------
+// ---------- fan poll: who wins (before the game). The fan MVP vote after the game was removed Nov 11, 2026. ----------
 const MVP_POLL_DAYS = 3;
 function pollState(db, g) {
   const lock = `${g.date} ${pk.lockTime(g)}`, now = pk.nowLocal(TZ);
@@ -2424,6 +2424,7 @@ function tally(g, kind) {
   return Object.entries(c).sort((a, b) => b[1] - a[1]);
 }
 function fanMvp(db, g) {
+  return null; // (the fan MVP vote is gone, Nov 11 2026: no Fan MVP box on recaps)
   const top = tally(g, 'mvp')[0];
   if (!top) return null;
   const [tid, pid] = top[0].split('|'), t = db.teams[tid], p = t?.roster.find((x) => x.id === pid);
@@ -2439,7 +2440,7 @@ function pollCard(db, g, req) {
       <div class="winbar"><div style="width:${pct(A.id)}%;background:${esc(A.color)}"><span>${esc(A.abbr)} ${pct(A.id)}%</span></div><div style="width:${pct(B.id)}%;background:${esc(B.color)}"><span>${esc(B.abbr)} ${pct(B.id)}%</span></div></div>
       <p class="muted sm">${me ? (mine ? 'Your vote is in. You can change it until picks lock.' : 'Tap a team to vote.') : '<a href="/pickem/login">Log in</a> to vote.'}</p></div>`;
   }
-  if (isFinal(g)) {
+  if (false && isFinal(g)) { // (the fan MVP vote is gone, Nov 11 2026)
     const t = tally(g, 'mvp'), n = t.reduce((s, x) => s + x[1], 0), mine = me && g.votes?.mvp?.[me];
     if (!st.mvpOpen && !n) return '';
     const name = (k) => { const [tid, pid] = k.split('|'); return db.teams[tid]?.roster.find((p) => p.id === pid); };
@@ -2458,7 +2459,7 @@ app.post('/games/:id/vote', async (req, res) => {
   if (!me) return res.redirect(`/pickem/login?next=/games/${g.id}`);
   const st = pollState(db, g), kind = String(req.body.kind), choice = String(req.body.choice || '');
   const ok = kind === 'win' ? st.winOpen && [g.home, g.away].includes(choice)
-    : kind === 'mvp' ? st.mvpOpen && [g.home, g.away].some((tid) => choice.startsWith(tid + '|') && db.teams[tid].roster.some((p) => choice === tid + '|' + p.id && !pk.isOut(g, tid, p.id))) : false;
+    : false && kind === 'mvp' ? st.mvpOpen && [g.home, g.away].some((tid) => choice.startsWith(tid + '|') && db.teams[tid].roster.some((p) => choice === tid + '|' + p.id && !pk.isOut(g, tid, p.id))) : false;
   if (ok) { ((g.votes = g.votes || {})[kind] = g.votes[kind] || {})[me] = choice; await save(); }
   res.redirect(`/games/${g.id}#poll`);
 });

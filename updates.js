@@ -518,6 +518,15 @@ const UPDATES = [
       'Its new address is /arcade/hitorstand. The old link still works and takes you there.',
     ],
   },
+  {
+    n: 48,
+    date: '2026-11-11',
+    title: 'Fan MVP vote removed',
+    items: [
+      'The Fan MVP vote after games is gone, and recaps no longer show a Fan MVP. The Game MVP from the box score is still there.',
+      'The pre-game "who wins?" fan poll stays.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
