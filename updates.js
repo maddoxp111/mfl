@@ -487,6 +487,15 @@ const UPDATES = [
       'Logos uploaded in Admin > Teams are trimmed to fit their square automatically, so any logo with empty space around it shows full size.',
     ],
   },
+  {
+    n: 45,
+    date: '2026-11-11',
+    title: 'A real crowd at The Stadium, the 12:35s everywhere',
+    items: [
+      'The crowd at The Stadium no longer looks like static. Every fan is now a whole person, sitting, standing or slumped, in team colours. Hancock already had this fix.',
+      'Team Pedon is the 12:35s everywhere, including the game recaps, the Midweek Recap and the Analyst.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

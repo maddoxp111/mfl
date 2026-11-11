@@ -1978,7 +1978,7 @@ function recap(db, g) {
   out.push(W ? `The ${W.name} ${how} the ${L.name} ${hi}–${lo} ${where}.` : `The ${a.name} and ${b.name} ${how} ${hi}–${lo} tie ${where}.`);
   const evs = g.events || [];
   const tds = evs.filter((e) => e.type === 'TD'), ints = evs.filter((e) => e.type === 'INT');
-  // Touchdowns, one sentence per team: "For the Pineapples, Liam Bair (2) and Bowen Ince scored, with Maddox Pedon throwing 2 TDs."
+  // Touchdowns, one sentence per team: "For the 12:35s, Liam Bair (2) and Bowen Ince scored, with Maddox Pedon throwing 2 TDs."
   const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs.at(-1) : xs[0]);
   for (const tid of [w || g.home, w ? (w === g.home ? g.away : g.home) : g.away]) {
     const mine = tds.filter((e) => e.team === tid);

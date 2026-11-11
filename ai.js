@@ -137,7 +137,7 @@ const TEAM_SCHEMA = {
   properties: { recap: { type: 'string' } },
 };
 
-const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Wildcat Stadium; a touchdown is worth 7 points';
+const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the 12:35s (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Wildcat Stadium; a touchdown is worth 7 points';
 const KIND = 'A game\'s plays are listed in no particular order (they are logged afterwards from memory): never describe when a play happened, the order of plays or a running score; only final scores are known. Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries. Pick\'em is a free prediction game with fake coins: never use betting words (no "odds", "bet", "wager", "payout", "spread", "line", "stake", "parlay", "sportsbook", "gamble"); say "chances", "pick", "reward", "margin", "combo" and "coins" instead,';
 
 const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game in ${LEAGUE}.

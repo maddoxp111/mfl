@@ -2053,7 +2053,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // Hancock Stadium (Illinois State's home field in Normal): the stadium's rules exactly (100 yards, kickoffs, punts, field goals,
     // always tackle), its own world (buildHancock, 14-hancock*.js) and field markings (hancockGroundCanvas)
     VENUES.hancock = Object.assign({}, VENUES.stadium, { id: 'hancock', name: 'Hancock Stadium', look: 'hancock' });
-    const VN0 = VENUES[opts.versus ? 'stadium' : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
+    const VN0 = VENUES[opts.versus ? (opts.venue === 'hancock' ? 'hancock' : 'stadium') : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
     // Metcalf settings from the setup screen (false at the stadium): crowd = spectators around the blacktop who act like a stadium
     // crowd; big = the whole map scaled up by MET_K so the field is about the size of a real one; touch = two-hand touch instead of
     // tackle. Double or Nothing / Double or Double force crowd and big on and touch off (the site and the server enforce it).
@@ -2465,7 +2465,7 @@ gl_FragColor=vec4(c,1.0);}`;
       G.bufs.push(G.dyn, G.tr, G.quad);
       if (METCALF) casPrebuild(); else for (const k in BODY) if (!BODY[k].noGear) meshFor(BODY[k]);
       G.kitO = mkTex(kitCanvas(OFFC, HOME.abbr, HOME.name, false, METCALF), false, false, 8); G.kitD = mkTex(kitCanvas(DEFC, AWAY.abbr, AWAY.name, false, METCALF), false, false, 8); G.kitR = mkTex(kitCanvas(REFC, '', '', true), false, false, 8);
-      G.crowdT = mkTex(crowdCanvas(), false, false, 4);
+      G.crowdT = mkTex(crowdRow(crowdCanvas()), false, false, 4);
       G.texs.push(G.kitO, G.kitD, G.kitR, G.crowdT);
       { G.kitO2 = mkTex(kitCanvas(OFFC2, AWAY.abbr, AWAY.name, false, METCALF), false, false, 8); G.kitD2 = mkTex(kitCanvas(DEFC2, HOME.abbr, HOME.name, false, METCALF), false, false, 8); G.texs.push(G.kitO2, G.kitD2); if ((VS && VS.flipped) || DEFP.flipped) { [G.kitO, G.kitO2] = [G.kitO2, G.kitO]; [G.kitD, G.kitD2] = [G.kitD2, G.kitD]; } }
       statics.length = 0;
@@ -2759,6 +2759,14 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // crowd sprite sheet: 16 fans x 3 states (seated / standing / slumped). alpha 1 areas take the seat's tint, alpha 0.6 keep their own colour,
     // alpha 0.7 marks a phone screen (lit on big plays at night)
+    // the fans' sheet laid out as the crowd shader reads it: one row of 48 cells (16 fans seated, the same 16 standing, the same 16
+    // slumped; the shader adds a third of the width per state). crowdCanvas draws a 16 x 3 grid; read as-is every fan was a thin
+    // slice through three figures (the stands looked like static). Each cell is copied into the row, so each fan is one whole figure.
+    function crowdRow(src) {
+      const c = document.createElement('canvas'); c.width = 48 * 64; c.height = 128; const g2 = c.getContext('2d');
+      for (let st = 0; st < 3; st++) for (let k = 0; k < 16; k++) g2.drawImage(src, k * 96, st * 192, 96, 192, (st * 16 + k) * 64, 0, 64, 128);
+      return c;
+    }
     function crowdCanvas() {
       cs = 99;
       const CW = 96, CH = 192, c = document.createElement('canvas'); c.width = CW * 16; c.height = CH * 3; const g = c.getContext('2d');
@@ -8566,12 +8574,7 @@ gl_FragColor=vec4(col,1.0);}`;
       add('hkxsign', XT, hkxSignCanvas(), [0.6, 0, 0, 0.1]);
       // the fans' sprite sheet laid out as the crowd shader reads it: one row of 48 cells (16 fans seated, the same 16 standing,
       // the same 16 slumped; the shader adds a third of the width per state), so each fan shows one whole figure
-      if (G.crowdT && typeof crowdCanvas === 'function') {
-        const s0 = cs, src = crowdCanvas(); cs = s0;
-        const c = document.createElement('canvas'); c.width = 48 * 64; c.height = 128; const g2 = c.getContext('2d');
-        for (let st = 0; st < 3; st++) for (let k = 0; k < 16; k++) g2.drawImage(src, k * 96, st * 192, 96, 192, (st * 16 + k) * 64, 0, 64, 128);
-        G.crowdT = mkTex(c, false, false, 4); G.texs.push(G.crowdT);
-      }
+      // (now done for every venue: crowdRow in 10-setup.js)
       add('hkxtower', TT, hkxTowerCanvas(!!SKY.night), [0.85, 0, 0, SKY.night ? 1.4 : 0]);
     }
     return { signs: XT.n, tower: TT.n };

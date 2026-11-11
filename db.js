@@ -24,7 +24,7 @@ function fmt(d) {
 function seed() {
   const teams = {
     pedon: {
-      id: 'pedon', name: 'Pineapples', city: 'Team Pedon', abbr: 'PDN',
+      id: 'pedon', name: '12:35s', city: 'Team Pedon', abbr: 'PDN',
       color: '#f2b705', color2: '#1d6b2f', logo: null, captain: 'Maddox Pedon',
       roster: [
         { name: 'Maddox Pedon', tag: 'C' },
