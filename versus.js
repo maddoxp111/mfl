@@ -7,7 +7,7 @@
 // records with no live match (after a restart) are voided.
 //
 // Messages are JSON text frames { t, ... }; binary frames from a player go to the other player as they are.
-//   client -> server: challenge { to, wager, qs } · decline { id } · cancel { id } · accept { id }
+//   client -> server: challenge { to, wager, qs, venue, big, touch } · decline { id } · cancel { id } · accept { id }
 //                     join { id } · ready { id } · ev { type, data } · quit { id }
 //   server -> client: me · online · challenges · challenge · challenge-sent · challenge-gone · error
 //                     match · go · ev · opp-gone · opp-back · over · detached
@@ -27,6 +27,10 @@ module.exports = function versus(app, h) {
   const SCAN_MS = envMs('VERSUS_SCAN_MS', 5000); // after start: void open records left by a restart
   const TOKEN_MS = 10 * 60e3;
   const QS = [60, 120, 180], MAX_WAGER = 10000000;
+  // Where a match is played: The Stadium and Hancock Stadium (the stadium's rules), or Wildcat Blacktop ('metcalf': its house rules,
+  // one game clock of 4 quarters' length, and the challenger's field size and two-hand touch settings, carried with the match).
+  const VENUES = ['stadium', 'hancock', 'metcalf'];
+  const metOpts = (venue, o) => (venue === 'metcalf' ? { big: !!(o && o.big), touch: !!(o && o.touch) } : {});
   const MAX_TEXT = 64 * 1024, MAX_FRAME = 256 * 1024, MAX_BUFFERED = 256 * 1024, RATE = { text: 40, bin: 60 };
   const WS_PATH = '/ws/versus', PAGE = '/arcade/blitz3d/versus';
   // Score guards (the game is played on the players' screens, so their reports are checked): only the side with the ball moves
@@ -109,7 +113,7 @@ module.exports = function versus(app, h) {
   }
 
   // ---------- challenges ----------
-  const pub = (c) => ({ id: c.id, from: c.from, to: c.to, wager: c.wager, qs: c.qs, exp: c.exp, left: Math.max(0, c.exp - Date.now()) });
+  const pub = (c) => ({ id: c.id, from: c.from, to: c.to, wager: c.wager, qs: c.qs, venue: c.venue || 'stadium', ...metOpts(c.venue, c), exp: c.exp, left: Math.max(0, c.exp - Date.now()) });
   const challengesOf = (name) => {
     const all = [...challenges.values()];
     return { incoming: all.filter((c) => c.to === name).map(pub), outgoing: all.filter((c) => c.from === name).map(pub) };
@@ -128,6 +132,7 @@ module.exports = function versus(app, h) {
     const to = String(msg.to || '').trim().toLowerCase().replace(/^@/, '');
     const wager = msg.wager == null || msg.wager === '' ? 0 : Number(msg.wager);
     const qs = QS.includes(Number(msg.qs)) ? Number(msg.qs) : 120;
+    const venue = VENUES.includes(msg.venue) ? msg.venue : 'stadium';
     if (to === name) return err(ws, "You can't challenge yourself.");
     if (!pk.validName(to)) return err(ws, 'Pick a player to challenge.');
     if (!Number.isInteger(wager) || wager < 0 || wager > MAX_WAGER) return err(ws, `A wager is a whole number of coins from 0 to ${fmt(MAX_WAGER)}.`);
@@ -140,7 +145,7 @@ module.exports = function versus(app, h) {
       if (check()) return err(ws, check());
     }
     for (const old of [...challenges.values()]) if (old.from === name) dropChallenge(old, 'replaced');
-    const c = { id: hex(6), from: name, to, wager, qs, exp: Date.now() + CHALLENGE_MS, fromWs: ws };
+    const c = { id: hex(6), from: name, to, wager, qs, venue, ...metOpts(venue, { big: msg.big === true, touch: msg.touch === true }), exp: Date.now() + CHALLENGE_MS, fromWs: ws };
     c.timer = setTimeout(() => dropChallenge(c, 'expired'), CHALLENGE_MS);
     challenges.set(c.id, c);
     toUser(to, { t: 'challenge', c: pub(c) });
@@ -180,7 +185,7 @@ module.exports = function versus(app, h) {
   // ---------- matches ----------
   function matchMsg(M, name, extra) {
     const other = otherOf(M, name);
-    return { t: 'match', id: M.id, wager: M.wager, qs: M.qs, seed: M.seed, recvFirst: M.recvFirst === name, me: { name, team: M.teams[name] }, opp: { name: other, team: M.teams[other] }, ...(extra || {}) };
+    return { t: 'match', id: M.id, wager: M.wager, qs: M.qs, venue: M.venue || 'stadium', ...metOpts(M.venue, M), seed: M.seed, recvFirst: M.recvFirst === name, me: { name, team: M.teams[name] }, opp: { name: other, team: M.teams[other] }, ...(extra || {}) };
   }
   // The latest tracked state, as the given player sees it (pre/hand data are as their sender sent them).
   function snapshot(M, name) {
@@ -219,17 +224,17 @@ module.exports = function versus(app, h) {
           }
         }
         M = {
-          id: hex(8), seed: hex(8), wager: c.wager, qs: c.qs, players: [...pair], recvFirst: pair[crypto.randomInt(2)],
+          id: hex(8), seed: hex(8), wager: c.wager, qs: c.qs, venue: c.venue || 'stadium', ...metOpts(c.venue, c), players: [...pair], recvFirst: pair[crypto.randomInt(2)],
           rec: { [c.from]: hex(6), [c.to]: hex(6) }, teams: teamsFor(db, ua, ub),
           sock: { [c.from]: null, [c.to]: null }, ready: new Set(), started: false, over: false, gone: {},
-          score: { [c.from]: 0, [c.to]: 0 }, pts: {}, clockAt: 0, flagged: 0, qtr: 1, clock: c.qs, st: null, stBy: null, poss: null, pre: null, preBy: null, hand: null, handBy: null, created: Date.now(),
+          score: { [c.from]: 0, [c.to]: 0 }, pts: {}, clockAt: 0, flagged: 0, qtr: 1, clock: c.venue === 'metcalf' ? c.qs * 4 : c.qs, st: null, stBy: null, poss: null, pre: null, preBy: null, hand: null, handBy: null, created: Date.now(),
         };
         matches.set(M.id, M); // before the records are written, so nothing voids them as left over
         for (const n of pair) playing.set(n, M);
         const at = new Date().toISOString(), local = pk.nowLocal(TZ);
         for (const u of [ua, ub]) {
           u.arcade = u.arcade || [];
-          u.arcade.push({ id: M.rec[u.name], game: 'blitz3d', level: 3, risk: false, stake: c.wager, seed: M.seed, at, local, status: 'open', payout: 0, versus: { id: M.id, opp: otherOf(M, u.name), wager: c.wager, qs: c.qs } });
+          u.arcade.push({ id: M.rec[u.name], game: 'blitz3d', level: 3, risk: false, stake: c.wager, seed: M.seed, at, local, status: 'open', payout: 0, versus: { id: M.id, opp: otherOf(M, u.name), wager: c.wager, qs: c.qs, ...(M.venue !== 'stadium' ? { venue: M.venue, ...metOpts(M.venue, M) } : {}) } });
           if (u.arcade.length > 600) u.arcade = u.arcade.slice(-600);
         }
         await putDoc(userKey(ua.name), ua);
@@ -252,7 +257,7 @@ module.exports = function versus(app, h) {
     send(ws.readyState === OPEN ? ws : [...(socks.get(c.to) || [])].pop(), matchMsg(M, c.to));
     const gone = { t: 'challenge-gone', id: c.id, why: 'accepted' };
     for (const n of pair) { toUser(n, gone); dropChallengesOf(n, 'busy'); }
-    console.log(`versus: match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters`);
+    console.log(`versus: match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters${M.venue !== 'stadium' ? ', at ' + M.venue + (M.big ? ' (big field)' : '') + (M.touch ? ' (touch)' : '') : ''}`);
     broadcastOnline();
   }
 
@@ -325,10 +330,12 @@ module.exports = function versus(app, h) {
       const ok = (v, cur) => Number.isInteger(v) && v >= cur && v - cur <= 8;
       // pace: no player scores more than a touchdown and a try's worth of points in a short window
       const pace = (p, v) => { if (v <= M.score[p]) return true; const w = (M.pts[p] || []).filter((x) => now - x.t < PTS_WIN_MS); return w.reduce((a, x) => a + x.n, 0) + (v - M.score[p]) <= PTS_MAX; };
-      // clock: the game clock can't have run more than the real time since the last report (plus a little slack)
-      const q = Number(st.qtr), c = Number(st.clock);
-      const ran = Number.isFinite(q) && Number.isFinite(c) && M.clockAt ? (q - M.qtr) * M.qs + (M.clock - c) : 0;
-      const clockOk = LOOSE || !M.clockAt || !Number.isFinite(q) || (q >= M.qtr && q - M.qtr <= 1 && ran <= (now - M.clockAt) / 1000 * 1.15 + 3);
+      // clock: the game clock can't have run more than the real time since the last report (plus a little slack). Wildcat Blacktop
+      // has one clock for the whole game (4 quarters' worth, counting down; its quarter is only which stretch of it this is) until
+      // overtime, which has quarters like the stadium's.
+      const q = Number(st.qtr), c = Number(st.clock), one = M.venue === 'metcalf' && q <= 4;
+      const ran = Number.isFinite(q) && Number.isFinite(c) && M.clockAt ? (one ? M.clock - c : (q - M.qtr) * M.qs + (M.clock - c)) : 0;
+      const clockOk = LOOSE || !M.clockAt || !Number.isFinite(q) || (q >= M.qtr && (one || q - M.qtr <= 1) && ran <= (now - M.clockAt) / 1000 * 1.15 + 3);
       const turnOk = M.poss == null || M.poss === name;
       if (ok(me, M.score[name]) && ok(opp, M.score[other]) && turnOk && clockOk && pace(name, me) && pace(other, opp)) {
         for (const [p, v] of [[name, me], [other, opp]]) if (v > M.score[p]) (M.pts[p] = (M.pts[p] || []).filter((x) => now - x.t < PTS_WIN_MS)).push({ t: now, n: v - M.score[p] });
@@ -630,7 +637,7 @@ module.exports = function versus(app, h) {
   function results(user) {
     return (user.arcade || []).filter((m) => m.versus && m.status !== 'open').slice(-10).reverse().map((m) => ({
       id: m.id, at: m.at, local: m.local || '', status: m.status, opp: m.versus.opp, me: m.score ?? null, them: m.stats && m.stats.opp != null ? m.stats.opp : null,
-      wager: m.versus.wager || 0, qs: m.versus.qs || 120, reason: m.versus.reason || '', by: m.versus.by || null, net: m.status === 'won' ? (m.payout || 0) - (m.stake || 0) : m.status === 'lost' ? -(m.stake || 0) : 0,
+      wager: m.versus.wager || 0, qs: m.versus.qs || 120, venue: m.versus.venue || 'stadium', reason: m.versus.reason || '', by: m.versus.by || null, net: m.status === 'won' ? (m.payout || 0) - (m.stake || 0) : m.status === 'lost' ? -(m.stake || 0) : 0,
     }));
   }
   app.get('/arcade/versus/results', async (req, res) => {
@@ -666,7 +673,7 @@ module.exports = function versus(app, h) {
 #vsIn li{background:rgba(255,194,26,.08);border:1px solid rgba(255,194,26,.35);border-radius:14px;padding:10px 12px;margin-bottom:8px}
 .vs-form>label,.vs-form .lbl{display:flex;flex-direction:column;gap:6px;font:700 12px Inter;color:var(--ink2);margin:0 0 12px;text-align:left}.vs-form .lbl{margin:0 0 6px}
 .vs-form input[type=number]{background:var(--card2);color:var(--ink);border:1px solid var(--line2);border-radius:12px;padding:11px;font:700 16px Inter;width:100%}
-.vs-form .arc-modes{grid-template-columns:repeat(3,1fr)}.vs-form .arc-modes span{padding:10px 6px}
+.vs-form .arc-modes{grid-template-columns:repeat(3,1fr)}.vs-form .arc-modes.vs-two{grid-template-columns:1fr 1fr}.vs-form .arc-modes span{padding:10px 6px}
 .vs-form small.hint{display:block;color:var(--muted);text-align:left;margin:-6px 0 12px}.vs-form .err{min-height:1em;margin:4px 0 0}
 .vs-wait{text-align:center;padding:26px 18px}.vs-wait h2{font:800 32px/1 var(--disp);text-transform:uppercase;margin:6px 0 8px}.vs-wait p{margin:6px 0}
 .vs-vs{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font:800 22px var(--disp);text-transform:uppercase}.vs-vs i{font-style:normal;color:var(--muted);font-size:16px}
@@ -688,7 +695,7 @@ body.vs-playing .ftr{display:none}
       const secs = Math.round(GONE_MS / 1000);
       const firstTeam = Object.values(db.teams)[0];
       const how = `<section class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how">
-        <li>Pick someone under <b>Online now</b> and send a challenge: a wager (0 for a friendly) and 1, 2 or 3-minute quarters. They have a minute to accept.</li>
+        <li>Pick someone under <b>Online now</b> and send a challenge: a wager (0 for a friendly), 1, 2 or 3-minute quarters and where: The Stadium, Hancock Stadium or Wildcat Blacktop (its house rules: throw-offs, touchdowns worth 7, one game clock and a last play, and on the small field 7 on 7 with no rush before 7 banana; you pick the field size and tackle or two-hand touch). They have a minute to accept.</li>
         <li>When they accept, both wagers are held until the game ends. The winner gets both: 2× the wager.</li>
         <li>Your Lineup takes the field (all 11). No full Lineup yet? You play as the ${esc(firstTeam ? firstTeam.name : 'MFL')}.</li>
         <li>No ties: a tied game goes to overtime. Quitting a game that has kicked off counts as a loss.</li>
@@ -698,7 +705,7 @@ body.vs-playing .ftr{display:none}
         return res.send(layout(req, 'Head to Head', `${CSS}<div class="wrap arc-page vs-page">${head}
           <section class="card"><p>Log in to see who's online and challenge them to a game of 3D Blitz.</p><div class="arc-cta"><a class="btn" href="/pickem/login?next=${encodeURIComponent(PAGE)}">Log in</a><a class="btn ghost" href="/pickem/signup">Sign up free</a></div></section>${how}</div>`));
       }
-      const boot = { me: user.name, balance, results: results(user), gone: secs, qs: QS, maxWager: MAX_WAGER, challengeSecs: Math.round(CHALLENGE_MS / 1000) };
+      const boot = { me: user.name, balance, results: results(user), gone: secs, qs: QS, venues: VENUES, maxWager: MAX_WAGER, challengeSecs: Math.round(CHALLENGE_MS / 1000) };
       res.send(layout(req, 'Head to Head', `${CSS}<div class="wrap arc-page vs-page">${head}
         <div id="vsLobby">
           <p class="vs-conn" id="vsConn">Connecting…</p>

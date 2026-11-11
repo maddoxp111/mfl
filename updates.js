@@ -496,6 +496,19 @@ const UPDATES = [
       'Team Pedon is the 12:35s everywhere, including the game recaps, the Midweek Recap and the Analyst.',
     ],
   },
+  {
+    n: 46,
+    date: '2026-11-11',
+    title: 'Head to Head: pick the field',
+    items: [
+      'When you challenge someone, pick where you play: The Stadium, Hancock Stadium or Wildcat Blacktop.',
+      'Wildcat Blacktop plays its house rules live: throw-offs, a touchdown is 7, four downs to score, 7 on 7 with no rush before 7 banana on the small field, and one game clock with a last play.',
+      'At Wildcat Blacktop you choose the field (small or big) and tackle or two-hand touch. The crowd is always out.',
+      'The banana count and the LAST PLAY clock show on both players\' screens.',
+      'Your Head to Head results show where each game was played.',
+      'A ball over the fence isn\'t fetched in Head to Head; play just goes on.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

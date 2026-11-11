@@ -2049,16 +2049,18 @@ gl_FragColor=vec4(c,1.0);}`;
         // receiver and the stadium sideline land, in yards inside this sideline)
         play: { dk: 0.45, zoneK: [0.95, 0.72], qbSep: 0.7, cam: 0.62, core: 0.75, wide: 1.95, edge: 0.75 } },
     };
-    // Head to Head always plays the stadium (both screens must run the same field); tests can pick one with __blitzDebug.venue
+    // Head to Head plays wherever the challenge said (opts.venue: the stadium, Hancock or Wildcat Blacktop; both screens run the same
+    // field and the same Metcalf settings, which come with the challenge); elsewhere tests can pick one with __blitzDebug.venue
     // Hancock Stadium (Illinois State's home field in Normal): the stadium's rules exactly (100 yards, kickoffs, punts, field goals,
     // always tackle), its own world (buildHancock, 14-hancock*.js) and field markings (hancockGroundCanvas)
     VENUES.hancock = Object.assign({}, VENUES.stadium, { id: 'hancock', name: 'Hancock Stadium', look: 'hancock' });
-    const VN0 = VENUES[opts.versus ? (opts.venue === 'hancock' ? 'hancock' : 'stadium') : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
+    const VN0 = VENUES[opts.versus ? (opts.venue === 'hancock' || opts.venue === 'metcalf' ? opts.venue : 'stadium') : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
     // Metcalf settings from the setup screen (false at the stadium): crowd = spectators around the blacktop who act like a stadium
     // crowd; big = the whole map scaled up by MET_K so the field is about the size of a real one; touch = two-hand touch instead of
     // tackle. Double or Nothing / Double or Double force crowd and big on and touch off (the site and the server enforce it).
-    // Tests set __blitzDebug.crowd / .big / .touch.
-    const MOPT = (() => { const on = VN0.world === 'metcalf', d = DBG || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]); return { crowd: b('crowd'), big: b('big'), touch: b('touch') }; })();
+    // Tests set __blitzDebug.crowd / .big / .touch. Head to Head at Metcalf always has the crowd, and takes big and touch from the
+    // challenge only (both screens must agree, so the debug hooks don't apply there).
+    const MOPT = (() => { const on = VN0.world === 'metcalf', d = (!opts.versus && DBG) || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]); return { crowd: opts.versus ? on : b('crowd'), big: b('big'), touch: b('touch') }; })();
     const MET_K = MOPT.big ? 3.32 : 1; // 27.54 m goal to goal x 3.32 = 100 yards; 14.62 m wide x 3.32 = 53 yards (a regulation field)
     // the big Metcalf field: every distance scaled by MET_K, first downs and the play geometry as at the stadium (house rules stay)
     // (the throw-off: a kid can't throw the length of a real field, so on the big field it comes from the thrower's own 40, KO,
@@ -4937,7 +4939,8 @@ gl_FragColor=vec4(c,1.0);}`;
     }
   }
   // =====================================================================================
-  // Metcalf people (Metcalf only: nothing in here runs at the stadium or in Head to Head)
+  // Metcalf people (Metcalf only: nothing in here runs at the stadium; in Head to Head the crowd and the walkers are there on both
+  // screens, each drawn on its own, but the ball over the fence is not fetched: the game goes straight on, as when it is skipped)
   //  - the crowd (MOPT.crowd): spectators all round the field, packed rows along the sidelines and the end lines (outside a margin
   //    so runs out of bounds and the default cameras stay clear) and more scattered over the blacktop, the playground and the
   //    lawns, a few sitting. They follow the ball and react like a stadium crowd (cheer, groan, clap, jump, rush in after a TD).
@@ -4948,7 +4951,7 @@ gl_FragColor=vec4(c,1.0);}`;
   // (one instanced draw, a far LOD and the dogs), lit like the rest of the world, with instanced blob shadows (no shadow-map cost).
   // Positions are authored in frame F metres and go through metE, so the big-field option moves them with the map.
   // =====================================================================================
-  const PPL_ON = METCALF && !VS;
+  const PPL_ON = METCALF;
   // joint angles per person (radians): torso bend forward, twist, side roll, head nod down, head turn; per arm: shoulder pitch
   // (forward/up), roll (out to the side), elbow; per leg: hip pitch (forward), knee; arm yaw (both arms in toward the middle)
   const J_TB = 0, J_TY = 1, J_TR = 2, J_HP = 3, J_HY = 4, J_LP = 5, J_LR = 6, J_LE = 7, J_RP = 8, J_RR = 9, J_RE = 10, J_LH = 11, J_LK = 12, J_RH = 13, J_RK = 14, J_AY = 15;
@@ -5460,7 +5463,8 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     // a home touchdown: the front rows rush in a few steps, then drift back
     if (false && hs >= PPL.hs0 + 6 && !FETCH.on) { PPL.rush = t; for (const q of PPL.crowd) if (q.front && q.mode === 'stand' && pR() < (MOPT.big ? 0.35 : 0.7)) { const f = metF(q.hx, q.hz), fx = clamp(f[0], -11.2, 3.42), fz = clamp(f[1], -15.68, 15.68), e = metE(fx, fz), dx = e[0] - q.hx, dz = e[1] - q.hz, l = Math.hypot(dx, dz) || 1, s = Math.min(l - 1.6, 1.2 + pR() * 1.4); if (s > 0.2) { q.rushT = t + 4.5 + pR() * 1.5; q.tx = q.hx + dx / l * s; q.tz = q.hz + dz / l * s; } } }
     PPL.hs0 = hs; PPL.as0 = as;
-    const ex = excite, lean = (phase === 'pre' || phase === 'dpre' || phase === 'live') && PULSE.v > 0.5;
+    const ph = phase === 'vsw' && VS ? VS.oPh : phase; // (Head to Head, watching: the phase on the screen in charge)
+    const ex = excite, lean = (ph === 'pre' || ph === 'dpre' || ph === 'live') && PULSE.v > 0.5;
     // far LOD: whoever stands at home beyond farD is drawn by the far crowd's vertex shader and costs nothing here
     const farD = quality >= 2 ? 44 : quality === 1 ? 28 : 20, ce = cam.e, FD = PPL.fd; PPL.farD = farD;
     for (const q of PPL.crowd) {
@@ -5478,7 +5482,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       else { q.h += angDiff(q.hh, q.h) * Math.min(1, dt * 2.5); if (q.mode0 && q.fx == null) { q.mode = q.mode0; q.mode0 = null; } }
       q.mv = mv;
       // a loud place: some lean in with their hands on their knees, the keen ones bounce; a quiet one: now and then a new idle
-      q.lean = (q.lean || 0) + (((lean && q.en < 0.62 && q.mode === 'stand' && q.arms !== 3 && phase !== 'live') ? 1 : 0) - (q.lean || 0)) * Math.min(1, dt * 2);
+      q.lean = (q.lean || 0) + (((lean && q.en < 0.62 && q.mode === 'stand' && q.arms !== 3 && ph !== 'live') ? 1 : 0) - (q.lean || 0)) * Math.min(1, dt * 2);
       if (ex > q.en + 0.2 && !q.rx && q.mode === 'stand' && pR() < dt * 0.6) q.rx = { k: pR() < 0.5 ? 'clap' : 'pump', t0: t, d: 1.2 + pR(), v: pR() };
       q.idleT -= dt; if (q.idleT <= 0) { q.idleT = 6 + pR() * 14; if (q.mode === 'stand' && pR() < 0.35) q.arms = pR() < 0.4 ? 0 : pR() < 0.5 ? 1 : pR() < 0.5 ? 2 : 3; }
     }
@@ -5601,7 +5605,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   const SAY_CALL = ['Can you get our ball?!', 'A little help!', 'Little help please!', 'Over here!', 'Can you throw it back?', 'Hey! Our ball!', 'Thank you!!'];
   // after the play (the result already stands): start the cutscene instead of going on; `cont` is what the game would have done
   function metFetchStart(cont, force) {
-    if (!PPL_ON || FETCH.on || (DBG && DBG.noFetch && !force)) return false; // (tests: noFetch checks the cutscene leaves the game as it was)
+    if (!PPL_ON || VS || FETCH.on || (DBG && DBG.noFetch && !force)) return false; // (tests: noFetch checks the cutscene leaves the game as it was)
     const hit = force || FW.hit; FW.hit = null;
     if (!hit || !ball) return false;
     if (!force && qtr >= 4 && clock <= 0 && hs !== as) return false; // the game is over: nothing to fetch it for
@@ -12675,6 +12679,8 @@ gl_FragColor=vec4(col,1.0);}`;
     // ---------- kickoffs: the CPU kicks, you return ----------
     // the other team goes onside when it trails late in the 4th
     const cpuWantsOnside = () => VN.onside && (!VS && qtr >= 4 && !suddenDeath && as < hs && (clock < QS * 0.75 || hs - as >= 9) && !(DBG && DBG.noOnside) || !!(DBG && DBG.forceOnside));
+    // head to head at Wildcat Blacktop: where across the throw-off comes down (w: as far out as a throw-off goes, as in the CPU's)
+    const vsThrowX = (w) => (VS.kc === 'left' ? -w * (0.6 + 0.4 * rng()) : VS.kc === 'right' ? w * (0.6 + 0.4 * rng()) : (rng() - 0.5) * w * 0.8);
     function startKickoff(deep) {
       if (!deep && cpuWantsOnside()) { startOnside(false); return; }
       clearBanner(); closeSheet();
@@ -12696,7 +12702,7 @@ gl_FragColor=vec4(col,1.0);}`;
       finalizePlayers();
       for (const p of everyone) setPose(p, TH && p.key === 'KK' ? 'idle' : 'stance2');
       // head to head: the kicking side picked deep middle, left or right (left / right as the kicking side watches the return: -x is screen left)
-      const lz = TH ? clamp(Math.round((-1 + rng() * 7 - DIFF * 1.5) * MET_K + (TH.lzOff || 0)), ZBACK + emg(2), TH.lzMax) : clamp(Math.round(-4 + rng() * 12 - DIFF * 3), ZBACK + emg(2), 9), lx = xin(!VS ? (rng() - 0.5) * (TH ? 2 * Math.min(6, HW - 3.5) : 12) : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6, 1);
+      const lz = TH ? clamp(Math.round((-1 + rng() * 7 - DIFF * 1.5) * MET_K + (TH.lzOff || 0)), ZBACK + emg(2), TH.lzMax) : clamp(Math.round(-4 + rng() * 12 - DIFF * 3), ZBACK + emg(2), 9), lx = xin(!VS ? (rng() - 0.5) * (TH ? 2 * Math.min(6, HW - 3.5) : 12) : TH ? vsThrowX(Math.min(6, HW - 3.5)) : VS.kc === 'left' ? -13 + rng() * 4 : VS.kc === 'right' ? 13 - rng() * 4 : (rng() - 0.5) * 6, 1);
       kick = { type: 'ko', st: 'wait', t: 0, lx, lz, R, tbOK: false };
       ball = TH ? { st: 'held', holder: DK.KK, x: DK.KK.x, y: 1.3, z: DK.KK.z, vx: 0, vy: 0, vz: 0, spin: 0 } : { st: 'spot', x: 0, y: 0.3, z: FL - VN.KO, holder: null, vx: 0, vy: 0, vz: 0, spin: 0 };
       dcall = { name: TH ? 'Throw-off' : 'Kickoff' };
@@ -14826,7 +14832,9 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // the count on screen: one banana marked per banana, then RUSH! on 7
     const BAN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 13.5c2.6 5.4 11.8 6.6 16.4-1.2.9-1.6 1.2-3.6 1-5.6l-1.6.3c-.3 5.4-6.6 10.3-15.8 6.5z" fill="currentColor" stroke="#3a2a00" stroke-width="1.1" stroke-linejoin="round"/><path d="M19.4 7l1-2.6 1.4.4-.9 2.5" fill="#6b4a12"/></svg>';
-    const BAN = { el: null, n: -2, on: false, rushAt: -9, live: 0 };
+    // BAN.k: what the count shows this frame (-1 nothing, 0..6 bananas, 7 RUSH!); in Head to Head the screen in charge streams it and
+    // the other screen shows the same (its sounds come across with the rest)
+    const BAN = { el: null, n: -2, on: false, rushAt: -9, live: 0, k: -1 };
     function banEl() {
       if (BAN.el) return BAN.el;
       const e = el('div', 'bz-ban'); e.innerHTML = `<div class="bz-ban-i">${BAN_SVG.repeat(BAN_N)}</div><b></b>`;
@@ -14834,6 +14842,7 @@ gl_FragColor=vec4(col,1.0);}`;
       return e;
     }
     function banHud() {
+      if (VS && !VS.auth) { banShow(phase === 'vsw' && VS.banK != null ? VS.banK : -1, false); return; } // head to head, watching
       const held = banHeld();
       // a new snap: the count starts at 0
       if (phase === 'live' && !kick && OK.QB && tPlay < 0.05 && !BAN.live) { BAN.live = 1; BAN.n = -1; BAN.rushAt = -9; }
@@ -14841,16 +14850,19 @@ gl_FragColor=vec4(col,1.0);}`;
       let n = -1, rush = false;
       if (held) n = Math.min(BAN_N - 1, Math.floor(tPlay / BAN_S)); // bananas finished so far (the 7th lands at 4.75 s)
       else if (BAN.live && phase === 'live' && !kick && tPlay >= BAN_T && tPlay < BAN_T + 1.3 && !thrown && !crossed && !(carrier && carrier !== OK.QB)) rush = true;
-      const show = held || rush;
-      if (!show) { if (BAN.on) { BAN.el.classList.remove('on'); BAN.on = false; BAN.n = -2; } return; }
-      const e = banEl();
+      banShow(held || rush ? (rush ? BAN_N : n) : -1, true);
+    }
+    function banShow(k, snd) {
+      BAN.k = k;
+      if (k < 0) { if (BAN.on) { BAN.el.classList.remove('on'); BAN.on = false; BAN.n = -2; } return; }
+      const e = banEl(), rush = k >= BAN_N;
       if (!BAN.on) { const b = bug.getBoundingClientRect(), w = wrap.getBoundingClientRect(); e.style.top = Math.max(0, Math.round(b.bottom - w.top) - 6) + 'px'; e.classList.add('on'); BAN.on = true; }
-      const k = rush ? BAN_N : n;
       if (k === BAN.n) return;
       BAN.n = k;
       BAN.icons.forEach((s, i) => s.classList.toggle('f', i < k));
       e.classList.toggle('go', rush);
       BAN.txt.innerHTML = rush ? '7 BANANA! <i>RUSH!</i>' : k ? k + ' BANANA' : 'COUNT IT';
+      if (!snd) return;
       if (rush) sfx.play('rushgo'); else if (k) sfx.play('banana');
     }
     if (DBG && METCALF) DBG.banana = () => ({ held: banHeld(), n: BAN.n, on: BAN.on, t: tPlay, line: banLine(), BAN_T });
@@ -14863,6 +14875,10 @@ gl_FragColor=vec4(col,1.0);}`;
     // route). The kicking side picks the kickoff (deep left, middle or right, or onside) and the receiving screen runs the return.
     // When the ball changes hands the screen in charge hands over the score, clock, quarter, timeouts and overtime count with it.
     // Each side's timeouts are its own: the defense can call one between plays.
+    // Wildcat Blacktop (opts.venue 'metcalf', with the challenge's field size and touch setting; always the crowd): the same, with its
+    // house rules on both screens: throw-offs (deep middle, left or right: no onside), a touchdown is 7 and the ball goes back by
+    // throw-off, four downs to score, 7 on 7 on the small field, the banana count (streamed: the defense sees the count), one game
+    // clock and the last play (its state goes with the score and the clock). The ball over the fence is not fetched in Head to Head.
     const VS_CALLS = [
       { id: 'c2', name: 'Cover 2', sub: 'Two deep, five under', cov: 2, blitz: 0 },
       { id: 'c3', name: 'Cover 3', sub: 'Three deep, four under', cov: 3, blitz: 0 },
@@ -14878,12 +14894,15 @@ gl_FragColor=vec4(col,1.0);}`;
       { id: 'box', name: 'Stack the Box', sub: 'Eight up: stuff the run, risk play-action', cov: 1, blitz: 0, kind: 'box' },
     ];
     const VS_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=']; // the call keys, along the number row
-    const VS_KICKS = [
+    const VS_KICKS0 = [
       { id: 'mid', name: 'Deep middle', sub: 'High and deep' },
       { id: 'left', name: 'Deep left', sub: 'Pin him to a sideline' },
       { id: 'right', name: 'Deep right', sub: 'Pin him to a sideline' },
       { id: 'onside', name: 'Onside kick', sub: 'A long shot: time it in the green' },
     ];
+    // (no onside throw-off at Wildcat Blacktop)
+    const VS_KICKS = VS_KICKS0.filter((k) => k.id !== 'onside' || VN.onside), THROW = VN.koType === 'throw';
+    if (THROW) { VS_KICKS[0] = Object.assign({}, VS_KICKS[0], { sub: 'A high lob, deep' }); }
     const VS_PH = ['pre', 'live', 'dead', 'kick', 'pat', 'break', 'replay', 'koc', 'over'];
     const VS_HDR = 23, VS_DELAY = 140, VS_CALL_T = 8, VS_KICK_T = 8;
     const vsT0 = performance.now();
@@ -14899,7 +14918,7 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     const vsSend = (type, data) => { if (VS.mute) return; try { VS.net.send(type, data || {}); } catch (e) { console.error(e); } };
     // the game state handed over with the ball, from this screen's point of view (me = this screen's points)
-    function vsSt() { return { me: hs, opp: as, qtr, clock: Math.max(0, Math.round(clock * 100) / 100), toMe: toLeft, toOpp: VS.toOpp, otLeft, sd: suddenDeath ? 1 : 0 }; }
+    function vsSt() { const st = { me: hs, opp: as, qtr, clock: Math.max(0, Math.round(clock * 100) / 100), toMe: toLeft, toOpp: VS.toOpp, otLeft, sd: suddenDeath ? 1 : 0 }; if (ONEC) st.lp = LP; return st; }
     function vsSync(st) {
       if (!st) return;
       hs = st.opp | 0; as = st.me | 0;
@@ -14909,6 +14928,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (st.toMe != null) VS.toOpp = st.toMe;
       if (st.otLeft != null) otLeft = st.otLeft;
       suddenDeath = !!st.sd; boardDirty = true;
+      if (ONEC && st.lp != null) LP = clamp(st.lp | 0, 0, 2); // one clock: the last play is owed (1) or played (2)
     }
     // swap in the other team's 11, kicker and kits (their offense, our defense) and back
     function vsFlip(on) {
@@ -14963,7 +14983,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function vsTheirTimeout() {
       if (!(phase === 'pre' || phase === 'dead') || VS.toOpp <= 0 || finished) return;
       VS.toOpp--; clockRun = false; runoff = 0; playClock = PCL; boardDirty = true;
-      sfx.play('whistle'); banner('TIMEOUT', `${esc(AWAY.name)} · ${VS.toOpp} left this half`, '#ffc21a'); say(`<b>${esc(AWAY.name)}</b> call timeout.`);
+      sfx.play('whistle'); banner('TIMEOUT', `${esc(AWAY.name)} · ${VS.toOpp} left ${ONEC ? 'this game' : 'this half'}`, '#ffc21a'); say(`<b>${esc(AWAY.name)}</b> call timeout.`);
       vsSend('st', { st: vsSt() });
     }
     // the ball goes to the other side: by kickoff (we kick) or at a spot (turnover, punt, missed field goal, downs, safety)
@@ -14976,7 +14996,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // we receive a kickoff: they pick the kick
     function vsAwaitKick(tell) {
       if (tell) vsSend('hand', { type: 'recv', st: vsSt() });
-      vsWatch(`<b>${esc(AWAY.name)}</b> kick off to you…`);
+      vsWatch(`<b>${esc(AWAY.name)}</b> ${THROW ? 'throw off' : 'kick off'} to you…`);
       VS.awaitKick = true;
     }
     function vsGotKick(d) {
@@ -14998,7 +15018,7 @@ gl_FragColor=vec4(col,1.0);}`;
       vsHideCard(); sfx.play('tap');
       if (id === 'onside') { VS.ons = { p: 0, dir: 1, spd: onsSpeed(), t: 0 }; showOnsideMeter(); setControls(true); return; } // time it first
       vsSend('kick', { kc: id, st: vsSt() });
-      vsWatch(`<b>${esc(HOME.name)}</b> kick it ${id === 'mid' ? 'deep' : 'deep to the ' + id}.`);
+      vsWatch(`<b>${esc(HOME.name)}</b> ${THROW ? 'throw' : 'kick'} it ${id === 'mid' ? 'deep' : 'deep to the ' + id}.`);
     }
 
     // the onside timing bar on the kicker's screen: the tap's quality goes with the kick (no tap in 6 s: a mishit)
@@ -15030,6 +15050,7 @@ gl_FragColor=vec4(col,1.0);}`;
       f[0] = 77; f[1] = performance.now() - vsT0; f[2] = n; f[3] = VS_PH.indexOf(phase);
       f[4] = cam.e[0]; f[5] = cam.e[1]; f[6] = cam.e[2]; f[7] = cam.c[0]; f[8] = cam.c[1]; f[9] = cam.c[2]; f[10] = cam.shake; f[11] = cam.kick;
       f[12] = qtr; f[13] = clock; f[14] = (phase === 'live' && !kick && ball && (ball.st === 'air' && ball.kind === 'pass' || OK.QB && OK.QB.throwT >= 0 && ball.holder === OK.QB) ? 1 : 0) | (VS.waitD ? 2 : 0);
+      if (METCALF && !MOPT.big) f[14] += (BAN.k + 1) * 4; // the banana count as it shows here (0 none, 1..7 the bananas, 8 RUSH!)
       f[15] = down; f[16] = los; f[17] = fdz; f[18] = hs; f[19] = as; f[20] = playClock; f[21] = toLeft;
       f[22] = VS.rc && VS.rc.d && (phase === 'pre' || phase === 'live' || phase === 'dead') ? everyone.indexOf(VS.rc.d) : -1; // the defender the other side controls
       let o = VS_HDR;
@@ -15078,6 +15099,7 @@ gl_FragColor=vec4(col,1.0);}`;
       VS.cam = { e: [L(4), L(5), L(6)], c: [L(7), L(8), L(9)], sh: h[10], kick: h[11] };
       qtr = h[12]; clock = L(13); down = h[15]; los = h[16]; fdz = h[17]; hs = h[19]; as = h[18]; playClock = h[20];
       { const ri = h[22] != null ? h[22] | 0 : -1; if (ri !== VS.rcIdx) { VS.rcIdx = ri; setControls(true); } }
+      if (METCALF && !MOPT.big) VS.banK = ((h[14] >> 2) & 15) - 1; // the banana count on their screen (76-banana.js shows it)
       vsDefIn(dt);
       const ph = VS_PH[h[3]] || '', air = !!(h[14] & 1);
       if (ph !== VS.oPh || air !== VS.air) { VS.oPh = ph; VS.air = air; setControls(true); if (ph === 'live') { vsHideCard(true); closeDSheet(); } }
@@ -15169,7 +15191,7 @@ gl_FragColor=vec4(col,1.0);}`;
       setControls(true);
     }
     function vsShowKick() {
-      vsCard(`<h3>Your kickoff</h3><p>You kick to ${esc(AWAY.name)}. Pick it:</p><div class="bz-dcall vs4">${VS_KICKS.map((c, i) => `<button type="button" data-k="${c.id}" class="${c.id === 'mid' ? 'sug' : ''}"><b>${c.name}</b><small>${c.sub}</small>${touchy ? '' : `<u>${i + 1}</u>`}</button>`).join('')}</div><p class="bz-dct">No pick and it's Deep middle in <b>${VS_KICK_T}</b></p><div class="bz-dtm"><i style="width:100%"></i></div>`, VS_KICK_T, 'mid', vsKickPicked);
+      vsCard(`<h3>Your ${THROW ? 'throw-off' : 'kickoff'}</h3><p>You ${THROW ? 'throw' : 'kick'} to ${esc(AWAY.name)}. Pick it:</p><div class="bz-dcall${VS_KICKS.length === 4 ? ' vs4' : ''}">${VS_KICKS.map((c, i) => `<button type="button" data-k="${c.id}" class="${c.id === 'mid' ? 'sug' : ''}"><b>${c.name}</b><small>${c.sub}</small>${touchy ? '' : `<u>${i + 1}</u>`}</button>`).join('')}</div><p class="bz-dct">No pick and it's Deep middle in <b>${VS_KICK_T}</b></p><div class="bz-dtm"><i style="width:100%"></i></div>`, VS_KICK_T, 'mid', vsKickPicked);
     }
     function vsCard(html, T, sug, fn) {
       vsHideCard(true);
@@ -15259,7 +15281,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // back after a reload: the server's last word on the game (score, clock, timeouts, who has the ball, the last snap or hand-over)
     function vsResume(R) {
       hs = R.me | 0; as = R.opp | 0; if (R.qtr) qtr = R.qtr; if (R.clock != null) clock = +R.clock;
-      const st = R.st; if (st) { const mine = R.stBy === 'me'; toLeft = mine ? st.toMe : st.toOpp; VS.toOpp = mine ? st.toOpp : st.toMe; if (st.otLeft != null) otLeft = st.otLeft; suddenDeath = !!st.sd; }
+      const st = R.st; if (st) { const mine = R.stBy === 'me'; toLeft = mine ? st.toMe : st.toOpp; VS.toOpp = mine ? st.toOpp : st.toMe; if (st.otLeft != null) otLeft = st.otLeft; suddenDeath = !!st.sd; if (ONEC && st.lp != null) LP = clamp(st.lp | 0, 0, 2); }
       boardDirty = true;
       const h = R.hand, p = R.pre;
       if (h && R.handBy === 'opp' && h.type === 'spot') { vsMine(); startDrive(+h.spot || TB); }
@@ -16616,7 +16638,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const liveD = DEFP.on || phase === 'dcall' || phase === 'dpre';
       bDD.innerHTML = cpuBall && simDD ? `<b>${esc(cpuD.dd)}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(cpuD.ddAt)}</span>` :
         cpuBall && liveD ? `<b>${ddTxt()}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(los)}</span>` :
-        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? '<b>Kickoff</b><span>Your kick</span>' : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, FLY - YL(los)) : ballTxt(los)}</span>`;
+        cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? (VN.koType === 'throw' ? '<b>Throw-off</b><span>Your throw</span>' : '<b>Kickoff</b><span>Your kick</span>') : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, FLY - YL(los)) : ballTxt(los)}</span>`;
       const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
     }
     let sprintBtn = null, staCache = -1;
@@ -16737,18 +16759,18 @@ gl_FragColor=vec4(col,1.0);}`;
         if ((poss === 'home' && pend && !pend.next) || DEFP.on) btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
       } else if (phase === 'vsw') { // head to head: their ball, our defense
         if (VS.rcIdx >= 0 && (VS.oPh === 'live' || VS.oPh === 'pre')) { // you play a defender: move, jump, dive, switch
-          msg(VS.oPh === 'pre' ? `<span>You: <b>${esc(nm(everyone[VS.rcIdx]))}</b> · ${touchy ? 'Switch to change' : 'Q switch'}${VS.picked ? ' · <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>` : (touchy ? '<span>Drag to move · Jump · Dive</span>' : '<span>Arrows move · SPACE jump · X dive · Q switch · J jump the route</span>'));
+          msg(VS.oPh === 'pre' ? `<span>You: <b>${esc(nm(everyone[VS.rcIdx]))}</b> · ${touchy ? 'Switch to change' : 'Q switch'}${VS.picked ? ' · <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>` : (touchy ? `<span>Drag to move · Jump · ${MOPT.touch ? 'Touch' : 'Dive'}</span>` : `<span>Arrows move · SPACE jump · X ${MOPT.touch ? 'touch' : 'dive'} · Q switch · J jump the route</span>`));
           if (!touchy && VS.oPh === 'live') mkSprint();
           const g = el('div', 'bz-catch'); ctl.appendChild(g);
           const mk = (cls, html, a) => { const b = el('button', 'bz-btn ' + cls, html); b.type = 'button'; b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); vsDefTap(a); }); g.appendChild(b); };
           mk('', `Switch${K('Q')}`, 'switch');
-          if (VS.oPh === 'live') { mk('bz-r', `Dive${K('X')}`, 'dive'); mk('bz-g', `Jump${K('SPACE')}`, 'jump'); }
+          if (VS.oPh === 'live') { mk('bz-r', `${MOPT.touch ? 'Touch' : 'Dive'}${K('X')}`, 'dive'); mk('bz-g', `Jump${K('SPACE')}`, 'jump'); }
           if (touchy && VS.oPh === 'live') mkSprint();
         } else if (VS.air && !VS.reacted) btn('bz-r bz-wide', `Jump the route!<small>send the nearest defender after it</small>${K('J')}`, vsJumpTap, 'pointerdown');
         else msg(`<span><b>${esc(AWAY.name)}</b> ${VS.oPh === 'live' ? 'run a play' : 'have the ball'}${VS.picked ? ' · your call: <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>`);
         if (VS.oPh === 'pre' || VS.oPh === 'dead') btn('bz-to' + (toLeft > 0 ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, vsTimeout);
       } else if (phase === 'vsk') {
-        msg('<span>Your kickoff · pick it on the card</span>');
+        msg(VN.koType === 'throw' ? '<span>Your throw-off · pick it on the card</span>' : '<span>Your kickoff · pick it on the card</span>');
       } else if (phase === 'xdance') { // Xavier dancing; skippable after 3 seconds
         msg('<span>Clock stopped…</span>');
         if (XD.skipOK) btn('bz-y', 'Skip', xdSkip, 'pointerdown').style.flex = '0 0 96px';
@@ -17375,7 +17397,7 @@ gl_FragColor=vec4(col,1.0);}`;
       get phase() { return phase; }, get mode() { return mode; }, get clock() { return clock; }, get qtr() { return qtr; }, get hs() { return hs; }, get as() { return as; },
       get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
-      get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get venue() { return VN; }, kneel() { if (kick && kick.type === 'ko' && kick.tbOK) touchback(); }, get cpuD() { return cpuD; }, get pend() { return pend; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
+      get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get venue() { return VN; }, get mopt() { return MOPT; }, get lp() { return LP; }, get banK() { return BAN.k; }, kneel() { if (kick && kick.type === 'ko' && kick.tbOK) touchback(); }, get cpuD() { return cpuD; }, get pend() { return pend; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
       get cam() { return cam; }, kickoffNow() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); closeSheet(); startKickoff(false); }, // tests: the camera, a CPU kickoff (throw-off) now
       get sfx() { return sfx; }, get excite() { return excite; }, set excite(v) { excite = v; }, get dcall() { return dcall; }, get drama() { return DRAMA; }, get pulse() { return PULSE.v; }, get crowdE() { return PULSE.e; }, aimSpotNow() { return aimSpot(); }, crowdWobble() { return crowdWobble(); }, pulseTarget() { return pulseTarget(); }, get partsLive() { return parts.filter((q) => q.life > 0).length; }, rubber() { return rubber(); }, chooseCall(c) { chooseCall(c); }, get cpuPick() { return !!(cpuD && cpuD.pick); }, get clutch() { return isClutch(); }, get stats() { return ST; }, get team() { return TS; }, get lastBig() { return lastBig; }, get mdist() { return maxDist(); }, get arc() { return arc; }, get fun() { return FUN; }, get extras() { return extras; }, get perks() { return PK; }, get finished() { return finished; }, get voice() { return voice; }, get voiceIdle() { return VI; },
       input, snap, begin, choose4th, chooseTry, switchTry, chooseKo, kickTap, callTimeout, doMove, scramble, touchback, endReplay, setArc,
@@ -17480,7 +17502,7 @@ gl_FragColor=vec4(col,1.0);}`;
   // =====================================================================================
   window.MFLBlitz = {
     version: 2,
-    venues: ['stadium', 'metcalf', 'hancock'], // opts.venue (Head to Head always plays the stadium)
+    venues: ['stadium', 'metcalf', 'hancock'], // opts.venue (Head to Head too: opts.versus with opts.venue, big and touch)
     tods: ['morning', 'noon', 'sunset', 'night'], // opts.tod (default: the venue's usual, the stadium at night, Metcalf at noon)
     weathers: ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'], // opts.weather ('night' = the stadium's usual clear night)
     play(root, opts) {

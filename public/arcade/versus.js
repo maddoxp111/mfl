@@ -13,7 +13,11 @@
   const OPEN = 1;
   const ME = cfg.me;
   const QLABEL = { 60: '1-min', 120: '2-min', 180: '3-min' };
-  const terms = (wager, qs) => `${wager ? fmt(wager) + ' coins' : 'Friendly'} · ${QLABEL[qs] || Math.round(qs / 60) + '-min'} quarters`;
+  const VNAME = { stadium: 'The Stadium', hancock: 'Hancock Stadium', metcalf: 'Wildcat Blacktop' };
+  // where, as the terms read it (Wildcat Blacktop: its field size and tackle or touch); c is a challenge or a match
+  const where = (c) => (!c || !c.venue || c.venue === 'stadium' ? '' : (VNAME[c.venue] || c.venue) + (c.venue === 'metcalf' ? ` (${c.big ? 'big field' : 'small field'}, ${c.touch ? 'two-hand touch' : 'tackle'})` : ''));
+  const terms = (c) => [c.wager ? fmt(c.wager) + ' coins' : 'Friendly', c.venue === 'metcalf' ? `${QLABEL[c.qs] || Math.round(c.qs / 60) + '-min'} x 4 on one clock` : `${QLABEL[c.qs] || Math.round(c.qs / 60) + '-min'} quarters`, where(c)].filter(Boolean).join(' · ');
+  const kickWord = (c) => (c && c.venue === 'metcalf' ? 'throw-off' : 'kickoff');
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
   let sock = null, retry = 0, retryTimer = null, connecting = false, loggedOut = false;
@@ -207,11 +211,11 @@
     $('vsInCard').hidden = !incoming.length;
     $('vsIn').innerHTML = incoming.map((c) => {
       const short = c.wager > balance;
-      return `<li><div class="vs-ch"><b>@${esc(c.from)}</b><small>${esc(terms(c.wager, c.qs))}${short ? ` · you have ${fmt(balance)}` : ''}</small></div><span class="vs-left" data-deadline="${c.deadline}">${clock(c.deadline - Date.now())}</span>
+      return `<li><div class="vs-ch"><b>@${esc(c.from)}</b><small>${esc(terms(c))}${short ? ` · you have ${fmt(balance)}` : ''}</small></div><span class="vs-left" data-deadline="${c.deadline}">${clock(c.deadline - Date.now())}</span>
         <div class="vs-act"><button class="btn sm" type="button" data-acc="${esc(c.id)}" ${short || live ? 'disabled' : ''}>Accept</button><button class="btn ghost sm" type="button" data-dec="${esc(c.id)}">Decline</button></div></li>`;
     }).join('');
     $('vsOutCard').hidden = !outgoing;
-    $('vsOut').innerHTML = outgoing ? `<li><div class="vs-ch"><b>Waiting for @${esc(outgoing.to)}</b><small>${esc(terms(outgoing.wager, outgoing.qs))}</small></div><span class="vs-left" data-deadline="${outgoing.deadline}">${clock(outgoing.deadline - Date.now())}</span>
+    $('vsOut').innerHTML = outgoing ? `<li><div class="vs-ch"><b>Waiting for @${esc(outgoing.to)}</b><small>${esc(terms(outgoing))}</small></div><span class="vs-left" data-deadline="${outgoing.deadline}">${clock(outgoing.deadline - Date.now())}</span>
       <button class="btn ghost sm" type="button" data-cancel="${esc(outgoing.id)}">Cancel</button></li>` : '';
     const n = incoming.length;
     document.title = (n ? `(${n}) ` : '') + document.title.replace(/^\(\d+\) /, '');
@@ -227,7 +231,7 @@
       const sc = r.me != null && r.them != null && r.status !== 'void' ? `${r.me}–${r.them}` : '';
       const why = WORD[r.reason] ? WORD[r.reason](r) : '';
       const coins = !r.wager ? '<span class="r muted">Friendly</span>' : r.status === 'void' ? '<span class="r muted">Refunded</span>' : `<span class="r ${r.net > 0 ? 'up' : 'down'}">${r.net > 0 ? '+' : ''}${fmt(r.net)}</span>`;
-      return `<li><span class="res ${tag}">${r.status === 'void' ? '–' : tag}</span><div class="vs-ch"><b>vs @${esc(r.opp)}</b><small>${esc([sc, why, r.wager ? fmt(r.wager) + ' coins' : '', day].filter(Boolean).join(' · '))}</small></div>${coins}</li>`;
+      return `<li><span class="res ${tag}">${r.status === 'void' ? '–' : tag}</span><div class="vs-ch"><b>vs @${esc(r.opp)}</b><small>${esc([sc, why, r.wager ? fmt(r.wager) + ' coins' : '', r.venue && r.venue !== 'stadium' ? VNAME[r.venue] || '' : '', day].filter(Boolean).join(' · '))}</small></div>${coins}</li>`;
     }).join('');
     $('vsNoResults').hidden = results.length > 0;
   }
@@ -248,17 +252,25 @@
       <small class="hint" id="vsWagerHint"></small>
       <div class="lbl">Quarter length</div>
       <div class="arc-modes">${cfg.qs.map((q) => `<label class="mode"><input type="radio" name="qs" value="${q}" ${q === 120 ? 'checked' : ''}><span>${q / 60} min</span></label>`).join('')}</div>
+      <div class="lbl">Where</div>
+      <div class="arc-modes">${(cfg.venues || ['stadium']).map((v) => `<label class="mode"><input type="radio" name="venue" value="${v}" ${v === 'stadium' ? 'checked' : ''}><span>${esc(VNAME[v] || v)}</span></label>`).join('')}</div>
+      <div id="vsMet" hidden><div class="lbl">Wildcat Blacktop: field</div>
+      <div class="arc-modes vs-two"><label class="mode"><input type="radio" name="big" value="0" checked><span>Small (7 on 7)</span></label><label class="mode"><input type="radio" name="big" value="1"><span>Big (11 on 11)</span></label></div>
+      <div class="arc-modes vs-two"><label class="mode"><input type="radio" name="touch" value="0" checked><span>Tackle</span></label><label class="mode"><input type="radio" name="touch" value="1"><span>Two-hand touch</span></label></div>
+      <small class="hint">House rules: throw-offs, a touchdown is 7, one game clock then a last play; on the small field nobody rushes before 7 banana.</small></div>
       <p class="err" id="vsFormErr"></p>
       <div class="arc-over-b"><button class="btn" type="submit" id="vsSend">Send challenge</button><button class="btn ghost" type="button" data-close>Cancel</button></div></form></div>`;
     o.hidden = false;
     const f = $('vsForm');
     f.wager.addEventListener('input', syncForm);
+    f.querySelectorAll('input[name=venue]').forEach((r) => r.addEventListener('change', syncForm));
     f.addEventListener('submit', (e) => {
       e.preventDefault();
       const wager = Math.floor(+f.wager.value || 0);
       if (wager < 0 || wager > cfg.maxWager) { $('vsFormErr').textContent = `Pick 0 to ${fmt(cfg.maxWager)} coins.`; return; }
       if (wager > balance) { $('vsFormErr').textContent = `You have ${fmt(balance)} coins.`; return; }
-      if (!sendRaw({ t: 'challenge', to: name, wager, qs: +f.qs.value })) { $('vsFormErr').textContent = 'Not connected. Trying again…'; kick(); return; }
+      const venue = f.venue ? f.venue.value : 'stadium', met = venue === 'metcalf';
+      if (!sendRaw({ t: 'challenge', to: name, wager, qs: +f.qs.value, venue, ...(met ? { big: f.big.value === '1', touch: f.touch.value === '1' } : {}) })) { $('vsFormErr').textContent = 'Not connected. Trying again…'; kick(); return; }
       sending = true; $('vsFormErr').textContent = ''; syncForm();
     });
     o.querySelector('[data-close]').addEventListener('click', closeForm);
@@ -271,6 +283,7 @@
     if (!formFor || !f) return;
     const p = online.find((x) => x.name === formFor), w = Math.floor(+f.wager.value || 0);
     $('vsWagerHint').textContent = (w ? `Winner takes ${fmt(w * 2)}.` : '0 = a friendly, no coins.') + ` You have ${fmt(balance)}.`;
+    $('vsMet').hidden = !(f.venue && f.venue.value === 'metcalf');
     const gone = !p ? `@${formFor} left the lobby.` : p.status !== 'idle' ? `@${formFor} is in a match now.` : '';
     if (gone && !sending) $('vsFormErr').textContent = gone;
     $('vsSend').disabled = !!gone || sending;
@@ -292,7 +305,7 @@
   function makeNet(m) {
     let onMessage = null, onFrame = null;
     const net = {
-      matchId: m.id, me: { name: m.me.name }, opp: { name: m.opp.name }, recvFirst: !!m.recvFirst, wager: m.wager, qs: m.qs, seed: m.seed, resume: null,
+      matchId: m.id, me: { name: m.me.name }, opp: { name: m.opp.name }, recvFirst: !!m.recvFirst, wager: m.wager, qs: m.qs, venue: m.venue || 'stadium', big: !!m.big, touch: !!m.touch, seed: m.seed, resume: null,
       send(type, data) { if (live && live.net === net && !live.over) out({ t: 'ev', type, data }); },
       sendFrame(buf) { if (sock && sock.readyState === OPEN && live && live.net === net && !live.over) { try { sock.send(buf); } catch (e) {} } },
       get lag() { return sock && sock.http ? 420 : 140; }, // how far behind to play the other side's stream back (HTTPS arrives in batches)
@@ -337,7 +350,7 @@
     stage.innerHTML = `<div class="vs-stage-top" id="vsTop" hidden><button class="btn ghost sm" type="button" id="vsQuit">Quit match</button></div>
       <div class="card vs-wait" id="vsWait"><div class="kicker" style="justify-content:center">🆚 Head to Head</div>
         <div class="vs-vs">${tm(m.me.team, '@' + esc(m.me.name))}<i>vs</i>${tm(m.opp.team, '@' + esc(m.opp.name))}</div>
-        <p class="muted">${esc(terms(m.wager, m.qs))}${m.wager ? ` · winner takes ${fmt(m.wager * 2)}` : ''} · ${m.recvFirst ? 'you receive the opening kickoff' : `@${esc(m.opp.name)} receives the opening kickoff`}</p>
+        <p class="muted">${esc(terms(m))}${m.wager ? ` · winner takes ${fmt(m.wager * 2)}` : ''} · ${m.recvFirst ? `you receive the opening ${kickWord(m)}` : `@${esc(m.opp.name)} receives the opening ${kickWord(m)}`}</p>
         <h2 id="vsWaitT">Getting ready</h2><p class="muted" id="vsWaitS">Waiting for @${esc(m.opp.name)}…</p>
         <div class="arc-over-b"><button class="btn ghost" type="button" id="vsCancel">Call it off</button></div></div>`;
     stage.hidden = false;
@@ -373,8 +386,8 @@
     let p;
     try {
       if (!window.MFLBlitz || !window.MFLBlitz.play) throw new Error('The game did not load. Refresh and try again.');
-      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, seed: M.seed, quarterSecs: M.qs, timeouts: 3, noTies: true, difficulty: 1, offense: 1, weather: 'night',
-        label: `Head to Head · ${M.wager ? fmt(M.wager) + ' coins' : 'Friendly'}` });
+      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, venue: M.venue || 'stadium', ...(M.venue === 'metcalf' ? { big: !!M.big, touch: !!M.touch, crowd: true } : {}), seed: M.seed, quarterSecs: M.qs, timeouts: 3, noTies: true, difficulty: 1, offense: 1, weather: 'night',
+        label: [`Head to Head · ${M.wager ? fmt(M.wager) + ' coins' : 'Friendly'}`, where(M)].filter(Boolean).join(' · ') });
     } catch (e) { console.error(e); p = Promise.resolve({ quit: true, error: String((e && e.message) || e) }); }
     Promise.resolve(p).then((r) => engineDone(mine, r), (e) => engineDone(mine, { quit: true, error: String(e) }));
   }
