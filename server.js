@@ -41,7 +41,7 @@ function adminPasswordOk(p) {
   return !!adminAuth.hash && pk.checkPin(adminAuth, p);
 }
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
-const VENUE = 'Thomas Metcalf School';
+const VENUE = 'Wildcat Stadium';
 
 // GitHub Pages bridge: the github.io copy loads every page live from this server.
 // Browsers there can't share our cookies, so the bridge sends them in X-MFL-Auth
@@ -440,7 +440,7 @@ function layout(req, title, body, opts = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · MFL</title>
 <meta name="theme-color" content="#0a0a0d">
-<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Thomas Metcalf School flag football league.">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Wildcat Stadium flag football league.">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">

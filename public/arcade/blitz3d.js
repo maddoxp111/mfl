@@ -2012,7 +2012,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const WET = WXK === 'rain' || WXK === 'storm' ? 1 : WXK === 'snow' ? 0.8 : 0;
     // ---------- the venue: field size and field rules (the stadium is the regulation 100-yard field) ----------
     // Engine units are yards; z runs from your goal line (0) to theirs (FL), x is across the field (|x| <= HW in bounds).
-    // Metcalf: the blacktop at Thomas Metcalf School, measured in meters (origin at the field's center, +x east, +z north):
+    // Metcalf: Wildcat Blacktop, measured in meters (origin at the field's center, +x east, +z north):
     // red goal lines at z = +/-13.77 m, white end lines at +/-15.68 m; the field is the west one, between the white line at x = -11.20 m
     // and the ticked inner line at x = +3.42 m (14.62 m wide, centre x = -3.89 m); the home offense attacks north.
     const M2Y = 1.0936133;
@@ -2031,7 +2031,7 @@ gl_FragColor=vec4(c,1.0);}`;
         world: 'stadium', tex: [30, 12, 60, 124] },
       // a lunch-time school game: throw-offs (no kicking), no punts, field goals or tries (a touchdown is 7), no chain crew,
       // benches or officials; asphalt (no grass, no divots)
-      metcalf: { id: 'metcalf', name: 'Metcalf',
+      metcalf: { id: 'metcalf', name: 'Wildcat Blacktop',
         FL: 27.54 * M2Y, EZ: 1.91 * M2Y, HW: 7.31 * M2Y, FD: 0, // FD 0: no first downs (four downs to score from wherever the ball is taken over)
         TB: 4, KO: 0, SAFE: 4, PAT: 3, TWO: 2,
         RZ: 10, GL: 5, NEAR: 7, G5: 3, G3: 2, CPUFG: 0, CPUGO: 0,
@@ -3097,7 +3097,7 @@ gl_FragColor=vec4(c,1.0);}`;
       } catch (e) {}
     }
   // =====================================================================================
-  // Venue: the blacktop at Thomas Metcalf School (Normal, Illinois), where the real middle-school flag football league plays.
+  // Venue: Wildcat Blacktop (Normal, Illinois), where the real middle-school flag football league plays.
   // Everything is authored 1:1 in metres in the site frame F (origin at the football field's centre, +x east, +z north,
   // y up) from the measured survey, then moved into engine units (yards) at the end: x = xF*M2Y, z = (zF + MZ0)*M2Y, so the
   // south red goal line (zF = -13.77) is engine z = 0. With the stadium (the flag is false) none of this runs.
@@ -17505,7 +17505,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const api = window.MFLBlitz, venue = data.venue === 'metcalf' || data.venue === 'hancock' ? data.venue : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
         const tod = api.tods.indexOf(data.tod) >= 0 ? data.tod : met ? 'noon' : 'night', wx = api.weathers.indexOf(data.weather) >= 0 ? data.weather : 'clear';
         const crowd = met && (runMet || !!data.crowd), big = met && !!data.big, touch = met && !!data.touch;
-        const where = venue === 'hancock' ? 'Hancock Stadium' : met ? ['Metcalf', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
+        const where = venue === 'hancock' ? 'Hancock Stadium' : met ? ['Wildcat Blacktop', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
         const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
         window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
           weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch,

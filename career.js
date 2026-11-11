@@ -87,7 +87,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
         teams: siteTeams(load()).map(({ players, ...t }) => t), prizes: GAMES().bowl.prizes, lineup: !!career.lineupPlayers(lineup), coins: careerCoins(user, 'bowl'),
         ...saves.snapshot(doc) }).replace(/</g, '\\u003c');
       res.set('Cache-Control', 'no-store').send(layout(req, 'Modern Bowl Career', `<div class="wrap career-page">
-        <div class="career-heading"><a href="/arcade/bowl">← Modern Bowl</a><span>THOMAS METCALF SCHOOL · McLEAN COUNTY</span></div>
+        <div class="career-heading"><a href="/arcade/bowl">← Modern Bowl</a><span>WILDCAT STADIUM · McLEAN COUNTY</span></div>
         ${!name ? `<section class="career-login"><h1>MFL Football Career</h1><p>Build your Metcalf legacy. Coach either MFL team, develop your roster and bring home the County Cup.</p><a class="pixel-button" href="/pickem/login?next=/career/bowl">Log in to save your career</a><a class="pixel-button" href="/pickem/signup?next=/career/bowl">Create an account</a></section>` : ''}
         <p id="career-error" class="err" role="alert"></p><p id="career-status" role="status" aria-live="polite"></p>
         <div id="career-hub"></div><section id="career-field" hidden></section>

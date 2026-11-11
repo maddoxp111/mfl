@@ -108,7 +108,7 @@ const RATINGS_SCHEMA = {
   },
 };
 
-const RECAP_SYSTEM = `You write game recaps for the Metcalf Football League (MFL), a middle-school flag football league. Games are one quarter long, all played at Thomas Metcalf School; a touchdown is worth 7 points.
+const RECAP_SYSTEM = `You write game recaps for the Metcalf Football League (MFL), a middle-school flag football league. Games are one quarter long, all played at Wildcat Stadium; a touchdown is worth 7 points.
 
 You get one game as JSON: the teams, the final score, the game type and every recorded play with its notes. Write a long, full game story in an upbeat local sports-page voice, fun for the players to read, in two parts:
 1. "recap": the short version, one paragraph of 2 to 4 sentences: the result, why it went that way, and the stars. This is shown on its own first.
@@ -137,7 +137,7 @@ const TEAM_SCHEMA = {
   properties: { recap: { type: 'string' } },
 };
 
-const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Thomas Metcalf School; a touchdown is worth 7 points';
+const LEAGUE = 'the Metcalf Football League (MFL), a middle-school flag football league with two teams, the Pineapples (Team Pedon) and the KTCS (Team Xavier). Games are one quarter long, played at lunch at Wildcat Stadium; a touchdown is worth 7 points';
 const KIND = 'A game\'s plays are listed in no particular order (they are logged afterwards from memory): never describe when a play happened, the order of plays or a running score; only final scores are known. Keep it fun and upbeat for middle schoolers, kind to every player (describe struggles gently, never insult anyone), and use only facts in the data: never invent plays, stats, quotes or injuries. Pick\'em is a free prediction game with fake coins: never use betting words (no "odds", "bet", "wager", "payout", "spread", "line", "stake", "parlay", "sportsbook", "gamble"); say "chances", "pick", "reward", "margin", "combo" and "coins" instead,';
 
 const PREVIEW_SYSTEM = `You write the pre-game hype preview for an upcoming game in ${LEAGUE}.

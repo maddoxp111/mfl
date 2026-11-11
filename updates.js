@@ -235,7 +235,7 @@ const UPDATES = [
     date: '2026-11-08',
     title: '3D Blitz: play at Metcalf',
     items: [
-      "New on the 3D Blitz setup screen: Where. Play at The Stadium like before, or at Metcalf: the real blacktop at Thomas Metcalf School, rebuilt life size from measurements, aerial photos and pictures of the school.",
+      "New on the 3D Blitz setup screen: Where. Play at The Stadium like before, or at Metcalf: the real Wildcat Blacktop, rebuilt life size from measurements, aerial photos and pictures of the school.",
       "Every painted mark is where it really is: the field lines and red goal lines, the red ticks, the white box with its corner squares, the three four-square courts, the hopscotch, the target, both basketball keys with their hoops, and all 17 Wildcats paw prints, worn the way the real paint is.",
       "Around it: the brick wing, the red shed, the blue two-story wing and the hedge, the roofs and skylights, the black fence and brick pillars on Main Street, the streetlights, the Wittenberg Lutheran Center across the street, the parking lot with its arrows, the new playground and the trees. Lunch-time sun and schoolyard sounds instead of a stadium crowd at night.",
       "It plays on the real field: about 30 yards goal line to goal line, 2-yard end zones and 24 yards wide, 11 on 11. Formations, routes, coverage, the play art and the cameras are fitted to it.",
@@ -466,6 +466,16 @@ const UPDATES = [
       'South end: the Touchdown Terrace berm and tent in their real spot, the small scoring tower, the camera tower and fences, plus all the light poles where they really stand.',
       'The crowd: a Redbird red-out. The student section stands and bounces in the west bleachers, and the band sits to the south of them.',
       'Lighting: the real sun position for a fall game at Hancock, and a dark night sky under the lights. You can also see Watterson Towers, the water tower and Redbird Arena.',
+    ],
+  },
+  {
+    n: 43,
+    date: '2026-11-11',
+    title: 'Wildcat Stadium and Wildcat Blacktop',
+    items: [
+      'MFL games are now listed as played at Wildcat Stadium: on the schedule, game pages, the calendar, the footer and the recaps.',
+      'In 3D Blitz the Metcalf field is now called Wildcat Blacktop, on the setup screen, in a run\'s next-game settings and in the Lineup\'s 7 on 7 note.',
+      'Career mode says Wildcat Stadium too.',
     ],
   },
 ];

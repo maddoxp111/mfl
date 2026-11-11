@@ -73,14 +73,14 @@ function candidates(state) {
 function story(state) {
   const ours = team(state), other = opponent(state), round = state.rounds[state.week];
   if (state.phase === 'complete') return { title: state.champion === state.teamId ? 'The county comes home to Metcalf' : 'One school year ends. A new one begins.',
-    text: state.champion === state.teamId ? `${ours.name} brought the McLean County Cup back to Thomas Metcalf. Next year, a new sixth-grade class will try to carry that legacy.` : `The ${state.teams.find(t => t.id === state.champion)?.name || 'county'} program won the McLean County Cup. Celebrate your eighth graders and prepare the next Metcalf team.`, choices: [] };
+    text: state.champion === state.teamId ? `${ours.name} brought the McLean County Cup back to Wildcat Stadium. Next year, a new sixth-grade class will try to carry that legacy.` : `The ${state.teams.find(t => t.id === state.champion)?.name || 'county'} program won the McLean County Cup. Celebrate your eighth graders and prepare the next Metcalf team.`, choices: [] };
   if (!other) return { title: 'Watch the county playoffs', text: 'Your season on the field is over. Follow the remaining bracket, then welcome the next class.', choices: [] };
   const rival = other.site;
   const choices = [{ id: 'spirit', label: 'Lead a pep rally', detail: '+8 team morale' }, { id: 'study', label: 'Team study hall', detail: '+6 program credits' }];
   if (round.kind !== 'regular') return { title: `${round.label}: carry Metcalf with you`, text: `${other.name} stand between ${ours.name} and the next chapter. The gym is buzzing and the whole school is behind you.`, choices };
   if (rival) return { title: 'The Metcalf rivalry', text: `${ours.name} and ${other.name} know each other from the same hallways. This week, the school rivalry becomes a county-league matchup. Make the play everyone will talk about at lunch.`, choices };
   const record = standings(state).find(t => t.id === state.teamId);
-  if (state.week === 0) return { title: 'From the playground to the county', text: `You have been asked to lead ${ours.name} at Thomas Metcalf School. The MFL — Metcalf Football League — is taking on middle-school programs across McLean County. First up: ${other.name} from ${other.city}. Build a program your classmates can be proud of.`, choices };
+  if (state.week === 0) return { title: 'From the playground to the county', text: `You have been asked to lead ${ours.name} at Wildcat Stadium. The MFL — Metcalf Football League — is taking on middle-school programs across McLean County. First up: ${other.name} from ${other.city}. Build a program your classmates can be proud of.`, choices };
   return { title: record.w > record.l ? 'Word is getting around the county' : 'The next practice matters',
     text: `${ours.name} are ${record.w}-${record.l}${record.t ? '-' + record.t : ''}. This week brings ${other.name} from ${other.city}. ${record.w > record.l ? 'Keep the momentum without forgetting the fundamentals.' : 'A tough week does not decide a school year. Bring the group together and get ready for the next kickoff.'}`, choices };
 }
@@ -112,7 +112,7 @@ function start(siteTeams, teamId, level, coach, owner, lineup = null) {
   requireThat(Number.isInteger(level) && level >= 0 && level <= 3, 'Choose a difficulty.');
   requireThat(!lineup || lineupPlayers(lineup), 'Dynamic Lineup careers need a full Lineup. Set it on the Cards page.');
   const seed = crypto.randomBytes(8).toString('hex');
-  const teams = siteTeams.map(t => ({ ...structuredClone(t), site: true, reserves: [], city: 'Thomas Metcalf School',
+  const teams = siteTeams.map(t => ({ ...structuredClone(t), site: true, reserves: [], city: 'Wildcat Stadium',
     players: POSITIONS.map((pos, i) => {
       const p = t.players.find(p => p.pos === pos);
       return p ? { ...structuredClone(p), id: `${t.id}-${pos}`, grade: 6 + i % 3, condition: 100, morale: 75 } : recruit(`${seed}-${t.id}-${pos}`, pos, 6 + i % 3);
@@ -122,7 +122,7 @@ function start(siteTeams, teamId, level, coach, owner, lineup = null) {
     season: 1, week: 0, phase: 'season', titles: 0, fans: 50, budget: 40, facilities: { training: 0, recovery: 0 },
     trained: false, choice: null, recruited: false, teams, rounds: schedule(teams, 1), pending: null, history: [], news: [] };
   if (lineup) { state.dynamic = true; state.boosts = {}; syncLineup(state, lineup); }
-  log(state, 'A new MFL chapter', `${state.coach} takes charge of ${team(state).name}. The road from Thomas Metcalf to the McLean County Cup starts here.`);
+  log(state, 'A new MFL chapter', `${state.coach} takes charge of ${team(state).name}. The road from Wildcat Stadium to the McLean County Cup starts here.`);
   return state;
 }
 function manage(state, action, body) {
