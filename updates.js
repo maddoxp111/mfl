@@ -478,6 +478,15 @@ const UPDATES = [
       'Career mode says Wildcat Stadium too.',
     ],
   },
+  {
+    n: 44,
+    date: '2026-11-11',
+    title: 'Bigger team logos',
+    items: [
+      'The new 12:35s logo now fills its spot everywhere (scoreboards, the schedule, team pages, cards). Before, it showed at about half size.',
+      'Logos uploaded in Admin > Teams are trimmed to fit their square automatically, so any logo with empty space around it shows full size.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

@@ -3163,11 +3163,14 @@ app.get('/admin/teams', requireAdmin, (req, res) => {
         <label class="wide">Roster: one per line as "Name | Tag" (tags: C, TR, Rd 1, FA…). Edit bios &amp; photos under Players.<textarea name="roster" rows="10">${esc(t.roster.map((p) => (p.tag ? `${p.name} | ${p.tag}` : p.name)).join('\n'))}</textarea></label>
       </div><div class="actions"><button class="btn">Save ${esc(t.name)}</button></div></form>`).join('')}</div>
     <script>
-    // Shrink logos to 256px before upload so pages stay fast.
+    // Logos: trim empty transparent margins, center on a square (logos show in square spots), shrink to 256px so pages stay fast.
     function mflLogo(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{
       if(/svg/.test(f.type)){inp.form.logo.value=r.result;return;}
-      const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');
-        c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      const im=new Image();im.onload=()=>{const W=im.width,H=im.height,t=document.createElement('canvas');t.width=W;t.height=H;const g=t.getContext('2d');g.drawImage(im,0,0);
+        let x0=W,y0=H,x1=-1,y1=-1;try{const d=g.getImageData(0,0,W,H).data;for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(d[(y*W+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}catch(e){}
+        if(x1<0){x0=0;y0=0;x1=W-1;y1=H-1;}
+        const cw=x1-x0+1,ch=y1-y0+1,s=Math.round(Math.max(cw,ch)*1.06),k=Math.min(1,256/s),c=document.createElement('canvas');c.width=c.height=Math.round(s*k);
+        c.getContext('2d').drawImage(t,x0,y0,cw,ch,Math.round((s-cw)/2*k),Math.round((s-ch)/2*k),Math.round(cw*k),Math.round(ch*k));
         inp.form.logo.value=c.toDataURL('image/webp',0.86);};im.src=r.result;};r.readAsDataURL(f);}
     </script>`, { ticker: false }));
 });
@@ -3873,6 +3876,17 @@ async function revertLateOnce(db) {
   }
   await save();
 }
+// Nov 11, 2026: the new 12:35s logo was uploaded as a round badge in the middle of a wide transparent canvas, so it showed at half
+// size in every square logo spot. Swap that exact upload (matched by its bytes) for the same badge trimmed to a square; a newer
+// upload is left alone (the admin upload trims empty margins itself now).
+function squarePedonLogo(db) {
+  const t = db.teams && db.teams.pedon, m = t && /^data:image\/png;base64,(.+)$/.exec(t.logo || '');
+  if (!m) return false;
+  const h = require('crypto').createHash('sha256').update(Buffer.from(m[1], 'base64')).digest('hex');
+  if (h !== '744b2ce12112252155eb353f5baffc70b731756658348493a973d12dba6a424e') return false;
+  try { t.logo = 'data:image/png;base64,' + require('fs').readFileSync(path.join(__dirname, 'fixes/pedon-logo-1235s.png')).toString('base64'); console.log('pedon logo squared'); return true; }
+  catch (e) { console.error('pedon logo fix failed', e.message); return false; }
+}
 // Team logos uploaded as huge PNGs get shrunk to 256px (pages and caches stay small).
 function shrinkLogos(db) {
   let changed = false;
@@ -3888,7 +3902,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const a = shrinkLogos(db), b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours
