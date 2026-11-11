@@ -356,13 +356,13 @@ const UPDATES = [
   {
     n: 33,
     date: '2026-11-09',
-    title: 'Blackjack in the Arcade',
+    title: 'Hit or Stand in the Arcade',
     items: [
-      'New in the Arcade: Blackjack. Bet any amount from 100 to 150,000 coins a hand (up to what you have) and play the dealer to 21.',
-      'A win pays 1:1, a blackjack pays 3:2 and a push gives your bet back. Double down on any first two cards, and split pairs once.',
-      'Six decks, shuffled fresh every hand. The dealer stands on all 17s and checks for blackjack with an ace or a ten showing.',
+      'New in the Arcade: Hit or Stand. Play any amount from 100 to 150,000 coins a hand (up to what you have) and beat the dealer to 21.',
+      'A win pays 1:1, 21 in two cards pays 3:2 and a push gives your bet back. Double down on any first two cards, and split pairs once.',
+      'Six decks, shuffled fresh every hand. The dealer stands on all 17s and checks for 21 with an ace or a ten showing.',
       'Leaving or refreshing mid-hand never costs you: the hand is still there when you come back, and it is played out as a stand when you deal the next one.',
-      'Blackjack hands show in your coin history and on the Earn coins page. They do not count toward daily challenges or the Arcade Champ Pack.',
+      'Hit or Stand hands show in your coin history and on the Earn coins page. They do not count toward daily challenges or the Arcade Champ Pack.',
     ],
   },
   {
@@ -507,6 +507,15 @@ const UPDATES = [
       'The banana count and the LAST PLAY clock show on both players\' screens.',
       'Your Head to Head results show where each game was played.',
       'A ball over the fence isn\'t fetched in Head to Head; play just goes on.',
+    ],
+  },
+  {
+    n: 47,
+    date: '2026-11-11',
+    title: 'The Arcade card game is now Hit or Stand',
+    items: [
+      'The Arcade card game has a new name: Hit or Stand. Same game, same table, same limits. Your hands and coin history carry over.',
+      'Its new address is /arcade/hitorstand. The old link still works and takes you there.',
     ],
   },
 ];

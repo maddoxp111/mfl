@@ -665,7 +665,7 @@ module.exports = function arcade(app, h) {
       const m = (user.arcade || []).find((x) => x.id === String(req.body.id || ''));
       if (!m) return json(res, { ok: false, error: 'That game was not found.' });
       if (m.versus) return json(res, { ok: false, error: 'Head to Head games are settled by the server.' });
-      if (m.game === 'blackjack' || !GAMES[m.game]) return json(res, { ok: false, error: 'Blackjack hands are played on the Blackjack page.' });
+      if (m.game === 'blackjack' || !GAMES[m.game]) return json(res, { ok: false, error: 'Hit or Stand hands are played on the Hit or Stand page.' });
       if (m.status !== 'open') return json(res, { ok: false, error: m.forfeit ? 'That game was forfeited when another one started.' : 'That game already ended.' });
       const G = GAMES[m.game], r = req.body.result || {};
       const secs = (Date.now() - Date.parse(m.at)) / 1000;
@@ -729,7 +729,7 @@ module.exports = function arcade(app, h) {
   }
   const WAYS = [
     ['🏈', 'Arcade games', 'Win any Arcade game. Risk mode multiplies it up to 5×.'],
-    [BJ.emoji, 'Blackjack', `Bet up to ${fmt(BJ.max)} a hand. A win pays 1:1, a blackjack ${BJ.pays.join(':')}.`],
+    [BJ.emoji, 'Hit or Stand', `Play up to ${fmt(BJ.max)} a hand. A win pays 1:1, 21 in two cards ${BJ.pays.join(':')}.`],
     ['✅', 'Daily challenges', 'Three new challenges every day.'],
     ['📍', 'Game-day check-in', `+${CHECKIN} for showing up on game days.`],
     ['🏆', 'Achievements', '+150 for every achievement you unlock.'],
@@ -746,13 +746,13 @@ module.exports = function arcade(app, h) {
       const { user, acct } = await loadAccount(db, name);
       const tile = (id) => { const G = GAMES[id];
         return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(Math.max(...G.prizes.map((p, i) => Math.round(p * RISK_MULT[i]))))}</span>${user ? `<span class="arc-left">${paidToday(user, id)} paid ${paidToday(user, id) === 1 ? 'win' : 'wins'} today</span>` : ''}</a>`; };
-      const bjTile = `<a class="arc-tile" href="/arcade/blackjack"><span class="arc-emoji">${BJ.emoji}</span><div><b>${esc(BJ.name)} <span class="arc-new">NEW</span></b><small>${esc(BJ.tag)}</small></div><span class="arc-pay">Blackjack pays ${BJ.pays.join(':')}</span></a>`;
+      const bjTile = `<a class="arc-tile" href="/arcade/hitorstand"><span class="arc-emoji">${BJ.emoji}</span><div><b>${esc(BJ.name)} <span class="arc-new">NEW</span></b><small>${esc(BJ.tag)}</small></div><span class="arc-pay">21 in two cards pays ${BJ.pays.join(':')}</span></a>`;
       const tiles = ORDER.map(tile); tiles.splice(ORDER.indexOf('bowl') + 1, 0, bjTile); // after the two big football tiles
       const recent = user ? (user.arcade || []).filter((m) => m.status !== 'open').slice(-6).reverse() : [];
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">
             <div><div class="kicker">${icon('star')} New · MFL Arcade</div><h1>Play games.<br>Win coins.</h1>
-              <p>${ORDER.length} games plus Blackjack (bet up to ${fmt(BJ.max)} a hand), 4 levels each (6 in 3D Blitz: Hall of Fame and GOAT past Legend), Risk mode for up to ${Math.max(...RISK_MULT)}× the coins, and two runs in 3D Blitz: Double or Nothing and Double or Double.</p>
+              <p>${ORDER.length} games plus Hit or Stand (up to ${fmt(BJ.max)} a hand), 4 levels each (6 in 3D Blitz: Hall of Fame and GOAT past Legend), Risk mode for up to ${Math.max(...RISK_MULT)}× the coins, and two runs in 3D Blitz: Double or Nothing and Double or Double.</p>
               <div class="arc-cta"><a class="btn" href="/arcade/blitz3d?mode=don">${RUNS.don.emoji} Double or Nothing</a><a class="btn ghost" href="/arcade/blitz3d/versus">🆚 Head to Head</a><a class="btn ghost" href="/career">MFL Career</a>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : `<a class="btn ghost" href="/pickem/signup">Sign up free</a>`}</div></div>
             <div class="arc-hero-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
           </div></div></section>

@@ -5,7 +5,7 @@
 // (the half-coin rounded down), a push gives the bet back. The dealer peeks when showing an ace or a ten card: a dealer
 // blackjack ends the hand at once and only the first bet is lost. Double down on any first two cards (also after a split, not
 // on split aces): the bet doubles and you get one card. Split a pair once (any two cards of the same value, so a king and a
-// queen split too): each hand is played in turn, split aces get one card each, and 21 after a split is not a blackjack.
+// queen split too): each hand is played in turn, split aces get one card each, and 21 after a split counts as a plain 21.
 // No insurance. Each hand bets BJ.min to BJ.max coins, never more than the balance, and doubling or splitting needs the
 // balance to cover the extra bet (the same as Risk mode, which needs the stake up front).
 //
@@ -18,7 +18,7 @@
 // lot of hands never pushes other Arcade games out of user.arcade and the coin totals stay exactly the same.
 const crypto = require('crypto');
 
-const BJ = { name: 'Blackjack', emoji: '♠️', tag: 'Beat the dealer to 21. Bet up to 150,000 a hand.', min: 100, max: 150000, decks: 6, pays: [3, 2], dealerStandsSoft17: true, keep: 100, resumeMin: 30 };
+const BJ = { name: 'Hit or Stand', emoji: '🃏', tag: 'Beat the dealer to 21. Play up to 150,000 a hand.', min: 100, max: 150000, decks: 6, pays: [3, 2], dealerStandsSoft17: true, keep: 100, resumeMin: 30 };
 
 // ---------- the rules engine (pure: give it a shoe, it plays the hand) ----------
 const RANKS = 'A23456789TJQK', SUITS = 'SHDC';
@@ -118,7 +118,7 @@ const payoutOf = (s) => (s.phase === 'done' ? s.hands.reduce((t, h) => t + h.pay
 
 // ---------- labels (coin history, recent hands) ----------
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
-const OUT_WORD = { blackjack: 'blackjack', win: 'win', push: 'push', lose: 'lose', bust: 'bust', dealerbj: 'dealer blackjack' };
+const OUT_WORD = { blackjack: '21', win: 'win', push: 'push', lose: 'lose', bust: 'bust', dealerbj: 'dealer 21' };
 // "won 3,000 (blackjack 3:2)", "lost 1,000 (bust)", "push", "won 1,000 (split: win · push)"
 function label(m) {
   const b = m.bj || {}, hs = b.hands || [];
@@ -127,7 +127,7 @@ function label(m) {
   const head = net > 0 ? `won ${fmt(net)}` : net < 0 ? `lost ${fmt(-net)}` : 'push';
   let why = '';
   if (hs.length > 1) why = `split: ${hs.map((h) => OUT_WORD[h.outcome] || h.outcome).join(' · ')}`;
-  else if (hs[0]) { const h = hs[0]; why = h.outcome === 'blackjack' ? `blackjack ${BJ.pays.join(':')}` : h.outcome === 'bust' ? 'bust' : h.outcome === 'dealerbj' ? 'dealer blackjack' : h.outcome === 'push' ? '' : ''; if (h.doubled) why = why ? `doubled, ${why}` : 'doubled'; }
+  else if (hs[0]) { const h = hs[0]; why = h.outcome === 'blackjack' ? `21 pays ${BJ.pays.join(':')}` : h.outcome === 'bust' ? 'bust' : h.outcome === 'dealerbj' ? 'dealer blackjack' : h.outcome === 'push' ? '' : ''; if (h.doubled) why = why ? `doubled, ${why}` : 'doubled'; }
   if (m.refund) why = 'refunded';
   return why ? `${head} (${why})` : head;
 }
@@ -135,8 +135,8 @@ function label(m) {
 function detail(m) {
   const b = m.bj || {}, hs = b.hands || [];
   if (!hs.length) return '';
-  const you = hs.map((h) => (natural(h) ? 'blackjack' : total(h.cards).total)).join(' and ');
-  return `Bet ${fmt(b.base || m.stake)} · you ${you}${m.status === 'open' ? '' : `, dealer ${b.dealer && b.dealer.length === 2 && total(b.dealer).total === 21 ? 'blackjack' : total(b.dealer || []).total}`}`;
+  const you = hs.map((h) => (natural(h) ? '21' : total(h.cards).total)).join(' and ');
+  return `Bet ${fmt(b.base || m.stake)} · you ${you}${m.status === 'open' ? '' : `, dealer ${b.dealer && b.dealer.length === 2 && total(b.dealer).total === 21 ? '21' : total(b.dealer || []).total}`}`;
 }
 
 // ---------- routes ----------
@@ -191,8 +191,8 @@ module.exports = function blackjack(app, h) {
     const can = done ? { hit: false, stand: false, double: false, split: false } : legal(s, afford);
     return {
       id: m.id, bet: s.base, stake: m.stake, status: m.status, done, payout: done ? m.payout : 0, net: done ? m.payout - m.stake : null, label: done ? label(m) : '',
-      dealer: { cards: dealer, total: done ? total(s.dealer).total : total([s.dealer[0]]).total, blackjack: done && s.dealer.length === 2 && total(s.dealer).total === 21 },
-      hands: s.hands.map((x, i) => ({ cards: x.cards, total: total(x.cards).total, soft: total(x.cards).soft, bet: x.bet, doubled: !!x.doubled, split: !!x.split, outcome: x.outcome || null, payout: done ? x.payout : null, active: !done && i === s.cur, blackjack: natural(x) })),
+      dealer: { cards: dealer, total: done ? total(s.dealer).total : total([s.dealer[0]]).total, nat: done && s.dealer.length === 2 && total(s.dealer).total === 21 },
+      hands: s.hands.map((x, i) => ({ cards: x.cards, total: total(x.cards).total, soft: total(x.cards).soft, bet: x.bet, doubled: !!x.doubled, split: !!x.split, outcome: x.outcome === 'blackjack' ? 'nat' : x.outcome || null, payout: done ? x.payout : null, active: !done && i === s.cur, nat: natural(x) })),
       can, auto: !!s.auto,
     };
   }
@@ -211,7 +211,7 @@ module.exports = function blackjack(app, h) {
   }
 
   // the state of the table: the hand in play (or the last one), the balance and the recent hands
-  app.get('/arcade/blackjack/state', async (req, res) => {
+  app.get(['/arcade/hitorstand/state', '/arcade/blackjack/state'], async (req, res) => {
     try {
       const name = currentUser(req);
       if (!name) return json(res, { ok: true, user: null, limits: { min: BJ.min, max: BJ.max } });
@@ -226,10 +226,10 @@ module.exports = function blackjack(app, h) {
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not load the table.' }); }
   });
 
-  app.post('/arcade/blackjack/deal', async (req, res) => {
+  app.post(['/arcade/hitorstand/deal', '/arcade/blackjack/deal'], async (req, res) => {
     try {
       const name = currentUser(req);
-      if (!name) return json(res, { ok: false, error: 'Log in to play Blackjack.' });
+      if (!name) return json(res, { ok: false, error: 'Log in to play Hit or Stand.' });
       const raw = req.body && req.body.bet, bet = typeof raw === 'number' ? raw : /^\s*\d+\s*$/.test(String(raw)) ? Number(raw) : NaN;
       if (!Number.isSafeInteger(bet) || bet < BJ.min || bet > BJ.max) return json(res, { ok: false, error: `Bet a whole number of coins from ${fmt(BJ.min)} to ${fmt(BJ.max)}.` });
       await locked(name, async () => {
@@ -258,7 +258,7 @@ module.exports = function blackjack(app, h) {
   });
 
   for (const action of ['hit', 'stand', 'double', 'split']) {
-    app.post('/arcade/blackjack/' + action, async (req, res) => {
+    app.post(['/arcade/hitorstand/' + action, '/arcade/blackjack/' + action], async (req, res) => {
       try {
         const name = currentUser(req);
         if (!name) return json(res, { ok: false, error: 'Log in again.' });
@@ -280,17 +280,18 @@ module.exports = function blackjack(app, h) {
     });
   }
 
-  app.get('/arcade/blackjack', async (req, res, next) => {
+  app.get('/arcade/blackjack', (req, res) => res.redirect(301, '/arcade/hitorstand')); // (the old address)
+  app.get('/arcade/hitorstand', async (req, res, next) => {
     try {
       const name = currentUser(req);
       const { user, acct } = await h.loadAccount(load(), name);
       const chips = [[100, '100'], [1000, '1K'], [10000, '10K'], [50000, '50K']];
-      res.send(layout(req, 'Blackjack', `<div class="wrap arc-page bj-page">
-        <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${BJ.emoji}</span> Blackjack</h1><p class="muted">${esc(BJ.tag)}</p>${user ? `<span class="arc-bal" id="bjBal">${coins(acct.balance)}</span>` : ''}</div>
+      res.send(layout(req, 'Hit or Stand', `<div class="wrap arc-page bj-page">
+        <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${BJ.emoji}</span> Hit or Stand</h1><p class="muted">${esc(BJ.tag)}</p>${user ? `<span class="arc-bal" id="bjBal">${coins(acct.balance)}</span>` : ''}</div>
         <section class="bj-table" id="bjTable">
           <div class="bj-felt">
             <div class="bj-seat bj-dealer"><div class="bj-lbl">Dealer <b class="bj-tot" id="bjDTot"></b></div><div class="bj-cards" id="bjDealer"></div></div>
-            <div class="bj-arc" aria-hidden="true">Blackjack pays ${BJ.pays.join(' to ')} · Dealer stands on all 17s</div>
+            <div class="bj-arc" aria-hidden="true">21 in two cards pays ${BJ.pays.join(' to ')} · Dealer stands on all 17s</div>
             <div class="bj-banner" id="bjBanner" role="status" aria-live="polite" hidden></div>
             <div class="bj-hands" id="bjHands"></div>
           </div>
@@ -303,16 +304,16 @@ module.exports = function blackjack(app, h) {
               <div class="bj-chips">${chips.map(([v, t]) => `<button type="button" class="bj-chip c${v}" data-chip="${v}" aria-label="Add ${fmt(v)}">${t}</button>`).join('')}<button type="button" class="bj-chip cmax" data-chip="max" aria-label="Max bet">MAX</button><button type="button" class="bj-clear" data-chip="clear">Clear</button></div>
               <button type="submit" class="btn bj-deal" id="bjDeal">${icon('fire')} Deal</button>
               <p class="bj-msg" id="bjMsg" role="alert"></p>
-            </form>` : `<div class="bj-login"><p>Log in to bet coins at the table.</p><a class="btn" href="/pickem/login?next=/arcade/blackjack">Log in</a> <a class="btn ghost" href="/pickem/signup?next=/arcade/blackjack">Sign up free</a></div>`}
+            </form>` : `<div class="bj-login"><p>Log in to play for coins at the table.</p><a class="btn" href="/pickem/login?next=/arcade/hitorstand">Log in</a> <a class="btn ghost" href="/pickem/signup?next=/arcade/hitorstand">Sign up free</a></div>`}
           </div>
         </section>
         <div class="bj-low">
           ${user ? `<section class="card bj-recent"><div class="card-h"><h2>Recent hands</h2></div><ol class="lb" id="bjRecent"><li class="muted">No hands yet.</li></ol></section>` : ''}
           <section class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how">
             <li>Bet ${fmt(BJ.min)} to ${fmt(BJ.max)} coins a hand (never more than you have). Get closer to 21 than the dealer without going over.</li>
-            <li>A win pays 1 to 1. A <b>blackjack</b> (an ace and a ten card) pays <b>${BJ.pays.join(' to ')}</b>: ${fmt(BJ.max)} wins ${fmt(bjWin(BJ.max))}. A tie is a push: your bet comes back.</li>
-            <li><b>Double</b> on any first two cards: your bet doubles and you get one more card. <b>Split</b> a pair once into two hands, each with its own bet; split aces get one card each, and 21 after a split is not a blackjack. Doubling and splitting need the coins to cover the extra bet.</li>
-            <li>The dealer stands on all 17s and checks for blackjack when showing an ace or a ten. ${BJ.decks} decks, shuffled fresh for every hand. No insurance.</li>
+            <li>A win pays 1 to 1. A <b>21 in two cards</b> (an ace and a ten card) pays <b>${BJ.pays.join(' to ')}</b>: ${fmt(BJ.max)} wins ${fmt(bjWin(BJ.max))}. A tie is a push: your bet comes back.</li>
+            <li><b>Double</b> on any first two cards: your bet doubles and you get one more card. <b>Split</b> a pair once into two hands, each with its own bet; split aces get one card each, and 21 after a split counts as a plain 21. Doubling and splitting need the coins to cover the extra bet.</li>
+            <li>The dealer stands on all 17s and checks for 21 when showing an ace or a ten. ${BJ.decks} decks, shuffled fresh for every hand. No insurance.</li>
             <li>Leave in the middle of a hand and nothing is lost: it's still here when you come back, and it's played out as a stand when you deal the next hand (or come back after ${BJ.resumeMin} minutes).</li>
           </ul></section>
         </div>
@@ -351,7 +352,7 @@ const CSS = `
 .bj-hand.active{border-color:rgba(255,214,102,.8);background:rgba(255,214,102,.08)}
 .bj-hand .bj-chipbet{font:800 12px Inter;color:#fcd34d;background:rgba(0,0,0,.45);padding:3px 10px;border-radius:999px}
 .bj-hand .oc{font:800 11px Inter;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff}
-.bj-hand .oc.win,.bj-hand .oc.blackjack{background:#16a34a}.bj-hand .oc.lose,.bj-hand .oc.bust,.bj-hand .oc.dealerbj{background:#b91c1c}
+.bj-hand .oc.win,.bj-hand .oc.nat{background:#16a34a}.bj-hand .oc.lose,.bj-hand .oc.bust,.bj-hand .oc.dealerbj{background:#b91c1c}
 .bj-empty{color:rgba(255,255,255,.6);font-size:14px;text-align:center;padding:30px 0}
 .bj-ctl{padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line2)}
 .bj-acts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -400,17 +401,17 @@ function card(c,isNew){if(!c)return '<div class="bj-card back'+(isNew?' new':'')
   var r=c[0]==='T'?'10':c[0],s=SUIT[c[1]],red=c[1]==='H'||c[1]==='D',mid=FACE[c[0]]?'<div class="pip face">'+FACE[c[0]]+s+'</div>':'<div class="pip">'+s+'</div>';
   return '<div class="bj-card'+(red?' red':'')+(isNew?' new':'')+'" aria-label="'+r+s+'"><div class="ix tl">'+r+'<i>'+s+'</i></div>'+mid+'<div class="ix br">'+r+'<i>'+s+'</i></div></div>';}
 function cards(key,list){var n=shown[key]||0,h=list.map(function(c,i){return card(c,i>=n||(key==='d'&&i===1&&c&&shown.dh))}).join('');shown[key]=list.length;if(key==='d')shown.dh=!list[1];return h;}
-var WORD={blackjack:'Blackjack!',win:'Win',push:'Push',lose:'Lose',bust:'Bust',dealerbj:'Dealer BJ'};
+var WORD={nat:'21!',win:'Win',push:'Push',lose:'Lose',bust:'Bust',dealerbj:'Dealer 21'};
 function draw(){
   var H=hand,dC=$('bjDealer'),pH=$('bjHands'),b=$('bjBanner');
   if(!H){dC.innerHTML='';$('bjDTot').textContent='';pH.className='bj-hands';pH.innerHTML='<div class="bj-empty">'+(C.user?'Place your bet and deal.':'Log in to play.')+'</div>';b.hidden=true;acts();return;}
-  dC.innerHTML=cards('d',H.dealer.cards);$('bjDTot').textContent=H.done&&H.dealer.blackjack?'BJ':H.dealer.total;
+  dC.innerHTML=cards('d',H.dealer.cards);$('bjDTot').textContent=H.done&&H.dealer.nat?'21':H.dealer.total;
   pH.className='bj-hands'+(H.hands.length>1?' two':'');
-  pH.innerHTML=H.hands.map(function(x,i){var t=x.blackjack?'BJ':(x.soft&&x.total<21&&!H.done?'soft ':'')+x.total;
+  pH.innerHTML=H.hands.map(function(x,i){var t=x.nat?'21':(x.soft&&x.total<21&&!H.done?'soft ':'')+x.total;
     return '<div class="bj-hand'+(x.active?' active':'')+'"><div class="bj-lbl">'+(H.hands.length>1?'Hand '+(i+1):'You')+' <b class="bj-tot">'+t+'</b></div><div class="bj-cards">'+cards('h'+i,x.cards)+'</div><span class="bj-chipbet">'+fmt(x.bet)+(x.doubled?' · doubled':'')+'</span>'+(x.outcome?'<span class="oc '+x.outcome+'">'+WORD[x.outcome]+'</span>':'')+'</div>';}).join('');
   if(H.done){var cls=H.net>0?'win':H.net<0?'lose':'push';b.className='bj-banner '+cls;
-    var big=H.hands.length===1&&H.hands[0].outcome==='blackjack'?'Blackjack! +'+fmt(H.net):H.net>0?'You win +'+fmt(H.net):H.net<0?(H.hands.length===1&&H.hands[0].outcome==='bust'?'Bust ':H.hands.length===1&&H.hands[0].outcome==='dealerbj'?'Dealer blackjack ':'Dealer wins ')+'−'+fmt(-H.net):'Push: bet back';
-    b.innerHTML=big+'<small>'+(H.auto?'Played out as a stand. ':'')+'Dealer '+(H.dealer.blackjack?'blackjack':H.dealer.total>21?'busts with '+H.dealer.total:'has '+H.dealer.total)+'</small>';b.hidden=false;}
+    var big=H.hands.length===1&&H.hands[0].outcome==='nat'?'21! +'+fmt(H.net):H.net>0?'You win +'+fmt(H.net):H.net<0?(H.hands.length===1&&H.hands[0].outcome==='bust'?'Bust ':H.hands.length===1&&H.hands[0].outcome==='dealerbj'?'Dealer 21 ':'Dealer wins ')+'−'+fmt(-H.net):'Push: bet back';
+    b.innerHTML=big+'<small>'+(H.auto?'Played out as a stand. ':'')+'Dealer '+(H.dealer.nat?'21':H.dealer.total>21?'busts with '+H.dealer.total:'has '+H.dealer.total)+'</small>';b.hidden=false;}
   else b.hidden=true;
   acts();}
 function acts(){var can=hand&&!hand.done?hand.can:{};document.querySelectorAll('#bjActs [data-act]').forEach(function(x){x.disabled=busy||!can[x.getAttribute('data-act')];});
@@ -422,16 +423,16 @@ function recent(list){var o=$('bjRecent');if(!o||!list)return;o.innerHTML=list.l
 function msg(t){var m=$('bjMsg');if(m)m.textContent=t||'';}
 function post(url,body){return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json()}).catch(function(e){return {ok:false,error:'Could not reach the server.'}});}
 function got(r){busy=false;if(r.balance!=null)setBal(r.balance);if(r.recent)recent(r.recent);if(r.hand){if(!hand||hand.id!==r.hand.id)shown={};hand=r.hand;}if(!r.ok)msg(r.error||'Something went wrong.');else msg('');draw();}
-document.querySelectorAll('#bjActs [data-act]').forEach(function(x){x.addEventListener('click',function(){if(busy||!hand)return;busy=true;acts();post('/arcade/blackjack/'+x.getAttribute('data-act'),{id:hand.id}).then(got);});});
+document.querySelectorAll('#bjActs [data-act]').forEach(function(x){x.addEventListener('click',function(){if(busy||!hand)return;busy=true;acts();post('/arcade/hitorstand/'+x.getAttribute('data-act'),{id:hand.id}).then(got);});});
 var f=$('bjBet'),amt=$('bjAmt');
 function clamp(v){v=Math.floor(+v||0);return Math.max(0,Math.min(C.max,v));}
 if(f){f.addEventListener('click',function(e){var c=e.target.closest('[data-chip]');if(!c)return;var v=c.getAttribute('data-chip'),cur=clamp(amt.value);
     if(v==='clear')amt.value='';else if(v==='max')amt.value=Math.max(C.min,Math.min(C.max,bal==null?C.max:bal));else amt.value=clamp((amt.dataset.touched!=='1'?0:cur)+(+v));amt.dataset.touched='1';msg('');});
   amt.addEventListener('input',function(){amt.dataset.touched='1'});
   f.addEventListener('submit',function(e){e.preventDefault();if(busy)return;var v=String(amt.value).trim();if(!/^\\d+$/.test(v)||+v<C.min||+v>C.max){msg('Bet a whole number from '+fmt(C.min)+' to '+fmt(C.max)+'.');return;}
-    busy=true;acts();msg('');shown={};hand=null;post('/arcade/blackjack/deal',{bet:+v}).then(got);});}
+    busy=true;acts();msg('');shown={};hand=null;post('/arcade/hitorstand/deal',{bet:+v}).then(got);});}
 document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))return;var k={h:'hit',s:'stand',d:'double',p:'split'}[e.key];if(k){var b=document.querySelector('#bjActs [data-act='+k+']');if(b&&!b.disabled)b.click();}});
-fetch('/arcade/blackjack/state',{cache:'no-store'}).then(function(r){return r.json()}).then(function(r){if(r.balance!=null)setBal(r.balance);recent(r.recent);hand=r.hand||null;draw();}).catch(function(){draw();});
+fetch('/arcade/hitorstand/state',{cache:'no-store'}).then(function(r){return r.json()}).then(function(r){if(r.balance!=null)setBal(r.balance);recent(r.recent);hand=r.hand||null;draw();}).catch(function(){draw();});
 draw();})();`;
 
 Object.assign(module.exports, { BJ, total, natural, shoeFor, deal, legal, act, standAll, finish, stakeOf, payoutOf, label, detail, bjWin });
