@@ -11563,6 +11563,7 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     function defpKey(c, e) {
       if (phase === 'dcall') return; // the sheet has the keys (dsheetKey)
+      if (c === 'KeyT') { e.preventDefault(); callTimeout(); return; } // right after the play (and lined up): a timeout
       if (c === 'KeyQ' || c === 'Tab' || c === 'KeyE') { e.preventDefault(); defpSwitch(); return; }
       if (phase !== 'live') return;
       if (c === 'Space' || c === 'Enter') { e.preventDefault(); defJump(DEFP.ctl); return; }
@@ -11755,7 +11756,7 @@ gl_FragColor=vec4(col,1.0);}`;
 
     // ---------- the controls ----------
     function defpControls() {
-      const toBtn = () => { if (toLeft > 0) btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout).style.flex = '0 0 86px'; };
+      const toBtn = () => { btn('bz-to' + (canTimeout() ? '' : ' off'), toHtml(), callTimeout).style.flex = '0 0 86px'; }; // (greyed with why when it can't be called)
       if (phase === 'dcall') { msg('<span><b>Key play</b> · call the defense on the card</span>'); toBtn(); return true; }
       if (phase === 'dpre') {
         msg(`<span>You: <b>${esc(nm(DEFP.ctl))}</b> · ${touchy ? 'drag to move · Switch to change' : 'arrows move · Q switch'} · snap in <span class="bz-dsnap"><b>${Math.max(1, Math.ceil(DEFP.cd))}</b></span></span>`);
@@ -11773,7 +11774,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (touchy) mkSprint();
         return true;
       }
-      if (phase === 'dead') { msg('<span>Back to the drive…</span>'); return true; }
+      if (phase === 'dead') { msg('<span>Back to the drive…</span>'); toBtn(); return true; } // right after the play: stop the running clock
       return false;
     }
     // ---------- the defensive playbook: calls, matchups, and the sheet you pick them from ----------
@@ -11958,8 +11959,8 @@ gl_FragColor=vec4(col,1.0);}`;
       same.addEventListener('click', () => dsheetPick(o.arch ? sug[0].id : o.cur || sug[0].id));
       top.append(same);
       if (!VS && !o.arch) { // a timeout from the sheet: the controls bar is under it (stops the running clock on defense)
-        const to = S.toBtn = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`); to.type = 'button'; to.style.flex = '0 0 auto'; to.style.minHeight = '40px'; to.style.padding = '4px 12px'; to.style.marginRight = '8px';
-        to.addEventListener('click', () => { callTimeout(); to.innerHTML = `T/O<small>${toLeft} left</small>${K('T')}`; to.classList.toggle('off', !canTimeout()); });
+        const to = S.toBtn = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), toHtml()); to.type = 'button'; to.style.flex = '0 0 auto'; to.style.minHeight = '40px'; to.style.padding = '4px 12px'; to.style.marginRight = '8px';
+        to.addEventListener('click', () => { callTimeout(); toSync(to); });
         top.insertBefore(to, same);
       }
       const tm = el('div', 'bz-dsh-tm', `<span>No pick and it's <b>${esc(nameOf(o.arch ? sug[0].id : o.cur || sug[0].id))}</b> in <b class="n">${Math.ceil(o.T)}</b></span><i><u></u></i>`);
@@ -12009,7 +12010,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function closeDSheet() { if (dsheet) { dsheet.el.remove(); dsheet = null; } }
     function dsheetStep(dt) {
       const S = dsheet; if (!S || !(S.T > 0)) return;
-      if (S.toBtn) S.toBtn.classList.toggle('off', !canTimeout());
+      if (S.toBtn) toSync(S.toBtn);
       const was = Math.ceil(S.T); S.T -= dt;
       if (S.T <= 0) { dsheetPick(S.o.arch ? S.sug[0].id : S.o.cur || S.sug[0].id); return; }
       if (Math.ceil(S.T) !== was) { const n = S.el.querySelector('.bz-dsh-tm .n'); if (n) n.textContent = Math.ceil(S.T); }
@@ -12018,7 +12019,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // keys: 1-9, 0, - and = along the number row pick a call; ENTER the same call (or the suggestion); TAB the next tab
     function dsheetKey(c, e) {
       const S = dsheet; if (!S) return false;
-      if (c === 'KeyT' && !VS) { e.preventDefault(); callTimeout(); if (S.toBtn) S.toBtn.innerHTML = `T/O<small>${toLeft} left</small>${K('T')}`; return true; } // a timeout on defense stops the running clock
+      if (c === 'KeyT' && !VS) { e.preventDefault(); callTimeout(); if (S.toBtn) toSync(S.toBtn); return true; } // a timeout on defense stops the running clock
       const kk = /^(Digit|Numpad)[0-9]$/.test(c) ? c.slice(-1) : c === 'Minus' || c === 'NumpadSubtract' ? '-' : c === 'Equal' || c === 'NumpadAdd' ? '=' : null;
       if (kk != null) { const it = S.o.arch ? DARCH[VS_KEYS.indexOf(kk)] : VS_CALLS[VS_KEYS.indexOf(kk)]; if (it) { e.preventDefault(); dsheetPick(it.id); } return true; }
       if (c === 'Enter' || c === 'NumpadEnter' || c === 'Space') { e.preventDefault(); dsheetPick(S.o.arch ? S.sug[0].id : S.o.cur || S.sug[0].id); return true; }
@@ -13911,8 +13912,11 @@ gl_FragColor=vec4(col,1.0);}`;
         if (!stop && g > 0 && rng() < CD.oob) stop = true; // out of bounds
         plays++;
         // same clock as the user: the play itself, then 4 more seconds after an in-bounds play before it stops for the next snap
-        const c0 = clk.t; tick((3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF) + CD.slow) * QS / 120);
+        // (pe: the clock when the play itself is over, before that run-off: where a timeout called on the drive card stops it; kept
+        // out of the log's JSON)
+        const c0 = clk.t, tk = (3.5 + rng() * 2.5 + (stop ? 0 : RUNOFF) + CD.slow) * QS / 120; tick(tk);
         const e = L({ k: kind, call: cl, g, stop, secs: +(c0 - clk.t).toFixed(2) });
+        if (log) Object.defineProperty(log[log.length - 1], 'pe', { value: Math.max(0, c0 - (tk - (stop ? 0 : RUNOFF) * QS / 120)) });
         // (two-hand touch: nobody is hit, so no fumbles)
         if (rng() < CD.to * (MOPT.touch ? 0.7 : 1)) { spot = clamp(spot + Math.max(0, g), 1, FL - 1); const R = MOPT.touch || rng() < 0.6 ? 'INT' : 'FUMBLE'; e.to = R; e.g = Math.max(0, g); return fin(R); }
         spot = Math.max(1, spot + g);
@@ -13950,7 +13954,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (DBG && DBG.cpuRes) { r.res = DBG.cpuRes; if (r.res === 'TD') r.spot = FL; } // tests: force the drive's result
       CPUS.drives++; CPUS.plays += r.plays; CPUS.yards += r.yds; CPUS.top += r.used;
       Object.assign(d, { r, c0: clock, t: 0, call, dur: Math.min(5, 1.1 + r.plays * 0.32) * (isClutch() ? 1.6 : 1) }); // clutch: the drive plays out slower (the field below plays inside that time)
-      sfx.play('tap'); drawCard();
+      sfx.play('tap'); drawCard(); setControls(true); // (the drive card has the T/O button)
     }
     // The CPU's conversion after its touchdown. In the 4th quarter and overtime it follows the two-point chart (go for 2 when
     // behind by 2, 5, 9, 12 or 16, or ahead by 1, 4, 5, 12, 15 or 19 after the six: to tie, to get within a field goal or one
@@ -14105,11 +14109,47 @@ gl_FragColor=vec4(col,1.0);}`;
     function twoMin() { voice.say('two_minute', {}, 2); if (qtr >= 4 && Math.abs(hs - as) <= 3) voice.say('close_game', {}, 2, 0.6); clockRun = false; banner('TWO-MINUTE WARNING', `${fmtClock(clock)} left in the ${qtr === 2 ? 'half' : 'game'} · clock stopped`, '#ffc21a'); sfx.play('whistle'); say('Two-minute warning. The clock stops.'); }
     function callTimeout() {
       if (!canTimeout() || finished) return;
+      const card = toCard() && cpuD.log.length ? cpuToSnap() : null; // on the drive card: it takes effect after the snap on it
+      if (card && !card.run) { sfx.play('tap'); say(card.why); return; } // (the clock stops after that snap anyway: the timeout is kept)
       toLeft--; clockRun = false; sfx.play('whistle'); playClock = PCL; voice.say('timeout', { team: HOME.name }, 1, 0.7);
+      if (card) cpuToResim(card);
       banner('TIMEOUT', `${toLeft} left ${ONEC ? 'this game' : 'this half'} · clock stopped`, '#ffc21a'); say(`<b>${esc(HOME.name)}</b> call timeout.`);
       setControls(true);
     }
-    const canTimeout = () => clockRun && toLeft > 0 && clock > 0 && ((phase === 'pre' || phase === 'dead') && poss === 'home' || !VS && (DEFP.on || phase === 'dcall') && (phase === 'dead' || phase === 'dcall' || phase === 'dpre')); // on defense too (live snaps against the CPU)
+    // When a timeout can be called: on offense between plays while the clock runs; on defense against the CPU right after a live
+    // snap ends in bounds (the clock runs on through the dead ball, the call and the lineup until its run-off is used up), and all
+    // the while a simulated drive plays out on the drive card (the clock is running there: it stops after the snap on the card)
+    const toCard = () => !VS && phase === 'cpu' && !!cpuD && !cpuD.pick && !cpuD.shown && !!cpuD.log;
+    const canTimeout = () => toLeft > 0 && clock > 0 && (clockRun && ((phase === 'pre' || phase === 'dead') && poss === 'home' || !VS && (DEFP.on || phase === 'dcall') && (phase === 'dead' || phase === 'dcall' || phase === 'dpre')) || toCard() && (clockRun || cpuD.log.length > 0));
+    // why the T/O button is greyed ('' when a timeout can be called)
+    const toWhy = () => (canTimeout() ? '' : toLeft <= 0 ? 'none left' : clock <= 0 ? 'time is up' : 'clock stopped');
+    // The snap on the drive card and what a timeout called now does: the clock stops when that play is over (before its run-off),
+    // unless it stops there anyway (an incompletion or out of bounds, a score, a turnover, a kick, the end of the drive) or time
+    // ran out on it; then no timeout is used.
+    function cpuToSnap() {
+      const d = cpuD, P = drivePlay(d); if (!P) return null;
+      const e = P.e, last = P.i === P.n - 1, res = d.r.res;
+      const sp = Math.max(1, e.sp + e.g), first = sp >= e.fd, dn = first ? 1 : e.dn + 1;
+      const over = e.k === 'fg' || e.k === 'punt' || dn > 4 || (last && res !== 'KEY' && res !== 'CLOCK'); // (a score or a turnover ends the drive: its last snap)
+      const out = !(e.pe > 0) || !!e.lp, run = !over && !e.stop && !out;
+      return { d, e, i: P.i, run, sp, dn, fd: first ? Math.min(sp + FD, FL) : e.fd,
+        why: run ? '' : out && !over ? 'Time ran out on that play: no timeout needed.' : 'The clock stops after that play anyway: no timeout needed.' };
+    }
+    // the timeout on the drive card: the clock stops at the end of that snap, the snaps simulated after it never happen (out of the
+    // CPU's numbers and the book on your calls; Metcalf's last play is not used up), and the rest of the drive is simulated again
+    // from there with the clock stopped (33-defplay.js defpResume: the same as after a live snap, key plays and all)
+    function cpuToResim(s) {
+      const d = s.d, e = s.e, r = d.r, L = d.log, n = s.i + 1, B = d.base || { plays: 0, yds: 0 };
+      let calls = 0; for (let j = n; j < L.length; j++) if (L[j].k !== 'fg' && L[j].k !== 'punt') calls++;
+      if (calls) DBOOK.calls.splice(-calls, calls);
+      CPUS.plays -= L.length - n; CPUS.yards += Math.max(0, Math.round(s.sp - L[0].sp)) - r.yds; CPUS.top += (d.c0 - e.pe) - r.used;
+      if (r.lp) LP = 0;
+      clock = e.pe; clockRun = false; runoff = 0; boardDirty = true; if (ONEC) vqSync();
+      DEFP.st = { start: d.start, call: d.lastLive || '', arch: d.arch || null, spot: s.sp, dn: s.dn, fd: s.fd, plays: B.plays + n, yds: s.sp - d.start, base: null };
+      d.el.remove(); cpuD = null;
+      cpuToGo();
+    }
+    function cpuToGo() { defpResume(); } // (78-resume.js takes a save here first)
     function delayOfGame() {
       sfx.play('whistle'); TS.penalties++; voice.say('delay_of_game', {}, 2);
       los = Math.max(1, los - 5); clockRun = false;
@@ -16207,11 +16247,14 @@ gl_FragColor=vec4(col,1.0);}`;
       const _chooseTry = chooseTry; chooseTry = function (t) { RS.dirty = true; return _chooseTry(t); };
       const _switchTry = switchTry; switchTry = function (t) { RS.dirty = true; return _switchTry(t); };
       const _choose4th = choose4th; choose4th = function (k) { RS.dirty = true; return _choose4th(k); };
-      // a timeout: the last save again, with the timeout and the stopped clock in it
+      // a timeout: the last save again, with the timeout and the stopped clock in it (one on the drive card has its own save, below)
       const _callTimeout = callTimeout; callTimeout = function () {
         const t0 = toLeft; _callTimeout();
-        if (toLeft < t0 && RS.last && !RS.last.live) { const c = rsmClone(RS.last); Object.assign(c.S, { toLeft, clockRun, clock, runoff }); rsmPost(c); }
+        if (toLeft < t0 && RS.last && !RS.last.live && RS.last.S.toLeft !== toLeft) { const c = rsmClone(RS.last); Object.assign(c.S, { toLeft, clockRun, clock, runoff }); rsmPost(c); }
       };
+      // a timeout on the drive card: the rest of their drive picks up from the snap it stopped the clock after (the same step as
+      // after a live snap), so a resumed game simulates it the same way
+      const _cpuToGo = cpuToGo; cpuToGo = function () { rsmSave({ k: 'defa', st: rsmSt(DEFP.st), res: null }, true); _cpuToGo(); };
       // the snap, the throw, the kick: no taking it back from here
       const _snap = snap; snap = function () { const was = phase; _snap(); if (was === 'pre' && phase === 'live') rsmHarsh(DEFP.on ? 'dsnap' : 'snap'); };
       const _releaseBall = releaseBall; releaseBall = function () { _releaseBall(); if (!DEFP.on && phase === 'live' && ball && ball.st === 'air' && ball.kind === 'pass') rsmHarsh('pass'); };
@@ -17329,7 +17372,8 @@ gl_FragColor=vec4(col,1.0);}`;
     });
     let bugCache = '';
     function updBug() {
-      const pc = Math.ceil(playClock), running = clockRun || phase === 'live' || (phase === 'kick' && kick && kick.st === 'fly');
+      const pc = Math.ceil(playClock), running = clockRun || phase === 'live' || (phase === 'kick' && kick && kick.st === 'fly') || (toCard() && cpuD.r.t < cpuD.c0 && cpuD.log.length > 0); // (the drive card: the clock ticks down with its snaps)
+      { const tb = ctl.querySelector('.bz-to'); if (tb) { if (VS && phase === 'vsw') tb.classList.toggle('off', !canTimeout()); else toSync(tb); } } // (head to head's own timeout on their ball: as it was)
       const simDD = phase === 'cpu' && cpuD && cpuD.dd ? cpuD.dd + '@' + Math.round(cpuD.ddAt) : '';
       const key = [hs, as, qtr, LP, Math.ceil(clock), toLeft, poss, phase === 'pre' ? pc : '', down, Math.round(los * 2), fdz, tryMode, running, phase, DRAMA.fireOn, DRAMA.cpuHot, simDD].join('|');
       if (key === bugCache) return; bugCache = key;
@@ -17349,7 +17393,6 @@ gl_FragColor=vec4(col,1.0);}`;
       bDD.innerHTML = cpuBall && simDD ? `<b>${esc(cpuD.dd)}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(cpuD.ddAt)}</span>` :
         cpuBall && liveD ? `<b>${ddTxt()}</b><span>${esc(AWAY.abbr)} ball · ${theirSpot(los)}</span>` :
         cpuBall ? `<b>${esc(AWAY.abbr)} ball</b><span>Defense on the field</span>` : phase === 'pat' ? '<b>Try</b><span>PAT or 2</span>' : phase === 'koc' ? '<b>Kickoff</b><span>Deep or onside</span>' : phase === 'vsk' ? (VN.koType === 'throw' ? '<b>Throw-off</b><span>Your throw</span>' : '<b>Kickoff</b><span>Your kick</span>') : VN.koType === 'throw' && kick && kick.type === 'ko' ? '<b>Throw-off</b><span>Get under it</span>' : `<b>${ddTxt()}</b><span>${NOFD && !tryMode ? 'from the ' + Math.max(1, FLY - YL(los)) : ballTxt(los)}</span>`;
-      const tb = ctl.querySelector('.bz-to'); if (tb) tb.classList.toggle('off', !canTimeout());
     }
     let sprintBtn = null, staCache = -1;
     function updSprint() {
@@ -17401,6 +17444,10 @@ gl_FragColor=vec4(col,1.0);}`;
       ctl.appendChild(b); return b;
     }
     function msg(h) { const m = el('div', 'bz-msg', h); ctl.appendChild(m); return m; }
+    // the T/O button: how many are left while one can be called, else greyed with why not (none left, the clock is stopped...)
+    const toLbl = () => toWhy() || toLeft + ' left';
+    const toHtml = () => `T/O<small>${toLbl()}</small>${K('T')}`;
+    function toSync(b) { if (!b) return; const w = toWhy(), t = w || toLeft + ' left', s = b.querySelector('small'); b.classList.toggle('off', !!w); if (s && s.textContent !== t) s.textContent = t; }
     function setControls(force) {
       let key = (VS ? [VS.air, VS.reacted, VS.oPh, VS.waitD, VS.picked, toLeft, VS.rcIdx].join(',') + '|' : '') + (DEFP.on ? 'D' + (DEFP.ctl ? DEFP.ctl.key : '') + '|' : '') + phase + '|' + mode + '|' + sheetOpen + '|' + (down === 4 && !go4) + '|' + tryMode + '|' + (kick ? kick.type + kick.st + (kick.tbOK ? 1 : 0) : '') + '|' + (lastBig ? lastBig.kind : '');
       if (key === ctlKey && !force) return;
@@ -17420,7 +17467,7 @@ gl_FragColor=vec4(col,1.0);}`;
           if (tryMode) btn('', `Kick XP instead<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => switchTry(false));
           btn('bz-y bz-wide', VS && VS.waitD ? 'Snap<small>waiting for their call…</small>' : `Snap${K('SPACE')}`, snap);
         }
-        btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
+        btn('bz-to' + (canTimeout() ? '' : ' off'), toHtml(), callTimeout);
       } else if (phase === 'pat') {
         btn('bz-y', `Kick XP<small>+1 · ${esc(KR.name)}</small>${K('1')}`, () => chooseTry(false));
         btn('', `Go for 2<small>one play from the ${YD(VN.TWO)}</small>${K('2')}`, () => chooseTry(true));
@@ -17466,7 +17513,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const nxt = pend && pend.next; // after a score or a turnover the next snap is not this drive's
         msg(nxt ? (nxt[0] === 'pat' ? '<span>The try is next…</span>' : nxt[0] === 'cpu' ? `<span>${esc(AWAY.name)} ball next…</span>` : '<span>Your ball next…</span>') : '<span>Next play coming up…</span>');
         if (lastBig && lastBig.kind !== 'td' && !lastBig.played) btn('', 'Replay', () => { if (lastBig) lastBig.want = true; sfx.play('tap'); }).style.flex = '0 0 86px';
-        if ((poss === 'home' && pend && !pend.next) || DEFP.on) btn('bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>${K('T')}`, callTimeout);
+        if ((poss === 'home' && pend && !pend.next) || DEFP.on) btn('bz-to' + (canTimeout() ? '' : ' off'), toHtml(), callTimeout);
       } else if (phase === 'vsw') { // head to head: their ball, our defense
         if (VS.rcIdx >= 0 && (VS.oPh === 'live' || VS.oPh === 'pre')) { // you play a defender: move, jump, dive, switch
           msg(VS.oPh === 'pre' ? `<span>You: <b>${esc(nm(everyone[VS.rcIdx]))}</b> · ${touchy ? 'Switch to change' : 'Q switch'}${VS.picked ? ' · <b>' + esc((VS_CALLS.find((c) => c.id === VS.picked) || {}).name || '') + '</b>' : ''}</span>` : (touchy ? `<span>Drag to move · Jump · ${MOPT.touch ? 'Touch' : 'Dive'}</span>` : `<span>Arrows move · SPACE jump · X ${MOPT.touch ? 'touch' : 'dive'} · Q switch · J jump the route</span>`));
@@ -17492,6 +17539,7 @@ gl_FragColor=vec4(col,1.0);}`;
         btn('bz-y', 'Skip', endReplay, 'pointerdown').style.flex = '0 0 96px';
       } else if (phase !== 'splash' && phase !== 'box') {
         msg(phase === 'cpu' ? `<span><b>${esc(AWAY.name)}</b> have the ball…</span>` : phase === 'over' ? '<span>Final</span>' : `<span>${esc(HOME.abbr)} <b>${hs}</b> – <b>${as}</b> ${esc(AWAY.abbr)}</span>`);
+        if (phase === 'cpu' && !VS && cpuD && !cpuD.pick) btn('bz-to' + (canTimeout() ? '' : ' off'), toHtml(), callTimeout).style.flex = '0 0 86px'; // their drive on the card: stop the clock after a snap
       }
     }
     const hotOK = (p) => p.type === 'pass' || p.type === 'pa' || p.type === 'boot' || p.type === 'qbdraw';
@@ -17594,8 +17642,8 @@ gl_FragColor=vec4(col,1.0);}`;
       same.addEventListener('click', () => pickPlay(play));
       const fl = el('button', 'bz-btn' + (flip ? ' sel' : ''), `Flip${K('F')}`); fl.type = 'button'; fl.style.flex = '0 0 auto'; fl.style.minHeight = '40px'; fl.style.padding = '4px 12px';
       fl.addEventListener('click', () => { flip = !flip; hot = {}; setupPlay(); fl.classList.toggle('sel', flip); drawCards(); sfx.play('tap'); });
-      const to = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLeft} left</small>`); to.type = 'button'; to.style.minHeight = '40px'; to.style.flex = '0 0 auto'; to.style.padding = '4px 10px';
-      to.addEventListener('click', () => { callTimeout(); to.classList.toggle('off', !canTimeout()); to.querySelector('small').textContent = toLeft + ' left'; });
+      const to = el('button', 'bz-btn bz-to' + (canTimeout() ? '' : ' off'), `T/O<small>${toLbl()}</small>`); to.type = 'button'; to.style.minHeight = '40px'; to.style.flex = '0 0 auto'; to.style.padding = '4px 10px';
+      to.addEventListener('click', () => { callTimeout(); toSync(to); });
       top.append(to, fl, same);
       if (tryMode) { const xp = el('button', 'bz-btn', `Kick XP instead<small>+1 · ${esc(KR.name)}</small>`); xp.type = 'button'; xp.style.flex = '0 0 auto'; xp.style.minHeight = '40px'; xp.style.padding = '4px 10px'; xp.addEventListener('click', () => switchTry(false)); top.insertBefore(xp, to); }
       const tabs = el('div', 'bz-tabs');
@@ -18105,7 +18153,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // ---------- debug hook (tests only) ----------
     const api = {
       get phase() { return phase; }, get mode() { return mode; }, get clock() { return clock; }, get qtr() { return qtr; }, get hs() { return hs; }, get as() { return as; },
-      get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; },
+      get los() { return los; }, get down() { return down; }, get fdz() { return fdz; }, get tPlay() { return tPlay; }, get toLeft() { return toLeft; }, get clockRun() { return clockRun; }, get canTO() { return canTimeout(); }, get toWhy() { return toWhy(); },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get carrier() { return carrier; }, get target() { return target; }, get off() { return off; }, get def() { return def; }, get OK() { return OK; },
       get kick() { return kick; }, get play() { return play; }, get go4() { return go4; }, get venue() { return VN; }, get mopt() { return MOPT; }, get lp() { return LP; }, get banK() { return BAN.k; }, kneel() { if (kick && kick.type === 'ko' && kick.tbOK) touchback(); }, get cpuD() { return cpuD; }, get pend() { return pend; }, get sheetOpen() { return !!sheet; }, get tryMode() { return tryMode; }, get poss() { return poss; }, get elapsed() { return elapsedT; },
       get cam() { return cam; }, kickoffNow() { if (finished) return; if (cpuD) { cpuD.el.remove(); cpuD = null; } brk = null; replay = null; hideMeter(); clearBanner(); closeSheet(); startKickoff(false); }, // tests: the camera, a CPU kickoff (throw-off) now

@@ -639,6 +639,17 @@ const UPDATES = [
       'Same in 3D Blitz (TD celebration and the cutscene) and on his player page.',
     ],
   },
+  {
+    n: 60,
+    date: '2026-11-12',
+    title: 'Timeouts on defense fixed',
+    items: [
+      'You can call a timeout on defense right after a play: tap T/O or press T in the dead ball, and the clock stops.',
+      'While the other team\'s drive plays out on the drive card, tap T/O to stop the clock right after the play on the card. The rest of their drive plays out from there, and you keep the time you saved.',
+      'The T/O button always shows how many timeouts you have left, or why you can\'t call one right now (none left, or the clock is already stopped).',
+      'Works at Wildcat Blacktop, The Stadium and Hancock.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
