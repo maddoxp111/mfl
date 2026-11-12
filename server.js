@@ -10,6 +10,7 @@ const sv = require('./survivor');
 const badges = require('./badges');
 const updates = require('./updates');
 const PP = require('./playerpay');
+const EMO = require('./emotes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -444,7 +445,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=84">
+<link rel="stylesheet" href="/static/style.css?v=85">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -993,6 +994,18 @@ function playerStats(db, tm, p) {
   return s;
 }
 
+// The player page's 3D avatar: what the engine needs to draw him (his uniform, look, size and move) and the page script.
+// The light engine build is versioned by its content so a new build is fetched at once and otherwise stays cached.
+const fileTag = (() => { const memo = {}; return (rel) => { if (!memo[rel]) { try { memo[rel] = crypto.createHash('md5').update(require('fs').readFileSync(path.join(__dirname, 'public', rel))).digest('hex').slice(0, 10); } catch { memo[rel] = 'x'; } } return memo[rel]; }; })();
+let player3dJs = null;
+function avatar3d(db, tm, p) {
+  let a = {};
+  try { a = require('./arcade').playerAttrs(db, tm, p) || {}; } catch { a = {}; }
+  const emote = EMO.emoteFor(db, p);
+  return { player: { id: p.id, name: p.name, num: p.number || '', pos: p.position || '', look: p.look || null, hgt: a.hgt || null, wgt: a.wgt || null },
+    team: { name: tm.name, abbr: tm.abbr, color: tm.color, color2: tm.color2 }, emote, emoteName: EMO.EMOTES[emote] || '' };
+}
+const icon3d = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>';
 app.get('/players/:team/:pid', (req, res) => {
   const db = load();
   const tm = db.teams[req.params.team];
@@ -1009,7 +1022,12 @@ app.get('/players/:team/:pid', (req, res) => {
   const facts = [['Number', p.number && '#' + p.number], ['Position', p.position], ['Grade', p.grade], ['Status', tagName(p.tag)], ['Injury', irText(p)], ['Likes to play', prefList(p).join(' · ')]].filter(([, v]) => v);
   res.send(layout(req, p.name, `
     <section class="pp-hero" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}"><div class="wrap">
-      <div class="pp-photo">${avatar(tm, p, 220, 'xl')}${p.number ? `<span class="pp-num">${esc(p.number)}</span>` : ''}</div>
+      ${(() => { const av = avatar3d(db, tm, p); return `<div class="pp-stage" style="--a:${esc(tm.color)};--b:${esc(tm.color2)}" data-av="${esc(JSON.stringify(av))}" data-src="/static/arcade/blitz-avatar.js?v=${fileTag('arcade/blitz-avatar.js')}">
+        <div class="pp-av" aria-hidden="true"></div>
+        <div class="pp-photo">${avatar(tm, p, 220, 'xl')}${p.number ? `<span class="pp-num">${esc(p.number)}</span>` : ''}</div>
+        <button class="pp-3d" type="button" aria-label="View ${esc(p.name)} in 3D">${icon3d}<span>View in 3D</span></button>
+        ${av.emoteName ? `<span class="pp-move">${esc(av.emoteName)}</span>` : ''}
+      </div>`; })()}
       <div class="pp-info">
         <a class="pp-team" href="/teams/${tm.id}">${logo(tm, 26)} ${esc(teamFull(tm))}</a>
         <h1>${esc(p.name)}</h1>
@@ -1036,7 +1054,8 @@ app.get('/players/:team/:pid', (req, res) => {
           ${mates.map((m) => `<a class="mate" href="${playerUrl(tm, m)}">${avatar(tm, m, 36)}<div><b>${esc(m.name)}${irBadge(m)}</b><small>${esc([m.position, tagName(m.tag)].filter(Boolean).join(' · '))}</small></div></a>`).join('')}
         </div></div>
       </div>
-    </div>`));
+    </div>
+    <script>${player3dJs || (player3dJs = require('fs').readFileSync(path.join(__dirname, 'public', 'player3d.js'), 'utf8').replace(/<\/script/gi, '<\\/script'))}</script>`));
 });
 
 // ---------- pick'em ----------

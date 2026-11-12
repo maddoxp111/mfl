@@ -576,6 +576,17 @@ const UPDATES = [
       'His ankles stay together on every frame.',
     ],
   },
+  {
+    n: 54,
+    date: '2026-11-12',
+    title: 'Every player in 3D',
+    items: [
+      'Every player page now has a banner behind the player\'s photo with his 3D model doing his own move: team jersey, helmet off, his scanned head, whole body in frame.',
+      'Every player has a different move. Xavier does his dance, Luka does a backflip, and the rest each have their own: the Robot, the Sprinkler, Raise the Roof, a 360 Jump Spin, the Airplane and more.',
+      'Tap "View in 3D" to open a bigger viewer: drag to spin him around, pinch or scroll to zoom, double-tap to reset.',
+      'The 3D only loads once the page is ready, so player pages stay fast. On a device without 3D you see the regular banner.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
