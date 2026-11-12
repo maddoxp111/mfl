@@ -608,6 +608,17 @@ const UPDATES = [
       'Same dance in 3D Blitz (his TD celebration and the "what is he doing?" cutscene) and on his player page.',
     ],
   },
+  {
+    n: 57,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: the arms, fixed',
+    items: [
+      'His arms now move like in his video: they swing together like a pendulum, the other way from his knees.',
+      'At each end one arm sweeps nearly straight down and across his body, while the other bends with the elbow out to the side and the hand back by his hip. In the middle both arms hang down in front.',
+      'His upper body turns into each sweep and the far shoulder dips with it. The legs are unchanged.',
+      'Same in 3D Blitz (TD celebration and cutscene) and on his player page.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

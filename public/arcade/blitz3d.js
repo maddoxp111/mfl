@@ -1277,7 +1277,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // body: low, chest up and a little forward, a small roll and twist with the swing; head level
     q[PN] = -0.3 - 0.025 * bob; q[PN + 1] = 0.16; q[PN + 2] = 0.05 * s; q[PN + 3] = 0;
     const set = (k, a) => { const i = B[k] * 3; for (let j = 0; j < 3; j++) q[i + j] = (LIMB_FLIP[B[k]] && j === 0 ? -1 : 1) * (a[j] || 0); };
-    set('spine', [0.08, 0.16 * s, -0.04 * s]); set('chest', [0, 0.08 * s, 0]); set('neck', [-0.24, -0.24 * s, -0.01 * s]); set('head', [0, 0, 0]);
+    set('spine', [0.08 + 0.06 * s * s, 0.3 * s, -0.08 * s]); set('chest', [0, 0.18 * s, 0]); set('neck', [-0.24 - 0.06 * s * s, -0.48 * s, 0.08 * s]); set('head', [0, 0, 0]);
     set('haL', [0.25, 0, 0]); set('haR', [0.25, 0, 0]);
     const hy = HIP_H - 0.03 + q[PN], kx = -0.15 * s; // knees swing together, 15 cm each way
     // legs: ankles 11 cm apart under the hips, a touch forward; knee tips out over the toes and swung sideways
@@ -1287,24 +1287,21 @@ gl_FragColor=vec4(c,1.0);}`;
         return [(a[3] - A[0]) * 4, (a[7] - A[1]) * 4, (a[11] - A[2]) * 4, (kn[3] - K[0]) * 1.5, (kn[11] - K[2]) * 0.6]; }, 14);
       xavSolve(q, [[iF], [iF + 1], [iF + 2]], (p) => { const m = fk(p, 0, 0, 0, 0, 1)[B[f]]; return [m[1], m[9], m[6], m[2] - sd * 0.06]; }, 8);
     }
-    // arms: the hands swing to his right when the knees go left (and back); the hand on the far side crosses low in front of the
-    // hips, the near one swings out by the hip with the elbow bent back
-    const b0 = fk(q, 0, 0, 0, 0, 1), hip = b0[B.hips], ctr = [hip[3], hip[7], hip[11]];
-    const ease = (v) => v * Math.abs(v) * 0.35 + v * 0.65;
-    const e = ease(s);
-    const tgt = (sd) => { const lead = sd * e < 0; // lead = this hand crosses over (it is on the side away from the swing)
-      // a: a smooth |e| (no kink as the hands pass the middle)
-      const a = (Math.sqrt(e * e + 0.04) - 0.2) / 0.8198, xIn = sd * 0.2, xCross = sd * 0.02, xOut = sd * 0.42;
-      const x = lead ? xIn + (xCross - xIn) * a : xIn + (xOut - xIn) * a;
-      const y = lead ? -0.04 + 0.1 * a : -0.04 + 0.08 * a, z = lead ? 0.2 + 0.1 * a : 0.2 - 0.18 * a;
-      return [ctr[0] + x, ctr[1] + y, ctr[2] + z]; };
-    for (const [sh, el, ha, sd] of [['shL', 'elL', 'haL', -1], ['shR', 'elR', 'haR', 1]]) {
-      const is = B[sh] * 3, ie = B[el] * 3, T = tgt(sd);
-      xavSolve(q, [[is], [is + 1], [is + 2], [ie, -2.2, -0.22]], (p) => { const b = fk(p, 0, 0, 0, 0, 1), h = b[B[ha]], E = b[B[el]];
-        return [(h[3] - T[0]) * 3, (h[7] - T[1]) * 3, (h[11] - T[2]) * 3, (E[3] - (b[B[sh]][3] + sd * 0.12)) * 0.15, p[is + 1] * 0.25, p[is] * 0.03, (p[is + 2] + sd * 0.1) * 0.04]; }, 20); // the last three keep the arm untwisted
-    }
+    // arms (as in the video): they swing together like a pendulum, the other way from the knees. At each end the arm on the far
+    // side sweeps nearly straight down and across the front of his body to the other thigh, while the near arm bends with its elbow
+    // out to the side and its hand by its own hip; in the middle both arms hang down in front, hands close together.
+    const sn = s / 1.25, a = (Math.sqrt(sn * sn + 0.04) - 0.2) / 0.8198; // a smooth |s| (no kink as the arms pass the middle); s >= 0 here (the other half is the mirror)
+    // a smooth curve from the middle pose to the end pose (through the halfway pose when there is one)
+    [[B.shL, B.elL, xavArm.cL, xavArm.lead, null], [B.shR, B.elR, xavArm.cR, xavArm.trail, xavArm.trailMid]].forEach(([sh, el, c, e, m]) => {
+      const v = c.map((c0, j) => { const p1 = m ? 2 * m[j] - (c0 + e[j]) / 2 : (c0 + e[j]) / 2; return (1 - a) * (1 - a) * c0 + 2 * a * (1 - a) * p1 + a * a * e[j]; });
+      for (let j = 0; j < 3; j++) q[sh * 3 + j] = v[j]; q[el * 3] = v[3]; });
     return q;
   }
+  // the three arm poses (raw joint angles: shoulder x, y, z, elbow), fitted to where his hands and elbows are in the video relative
+  // to his hips: the middle (both arms hang down in front, hands close), the sweep (his far arm nearly straight, hand down across his
+  // body) and the wing (elbow out to the side, hand back by his hip)
+  const xavArm = { cL: [-0.273, 0, 0.295, -0.119], cR: [-0.273, 0, -0.295, -0.119], lead: [-0.5, -0.003, 0.398, -0.1], trail: [1, -1.275, 1.417, -1.052],
+    trailMid: [-0.272, -0.95, -0.056, -0.534] }; // the wing arm halfway (keeps its hand on a tight path in to the hip)
   function xavPose(t) {
     if (!xavTab) { xavTab = []; let q = null; for (let i = 0; i < XAV_N; i++) { q = xavKey(i / (2 * XAV_N), q ? lerpPose(q, q, 0) : null); xavTab.push(lerpPose(q, q, 0)); }
       for (let i = 0; i < XAV_N; i++) xavTab.push(mirrorPose(xavTab[i])); }
