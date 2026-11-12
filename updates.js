@@ -566,6 +566,16 @@ const UPDATES = [
       'His ankles stay together through every sway.',
     ],
   },
+  {
+    n: 53,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: lower and facing you',
+    items: [
+      'Xavier gets down lower in his dance, with a deep knee bend while he sways.',
+      'He faces forward the whole time and only his hips twist, like in his video.',
+      'His ankles stay together on every frame.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
