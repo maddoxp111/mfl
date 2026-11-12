@@ -557,6 +557,15 @@ const UPDATES = [
       'His ankles stay together the whole time, and it plays at his real speed.',
     ],
   },
+  {
+    n: 52,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: smooth',
+    items: [
+      'No more stutter when his hand crosses over. The whole dance now flows: his knees sway one way while his hands swing the other, then they switch, over and over.',
+      'His ankles stay together through every sway.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
