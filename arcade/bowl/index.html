@@ -1,0 +1,401 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modern Bowl · MFL</title>
+<meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Wildcat Stadium flag football league.">
+<link rel="icon" href="/mfl/static/mfl-logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mfl/static/style.css?v=85">
+<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="/mfl/static/bridge.js" data-base="/mfl"></script></head><body>
+<header class="hdr"><div class="hdr-in">
+  <a class="brand" href="/mfl/"><img src="/mfl/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  
+  <a class="hdr-arc" href="/mfl/arcade/">🕹️ Arcade</a>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
+  <nav class="nav">
+    <div class="dd "><button>Games <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/schedule/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Schedule</a><a href="/mfl/scores/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Scores</a><a href="/mfl/history/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Head-to-Head</a></div></div>
+    <div class="dd "><button>Playoffs <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/playoffs/halloween-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Halloween Bowl</a><a href="/mfl/playoffs/turkey-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Turkey Bowl</a><a href="/mfl/playoffs/christmas-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Christmas Bowl</a><a href="/mfl/playoffs/spring-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Spring Bowl</a><a href="/mfl/playoffs/super-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Super Bowl</a></div></div>
+    <div class="dd "><button>Teams <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:22px;height:22px" decoding="async"> Team Pedon 12:35s</a><a href="/mfl/teams/xavier/"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> Team Xavier No Fly Zone</a><a href="/mfl/transactions/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Transactions</a></div></div>
+    <div class="dd "><button>Stats <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/stats/team/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team Stats</a><a href="/mfl/stats/players/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Player Leaders</a><a href="/mfl/stats/rankings/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Power Rankings</a><a href="/mfl/records/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Records Book</a><a href="/mfl/cards/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Trading Cards</a></div></div>
+    <div class="dd "><button>News <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/midweek/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Midweek Recap</a><a href="/mfl/analyst/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Ask the Analyst</a><a href="/mfl/pickem/survivor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Survivor</a><a href="/mfl/pickem/cards"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> MFL Cards</a><a href="/mfl/coins/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Earn coins</a><a href="/mfl/updates/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Patch notes</a></div></div>
+    <div class="nav-main"><a class="nav-arc on" href="/mfl/arcade/">🕹️ Arcade</a>
+    <a class="nav-career " href="/mfl/career/" aria-label="Career" title="Career">🏈 <span class="nav-career-t">Career</span></a>
+    <a class="nav-cards " href="/mfl/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick " href="/mfl/pickem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Pick'em</a></div>
+    <div class="acct-box"><a class="acct" href="/mfl/pickem/login?next=%2Fpickem">Log in</a><a class="acct primary" href="/mfl/pickem/signup">Sign up</a>
+    </div>
+  </nav>
+</div></header>
+
+<div class="ticker"><div class="ticker-in"><a class="tk " href="/mfl/games/10/"><div class="tk-top"><span>Thu 11/5</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>14</b></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk " href="/mfl/games/11/"><div class="tk-top"><span>Fri 11/6</span><span class="badge final">Final</span></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>0</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk " href="/mfl/games/12/"><div class="tk-top"><span>Mon 11/9</span><span class="badge final">Final</span></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>14</b></div></a><a class="tk " href="/mfl/games/13/"><div class="tk-top"><span>Tue 11/10</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk now" href="/mfl/games/14/"><div class="tk-top"><span>Today</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/15/"><div class="tk-top"><span>Fri 11/13</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/16/"><div class="tk-top"><span>Mon 11/16</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/17/"><div class="tk-top"><span>Tue 11/17</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/18/"><div class="tk-top"><span>Thu 11/19</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/19/"><div class="tk-top"><span>Fri 11/20</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/20/"><div class="tk-top"><span>Mon 11/23</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/21/"><div class="tk-top"><span>Tue 11/24</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div><div class="tk-lbl">Turkey Bowl</div></a></div></div>
+<main><div class="wrap arc-page">
+        <div class="arc-head"><a href="/mfl/arcade/" class="muted sm"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Arcade</a><h1><span>🏈</span> Modern Bowl</h1><p class="muted">Retro football with YOUR Lineup.</p></div>
+        
+        <section class="card bowl-career-promo" style="padding:20px;margin-bottom:20px"><h2>MFL Football Career</h2><p class="muted">Lead a Metcalf team through a McLean County season. Develop players, build your program, and chase the County Cup.</p><a class="btn" href="/mfl/career/bowl/">Play Career →</a></section><style>body.arc-playing .bowl-career-promo{display:none}</style>
+        <section class="arc-setup card"><form id="arcSetup">
+          
+          
+          <div class="arc-modes "><label class="mode "><input type="radio" name="mode" value="coins"  disabled><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Play for coins</span></label><label class="mode "><input type="radio" name="mode" value="practice" checked ><span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Practice / Exhibition</span></label></div>
+          
+          <p class="muted sm"><a href="/mfl/pickem/login?next=/arcade/bowl">Log in</a> to play for coins. Practice is free.</p>
+          <div class="lvls "><label class="lvl"><input type="radio" name="level" value="0" checked><span><b>Rookie</b><small>Win 200</small><em>Risk: put up 200 → win 600</em></span></label><label class="lvl"><input type="radio" name="level" value="1" ><span><b>Pro</b><small>Win 450</small><em>Risk: put up 450 → win 1,800</em></span></label><label class="lvl"><input type="radio" name="level" value="2" ><span><b>All-Pro</b><small>Win 900</small><em>Risk: put up 900 → win 4,500</em></span></label><label class="lvl"><input type="radio" name="level" value="3" ><span><b>Legend</b><small>Win 1,600</small><em>Risk: put up 1,600 → win 9,600</em></span></label></div>
+          <div class="bowl-teams" data-practice><label>Your team<select name="team"><option value="pedon" selected>12:35s</option><option value="xavier" >No Fly Zone</option><option value="cpu0" >JV Squad (CPU)</option><option value="cpu1" >Hall Monitors (CPU)</option><option value="cpu2" >Detention Kings (CPU)</option><option value="cpu3" >The Faculty (CPU)</option></select></label><label>Opponent<select name="opp"><option value="pedon" >12:35s</option><option value="xavier" selected>No Fly Zone</option><option value="cpu0" >JV Squad (CPU)</option><option value="cpu1" >Hall Monitors (CPU)</option><option value="cpu2" >Detention Kings (CPU)</option><option value="cpu3" >The Faculty (CPU)</option></select></label></div>
+            
+          
+          
+          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for 3× to 6× back when you win. Lose it all when you don't.</small></span></label>
+          
+          <button type="submit" class="btn arc-go"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> <span data-label>Play</span></button><p id="arcMsg" class="err"></p>
+        </form></section>
+        <section id="arcStage" class="arc-stage" hidden></section>
+      </div>
+      <script type="text/x-mfl">window.MFL_ARCADE={"game":"bowl","pending":null,"resume":null};
+      (function(){const f=document.getElementById('arcSetup');const RUN=[];const sync=()=>{const m=f.mode?f.mode.value:'coins',p=m==='practice',run=RUN.includes(m);
+        f.querySelectorAll('[data-coins]').forEach(e=>e.hidden=p||run);f.querySelectorAll('[data-norun]').forEach(e=>e.hidden=run);f.querySelectorAll('[data-practice]').forEach(e=>e.hidden=!p);f.querySelectorAll('[data-run]').forEach(e=>{if(e.tagName!=='BUTTON')e.hidden=e.getAttribute('data-run')!==m;});
+        if((p||run)&&f.risk)f.risk.checked=false;
+        const RL=["3","5","4"];f.querySelectorAll('input[name=level]').forEach(i=>{const okv=RL.includes(i.value);i.disabled=run&&!okv;i.closest('.lvl').classList.toggle('locked',run&&!okv);});if(run&&!RL.includes(f.level.value))f.querySelector('input[name=level][value="5"]').checked=true;
+        const b=f.querySelector('.arc-go [data-label]');if(b)b.textContent=run?'Start the run':'Play';};
+      f.addEventListener('change',sync);sync();})();</script><script type="text/x-mfl">// MFL Arcade harness: every game registers here and gets the same ctx.
+//
+//   MFLArcade.register('chess', { start(ctx) { ... ctx.finish({ won: true, moves }) } });
+//
+// ctx = {
+//   root,        // empty <div> the game draws into (it owns everything inside)
+//   game,        // game id
+//   level,       // 0..3  (Rookie, Pro, All-Pro, Legend)
+//   levelName,
+//   seed,        // match seed string (from the server)
+//   rng,         // seeded random() for this match
+//   data,        // game-specific data from the server (rosters, trivia questions...)
+//   exhibition,  // true = just for fun, no coins
+//   risk,        // true = Risk mode
+//   run,         // a Double or Nothing / Double or Double run: { id, mode, name, step, cash, atRisk, next } (3D Blitz only)
+//   rsm,         // a run game's saves (3D Blitz only): { snap (the save to continue from, or null), seq, save(json, { seq, live, beacon }) -> Promise<true | false | 'gone'> }
+//   finish(result),  // call once: { won: bool, score?, detail?, moves?, stats? }
+//   sound(name),     // 'tap' | 'good' | 'bad' | 'win' | 'lose' | 'whistle' | 'kick' | 'catch'
+// }
+(function () {
+  // Same generator as engines.js, so the server can replay seeded AI choices.
+  function rng(seed) {
+    let h = 2166136261 >>> 0;
+    const s = String(seed);
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  let actx = null;
+  function sound(name) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const seq = {
+        tap: [[660, 0.04]], good: [[660, 0.07], [880, 0.09]], bad: [[220, 0.12], [160, 0.16]],
+        win: [[523, 0.1], [659, 0.1], [784, 0.1], [1047, 0.22]], lose: [[392, 0.14], [330, 0.14], [262, 0.3]],
+        whistle: [[1800, 0.08], [1600, 0.18]], kick: [[140, 0.08]], catch: [[520, 0.05], [700, 0.06]],
+      }[name] || [[440, 0.05]];
+      let t = actx.currentTime;
+      for (const [f, d] of seq) {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = name === 'kick' ? 'triangle' : 'square';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + 0.02);
+        t += d * 0.9;
+      }
+    } catch {}
+  }
+
+  const A = (window.MFLArcade = { games: {}, rng, sound, register(id, g) { this.games[id] = g; } });
+
+  const $ = (s) => document.querySelector(s);
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+
+  function overlay(html) {
+    let o = $('#arcOverlay');
+    if (!o) { o = document.createElement('div'); o.id = 'arcOverlay'; o.className = 'arc-over'; document.body.appendChild(o); }
+    o.innerHTML = `<div class="arc-over-in">${html}</div>`;
+    o.hidden = false;
+    return o;
+  }
+
+  // Start a match (or an exhibition) from the setup form, then hand off to the game.
+  A.boot = function () {
+    const cfg = window.MFL_ARCADE;
+    const form = $('#arcSetup');
+    if (!cfg || !form) return;
+    let open = null; // a coin match that's running: leaving the page forfeits it
+    // A finished game's result is never lost to a server update: it is retried for up to 4 minutes, and kept on this device until
+    // it lands, so the next Arcade page sends it if this one is closed (within the 3 hours a game stays open).
+    const UNSENT = 'mfl-arc-unsent';
+    const keep = (x) => { try { if (x) localStorage.setItem(UNSENT, JSON.stringify(x)); else localStorage.removeItem(UNSENT); } catch (e) {} };
+    async function sendFinish(id, result, onWait) {
+      keep({ id, result, at: Date.now() });
+      const t0 = Date.now();
+      for (let n = 1; ; n++) {
+        try {
+          const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result }) });
+          if (res.status < 500) { const r = await res.json(); keep(null); return r; } // a real answer (even a refusal): done
+        } catch (e) {} // down or restarting (the update page is not JSON either)
+        if (Date.now() - t0 > 240e3) return { ok: false, kept: true, error: 'Could not reach the server. Your result is kept on this device and goes in the next time you open the Arcade.' };
+        if (onWait) onWait(n);
+        await new Promise((ok) => setTimeout(ok, Math.min(15000, 1500 * n)));
+      }
+    }
+    const resent = (async () => { // a result from last time that never arrived
+      let u = null; try { u = JSON.parse(localStorage.getItem(UNSENT) || 'null'); } catch (e) {}
+      if (!u || !u.id) return;
+      if (Date.now() - (u.at || 0) > 3 * 3600e3) { keep(null); return; }
+      const r = await sendFinish(u.id, u.result);
+      if (!r || r.kept) return;
+      const m = $('#arcMsg');
+      if (r.ok) { if (m) m.textContent = `Your last game's result is in: ${r.won ? 'a win' : 'a loss'}${r.net ? ` (${r.net > 0 ? '+' : ''}${fmt(r.net)} coins)` : ''}.`; if (r.run && r.run.choice) setTimeout(() => location.reload(), 1500); }
+    })();
+    window.addEventListener('beforeunload', (e) => { if (open && open.risk) { e.preventDefault(); e.returnValue = ''; } });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const body = Object.fromEntries(fd.entries());
+      body.game = cfg.game;
+      // starting a new run ends a run game in progress (anything else leaves it waiting to be continued)
+      if (cfg.resume && body.mode && body.mode !== 'coins' && body.mode !== 'practice' && !confirm(`Starting a new run ends your ${cfg.resume.name} game ${cfg.resume.step} in progress (it counts as a loss). Start anyway?`)) return;
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      // a kept result from last time goes in first (starting a game would otherwise count that one as unfinished)
+      try { const u = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (u) { $('#arcMsg').textContent = 'Saving your last game\'s result first…'; await resent; const again = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (again) await sendFinish(again.id, again.result); } } catch (e) {}
+      let start;
+      try {
+        const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        start = await r.json();
+      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Your network may be blocking it.' }; }
+      btn.disabled = false;
+      if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
+      $('#arcMsg').textContent = '';
+      launch(start);
+    });
+    const post = async (url, body) => { try { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return await r.json(); } catch (err) { return { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + ').' }; } };
+    const again = `<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`;
+    const balLine = (r) => (r && r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins${r.balance < 0 ? ' (in debt)' : ''}</p>` : '');
+    // 3D Blitz runs: the next game's setup can change before it starts (where, Metcalf's big field and two-hand touch, time of day,
+    // weather). It starts from the last game's (run.opts); a run at Metcalf always has the crowd. Picks are remembered like the setup screen's.
+    const NX_TOD = [['morning', '🌄', 'Morning'], ['noon', '☀️', 'Noon'], ['sunset', '🌇', 'Sunset'], ['night', '🌙', 'Night']];
+    const NX_WX = [['clear', '☀️', 'Sunny'], ['cloudy', '⛅', 'Partly cloudy'], ['overcast', '☁️', 'Overcast'], ['rain', '🌧️', 'Rain'], ['storm', '⛈️', 'Thunder&shy;storm'], ['snow', '❄️', 'Snow'], ['fog', '🌫️', 'Fog']];
+    const nxPut = (k, v) => { try { localStorage.setItem('mfl-blitz-' + k, v); } catch (e) {} };
+    function runOptsHtml(o) {
+      const chip = (n, v, e, t, on) => `<label><input type="radio" name="nx-${n}" value="${v}" ${on ? 'checked' : ''}><span><i>${e}</i><b ${n === 'weather' && v === 'clear' ? 'data-nx-sunny' : ''}>${t}</b></span></label>`;
+      const tog = (k, e, t, on, lk) => `<label class="bz-tog ${lk ? 'locked' : ''}"><input type="checkbox" name="nx-${k}" value="1" ${on ? 'checked' : ''} ${lk ? 'disabled' : ''}><span><i>${e}</i><b>${t}</b></span></label>`;
+      return `<details class="run-opts" id="runOpts"><summary><span>Next game</span><b data-nx-sum></b><em data-nx-tg>Change</em></summary><div class="run-opts-in">
+        <fieldset class="bz-defmode"><legend>Where</legend><div class="bz-chips run-vn">${chip('venue', 'stadium', '🏟️', 'The Stadium', o.venue !== 'metcalf' && o.venue !== 'hancock')}${chip('venue', 'metcalf', '🏫', 'Wildcat Blacktop', o.venue === 'metcalf')}${chip('venue', 'hancock', '🔴', 'Hancock Stadium', o.venue === 'hancock')}</div></fieldset>
+        <fieldset class="bz-defmode" data-nx-met><legend>Wildcat Blacktop settings</legend><div class="bz-togs">${tog('crowd', '👥', 'Crowd', true, true)}${tog('big', '📏', 'Big field', o.big)}${tog('touch', '✋', 'Two-hand touch', o.touch)}</div><p class="bz-lock">🔒 A run always has the crowd on.</p></fieldset>
+        <fieldset class="bz-defmode"><legend>Time of day</legend><div class="bz-chips run-tod">${NX_TOD.map(([v, e, t]) => chip('tod', v, e, t, o.tod === v)).join('')}</div></fieldset>
+        <fieldset class="bz-defmode"><legend>Weather</legend><div class="bz-chips run-wx">${NX_WX.map(([v, e, t]) => chip('weather', v, e, t, o.weather === v)).join('')}</div></fieldset></div></details>`;
+    }
+    function runOptsRead(o) {
+      const val = (n, d) => { const i = o.querySelector(`input[name=nx-${n}]:checked`); return i ? i.value : d; }, on = (k) => { const i = o.querySelector(`input[name=nx-${k}]`); return !!(i && i.checked); };
+      const venue = val('venue', 'stadium'), met = venue === 'metcalf';
+      return { venue, crowd: met, big: met && on('big'), touch: met && on('touch'), tod: val('tod', met ? 'noon' : 'night'), weather: val('weather', 'clear') };
+    }
+    function runOptsWire(o) {
+      const d = o.querySelector('#runOpts'); if (!d) return;
+      const sync = () => {
+        const x = runOptsRead(o), clr = x.tod === 'night' ? 'Clear' : 'Sunny', nm = (L, v) => (L.find((r) => r[0] === v) || [])[2] || '';
+        o.querySelectorAll('[data-nx-met]').forEach((e) => { e.hidden = x.venue !== 'metcalf'; });
+        o.querySelectorAll('[data-nx-sunny]').forEach((e) => { e.textContent = clr; });
+        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Wildcat Blacktop' : x.venue === 'hancock' ? 'Hancock Stadium' : 'The Stadium', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
+      };
+      d.addEventListener('toggle', () => { d.querySelector('[data-nx-tg]').textContent = d.open ? 'Done' : 'Change'; });
+      d.addEventListener('change', (e) => {
+        const n = e.target && e.target.name ? e.target.name.replace(/^nx-/, '') : '';
+        if (n === 'venue' || n === 'tod' || n === 'weather') nxPut(n, e.target.value);
+        if (n === 'big' || n === 'touch') { let m = {}; try { m = JSON.parse(localStorage.getItem('mfl-blitz-met') || '{}') || {}; } catch (x) {} m[n] = e.target.checked; nxPut('met', JSON.stringify(m)); }
+        sync();
+      });
+      sync();
+    }
+    // a won game of a run: cash out, or play one more at the level picked (its multiplier: Legend x1.5, Hall of Fame x2, GOAT x2.5)
+    function runChoice(run) {
+      const dod = run.mode === 'dod', nx = run.next || {};
+      const go = (l) => nx[l] ? `<button type="button" class="btn ghost ${+l === run.main ? 'main' : ''}" data-go="${l}">${+l === run.main ? '<em>Main</em>' : ''}Play on at ${nx[l].levelName} ×${run.factor ? run.factor[l] : ''}: ${fmt(nx[l].cash)}${dod ? `<small>${fmt(nx[l].atRisk)} at risk (${fmt(nx[l].charge)} more now)</small>` : ''}</button>` : '';
+      const o = overlay(`<h2>You win!</h2><p>${run.emoji || ''} ${run.name}, game ${run.step}${run.levelName ? ' at ' + run.levelName : ''}.</p><p class="arc-coins up">${fmt(run.cash)}</p>
+        <p class="muted">${dod ? `Cash out and ${fmt(run.cash)} goes to your balance, ${fmt(run.cash - run.atRisk)} more than the ${fmt(run.atRisk)} you have at risk.` : 'Cash out now, or play one more.'}</p>
+        ${run.opts ? runOptsHtml(run.opts) : ''}<div class="arc-over-b run-b"><button type="button" class="btn" id="runCash">Cash out ${fmt(run.cash)}</button>${(run.order || Object.keys(nx)).map(go).join('')}<button type="button" class="btn ghost later" id="runLater">Continue later<small>Your run stays saved on the 3D Blitz page</small></button></div>`);
+      runOptsWire(o);
+      const busy = (t) => { o.querySelectorAll('button,input').forEach((b) => { b.disabled = true; }); if (t) o.querySelector('#runCash').textContent = t; };
+      o.querySelector('#runLater').addEventListener('click', () => { o.hidden = true; if (document.body.classList.contains('arc-playing')) location.reload(); });
+      o.querySelector('#runCash').addEventListener('click', async () => {
+        busy('Cashing out…');
+        const r = await post('/arcade/run/cashout', { id: run.id });
+        if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not cash out.'}</p>${again}`);
+        overlay(`<h2>Cashed out</h2><p class="arc-coins up">+${fmt(r.payout)} coins</p><p class="muted">${run.name}: ${run.step} ${run.step === 1 ? 'win' : 'wins in a row'}.${r.atRisk ? ` Net +${fmt(r.net)} after the ${fmt(r.atRisk)} you had at risk.` : ''}</p>${balLine(r)}${again}`);
+        document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
+      });
+      o.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
+        const nx = run.opts ? runOptsRead(o) : {}; busy();
+        const r = await post('/arcade/run/double', { id: run.id, level: +b.getAttribute('data-go'), ...nx });
+        if (!r.ok) return overlay(`<h2>Hmm</h2><p class="muted">${r.error || 'Could not start the next game.'}</p>${again}`);
+        o.hidden = true;
+        launch(r);
+      }));
+    }
+    if (cfg.pending) { const b = document.getElementById('runResume'); if (b) b.addEventListener('click', () => runChoice(cfg.pending)); }
+    // a run game left in progress: continue it from its latest save
+    if (cfg.resume) {
+      const b = document.getElementById('runContinue');
+      if (b) b.addEventListener('click', async () => {
+        b.disabled = true;
+        const r = await post('/api/m/resume', { id: cfg.resume.id });
+        b.disabled = false;
+        if (!r.ok) { $('#arcMsg').textContent = r.error || 'Could not continue the game.'; return; }
+        const w = document.getElementById('runCont'); if (w) w.hidden = true;
+        launch(r);
+      });
+    }
+    // a run game's save: sent as text so a page going away can send it with a beacon; a refusal of a game that is over is 'gone'
+    function sendSave(id, json, o) {
+      const body = '{"id":' + JSON.stringify(id) + ',"seq":' + (o.seq | 0) + ',"live":' + JSON.stringify(o.live || null) + ',"snap":' + json + '}';
+      if (o.beacon && navigator.sendBeacon) { try { if (navigator.sendBeacon('/api/m/save', new Blob([body], { type: 'text/plain' }))) return Promise.resolve(true); } catch (e) {} }
+      return fetch('/api/m/save', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: !!o.beacon && body.length < 60000 })
+        .then((r) => r.json()).then((r) => (r && r.ok ? true : r && r.gone ? 'gone' : false), () => false);
+    }
+    function launch(start) {
+      const game = A.games[cfg.game];
+      if (!game) { $('#arcMsg').textContent = 'Game failed to load. Refresh and try again.'; return; }
+      const level = Number(start.level || 0);
+      open = start.id ? { id: start.id, risk: !!start.risk || !!(start.run && start.stake) } : null;
+      document.body.classList.add('arc-playing');
+      const stage = $('#arcStage');
+      stage.hidden = false;
+      form.closest('.arc-setup').hidden = true;
+      stage.innerHTML = '<div class="arc-root"></div>';
+      const root = stage.querySelector('.arc-root');
+      // bring the game into view right away (a smooth scroll gets cancelled on phones when the game resizes the page), then once more after it has sized itself
+      const toGame = () => { try { window.scrollTo(0, Math.max(0, stage.getBoundingClientRect().top + window.scrollY - 70)); } catch (e) {} };
+      toGame(); setTimeout(toGame, 60); setTimeout(toGame, 400);
+      let done = false;
+      const ctx = {
+        root, game: cfg.game, level, levelName: start.levelName, seed: start.seed, rng: rng(start.seed), data: start.data || {},
+        exhibition: !start.id, risk: !!start.risk, run: start.run || null, sound,
+        rsm: start.id && start.run && cfg.game === 'blitz3d' ? { snap: start.save ? start.save.snap : null, seq: start.save ? start.save.seq | 0 : 0, save: (json, o) => sendSave(start.id, json, o || {}) } : null,
+        async finish(result) {
+          if (done) return; done = true;
+          sound(result && result.won ? 'win' : 'lose');
+          if (!start.id) {
+            overlay(`<h2>${result.won ? 'You win!' : result.tie ? "It's a tie" : 'Game over'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="muted">Exhibition: just for fun.</p><div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+            return;
+          }
+          overlay('<h2>Checking the result…</h2>');
+          const r = await sendFinish(start.id, result, (n) => overlay(`<h2>Saving your result…</h2><p class="muted">The server isn't answering (it may be updating). Still trying${'.'.repeat(1 + (n % 3))} Don't close this page.</p>`));
+          if (!r.ok && r.kept) return overlay(`<h2>Result not saved yet</h2><p class="muted">${r.error}</p><div class="arc-over-b"><a class="btn" href="">Try again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+          open = null;
+          if (r.ok && r.run && r.run.choice) return runChoice(r.run);
+          if (r.ok && r.run && r.run.over) {
+            const dod = r.run.mode === 'dod';
+            return overlay(`<h2>Run over</h2>${result.detail ? `<p>${result.detail}</p>` : ''}<p class="arc-coins down">${dod ? '-' + fmt(r.run.atRisk) + ' coins' : 'Nothing this time'}</p><p class="muted">${r.run.name} ended at game ${r.run.step}.${r.message ? ' ' + r.message : ''}</p>${balLine(r)}${again}`);
+          }
+          const coins = r.ok ? (r.net > 0 ? `<p class="arc-coins up">+${fmt(r.net)} coins</p>` : r.net < 0 ? `<p class="arc-coins down">${fmt(r.net)} coins</p>` : '') : '';
+          overlay(`<h2>${!r.ok ? 'Result not saved' : r.won ? 'You win!' : result.tie ? "It's a tie" : 'You lost'}</h2>${result.detail ? `<p>${result.detail}</p>` : ''}${coins}<p class="muted">${r.ok ? (r.message || '') : (r.error || '')}</p>${r.balance != null ? `<p class="muted">Balance: ${fmt(r.balance)} coins</p>` : ''}<div class="arc-over-b"><a class="btn" href="">Play again</a><a class="btn ghost" href="/mfl/arcade/">Arcade</a></div>`);
+          document.querySelectorAll('[data-balance]').forEach((n) => { if (r.balance != null) n.textContent = fmt(r.balance); });
+        },
+      };
+      try { game.start(ctx); } catch (err) { console.error(err); overlay(`<h2>Game crashed</h2><p class="muted">${String(err.message || err)}</p><div class="arc-over-b"><a class="btn" href="">Reload</a></div>`); }
+    }
+  };
+  // Show script errors on the page instead of failing silently.
+  window.addEventListener('error', (e) => { const m = document.getElementById('arcMsg'); if (m && !document.body.classList.contains('arc-playing')) m.textContent = 'Error: ' + (e.message || 'script failed'); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => A.boot()); else setTimeout(() => A.boot());
+})();
+</script><script type="text/x-mfl">// Run the supplied football engine in its own document: its input handlers,
+// canvas, audio and globals must not take over the Arcade page.
+(function () {
+  MFLArcade.register('bowl', {
+    start(ctx) {
+      const token = crypto.randomUUID();
+      ctx.root.innerHTML = `<div class="bowl-runtime"><p role="status">Loading Modern Bowl…</p><iframe title="Modern Bowl football game" allow="autoplay; fullscreen" style="display:block;width:100%;height:auto;aspect-ratio:16/9;max-height:80vh;border:0;background:#000" allowfullscreen></iframe><button type="button" class="btn ghost sm">Full screen</button></div>`;
+      const frame = ctx.root.querySelector('iframe');
+      const runtimeOrigin = new URL(window.MFL_API_ORIGIN || location.origin).origin;
+      frame.src = runtimeOrigin + '/play/football';
+      const status = ctx.root.querySelector('[role=status]');
+      let finished = false;
+      function receive(e) {
+        if (e.source !== frame.contentWindow || e.origin !== runtimeOrigin) return;
+        const msg = e.data || {};
+        if (msg.type === 'mfl-football-ready') {
+          frame.contentWindow.postMessage({ type: 'mfl-football-start', token, data: ctx.data, level: ctx.level, seed: ctx.seed }, runtimeOrigin);
+        } else if (msg.token === token && msg.type === 'mfl-football-playing') {
+          status.hidden = true;
+          frame.focus();
+        } else if (msg.token === token && msg.type === 'mfl-football-error') {
+          status.hidden = false;
+          status.textContent = 'Football could not load. Refresh to try again.';
+        } else if (msg.token === token && msg.type === 'mfl-football-finish' && !finished) {
+          finished = true;
+          window.removeEventListener('message', receive);
+          frame.remove(); // release the engine's audio and animation loop
+          // The harness renders detail as HTML. Team labels remain plain text.
+          const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+          ctx.finish({ ...msg.result, detail: `${esc(ctx.data.home.name)} ${msg.result.score} – ${msg.result.opp} ${esc(ctx.data.away.name)}` });
+        }
+      }
+      window.addEventListener('message', receive);
+      ctx.root.querySelector('button').addEventListener('click', () => {
+        const request = frame.requestFullscreen || frame.webkitRequestFullscreen;
+        if (request) Promise.resolve(request.call(frame)).catch(() => {});
+      });
+    },
+  });
+})();
+</script></main>
+<footer class="ftr"><div class="wrap ftr-in">
+  <div class="ftr-brand"><img src="/mfl/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at Wildcat Stadium</small></div></div>
+  <div class="ftr-links"><a href="/mfl/schedule/">Schedule</a><a href="/mfl/scores/">Scores</a><a href="/mfl/arcade/">Arcade</a><a href="/mfl/career/">Career</a><a href="/mfl/pickem/cards">Cards</a><a href="/mfl/pickem">Pick'em</a><a href="/mfl/coins/">Earn coins</a><a href="/mfl/history/">Head-to-Head</a><a href="/mfl/stats/players/">Leaders</a><a href="/mfl/stats/rankings/">Rankings</a><a href="/mfl/records/">Records</a><a href="/mfl/cards/">Cards</a><a href="/mfl/calendar.ics">Add to calendar</a><a href="/mfl/updates/">Patch notes</a><a href="/mfl/teams/pedon/">12:35s</a><a href="/mfl/teams/xavier/">No Fly Zone</a><a href="/mfl/admin">Admin</a></div>
+</div></footer>
+<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/mfl/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script type="text/x-mfl">
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<div class="mpop" id="mpop" hidden role="dialog" aria-modal="true" aria-labelledby="mpopT"><div class="mpop-box"><h2 id="mpopT"></h2><div class="mpop-b" id="mpopB"></div><button class="btn" id="mpopOk">Got it</button></div></div>
+
+<script type="text/x-mfl">
+// Popups (a player's game result, a site update...): one at a time, each shown once, after the first-visit notice.
+// window.mflPopup({ id, title, html, button, cls, seen }): seen 'local' (default) remembers it on this device; a URL is POSTed
+// { id } instead, for popups the server keeps track of per account.
+(()=>{const Q=[];let open=false;const el=document.getElementById('mpop'),T=document.getElementById('mpopT'),B=document.getElementById('mpopB'),ok=document.getElementById('mpopOk'),disc=document.getElementById('disc');
+const local=(p)=>!p.seen||p.seen==='local',done=(p)=>{try{return local(p)&&localStorage.getItem('mfl-pop-'+p.id)==='1'}catch(e){return false}};
+function next(){if(open||!Q.length)return;if(disc&&!disc.hidden){setTimeout(next,400);return}const p=Q.shift();open=true;el.className='mpop '+(p.cls||'');T.textContent=p.title||'';B.innerHTML=p.html||'';const lbl=p.button||'Got it';ok.textContent=lbl;el.hidden=false;document.documentElement.classList.add('disc-on');
+let wait=Math.max(0,p.wait|0);ok.disabled=wait>0;if(wait){ok.textContent=lbl+' ('+wait+')';const t=setInterval(()=>{wait--;if(wait>0){ok.textContent=lbl+' ('+wait+')';return}clearInterval(t);ok.disabled=false;ok.textContent=lbl;ok.focus()},1000)}else ok.focus();
+ok.onclick=()=>{if(ok.disabled)return;el.hidden=true;open=false;document.documentElement.classList.remove('disc-on');try{if(local(p))localStorage.setItem('mfl-pop-'+p.id,'1');else fetch(p.seen,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).catch(()=>{})}catch(e){}setTimeout(next,250)}}
+window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;if(p.first)Q.unshift(p);else Q.push(p);next()};
+window.mflPopup({"id":"notice-nov6-fairplay","first":true,"wait":5,"button":"I understand","cls":"mpop-notice","title":"Please read: Pick'em and Nov 6","html":"\u003cp>\u003cb>Fixing plays is not allowed.\u003c/b> Some players threw interceptions on purpose so the people who picked them would win their picks. That's cheating. Pick'em only uses fake coins, but fixing plays for picks breaks the rules here, and in real sports it's illegal (it's called match fixing).\u003c/p>\n\u003cul>\u003cli>Every pick on the Nov 6 game was cancelled and refunded.\u003c/li>\u003cli>Interception picks are off.\u003c/li>\u003cli>Accounts that fix plays, or pick on plays they know are fixed, can be suspended from Pick'em.\u003c/li>\u003c/ul>\n\u003cp>\u003cb>The admin hack.\u003c/b> On Nov 6, someone got into the admin panel and handed out fake coins, billions to some accounts. Every fake coin was removed, and the site was put back to how it was at 10:55 AM on Nov 6, before the first fake coins:\u003c/p>\n\u003cul>\u003cli>Every pack opened after that is gone, with its cards, and the coins spent on it came back.\u003c/li>\u003cli>Every pick, card sale, card trade and Lineup change after that was undone.\u003c/li>\u003cli>The admin password was changed and everyone was signed out of admin.\u003c/li>\u003c/ul>\n\u003cp>If your Lineup went back, set it again before the next game. The coin history on your profile shows exactly what changed.\u003c/p>"});
+(window.MFL_POPS||[]).forEach(window.mflPopup);})();
+</script>
+<script type="text/x-mfl">window.mflPopup({"id":"update-60","title":"UPDATE 60","html":"\u003cp class=\"upd-t\">Timeouts on defense fixed\u003c/p>\u003cul>\u003cli>You can call a timeout on defense right after a play: tap T/O or press T in the dead ball, and the clock stops.\u003c/li>\u003cli>While the other team&#39;s drive plays out on the drive card, tap T/O to stop the clock right after the play on the card. The rest of their drive plays out from there, and you keep the time you saved.\u003c/li>\u003cli>The T/O button always shows how many timeouts you have left, or why you can&#39;t call one right now (none left, or the clock is already stopped).\u003c/li>\u003cli>Works at Wildcat Blacktop, The Stadium and Hancock.\u003c/li>\u003c/ul>\u003cp class=\"upd-all\">\u003ca href=\"/updates\">All patch notes →\u003c/a>\u003c/p>","button":"Nice","cls":"mpop-upd"})</script>
+<script type="text/x-mfl">
+document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
+document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
+const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/mfl/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+// Start loading a page as soon as a finger or mouse lands on its link.
+if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
+</script>
+</body></html>

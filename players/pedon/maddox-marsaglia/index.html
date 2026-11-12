@@ -1,0 +1,217 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maddox Marsaglia · MFL</title>
+<meta name="theme-color" content="#0a0a0d">
+<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Wildcat Stadium flag football league.">
+<link rel="icon" href="/mfl/static/mfl-logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mfl/static/style.css?v=85">
+<style>.mfl-loading body{visibility:hidden}.mfl-off{background:#3a2a00;color:#ffd77a;padding:8px 16px;font:600 13px/1.4 system-ui;text-align:center}</style><script src="/mfl/static/bridge.js" data-base="/mfl"></script></head><body>
+<header class="hdr"><div class="hdr-in">
+  <a class="brand" href="/mfl/"><img src="/mfl/static/mfl-logo.webp" alt=""><span>MFL</span></a>
+  
+  <a class="hdr-arc" href="/mfl/arcade/">🕹️ Arcade</a>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><span></span><span></span></button>
+  <nav class="nav">
+    <div class="dd "><button>Games <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/schedule/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Schedule</a><a href="/mfl/scores/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Scores</a><a href="/mfl/history/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Head-to-Head</a></div></div>
+    <div class="dd "><button>Playoffs <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/playoffs/halloween-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Halloween Bowl</a><a href="/mfl/playoffs/turkey-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Turkey Bowl</a><a href="/mfl/playoffs/christmas-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Christmas Bowl</a><a href="/mfl/playoffs/spring-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Spring Bowl</a><a href="/mfl/playoffs/super-bowl/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Super Bowl</a></div></div>
+    <div class="dd "><button>Teams <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:22px;height:22px" decoding="async"> Team Pedon 12:35s</a><a href="/mfl/teams/xavier/"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> Team Xavier No Fly Zone</a><a href="/mfl/transactions/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg> Transactions</a></div></div>
+    <div class="dd "><button>Stats <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/stats/team/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team Stats</a><a href="/mfl/stats/players/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Player Leaders</a><a href="/mfl/stats/rankings/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Power Rankings</a><a href="/mfl/records/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> Records Book</a><a href="/mfl/cards/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Trading Cards</a></div></div>
+    <div class="dd "><button>News <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-m">
+      <a href="/mfl/midweek/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Midweek Recap</a><a href="/mfl/analyst/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Ask the Analyst</a><a href="/mfl/pickem/survivor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Survivor</a><a href="/mfl/pickem/cards"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg> MFL Cards</a><a href="/mfl/coins/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Earn coins</a><a href="/mfl/updates/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Patch notes</a></div></div>
+    <div class="nav-main"><a class="nav-arc " href="/mfl/arcade/">🕹️ Arcade</a>
+    <a class="nav-career " href="/mfl/career/" aria-label="Career" title="Career">🏈 <span class="nav-career-t">Career</span></a>
+    <a class="nav-cards " href="/mfl/pickem/cards">🃏 Cards</a>
+    <a class="nav-pick " href="/mfl/pickem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Pick'em</a></div>
+    <div class="acct-box"><a class="acct" href="/mfl/pickem/login?next=%2Fpickem">Log in</a><a class="acct primary" href="/mfl/pickem/signup">Sign up</a>
+    </div>
+  </nav>
+</div></header>
+
+<div class="ticker"><div class="ticker-in"><a class="tk " href="/mfl/games/10/"><div class="tk-top"><span>Thu 11/5</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>14</b></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk " href="/mfl/games/11/"><div class="tk-top"><span>Fri 11/6</span><span class="badge final">Final</span></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>0</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk " href="/mfl/games/12/"><div class="tk-top"><span>Mon 11/9</span><span class="badge final">Final</span></div><div class="tk-row dim"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>14</b></div></a><a class="tk " href="/mfl/games/13/"><div class="tk-top"><span>Tue 11/10</span><span class="badge final">Final</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b>7</b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b>7</b></div></a><a class="tk now" href="/mfl/games/14/"><div class="tk-top"><span>Today</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/15/"><div class="tk-top"><span>Fri 11/13</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/16/"><div class="tk-top"><span>Mon 11/16</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/17/"><div class="tk-top"><span>Tue 11/17</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/18/"><div class="tk-top"><span>Thu 11/19</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/19/"><div class="tk-top"><span>Fri 11/20</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/20/"><div class="tk-top"><span>Mon 11/23</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div></a><a class="tk " href="/mfl/games/21/"><div class="tk-top"><span>Tue 11/24</span><span class="badge sched">12:35 PM</span></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:18px;height:18px" decoding="async"><span>PDN</span><b></b></div><div class="tk-row "><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:18px;height:18px" decoding="async"><span>XDP</span><b></b></div><div class="tk-lbl">Turkey Bowl</div></a></div></div>
+<main>
+    <section class="pp-hero" style="--a:#ff190f;--b:#ebebeb"><div class="wrap">
+      <div class="pp-stage" style="--a:#ff190f;--b:#ebebeb" data-av="{&quot;player&quot;:{&quot;id&quot;:&quot;maddox-marsaglia&quot;,&quot;name&quot;:&quot;Maddox Marsaglia&quot;,&quot;num&quot;:&quot;&quot;,&quot;pos&quot;:&quot;&quot;,&quot;look&quot;:{&quot;skin&quot;:0,&quot;height&quot;:&quot;normal&quot;,&quot;cleats&quot;:&quot;black&quot;,&quot;visor&quot;:false,&quot;sleeves&quot;:false,&quot;build&quot;:&quot;stocky&quot;},&quot;hgt&quot;:64,&quot;wgt&quot;:118},&quot;team&quot;:{&quot;name&quot;:&quot;12:35s&quot;,&quot;abbr&quot;:&quot;PDN&quot;,&quot;color&quot;:&quot;#ff190f&quot;,&quot;color2&quot;:&quot;#ebebeb&quot;},&quot;emote&quot;:&quot;shimmy&quot;,&quot;emoteName&quot;:&quot;Shoulder Shimmy&quot;}" data-src="/mfl/static/arcade/blitz-avatar.js?v=fd303c81f8">
+        <div class="pp-av" aria-hidden="true"></div>
+        <div class="pp-photo"><img class="av photo xl" src="/mfl/media/pedon-maddox-marsaglia-mviq8b9n.jpg" alt="Maddox Marsaglia" style="width:220px;height:220px" loading="lazy"></div>
+        <button class="pp-3d" type="button" aria-label="View Maddox Marsaglia in 3D"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg><span>View in 3D</span></button>
+        <span class="pp-move">Shoulder Shimmy</span>
+      </div>
+      <div class="pp-info">
+        <a class="pp-team" href="/mfl/teams/pedon/"><img class="logo " src="/mfl/media/logo/pedon-1b659fb9c1.png" alt="12:35s" style="width:26px;height:26px" decoding="async"> Team Pedon 12:35s</a>
+        <h1>Maddox Marsaglia</h1>
+        <div class="pp-facts"><div><small>Status</small><b>Team Rep</b></div></div>
+        <div class="th-stats"><a class="rt-big legend" href="/mfl/players/pedon/maddox-marsaglia/card/" title="Power rating · see trading card"><b>94</b><small>Rating</small></a><div><b>5</b><small>TDs</small></div><div><b>4</b><small>Pass TDs</small></div><div><b>2</b><small>INTs</small></div><div><b>2</b><small>MVPs</small></div></div><p class="ai-take"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Explosive playmaker who throws and catches well, with repeated highlight moss plays.</p>
+        <a class="card-link" href="/mfl/players/pedon/maddox-marsaglia/card/"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> View trading card</a> <a class="card-link" href="/mfl/picks/pedon/maddox-marsaglia"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5"/></svg> Picks for Maddox</a>
+      </div>
+    </div></section>
+    <div class="wrap home-grid">
+      <div class="col">
+        <div class="card"><div class="card-h"><h2>Bio</h2></div><div class="bio"><p>Known for his freak athleticism, and crazy catches. Able to &quot;moss&quot; anyone in sight. </p></div></div>
+        <div class="card"><div class="card-h"><h2>Game Log</h2></div><div class="scroll"><table class="tbl"><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>TD</th><th>Pass TD</th><th>INT</th><th>Picked off</th><th class="l">Other</th></tr></thead><tbody>
+          <tr><td class="l"><a href="/mfl/games/13/">Tue, Nov 10</a></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res T">T</span> 7–7</td><td>–</td><td>1</td><td>–</td><td>–</td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/10/">Thu, Nov 5</a></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res W">W</span> 14–7</td><td>–</td><td>–</td><td>1</td><td>–</td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/7/">Fri, Oct 30</a> <span class="tag playoff">Halloween Bowl</span></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res W">W</span> 70–42</td><td>4</td><td>–</td><td>–</td><td>–</td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/5/">Tue, Oct 27</a></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res T">T</span> 7–7</td><td>–</td><td>–</td><td>1</td><td>–</td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/4/">Mon, Oct 26</a></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res T">T</span> 7–7</td><td>–</td><td>1</td><td>–</td><td>–</td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/2/">Thu, Oct 22</a></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res T">T</span> 7–7</td><td>–</td><td>1</td><td>–</td><td><span class="down">1</span></td><td class="l">–</td></tr><tr><td class="l"><a href="/mfl/games/1/">Wed, Oct 21</a> <span class="tag exhibition">Exhibition</span></td><td class="l"><span class="th"><img class="logo " src="/mfl/media/logo/xavier-ddd507ed1e.png" alt="No Fly Zone" style="width:22px;height:22px" decoding="async"> No Fly Zone</span></td><td><span class="res W">W</span> 14–7</td><td>1</td><td>1</td><td>–</td><td>–</td><td class="l">–</td></tr>
+          </tbody></table></div><p class="muted sm">Totals include exhibition games.</p></div>
+        <div class="card"><div class="card-h"><h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-3s0 2 2 2c0-3-1-5 1-8z"/></svg> Highlights</h2></div><ol class="plays"><li style="--c:#ff190f"><div><span class="tag int">Interception</span> <a class="muted sm" href="/mfl/games/10/">Thu, Nov 5</a><p><b><a class="plink" href="/mfl/players/pedon/maddox-marsaglia/">Maddox Marsaglia</a></b> picks off <b><a class="plink" href="/mfl/players/xavier/finn-hopkins/">Finn Hopkins</a></b> <span class="muted">· Missed catch by Gio</span></p></div></li><li style="--c:#ff190f"><div><span class="tag td">Touchdown</span> <a class="muted sm" href="/mfl/games/7/">Fri, Oct 30</a><p><b><a class="plink" href="/mfl/players/pedon/maddox-marsaglia/">Maddox Marsaglia</a></b> catches a TD pass from <b><a class="plink" href="/mfl/players/pedon/kayson-link/">Kayson Link</a></b> <span class="muted">· Completely MOSSED Xavier and others</span></p></div></li><li style="--c:#ff190f"><div><span class="tag td">Touchdown</span> <a class="muted sm" href="/mfl/games/7/">Fri, Oct 30</a><p><b><a class="plink" href="/mfl/players/pedon/maddox-marsaglia/">Maddox Marsaglia</a></b> catches a TD pass from <b><a class="plink" href="/mfl/players/pedon/kayson-link/">Kayson Link</a></b> <span class="muted">· End of game last play completely MOSSED someone</span></p></div></li></ol></div>
+      </div>
+      <div class="col">
+        <div class="card scout"><div class="card-h"><h2>Scouting report</h2><span class="muted sm">AI</span></div><p>Maddox Marsaglia is a Team Rep for the 12:35s with a 94 power rating and a 91 scouting grade, built on freak athleticism and highlight-reel energy. He has been a real TD machine, throwing 4 touchdown passes and scoring 5 TDs across 7 games, and he&#39;s shown he can flip the field with his arm and his legs. He&#39;s also a reliable ballhawk who has picked off 2 passes and has been there for his team all season, earning Game MVP and Bowl Champion honors. He&#39;s a high-upside playmaker who makes a lot happen whenever he&#39;s on the field.</p>
+          <div class="scout-cols"><div><small>Strengths</small><ul><li>Elite touchdown passer, with 4 TD passes and a standout throwing grade</li><li>Scoring threat who has crossed the end zone 5 times in 7 games</li><li>Ballhawk on defense with 2 interceptions</li><li>Ironman and winner: played all 7 games and earned Game MVP and Bowl Champion honors</li></ul></div><div><small>Areas to grow</small><ul><li>Ball security: he has thrown 1 interception, so protecting the ball on every throw is a fun next step</li><li>Stat sheet shine: catches and big plays are logged at zero, so let&#39;s make sure his highlight catches get recorded</li></ul></div></div>
+          <p class="scout-cmp"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Plays like a rocket-armed Swiss Army knife who turns every snap into a potential highlight.</p></div>
+        <div class="card"><div class="card-h"><h2>Achievements</h2><span class="muted sm">5 of 12</span></div><div class="achv"><div class="achv-b" title="3+ touchdowns in one game"><span>🎩</span><b>Hat Trick</b><small>3+ touchdowns in one game</small></div><div class="achv-b" title="Scored and threw a TD in the same game"><span>⚡</span><b>Double Threat</b><small>Scored and threw a TD in the same game</small></div><div class="achv-b" title="Named MVP of a game"><span>🏆</span><b>Game MVP</b><small>Named MVP of a game</small></div><div class="achv-b" title="Played every game (5+ games)"><span>🛡️</span><b>Ironman</b><small>Played every game (5+ games)</small></div><div class="achv-b" title="Won a playoff bowl"><span>💍</span><b>Bowl Champion</b><small>Won a playoff bowl</small></div></div></div>
+        <div class="card"><div class="card-h"><h2>Teammates</h2><a href="/mfl/teams/pedon/">Team <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div><div class="mates">
+          <a class="mate" href="/mfl/players/pedon/maddox-pedon/"><img class="av photo " src="/mfl/media/pedon-maddox-pedon-mw5kzrov.jpg" alt="Maddox Pedon" style="width:36px;height:36px" loading="lazy"><div><b>Maddox Pedon</b><small>Captain</small></div></a><a class="mate" href="/mfl/players/pedon/bowen-ince/"><img class="av photo " src="/mfl/media/pedon-bowen-ince-mviqbhi2.jpg" alt="Bowen Ince" style="width:36px;height:36px" loading="lazy"><div><b>Bowen Ince</b><small>Draft · Round 1</small></div></a><a class="mate" href="/mfl/players/pedon/liam-bair/"><img class="av photo " src="/mfl/media/pedon-liam-bair-mw8faef1.jpg" alt="Liam Bair" style="width:36px;height:36px" loading="lazy"><div><b>Liam Bair</b><small>Draft · Round 2</small></div></a><a class="mate" href="/mfl/players/pedon/theo-miner/"><img class="av photo " src="/mfl/media/pedon-theo-miner-mw8fb841.jpg" alt="Theo Miner" style="width:36px;height:36px" loading="lazy"><div><b>Theo Miner</b><small>Free Agent</small></div></a><a class="mate" href="/mfl/players/pedon/luka-corrales/"><img class="av photo " src="/mfl/media/pedon-luka-corrales-mw8fe06x.jpg" alt="Luka Corrales" style="width:36px;height:36px" loading="lazy"><div><b>Luka Corrales</b><small>Draft · Round 3</small></div></a><a class="mate" href="/mfl/players/pedon/wally-barrickman/"><img class="av photo " src="/mfl/media/pedon-wally-barrickman-mw8ffivy.jpg" alt="Wally Barickman" style="width:36px;height:36px" loading="lazy"><div><b>Wally Barickman</b><small>Draft · Round 4</small></div></a><a class="mate" href="/mfl/players/pedon/kayson-link/"><img class="av photo " src="/mfl/media/pedon-kayson-link-mw8fj0zu.jpg" alt="Kayson Link" style="width:36px;height:36px" loading="lazy"><div><b>Kayson Link</b><small>Free Agent</small></div></a><a class="mate" href="/mfl/players/pedon/carson-tabaka/"><img class="av photo " src="/mfl/media/pedon-carson-tabaka-mw8fcm7n.jpg" alt="Carson Tabaka" style="width:36px;height:36px" loading="lazy"><div><b>Carson Tabaka</b><small>Team Rep</small></div></a><a class="mate" href="/mfl/players/pedon/braxton-iliff-murphy/"><img class="av photo " src="/mfl/media/pedon-braxton-iliff-murphy-mw8fn5ad.jpg" alt="Braxton Iliff-Murphy" style="width:36px;height:36px" loading="lazy"><div><b>Braxton Iliff-Murphy</b><small>Draft · Round 1</small></div></a>
+        </div></div>
+      </div>
+    </div>
+    <script type="text/x-mfl">// Player page: his 3D avatar doing his move in the banner behind his photo, and "View in 3D" (a bigger viewer you can spin).
+// The 3D code (public/arcade/blitz-avatar.js, ~280 KB) loads only once the banner is on screen and the page is idle, and only
+// when the browser has WebGL; until then (or without it) the banner is a plain team-colour panel.
+(function () {
+  const st = document.querySelector('.pp-stage');
+  if (!st) return;
+  let cfg = null;
+  try { cfg = JSON.parse(st.getAttribute('data-av')); } catch (e) { return; }
+  const SRC = st.getAttribute('data-src');
+  const btn = st.querySelector('.pp-3d');
+  const phone = () => window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  const hasGL = (() => {
+    try {
+      const c = document.createElement('canvas'), g = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (!g) return false;
+      const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext();
+      return true;
+    } catch (e) { return false; }
+  })();
+  if (!hasGL) { st.classList.add('no3d'); return; }
+  st.classList.add('can3d');
+  let loading = null;
+  function load() {
+    if (window.MFLBlitz && window.MFLBlitz.avatar) return Promise.resolve();
+    if (loading) return loading;
+    const ok = () => { if (!(window.MFLBlitz && window.MFLBlitz.avatar)) throw new Error('no avatar'); };
+    // the script's text run inline (some school devices block script files from the page's own server), else a plain <script src>
+    loading = fetch(SRC).then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.text(); }).then((code) => {
+      const s = document.createElement('script'); s.textContent = code; document.head.appendChild(s); ok();
+    }).catch(() => new Promise((res, rej) => {
+      const s = document.createElement('script'); s.src = SRC; s.onload = () => { try { ok(); res(); } catch (e) { rej(e); } }; s.onerror = rej; document.head.appendChild(s);
+    }));
+    loading.catch(() => { loading = null; });
+    return loading;
+  }
+  const opts = (o) => Object.assign({ player: cfg.player, team: cfg.team, emote: cfg.emote }, o);
+  // ---------- the banner ----------
+  let banner = null;
+  function startBanner() {
+    if (banner) return;
+    load().then(() => {
+      if (banner) return;
+      banner = window.MFLBlitz.avatar(st.querySelector('.pp-av'), opts({ place: phone() ? 0.66 : 0.64, onError: () => st.classList.add('no3d') }));
+      st.mflAvatar = banner; // (for checks from the console)
+      if (banner && banner.ok) st.classList.add('live'); else st.classList.add('no3d');
+    }).catch(() => st.classList.add('no3d'));
+  }
+  const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 700));
+  const saveData = !!(navigator.connection && navigator.connection.saveData);
+  if (!saveData) {
+    const go = () => idle(startBanner);
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true }); } });
+      io.observe(st);
+    } else window.addEventListener('load', go, { once: true });
+  }
+  // ---------- the viewer ----------
+  let dlg = null, view = null, back = null;
+  function close() {
+    if (!dlg) return;
+    if (view) { view.destroy(); view = null; }
+    dlg.remove(); dlg = null;
+    document.documentElement.classList.remove('av3d-lock');
+    document.removeEventListener('keydown', onKey);
+    if (banner) banner.play();
+    if (back && back.focus) back.focus();
+  }
+  function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function open() {
+    if (dlg) return;
+    back = document.activeElement;
+    dlg = document.createElement('div');
+    dlg.className = 'av3d';
+    dlg.setAttribute('role', 'dialog'); dlg.setAttribute('aria-modal', 'true'); dlg.setAttribute('aria-label', cfg.player.name + ' in 3D');
+    dlg.style.setProperty('--a', cfg.team.color || '#444'); dlg.style.setProperty('--b', cfg.team.color2 || '#111');
+    dlg.innerHTML = `<div class="av3d-bg"></div><div class="av3d-box">
+      <div class="av3d-top"><div><b>${esc(cfg.player.name)}</b><small>${esc(cfg.emoteName)}</small></div><button type="button" class="av3d-x" aria-label="Close">✕</button></div>
+      <div class="av3d-stage"><div class="av3d-load">Loading 3D…</div></div>
+      <div class="av3d-bar"><span class="av3d-hint">Drag to spin him around · pinch or scroll to zoom</span><span class="av3d-btns"><button type="button" class="av3d-pause">Pause</button><button type="button" class="av3d-reset">Reset view</button></span></div>
+    </div>`;
+    document.body.appendChild(dlg);
+    document.documentElement.classList.add('av3d-lock');
+    document.addEventListener('keydown', onKey);
+    dlg.querySelector('.av3d-bg').addEventListener('click', close);
+    dlg.querySelector('.av3d-x').addEventListener('click', close);
+    dlg.querySelector('.av3d-x').focus();
+    if (banner) banner.pause();
+    const stage = dlg.querySelector('.av3d-stage');
+    load().then(() => {
+      if (!dlg) return;
+      view = window.MFLBlitz.avatar(stage, opts({ interactive: true, onError: () => { const l = stage.querySelector('.av3d-load'); if (l) l.textContent = 'Sorry, 3D isn\'t working on this device.'; } }));
+      if (!view || !view.ok) { const l = stage.querySelector('.av3d-load'); if (l) l.textContent = 'Sorry, 3D isn\'t working on this device.'; return; }
+      stage.classList.add('live');
+      if (view.canvas) view.canvas.setAttribute('aria-label', cfg.player.name + ' doing his ' + cfg.emoteName + '. Drag to spin him around.');
+      const pz = dlg.querySelector('.av3d-pause');
+      pz.addEventListener('click', () => { if (pz.textContent === 'Pause') { view.pause(); pz.textContent = 'Play'; } else { view.play(); pz.textContent = 'Pause'; } });
+      dlg.querySelector('.av3d-reset').addEventListener('click', () => view.reset());
+    }).catch(() => { const l = stage.querySelector('.av3d-load'); if (l) l.textContent = 'Sorry, 3D couldn\'t load. Check your connection and try again.'; });
+  }
+  if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); open(); });
+  st.addEventListener('click', (e) => { if (e.target.closest('a')) return; if (st.classList.contains('live')) open(); });
+})();
+</script></main>
+<footer class="ftr"><div class="wrap ftr-in">
+  <div class="ftr-brand"><img src="/mfl/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at Wildcat Stadium</small></div></div>
+  <div class="ftr-links"><a href="/mfl/schedule/">Schedule</a><a href="/mfl/scores/">Scores</a><a href="/mfl/arcade/">Arcade</a><a href="/mfl/career/">Career</a><a href="/mfl/pickem/cards">Cards</a><a href="/mfl/pickem">Pick'em</a><a href="/mfl/coins/">Earn coins</a><a href="/mfl/history/">Head-to-Head</a><a href="/mfl/stats/players/">Leaders</a><a href="/mfl/stats/rankings/">Rankings</a><a href="/mfl/records/">Records</a><a href="/mfl/cards/">Cards</a><a href="/mfl/calendar.ics">Add to calendar</a><a href="/mfl/updates/">Patch notes</a><a href="/mfl/teams/pedon/">12:35s</a><a href="/mfl/teams/xavier/">No Fly Zone</a><a href="/mfl/admin">Admin</a></div>
+</div></footer>
+<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
+  <img src="/mfl/static/mfl-logo.webp" alt="" width="56" height="56">
+  <h2 id="discT">Heads up</h2>
+  <p>The Metcalf Football League (MFL) website is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>. It's an independent, student-made fan site for our flag football games.</p>
+  <button class="btn" id="discOk" disabled>Got it (5)</button>
+</div></div>
+<script type="text/x-mfl">
+// One-time notice: shows on a visitor's first page load, can be closed after 5 seconds.
+(()=>{const K='mfl-notice-metcalf-1';let seen=false;try{seen=localStorage.getItem(K)==='1'}catch(e){}if(seen)return;
+const d=document.getElementById('disc'),b=document.getElementById('discOk');d.hidden=false;document.documentElement.classList.add('disc-on');let n=5;
+const t=setInterval(()=>{n--;if(n>0){b.textContent='Got it ('+n+')';return}clearInterval(t);b.disabled=false;b.textContent='Got it';b.focus()},1000);
+b.onclick=()=>{try{localStorage.setItem(K,'1')}catch(e){}d.hidden=true;document.documentElement.classList.remove('disc-on')}})();
+</script>
+<div class="mpop" id="mpop" hidden role="dialog" aria-modal="true" aria-labelledby="mpopT"><div class="mpop-box"><h2 id="mpopT"></h2><div class="mpop-b" id="mpopB"></div><button class="btn" id="mpopOk">Got it</button></div></div>
+
+<script type="text/x-mfl">
+// Popups (a player's game result, a site update...): one at a time, each shown once, after the first-visit notice.
+// window.mflPopup({ id, title, html, button, cls, seen }): seen 'local' (default) remembers it on this device; a URL is POSTed
+// { id } instead, for popups the server keeps track of per account.
+(()=>{const Q=[];let open=false;const el=document.getElementById('mpop'),T=document.getElementById('mpopT'),B=document.getElementById('mpopB'),ok=document.getElementById('mpopOk'),disc=document.getElementById('disc');
+const local=(p)=>!p.seen||p.seen==='local',done=(p)=>{try{return local(p)&&localStorage.getItem('mfl-pop-'+p.id)==='1'}catch(e){return false}};
+function next(){if(open||!Q.length)return;if(disc&&!disc.hidden){setTimeout(next,400);return}const p=Q.shift();open=true;el.className='mpop '+(p.cls||'');T.textContent=p.title||'';B.innerHTML=p.html||'';const lbl=p.button||'Got it';ok.textContent=lbl;el.hidden=false;document.documentElement.classList.add('disc-on');
+let wait=Math.max(0,p.wait|0);ok.disabled=wait>0;if(wait){ok.textContent=lbl+' ('+wait+')';const t=setInterval(()=>{wait--;if(wait>0){ok.textContent=lbl+' ('+wait+')';return}clearInterval(t);ok.disabled=false;ok.textContent=lbl;ok.focus()},1000)}else ok.focus();
+ok.onclick=()=>{if(ok.disabled)return;el.hidden=true;open=false;document.documentElement.classList.remove('disc-on');try{if(local(p))localStorage.setItem('mfl-pop-'+p.id,'1');else fetch(p.seen,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).catch(()=>{})}catch(e){}setTimeout(next,250)}}
+window.mflPopup=(p)=>{if(!p||!p.id||done(p)||Q.some((q)=>q.id===p.id))return;if(p.first)Q.unshift(p);else Q.push(p);next()};
+window.mflPopup({"id":"notice-nov6-fairplay","first":true,"wait":5,"button":"I understand","cls":"mpop-notice","title":"Please read: Pick'em and Nov 6","html":"\u003cp>\u003cb>Fixing plays is not allowed.\u003c/b> Some players threw interceptions on purpose so the people who picked them would win their picks. That's cheating. Pick'em only uses fake coins, but fixing plays for picks breaks the rules here, and in real sports it's illegal (it's called match fixing).\u003c/p>\n\u003cul>\u003cli>Every pick on the Nov 6 game was cancelled and refunded.\u003c/li>\u003cli>Interception picks are off.\u003c/li>\u003cli>Accounts that fix plays, or pick on plays they know are fixed, can be suspended from Pick'em.\u003c/li>\u003c/ul>\n\u003cp>\u003cb>The admin hack.\u003c/b> On Nov 6, someone got into the admin panel and handed out fake coins, billions to some accounts. Every fake coin was removed, and the site was put back to how it was at 10:55 AM on Nov 6, before the first fake coins:\u003c/p>\n\u003cul>\u003cli>Every pack opened after that is gone, with its cards, and the coins spent on it came back.\u003c/li>\u003cli>Every pick, card sale, card trade and Lineup change after that was undone.\u003c/li>\u003cli>The admin password was changed and everyone was signed out of admin.\u003c/li>\u003c/ul>\n\u003cp>If your Lineup went back, set it again before the next game. The coin history on your profile shows exactly what changed.\u003c/p>"});
+(window.MFL_POPS||[]).forEach(window.mflPopup);})();
+</script>
+<script type="text/x-mfl">window.mflPopup({"id":"update-60","title":"UPDATE 60","html":"\u003cp class=\"upd-t\">Timeouts on defense fixed\u003c/p>\u003cul>\u003cli>You can call a timeout on defense right after a play: tap T/O or press T in the dead ball, and the clock stops.\u003c/li>\u003cli>While the other team&#39;s drive plays out on the drive card, tap T/O to stop the clock right after the play on the card. The rest of their drive plays out from there, and you keep the time you saved.\u003c/li>\u003cli>The T/O button always shows how many timeouts you have left, or why you can&#39;t call one right now (none left, or the clock is already stopped).\u003c/li>\u003cli>Works at Wildcat Blacktop, The Stadium and Hancock.\u003c/li>\u003c/ul>\u003cp class=\"upd-all\">\u003ca href=\"/updates\">All patch notes →\u003c/a>\u003c/p>","button":"Nice","cls":"mpop-upd"})</script>
+<script type="text/x-mfl">
+document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const p=b.parentElement,o=p.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!o)p.classList.add('open');}));
+document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
+const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
+// The header balance loads after the page so every page stays fast.
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/mfl/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+// Start loading a page as soon as a finger or mouse lands on its link.
+if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
+</script>
+</body></html>
