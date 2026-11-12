@@ -619,6 +619,16 @@ const UPDATES = [
       'Same in 3D Blitz (TD celebration and cutscene) and on his player page.',
     ],
   },
+  {
+    n: 58,
+    date: '2026-11-12',
+    title: 'No more "afros" in 3D Blitz',
+    items: [
+      'Fixed the glitch that put a dark, speckled, puffy cloud around players\' heads (it looked like everyone had an afro), mostly in the close-up shots after touchdowns, at the start of drives and in replays.',
+      'A few broken pixels on the scanned heads were getting smeared into a black cloud by the camera blur in those shots. The blur now skips them, and the heads no longer make them.',
+      'Everyone\'s real hair shows again: blond is blond, short is short. Fixed at Wildcat Blacktop, The Stadium and Hancock.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

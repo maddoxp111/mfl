@@ -667,6 +667,7 @@ html.bz-lock,html.bz-lock body{overflow:hidden!important;overscroll-behavior:non
 uniform samplerCube uEnv;uniform vec3 uFog;uniform vec3 uFogR;uniform sampler2D uShadow;uniform mat4 uLVP0;uniform mat4 uLVP1;uniform mat4 uLVP2;uniform vec4 uShadowP;uniform vec3 uSplit;uniform float uTime;
 varying vec3 vW;varying vec3 vN;varying float vVD;
 float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(0.06711056,0.00583715))));}
+vec3 finC(vec3 c){return (c.r+c.g+c.b<65000.0&&c.r>=0.0&&c.g>=0.0&&c.b>=0.0)?c:vec3(0.0);} // NaN/Inf/negative -> black (NaN fails every compare)
 float unpackD(vec4 c){return dot(c,vec4(1.0,1.0/255.0,1.0/65025.0,1.0/16581375.0));}
 float shD(vec2 uv){
 #ifdef SHADOW_PACKED
@@ -705,7 +706,7 @@ float shadowAt(vec3 N,float NL){
 }
 float D_GGX(float NH,float a){float a2=a*a;float d=NH*NH*(a2-1.0)+1.0;return a2/(3.14159*d*d+1e-6);}
 float V_Smith(float NV,float NL,float a){float a2=a*a;float gv=NL*sqrt(NV*NV*(1.0-a2)+a2);float gl=NV*sqrt(NL*NL*(1.0-a2)+a2);return 0.5/(gv+gl+1e-5);}
-vec3 F_Schlick(vec3 F0,float VH){float f=pow(1.0-VH,5.0);return F0+(1.0-F0)*f;}
+vec3 F_Schlick(vec3 F0,float VH){float f=pow(max(1.0-VH,0.0),5.0);return F0+(1.0-F0)*f;}
 vec3 envBRDF(vec3 F0,float rough,float NV){vec4 r=rough*vec4(-1.0,-0.0275,-0.572,0.022)+vec4(1.0,0.0425,1.04,-0.04);float a004=min(r.x*r.x,exp2(-9.28*NV))*r.x+r.y;vec2 AB=vec2(-1.04,1.04)*a004+r.zw;return F0*AB.x+AB.y;}
 vec3 toLin(vec3 c){return c*(c*(c*0.305306011+0.682171111)+0.012522878);}
 // direct + ambient shading. mode: 0 dielectric/metal, 1 skin (wrap + subsurface), 2 clearcoat (helmet)
@@ -722,7 +723,7 @@ vec3 shadePBR(vec3 albedo,vec3 N,float rough,float metal,float ao,float cav,int 
    vec3 kd=diff*(1.0-F)/3.14159*NL;
    if(mode==1){float w=0.45;float wrap=clamp((NLr+w)/(1.0+w),0.0,1.0);float band=smoothstep(0.0,0.45,wrap)*(1.0-smoothstep(0.45,1.0,wrap));kd=diff*(wrap*0.85+0.15*NL)/3.14159+vec3(0.45,0.07,0.02)*band*0.11*diff.r;}
    col+=uSunCol*(kd*mix(0.08,1.0,sh)+D*Vs*F*NL*sh*(mode==1?0.5:1.0));
-   if(mode==2){float Dc=D_GGX(NH,0.02);col+=uSunCol*Dc*0.25*pow(1.0-VH,2.0)*NL*sh;}}
+   if(mode==2){float Dc=D_GGX(NH,0.02);col+=uSunCol*Dc*0.25*pow(max(1.0-VH,0.0),2.0)*NL*sh;}}
   // fills: stadium towers (point lights with a soft downward cone)
   for(int i=0;i<4;i++){vec3 Lv=uLP[i].xyz-vW;float dist=length(Lv);vec3 L=Lv/max(dist,0.1);
    float att=uLP[i].w/(dist*dist+40.0);float cone=0.35+0.65*clamp(L.y*1.6,0.0,1.0);
@@ -737,7 +738,7 @@ vec3 shadePBR(vec3 albedo,vec3 N,float rough,float metal,float ao,float cav,int 
   vec3 env=textureCube(uEnv,R,lod).rgb*uEnvK;
   vec3 kS=envBRDF(F0,rough,NV);
   col+=env*kS*ao*specOcc*(mode==2?1.35:1.0);
-  if(mode==2){vec3 envC=textureCube(uEnv,R,0.5).rgb*uEnvK;float fr=pow(1.0-NV,4.0);col+=envC*(0.04+0.6*fr)*0.6*ao*specOcc;}
+  if(mode==2){vec3 envC=textureCube(uEnv,R,0.5).rgb*uEnvK;float fr=pow(max(1.0-NV,0.0),4.0);col+=envC*(0.04+0.6*fr)*0.6*ao*specOcc;}
   return col;
 }
 vec3 fogIt(vec3 c){float d=distance(vW,uEye);float f=clamp((d-uFogR.x)/(uFogR.y-uFogR.x),0.0,1.0);f=f*f*uFogR.z;return mix(c,uFog,f);}
@@ -790,7 +791,7 @@ if(uHead>0.5&&aB.x>3.5&&aB.x<4.5&&aW>0.999&&aP.y>0.8&&s!=25)lp=vec3(0.0); // bon
 if(s==20){float k=clamp(-aP.y*4.0,0.0,1.0);lp.z+=uSway*k*k;lp.x+=uSway*0.35*k;}
 lp+=aN*uFxV.x;
 vec4 p=vec4(lp,1.0);float w0=aW,w1=1.0-aW;
-vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 n=normalize(skinN(b0,aN)*w0+skinN(b1,aN)*w1);
+vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 nn=skinN(b0,aN)*w0+skinN(b1,aN)*w1;vec3 n=dot(nn,nn)>1e-12?normalize(nn):vec3(0.0,1.0,0.0);
 bool num=(s==8||s==16);
 vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
 vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
@@ -800,7 +801,7 @@ varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
 void main(){int s=int(vS+0.5);vec3 base;float rough=0.6,metal=0.0,alpha=1.0;int mode=0;float specOcc=1.0;float ao=vA;
-vec3 N=normalize(vN);vec3 c=uCol[s];
+vec3 N=dot(vN,vN)>1e-12?normalize(vN):normalize(uEye-vW);vec3 c=uCol[s];
 bool kit=(s==0||s==1||s==3||s==12||s==13||s==21);bool numS=(s==8||s==16);
 vec4 t=vec4(1.0);
 if(kit){t=texture2D(uKit,vT);base=toLin(t.rgb);}
@@ -837,7 +838,7 @@ if(s==20){rough=0.9;}
 if(uWet>0.0&&(s==3||s==0||s==1||s==2||s==5||s==9)){rough=mix(rough,0.18,uWet*0.5);}
 // card effects (uFx: mode, strength, time, seed; uFxC: colour)
 vec3 emis=vec3(0.0);float fm=uFx.x,fk=uFx.y,ft=uFx.z;
-if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23||s==25);
+if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(max(1.0-abs(dot(N,V)),0.0),2.0);float lum=dot(base,vec3(0.3,0.59,0.11));bool skinS=(s==2||s==9||s==10||s==18||s==23||s==25);
  if(fm>19.5){float rim=pow(fres,1.5);gl_FragColor=vec4(uFxC*fk*(0.1+rim*1.8),clamp(rim*1.3,0.0,1.0)*min(fk,1.0));return;}
  else if(fm<1.5){base=mix(base,vec3(0.2,0.14,0.08)+lum*vec3(1.15,0.92,0.62),0.85*fk);}
  else if(fm<2.5){base=mix(base,vec3(0.62,0.45,0.26)*(0.6+0.6*lum),0.85*fk);rough=1.0;specOcc=0.2;
@@ -863,7 +864,7 @@ if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(1.0-abs(dot(N,V)),2.0);float
  else if(fm<18.5){if(!skinS){base=mix(base,vec3(0.72,0.88,1.0),0.45*fk);rough=0.12;metal=0.25;specOcc=1.8;}}
  else{float sp=step(0.985,hash(floor(vT*120.0)+floor(ft*6.0)));emis+=uFxC*sp*2.0*fk;}
 }
-vec3 col=shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis;
+vec3 col=finC(shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis); // a NaN here (degenerate scan normals) would smear black through the blur
 gl_FragColor=vec4(fogIt(col),alpha);}`;
   // ---- depth-only passes (shadow cascades) ----
   const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
@@ -944,7 +945,8 @@ occ=1.0-occ/12.0;gl_FragColor=vec4(vec3(occ),1.0);}`;
   const FS_BLUR4 = `uniform sampler2D uTex;uniform vec2 uPx;varying vec2 vUV;
 void main(){float s=0.0;for(int i=-2;i<2;i++)for(int j=-2;j<2;j++)s+=texture2D(uTex,vUV+vec2(float(i)+0.5,float(j)+0.5)*uPx).r;gl_FragColor=vec4(vec3(s/16.0),1.0);}`;
   const FS_EXTRACT = `uniform sampler2D uTex;uniform vec2 uPx;uniform float uThr;varying vec2 vUV;
-void main(){vec3 c=(texture2D(uTex,vUV).rgb+texture2D(uTex,vUV+vec2(uPx.x,0.0)).rgb+texture2D(uTex,vUV+vec2(0.0,uPx.y)).rgb+texture2D(uTex,vUV+uPx).rgb)*0.25;
+vec3 fin4(vec3 c){return (c.r+c.g+c.b<65000.0&&c.r>=0.0&&c.g>=0.0&&c.b>=0.0)?c:vec3(0.0);}
+void main(){vec3 c=(fin4(texture2D(uTex,vUV).rgb)+fin4(texture2D(uTex,vUV+vec2(uPx.x,0.0)).rgb)+fin4(texture2D(uTex,vUV+vec2(0.0,uPx.y)).rgb)+fin4(texture2D(uTex,vUV+uPx).rgb))*0.25;
 float l=max(c.r,max(c.g,c.b));float k=max(l-uThr,0.0)/(l+1e-4);gl_FragColor=vec4(c*k*0.25,1.0);}`;
   const FS_BLUR = `uniform sampler2D uTex;uniform vec2 uDir;varying vec2 vUV;
 void main(){vec3 c=texture2D(uTex,vUV).rgb*0.227;c+=(texture2D(uTex,vUV+uDir*1.385).rgb+texture2D(uTex,vUV-uDir*1.385).rgb)*0.316;c+=(texture2D(uTex,vUV+uDir*3.23).rgb+texture2D(uTex,vUV-uDir*3.23).rgb)*0.07;gl_FragColor=vec4(c,1.0);}`;
@@ -958,9 +960,9 @@ vec4 pp=uPrevVP*wp;vec2 puv=pp.xy/pp.w*0.5+0.5;vec2 vel=(vUV-puv)*uMB;float vl=l
 float coc=clamp((abs(d-uDof.x)-0.14*uDof.x)/max(uDof.x,1.0)*uDof.y,0.0,1.0)*step(0.01,uDof.y);
 vec2 r=coc*uPx*10.0;float a=ign(gl_FragCoord.xy)*6.2832;vec2 R=vec2(cos(a),sin(a));
 vec3 c=vec3(0.0);float n=0.0;
-#define T(o) {vec2 q=vec2(o.x*R.x-o.y*R.y,o.x*R.y+o.y*R.x);c+=texture2D(uTex,vUV+q*r).rgb;n+=1.0;}
+#define T(o) {vec2 q=vec2(o.x*R.x-o.y*R.y,o.x*R.y+o.y*R.x);vec3 sv=texture2D(uTex,vUV+q*r).rgb;if(sv.r+sv.g+sv.b<65000.0&&sv.r>=0.0&&sv.g>=0.0&&sv.b>=0.0){c+=sv;n+=1.0;}}
 T(vec2(0.0,0.0))T(vec2(-0.613,0.617))T(vec2(0.170,-0.040))T(vec2(-0.299,-0.791))T(vec2(0.645,0.493))T(vec2(-0.651,-0.195))T(vec2(0.421,-0.712))T(vec2(-0.102,0.962))T(vec2(0.946,-0.152))T(vec2(0.3,0.3))T(vec2(-0.3,-0.3))T(vec2(0.0,-0.6))
-c/=n;
+c/=max(n,1.0);
 if(uMB>0.0){vec3 m=vec3(0.0);for(int i=0;i<6;i++){float t=(float(i)+0.5)/6.0-0.5;m+=texture2D(uTex,vUV+vel*t).rgb;}c=mix(c,m/6.0,0.75*min(1.0,vl*60.0));}
 gl_FragColor=vec4(c,1.0);}`;
   const FS_FINAL = `uniform sampler2D uTex;uniform sampler2D uBloom;uniform sampler2D uAO;uniform sampler2D uDepth;uniform vec2 uPx;uniform float uBloomK;uniform float uFxaa;uniform float uVig;uniform float uKick;uniform float uExp;uniform float uAOk;uniform vec4 uFl[4];uniform float uFlK;uniform float uTime;uniform float uLDR;uniform float uAsp;varying vec2 vUV;
