@@ -444,7 +444,7 @@ function layout(req, title, body, opts = {}) {
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=83">
+<link rel="stylesheet" href="/static/style.css?v=84">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -657,12 +657,23 @@ app.get('/games/:id', (req, res) => {
   const evs = g.events || [];
   const lbl = gameLabel(db, g);
 
-  const plays = `<div class="card"><div class="card-h"><h2>Plays</h2><span class="muted sm">Not in game order</span></div>${evs.length ? `<ol class="plays">${evs.map((e) => {
+  // the AI's coin review of the notes (playerpay.js pays from it): the rating of each notable catch/play, the bonuses it gave
+  const AP = g.aiPay, apk = (n) => Math.round(n).toLocaleString('en-US');
+  const apLine = (i, e) => {
+    if (!AP) return '';
+    const out = [];
+    if ((e.type === 'CATCH' || e.type === 'PLAY') && AP.plays && AP.plays[i] != null) out.push(`Rated ${apk(AP.plays[i])} coins${AP.why && AP.why[i] ? ': ' + esc(AP.why[i]) : ''}`);
+    for (const x of AP.bonus || []) if (x.i === i) out.push(`Bonus +${apk(x.coins)} to ${esc(x.player)}${x.why ? ': ' + esc(x.why) : ''}`);
+    return out.length ? `<small class="ap-note">🪙 ${out.join(' · ')}</small>` : '';
+  };
+  const apLoose = AP ? (AP.bonus || []).filter((x) => x.i == null || !evs[x.i]) : [];
+  const apFoot = isFinal(g) && evs.length ? `<p class="muted sm ap-foot">${AP ? `🪙 Coins from the play notes reviewed${AP.at ? ' ' + esc(longDate(AP.at.slice(0, 10))) : ''}.${apLoose.length ? ' Also: ' + apLoose.map((x) => `+${apk(x.coins)} to ${esc(x.player)}${x.why ? ' (' + esc(x.why) + ')' : ''}`).join(', ') + '.' : ''}` : '🪙 The play notes have not been reviewed for coins yet.'}</p>` : '';
+  const plays = `<div class="card"><div class="card-h"><h2>Plays</h2><span class="muted sm">Not in game order</span></div>${evs.length ? `<ol class="plays">${evs.map((e, i) => {
     const tm = db.teams[e.team] || a;
     const [cls, label] = playTag(e);
     return `<li style="--c:${esc(tm.color)}">${logo(tm, 32)}<div><span class="tag ${cls}">${label}</span>
-      <p>${playLine(db, g, e)}</p></div></li>`;
-  }).join('')}</ol>` : boxStatus(g) === 'unknown' ? '' : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}${boxNote(g) ? `<p class="box-warn ${boxStatus(g)}">${icon('clock')} ${esc(boxNote(g))}</p>` : ''}</div>`;
+      <p>${playLine(db, g, e)}</p>${apLine(i, e)}</div></li>`;
+  }).join('')}</ol>${apFoot}` : boxStatus(g) === 'unknown' ? '' : `<p class="muted">${isFinal(g) ? 'No plays were recorded for this game.' : 'Plays will show up here after the game.'}</p>`}${boxNote(g) ? `<p class="box-warn ${boxStatus(g)}">${icon('clock')} ${esc(boxNote(g))}</p>` : ''}</div>`;
 
   const box = (tm) => {
     const rows = {};

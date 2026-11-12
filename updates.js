@@ -538,6 +538,15 @@ const UPDATES = [
       'Everything is backfilled: every game already played pays at the new amounts and gets its AI review, so balances go up for every linked player.',
     ],
   },
+  {
+    n: 50,
+    date: '2026-11-12',
+    title: 'See why the AI paid coins',
+    items: [
+      'Every game page now shows the AI\'s coin review right in the plays list: what each notable catch or play was rated, and every bonus with who got it and why.',
+      'Under the plays it also says when that game\'s notes were reviewed, or that they haven\'t been reviewed yet.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

@@ -2847,3 +2847,5 @@ body.arc-playing .ticker{display:none}
 .ir-b{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:4px;background:#d93636;color:#fff;font-size:10px;font-weight:800;letter-spacing:.04em;vertical-align:2px}
 /* a 3D Blitz run game left in progress: continue it (arcade.js resumable) */
 .run-wait.run-cont{border-color:rgba(255,194,26,.6);background:rgba(255,194,26,.1)}
+.ap-note{display:block;margin-top:3px;font-size:12px;color:#c9a227}
+.ap-foot{margin:10px 2px 0}
