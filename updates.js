@@ -547,6 +547,16 @@ const UPDATES = [
       'Under the plays it also says when that game\'s notes were reviewed, or that they haven\'t been reviewed yet.',
     ],
   },
+  {
+    n: 51,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance, motion-captured',
+    items: [
+      'Xavier\'s dance is rebuilt from his own video: his body was tracked in every frame and the game\'s player copies it move for move.',
+      'You get the bounce, one knee popping in at a time, the hips rolling, and his hands swinging low across the front of his body.',
+      'His ankles stay together the whole time, and it plays at his real speed.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
