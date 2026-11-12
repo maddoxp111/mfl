@@ -1248,32 +1248,66 @@ gl_FragColor=vec4(c,1.0);}`;
       [1, POSE_IDLE],
     ]);
   }
-  // Xavier's dance, motion-captured from his video: his body tracked in all 41 frames (30 per second, one 1.37 s loop), the camera
-  // tilt taken out, the game's skeleton fitted to every frame (limb directions plus hand, elbow, knee and ankle positions, ankles held
-  // together). Each joint's motion is then kept as two smooth waves over the loop (its sway plus the switch back), which keeps the
-  // moves and drops the frame-to-frame jitter (it used to stutter as a hand crossed over). XAV_W: per joint [mean, [cos1, sin1], [cos2, sin2]].
-  const XAV_P = ["rp", "rr", "ry", "spx", "spy", "spz", "nkx", "nky", "shLx", "shLy", "shLz", "elL", "shRx", "shRy", "shRz", "elR", "hipLx", "hipLy", "hipLz", "knL", "hipRx", "hipRy", "hipRz", "knR", "ftL", "ftR"], XAV_T = 41 / 30;
-  const XAV_W = [[[-0.081,0],[-0.085,-0.024],[0.067,-0.079]],[[0.108,0],[-0.066,0.023],[0.039,-0.048]],[[-0.352,0],[-0.041,0.013],[0.036,-0.066]],[[0.164,0],[0.027,0.128],[-0.071,0.019]],[[0.494,0],[0.156,-0.036],[-0.145,0.167]],[[-0.059,0],[0.116,-0.09],[-0.097,0.113]],[[0.94,0],[0.085,-0.096],[-0.015,0.085]],[[0,0],[0,0],[0,0]],[[0.655,0],[-0.841,0.218],[0.458,-0.161]],[[-0.333,0],[0.761,0.088],[-0.374,-0.223]],[[-0.497,0],[1.03,-0.146],[-0.725,0.357]],[[-0.159,0],[0.474,-0.116],[-0.242,0.047]],[[0.05,0],[-0.48,0.006],[0.127,-0.577]],[[-0.912,0],[-0.128,0.05],[0.072,-0.09]],[[0.341,0],[0.581,0.026],[-0.165,0.654]],[[0.625,0],[0.234,-0.062],[-0.14,0.228]],[[0.265,0],[-0.082,-0.042],[0.081,-0.076]],[[0.22,0],[-0.197,0.058],[0.248,-0.35]],[[0.055,0],[0.028,0.005],[0.058,-0.027]],[[-0.724,0],[0.112,0.025],[-0.018,0.031]],[[0.306,0],[0.024,-0.082],[-0.109,0.189]],[[0.011,0],[-0.105,0.044],[0.18,-0.233]],[[-0.293,0],[0.071,0.01],[0.035,-0.006]],[[-0.793,0],[-0.083,0.091],[0.234,-0.338]],[[0.878,0],[0.044,0.034],[-0.11,0.235]],[[0.329,0],[-0.011,0.116],[0.014,0.069]]];
-  const xavBuild = (v, adL, adR, rL, rR) => gfit(pb({ spine: [v.spx, v.spy, v.spz], neck: [v.nkx, v.nky, 0], shL: [v.shLx, v.shLy, v.shLz], elL: [v.elL], shR: [v.shRx, v.shRy, v.shRz], elR: [v.elR],
-    hipL: [v.hipLx, v.hipLy + rL, v.hipLz + adL], knL: [v.knL], hipR: [v.hipRx, v.hipRy - rR, v.hipRz - adR], knR: [v.knR], ftL: [v.ftL], ftR: [v.ftR], haL: [0.3], haR: [0.3] }, 0, v.rp, v.rr, v.ry));
-  const xavCache = { t: -1, q: null };
-  function xavPose(t) {
-    if (t === xavCache.t && xavCache.q) return lerpPose(xavCache.q, xavCache.q, 0);
-    const ph = 2 * Math.PI * (t / XAV_T), v = {};
-    XAV_P.forEach((k, j) => { const c = XAV_W[j]; let y = c[0][0]; for (let h = 1; h < c.length; h++) y += c[h][0] * Math.cos(h * ph) + c[h][1] * Math.sin(h * ph); v[k] = y; });
-    v.ry -= -0.349; v.spy -= 0.349; v.rr -= 0.105; // he faces forward: the 20-degree turn of his whole body in the clip was the camera's angle (the twist stays)
-    { const d = 0.28; v.hipLx += d; v.hipRx += d; v.knL -= 2 * d; v.knR -= 2 * d; v.ftL += d; v.ftR += d; }
-    v.nkx = -0.12 + (v.nkx - 0.94) * 0.4; v.nky *= 0.5; // head up, eyes forward (the fit aimed his neck at his nose, tipping the head down 54 degrees), a little nod kept // bent down low (a deep knee bend, feet flat under him, chest a little forward)
-    // his legs like in the video: ankles together (10-12 cm) and his shins about straight down to them, knees just apart (13 cm), never
-    // knock-kneed: per frame, each hip is drawn in (adduction) and turned (rotation) until both gaps are right
-    const gaps = (q) => { const b = fk(q, 0, 0, 0, 0, 1), L = b[B.ftL], R = b[B.ftR], KL = b[B.knL], KR = b[B.knR]; return [Math.hypot(L[3] - R[3], L[11] - R[11]), Math.hypot(KL[3] - KR[3], KL[11] - KR[11])]; };
-    const err = (g) => (g[0] - 0.11) ** 2 + 0.6 * (g[1] - 0.14) ** 2;
-    let a = 0.035, r = 0, q = xavBuild(v, a, a, r, r), g = gaps(q), e = err(g);
-    for (let it = 0, st = 0.06; it < 8 && e > 1e-5; it++, st *= 0.7) {
-      for (const [da, dr] of [[st, 0], [-st, 0], [0, st], [0, -st]]) { const a2 = clamp(a + da, -0.3, 0.4), r2 = clamp(r + dr, -0.6, 0.6), q2 = xavBuild(v, a2, a2, r2, r2), g2 = gaps(q2), e2 = err(g2); if (e2 < e) { a = a2; r = r2; q = q2; g = g2; e = e2; } }
+  // Xavier's dance (from his video): feet planted together, knees bent and swinging side to side together, both hands swinging
+  // across the other way and switching each beat (one hand crosses low in front, the other swings out by the hip), chest up, head
+  // level. Built from targets: for each moment the ankles, knees and hands are placed where they are in the video and the joint
+  // angles are solved to reach them (legs: hip 3 axes + knee; arms: shoulder + elbow; feet kept flat and pointing forward). Half a
+  // loop is solved once (24 steps) and the other half is its mirror, so the loop is smooth and exactly symmetric.
+  const XAV_T = 0.8, XAV_N = 24;
+  let xavTab = null;
+  function xavSolve(q, vars, resid, it) { // damped least squares with a numeric Jacobian; vars: [[poseIndex, min, max]], resid(q) -> array
+    const n = vars.length;
+    for (let k = 0; k < (it || 12); k++) {
+      const r0 = resid(q), m = r0.length, J = [];
+      for (let j = 0; j < n; j++) { const [ix] = vars[j], o = q[ix]; q[ix] = o + 1e-4; const r1 = resid(q); q[ix] = o; J.push(r1.map((v, i) => (v - r0[i]) / 1e-4)); }
+      const A = [], g = [];
+      for (let a = 0; a < n; a++) { A.push([]); g.push(0); for (let i = 0; i < m; i++) g[a] += J[a][i] * r0[i]; for (let b = 0; b < n; b++) { let s = a === b ? 1e-3 : 0; for (let i = 0; i < m; i++) s += J[a][i] * J[b][i]; A[a].push(s); } }
+      for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[c], A[p]] = [A[p], A[c]]; [g[c], g[p]] = [g[p], g[c]];
+        for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let b = c; b < n; b++) A[r][b] -= f * A[c][b]; g[r] -= f * g[c]; } }
+      const d = new Array(n).fill(0); for (let c = n - 1; c >= 0; c--) { let s = g[c]; for (let b = c + 1; b < n; b++) s -= A[c][b] * d[b]; d[c] = s / A[c][c]; }
+      let mx = 0; for (let j = 0; j < n; j++) { const st = clamp(d[j], -0.3, 0.3); const v = vars[j]; q[v[0]] = clamp(q[v[0]] - st, v[1] ?? -9, v[2] ?? 9); mx = Math.max(mx, Math.abs(st)); }
+      if (mx < 1e-4) break;
     }
-    xavCache.t = t; xavCache.q = q;
-    return lerpPose(q, q, 0);
+  }
+  function xavKey(u, q) { // u in [0, 0.5): s = +1 knees to his left (-x), hands to his right (+x)
+    const x = 2 * Math.PI * u, s = (9 * Math.sin(x) - Math.sin(3 * x)) / 8, bob = 0.5 - 0.5 * Math.cos(2 * x);
+    q = q || pb({ hipL: [0.9, 0, 0], knL: [-1.5], hipR: [0.9, 0, 0], knR: [-1.5], shL: [0.4, 0, -0.2], elL: [0.8], shR: [0.4, 0, 0.2], elR: [0.8] });
+    // body: low, chest up and a little forward, a small roll and twist with the swing; head level
+    q[PN] = -0.3 - 0.025 * bob; q[PN + 1] = 0.16; q[PN + 2] = 0.05 * s; q[PN + 3] = 0;
+    const set = (k, a) => { const i = B[k] * 3; for (let j = 0; j < 3; j++) q[i + j] = (LIMB_FLIP[B[k]] && j === 0 ? -1 : 1) * (a[j] || 0); };
+    set('spine', [0.08, 0.16 * s, -0.04 * s]); set('chest', [0, 0.08 * s, 0]); set('neck', [-0.24, -0.24 * s, -0.01 * s]); set('head', [0, 0, 0]);
+    set('haL', [0.25, 0, 0]); set('haR', [0.25, 0, 0]);
+    const hy = HIP_H - 0.03 + q[PN], kx = -0.15 * s; // knees swing together, 15 cm each way
+    // legs: ankles 11 cm apart under the hips, a touch forward; knee tips out over the toes and swung sideways
+    for (const [h, k, f, sd] of [['hipL', 'knL', 'ftL', -1], ['hipR', 'knR', 'ftR', 1]]) {
+      const ia = B[h] * 3, ik = B[k] * 3, iF = B[f] * 3, A = [sd * 0.055, 0.075, 0.03], K = [sd * 0.075 + kx, hy - 0.42, 0.36];
+      xavSolve(q, [[ia], [ia + 1], [ia + 2], [ik]], (p) => { const b = fk(p, 0, 0, 0, 0, 1), a = b[B[f]], kn = b[B[k]];
+        return [(a[3] - A[0]) * 4, (a[7] - A[1]) * 4, (a[11] - A[2]) * 4, (kn[3] - K[0]) * 1.5, (kn[11] - K[2]) * 0.6]; }, 14);
+      xavSolve(q, [[iF], [iF + 1], [iF + 2]], (p) => { const m = fk(p, 0, 0, 0, 0, 1)[B[f]]; return [m[1], m[9], m[6], m[2] - sd * 0.06]; }, 8);
+    }
+    // arms: the hands swing to his right when the knees go left (and back); the hand on the far side crosses low in front of the
+    // hips, the near one swings out by the hip with the elbow bent back
+    const b0 = fk(q, 0, 0, 0, 0, 1), hip = b0[B.hips], ctr = [hip[3], hip[7], hip[11]];
+    const ease = (v) => v * Math.abs(v) * 0.35 + v * 0.65;
+    const e = ease(s);
+    const tgt = (sd) => { const lead = sd * e < 0; // lead = this hand crosses over (it is on the side away from the swing)
+      // a: a smooth |e| (no kink as the hands pass the middle)
+      const a = (Math.sqrt(e * e + 0.04) - 0.2) / 0.8198, xIn = sd * 0.2, xCross = sd * 0.02, xOut = sd * 0.42;
+      const x = lead ? xIn + (xCross - xIn) * a : xIn + (xOut - xIn) * a;
+      const y = lead ? -0.04 + 0.1 * a : -0.04 + 0.08 * a, z = lead ? 0.2 + 0.1 * a : 0.2 - 0.18 * a;
+      return [ctr[0] + x, ctr[1] + y, ctr[2] + z]; };
+    for (const [sh, el, ha, sd] of [['shL', 'elL', 'haL', -1], ['shR', 'elR', 'haR', 1]]) {
+      const is = B[sh] * 3, ie = B[el] * 3, T = tgt(sd);
+      xavSolve(q, [[is], [is + 1], [is + 2], [ie, -2.2, -0.22]], (p) => { const b = fk(p, 0, 0, 0, 0, 1), h = b[B[ha]], E = b[B[el]];
+        return [(h[3] - T[0]) * 3, (h[7] - T[1]) * 3, (h[11] - T[2]) * 3, (E[3] - (b[B[sh]][3] + sd * 0.12)) * 0.15, p[is + 1] * 0.25, p[is] * 0.03, (p[is + 2] + sd * 0.1) * 0.04]; }, 20); // the last three keep the arm untwisted
+    }
+    return q;
+  }
+  function xavPose(t) {
+    if (!xavTab) { xavTab = []; let q = null; for (let i = 0; i < XAV_N; i++) { q = xavKey(i / (2 * XAV_N), q ? lerpPose(q, q, 0) : null); xavTab.push(lerpPose(q, q, 0)); }
+      for (let i = 0; i < XAV_N; i++) xavTab.push(mirrorPose(xavTab[i])); }
+    const N = 2 * XAV_N, f = (((t / XAV_T) % 1) + 1) % 1 * N, i = Math.floor(f) % N, j = (i + 1) % N;
+    return gfit(lerpPose(xavTab[i], xavTab[j], f - Math.floor(f)));
   }
 
   function clipCeleb(k, t) {
@@ -1284,7 +1318,7 @@ gl_FragColor=vec4(c,1.0);}`;
       [1, gfit(pb({ shR: [0.6, 0, 1.4], elR: [0.4], shL: [0.6, 0, -1.4], elL: [0.4], spine: [-0.1, 0, 0], neck: [-0.35, 0, 0], hipL: [0.15, 0, -0.25], hipR: [0.15, 0, 0.25], knL: [-0.3], knR: [-0.3] }, -0.05, -0.05, 0))],
     ]);
     if (k === 2) return gfit(pb({ shR: [0.3, 0, 2.95], elR: [0.1], shL: [0.9, 0, -0.5], elL: [1.9], spine: [-0.2, 0, 0.1], neck: [-0.7, 0, 0], head: [-0.3, 0, 0], hipL: [0.1, 0, -0.2], hipR: [0.1, 0, 0.2], knL: [-0.25], knR: [-0.25] }, 0, -0.1, 0.05));
-    if (k === 6) return xavPose(t); // Xavier's dance: motion-captured from his own video (XAV_MC below)
+    if (k === 6) return xavPose(t); // Xavier's dance (xavPose above)
     if (k === 4) { const s = Math.sin(t * 7.5), c = Math.cos(t * 7.5); return gfit(pb({ shR: [1.3 + 0.9 * s, 0, 0.9], elR: [1.3 + 0.6 * c], shL: [1.3 - 0.9 * s, 0, -0.9], elL: [1.3 - 0.6 * c], spine: [0.08, 0, 0.22 * s], neck: [-0.25, 0, -0.2 * s], hipL: [0.35 + 0.3 * s, 0, -0.2], hipR: [0.35 - 0.3 * s, 0, 0.2], knL: [-0.6 - 0.4 * s], knR: [-0.6 + 0.4 * s] }, 0, 0.05, 0.12 * s), 0.07 * Math.abs(c)); } // the dance
     if (k === 3) return gfit(pb({ shR: [0.4, 0, 1.7 + 0.1 * w], elR: [2.4], shL: [0.4, 0, -1.7 - 0.1 * w], elL: [2.4], spine: [0.2, 0, 0], neck: [-0.2, 0, 0], hipL: [0.5, 0, -0.3], hipR: [0.5, 0, 0.3], knL: [-0.7], knR: [-0.7] }, 0, 0.1, 0));
     return gfit(pb({ shR: [2.7 + 0.25 * w, 0, 0.5], elR: [0.35], shL: [2.7 - 0.25 * w, 0, -0.5], elL: [0.35], spine: [-0.1, 0, 0], neck: [-0.4, 0, 0], hipL: [0.3 - 0.2 * hop, 0, -0.15], hipR: [0.3 - 0.2 * hop, 0, 0.15], knL: [-0.5 + 0.3 * hop], knR: [-0.5 + 0.3 * hop] }, 0, -0.05, 0), 0.14 * hop);
@@ -2191,7 +2225,7 @@ gl_FragColor=vec4(c,1.0);}`;
   const EM_BOWR = emP({ hipL: [0.05, 0, -0.24], hipR: [0.05, 0, 0.24], knL: [-0.15], knR: [-0.1], spine: [-0.06, 0, 0.06], neck: [-0.28, -0.9, 0], shL: [1.12, 0.74, -1.65], elL: [0.14], haL: [0], shR: [3.01, -0.14, 0.85], elR: [1.23], haR: [-0.4] }, 0, -0.05, 0, 0.35);
 
   const EMOTES = {
-    // Xavier Davenport's dance, motion-captured from his own video (05-anim.js xavPose)
+    // Xavier Davenport's dance (05-anim.js xavPose)
     xavdance: { name: 'Signature Dance', T: XAV_T, pose: (t) => xavPose(t), still: 0.35 },
     backflip: { name: 'Backflip', T: BF_T, pose: emBackflip, still: 1.18 },
     jumpspin: { name: '360 Jump Spin', T: JS_T, pose: emJumpSpin, still: 1.02 },

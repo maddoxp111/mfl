@@ -597,6 +597,17 @@ const UPDATES = [
       'Same fix in 3D Blitz (his TD dance and the cutscene) and on his player page.',
     ],
   },
+  {
+    n: 56,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: rebuilt from scratch',
+    items: [
+      'The old dance had his legs twisting and crossing. It is now built clean, move by move, to match his video.',
+      'His feet stay planted together, his knees are bent and swing side to side together, and his hands swing across the other way, switching every beat.',
+      'Smooth and even on both sides, with his chest up and his head level.',
+      'Same dance in 3D Blitz (his TD celebration and the "what is he doing?" cutscene) and on his player page.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
