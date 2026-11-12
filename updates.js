@@ -587,6 +587,16 @@ const UPDATES = [
       'The 3D only loads once the page is ready, so player pages stay fast. On a device without 3D you see the regular banner.',
     ],
   },
+  {
+    n: 55,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: fixed',
+    items: [
+      'Xavier now keeps his head up and looks forward while he dances, instead of staring at the ground. You could see it once the helmet came off on his player page.',
+      'Less forward lean, and his legs stay natural: ankles together, knees just apart, no more knock-knees.',
+      'Same fix in 3D Blitz (his TD dance and the cutscene) and on his player page.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

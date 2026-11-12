@@ -1254,21 +1254,23 @@ gl_FragColor=vec4(c,1.0);}`;
   // moves and drops the frame-to-frame jitter (it used to stutter as a hand crossed over). XAV_W: per joint [mean, [cos1, sin1], [cos2, sin2]].
   const XAV_P = ["rp", "rr", "ry", "spx", "spy", "spz", "nkx", "nky", "shLx", "shLy", "shLz", "elL", "shRx", "shRy", "shRz", "elR", "hipLx", "hipLy", "hipLz", "knL", "hipRx", "hipRy", "hipRz", "knR", "ftL", "ftR"], XAV_T = 41 / 30;
   const XAV_W = [[[-0.081,0],[-0.085,-0.024],[0.067,-0.079]],[[0.108,0],[-0.066,0.023],[0.039,-0.048]],[[-0.352,0],[-0.041,0.013],[0.036,-0.066]],[[0.164,0],[0.027,0.128],[-0.071,0.019]],[[0.494,0],[0.156,-0.036],[-0.145,0.167]],[[-0.059,0],[0.116,-0.09],[-0.097,0.113]],[[0.94,0],[0.085,-0.096],[-0.015,0.085]],[[0,0],[0,0],[0,0]],[[0.655,0],[-0.841,0.218],[0.458,-0.161]],[[-0.333,0],[0.761,0.088],[-0.374,-0.223]],[[-0.497,0],[1.03,-0.146],[-0.725,0.357]],[[-0.159,0],[0.474,-0.116],[-0.242,0.047]],[[0.05,0],[-0.48,0.006],[0.127,-0.577]],[[-0.912,0],[-0.128,0.05],[0.072,-0.09]],[[0.341,0],[0.581,0.026],[-0.165,0.654]],[[0.625,0],[0.234,-0.062],[-0.14,0.228]],[[0.265,0],[-0.082,-0.042],[0.081,-0.076]],[[0.22,0],[-0.197,0.058],[0.248,-0.35]],[[0.055,0],[0.028,0.005],[0.058,-0.027]],[[-0.724,0],[0.112,0.025],[-0.018,0.031]],[[0.306,0],[0.024,-0.082],[-0.109,0.189]],[[0.011,0],[-0.105,0.044],[0.18,-0.233]],[[-0.293,0],[0.071,0.01],[0.035,-0.006]],[[-0.793,0],[-0.083,0.091],[0.234,-0.338]],[[0.878,0],[0.044,0.034],[-0.11,0.235]],[[0.329,0],[-0.011,0.116],[0.014,0.069]]];
-  const xavBuild = (v, adL, adR) => gfit(pb({ spine: [v.spx, v.spy, v.spz], neck: [v.nkx, v.nky, 0], shL: [v.shLx, v.shLy, v.shLz], elL: [v.elL], shR: [v.shRx, v.shRy, v.shRz], elR: [v.elR],
-    hipL: [v.hipLx, v.hipLy, v.hipLz + adL], knL: [v.knL], hipR: [v.hipRx, v.hipRy, v.hipRz - adR], knR: [v.knR], ftL: [v.ftL], ftR: [v.ftR], haL: [0.3], haR: [0.3] }, 0, v.rp, v.rr, v.ry));
+  const xavBuild = (v, adL, adR, rL, rR) => gfit(pb({ spine: [v.spx, v.spy, v.spz], neck: [v.nkx, v.nky, 0], shL: [v.shLx, v.shLy, v.shLz], elL: [v.elL], shR: [v.shRx, v.shRy, v.shRz], elR: [v.elR],
+    hipL: [v.hipLx, v.hipLy + rL, v.hipLz + adL], knL: [v.knL], hipR: [v.hipRx, v.hipRy - rR, v.hipRz - adR], knR: [v.knR], ftL: [v.ftL], ftR: [v.ftR], haL: [0.3], haR: [0.3] }, 0, v.rp, v.rr, v.ry));
   const xavCache = { t: -1, q: null };
   function xavPose(t) {
     if (t === xavCache.t && xavCache.q) return lerpPose(xavCache.q, xavCache.q, 0);
     const ph = 2 * Math.PI * (t / XAV_T), v = {};
     XAV_P.forEach((k, j) => { const c = XAV_W[j]; let y = c[0][0]; for (let h = 1; h < c.length; h++) y += c[h][0] * Math.cos(h * ph) + c[h][1] * Math.sin(h * ph); v[k] = y; });
     v.ry -= -0.349; v.spy -= 0.349; v.rr -= 0.105; // he faces forward: the 20-degree turn of his whole body in the clip was the camera's angle (the twist stays)
-    { const d = 0.28; v.hipLx += d; v.hipRx += d; v.knL -= 2 * d; v.knR -= 2 * d; v.ftL += d; v.ftR += d; v.spx += 0.12; } // bent down low (a deep knee bend, feet flat under him, chest a little forward)
-    // his ankles stay together on every frame: draw both legs in (or out) until the ankles are 9-12 cm apart, never crossing the knees
-    let adL = 0.035, adR = 0.035, q = xavBuild(v, adL, adR);
-    for (let it = 0; it < 4; it++) {
-      const b = fk(q, 0, 0, 0, 0, 1), L = b[B.ftL], R = b[B.ftR], gap = Math.hypot(L[3] - R[3], L[11] - R[11]);
-      if (gap >= 0.09 && gap <= 0.12) break;
-      const e = (gap - 0.105) * 0.55; adL = clamp(adL + e, -0.25, 0.35); adR = clamp(adR + e, -0.25, 0.35); q = xavBuild(v, adL, adR);
+    { const d = 0.28; v.hipLx += d; v.hipRx += d; v.knL -= 2 * d; v.knR -= 2 * d; v.ftL += d; v.ftR += d; }
+    v.nkx = -0.12 + (v.nkx - 0.94) * 0.4; v.nky *= 0.5; // head up, eyes forward (the fit aimed his neck at his nose, tipping the head down 54 degrees), a little nod kept // bent down low (a deep knee bend, feet flat under him, chest a little forward)
+    // his legs like in the video: ankles together (10-12 cm) and his shins about straight down to them, knees just apart (13 cm), never
+    // knock-kneed: per frame, each hip is drawn in (adduction) and turned (rotation) until both gaps are right
+    const gaps = (q) => { const b = fk(q, 0, 0, 0, 0, 1), L = b[B.ftL], R = b[B.ftR], KL = b[B.knL], KR = b[B.knR]; return [Math.hypot(L[3] - R[3], L[11] - R[11]), Math.hypot(KL[3] - KR[3], KL[11] - KR[11])]; };
+    const err = (g) => (g[0] - 0.11) ** 2 + 0.6 * (g[1] - 0.14) ** 2;
+    let a = 0.035, r = 0, q = xavBuild(v, a, a, r, r), g = gaps(q), e = err(g);
+    for (let it = 0, st = 0.06; it < 8 && e > 1e-5; it++, st *= 0.7) {
+      for (const [da, dr] of [[st, 0], [-st, 0], [0, st], [0, -st]]) { const a2 = clamp(a + da, -0.3, 0.4), r2 = clamp(r + dr, -0.6, 0.6), q2 = xavBuild(v, a2, a2, r2, r2), g2 = gaps(q2), e2 = err(g2); if (e2 < e) { a = a2; r = r2; q = q2; g = g2; e = e2; } }
     }
     xavCache.t = t; xavCache.q = q;
     return lerpPose(q, q, 0);
