@@ -1302,8 +1302,8 @@ gl_FragColor=vec4(c,1.0);}`;
   // the three arm poses (raw joint angles: shoulder x, y, z, elbow), fitted to where his hands and elbows are in the video relative
   // to his hips: the middle (both arms hang down in front, hands close), the sweep (his far arm nearly straight, hand down across his
   // body) and the wing (elbow out to the side, hand back by his hip)
-  const xavArm = { cL: [-0.273, 0, 0.295, -0.119], cR: [-0.273, 0, -0.295, -0.119], lead: [-0.5, -0.003, 0.398, -0.1], trail: [1, -1.275, 1.417, -1.052],
-    trailMid: [-0.272, -0.95, -0.056, -0.534] }; // the wing arm halfway (keeps its hand on a tight path in to the hip)
+  const xavArm = { cL: [-0.273, 0, 0.295, -0.119], cR: [-0.273, 0, -0.295, -0.119], lead: [-0.5, -0.003, 0.398, -0.1], trail: [1.592, -0.797, 2.114, -1.667],
+    trailMid: [0.46, -0.902, 0.558, -1.268] }; // the wing arm halfway (its hand goes steadily out and up to his waist, no doubling back)
   function xavPose(t) {
     if (!xavTab) { xavTab = []; let q = null; for (let i = 0; i < XAV_N; i++) { q = xavKey(i / (2 * XAV_N), q ? lerpPose(q, q, 0) : null); xavTab.push(lerpPose(q, q, 0)); }
       for (let i = 0; i < XAV_N; i++) xavTab.push(mirrorPose(xavTab[i])); }

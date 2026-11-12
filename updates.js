@@ -629,6 +629,16 @@ const UPDATES = [
       'Everyone\'s real hair shows again: blond is blond, short is short. Fixed at Wildcat Blacktop, The Stadium and Hancock.',
     ],
   },
+  {
+    n: 59,
+    date: '2026-11-12',
+    title: 'Xavier\'s dance: back arm bent more',
+    items: [
+      'When Xavier\'s arm swings back, it now bends sharply at the elbow: elbow out to the side, hand tucked in by his waist, like in his video.',
+      'The swing out and back is smooth, and his legs and the other arm are unchanged.',
+      'Same in 3D Blitz (TD celebration and the cutscene) and on his player page.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
