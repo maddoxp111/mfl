@@ -3951,6 +3951,45 @@ function voidNov6(db) {
 // removed, and every pack, pick, card sale, accepted trade and Lineup change made from the first gift on is undone,
 // site wide. Each account's undone records are kept in reverts/20261106/<name> so nothing is lost for good. Runs once:
 // the marker is saved before anything changes.
+// Nov 13, 2026: right after the pack prices went up, the commissioner had every pack opened in the five minutes before
+// 20:16 UTC undone: the pack and its cards come off (a paid pack is refunded by that, a free one can be claimed again), and so do
+// card sales of those cards and Lineups saved with them in the same minutes. What came off is kept in reverts/20261113/<name>.
+// Runs once: the marker is saved before anything changes.
+const UNDO_PACKS = { from: '2026-11-13T20:10:45.000Z', to: '2026-11-13T20:16:00.000Z' };
+async function undoPacksOnce(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.undoPacks20261113) return;
+  db.fixes.undoPacks20261113 = { at: new Date().toISOString(), started: true };
+  await save();
+  const inWin = (x) => (x || '') >= UNDO_PACKS.from && (x || '') < UNDO_PACKS.to, report = { window: UNDO_PACKS, accounts: {} };
+  try {
+    for (const u0 of await listDocs('users/')) {
+      const user = await getDoc(userKey(u0.name), { fresh: true }); if (!user) continue;
+      const packs = (user.packs || []).filter((p) => inWin(p.at));
+      if (!packs.length) continue;
+      const gone = new Set(packs.flatMap((p) => p.cards || []));
+      const sales = (user.pointBonuses || []).filter((b) => /^Sold /.test(b.reason || '') && inWin(b.at) && gone.has(String(b.reason).slice(5)));
+      const lineups = (user.lineups || []).filter((l) => inWin(l.at) && (l.cards || []).some((id) => gone.has(id)));
+      await putDoc(`reverts/20261113/${user.name}`, { name: user.name, window: UNDO_PACKS, at: new Date().toISOString(), packs, sales, lineups });
+      user.packs = (user.packs || []).filter((p) => !packs.includes(p));
+      user.pointBonuses = (user.pointBonuses || []).filter((b) => !sales.includes(b));
+      const soldIds = sales.map((b) => String(b.reason).slice(5));
+      user.sold = (() => { const a = [...(user.sold || [])]; for (const id of soldIds) { const i = a.lastIndexOf(id); if (i >= 0) a.splice(i, 1); } return a; })();
+      user.lineups = (user.lineups || []).filter((l) => !lineups.includes(l));
+      // a card traded away that came from an undone pack comes off the trade list too
+      const own = {};
+      for (const p of user.packs) for (const id of p.cards || []) own[id] = (own[id] || 0) + 1;
+      for (const id of user.tradeIn || []) own[id] = (own[id] || 0) + 1;
+      user.tradeOut = (user.tradeOut || []).filter((id) => { if (own[id] > 0) { own[id]--; return true; } return false; });
+      await putDoc(userKey(user.name), user);
+      report.accounts[user.name] = { packs: packs.length, refund: packs.reduce((t, p) => t + (Number(p.cost) || 0), 0), types: packs.map((p) => p.type), sales: sales.length, lineups: lineups.length };
+    }
+    db.fixes.undoPacks20261113 = { at: new Date().toISOString(), done: true, accounts: Object.keys(report.accounts).length };
+    await putDoc('reverts/20261113/_report', report);
+    console.log('undo of the packs opened 20:10:45-20:16 UTC on Nov 13:', JSON.stringify(report.accounts));
+  } catch (e) { console.error('undoPacksOnce', e); }
+  await save();
+}
 const REVERT_FROM = '2026-11-06T16:55:28.000Z'; // just before the first admin gift (finnhop, 16:55:28.998)
 async function revertGiftsOnce(db) {
   db.fixes = db.fixes || {};
@@ -4119,7 +4158,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); await undoPacksOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours

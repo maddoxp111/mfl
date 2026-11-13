@@ -752,6 +752,15 @@ const UPDATES = [
       'The two 1,000-coin starter packs (Rookie Rack and the single) stay at 1,000, so a new account can still buy one. Packs you already bought keep the price you paid.',
     ],
   },
+  {
+    n: 71,
+    date: '2026-11-13',
+    title: 'Packs from 2:10 to 2:16 PM undone',
+    items: [
+      'Every pack opened Friday between 2:10 and 2:16 PM (right after the price change) was undone by the commissioner: the pack and its cards are gone, and the coins are back.',
+      'Free packs from those minutes can be claimed again. Cards from those packs that were sold, or put in a Lineup in those minutes, were undone too.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
