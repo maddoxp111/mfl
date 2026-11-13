@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { load, save, refresh, putMedia, getMedia, slug, putDoc, getDoc, listDocs, deleteDoc, exportAll, importAll } = require('./db');
 const pk = require('./pickem');
+const SCHOOL = require('./schoolcal');
 const ai = require('./ai');
 const tts = require('./tts');
 const cards = require('./cards');
@@ -3156,6 +3157,15 @@ function gameForm(db, g, isNew, scorer = false) {
 
 // scoreOnly (the score panel): only the result, the box score and who didn't play change; the matchup, date, notes and
 // the void switch stay as the admin set them.
+// No school, no game: a game still scheduled on a weekday the school calendar has off (schoolcal.js) is postponed once, its
+// picks refunded. The admin can set it back afterwards (offAuto keeps it from being postponed again).
+function noSchool(g) {
+  const why = SCHOOL.offReason(g.date);
+  if (!why || g.offAuto || g.status !== 'scheduled') return false;
+  g.status = 'postponed'; g.reason = g.reason || (why === 'No school' ? 'No school' : `No school (${why})`); g.offAuto = true;
+  return true;
+}
+function schoolDays(db) { let n = 0; for (const g of db.games || []) if (noSchool(g)) n++; return n > 0; }
 function readGame(body, g, scoreOnly = false) {
   const arr = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
   const num = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
@@ -3198,7 +3208,8 @@ app.get('/admin/game/new', requireAdmin, (req, res) => {
 });
 app.post('/admin/game/new', requireAdmin, async (req, res) => {
   const db = load();
-  db.games.push(readGame(req.body, { id: String(db.nextId++) }));
+  const g = readGame(req.body, { id: String(db.nextId++) }); noSchool(g); // (a game set on a day off: postponed)
+  db.games.push(g);
   await save();
   res.redirect('/admin?saved=1');
 });
@@ -3212,7 +3223,7 @@ app.post('/admin/game/:id', requireAdmin, async (req, res) => {
   const db = load();
   const g = db.games.find((x) => x.id === req.params.id);
   if (!g) return res.redirect('/admin');
-  readGame(req.body, g);
+  readGame(req.body, g); noSchool(g); // (moved onto a day off: postponed, once)
   await save();
   res.redirect(`/admin/game/${g.id}?saved=1`);
 });
@@ -4108,7 +4119,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db); if (a || b || c || d) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours

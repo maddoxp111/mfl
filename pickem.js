@@ -321,11 +321,11 @@ function legResult(db, leg) {
   }
 }
 // Early dismissal: the game runs three times as long, so a pick on it pays a third of its winnings (the stake comes back in
-// full, the profit part of its price is divided by 3). Set per game in admin (Game details); EARLY_DAYS marks the days that
-// were early dismissals before the switch existed.
+// full, the profit part of its price is divided by 3). On by default for every early dismissal day on the school calendar
+// (schoolcal.js); the admin can switch it on or off per game (Game details).
 const EARLY_K = 1 / 3;
-const EARLY_DAYS = ['2026-11-12'];
-const isEarly = (g) => !!g && (g.early === true || (g.early !== false && EARLY_DAYS.includes(g.date)));
+const { isEarlyDay } = require('./schoolcal'); // the school calendar's early dismissal days
+const isEarly = (g) => !!g && (g.early === true || (g.early !== false && isEarlyDay(g.date)));
 const earlyOdds = (o) => 1 + (o - 1) * EARLY_K;
 function betResult(db, bet) {
   const res = bet.legs.map((l) => legResult(db, l));
