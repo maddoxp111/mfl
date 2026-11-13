@@ -673,6 +673,14 @@ const UPDATES = [
       'Admin: a new Avatar moves page to pick each player\'s move, with a preview.',
     ],
   },
+  {
+    n: 63,
+    date: '2026-11-13',
+    title: 'Xavier\'s TD celebration: normal length',
+    items: [
+      'Xavier still does his own dance after a touchdown, but it now lasts as long as everyone else\'s celebration instead of a full 7 seconds.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

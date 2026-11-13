@@ -14558,7 +14558,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (tryMode) clockRun = false; // a try is untimed: no run-off after it either
       runoff = clockRun ? RUNOFF : 0;
       pend = nx; deadTot = deadT;
-      if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : closeP.celType === 6 && !VS ? XD_TD : 0.6; deadTot = deadT; } // (Xavier's dance: a full 7 s)
+      if (closeP) { closeP.hold = true; deadT += closeP.leap ? 2.2 : 0.6; deadTot = deadT; } // (Xavier still does his dance, for the same time as everyone's celebration)
       if (carrier && carrier.rag) { deadT += 0.3; deadTot = deadT; }
       if (lastBig && lastBig.kind === 'td') { deadT += 0.3; deadTot = deadT; }
       voiceResult(kind, P, gained, nx, head, extra, slid, spot);
@@ -15355,7 +15355,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // with the clock stopped between plays, he just starts doing it: the camera pans to him, "what is he doing?", then a second
     // later "why is he kinda saucy with it tho 😯". Skippable after 3 s, over at 10 s. Off in Head to Head and on key defensive plays.
     // Its dice are its own (never the game's), so a game without him on the field plays exactly as before.
-    const XD_TD = 7.4, XD_LEN = 10, XD_SKIP = 3, XD_MAX = 3;
+    const XD_LEN = 10, XD_SKIP = 3, XD_MAX = 3;
     const isXav = (p) => !!(p && p.sq && /^xavier\b/i.test(String(p.sq.name || '').trim()));
     const XD = { on: false, n: 0, last: -99, t: 0, p: null, save: null, cont: null, caps: [], cam: null, skipOK: false, said: 0, ang: 0, r: 0x2f6b9d13 };
     const xdRand = () => { XD.r = (Math.imul(XD.r, 1664525) + 1013904223) >>> 0; return XD.r / 4294967296; };
