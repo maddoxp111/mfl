@@ -19127,7 +19127,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (drivePlays === 0 && (BC.lastDP !== 0 || !BC.drive)) { BC.driveN++; BC.drive = { z: driveStart, c: clock, q: qtr, n: BC.driveN }; BC.rz = los >= FL - VN.RZ; }
       BC.lastDP = drivePlays;
       // fourth down, the decision on the buttons (no play sheet, nothing held): the coach thinks it over, the down and distance goes up
-      if (down === 4 && !go4 && !tryMode && (VN.punt || VN.fg) && bcLive() && !VS && bcAll()) BC.sched = { ph: 'pre', at: 0.25, fn: () => bcFourth() };
+      // (no cutaway on fourth down: shots only at the big moments, never between plays)
     }
     function bcFourth() {
       const s = (bcSide() ? shCoach(2.2, 0) : null) || shEndZone(2.2, 1); if (!s) return null;
@@ -19150,12 +19150,8 @@ gl_FragColor=vec4(col,1.0);}`;
       let pick = null, at = 1.0;
       if (homeTD && closeP) { at = 0.45; pick = () => shCeleb(Math.max(1.2, deadT - 0.05), closeP) || bcDeadShot('sky'); }
       else if (awayTD) { at = 1.0; pick = () => (side ? shCoach(T(), 0) : null) || shCrowd(T()); }
-      else if (kickK === 'fg' || kickK === 'xp') { at = 0.9; pick = all && hs > (BC.hsLive || 0) ? () => (side && bcRand() < 0.5 ? shBench(T(), 0) : null) || shCrowd(T()) : null; }
-      else if (res === 'first') { at = 1.05; pick = () => bcDeadAny([side ? 'refsig' : null, 'man', all ? 'endzone' : null, all && side ? 'bench' : null], 'sigfirst'); }
-      else if (res === 'inc') { at = 0.95; pick = all || bcRand() < 0.4 ? () => bcDeadAny([side ? 'refsig' : null, 'qbreact', all ? 'crowd' : null], 'siginc') : null; }
       else if (res === 'intdown' || res === 'fumlost' || res === 'pick6') { at = 1.0; pick = () => bcDeadAny([side ? 'coach' : null, 'crowd', 'qbreact']); }
-      else if (res === 'sack') { at = 1.0; pick = all ? () => bcDeadAny(['qbreact', 'crowd', side ? 'coach' : null]) : null; }
-      else if (res && !kickK && was === 'live') { at = 1.05; pick = all && bcRand() < 0.7 ? () => bcDeadAny(['endzone', 'sky', 'man', side ? 'bench' : null, 'crowd']) : null; }
+      else if (res && !kickK && was === 'live' && lastBig && !lastBig.played && lastBig.kind === 'big') { at = 1.05; pick = all ? () => bcDeadAny(['man', 'crowd', side ? 'bench' : null]) : null; } // a big play only (first downs, incompletions, sacks and ordinary plays get no cutaway)
       if (BC.two && !homeTD) { at = 0.9; pick = () => { BC.two = false; const s = shWide(Math.max(1, deadT - 0.05), 0.3); if (s) { s.start = () => { bcDDGfx('tw'); bcSay('bc_two_minute', {}, 2); }; } return s; }; }
       if (DBG && DBG.bcForce && /^(refsig|man|qbreact|endzone|sky|bench|coach|crowd|celeb)$/.test(DBG.bcForce)) { const id = DBG.bcForce; DBG.bcForce = null; at = 0.6; pick = () => (id === 'celeb' ? shCeleb(Math.max(1.2, deadT - 0.05), closeP || carrier || OK.QB) : bcDeadShot(id, res === 'inc' ? 'siginc' : 'sigfirst')); }
       if (pick && left > at + 0.7) BC.sched = { ph: 'dead', at, fn: pick };
@@ -19198,7 +19194,7 @@ gl_FragColor=vec4(col,1.0);}`;
         const s = S.fn(); if (s) bcPlay('cut', [s], { ph: phase, lb: s.id === 'celeb' });
       } else if (S && S.ph !== phase) BC.sched = null;
       // a CPU drive: shots behind the drive card once the plan is picked, when the card leaves room to see them
-      if (phase === 'cpu' && cpuD && !cpuD.pick && !BC.seq && !VS && bcAll()) {
+      if (false && phase === 'cpu' && cpuD && !cpuD.pick && !BC.seq && !VS && bcAll()) { // (no shots behind the drive card: between plays)
         BC.cpuNext -= dt;
         if (BC.cpuNext <= 0) {
           BC.cpuNext = 2.6;
@@ -19262,7 +19258,7 @@ gl_FragColor=vec4(col,1.0);}`;
       }
       const scored = hs - (BC.hsLive || 0), K = kick && (kick.type === 'fg'), td = scored >= 6 && !K && playRes === 'td';
       BC.sumPat = null;
-      if (td || (scored === 3 && K && all)) {
+      if (td) {
         const I = bcDriveInfo(td ? 'td' : 'fg');
         if (I && (I.plays > 1 || td)) { if (td && VN.pat) BC.sumPat = I; else shots.push(shDriveSum(2.2, td ? 'td' : 'fg', I)); } // (a touchdown's goes up during the try, over the field: no wait)
       }
@@ -19274,6 +19270,7 @@ gl_FragColor=vec4(col,1.0);}`;
     // never two in a row, short
     function bcPreSnap(info) {
       if (info.isNew || DEFP.on || kick) return false;
+      if (!BC.two && !(DBG && DBG.bcForce)) return false; // between plays: nothing, except the two-minute warning
       const all = bcAll(), late = (qtr === 2 || qtr >= 4) && clock < 40 && clockRun;
       const rzIn = !tryMode && los >= FL - VN.RZ && !BC.rz, two = BC.two, togo = NOFD ? 99 : fdz - los;
       const big = down === 4 || tryMode || rzIn || two, key = big || (down === 3 && togo >= 5);

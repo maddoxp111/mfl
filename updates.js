@@ -691,6 +691,15 @@ const UPDATES = [
       'Their offense chases you down and can touch you down (Wildcat Blacktop) or tackle you (The Stadium, Hancock). Outrun them all and it is still a pick-six.',
     ],
   },
+  {
+    n: 65,
+    date: '2026-11-13',
+    title: 'Fewer cutscenes: only the big moments',
+    items: [
+      'No more cutscenes between plays: no formation or QB shots before the snap, and no reaction shots after first downs, incompletions, sacks or field goals.',
+      'Broadcast shots now only come at the big moments: touchdowns, interceptions and fumbles, big plays (with a replay), timeouts, the two-minute warning, the end of each quarter, halftime, the pregame intro and the final.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
