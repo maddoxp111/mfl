@@ -761,6 +761,17 @@ const UPDATES = [
       'Free packs from those minutes can be claimed again. Cards from those packs that were sold, or put in a Lineup in those minutes, were undone too.',
     ],
   },
+  {
+    n: 72,
+    date: '2026-11-13',
+    title: 'Pack prices come back down',
+    items: [
+      "Update 70's pack prices were way too high, so every pack is cheaper now. Packs still cost more than they did before Update 70, just a lot less than Update 70 made them.",
+      "Standard 25,000 → 15,000 (team packs too), Premium 74,000 → 53,500, Mega 305,000 → 160,000, Elite 1,200,000 → 360,000, Dark Matter 3,200,000 → 1,150,000, and the top pack, Carson's Filet Dinner, 5,200,000 → 2,000,000.",
+      'Prices now go up smoothly from the cheap packs to the chase packs, so no pack jumps way past the one just below it. Bundles are still about 12% off, and the two 1,000-coin starter packs stay at 1,000.',
+      'Packs you already bought keep the price you paid.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

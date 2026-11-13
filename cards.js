@@ -637,7 +637,7 @@ const PACKS = {
   arcade: { name: 'Arcade Champ Pack', cards: 5, cost: 0, free: 'arcade', group: 'free', min: 'epic', desc: 'Win 3 Arcade games in a day to unlock it.' },
   milestone: { name: 'Collector Pack', cards: 7, cost: 0, free: 'milestone', group: 'free', min: 'epic', desc: 'Reward for collecting more different cards.' },
   standard: { name: 'Standard Pack', cards: 5, cost: 10000, group: 'core', desc: '5 cards. Any rarity can drop.' },
-  value: { name: 'Value Pack', cards: 12, cost: 20500, group: 'core', desc: '12 cards for about the price of 10.' },
+  value: { name: 'Value Pack', cards: 12, cost: 20500, group: 'core', desc: '12 cards for a little more than two Standard Packs.' },
   premium: { name: 'Premium Pack', cards: 8, cost: 29500, group: 'core', min: 'epic', desc: '8 cards, with at least one Gold or better guaranteed.' },
   mega: { name: 'Mega Pack', cards: 15, cost: 76000, group: 'core', min: 'epic', mins: 3, desc: '15 cards with three Gold or better guaranteed.' },
   offense: { name: 'Offense Pack', cards: 5, cost: 16500, group: 'theme', pool: isSpec('td', 'pass', 'play'), desc: 'Only Touchdown Machine, Gunslinger and Playmaker cards.' },
@@ -772,13 +772,17 @@ Object.assign(PACKS, {
   // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
   's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, retired: true, off: true, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'Retired.' }),
 });
-// Nov 13: priced up for the bigger economy (league players now earn 100,000+ a game, a typical Lineup 30,000-100,000, and the
-// biggest pickers hold hundreds of millions). The two 1,000-coin starters stay so a new account can still buy one; everyday
-// packs (under 30,000) x2.5 (Standard 25,000), mid packs (30,000-99,999) x4, chase packs (100,000 and up) x8 (Dark Matter
-// 3,200,000). Bundles stay about 12% under their packs. Packs already bought keep the price they were bought at.
-const PRICE_UP = (c) => (c < 2000 ? 1 : c < 30000 ? 2.5 : c < 100000 ? 4 : 8);
+// Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
+// x8), and the owner found that way too high (5,200,000 for the top pack) and uneven (a 29,500 pack went to 74,000 while a
+// 35,000 pack went to 140,000). Now one smooth curve: a pack that cost c costs c x (c / 1,000) to the power 0.175, rounded onto
+// the ladder. That is about x1.5 at 10,000, x2.2 at 100,000 and x3.1 at the top, so every pack still costs more than before
+// Update 70 but much less than Update 70 made it, and a pricier pack never ends up cheaper than a cheaper one. Examples:
+// Standard 10,000 -> 15,000, Premium 29,500 -> 53,500, Mega 76,000 -> 160,000, Elite 150,000 -> 360,000, Dark Matter
+// 400,000 -> 1,150,000, Carson's Filet Dinner 650,000 -> 2,000,000. The two 1,000-coin starters stay at 1,000. Bundles stay
+// about 12% under their packs. Packs already bought keep the price they were bought at.
+const PRICE_CURVE = (c) => c * (c / 1000) ** 0.175;
 const ladder = (c) => { const st = c < 10000 ? 250 : c < 100000 ? 500 : c < 1000000 ? 5000 : 50000; return Math.max(st, Math.round(c / st) * st); };
-for (const P of Object.values(PACKS)) if (P.cost > 0 && !P.bundle) P.cost = ladder(P.cost * PRICE_UP(P.cost));
+for (const P of Object.values(PACKS)) if (P.cost > 0 && !P.bundle) P.cost = ladder(PRICE_CURVE(P.cost));
 for (const P of Object.values(PACKS)) if (P.bundle) {
   P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
   P.list = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cost * n, 0);
@@ -801,7 +805,7 @@ for (const [k, [c, e, pat, foil]] of Object.entries(PACK_ART)) if (PACKS[k] && !
 for (const [series, , sets] of SERIES) if (PACKS['series-' + series] && !PACKS['series-' + series].art) PACKS['series-' + series].art = { c: SET_COLORS[series], e: sets[0][2], pat: 'diamond' };
 
 // One pack per team: only that team's cards.
-const TEAM_PACK = { cards: 5, cost: 25000, group: 'team' }; // (x2.5 on Nov 13, like the other everyday packs)
+const TEAM_PACK = { cards: 5, cost: 15000, group: 'team' }; // (10,000 before Nov 13; 15,000 = the price curve above, like Standard)
 const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
 // `ctx` (optional): { now: 'YYYY-MM-DD HH:MM' league time, own: collection, lineup: card ids }.
 // Packs with `live` get their per-request fields (price, pool, on-sale state) merged in.
