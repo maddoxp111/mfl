@@ -11596,6 +11596,7 @@ gl_FragColor=vec4(col,1.0);}`;
       return [(hx - c.x) * 0.6, c.z < los - 2.5 ? 0.7 : 1];
     }
     function chaseCarrier(p, dt) {
+      if (DEFP.on && carrier.side === 1) { chaseRet(p, carrier, dt); return; } // a key play: your pick or scoop, run down like any runner
       const c = carrier, ip = interceptPt(p, c, effV(p));
       staminaStep(p, dt, dist(p, c) < 12);
       steer(p, ip[0], ip[1], effV(p) * (p.role === 'OL' ? 0.85 : 1), dt, 9);
@@ -11613,7 +11614,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (d.flipT > 0) d.flipT -= dt;
         if (d.rag || d.rising > 0) continue;
         if (d.stun > 0) { d.vx *= Math.pow(0.05, dt); d.vz *= Math.pow(0.05, dt); continue; }
-        if (d === carrier) { if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; returnRun(d, dt); continue; } // a pick: you run it back yourself
+        if (d === carrier) { if (d === ctrl && mode === 'run') continue; if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; returnRun(d, dt); continue; } // a pick: you run it back yourself (a key play: as a ball carrier, carrierStep)
         if (carrier && carrier.side === 1) { leadBlockDef(d, dt); continue; }
         if (d.eng) { engStep(d, dt); continue; }
         if (isHumanDef(d) && humanDef(d, dt, hdDir(), hdSprint(), hdState())) continue; // the defender you control (33-defplay.js)
@@ -11853,23 +11854,11 @@ gl_FragColor=vec4(col,1.0);}`;
       staminaStep(d, dt, live ? dd > 1.5 : dd < 11 && dd > 1.5); // rally to the ball: everybody runs, not just the men near him
       const sp = effV(d) * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1);
       const cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz);
-      let tx, tz, tI = 9;
+      let tx, tz;
       if (live) {
         // how fast he can keep coming: sprinting while his wind lasts, then his cruising speed with a burst now and then
-        const dv = d.v * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1) * (d.stumbleT > 0 ? 0.72 : 1), dS = dv * (d.sta > 0.05 ? 1 + (sprK(d) - 1) * Math.min(1, 0.35 + d.sta) : 1.04);
-        const P = readRunner(c), reach = 0.85, react = 0.12, HT = 3.6;
-        let px = 0, pz = 0;
-        for (let t = 0.05; t <= HT; t += 0.1) {
-          [px, pz] = runPath(c, t, P);
-          if (Math.abs(px) > HW + 0.5) break; // he runs out of room on the sideline
-          if (Math.max(0, Math.hypot(px - d.x, pz - d.z) - reach) / dS + react <= t) { tI = t; break; }
-        }
-        // none: the deep angle (the last spot read, on the goal line side of him or where he would run out of room)
-        px = clamp(px, -HW + 0.3, HW + 0.3);
-        if (c.side === 0) pz = Math.min(pz, ZEND + 0.5); else pz = Math.max(pz, ZBACK - 0.5);
-        tx = px; tz = pz;
-        // inside-out: shade the spot toward the middle of the field (where his help is), more the earlier he gets there
-        if (tI <= HT) { const inX = -Math.sign(px || c.x || 1) * Math.min(0.9, 0.25 + 0.15 * tI); if (Math.abs(px) > KXS(4)) tx += inX * (d.z > c.z === (c.side === 0) ? 1 : 0.4); }
+        const dv = d.v * (d.spdK || 1) * (d.role === 'DL' ? 0.92 : 1) * (d.stumbleT > 0 ? 0.72 : 1);
+        [tx, tz] = pathSpot(d, c, dv);
       } else {
         let t = 0, px = c.x, pz = c.z;
         for (let i = 0; i < 5; i++) { px = c.x + cvx * t; pz = c.z + cvz * t; t = Math.min(2.6, Math.hypot(px - d.x, pz - d.z) / Math.max(sp, 1)); }
@@ -11887,12 +11876,34 @@ gl_FragColor=vec4(col,1.0);}`;
       steer(d, tx, tz, spd, dt, 8);
       d.look = [c.x, 1.4, c.z];
       if (!d.eng && dd > 1.6 && !(d.imm > 0)) for (const b of off) { if (b !== carrier && b !== ctrl && b.eng == null && !b.rag && (b.tgt === d || b.role === 'OL') && dist(b, d) < b.rad + d.rad + 0.15) { if (engage(b, d, true)) break; } }
-      // lunge when close and closing (two-hand touch: a lunge with both hands out, on his feet)
-      // a runner in the air: a good defender stays on his feet and catches him instead of diving under him
+      lungeAt(d, c, dd, c.side === 0, live ? 1 : 0);
+    }
+    // the open-field read: where the runner is going (readRunner), the first spot on that path he can get to first (arms' reach)
+    // at the speed he can keep coming (dv: his cruising speed, sprinting while his wind lasts); none: the deep angle (the last
+    // spot read, on the goal line side of him or where he would run out of room). Inside-out: the spot is shaded toward the
+    // middle of the field (where his help is), more the earlier he gets there.
+    function pathSpot(d, c, dv) {
+      const dS = dv * (d.sta > 0.05 ? 1 + (sprK(d) - 1) * Math.min(1, 0.35 + d.sta) : 1.04);
+      const P = readRunner(c), reach = 0.85, react = 0.12, HT = 3.6;
+      let px = 0, pz = 0, tI = 9;
+      for (let t = 0.05; t <= HT; t += 0.1) {
+        [px, pz] = runPath(c, t, P);
+        if (Math.abs(px) > HW + 0.5) break; // he runs out of room on the sideline
+        if (Math.max(0, Math.hypot(px - d.x, pz - d.z) - reach) / dS + react <= t) { tI = t; break; }
+      }
+      px = clamp(px, -HW + 0.3, HW + 0.3);
+      if (c.side === 0) pz = Math.min(pz, ZEND + 0.5); else pz = Math.max(pz, ZBACK - 0.5);
+      let tx = px; const tz = pz;
+      if (tI <= HT) { const inX = -Math.sign(px || c.x || 1) * Math.min(0.9, 0.25 + 0.15 * tI); if (Math.abs(px) > KXS(4)) tx += inX * (d.z > c.z === (c.side === 0) ? 1 : 0.4); }
+      return [tx, tz];
+    }
+    // lunge when close and closing (two-hand touch: a lunge with both hands out, on his feet)
+    // a runner in the air: a good defender stays on his feet and catches him instead of diving under him
+    function lungeAt(d, c, dd, can, armR) {
       if (c.jumpY > 0.2) { if (d.stayUp == null) d.stayUp = rng() < 0.25 + KDEF * 0.55; } else d.stayUp = null;
-      if (dd < 1.55 && d.pose !== 'tackle' && !(MOPT.touch && d.lunge > 0) && !c.rag && c.side === 0 && !(c.jumpY > 0.2 && d.stayUp)) {
+      if (dd < 1.55 && d.pose !== 'tackle' && !(MOPT.touch && d.lunge > 0) && !c.rag && can && !(c.jumpY > 0.2 && d.stayUp)) {
         const cl = (d.vx * (c.x - d.x) + d.vz * (c.z - d.z)) / (dd || 1);
-        if (cl > 0.5) { if (MOPT.touch) { d.tchC = c; d.tchT = 0.32; } else setPose(d, 'tackle'); d.lunge = 0.3; d.armR = live ? 1 : 0; const ux = (c.x - d.x) / dd, uz = (c.z - d.z) / dd; d.vx += ux * 2.2; d.vz += uz * 2.2; }
+        if (cl > 0.5) { if (MOPT.touch) { d.tchC = c; d.tchT = 0.32; } else setPose(d, 'tackle'); d.lunge = 0.3; d.armR = armR; const ux = (c.x - d.x) / dd, uz = (c.z - d.z) / dd; d.vx += ux * 2.2; d.vz += uz * 2.2; }
       }
     }
     // the ball is up: who can get there drives to the catch point; the rest close on the receiver. In phase (or over the top of an
@@ -11939,19 +11950,42 @@ gl_FragColor=vec4(col,1.0);}`;
       }
       return false;
     }
+    // Your man with the ball on a key play (a pick or a scoop): their offense pursues the way a defense does in the open field
+    // (pursue): each man reads where the runner is going and takes the first spot on that path he can get to, shaded inside-out,
+    // breaks down and mirrors him when he is in front of him, and lunges when close and closing (two-hand touch: both hands
+    // out); the touch or the tackle is the step's contact check (75-step.js), with a defender's reach. The path read expects a
+    // man with the ball to head for the goal line: one who isn't making headway upfield (standing, drifting across the field or
+    // backing up) is chased on the line he is actually running (the lead on his velocity) instead of waited for on that spot.
+    function chaseRet(p, c, dt) {
+      const dd = dist(p, c), ol = p.role === 'OL' ? 0.85 : 1;
+      staminaStep(p, dt, dd > 1.5);
+      const sp = effV(p) * ol, cvx = c.vx || 0, cvz = c.vz || 0, cs = Math.hypot(cvx, cvz);
+      let [tx, tz] = pathSpot(p, c, p.v * ol * (p.stumbleT > 0 ? 0.72 : 1)), spd = sp;
+      const kUp = clamp((cvz * (c.side === 0 ? 1 : -1) - 1) / 3, 0, 1); // his upfield speed: 1 m/s or less, chase him; 4 m/s and up, the read
+      if (kUp < 1) { const ip = interceptPt(p, c, sp); tx = lerp(ip[0], tx, kUp); tz = lerp(ip[1], tz, kUp); }
+      const front = (p.x - c.x) * cvx + (p.z - c.z) * cvz > 0 && cs > 2;
+      if (front && dd < 3.6 && c.jumpY <= 0.2) { const lead = clamp(dd / Math.max(4, sp + cs), 0.12, 0.4), m = runPath(c, lead, readRunner(c)); spd = Math.max(cs * 1.02, sp * 0.8); tx = lerp(tx, m[0], 0.75); tz = lerp(tz, m[1], 0.75); }
+      steer(p, tx, tz, spd, dt, 9);
+      p.look = [c.x, 1.5, c.z];
+      lungeAt(p, c, dd, true, 1);
+    }
     function leadBlockDef(d, dt) {
       const c = carrier;
       const [o, od] = nearest(off, c.x, c.z, (p) => !p.rag);
       if (o && od < 10) steer(d, (o.x + c.x) / 2, (o.z + c.z) / 2, d.v * 0.9, dt);
       else steer(d, c.x + (d.x > c.x ? 3 : -3), c.z - 3, d.v * 0.8, dt);
     }
-    function returnRun(c, dt) {
+    function retAuto(c) { // upfield (toward their goal), bending away from the tacklers near him and off the sideline
       let ux = 0, uz = -1;
       for (const o of off) { if (o.rag) continue; const dx = c.x - o.x, dz = c.z - o.z, d = Math.hypot(dx, dz); if (d < 7 && dz > -2) { ux += dx / d / d * 4; uz += dz / d / d * 2; } }
       if (Math.abs(c.x) > HW - (SMALL ? Math.max(1.6, 3 * KX) : 3)) ux -= Math.sign(c.x) * 1.5;
       const l = Math.hypot(ux, uz) || 1;
+      return [ux / l, uz / l];
+    }
+    function returnRun(c, dt) {
+      const d = retAuto(c);
       staminaStep(c, dt, true);
-      steerDir(c, ux / l, uz / l, effV(c) * 1.02, dt, 8);
+      steerDir(c, d[0], d[1], effV(c) * 1.02, dt, 8);
     }
     // ---------- Metcalf: the CPU defense against your offense ----------
     // Seven on seven on the blacktop with nobody rushing until 7 banana: five receivers against six in coverage, so the defense
@@ -12348,6 +12382,27 @@ gl_FragColor=vec4(col,1.0);}`;
       if (DEFP.on) { DEFP.ctl = best; DEFP.manT = -9; } else { H.d = best; H.manT = -9; H.dir = null; }
       best.breakAt = Math.min(best.breakAt || 0, tPlay + 0.05); // he sees it the moment it's thrown, like you would
     }
+    // ---------- your man has the ball: a pick or a scoop ----------
+    // Whoever on your defense picks it off or scoops it up is yours to run back (an AI teammate's pick too), with the ball
+    // carrier's controls from offense: the same run buttons and keys (juke, spin, hurdle, dive, and the stiff arm where it is
+    // tackle football), a dive that ends the run where he lands, the stick steering him as before (the defense camera's mirrored
+    // stick). Their offense turns and chases him, and touches him down (two-hand touch) or tackles him like any ball carrier.
+    const defRet = () => DEFP.on && phase === 'live' && mode === 'run' && !!ctrl && ctrl === carrier && ctrl.side === 1;
+    function defpTakeBall(d) {
+      if (!DEFP.on || !d || d.side !== 1 || d.rag) return;
+      DEFP.ctl = d; DEFP.manT = -9; ctrl = d; mode = 'run';
+      d.hunt = 0; d.jumpQ = 0; d.diveQ = 0; d.tlunge = 0; d.face2 = null; d.look = null; d.breakAt = 0;
+      say(`<b>Your ball!</b> Run it back with <b>${esc(nm(d))}</b> · ${touchy ? 'drag to steer · Juke · Spin · Hurdle · Dive' : 'arrows steer · J juke · K spin · H hurdle · SPACE dive'}`);
+    }
+    // the stick for the returner: the defense camera's (mirrored), and with only left or right held he keeps going upfield,
+    // the way a runner on offense does
+    function retStick() {
+      if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.25) return defDir();
+      const ix = input.r - input.l; let iz = input.u - input.d;
+      if (!ix && !iz) return null;
+      if (!iz && !input.d) iz = 0.6;
+      const l = Math.hypot(ix, iz); return [-ix / l, -iz / l];
+    }
     // switch: before the snap the next man down the list; after it the defender nearest the ball
     function nearestDefToBall(skip) {
       const b = !ball ? { x: 0, z: los } : ball.st === 'air' && ball.cp ? ball.cp : ball.holder || ball;
@@ -12356,7 +12411,7 @@ gl_FragColor=vec4(col,1.0);}`;
       return best;
     }
     function defpSwitch() {
-      if (!DEFP.on || !(phase === 'dpre' || phase === 'live')) return;
+      if (!DEFP.on || !(phase === 'dpre' || phase === 'live') || defRet()) return; // (not off the man with the ball)
       let n;
       if (phase === 'dpre') { const i = DEF_ORDER.indexOf(DEFP.ctl ? DEFP.ctl.key : 'FS'); n = DK[DEF_ORDER[(i + 1) % DEF_ORDER.length]]; }
       else n = nearestDefToBall(DEFP.ctl);
@@ -12370,6 +12425,11 @@ gl_FragColor=vec4(col,1.0);}`;
       if (c === 'KeyT') { e.preventDefault(); callTimeout(); return; } // right after the play (and lined up): a timeout
       if (c === 'KeyQ' || c === 'Tab' || c === 'KeyE') { e.preventDefault(); defpSwitch(); return; }
       if (phase !== 'live') return;
+      if (defRet()) { // your man has the ball: the ball carrier's keys (as on offense)
+        if (c === 'Space' || c === 'Enter' || c === 'NumpadEnter' || c === 'KeyX') { e.preventDefault(); doMove('dive'); return; }
+        const m = { KeyJ: 'juke', KeyK: 'spin', KeyL: 'stiff', KeyH: 'hurdle' }[c]; if (m) { e.preventDefault(); doMove(m); }
+        return;
+      }
       if (c === 'Space' || c === 'Enter') { e.preventDefault(); defJump(DEFP.ctl); return; }
       if (c === 'KeyX' || c === 'KeyC') { e.preventDefault(); defDive(DEFP.ctl, defDir()); }
     }
@@ -12567,6 +12627,10 @@ gl_FragColor=vec4(col,1.0);}`;
         btn('bz-y', `Switch${K('Q')}`, defpSwitch, 'pointerdown').style.flex = '0 0 96px';
         toBtn();
         return true;
+      }
+      if (phase === 'live' && carrier && carrier.side === 1) { // your man has the ball: the ball carrier's buttons (90-ui.js, as on offense)
+        if (defRet()) return false;
+        msg('<span>Your ball…</span>'); return true; // (brought down: the whistle is coming)
       }
       if (phase === 'live') {
         msg(touchy ? `<span>Drag to move · Jump for the ball · ${MOPT.touch ? 'Touch to tag him' : 'Dive to tackle'}</span>` : `<span>Arrows move · SPACE jump · X ${MOPT.touch ? 'touch' : 'dive'} · Q switch · SHIFT sprint</span>`);
@@ -13524,7 +13588,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (ball && ball.helmet) { FUN.victim.home++; FUN.blooper.home++; }
       pr.int = d; pr.intZ = d.z; pr.intInfo = { how: how || '', tips, role: d.role, man: !!(d.ass && d.ass.t === 'man'), dT: target ? +dist(target, ball).toFixed(1) : null, tgt: target ? target.key : null, t: +tPlay.toFixed(2), brk: +((d.breakAt || 0)).toFixed(2), D: ball.D ? Math.round(ball.D) : null, arc: ball.arc, y: +ball.y.toFixed(1) };
       const st = stat(SQ.QB.pid); if (st) st.passInt++;
-      if (DEFP.on) { popAt(d, isHumanDef(d) ? 'YOU PICKED IT!' : 'PICKED OFF!', '#2bd46b'); sfx.play('cheer'); excite = Math.min(1, excite + 0.3); }
+      if (DEFP.on) { popAt(d, isHumanDef(d) ? 'YOU PICKED IT!' : 'PICKED OFF!', '#2bd46b'); sfx.play('cheer'); excite = Math.min(1, excite + 0.3); defpTakeBall(d); } // a key play: you run it back (33-defplay.js)
       else { popAt(d, 'PICKED OFF!', '#ff3344'); sfx.play('boo'); excite = Math.max(0, excite - 0.3); }
       setControls(true);
     }
@@ -13558,7 +13622,7 @@ gl_FragColor=vec4(col,1.0);}`;
 
     // ---------- user input direction ----------
     function userDir() {
-      if (DEFP.on) return null; // a key defensive play: the stick is for your defender (defDir), their offense runs itself
+      if (DEFP.on) return defRet() ? retStick() : null; // a key defensive play: the stick is for your defender (defDir), their offense runs itself; your man with the ball runs on the mirrored stick
       if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.25) { const l = Math.hypot(input.stick[0], input.stick[1]); return [input.stick[0] / l, input.stick[1] / l]; }
       const ix = input.r - input.l; let iz = input.u - input.d;
       if (!ix && !iz) return null;
@@ -13582,6 +13646,21 @@ gl_FragColor=vec4(col,1.0);}`;
       return [ux / l, uz / l];
     }
     function autoRun(c, dt) { const d = autoDir(c); staminaStep(c, dt, true); steerDir(c, d[0], d[1], effV(c), dt, c.acc); }
+    // your man with a pick or a scoop on a key play, nothing held: he runs on his own the way your runner does on offense
+    // (autoDir): upfield, sliding off the men in front of him and off the sideline, and a man closing from behind pushes him on.
+    // Never back toward his own goal (the CPU's returner backs away from them, returnRun: with you not steering, he and their
+    // pursuit could circle each other for the whole play).
+    function retDir(c) {
+      const fw = c.side === 0 ? 1 : -1; let ux = 0, uz = fw;
+      for (const o of (c.side === 0 ? def : off)) {
+        if (o.rag || o.eng) continue;
+        const dx = c.x - o.x, dz = (c.z - o.z) * fw, dd = Math.hypot(dx, dz) || 0.01; // dz > 0: the man is behind him
+        if (dd < 7 && dz < 1.5) { ux += dx / dd / dd * AUTO; uz += fw * Math.max(0, dz) / dd / dd; }
+      }
+      if (Math.abs(c.x) > HW - (SMALL ? Math.max(1.6, 3 * KX) : 3)) ux -= Math.sign(c.x) * 1.5;
+      const l = Math.hypot(ux, uz) || 1;
+      return [ux / l, uz / l];
+    }
 
     // ---------- moves ----------
     const qbRunPlay = () => play.type === 'sneak' || play.type === 'qbdraw';
@@ -13602,7 +13681,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const GRADE_POP = { perfect: ['PERFECT!', '#2bd46b'], good: ['GOOD', '#9be28f'], early: ['TOO EARLY', '#ff9a3c'], late: ['TOO LATE', '#ff9a3c'] };
     function doMove(m) {
       const c = ctrl;
-      if (!c || mode !== 'run' || c.rag || c !== carrier || c.diveT > 0 || c.rising > 0) return;
+      if (!c || mode !== 'run' || c.rag || c !== carrier || c.diveT > 0 || c.diving || c.rising > 0) return; // (diving with his dive run out: he lands on the next step, a press then can't start a second one)
       if (m === 'dive') {
         if (c.role === 'QB' && c.z < los + 30 && !qbRunPlay() && c === OK.QB) { slide(c); return; }
         const d = userDir() || [Math.sin(c.h), Math.cos(c.h)];
@@ -13618,6 +13697,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (c.secureT > 0.12) return; // still tucking the catch away: no move yet
       if (c.mvCd[m] > 0) return;
       c.mvCd[m] = moveCd(c, m); c.mv = m; c.mvT0 = tPlay;
+      const opp = c.side === 0 ? def : off, fw = c.side === 0 ? 1 : -1; // the men trying to bring him down, and upfield for him (a pick or a scoop goes the other way)
       if (m === 'hurdle') { // leap: clears a diving tackler, but a standing one can catch him in the air
         c.mvT = 0.62; c.hurdHit = 0;
         const sp = Math.hypot(c.vx, c.vz); if (sp < 3) { const d = userDir() || [Math.sin(c.h), Math.cos(c.h)]; c.vx = d[0] * 3.5; c.vz = d[1] * 3.5; }
@@ -13627,18 +13707,18 @@ gl_FragColor=vec4(col,1.0);}`;
       if (m === 'juke') {
         c.mvT = 0.36 + (c.agi - 50) * 0.002;
         let near = null, nd = 1e9;
-        for (const d of def) { const dd = dist(d, c); if (dd < nd) { nd = dd; near = d; } }
-        const dir = userDir() || [0, 1];
+        for (const d of opp) { const dd = dist(d, c); if (dd < nd) { nd = dd; near = d; } }
+        const dir = userDir() || [0, fw];
         let side = Math.abs(dir[0]) > 0.3 ? Math.sign(dir[0]) : near ? (near.x > c.x ? -1 : 1) : 1;
         if (Math.abs(c.x + side * 3) > HW - 1) side = -side;
         c.mvSide = side;
-        const jx = side * 0.95, jz = 0.55, l = Math.hypot(jx, jz); c.jdx = jx / l; c.jdz = jz / l;
+        const jx = side * 0.95, jz = 0.55 * fw, l = Math.hypot(jx, jz); c.jdx = jx / l; c.jdz = jz / l;
         setPose(c, 'juke');
         // the cut is aimed at the nearest man: a perfect one beats him unless he is much quicker, a good one only if the runner
         // is the quicker man. A second man bites only on a perfect cut by a clearly quicker runner, and never more than two.
         // Whoever isn't fooled can still make the tackle while he is cutting (the juke used to make him untouchable).
         let fooled = 0, fd = null, fdd = 9, best = null; c.jukeBeat = [];
-        const cand = def.filter((d) => !(d.stun > 0) && !d.rag && dist(d, c) <= 4.5).sort((a, b) => dist(a, c) - dist(b, c));
+        const cand = opp.filter((d) => !(d.stun > 0) && !d.rag && dist(d, c) <= 4.5).sort((a, b) => dist(a, c) - dist(b, c));
         for (let i = 0; i < cand.length; i++) {
           const d = cand[i], dd = dist(d, c);
           const g = moveGrade(c, d, 'juke'); if (!g) continue;
@@ -13649,7 +13729,7 @@ gl_FragColor=vec4(col,1.0);}`;
         sfx.play(fooled ? 'good' : 'tap');
         perkHook('juke', c);
         // broke his ankles: a perfect juke on a man right on him puts him on the ground
-        if (fd && fdd < 2.9 && best && best.g === 'perfect') { knockDown(fd, [-side * 1.8, 0, fd.vz * 0.3], [-side * 1.4, 0.5, 0], 1.3); fd.tried = 1; moment('ankles', fd, fooled > 1 ? 'DOUBLE ANKLES!' : 'ANKLES!', { a: c, b: fd, victim: 'away', snd: 'good' }); }
+        if (fd && fdd < 2.9 && best && best.g === 'perfect') { knockDown(fd, [-side * 1.8, 0, fd.vz * 0.3], [-side * 1.4, 0.5, 0], 1.3); fd.tried = 1; moment('ankles', fd, fooled > 1 ? 'DOUBLE ANKLES!' : 'ANKLES!', { a: c, b: fd, victim: victimOf(fd), snd: 'good' }); }
         else if (fooled) { popAt(c, best && best.g === 'perfect' ? 'PERFECT JUKE!' : fooled > 1 ? 'DOUBLE JUKE!' : 'JUKED HIM!', '#2bd46b'); voice.say('juke', { carrier: nm(c) }, 1, 0.35); }
         else if (best) popAt(c, GRADE_POP[best.g][0], GRADE_POP[best.g][1]);
       } else if (m === 'spin') {
@@ -13657,7 +13737,7 @@ gl_FragColor=vec4(col,1.0);}`;
         // that man's shoulder, swings out the far side and comes back upfield while the tackler grabs where he was
         c.spinDur = c.mvT = 0.5 + (c.agi - 50) * 0.001; setPose(c, 'spin'); sfx.play('tap'); perkHook('spin', c);
         let near = null, nd = 1e9;
-        for (const d of def) { if (d.rag || d.stun > 0) continue; const dd = dist(d, c); if (dd < nd) { nd = dd; near = d; } }
+        for (const d of opp) { if (d.rag || d.stun > 0) continue; const dd = dist(d, c); if (dd < nd) { nd = dd; near = d; } }
         const dir = userDir();
         let side = near && nd < 4.5 ? (near.x > c.x ? -1 : 1) : dir && Math.abs(dir[0]) > 0.3 ? Math.sign(dir[0]) : (c.x > 0 ? -1 : 1);
         if (Math.abs(c.x + side * 3) > HW - 1) side = -side;
@@ -13668,7 +13748,7 @@ gl_FragColor=vec4(col,1.0);}`;
             c.spinBeat = d; d.tried = 1; d.stun = DP.stun * (1 + rng() * 0.3); d.stumbleT = 0.6;
             d.vx = -side * 3.2; d.vz = (c.z - d.z) * 1.4; d.face2 = Math.atan2(-side, (c.z - d.z) || 1); setPose(d, 'tackle'); // he bites the wrong way, lunging at where the runner was headed
             excite = Math.min(1, excite + 0.08);
-            if (nd < 2.4 && g === 'perfect') { knockDown(d, [d.vx * 0.6, 0, d.vz * 0.6], [-side * 1.2, 0.4, 0], 1.3); moment('ankles', d, 'SPUN HIM AROUND!', { a: c, b: d, victim: 'away', snd: 'good' }); }
+            if (nd < 2.4 && g === 'perfect') { knockDown(d, [d.vx * 0.6, 0, d.vz * 0.6], [-side * 1.2, 0.4, 0], 1.3); moment('ankles', d, 'SPUN HIM AROUND!', { a: c, b: d, victim: victimOf(d), snd: 'good' }); }
             else { popAt(c, g === 'perfect' ? 'PERFECT SPIN!' : 'SPIN MOVE!', '#2bd46b'); sfx.play('good'); voice.say('spin', { carrier: nm(c) }, 1, 0.4); }
           } else popAt(c, g && g !== 'good' ? GRADE_POP[g][0] : 'HE READ IT', '#ff9a3c');
         }
@@ -13689,7 +13769,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function carrierStep(c, dt) {
       for (const k in c.mvCd) if (c.mvCd[k] > 0) c.mvCd[k] -= dt;
       if (c.mvT > 0) c.mvT -= dt; else c.mv = null;
-      if (c === ctrl) staminaStep(c, dt, DEFP.on || input.sprint);
+      if (c === ctrl) staminaStep(c, dt, (DEFP.on && c.side === 0) || input.sprint); // (a key play: their runner always sprints; yours on a return sprints on SHIFT / Sprint, as on offense)
       if (c.secureT > 0) c.secureT -= dt;
       let spd = effV(c) * (c.secureT > 0 ? 0.86 : 1);
       if (c.rag) { if (c.downAt && tPlay >= c.downAt) { c.downAt = 0; resolveDown(c); } return; } // on the ground: no steering, the play ends when he is ruled down
@@ -13705,7 +13785,7 @@ gl_FragColor=vec4(col,1.0);}`;
         c.vx = c.mvSide * lat / l * c.spinV; c.vz = c.spinFz * fw / l * c.spinV;
       }
       else if (c === ctrl) {
-        const d = userDir() || (c.side === 0 ? autoDir(c) : [0, -1]);
+        const d = userDir() || (c.side === 0 ? autoDir(c) : retDir(c)); // nothing held: he runs on his own (a return the same way, upfield toward their goal)
         steerDir(c, d[0], d[1], spd, dt, c.acc * (c.jumpY > 0.05 ? 0.18 : 1)); // little steering in the air
         if (c.mv === 'hurdle' && c.jumpY <= 0 && c.mvT > 0 && c.mvT < 0.3 && !c.landed) { c.landed = 1; c.vx *= 0.9; c.vz *= 0.9; } else if (c.mv !== 'hurdle') c.landed = 0;
       }
@@ -13826,11 +13906,12 @@ gl_FragColor=vec4(col,1.0);}`;
       }
       sfx.play('tackle');
       // a big hit: he gets de-cleated (launched), and now and then the ball comes out
-      if (!behindLOS && c.wrapT <= 0 && (closing > 4.2 || gang > 0 && vc > 3.5) && funRoll('decleat', c.side === 0 ? 0.32 : 0.5)) {
+      const yours = c.side === 0 || c === ctrl; // (your man with a pick or a scoop on a key play takes the hits your runner does: the CPU's returner coughs it up far more)
+      if (!behindLOS && c.wrapT <= 0 && (closing > 4.2 || gang > 0 && vc > 3.5) && funRoll('decleat', yours ? 0.32 : 0.5)) {
         finishTackle(c, d, 'hit', nx, nz, closing);
         if (c.rag) c.rag.impulse(nx * 3, 5.2, nz * 3, 0.35);
-        if (funRoll('fumble', c.side === 0 ? 0.2 : 0.9) || funForced('decleat') && DBG.funFumble) c.funFumble = 1;
-        moment('decleat', c, 'DE-CLEATED!', { a: c, b: d, victim: victimOf(c), snd: 'tackle', shake: 0.7, col: c.side === 0 ? '#ff9a3c' : '#2bd46b' });
+        if (funRoll('fumble', yours ? 0.2 : 0.9) || funForced('decleat') && DBG.funFumble) c.funFumble = 1;
+        moment('decleat', c, 'DE-CLEATED!', { a: c, b: d, victim: victimOf(c), snd: 'tackle', shake: 0.7, col: yours ? '#ff9a3c' : '#2bd46b' });
         return;
       }
       // a rusher gets hold of the QB in the pocket: a split second to get the ball out before he goes down
@@ -14020,8 +14101,9 @@ gl_FragColor=vec4(col,1.0);}`;
         if (upr && !kick && !tryMode && (funForced('bigman') ? big : funRoll(big ? 'bigman' : 'scoop', big ? 1.4 : 0.7))) {
           ball = { st: 'held', holder: best, x: best.x, y: 1.3, z: best.z, vx: 0, vy: 0, vz: 0 }; carrier = best; pr.scoop = best;
           if (best.side === 0) { ctrl = best; mode = 'run'; pr.kind = 'rush'; pr.rusher = best; runSeen = tPlay; crossed = true; }
-          else { ctrl = null; mode = 'none'; best.v = Math.max(best.v, 6.6); }
-          bigPop(best, big ? 'BIG MAN SCOOP!' : 'SCOOP AND GO!', best.side === 0 ? '#2bd46b' : '#ff3344'); sfx.play(best.side === 0 ? 'cheer' : 'ooh'); cam.kick = Math.max(cam.kick, 0.7);
+          else { ctrl = null; mode = 'none'; best.v = Math.max(best.v, 6.6); if (DEFP.on) defpTakeBall(best); } // (a key play: your man, yours to run with)
+          const ours = DEFP.on ? best.side === 1 : best.side === 0; // (a key play: your defense is the other side)
+          bigPop(best, big ? 'BIG MAN SCOOP!' : 'SCOOP AND GO!', ours ? '#2bd46b' : '#ff3344'); sfx.play(ours ? 'cheer' : 'ooh'); cam.kick = Math.max(cam.kick, 0.7);
           setControls(true); return;
         }
         funPile(b, best);
@@ -14043,7 +14125,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (Math.abs(c.x) > HW) { if (perkHook('oob', c)) return; endPlay('oob', c.z); return; }
       } else {
         if (c.z <= 0) { endPlay('pick6', c.z); return; }
-        if (VN.endLine && c.z > ZEND) { endPlay('intdown', c.z); return; } // out the back of their own end zone
+        if ((VN.endLine || DEFP.on) && c.z > ZEND) { endPlay('intdown', c.z); return; } // out the back of their own end zone (a key play at every venue: your returner can run back there all day)
         if (Math.abs(c.x) > HW) { endPlay('intdown', c.z); return; }
       }
     }
@@ -15258,7 +15340,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function launch(p, nx, nz, k, getup) {
       knockDown(p, [nx * 4 * k, 4.5 * k, nz * 4 * k], [nx * 4.5 * k, 7 * k, nz * 4.5 * k], getup == null ? 1.3 : getup);
     }
-    const victimOf = (p) => (p && p.side === 0 ? 'home' : 'away');
+    const victimOf = (p) => (p && (p.side === 0) !== DEFP.on ? 'home' : 'away'); // whose man he is: yours is 'home' (on a key play yours are the defense)
     // two teammates crash into each other at speed (called from collide for same-side bumps)
     function funBump(a, b, rel) {
       if (phase !== 'live' || a.rag || b.rag || a.extra || b.extra || rel < 4.2 || MOPT.touch) return; // (two-hand touch: no collisions that put people down)
@@ -16706,7 +16788,7 @@ gl_FragColor=vec4(col,1.0);}`;
       else if (!loose && mode === 'aim' && OK.QB && ctrl !== OK.QB) staminaStep(OK.QB, dt, false);
       if (OK.QB && OK.QB.sackBy) { sackStep(OK.QB, dt); if (phase !== 'live') return; }
       if (carrier && carrier === ctrl && mode === 'run') carrierStep(carrier, dt);
-      else if (carrier) { if (carrier.wrapT > 0) wrapStep(carrier, dt); if (carrier.downAt && tPlay >= carrier.downAt) { carrier.downAt = 0; resolveDown(carrier); } if (phase !== 'live') return; }
+      else if (carrier) { if ((DEFP.on || VS) && carrier.diving && carrier.diveT <= 0 && !carrier.rag) landDive(carrier); if (carrier.wrapT > 0) wrapStep(carrier, dt); if (carrier.downAt && tPlay >= carrier.downAt) { carrier.downAt = 0; resolveDown(carrier); } if (phase !== 'live') return; }
       for (const p of everyone) if (p.diveT > 0 && p !== carrier && !p.rag) receiverDiveStep(p, dt); // receivers and defenders laying out for a pass
       for (const p of everyone) integrate(p, dt);
       collide();
@@ -16718,8 +16800,9 @@ gl_FragColor=vec4(col,1.0);}`;
         for (const d of def) { if (d.rag || d.stun > 0 || d.eng || d.rising > 0) continue; const dd = dist(d, h); if (dd < h.rad + d.rad + 0.12 + ((d.diveT > 0 || d.tlunge > 0) && isHumanDef(d) ? 0.55 : d.lunge > 0 && (d.pose === 'tackle' || d.tchT > 0) && d.armR ? 0.3 : 0) && tPlay - (d.lastTry || -9) > 0.6) { d.lastTry = tPlay; hitCarrier(h, d); if (phase !== 'live' || h.rag) break; } }
       }
       // an interception or fumble return: the offense players who get to him tackle him, each one trying, the same as defenders do
+      // (a key play: with a defender's reach, his lunge included)
       if (h && h.side === 1 && !h.rag && h.wrapT <= 0 && phase === 'live') {
-        for (const p of off) { if (p.rag || p.stun > 0 || p.eng || p.rising > 0) continue; if (dist(p, h) < h.rad + p.rad + 0.2 && tPlay - (p.lastTry || -9) > 0.6) { p.lastTry = tPlay; hitCarrier(h, p); if (phase !== 'live' || h.rag) break; } }
+        for (const p of off) { if (p.rag || p.stun > 0 || p.eng || p.rising > 0) continue; if (dist(p, h) < h.rad + p.rad + (DEFP.on ? 0.12 + (p.lunge > 0 && (p.pose === 'tackle' || p.tchT > 0) && p.armR ? 0.3 : 0) : 0.2) && tPlay - (p.lastTry || -9) > 0.6) { p.lastTry = tPlay; hitCarrier(h, p); if (phase !== 'live' || h.rag) break; } }
       }
       if (phase !== 'live') return;
       if (play.type === 'qbdraw' && mode === 'aim' && tPlay > 0.85 && ball && ball.holder === OK.QB && !thrown && !aim && OK.QB.throwT < 0) scramble(); // the draw: show pass, then go

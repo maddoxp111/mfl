@@ -681,6 +681,16 @@ const UPDATES = [
       'Xavier still does his own dance after a touchdown, but it now lasts as long as everyone else\'s celebration instead of a full 7 seconds.',
     ],
   },
+  {
+    n: 64,
+    date: '2026-11-13',
+    title: 'Picks on defense: run it back for real',
+    items: [
+      'When you pick off a pass or scoop up a fumble on a live defensive play, the buttons switch to the runner\'s buttons (juke, spin, dive and the rest), and each one does what it says, on phones too.',
+      'A dive ends your return where you land. No more diving and still running.',
+      'Their offense chases you down and can touch you down (Wildcat Blacktop) or tackle you (The Stadium, Hancock). Outrun them all and it is still a pick-six.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
