@@ -772,9 +772,17 @@ Object.assign(PACKS, {
   // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
   's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, retired: true, off: true, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'Retired.' }),
 });
+// Nov 13: priced up for the bigger economy (league players now earn 100,000+ a game, a typical Lineup 30,000-100,000, and the
+// biggest pickers hold hundreds of millions). The two 1,000-coin starters stay so a new account can still buy one; everyday
+// packs (under 30,000) x2.5 (Standard 25,000), mid packs (30,000-99,999) x4, chase packs (100,000 and up) x8 (Dark Matter
+// 3,200,000). Bundles stay about 12% under their packs. Packs already bought keep the price they were bought at.
+const PRICE_UP = (c) => (c < 2000 ? 1 : c < 30000 ? 2.5 : c < 100000 ? 4 : 8);
+const ladder = (c) => { const st = c < 10000 ? 250 : c < 100000 ? 500 : c < 1000000 ? 5000 : 50000; return Math.max(st, Math.round(c / st) * st); };
+for (const P of Object.values(PACKS)) if (P.cost > 0 && !P.bundle) P.cost = ladder(P.cost * PRICE_UP(P.cost));
 for (const P of Object.values(PACKS)) if (P.bundle) {
   P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
   P.list = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cost * n, 0);
+  P.cost = ladder(P.list * 0.88);
 }
 // Shop art for the original packs: [colors, emoji, pattern, foil].
 const PACK_ART = {
@@ -793,7 +801,7 @@ for (const [k, [c, e, pat, foil]] of Object.entries(PACK_ART)) if (PACKS[k] && !
 for (const [series, , sets] of SERIES) if (PACKS['series-' + series] && !PACKS['series-' + series].art) PACKS['series-' + series].art = { c: SET_COLORS[series], e: sets[0][2], pat: 'diamond' };
 
 // One pack per team: only that team's cards.
-const TEAM_PACK = { cards: 5, cost: 10000, group: 'team' };
+const TEAM_PACK = { cards: 5, cost: 25000, group: 'team' }; // (x2.5 on Nov 13, like the other everyday packs)
 const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
 // `ctx` (optional): { now: 'YYYY-MM-DD HH:MM' league time, own: collection, lineup: card ids }.
 // Packs with `live` get their per-request fields (price, pool, on-sale state) merged in.

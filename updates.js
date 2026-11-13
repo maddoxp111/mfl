@@ -741,6 +741,17 @@ const UPDATES = [
       'A combo now pays at most 50 times its stake. Single picks are unchanged.',
     ],
   },
+  {
+    n: 70,
+    date: '2026-11-13',
+    title: 'Pack prices up',
+    items: [
+      'Coins are worth less than they were: league players now earn 100,000+ a game and the top pickers hold millions, so pack prices go up to match.',
+      'Everyday packs cost 2.5x as much (Standard 25,000, Value 51,500, Premium 74,000, team packs 25,000). Mid packs cost 4x (Mega 305,000).',
+      'Chase packs cost 8x (Elite 1,200,000, GOAT Hunt, Mythic Hunt and Prism Chase 1,600,000, Black Label 2,000,000, Dark Matter 3,200,000). Bundles are still about 12% off.',
+      'The two 1,000-coin starter packs (Rookie Rack and the single) stay at 1,000, so a new account can still buy one. Packs you already bought keep the price you paid.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
