@@ -710,6 +710,17 @@ const UPDATES = [
       'Also kept: timeouts, the two-minute warning, the end of each quarter, halftime, the pregame intro and the final.',
     ],
   },
+  {
+    n: 67,
+    date: '2026-11-13',
+    title: 'Early dismissal games: bets pay a third',
+    items: [
+      'On early dismissal days the game runs about three times as long, so picks on that game pay a third of their winnings. You still get your full stake back on a win (100 coins at 3.0x pays 166 instead of 300).',
+      'Thursday\'s game (11/12, 12:35s vs No Fly Zone) was an early dismissal, so its picks are paid this way.',
+      'In a combo, only the picks on the early-dismissal game are cut. Your tickets say "Early dismissal" on those picks.',
+      'Admin: Game details has an Early dismissal checkbox for future games.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

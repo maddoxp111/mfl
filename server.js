@@ -1296,8 +1296,8 @@ function betCard(db, b, opts = {}) {
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
-      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}${g && g.betsVoid ? ` · <span class="out-note">Game voided by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}. Stake refunded</span>` : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * b.odds))}`}</span></div>
+      return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}${pk.isEarly(g) ? ' · <span class="out-note">Early dismissal: pays a third of the winnings</span>' : ''}${g && g.betsVoid ? ` · <span class="out-note">Game voided by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}. Stake refunded</span>` : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * (b.legs.some((l) => pk.isEarly(db.games.find((x) => x.id === l.game))) ? b.legs.reduce((x, l) => x * (pk.isEarly(db.games.find((y) => y.id === l.game)) ? 1 + (l.odds - 1) * pk.EARLY_K : l.odds), 1) : b.odds)))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -3102,6 +3102,7 @@ function gameForm(db, g, isNew, scorer = false) {
         <label>Time<input type="time" name="time" value="${esc(g.time || '12:35')}"></label>
         <label>Game type<select name="type" onchange="document.getElementById('bowlF').hidden=this.value!=='playoff'">${opt('regular', g.type, 'Regular season')}${opt('exhibition', g.type, 'Exhibition')}${opt('playoff', g.type, 'Playoff bowl')}</select></label>
         <label id="bowlF" ${g.type === 'playoff' ? '' : 'hidden'}>Bowl<select name="bowl"><option value="">—</option>${db.bowls.map((b) => opt(b.slug, g.bowl, b.name)).join('')}</select></label>
+        <label class="wide chk"><input type="checkbox" name="early" value="1" ${pk.isEarly(g) ? 'checked' : ''}> Early dismissal <small class="muted">(three times the playing time: bets on this game pay a third of their winnings)</small></label>
         <label class="wide">Reason <small class="muted">(shown for postponed or exhibition games)</small><input name="reason" value="${esc(g.reason)}" placeholder="e.g. Rain, assembly, scrimmage"></label>
       </div>
     </details>`}
@@ -3164,6 +3165,7 @@ function readGame(body, g, scoreOnly = false) {
     g.home = body.home; g.away = body.away;
     g.type = ['regular', 'exhibition', 'playoff'].includes(body.type) ? body.type : 'regular';
     g.bowl = g.type === 'playoff' ? body.bowl || null : null;
+    g.early = body.early === '1'; // early dismissal: bets pay a third of their winnings (pickem.js isEarly)
   }
   g.status = ['scheduled', 'live', 'final', 'postponed'].includes(body.status) ? body.status : 'scheduled';
   if (!scoreOnly) {

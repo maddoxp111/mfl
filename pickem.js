@@ -320,15 +320,25 @@ function legResult(db, leg) {
     default: return 'void';
   }
 }
+// Early dismissal: the game runs three times as long, so a pick on it pays a third of its winnings (the stake comes back in
+// full, the profit part of its price is divided by 3). Set per game in admin (Game details); EARLY_DAYS marks the days that
+// were early dismissals before the switch existed.
+const EARLY_K = 1 / 3;
+const EARLY_DAYS = ['2026-11-12'];
+const isEarly = (g) => !!g && (g.early === true || (g.early !== false && EARLY_DAYS.includes(g.date)));
+const earlyOdds = (o) => 1 + (o - 1) * EARLY_K;
 function betResult(db, bet) {
   const res = bet.legs.map((l) => legResult(db, l));
   if (res.includes('lost')) return { status: 'lost', payout: 0, res };
   if (res.includes('pending')) return { status: 'pending', payout: 0, res };
   const live = bet.legs.filter((_, i) => res[i] === 'won');
   if (!live.length) return { status: 'void', payout: bet.stake, res };
-  // Pay the price shown when the bet was placed unless a pick was refunded.
-  const odds = live.length === bet.legs.length ? bet.odds : live.reduce((x, l) => x * l.odds, 1);
-  return { status: 'won', payout: Math.floor(bet.stake * odds), res };
+  const early = live.some((l) => isEarly((db.games || []).find((g) => g.id === l.game)));
+  // Pay the price shown when the bet was placed unless a pick was refunded; a pick on an early-dismissal game at a third of
+  // its winnings.
+  const odds = early ? live.reduce((x, l) => x * (isEarly((db.games || []).find((g) => g.id === l.game)) ? earlyOdds(l.odds) : l.odds), 1)
+    : live.length === bet.legs.length ? bet.odds : live.reduce((x, l) => x * l.odds, 1);
+  return { status: 'won', payout: Math.floor(bet.stake * odds), res, early };
 }
 // `extra`: coins from outside Pick'em (Lineup, Survivor, card sales, minus packs).
 function account(db, user, extra = 0) {
@@ -390,4 +400,4 @@ function mult(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
+module.exports = { isEarly, EARLY_K, offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
