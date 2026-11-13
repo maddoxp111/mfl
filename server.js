@@ -1161,7 +1161,7 @@ function slip(user) {
       el('slipLegs').innerHTML = legs.map((l, i) => '<div class="sl"><div><small>' + l.match + '</small><b>' + l.label + '</b></div><span>' + mx(l.m) + '</span><button type="button" onclick="mflSlip.remove(' + i + ')" aria-label="Remove">✕</button></div>').join('');
       const m = legs.reduce((x, l) => x * l.m, 1), amt = Math.floor(+el('slipAmt').value || 0);
       el('slipMult').textContent = legs.length ? mx(m) : '–';
-      el('slipWin').textContent = legs.length && amt ? Math.floor(amt * m).toLocaleString() : '–';
+      el('slipWin').textContent = legs.length && amt ? Math.floor(Math.min(amt * m, legs.length > 1 ? amt * ${pk.COMBO_MAX} : Infinity)).toLocaleString() : '–'; // (a combo pays at most ${pk.COMBO_MAX}x)
       el('slipQuick').textContent = legs.length ? mx(m) : '';
       fold(el('slip').classList.contains('min'));
     }
@@ -1298,7 +1298,7 @@ function betCard(db, b, opts = {}) {
       const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
       return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}${pk.isEarly(g) ? ' · <span class="out-note">Early dismissal: pays a third of the winnings</span>' : ''}${g && g.betsVoid ? ` · <span class="out-note">Game voided by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}. Stake refunded</span>` : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(Math.floor(b.stake * (b.legs.some((l) => pk.isEarly(db.games.find((x) => x.id === l.game))) ? b.legs.reduce((x, l) => x * (pk.isEarly(db.games.find((y) => y.id === l.game)) ? 1 + (l.odds - 1) * pk.EARLY_K : l.odds), 1) : b.odds)))}`}</span></div>
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(pk.potential(db, b))}`}</span></div>
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
 }
@@ -1663,7 +1663,7 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
     user.bets = user.bets || [];
     user.bets.push(built.bet);
     await putDoc(userKey(name), user);
-    res.json({ ok: true, balance: bal - built.bet.stake, toWin: Math.floor(built.bet.stake * built.bet.odds) });
+    res.json({ ok: true, balance: bal - built.bet.stake, toWin: pk.potential(load(), built.bet) });
   } catch (e) {
     console.error(e);
     res.json({ ok: false, error: 'Could not lock in that pick. Try again.' });

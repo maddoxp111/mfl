@@ -731,6 +731,16 @@ const UPDATES = [
       'Admin can still change any game back: open the game and set its status or the Early dismissal box.',
     ],
   },
+  {
+    n: 69,
+    date: '2026-11-13',
+    title: 'Combos: no more stacking picks that cover each other',
+    items: [
+      'A combo can\'t hold two picks where one already covers the other: a player\'s TD pass with his 2+ TD passes, a TD with his first TD or his 2+ TDs, "scores AND throws" with either one, an INT with 2+ INTs, a lower total with a higher one.',
+      'Combos that already hold picks like that are paid as if they held only the stronger pick. This applies to every ticket, past ones too.',
+      'A combo now pays at most 50 times its stake. Single picks are unchanged.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

@@ -327,18 +327,50 @@ const EARLY_K = 1 / 3;
 const { isEarlyDay } = require('./schoolcal'); // the school calendar's early dismissal days
 const isEarly = (g) => !!g && (g.early === true || (g.early !== false && isEarlyDay(g.date)));
 const earlyOdds = (o) => 1 + (o - 1) * EARLY_K;
+// Combos: a pick that follows from another pick on the same ticket (the same player's TD pass with his 2+ TD passes, a TD with
+// the first TD or with 2+ TDs, an INT with 2+ INTs, a lower total with a higher one...) adds nothing. A new combo can't hold both,
+// a combo that already does is paid as if it held only the stronger pick, and no combo pays more than COMBO_MAX times its stake.
+const COMBO_MAX = 50;
+const IMPLIES = { p3td: ['p2td', 'ptd'], p2td: ['ptd'], pfirst: ['ptd'], p2pass: ['ppass'], pdual: ['ptd', 'ppass'], pint_td: ['pint', 'ptd'], int2: ['int1'] };
+// does pick b follow from pick a (same game)?
+function follows(a, b) {
+  if (a === b || String(a.game) !== String(b.game)) return false;
+  if (a.key === b.key) return true;
+  const [ta, xa, ya] = a.key.split(':'), [tb, xb, yb] = b.key.split(':');
+  if ((IMPLIES[ta] || []).includes(tb)) return xa === xb && (ta === 'int2' || ya === yb);
+  if (ta === 'bothint' && tb === 'int1') return true;
+  if (ta === 'tt' && tb === 'tt') return xa === xb && +ya >= +yb;
+  if (ta === 'tot' && tb === 'tot') return +xa >= +xb;
+  if (ta === 'both' && tb === 'both') return +xa >= +xb;
+  if (ta === 'both' && tb === 'tot') return 2 * +xa >= +xb;
+  if (ta === 'both' && tb === 'tt') return +xa >= +yb;
+  if (ta === 'tt' && tb === 'tot') return +ya >= +xb;
+  return false;
+}
+// the picks that don't follow from another pick on the ticket (for two copies of the same pick, the first)
+const strongest = (legs) => legs.filter((l, i) => !legs.some((o, j) => o !== l && follows(o, l) && !(o.key === l.key && j > i)));
+// what a ticket pays at the odds of these winning picks (the early-dismissal cut, overlapping picks counted once, the combo cap)
+function payFor(db, bet, live) {
+  const gm = (id) => (db.games || []).find((g) => g.id === id);
+  const early = live.some((l) => isEarly(gm(l.game))), keep = strongest(live), overlap = keep.length < live.length;
+  const odds = early || overlap ? keep.reduce((x, l) => x * (isEarly(gm(l.game)) ? earlyOdds(l.odds) : l.odds), 1)
+    : live.length === bet.legs.length ? bet.odds : live.reduce((x, l) => x * l.odds, 1);
+  let payout = Math.floor(bet.stake * odds);
+  if (bet.legs.length > 1) payout = Math.min(payout, bet.stake * COMBO_MAX);
+  return { payout, early, overlap };
+}
+// what an open ticket pays if every pick wins
+const potential = (db, bet) => payFor(db, bet, bet.legs).payout;
 function betResult(db, bet) {
   const res = bet.legs.map((l) => legResult(db, l));
   if (res.includes('lost')) return { status: 'lost', payout: 0, res };
   if (res.includes('pending')) return { status: 'pending', payout: 0, res };
   const live = bet.legs.filter((_, i) => res[i] === 'won');
   if (!live.length) return { status: 'void', payout: bet.stake, res };
-  const early = live.some((l) => isEarly((db.games || []).find((g) => g.id === l.game)));
-  // Pay the price shown when the bet was placed unless a pick was refunded; a pick on an early-dismissal game at a third of
-  // its winnings.
-  const odds = early ? live.reduce((x, l) => x * (isEarly((db.games || []).find((g) => g.id === l.game)) ? earlyOdds(l.odds) : l.odds), 1)
-    : live.length === bet.legs.length ? bet.odds : live.reduce((x, l) => x * l.odds, 1);
-  return { status: 'won', payout: Math.floor(bet.stake * odds), res, early };
+  // Pay the price shown when the bet was placed unless a pick was refunded; a pick on an early-dismissal game at a third of its
+  // winnings, overlapping picks once, a combo at most COMBO_MAX times its stake (payFor).
+  const { payout, early, overlap } = payFor(db, bet, live);
+  return { status: 'won', payout, res, early, overlap };
 }
 // `extra`: coins from outside Pick'em (Lineup, Survivor, card sales, minus packs).
 function account(db, user, extra = 0) {
@@ -377,6 +409,7 @@ function buildBet(db, picks, stake, tz) {
     const playerName = m.player ? db.teams[m.team].roster.find((p) => p.id === m.player)?.name : undefined;
     legs.push({ game: g.id, key: m.key, label: m.label, odds: m.odds, playerName });
   }
+  for (const a of legs) for (const b of legs) if (follows(a, b)) return { error: `"${a.label}" already covers "${b.label}": they can't be in the same combo.` };
   const odds = Math.round(legs.reduce((x, l) => x * l.odds, 1) * 100) / 100;
   stake = Math.floor(Number(stake));
   if (!(stake >= MIN_STAKE)) return { error: `Minimum pick is ${MIN_STAKE} coins.` };
@@ -400,4 +433,4 @@ function mult(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { isEarly, EARLY_K, offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
+module.exports = { isEarly, EARLY_K, COMBO_MAX, potential, follows, offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
