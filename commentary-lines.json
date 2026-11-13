@@ -267,6 +267,18 @@
      "Here we go on {level}!",
      "{home} fans, this one is for you.",
      "{away} is in town."
+    ],
+    [
+     "Welcome to the Blitz!",
+     "We're playing on {level}."
+    ],
+    [
+     "Here we go on {level}!",
+     "The visitors made the trip."
+    ],
+    [
+     "It's game day, and it's {level}.",
+     "Both teams are ready."
     ]
    ]
   },
@@ -297,6 +309,18 @@
     [
      "{away} tees it up and lets it fly.",
      "We are underway!"
+    ],
+    [
+     "Ball's in the air!",
+     "We are underway!"
+    ],
+    [
+     "Boot it!",
+     "Somebody catch it!"
+    ],
+    [
+     "Here comes the kickoff.",
+     "Here we go!"
     ]
    ]
   },
@@ -466,6 +490,18 @@
     [
      "First and 10 at {spot}.",
      "Over to {away}."
+    ],
+    [
+     "Defense, you're up.",
+     "Ball at {spot}."
+    ],
+    [
+     "Let's get a stop!",
+     "They start at {spot}."
+    ],
+    [
+     "Here they come.",
+     "They start at {spot}."
     ]
    ]
   },
@@ -513,6 +549,14 @@
     [
      "Visitors cash in on that drive.",
      "Touchdown."
+    ],
+    [
+     "They got in.",
+     "Regroup, defense!"
+    ],
+    [
+     "Touchdown, visitors.",
+     "That one stings."
     ]
    ]
   },
@@ -547,6 +591,14 @@
     [
      "3 points for {away}.",
      "That's a win for the defense down there."
+    ],
+    [
+     "Bend, don't break!",
+     "Hold them to 3 and move on."
+    ],
+    [
+     "The kick is good.",
+     "Could have been worse."
     ]
    ]
   },
@@ -582,6 +634,14 @@
     [
      "Visitors punt it back to us.",
      "Get the offense ready!"
+    ],
+    [
+     "That's a defensive stop!",
+     "Great stand!"
+    ],
+    [
+     "The defense says no.",
+     "Here comes the punt."
     ]
    ]
   },
@@ -621,6 +681,14 @@
     [
      "Jumped the route!",
      "Our ball now."
+    ],
+    [
+     "Snagged it!",
+     "Our ball now."
+    ],
+    [
+     "Ball hawk alert!",
+     "Pick! Pick! Pick!"
     ]
    ]
   },
@@ -654,6 +722,14 @@
     ],
     [
      "Ball on the ground, and the good guys land on it!",
+     "Turnover!"
+    ],
+    [
+     "Stripped!",
+     "Loose ball, our ball!"
+    ],
+    [
+     "We recover!",
      "Turnover!"
     ]
    ]
@@ -689,6 +765,14 @@
     ],
     [
      "Fourth down, and the visitors come up short.",
+     "Take over, offense!"
+    ],
+    [
+     "That's a huge stop!",
+     "Our ball!"
+    ],
+    [
+     "Stuffed on fourth!",
      "Take over, offense!"
     ]
    ]
@@ -1225,6 +1309,66 @@
      "Nice throw, nice catch.",
      "{passer} hits {rec}.",
      "Gain of {yards}."
+    ],
+    [
+     "Got it.",
+     "{passer} hits {rec}.",
+     "Good for {yards}."
+    ],
+    [
+     "Right there.",
+     "{passer} to {rec}.",
+     "Gain of {yards}."
+    ],
+    [
+     "On the money.",
+     "{passer} finds {rec}.",
+     "Picks up {yards}."
+    ],
+    [
+     "Easy catch.",
+     "{rec} snags it.",
+     "Good for {yards}."
+    ],
+    [
+     "Connection.",
+     "{passer} fires to {rec}.",
+     "Gain of {yards}."
+    ],
+    [
+     "Caught in stride.",
+     "{passer} to {rec}.",
+     "{yards} on the catch."
+    ],
+    [
+     "Caught.",
+     "{passer} hits {rec}.",
+     "Gain of {yards}."
+    ],
+    [
+     "Completion.",
+     "{passer} to {rec}.",
+     "Good for {yards}."
+    ],
+    [
+     "Nice grab.",
+     "{rec} snags it.",
+     "Picks up {yards}."
+    ],
+    [
+     "That works.",
+     "{passer} finds {rec}.",
+     "{yards} on the catch."
+    ],
+    [
+     "Moving the ball.",
+     "{passer} hits {rec}.",
+     "Gain of {yards}."
+    ],
+    [
+     "Smooth.",
+     "{passer} to {rec}.",
+     "Picks up {yards}."
     ]
    ]
   },
@@ -1328,6 +1472,22 @@
     ],
     [
      "Fresh downs!",
+     "{player} made that happen."
+    ],
+    [
+     "That's a first down!",
+     "Nice work by {player}."
+    ],
+    [
+     "Got it!",
+     "{player} moves the chains!"
+    ],
+    [
+     "Enough for the first.",
+     "Thank you, {player}."
+    ],
+    [
+     "Moving the sticks!",
      "{player} made that happen."
     ]
    ]
@@ -1537,6 +1697,25 @@
      "{passer} fires to {rec}.",
      "Pass broken up!",
      "Nothing doing."
+    ],
+    [
+     "No good.",
+     "{passer} to {rec}.",
+     "Falls incomplete."
+    ],
+    [
+     "Incomplete.",
+     "Just out of reach for {rec}."
+    ],
+    [
+     "Off target.",
+     "{passer} fires to {rec}.",
+     "Incomplete."
+    ],
+    [
+     "Not this time.",
+     "{passer} to {rec}.",
+     "Incomplete."
     ]
    ]
   },
@@ -1595,6 +1774,18 @@
     ],
     [
      "Knocked down right at the line of scrimmage!"
+    ],
+    [
+     "Swatted at the line!"
+    ],
+    [
+     "Knocked down at the line!"
+    ],
+    [
+     "Big hand up! No good!"
+    ],
+    [
+     "Tipped, and it falls."
     ]
    ]
   },
@@ -1696,6 +1887,14 @@
     [
      "Floated it.",
      "{away} swoops in for the interception."
+    ],
+    [
+     "Picked!",
+     "Turnover!"
+    ],
+    [
+     "Interception!",
+     "Ouch."
     ]
    ]
   },
@@ -1730,6 +1929,18 @@
     [
      "Worst-case scenario.",
      "{away} returns the pick for 6."
+    ],
+    [
+     "Intercepted and gone!",
+     "Yikes."
+    ],
+    [
+     "Pick 6!",
+     "They take it all the way back."
+    ],
+    [
+     "Oh no, no, no.",
+     "That's a touchdown the other way."
     ]
    ]
   },
@@ -1795,6 +2006,18 @@
     [
      "Scooped up by {away}.",
      "Our defense is back out there."
+    ],
+    [
+     "Turnover.",
+     "That's their ball now."
+    ],
+    [
+     "Ugh.",
+     "That one hurts."
+    ],
+    [
+     "Recovered by the defense.",
+     "Big swing in this game."
     ]
    ]
   },
@@ -1849,6 +2072,14 @@
     [
      "Nobody touched {away} on the way back.",
      "Fumble return touchdown."
+    ],
+    [
+     "Scoop and score!",
+     "Fumble return touchdown."
+    ],
+    [
+     "Fumble, recovery, touchdown.",
+     "Ouch."
     ]
    ]
   },
@@ -1913,6 +2144,51 @@
      "Off tackle to {carrier}.",
      "Gain of {yards}.",
      "Steady work."
+    ],
+    [
+     "Steady run.",
+     "{carrier} pounds ahead.",
+     "Gain of {yards}."
+    ],
+    [
+     "Running hard.",
+     "{carrier} churns ahead.",
+     "Good for {yards}."
+    ],
+    [
+     "Gets what he can.",
+     "{carrier} with the carry.",
+     "Picks up {yards}."
+    ],
+    [
+     "Downhill.",
+     "{carrier} finds a crease.",
+     "Gain of {yards}."
+    ],
+    [
+     "Hard-nosed run.",
+     "{carrier} churns ahead.",
+     "Picks up {yards}."
+    ],
+    [
+     "Downhill run.",
+     "{carrier} pounds ahead.",
+     "Good for {yards}."
+    ],
+    [
+     "Good push up front.",
+     "{carrier} with the carry.",
+     "Gain of {yards}."
+    ],
+    [
+     "Patient run.",
+     "{carrier} finds a crease.",
+     "{yards} on the carry."
+    ],
+    [
+     "Solid run.",
+     "{carrier} keeps the legs moving.",
+     "Gain of {yards}."
     ]
    ]
   },
@@ -2210,6 +2486,50 @@
     [
      "Inches off the grass!",
      "He got under it!"
+    ],
+    [
+     "Full layout!",
+     "{rec} hauls it in!"
+    ],
+    [
+     "He dives!",
+     "And holds on!"
+    ],
+    [
+     "Off the turf!",
+     "What effort from {rec}!"
+    ],
+    [
+     "Laid out flat!",
+     "What a grab!"
+    ],
+    [
+     "Horizontal!",
+     "{rec} hauls it in!"
+    ],
+    [
+     "Dive and catch!",
+     "{rec} gets there!"
+    ],
+    [
+     "Diving grab!",
+     "{rec} lays out for it!"
+    ],
+    [
+     "Lays out!",
+     "{rec} sells out completely!"
+    ],
+    [
+     "He's horizontal!",
+     "And holds on!"
+    ],
+    [
+     "What a dive!",
+     "{rec} hauls it in!"
+    ],
+    [
+     "Stretches out!",
+     "And holds on!"
     ]
    ]
   },
@@ -2572,6 +2892,18 @@
     [
      "Have a seat!",
      "{carrier} made him sit!"
+    ],
+    [
+     "Down he goes!",
+     "{carrier} broke his ankles!"
+    ],
+    [
+     "Cut on a dime!",
+     "{carrier} is filthy!"
+    ],
+    [
+     "Oh, that cut!",
+     "Ankle breaker by {carrier}!"
     ]
    ]
   },
@@ -2667,6 +2999,23 @@
     [
      "Third down and the crowd is on its feet.",
      "{dist} to the sticks."
+    ],
+    [
+     "Third down.",
+     "{dist} to go.",
+     "Here we go."
+    ],
+    [
+     "Big one coming.",
+     "{dist} to go."
+    ],
+    [
+     "Third down here.",
+     "{dist} to go."
+    ],
+    [
+     "Here comes third down.",
+     "{dist} to go."
     ]
    ]
   },
@@ -2713,6 +3062,15 @@
     ],
     [
      "Denied on fourth down. They take over from here."
+    ],
+    [
+     "The fourth down try comes up short. Their ball."
+    ],
+    [
+     "Not enough. The defense holds on fourth."
+    ],
+    [
+     "Turned away on fourth down."
     ]
    ]
   },
@@ -2853,6 +3211,14 @@
      "Plenty of leg, plenty of accuracy.",
      "{kicker} puts it through.",
      "From {dist} out."
+    ],
+    [
+     "It's good!",
+     "Right down the middle!"
+    ],
+    [
+     "Kick is up, and it's good!",
+     "3 points."
     ]
    ]
   },
@@ -2899,6 +3265,14 @@
     [
      "Not this time.",
      "{kicker} comes up empty."
+    ],
+    [
+     "The kick is no good.",
+     "Wide of the mark."
+    ],
+    [
+     "No good!",
+     "So close."
     ]
    ]
   },
@@ -3492,6 +3866,13 @@
     [
      "Party time for {away}.",
      "Enjoy it while it lasts."
+    ],
+    [
+     "The whole bench is up!"
+    ],
+    [
+     "Look at that sideline!",
+     "Dance party over there!"
     ]
    ]
   },
@@ -3658,6 +4039,14 @@
     ],
     [
      "We've got a new leader, and this one is a fight!"
+    ],
+    [
+     "Lead change!",
+     "Game on!"
+    ],
+    [
+     "Flip the scoreboard!",
+     "New leader!"
     ]
    ]
   },
@@ -3774,6 +4163,84 @@
     [
      "Play action.",
      "Looking to throw."
+    ],
+    [
+     "Snap.",
+     "{passer} drops back."
+    ],
+    [
+     "Clean exchange.",
+     "{passer} takes the snap."
+    ],
+    [
+     "Set, hut.",
+     "{passer} drops back."
+    ],
+    [
+     "Off the snap.",
+     "Eyes downfield for {passer}."
+    ],
+    [
+     "Pass play.",
+     "{passer} sets up to throw."
+    ],
+    [
+     "Clean snap.",
+     "In the pocket, {passer}."
+    ],
+    [
+     "Here's the snap.",
+     "{passer} surveys the field."
+    ],
+    [
+     "And the snap.",
+     "{passer} drops back."
+    ],
+    [
+     "Snap is clean.",
+     "{passer} sets up to throw."
+    ],
+    [
+     "Drops back to pass."
+    ],
+    [
+     "Takes the snap.",
+     "Looking."
+    ],
+    [
+     "Here's the play.",
+     "{passer} takes the snap."
+    ],
+    [
+     "There's the snap.",
+     "{passer} drops back."
+    ],
+    [
+     "Quick count.",
+     "{passer} sets up to throw."
+    ],
+    [
+     "The snap.",
+     "In the pocket, {passer}."
+    ],
+    [
+     "Quick snap.",
+     "Eyes downfield for {passer}."
+    ],
+    [
+     "Takes the snap and drops back."
+    ],
+    [
+     "Snap to {passer}.",
+     "Looking."
+    ],
+    [
+     "Ball is snapped.",
+     "{passer} surveys the field."
+    ],
+    [
+     "Here it comes.",
+     "{passer} takes the snap."
     ]
    ]
   },
@@ -3810,6 +4277,33 @@
     [
      "Hands it off.",
      "Up the middle."
+    ],
+    [
+     "On the count.",
+     "Handoff to {carrier}."
+    ],
+    [
+     "Quick handoff.",
+     "{carrier} with the carry."
+    ],
+    [
+     "Snap, and a handoff."
+    ],
+    [
+     "Off the snap.",
+     "Ball goes to {carrier}."
+    ],
+    [
+     "Run play.",
+     "{carrier} takes the handoff."
+    ],
+    [
+     "They keep it on the ground.",
+     "Give to {carrier}."
+    ],
+    [
+     "Here comes the run.",
+     "{carrier} gets the rock."
     ]
    ]
   },
@@ -3842,6 +4336,14 @@
     ],
     [
      "Nope!",
+     "{passer} keeps this one."
+    ],
+    [
+     "He keeps it!",
+     "{passer} runs it."
+    ],
+    [
+     "Fakes it.",
      "{passer} keeps this one."
     ]
    ]
@@ -3887,6 +4389,54 @@
     ],
     [
      "Zips one at {rec}!"
+    ],
+    [
+     "He throws.",
+     "It's for {rec}!"
+    ],
+    [
+     "Here's the pass.",
+     "Throw goes to {rec}."
+    ],
+    [
+     "Throwing now.",
+     "Looking for {rec}."
+    ],
+    [
+     "Lets it rip.",
+     "Delivers to {rec}."
+    ],
+    [
+     "Here comes the throw.",
+     "Ball's up for {rec}."
+    ],
+    [
+     "Quick release.",
+     "Fires it to {rec}!"
+    ],
+    [
+     "He fires.",
+     "Now to {rec}!"
+    ],
+    [
+     "Ball is out.",
+     "It's for {rec}!"
+    ],
+    [
+     "Throwing.",
+     "{rec} is the target."
+    ],
+    [
+     "Here it comes.",
+     "Throw goes to {rec}."
+    ],
+    [
+     "Pass is out.",
+     "Looking for {rec}."
+    ],
+    [
+     "On the money.",
+     "Zips one at {rec}!"
     ]
    ]
   },
@@ -3918,6 +4468,18 @@
     [
      "Airs it out!",
      "Way downfield!"
+    ],
+    [
+     "He lets it fly!",
+     "Long ball for {rec}!"
+    ],
+    [
+     "Deep shot!",
+     "Launches it to {rec}!"
+    ],
+    [
+     "Way downfield!",
+     "{rec} is streaking!"
     ]
    ]
   },
@@ -3943,6 +4505,14 @@
     ],
     [
      "Safety valve.",
+     "Underneath to {rec}."
+    ],
+    [
+     "Safe throw.",
+     "Flips it to {rec}."
+    ],
+    [
+     "Easy toss.",
      "Underneath to {rec}."
     ]
    ]
@@ -3981,6 +4551,30 @@
     ],
     [
      "Into the arms of {rec}!"
+    ],
+    [
+     "Got it!",
+     "{rec} has it!"
+    ],
+    [
+     "Made the grab!",
+     "{rec} tucks it away!"
+    ],
+    [
+     "Caught!",
+     "{rec} pulls it down!"
+    ],
+    [
+     "What hands!",
+     "{rec} reels it in!"
+    ],
+    [
+     "Hauled in!",
+     "Into the arms of {rec}!"
+    ],
+    [
+     "Complete!",
+     "In the hands of {rec}!"
     ]
    ]
   },
@@ -4025,6 +4619,26 @@
     ],
     [
      "He's got room!"
+    ],
+    [
+     "Hits the hole!",
+     "{carrier} turning upfield!"
+    ],
+    [
+     "Running hard!",
+     "Here comes {carrier}!"
+    ],
+    [
+     "Finds a lane!",
+     "{carrier} turns upfield!"
+    ],
+    [
+     "Picking his way through!",
+     "Here comes {carrier}!"
+    ],
+    [
+     "Slips through!",
+     "{carrier} looking for room."
     ]
    ]
   },
@@ -4056,6 +4670,18 @@
     [
      "Daylight!",
      "Nobody's going to catch him!"
+    ],
+    [
+     "He's loose!",
+     "{carrier} has room to run!"
+    ],
+    [
+     "Wide open space!",
+     "{carrier} has room to run!"
+    ],
+    [
+     "Nobody around him!",
+     "{carrier} in the open!"
     ]
    ]
   },
@@ -4224,6 +4850,21 @@
     ],
     [
      "Run down from behind."
+    ],
+    [
+     "Down he goes."
+    ],
+    [
+     "Stopped there."
+    ],
+    [
+     "The defense gets him."
+    ],
+    [
+     "That will do it."
+    ],
+    [
+     "And he is down."
     ]
    ]
   },
@@ -4319,6 +4960,14 @@
     [
      "Here comes {carrier}!",
      "On the return!"
+    ],
+    [
+     "Fielded!",
+     "{carrier} brings it out!"
+    ],
+    [
+     "Here comes the return!",
+     "{carrier} brings it out!"
     ]
    ]
   },
@@ -4384,6 +5033,96 @@
     [
      "Plenty of options on {down} down.",
      "{dist} to the sticks."
+    ],
+    [
+     "Okay.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Let's see the call."
+    ],
+    [
+     "Back at it.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Pick your spot."
+    ],
+    [
+     "Here's the situation.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Stay patient."
+    ],
+    [
+     "Let's go.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Make it happen."
+    ],
+    [
+     "Next snap.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Good chance here."
+    ],
+    [
+     "Next play.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "Here we are.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Keep it simple."
+    ],
+    [
+     "Back to the line.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "The defense is ready."
+    ],
+    [
+     "All right.",
+     "{down} down.",
+     "{dist} to go."
+    ],
+    [
+     "{down} down.",
+     "{dist} to go.",
+     "Pick a good one."
+    ],
+    [
+     "Moving on.",
+     "{down} down.",
+     "{dist} to go."
     ]
    ]
   },
@@ -4427,6 +5166,87 @@
      "Full playbook is open.",
      "Ball at {spot}.",
      "First and 10."
+    ],
+    [
+     "Fresh set, fresh chance.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Let's keep this going."
+    ],
+    [
+     "Okay.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Build something here."
+    ],
+    [
+     "Reset.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Everything is open."
+    ],
+    [
+     "On we go.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Let's see what's next."
+    ],
+    [
+     "Next series of downs.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "The offense is back at it."
+    ],
+    [
+     "Lining up again.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Big opportunity here."
+    ],
+    [
+     "Here we go again.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Let's go to work."
+    ],
+    [
+     "Clean slate.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Where do we go from here?"
+    ],
+    [
+     "Ball at {spot}.",
+     "Any play is on the table."
+    ],
+    [
+     "Settle in.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "Time to make something happen."
+    ],
+    [
+     "All right.",
+     "Ball at {spot}.",
+     "Let's see the call."
     ]
    ]
   },
@@ -4469,6 +5289,46 @@
     [
      "Everybody in the building expects a pass.",
      "{dist} to the sticks."
+    ],
+    [
+     "A big one needed.",
+     "{dist} to go."
+    ],
+    [
+     "{dist} to go.",
+     "Look for the big play."
+    ],
+    [
+     "Lots of ground to cover.",
+     "{dist} to go."
+    ],
+    [
+     "{dist} to go.",
+     "The defense can play it safe now."
+    ],
+    [
+     "Long road ahead.",
+     "{dist} to go."
+    ],
+    [
+     "Long yardage situation.",
+     "{dist} to go."
+    ],
+    [
+     "{dist} to go.",
+     "That's a lot of grass."
+    ],
+    [
+     "Need a big one here.",
+     "{dist} to go."
+    ],
+    [
+     "{dist} to go.",
+     "Patience, or a shot downfield?"
+    ],
+    [
+     "{dist} to go.",
+     "Time for a chunk play."
     ]
    ]
   },
@@ -4498,6 +5358,21 @@
     ],
     [
      "Third and short. Everybody up on the line."
+    ],
+    [
+     "Barely any distance needed. Just get a push."
+    ],
+    [
+     "Short yardage. This is a battle up front."
+    ],
+    [
+     "Just a yard or two needed."
+    ],
+    [
+     "Lean forward and you've got it."
+    ],
+    [
+     "Short and sweet. Get it done."
     ]
    ]
   },
@@ -4527,6 +5402,18 @@
     ],
     [
      "Red zone, folks. Points are right there for the taking."
+    ],
+    [
+     "Red zone. Time to finish."
+    ],
+    [
+     "Down in scoring range. Make it count."
+    ],
+    [
+     "The end zone is getting close."
+    ],
+    [
+     "Red zone trips have to end in points."
     ]
    ]
   },
@@ -4553,6 +5440,18 @@
     ],
     [
      "Every inch is a fight down here."
+    ],
+    [
+     "Goal to go. This is it."
+    ],
+    [
+     "So close you can taste it."
+    ],
+    [
+     "Get in the end zone!"
+    ],
+    [
+     "Down at the goal line. Nobody blinks."
     ]
    ]
   },
@@ -4589,6 +5488,19 @@
     ],
     [
      "Fourth down, and the whole stadium knows it.",
+     "{dist} to go."
+    ],
+    [
+     "Fourth down.",
+     "{dist} to go.",
+     "Big decision."
+    ],
+    [
+     "Here's a fourth down.",
+     "{dist} to go."
+    ],
+    [
+     "Fourth down, and everybody is watching.",
      "{dist} to go."
     ]
    ]
@@ -4636,6 +5548,19 @@
      "The offense is stacking plays.",
      "A {plays}-play drive.",
      "Nice and steady."
+    ],
+    [
+     "Here's the drive so far.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "Steady march.",
+     "{yards} on the drive."
+    ],
+    [
+     "Look at this possession.",
+     "A {plays}-play drive."
     ]
    ]
   },
@@ -4662,6 +5587,12 @@
     ],
     [
      "Plenty of snaps, barely a dent. Try something new."
+    ],
+    [
+     "This drive needs a spark."
+    ],
+    [
+     "The defense is winning this series."
     ]
    ]
   },
@@ -4688,6 +5619,12 @@
     ],
     [
      "Whatever they call, it works. Stay hot!"
+    ],
+    [
+     "This offense is rolling right now."
+    ],
+    [
+     "They can't miss on this drive."
     ]
    ]
   },
@@ -4756,6 +5693,15 @@
     ],
     [
      "Under a minute. No wasted snaps."
+    ],
+    [
+     "Watch the clock now."
+    ],
+    [
+     "Clock management time."
+    ],
+    [
+     "Every tick counts from here."
     ]
    ]
   },
@@ -4801,6 +5747,26 @@
      "{away} needs an answer.",
      "Visitors have {as}.",
      "Home side has {hs}."
+    ],
+    [
+     "Here's where we stand.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Let's check the scoreboard.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "A look at the score.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "Our guys are in front.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
@@ -4846,6 +5812,26 @@
      "Comeback time for {home}?",
      "Home side has {hs}.",
      "Visitors have {as}."
+    ],
+    [
+     "Here's where we stand.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Let's check the scoreboard.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "A look at the score.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Still some catching up to do.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
     ]
    ]
   },
@@ -4884,6 +5870,21 @@
     ],
     [
      "Next score is huge for {home}.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Here's where we stand.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Let's check the scoreboard.",
+     "Visitors have {as}.",
+     "Home side has {hs}."
+    ],
+    [
+     "Even steven.",
      "Home side has {hs}.",
      "Visitors have {as}."
     ]
@@ -4951,6 +5952,14 @@
      "Keep feeding {player}.",
      "{n} catches today.",
      "{yards} receiving."
+    ],
+    [
+     "Keep looking for {player}.",
+     "{n} catches today."
+    ],
+    [
+     "Big day for {player}.",
+     "{n} catches today."
     ]
    ]
   },
@@ -4988,6 +5997,14 @@
     [
      "{player} is everywhere today.",
      "{yards} on the ground.",
+     "{n} carries so far."
+    ],
+    [
+     "Feed {player} the rock.",
+     "{yards} on the ground."
+    ],
+    [
+     "Big day for {player}.",
      "{n} carries so far."
     ]
    ]
@@ -5099,6 +6116,18 @@
     ],
     [
      "Frame this one for {player}."
+    ],
+    [
+     "Keep feeding {player}.",
+     "He's rolling."
+    ],
+    [
+     "Can anybody stop {player}?",
+     "Not so far."
+    ],
+    [
+     "Monster game for {player}.",
+     "Keep it coming."
     ]
    ]
   },
@@ -5225,6 +6254,60 @@
     ],
     [
      "Protect the football first, then get greedy."
+    ],
+    [
+     "Throw it where only your receiver can catch it."
+    ],
+    [
+     "Mix in a run to keep the defense guessing."
+    ],
+    [
+     "Look for the open man underneath."
+    ],
+    [
+     "A quick pass beats a blitz."
+    ],
+    [
+     "Stretch the defense sideways, then go deep."
+    ],
+    [
+     "Don't force it into coverage."
+    ],
+    [
+     "A good run on early downs sets up everything."
+    ],
+    [
+     "Watch the safeties. They tell you where to throw."
+    ],
+    [
+     "Use the whole field."
+    ],
+    [
+     "When in doubt, throw it away and live for the next down."
+    ],
+    [
+     "Change the tempo and catch them off guard."
+    ],
+    [
+     "Get the ball to your playmakers in space."
+    ],
+    [
+     "Sometimes the best play is the simple one."
+    ],
+    [
+     "Short passes add up fast."
+    ],
+    [
+     "Attack the side of the field with fewer defenders."
+    ],
+    [
+     "Keep your best players involved."
+    ],
+    [
+     "Know how many yards you need before the snap."
+    ],
+    [
+     "A good fake can freeze a whole defense."
     ]
    ]
   },
@@ -5256,6 +6339,20 @@
     [
      "{away} blitzes on the big downs.",
      "Keep a back in to block."
+    ],
+    [
+     "Their defense is playing fast."
+    ],
+    [
+     "They like to bring an extra rusher."
+    ],
+    [
+     "Their safeties are sitting deep.",
+     "Work underneath them."
+    ],
+    [
+     "They keep crowding the line.",
+     "Throw over the top!"
     ]
    ]
   },
@@ -5290,6 +6387,26 @@
     [
      "Get a stop and get the ball back.",
      "{away} is on offense."
+    ],
+    [
+     "{away} offense on the field.",
+     "Get a stop."
+    ],
+    [
+     "Here comes {away}.",
+     "Make them earn it."
+    ],
+    [
+     "Their offense is on the field.",
+     "Let's hold them."
+    ],
+    [
+     "Big series for the defense.",
+     "Make them earn it."
+    ],
+    [
+     "Defense, you know the job.",
+     "Get a stop."
     ]
    ]
   },
@@ -5313,6 +6430,12 @@
     ],
     [
      "1 point is safe. 2 points change the math."
+    ],
+    [
+     "Extra point or 2-point try? Decision time."
+    ],
+    [
+     "Take the easy point, or be bold?"
     ]
    ]
   },
@@ -5333,6 +6456,12 @@
     ],
     [
      "Onside kicks are rare for a reason. Go deep unless you must."
+    ],
+    [
+     "Kick it deep, or try something sneaky?"
+    ],
+    [
+     "Kickoff time. Deep or onside?"
     ]
    ]
   },
@@ -5353,6 +6482,12 @@
     ],
     [
      "Count your timeouts before the 2-minute mark."
+    ],
+    [
+     "Use those timeouts wisely."
+    ],
+    [
+     "A timeout can be a weapon late."
     ]
    ]
   },
@@ -5379,6 +6514,18 @@
     ],
     [
      "The marching band has the crowd on its feet at the break."
+    ],
+    [
+     "The second half could look totally different."
+    ],
+    [
+     "Coaches have a lot to talk about at the break."
+    ],
+    [
+     "Halftime adjustments are where games are won."
+    ],
+    [
+     "Rest up. The second half is coming."
     ]
    ]
   },
@@ -5416,6 +6563,26 @@
     [
      "Everybody's talking about {home} today.",
      "Let's see if they back it up."
+    ],
+    [
+     "Welcome in.",
+     "{home} takes on {away}."
+    ],
+    [
+     "Here we go.",
+     "{home} against {away}."
+    ],
+    [
+     "Settle in, folks.",
+     "{away} is in town."
+    ],
+    [
+     "Welcome in.",
+     "Both teams are ready."
+    ],
+    [
+     "Settle in, folks.",
+     "The visitors made the trip."
     ]
    ]
   },
@@ -5523,6 +6690,3422 @@
     ],
     [
      "Just another perfect evening at the best little stadium around."
+    ]
+   ]
+  },
+  "bc_flyover": {
+   "vars": [
+    "home",
+    "away"
+   ],
+   "lines": [
+    [
+     "What a scene from up here.",
+     "The visitors made the trip."
+    ],
+    [
+     "Take a look at this place.",
+     "Both teams are ready."
+    ],
+    [
+     "The stage is set.",
+     "Let's get it on."
+    ],
+    [
+     "Beautiful view of the field from up top."
+    ],
+    [
+     "What a scene from up here.",
+     "{home} takes on {away}."
+    ],
+    [
+     "Take a look at this place.",
+     "{home} against {away}."
+    ],
+    [
+     "Beautiful view of the field from up top.",
+     "{home} takes on {away}."
+    ],
+    [
+     "The stage is set.",
+     "{home} against {away}."
+    ],
+    [
+     "What a setting for football.",
+     "{away} is in the building."
+    ],
+    [
+     "Here's your matchup.",
+     "{home} takes on {away}.",
+     "Let's get it on."
+    ],
+    [
+     "The field is ready, and so are the teams.",
+     "{home} against {away}."
+    ],
+    [
+     "Big game on the schedule.",
+     "{home} takes on {away}."
+    ],
+    [
+     "From up above, welcome in.",
+     "{away} made the trip."
+    ]
+   ]
+  },
+  "bc_intro_home": {
+   "vars": [
+    "home"
+   ],
+   "lines": [
+    [
+     "Here they come.",
+     "{home} is ready."
+    ],
+    [
+     "Let's meet the home team.",
+     "{home} is ready."
+    ],
+    [
+     "The home side takes the field.",
+     "{home} looks hungry."
+    ],
+    [
+     "Introducing the home team.",
+     "{home} is ready to throw down."
+    ],
+    [
+     "On your screen, the home team.",
+     "{home} is on the field."
+    ],
+    [
+     "Here comes the home side.",
+     "Let's move it, {home}!"
+    ],
+    [
+     "This is the squad we came to see.",
+     "Go get it, {home}!"
+    ],
+    [
+     "The home team, and they look locked in."
+    ],
+    [
+     "Here comes the home side."
+    ],
+    [
+     "The home side takes the field."
+    ]
+   ]
+  },
+  "bc_intro_away": {
+   "vars": [
+    "away"
+   ],
+   "lines": [
+    [
+     "And the visitors.",
+     "{away} made the trip."
+    ],
+    [
+     "Now the road team.",
+     "{away} is in the building."
+    ],
+    [
+     "Here come the visitors.",
+     "{away} looks ready."
+    ],
+    [
+     "They came to play.",
+     "{away} is in the house."
+    ],
+    [
+     "On the other side.",
+     "Here comes {away}."
+    ],
+    [
+     "Don't sleep on the visitors.",
+     "{away} looks ready."
+    ],
+    [
+     "The challengers.",
+     "{away} looks ready."
+    ],
+    [
+     "The visiting team, and they mean business."
+    ],
+    [
+     "Here come the visitors.",
+     "They came to play."
+    ],
+    [
+     "Now the road team.",
+     "They made the trip."
+    ]
+   ]
+  },
+  "bc_coin_toss": {
+   "vars": [],
+   "lines": [
+    [
+     "Here's the coin toss."
+    ],
+    [
+     "Captains at midfield for the toss."
+    ],
+    [
+     "The coin is up."
+    ],
+    [
+     "Heads or tails. Here we go."
+    ],
+    [
+     "Coin toss time. Let's see who gets the ball first."
+    ],
+    [
+     "One flip of the coin decides who starts with it."
+    ],
+    [
+     "The coin is in the air."
+    ],
+    [
+     "Big moment before the big game. The coin toss."
+    ]
+   ]
+  },
+  "bc_replay": {
+   "vars": [
+    "player"
+   ],
+   "lines": [
+    [
+     "Let's look at that again.",
+     "Watch {player} closely."
+    ],
+    [
+     "Here's another look.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "Let's go to the replay.",
+     "Look at {player} go!"
+    ],
+    [
+     "Roll the tape.",
+     "Watch {player} closely."
+    ],
+    [
+     "One more time.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "You have to see this again.",
+     "Look at {player} go!"
+    ],
+    [
+     "Take a look at this.",
+     "Watch {player} closely."
+    ],
+    [
+     "Slow it down for me.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "Replay time.",
+     "Here comes {player}!"
+    ],
+    [
+     "Let's see it one more time."
+    ],
+    [
+     "Let's look at that again."
+    ],
+    [
+     "Roll the tape."
+    ],
+    [
+     "Let's go to the replay."
+    ]
+   ]
+  },
+  "bc_replay_end": {
+   "vars": [],
+   "lines": [
+    [
+     "What a play."
+    ],
+    [
+     "That's why you watch the replay."
+    ],
+    [
+     "Beautiful. Back to the action."
+    ],
+    [
+     "Wow. Just wow."
+    ],
+    [
+     "You could watch that one all day."
+    ],
+    [
+     "Back to live action."
+    ],
+    [
+     "Pure skill right there."
+    ],
+    [
+     "That's going on the highlight reel."
+    ],
+    [
+     "Unreal. Let's get back to it."
+    ]
+   ]
+  },
+  "bc_crowd": {
+   "vars": [],
+   "lines": [
+    [
+     "Listen to this crowd."
+    ],
+    [
+     "The fans are loving it."
+    ],
+    [
+     "These fans came to be loud."
+    ],
+    [
+     "Everybody's into this one."
+    ],
+    [
+     "What a crowd."
+    ],
+    [
+     "They're cheering every snap."
+    ],
+    [
+     "You can feel the energy."
+    ],
+    [
+     "That's a fired up bunch right there."
+    ],
+    [
+     "The fans want a big play."
+    ],
+    [
+     "Loud and proud out here."
+    ]
+   ]
+  },
+  "bc_sideline": {
+   "vars": [
+    "team"
+   ],
+   "lines": [
+    [
+     "Over on the {team} sideline."
+    ],
+    [
+     "A quick look at the sideline.",
+     "{team} is ready."
+    ],
+    [
+     "The bench is locked in."
+    ],
+    [
+     "Guys on the sideline are into this one."
+    ],
+    [
+     "The coaches are talking it over."
+    ],
+    [
+     "Plenty of energy on that sideline."
+    ],
+    [
+     "Everybody on the bench is standing."
+    ],
+    [
+     "Eyes on the field from the bench."
+    ],
+    [
+     "Over on the {team} sideline.",
+     "They're fired up."
+    ]
+   ]
+  },
+  "bc_huddle": {
+   "vars": [
+    "team"
+   ],
+   "lines": [
+    [
+     "The offense in the huddle."
+    ],
+    [
+     "Huddle up.",
+     "{team} has the ball."
+    ],
+    [
+     "Here's the huddle. Everybody's listening."
+    ],
+    [
+     "The quarterback calls the play."
+    ],
+    [
+     "Heads together in the huddle."
+    ],
+    [
+     "What's the call going to be?"
+    ],
+    [
+     "Drive time for {team}."
+    ],
+    [
+     "Huddle up, and let's see what they've got."
+    ]
+   ]
+  },
+  "bc_drive_summary": {
+   "vars": [
+    "team",
+    "plays",
+    "yards"
+   ],
+   "lines": [
+    [
+     "Here's how that drive went.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "Let's recap that drive.",
+     "{yards} on the drive.",
+     "A {plays}-play drive."
+    ],
+    [
+     "Drive summary for {team}.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "Look at the numbers on that drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "What a drive.",
+     "A {plays}-play drive.",
+     "{yards} on the drive."
+    ],
+    [
+     "Drive chart.",
+     "{yards} on the drive.",
+     "A {plays}-play drive."
+    ],
+    [
+     "{team} got it done.",
+     "A {plays}-play drive."
+    ],
+    [
+     "That's how you march.",
+     "{yards} on the drive."
+    ]
+   ]
+  },
+  "bc_stat_card": {
+   "vars": [
+    "player"
+   ],
+   "lines": [
+    [
+     "Stat check on {player}.",
+     "Here's the line."
+    ],
+    [
+     "Let's look at the numbers.",
+     "Big day for {player}."
+    ],
+    [
+     "{player} has been busy.",
+     "Here are the numbers."
+    ],
+    [
+     "Numbers don't lie.",
+     "{player} is everywhere today."
+    ],
+    [
+     "Quick look at the stat sheet.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "Check out this stat line.",
+     "{player} has been busy."
+    ],
+    [
+     "Stat check on {player}.",
+     "Solid work so far."
+    ],
+    [
+     "The numbers so far.",
+     "Big day for {player}."
+    ],
+    [
+     "Here's a look at the numbers."
+    ],
+    [
+     "The stat sheet tells the story."
+    ]
+   ]
+  },
+  "bc_spotlight": {
+   "vars": [
+    "player"
+   ],
+   "lines": [
+    [
+     "Spotlight on {player}."
+    ],
+    [
+     "Keep an eye on {player}.",
+     "He can change a game."
+    ],
+    [
+     "Watch {player} closely.",
+     "Big-play threat."
+    ],
+    [
+     "Here's a guy to watch.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "Quick tip on {player}.",
+     "He's a playmaker."
+    ],
+    [
+     "Get to know this one.",
+     "Watch {player} closely."
+    ],
+    [
+     "Watch out for {player}!",
+     "He's dangerous with the ball."
+    ],
+    [
+     "Player to watch.",
+     "Keep an eye on {player}."
+    ],
+    [
+     "Spotlight on {player}.",
+     "Big things coming."
+    ],
+    [
+     "Here's a player to watch."
+    ],
+    [
+     "Keep your eye on this one."
+    ]
+   ]
+  },
+  "bc_red_zone": {
+   "vars": [
+    "team"
+   ],
+   "lines": [
+    [
+     "Welcome to the red zone.",
+     "Here comes the {team} offense."
+    ],
+    [
+     "Red zone, folks.",
+     "Time to finish the drive."
+    ],
+    [
+     "Scoring territory.",
+     "Let's move it, {team}!"
+    ],
+    [
+     "Down in the red zone.",
+     "Go get it, {team}!"
+    ],
+    [
+     "This is where drives become points."
+    ],
+    [
+     "The field gets small down here."
+    ],
+    [
+     "Red zone. Every yard is a fight now."
+    ],
+    [
+     "Knocking on the door.",
+     "Drive time for {team}."
+    ]
+   ]
+  },
+  "bc_two_minute": {
+   "vars": [],
+   "lines": [
+    [
+     "We're at the 2-minute warning."
+    ],
+    [
+     "Under 2 minutes now.",
+     "Every snap counts."
+    ],
+    [
+     "Crunch time!",
+     "We're at the 2-minute warning."
+    ],
+    [
+     "2-minute warning. Time to tighten up."
+    ],
+    [
+     "The clock is a big factor from here."
+    ],
+    [
+     "2 minutes on the clock. Manage it well."
+    ],
+    [
+     "Here comes the 2-minute warning. Big stretch coming up."
+    ],
+    [
+     "Clock's ticking!",
+     "Every snap counts."
+    ]
+   ]
+  },
+  "bc_halftime": {
+   "vars": [
+    "home",
+    "away",
+    "hs",
+    "as"
+   ],
+   "lines": [
+    [
+     "Let's check the score at the half.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Halftime numbers.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
+    ],
+    [
+     "We're at the break.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Two quarters down.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "Locker room time.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
+    ],
+    [
+     "Here's your halftime score.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ],
+    [
+     "The halftime break is here.",
+     "{hs} for the home side.",
+     "{as} for the visitors."
+    ],
+    [
+     "Halfway home.",
+     "Home side has {hs}.",
+     "Visitors have {as}."
+    ]
+   ]
+  },
+  "bc_end_quarter": {
+   "vars": [
+    "period"
+   ],
+   "lines": [
+    [
+     "That's the end of the quarter."
+    ],
+    [
+     "End of the quarter. Teams switch sides."
+    ],
+    [
+     "Quarter's over. Let's reset."
+    ],
+    [
+     "That's a quarter in the books."
+    ],
+    [
+     "And that's the quarter."
+    ],
+    [
+     "Teams change ends of the field."
+    ],
+    [
+     "Another quarter down."
+    ],
+    [
+     "End of the quarter.",
+     "Quick break."
+    ]
+   ]
+  },
+  "bc_potg": {
+   "vars": [
+    "player"
+   ],
+   "lines": [
+    [
+     "Your player of the game.",
+     "What a day for {player}!"
+    ],
+    [
+     "And the player of the game.",
+     "Monster game for {player}."
+    ],
+    [
+     "The star of the show.",
+     "Monster game for {player}."
+    ],
+    [
+     "No doubt about this one.",
+     "Frame this one for {player}."
+    ],
+    [
+     "The player of the game.",
+     "Big day for {player}."
+    ],
+    [
+     "Give it up for the player of the game.",
+     "Frame this one for {player}."
+    ],
+    [
+     "Who else?",
+     "What a day for {player}!"
+    ],
+    [
+     "Player of the game.",
+     "Nobody could stop him."
+    ]
+   ]
+  },
+  "bc_celebration": {
+   "vars": [
+    "player"
+   ],
+   "lines": [
+    [
+     "{player} is loving this!"
+    ],
+    [
+     "{player} is fired up!",
+     "And why not?"
+    ],
+    [
+     "Let him enjoy it.",
+     "{player} is loving this!"
+    ],
+    [
+     "What a day for {player}!"
+    ],
+    [
+     "That's a celebration!",
+     "{player} is fired up!"
+    ],
+    [
+     "Big moment, big celebration."
+    ],
+    [
+     "He earned that one."
+    ],
+    [
+     "Look at that.",
+     "{player} is loving this!"
+    ],
+    [
+     "That's a celebration!"
+    ],
+    [
+     "Let him enjoy it."
+    ]
+   ]
+  },
+  "crowd_note": {
+   "vars": [],
+   "lines": [
+    [
+     "This crowd has been into it from the jump."
+    ],
+    [
+     "You can hear the fans on every snap."
+    ],
+    [
+     "The cheering hasn't stopped since the opening play."
+    ],
+    [
+     "Big turnout for this one."
+    ],
+    [
+     "Somebody in the crowd brought a drum, and they have not stopped."
+    ],
+    [
+     "The fans are making it hard to hear up here."
+    ],
+    [
+     "There's a chant starting up."
+    ],
+    [
+     "Families, friends, classmates. Everybody showed up."
+    ],
+    [
+     "The noise just jumped a level."
+    ],
+    [
+     "A little brother in the front row is going nuts."
+    ],
+    [
+     "Listen to them. They want a big play."
+    ],
+    [
+     "Every fan here has an opinion on the next play call."
+    ],
+    [
+     "The crowd groans, then cheers. What a roller coaster."
+    ],
+    [
+     "Great atmosphere. You can't beat it."
+    ],
+    [
+     "Somebody's waving a giant foam finger."
+    ],
+    [
+     "The cheer section is in full voice."
+    ],
+    [
+     "That crowd noise is a real factor."
+    ],
+    [
+     "Lots of team colors out here."
+    ],
+    [
+     "They're stomping and clapping in rhythm."
+    ],
+    [
+     "Every big play gets a roar out here."
+    ],
+    [
+     "You can feel the buzz building."
+    ],
+    [
+     "Somebody just started a defense chant."
+    ],
+    [
+     "The fans are on the edge of their seats."
+    ],
+    [
+     "The crowd is hanging on every snap."
+    ]
+   ]
+  },
+  "booth_talk": {
+   "vars": [],
+   "lines": [
+    [
+     "Great to be with you for this one."
+    ],
+    [
+     "If you're just joining us, pull up a seat. It's been fun."
+    ],
+    [
+     "My partner says he's got a good feeling about the next drive."
+    ],
+    [
+     "Booth rule number one: never bet against a hungry offense."
+    ],
+    [
+     "I've called a lot of games, and this one has a little bit of everything."
+    ],
+    [
+     "We've got the best seats in the house up here."
+    ],
+    [
+     "The stat crew is working overtime up here."
+    ],
+    [
+     "Somebody in the booth just spilled the popcorn. Very professional."
+    ],
+    [
+     "Quick reminder: drink some water, and cheer loud."
+    ],
+    [
+     "My producer is telling me to keep it short. I never keep it short."
+    ],
+    [
+     "I wrote down 3 keys to this game. I can't read my own handwriting."
+    ],
+    [
+     "You know what I love about this league? Everybody plays hard."
+    ],
+    [
+     "Football is a game of inches, and a whole lot of hustle."
+    ],
+    [
+     "Whoever wins the next few snaps wins the momentum."
+    ],
+    [
+     "Keep your eyes on the line of scrimmage. That's where it starts."
+    ],
+    [
+     "My partner just asked if I want a hot dog. Yes. Always yes."
+    ],
+    [
+     "This is my favorite part of the week, right here."
+    ],
+    [
+     "The camera crew is getting some great shots out there."
+    ],
+    [
+     "Big game, big moments. Let's see who steps up."
+    ],
+    [
+     "Back in my day, we drew up plays in the dirt with a stick."
+    ],
+    [
+     "I've got my lucky pen out. That means something big is coming."
+    ],
+    [
+     "Never a dull moment in this league."
+    ],
+    [
+     "Every player out there is giving it everything."
+    ],
+    [
+     "Somebody tell the scoreboard operator he's doing great."
+    ],
+    [
+     "Coaching matters, but players make plays."
+    ],
+    [
+     "My scouting report says: expect the unexpected."
+    ],
+    [
+     "Tell your friends. This is the game to watch."
+    ],
+    [
+     "Up here in the booth, we're on the edge of our seats too."
+    ],
+    [
+     "It's a great time to be a football fan."
+    ],
+    [
+     "You can't teach effort, and there's plenty of it out there."
+    ],
+    [
+     "I keep a notebook of great plays. This game is filling it up."
+    ],
+    [
+     "Somebody asked me who wins this. I said, the fans."
+    ]
+   ]
+  },
+  "early_game": {
+   "vars": [],
+   "lines": [
+    [
+     "Still early. Both teams are feeling each other out."
+    ],
+    [
+     "First drives tell you a lot about a game plan."
+    ],
+    [
+     "Plenty of time to settle in here."
+    ],
+    [
+     "The early nerves should be wearing off by now."
+    ],
+    [
+     "Coaches are taking notes on what's working."
+    ],
+    [
+     "Long way to go in this one."
+    ],
+    [
+     "Early chance to set the tone."
+    ],
+    [
+     "Fast start or slow start, it's a long game."
+    ],
+    [
+     "Get a feel for the defense early. That pays off later."
+    ],
+    [
+     "Opening quarter, and everybody is still fresh."
+    ]
+   ]
+  },
+  "mid_game": {
+   "vars": [],
+   "lines": [
+    [
+     "We're deep into this one now."
+    ],
+    [
+     "Adjustments are starting to show."
+    ],
+    [
+     "Both sidelines know each other's habits by now."
+    ],
+    [
+     "This is where conditioning starts to matter."
+    ],
+    [
+     "Middle of the game. Every drive counts."
+    ],
+    [
+     "Plenty of football left, but the margin for error is shrinking."
+    ],
+    [
+     "Good teams adjust. Let's see who does."
+    ],
+    [
+     "Legs are getting heavy out there."
+    ]
+   ]
+  },
+  "late_game": {
+   "vars": [],
+   "lines": [
+    [
+     "Fourth quarter. This is where it gets real."
+    ],
+    [
+     "The final quarter, and every snap is bigger now."
+    ],
+    [
+     "Legends get made in the fourth quarter."
+    ],
+    [
+     "Gotta finish. That's what the coaches are saying."
+    ],
+    [
+     "The clock is starting to matter."
+    ],
+    [
+     "Late in the game, protect the football."
+    ],
+    [
+     "Fourth quarter football. Nobody is sitting down."
+    ],
+    [
+     "Whoever wants it more is going to show it now."
+    ],
+    [
+     "Late in this one, so no wasted plays."
+    ],
+    [
+     "This is the part of the game you practice for."
+    ]
+   ]
+  },
+  "lead_small": {
+   "vars": [],
+   "lines": [
+    [
+     "A one-score game. Nothing is safe."
+    ],
+    [
+     "The lead is slim. Keep pushing."
+    ],
+    [
+     "Ahead, but not by much."
+    ],
+    [
+     "In front for now, but the visitors are lurking."
+    ],
+    [
+     "Up by a score. Another one would help."
+    ],
+    [
+     "A small lead. One play changes everything."
+    ],
+    [
+     "Holding the lead. Don't take your foot off the gas."
+    ],
+    [
+     "A narrow edge for the home side."
+    ]
+   ]
+  },
+  "lead_big": {
+   "vars": [],
+   "lines": [
+    [
+     "A comfortable lead right now."
+    ],
+    [
+     "Two scores up. That's breathing room."
+    ],
+    [
+     "Building a nice cushion here."
+    ],
+    [
+     "The home side is in control."
+    ],
+    [
+     "Up big, but keep playing your game."
+    ],
+    [
+     "The lead is growing. The visitors need answers."
+    ]
+   ]
+  },
+  "trail_small": {
+   "vars": [],
+   "lines": [
+    [
+     "Down by one score. Plenty of fight left."
+    ],
+    [
+     "One play can change this game."
+    ],
+    [
+     "Within striking distance."
+    ],
+    [
+     "Trailing, but this one is far from over."
+    ],
+    [
+     "Just one score away. Stay patient."
+    ],
+    [
+     "Close game. One drive could flip it."
+    ],
+    [
+     "Behind for now. Time to answer."
+    ]
+   ]
+  },
+  "trail_big": {
+   "vars": [],
+   "lines": [
+    [
+     "Some work to do here."
+    ],
+    [
+     "It's a big hole. Start climbing."
+    ],
+    [
+     "Need a spark. Something big."
+    ],
+    [
+     "Chip away. One drive at a time."
+    ],
+    [
+     "Down a couple of scores. No panic, just plays."
+    ],
+    [
+     "The comeback starts with one good snap."
+    ]
+   ]
+  },
+  "tied_note": {
+   "vars": [],
+   "lines": [
+    [
+     "All even. Anybody's game."
+    ],
+    [
+     "Nobody has blinked yet."
+    ],
+    [
+     "Tied up, so the next score is huge."
+    ],
+    [
+     "Back and forth we go."
+    ],
+    [
+     "Neck and neck out here."
+    ],
+    [
+     "Perfectly balanced. Somebody break the tie."
+    ]
+   ]
+  },
+  "momentum_home": {
+   "vars": [],
+   "lines": [
+    [
+     "The momentum is all with the home side."
+    ],
+    [
+     "Everything's going their way right now."
+    ],
+    [
+     "They can feel it now."
+    ],
+    [
+     "The sideline is jumping. Big momentum swing."
+    ],
+    [
+     "They've got the visitors on their heels."
+    ],
+    [
+     "Rolling now. Keep it going."
+    ]
+   ]
+  },
+  "momentum_away": {
+   "vars": [],
+   "lines": [
+    [
+     "The visitors have the momentum."
+    ],
+    [
+     "Need a stop to swing this back."
+    ],
+    [
+     "They've scored back to back. Time to answer."
+    ],
+    [
+     "The visitors are rolling right now."
+    ],
+    [
+     "Somebody needs to make a play and turn this around."
+    ],
+    [
+     "The other sideline is feeling it."
+    ]
+   ]
+  },
+  "offense_good": {
+   "vars": [],
+   "lines": [
+    [
+     "The offense has been efficient."
+    ],
+    [
+     "Good balance from this offense so far."
+    ],
+    [
+     "They're picking up chunks of yards."
+    ],
+    [
+     "Hard to stop this offense right now."
+    ],
+    [
+     "Play after play, they're finding room."
+    ],
+    [
+     "The offensive line is giving them time."
+    ],
+    [
+     "Smart play calling so far."
+    ]
+   ]
+  },
+  "offense_slow": {
+   "vars": [],
+   "lines": [
+    [
+     "The offense hasn't found its rhythm yet."
+    ],
+    [
+     "Yards are tough to come by."
+    ],
+    [
+     "The defense has the upper hand so far."
+    ],
+    [
+     "They need a big play to get going."
+    ],
+    [
+     "Not much room out there."
+    ],
+    [
+     "Time to try something new on offense."
+    ]
+   ]
+  },
+  "pass_game": {
+   "vars": [],
+   "lines": [
+    [
+     "The passing game is clicking."
+    ],
+    [
+     "They're winning through the air."
+    ],
+    [
+     "The quarterback is seeing the field well."
+    ],
+    [
+     "Receivers are getting open all over the place."
+    ],
+    [
+     "Plenty of yards through the air so far."
+    ],
+    [
+     "That arm has been a weapon."
+    ]
+   ]
+  },
+  "run_game": {
+   "vars": [],
+   "lines": [
+    [
+     "The ground game is working."
+    ],
+    [
+     "They're running it right at them."
+    ],
+    [
+     "The run game is setting everything up."
+    ],
+    [
+     "Good push from the line on those runs."
+    ],
+    [
+     "Plenty of yards on the ground so far."
+    ],
+    [
+     "Keep running it. They haven't stopped it yet."
+    ]
+   ]
+  },
+  "defense_good": {
+   "vars": [],
+   "lines": [
+    [
+     "The defense has been tough."
+    ],
+    [
+     "Tough sledding for the visiting offense."
+    ],
+    [
+     "Our defense is flying to the ball."
+    ],
+    [
+     "Stops like those win games."
+    ],
+    [
+     "The defense keeps giving the offense the ball back."
+    ],
+    [
+     "Nobody is getting easy yards on this defense."
+    ]
+   ]
+  },
+  "defense_bad": {
+   "vars": [],
+   "lines": [
+    [
+     "The defense needs to tighten up."
+    ],
+    [
+     "The visitors are moving the ball too easily."
+    ],
+    [
+     "Somebody has to get a stop."
+    ],
+    [
+     "Defensive adjustments needed. Fast."
+    ],
+    [
+     "The defense is on its heels."
+    ]
+   ]
+  },
+  "turnover_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Take care of the ball. That's the priority now."
+    ],
+    [
+     "Protect the football. That's the message."
+    ],
+    [
+     "Ball security is everything in a game like this."
+    ],
+    [
+     "Can't give them extra chances."
+    ],
+    [
+     "Hang on to the ball and this game changes."
+    ]
+   ]
+  },
+  "takeaway_note": {
+   "vars": [],
+   "lines": [
+    [
+     "The defense has come up with takeaways."
+    ],
+    [
+     "Turnovers are swinging this one."
+    ],
+    [
+     "Takeaways win games, and this defense has them."
+    ],
+    [
+     "The defense keeps making them pay."
+    ]
+   ]
+  },
+  "fire_note": {
+   "vars": [],
+   "lines": [
+    [
+     "This offense is on fire."
+    ],
+    [
+     "Everything is clicking. Don't stop now."
+    ],
+    [
+     "The hot hand is real."
+    ],
+    [
+     "Feed the fire. Keep it rolling."
+    ],
+    [
+     "They're in a groove, and the defense can't keep up."
+    ]
+   ]
+  },
+  "cpu_hot_note": {
+   "vars": [],
+   "lines": [
+    [
+     "The visitors are heating up."
+    ],
+    [
+     "Their offense found a rhythm."
+    ],
+    [
+     "Need to cool them off."
+    ],
+    [
+     "They're on a roll. Time for a stop."
+    ]
+   ]
+  },
+  "clutch_note": {
+   "vars": [],
+   "lines": [
+    [
+     "This is clutch time."
+    ],
+    [
+     "Here's where heroes are made."
+    ],
+    [
+     "The whole game comes down to this."
+    ],
+    [
+     "Pressure moment. Who wants it?"
+    ],
+    [
+     "Every second, every yard, every snap."
+    ],
+    [
+     "Deep breaths. This is it."
+    ],
+    [
+     "This is the moment you dream about."
+    ],
+    [
+     "No more next time. It's now."
+    ]
+   ]
+  },
+  "cmp_streak": {
+   "vars": [],
+   "lines": [
+    [
+     "Completion after completion."
+    ],
+    [
+     "He hasn't missed in a while."
+    ],
+    [
+     "Very accurate stretch from the quarterback."
+    ],
+    [
+     "That's a string of completions."
+    ],
+    [
+     "On target, again and again."
+    ],
+    [
+     "Pitch and catch, over and over."
+    ]
+   ]
+  },
+  "qb_note": {
+   "vars": [
+    "passer"
+   ],
+   "lines": [
+    [
+     "Keep an eye on {passer}.",
+     "He's seeing the field well."
+    ],
+    [
+     "Watch {passer} closely.",
+     "He's got a quick release."
+    ],
+    [
+     "Stat check on {passer}.",
+     "Steady so far."
+    ],
+    [
+     "Big day for {passer}.",
+     "Calm in the pocket."
+    ]
+   ]
+  },
+  "drive_first": {
+   "vars": [
+    "spot"
+   ],
+   "lines": [
+    [
+     "Ball at {spot}.",
+     "Let's see how they start."
+    ],
+    [
+     "First snap of the drive.",
+     "Ball at {spot}."
+    ],
+    [
+     "The drive starts here.",
+     "Ball at {spot}."
+    ],
+    [
+     "They start at {spot}.",
+     "Let's see the opener."
+    ],
+    [
+     "Ball at {spot}.",
+     "Time to get something going."
+    ],
+    [
+     "Opening play of the series.",
+     "They start at {spot}."
+    ],
+    [
+     "New possession.",
+     "Ball at {spot}."
+    ],
+    [
+     "Ball at {spot}.",
+     "A fresh drive."
+    ]
+   ]
+  },
+  "huddle_note": {
+   "vars": [],
+   "lines": [
+    [
+     "The offense gathers to pick a play."
+    ],
+    [
+     "What's the call going to be?"
+    ],
+    [
+     "Lots of options on the board."
+    ],
+    [
+     "Let's see what the offense dials up."
+    ],
+    [
+     "Run or pass? The defense has to guess."
+    ],
+    [
+     "Taking a look at the play sheet."
+    ],
+    [
+     "The quarterback is waiting on the call."
+    ],
+    [
+     "Decision time for the offense."
+    ],
+    [
+     "Choose wisely. The defense is watching."
+    ],
+    [
+     "Plenty of plays to choose from here."
+    ],
+    [
+     "They'll want something that keeps them on schedule."
+    ],
+    [
+     "A good call here could set up the whole drive."
+    ],
+    [
+     "The defense is lined up and waiting."
+    ],
+    [
+     "Every play call tells a story."
+    ],
+    [
+     "This is where the chess match happens."
+    ],
+    [
+     "The playbook is wide open."
+    ],
+    [
+     "Pick a play and trust it."
+    ],
+    [
+     "Huddle up, figure it out."
+    ],
+    [
+     "Let's see if they go back to what's been working."
+    ],
+    [
+     "Something new, or an old favorite?"
+    ],
+    [
+     "Pick your poison."
+    ],
+    [
+     "Smart teams take what the defense gives them."
+    ],
+    [
+     "Find the mismatch and attack it."
+    ],
+    [
+     "The receivers are waiting to hear their routes."
+    ],
+    [
+     "The line is ready to go to work."
+    ],
+    [
+     "The defense is talking it over too."
+    ]
+   ]
+  },
+  "presnap": {
+   "vars": [],
+   "lines": [
+    [
+     "Into position."
+    ],
+    [
+     "They're lined up."
+    ],
+    [
+     "Ready, set."
+    ],
+    [
+     "Last look at the defense."
+    ],
+    [
+     "Quiet before the storm."
+    ],
+    [
+     "Here's the snap count."
+    ],
+    [
+     "Everybody in place."
+    ],
+    [
+     "Linemen in their stances."
+    ],
+    [
+     "Calm before the snap."
+    ],
+    [
+     "They're ready to roll."
+    ],
+    [
+     "Formation is set."
+    ],
+    [
+     "Moment of truth."
+    ],
+    [
+     "Let's go."
+    ],
+    [
+     "Big play loading."
+    ],
+    [
+     "Show us something."
+    ],
+    [
+     "One more look, and here we go."
+    ],
+    [
+     "Ball is spotted. They're ready."
+    ],
+    [
+     "No motion. Everybody set."
+    ],
+    [
+     "Here it comes."
+    ],
+    [
+     "Quarterback looks it over."
+    ],
+    [
+     "They break the huddle."
+    ],
+    [
+     "Up to the line."
+    ],
+    [
+     "Here we go."
+    ],
+    [
+     "Everybody set."
+    ],
+    [
+     "The offense is set."
+    ],
+    [
+     "Lining up."
+    ],
+    [
+     "Ready to go."
+    ],
+    [
+     "The quarterback gets set."
+    ],
+    [
+     "Now they're set."
+    ],
+    [
+     "The defense digs in."
+    ],
+    [
+     "Waiting on the snap."
+    ],
+    [
+     "Final adjustments."
+    ],
+    [
+     "Eyes on the ball."
+    ],
+    [
+     "Let's see it."
+    ],
+    [
+     "All eyes on the quarterback."
+    ],
+    [
+     "Set, and ready."
+    ],
+    [
+     "Here comes the play."
+    ],
+    [
+     "Locked and loaded."
+    ],
+    [
+     "The line settles in."
+    ]
+   ]
+  },
+  "third_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Big third down coming up."
+    ],
+    [
+     "Third down. This is a money down."
+    ],
+    [
+     "Convert here and the drive lives."
+    ],
+    [
+     "Third down is all about execution."
+    ],
+    [
+     "The defense will bring something here."
+    ],
+    [
+     "Everybody knows how big this down is."
+    ]
+   ]
+  },
+  "goal_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Down near the goal line. Physical football now."
+    ],
+    [
+     "Get it in! The end zone is right there."
+    ],
+    [
+     "Goal line, and the defense is packed in tight."
+    ],
+    [
+     "Points are a few steps away."
+    ],
+    [
+     "Finish the drive!"
+    ],
+    [
+     "This is where the big guys earn their keep."
+    ]
+   ]
+  },
+  "redzone_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Scoring range now."
+    ],
+    [
+     "Don't settle here. Go get the touchdown."
+    ],
+    [
+     "The windows get tight in the red zone."
+    ],
+    [
+     "Everybody's leaning in. Red zone."
+    ]
+   ]
+  },
+  "backed_up": {
+   "vars": [],
+   "lines": [
+    [
+     "Backed up deep in their own end."
+    ],
+    [
+     "Lots of field in front of them."
+    ],
+    [
+     "Get some breathing room here."
+    ],
+    [
+     "Careful back there. No mistakes."
+    ],
+    [
+     "Pinned deep. A long way to go."
+    ],
+    [
+     "Start with something safe from back here."
+    ]
+   ]
+  },
+  "fourth_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Big decision here on fourth down."
+    ],
+    [
+     "Go for it, or play it safe?"
+    ],
+    [
+     "The coaches are thinking it over."
+    ],
+    [
+     "Fourth down. What's it going to be?"
+    ],
+    [
+     "Play it safe, or roll the dice?"
+    ],
+    [
+     "This is a coach's moment."
+    ]
+   ]
+  },
+  "after_good": {
+   "vars": [],
+   "lines": [
+    [
+     "That's how you move the ball."
+    ],
+    [
+     "Good execution on that one."
+    ],
+    [
+     "Nice play. Keep stacking those."
+    ],
+    [
+     "That's the kind of play that builds a drive."
+    ],
+    [
+     "Good blocking made that possible."
+    ],
+    [
+     "Exactly what the coach drew up."
+    ],
+    [
+     "They'll take that all day."
+    ],
+    [
+     "Positive yards. Keep it going."
+    ],
+    [
+     "That loosens up the defense."
+    ],
+    [
+     "Good decision, good result."
+    ],
+    [
+     "Momentum building."
+    ],
+    [
+     "The sideline liked that one."
+    ],
+    [
+     "Smart, simple, effective."
+    ]
+   ]
+  },
+  "after_inc": {
+   "vars": [],
+   "lines": [
+    [
+     "No harm done. Next down."
+    ],
+    [
+     "Reset and try again."
+    ],
+    [
+     "Close, but not quite."
+    ],
+    [
+     "That one just didn't connect."
+    ],
+    [
+     "They'll go back to the well."
+    ],
+    [
+     "On to the next one."
+    ],
+    [
+     "The timing was just a little off."
+    ]
+   ]
+  },
+  "after_loss": {
+   "vars": [],
+   "lines": [
+    [
+     "That's a setback."
+    ],
+    [
+     "Lost some ground on that one."
+    ],
+    [
+     "Have to win the next down now."
+    ],
+    [
+     "The defense won that round."
+    ],
+    [
+     "Shake it off."
+    ],
+    [
+     "That puts them behind schedule."
+    ],
+    [
+     "Need to bounce back right away."
+    ]
+   ]
+  },
+  "after_short": {
+   "vars": [],
+   "lines": [
+    [
+     "A little something."
+    ],
+    [
+     "Small gain, but it counts."
+    ],
+    [
+     "Better than nothing."
+    ],
+    [
+     "Grinding out the yards."
+    ],
+    [
+     "Every yard helps."
+    ]
+   ]
+  },
+  "after_td": {
+   "vars": [],
+   "lines": [
+    [
+     "That's a statement score."
+    ],
+    [
+     "The sideline is going crazy."
+    ],
+    [
+     "Points on the board. Huge."
+    ],
+    [
+     "Big-time score."
+    ],
+    [
+     "The whole team is fired up."
+    ],
+    [
+     "That's what this offense can do."
+    ],
+    [
+     "Six on the board, and they earned it."
+    ]
+   ]
+  },
+  "after_td_drive": {
+   "vars": [],
+   "lines": [
+    [
+     "What a drive that was."
+    ],
+    [
+     "That's exactly how you finish a drive."
+    ],
+    [
+     "Scoring drives like that change games."
+    ],
+    [
+     "Start to finish, a beautiful drive."
+    ]
+   ]
+  },
+  "after_cpu_score": {
+   "vars": [],
+   "lines": [
+    [
+     "Gotta answer that one."
+    ],
+    [
+     "The offense needs to respond right away."
+    ],
+    [
+     "Time to punch back."
+    ],
+    [
+     "The visitors made a statement there."
+    ],
+    [
+     "Let's see how the offense responds."
+    ]
+   ]
+  },
+  "after_turnover": {
+   "vars": [],
+   "lines": [
+    [
+     "That one hurts."
+    ],
+    [
+     "Turnovers like that can swing a game."
+    ],
+    [
+     "Now the defense has to bail them out."
+    ],
+    [
+     "Can't afford many of those."
+    ],
+    [
+     "A costly mistake."
+    ],
+    [
+     "Shake it off and get a stop."
+    ]
+   ]
+  },
+  "after_takeaway": {
+   "vars": [],
+   "lines": [
+    [
+     "Huge takeaway by the defense."
+    ],
+    [
+     "That changes everything."
+    ],
+    [
+     "The defense delivers."
+    ],
+    [
+     "Now go cash it in."
+    ],
+    [
+     "That's a game-changing play."
+    ],
+    [
+     "Momentum just flipped."
+    ]
+   ]
+  },
+  "fg_set": {
+   "vars": [],
+   "lines": [
+    [
+     "Field goal team on the field."
+    ],
+    [
+     "Here's the kick attempt."
+    ],
+    [
+     "Snap, hold, kick. Let's see it."
+    ],
+    [
+     "Big kick coming up."
+    ],
+    [
+     "The kicker lines it up."
+    ],
+    [
+     "Nerves of steel needed here."
+    ],
+    [
+     "Points on the line with this kick."
+    ],
+    [
+     "Everybody holds their breath."
+    ]
+   ]
+  },
+  "xp_set": {
+   "vars": [],
+   "lines": [
+    [
+     "The extra point try."
+    ],
+    [
+     "Lining up for the point after."
+    ],
+    [
+     "Should be routine. Let's see it."
+    ],
+    [
+     "Kick the extra point and add 1."
+    ]
+   ]
+  },
+  "punt_set": {
+   "vars": [],
+   "lines": [
+    [
+     "The punt team comes on."
+    ],
+    [
+     "Time to flip the field."
+    ],
+    [
+     "Punter gets set."
+    ],
+    [
+     "Pin them deep, punt team."
+    ],
+    [
+     "Big boot coming."
+    ],
+    [
+     "A good punt here helps the defense."
+    ]
+   ]
+  },
+  "ko_line": {
+   "vars": [],
+   "lines": [
+    [
+     "Here comes the kickoff."
+    ],
+    [
+     "The kicking team lines up."
+    ],
+    [
+     "Return team, get ready."
+    ],
+    [
+     "Kickoff coming up."
+    ],
+    [
+     "Here we go. The kick is coming."
+    ],
+    [
+     "Everybody set for the kickoff."
+    ]
+   ]
+  },
+  "return_run": {
+   "vars": [],
+   "lines": [
+    [
+     "Picking up steam!"
+    ],
+    [
+     "Good blocking on the return!"
+    ],
+    [
+     "Looking for a seam!"
+    ],
+    [
+     "Still going!"
+    ],
+    [
+     "Weaving through traffic!"
+    ],
+    [
+     "Nice return so far!"
+    ]
+   ]
+  },
+  "run_more": {
+   "vars": [],
+   "lines": [
+    [
+     "Still going!"
+    ],
+    [
+     "He's not done yet!"
+    ],
+    [
+     "Keeps on running!"
+    ],
+    [
+     "Breaking free!"
+    ],
+    [
+     "Look at him go!"
+    ],
+    [
+     "Running through traffic!"
+    ]
+   ]
+  },
+  "kp_chase": {
+   "vars": [],
+   "lines": [
+    [
+     "Bring him down!"
+    ],
+    [
+     "Still running!"
+    ],
+    [
+     "He's still going!"
+    ],
+    [
+     "Chase him down!"
+    ],
+    [
+     "Run him down, defense!"
+    ],
+    [
+     "Somebody has to get there!"
+    ],
+    [
+     "Rally to the ball!"
+    ]
+   ]
+  },
+  "throwoff": {
+   "vars": [],
+   "lines": [
+    [
+     "Here comes the throw-off."
+    ],
+    [
+     "The throw-off is up!"
+    ],
+    [
+     "Long throw, coming down."
+    ],
+    [
+     "Get under it!"
+    ],
+    [
+     "Everybody set for the throw-off."
+    ]
+   ]
+  },
+  "int_return": {
+   "vars": [],
+   "lines": [
+    [
+     "Taking it the other way!"
+    ],
+    [
+     "He's bringing it back!"
+    ],
+    [
+     "Look at this return!"
+    ],
+    [
+     "Running it back!"
+    ],
+    [
+     "Off he goes the other way!"
+    ]
+   ]
+  },
+  "int_live": {
+   "vars": [],
+   "lines": [
+    [
+     "Intercepted!"
+    ],
+    [
+     "Picked off!"
+    ],
+    [
+     "It's picked!"
+    ],
+    [
+     "Interception!"
+    ]
+   ]
+  },
+  "punt_air": {
+   "vars": [],
+   "lines": [
+    [
+     "Plenty of hang time on this one."
+    ],
+    [
+     "Coverage team racing down."
+    ],
+    [
+     "Let's see where this one lands."
+    ],
+    [
+     "Big punt, way up there."
+    ],
+    [
+     "High and long."
+    ]
+   ]
+  },
+  "ko_wait": {
+   "vars": [],
+   "lines": [
+    [
+     "High kick, coming down."
+    ],
+    [
+     "Get under it."
+    ],
+    [
+     "Plenty of hang time."
+    ],
+    [
+     "Coverage team flying down."
+    ],
+    [
+     "Waiting on it deep."
+    ]
+   ]
+  },
+  "cpu_drive_good": {
+   "vars": [],
+   "lines": [
+    [
+     "The visitors are piling up yards."
+    ],
+    [
+     "Our defense is back on its heels."
+    ],
+    [
+     "They keep moving the chains."
+    ],
+    [
+     "The visitors are moving the ball."
+    ],
+    [
+     "They're finding some room out there."
+    ],
+    [
+     "This drive is getting dangerous."
+    ],
+    [
+     "The defense needs a stop soon."
+    ],
+    [
+     "Chunk after chunk for the visitors."
+    ],
+    [
+     "They're marching right down the field."
+    ]
+   ]
+  },
+  "cpu_drive_bad": {
+   "vars": [],
+   "lines": [
+    [
+     "Three plays and not much else."
+    ],
+    [
+     "The defense is all over them."
+    ],
+    [
+     "The defense is holding firm."
+    ],
+    [
+     "Not much room for the visitors."
+    ],
+    [
+     "Our defense is swarming."
+    ],
+    [
+     "Tough yards for the visitors."
+    ],
+    [
+     "The defense is winning up front."
+    ],
+    [
+     "Nothing easy out there for them."
+    ]
+   ]
+  },
+  "cpu_drive_on": {
+   "vars": [],
+   "lines": [
+    [
+     "The defense has work to do."
+    ],
+    [
+     "The visitors are on the move."
+    ],
+    [
+     "Our defense gets its turn."
+    ],
+    [
+     "Visitors at work."
+    ],
+    [
+     "The visitors have the ball."
+    ],
+    [
+     "Defense on the field."
+    ],
+    [
+     "Here's the other side of the ball."
+    ],
+    [
+     "Let's see what the defense has got."
+    ],
+    [
+     "The visitors try to get something going."
+    ]
+   ]
+  },
+  "def_call_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Pick the defense. Blitz, or play it safe?"
+    ],
+    [
+     "Time to call the defense."
+    ],
+    [
+     "What's the defensive call?"
+    ],
+    [
+     "Bring pressure, or drop back in coverage?"
+    ],
+    [
+     "The defense needs a plan."
+    ],
+    [
+     "Choose the defense wisely."
+    ],
+    [
+     "Read their tendencies and make the call."
+    ]
+   ]
+  },
+  "kp_call": {
+   "vars": [],
+   "lines": [
+    [
+     "Here they come again. Your call, defense."
+    ],
+    [
+     "The visitors are threatening. Make a call."
+    ],
+    [
+     "Big snap. Pick the right defense."
+    ],
+    [
+     "Defense on the spot again."
+    ],
+    [
+     "Stop them here and the drive stalls."
+    ],
+    [
+     "Time to dial up a stop."
+    ],
+    [
+     "Read the situation and pick the defense."
+    ],
+    [
+     "This snap matters. Call it."
+    ],
+    [
+     "You're in charge of the defense."
+    ],
+    [
+     "Another key moment for the defense."
+    ],
+    [
+     "Choose the coverage, then go make a play."
+    ],
+    [
+     "Here's another chance for a stop."
+    ],
+    [
+     "Key play coming. The defense has to step up."
+    ],
+    [
+     "Their offense is driving. Time to make a call."
+    ],
+    [
+     "Big spot for the defense. Choose carefully."
+    ],
+    [
+     "Key play! You're calling the defense."
+    ],
+    [
+     "Big snap coming up. Pick the defense."
+    ],
+    [
+     "This one's on you, defense."
+    ],
+    [
+     "Key play. Make the call."
+    ],
+    [
+     "The defense needs a big stop here."
+    ],
+    [
+     "You're on the field for this one."
+    ],
+    [
+     "Defensive call time. Make it count."
+    ],
+    [
+     "Big moment for the defense."
+    ]
+   ]
+  },
+  "kp_set": {
+   "vars": [],
+   "lines": [
+    [
+     "Defense set, ready to go."
+    ],
+    [
+     "Here we go, defense."
+    ],
+    [
+     "Find your man."
+    ],
+    [
+     "Read and react."
+    ],
+    [
+     "Stay disciplined."
+    ],
+    [
+     "Ready on defense."
+    ],
+    [
+     "Watch for the run, watch for the pass."
+    ],
+    [
+     "All eyes on the ball."
+    ],
+    [
+     "Big snap. Defense ready."
+    ],
+    [
+     "They're about to snap it."
+    ],
+    [
+     "Everybody set on defense."
+    ],
+    [
+     "Defense ready. Here we go."
+    ],
+    [
+     "Lock in, defense."
+    ],
+    [
+     "Defense is set."
+    ],
+    [
+     "Lined up and ready."
+    ],
+    [
+     "Read the play. React fast."
+    ],
+    [
+     "Watch the quarterback's eyes."
+    ],
+    [
+     "Eyes up, defense."
+    ],
+    [
+     "Here comes the snap."
+    ]
+   ]
+  },
+  "kp_snap": {
+   "vars": [],
+   "lines": [
+    [
+     "Snap."
+    ],
+    [
+     "Center snaps it."
+    ],
+    [
+     "Off they go."
+    ],
+    [
+     "They snap the ball."
+    ],
+    [
+     "Here's the play."
+    ],
+    [
+     "They go."
+    ],
+    [
+     "Snap, and they're off."
+    ],
+    [
+     "The ball is snapped."
+    ],
+    [
+     "Snap is down."
+    ],
+    [
+     "Here they come."
+    ],
+    [
+     "Quarterback has it."
+    ],
+    [
+     "They go on the first sound."
+    ],
+    [
+     "Here's the snap."
+    ],
+    [
+     "They snap it."
+    ],
+    [
+     "Ball is snapped."
+    ],
+    [
+     "And they go."
+    ],
+    [
+     "Here it comes."
+    ],
+    [
+     "Hut, hut."
+    ],
+    [
+     "Ball is up."
+    ],
+    [
+     "Here we go."
+    ],
+    [
+     "Off the snap."
+    ],
+    [
+     "They snap it quick."
+    ],
+    [
+     "Quick snap."
+    ],
+    [
+     "And they go!"
+    ],
+    [
+     "Snap, and here they come."
+    ]
+   ]
+  },
+  "kp_throw": {
+   "vars": [],
+   "lines": [
+    [
+     "He throws it!"
+    ],
+    [
+     "Ball is thrown!"
+    ],
+    [
+     "Pass in the air!"
+    ],
+    [
+     "He lets it fly!"
+    ],
+    [
+     "Throwing it now!"
+    ],
+    [
+     "Pass is out!"
+    ],
+    [
+     "Here comes the pass!"
+    ],
+    [
+     "Fires it!"
+    ],
+    [
+     "Throwing it!"
+    ],
+    [
+     "Ball is out!"
+    ],
+    [
+     "He fires!"
+    ],
+    [
+     "He throws!"
+    ],
+    [
+     "Pass is up!"
+    ],
+    [
+     "Ball's in the air!"
+    ],
+    [
+     "He lets it go!"
+    ],
+    [
+     "Throwing downfield!"
+    ],
+    [
+     "Fires away!"
+    ],
+    [
+     "He lets one go!"
+    ],
+    [
+     "Pass on the way!"
+    ],
+    [
+     "Here's the throw!"
+    ],
+    [
+     "Throw is out!"
+    ],
+    [
+     "He slings it!"
+    ],
+    [
+     "Into the air!"
+    ],
+    [
+     "Up it goes!"
+    ]
+   ]
+  },
+  "kp_run": {
+   "vars": [],
+   "lines": [
+    [
+     "It's a handoff."
+    ],
+    [
+     "Run play!"
+    ],
+    [
+     "Handoff, and he goes."
+    ],
+    [
+     "Ball carrier on the move."
+    ],
+    [
+     "Running it!"
+    ],
+    [
+     "He takes off!"
+    ],
+    [
+     "They hand it off."
+    ],
+    [
+     "It's a run!"
+    ],
+    [
+     "Running play!"
+    ],
+    [
+     "Ball carrier heading upfield."
+    ]
+   ]
+  },
+  "kp_caught": {
+   "vars": [],
+   "lines": [
+    [
+     "Caught it."
+    ],
+    [
+     "Pulled down."
+    ],
+    [
+     "Hauled in."
+    ],
+    [
+     "Grabbed."
+    ],
+    [
+     "Caught."
+    ],
+    [
+     "They complete it."
+    ],
+    [
+     "Pulled in."
+    ],
+    [
+     "Completed."
+    ]
+   ]
+  },
+  "kp_cover": {
+   "vars": [],
+   "lines": [
+    [
+     "Everybody covered."
+    ],
+    [
+     "No one open."
+    ],
+    [
+     "Holding the ball."
+    ],
+    [
+     "Still looking."
+    ],
+    [
+     "Coverage is holding."
+    ],
+    [
+     "He's looking for somebody."
+    ],
+    [
+     "Nobody open yet."
+    ],
+    [
+     "Tight coverage downfield."
+    ],
+    [
+     "He has to find a target."
+    ],
+    [
+     "The defense has it covered."
+    ]
+   ]
+  },
+  "kp_pressure": {
+   "vars": [],
+   "lines": [
+    [
+     "Pressure!"
+    ],
+    [
+     "Here comes the rush!"
+    ],
+    [
+     "The pass rush is closing in!"
+    ],
+    [
+     "Get him!"
+    ]
+   ]
+  },
+  "kp_stop": {
+   "vars": [],
+   "lines": [
+    [
+     "Stopped cold!"
+    ],
+    [
+     "Not much there!"
+    ],
+    [
+     "The defense swarms!"
+    ],
+    [
+     "Hit and stopped!"
+    ],
+    [
+     "Denied!"
+    ],
+    [
+     "Great play by the defense!"
+    ],
+    [
+     "Nothing gained!"
+    ],
+    [
+     "Locked up!"
+    ],
+    [
+     "Wrapped up short!"
+    ],
+    [
+     "No room at all!"
+    ],
+    [
+     "Stopped right there!"
+    ],
+    [
+     "Great stop by the defense!"
+    ],
+    [
+     "Nowhere to go!"
+    ],
+    [
+     "Stuffed!"
+    ],
+    [
+     "The defense wins that one!"
+    ],
+    [
+     "Nothing doing!"
+    ],
+    [
+     "Swarmed!"
+    ],
+    [
+     "Shut down!"
+    ],
+    [
+     "Great read, great stop!"
+    ]
+   ]
+  },
+  "kp_gain": {
+   "vars": [],
+   "lines": [
+    [
+     "Some yards on that one."
+    ],
+    [
+     "They pick up a bit."
+    ],
+    [
+     "A few yards gained."
+    ],
+    [
+     "Gain on the play."
+    ],
+    [
+     "They push ahead."
+    ],
+    [
+     "They get a few yards."
+    ],
+    [
+     "Short gain for the visitors."
+    ],
+    [
+     "They pick up a few."
+    ],
+    [
+     "A gain on the play."
+    ],
+    [
+     "Some yards for the visitors."
+    ],
+    [
+     "They got a little something."
+    ],
+    [
+     "Not a big gain, but a gain."
+    ]
+   ]
+  },
+  "kp_first": {
+   "vars": [],
+   "lines": [
+    [
+     "Visitors move the ball."
+    ],
+    [
+     "That's enough for a first down."
+    ],
+    [
+     "They pick up the first."
+    ],
+    [
+     "First down for the visitors."
+    ],
+    [
+     "They move the chains."
+    ],
+    [
+     "They got enough for the first."
+    ],
+    [
+     "That's a first down. The defense has to regroup."
+    ]
+   ]
+  },
+  "kp_inc": {
+   "vars": [],
+   "lines": [
+    [
+     "Incomplete!"
+    ],
+    [
+     "Nothing doing on that throw!"
+    ],
+    [
+     "Off the hands! Incomplete!"
+    ],
+    [
+     "Pass is no good!"
+    ],
+    [
+     "Covered! Incomplete!"
+    ],
+    [
+     "Swatted down!"
+    ],
+    [
+     "Nothing there! Incomplete."
+    ],
+    [
+     "Batted away!"
+    ],
+    [
+     "Incomplete! Good coverage."
+    ],
+    [
+     "Broken up!"
+    ],
+    [
+     "Pass falls incomplete."
+    ],
+    [
+     "Nobody home! Incomplete."
+    ],
+    [
+     "Great coverage on that one."
+    ],
+    [
+     "Knocked away!"
+    ],
+    [
+     "Can't connect! Good defense."
+    ]
+   ]
+  },
+  "kp_sack": {
+   "vars": [],
+   "lines": [
+    [
+     "Sack! The defense gets home!"
+    ],
+    [
+     "Got him! Sack!"
+    ],
+    [
+     "Taken down behind the line!"
+    ],
+    [
+     "The rush gets there! Sack!"
+    ]
+   ]
+  },
+  "kp_int": {
+   "vars": [],
+   "lines": [
+    [
+     "Picked! The defense comes up big!"
+    ],
+    [
+     "What a read! Interception!"
+    ],
+    [
+     "Picked off! What a play by the defense!"
+    ],
+    [
+     "Interception! The defense takes it away!"
+    ],
+    [
+     "He jumped the route! Picked!"
+    ],
+    [
+     "Our ball! Interception!"
+    ],
+    [
+     "Ball hawk! That's a pick!"
+    ]
+   ]
+  },
+  "kp_pick6": {
+   "vars": [],
+   "lines": [
+    [
+     "Pick six! The defense takes it to the house!"
+    ],
+    [
+     "The defense scores! What a play!"
+    ],
+    [
+     "Picked off and gone! Defensive touchdown!"
+    ],
+    [
+     "All the way back! The defense puts up points!"
+    ]
+   ]
+  },
+  "kp_fumble": {
+   "vars": [],
+   "lines": [
+    [
+     "Ball's out, and the defense has it!"
+    ],
+    [
+     "Takeaway! Our ball!"
+    ],
+    [
+     "Fumble, and we recover!"
+    ]
+   ]
+  },
+  "replay_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Let's see that one again."
+    ],
+    [
+     "Here's the replay."
+    ],
+    [
+     "Watch this. It's even better slowed down."
+    ],
+    [
+     "Look at the footwork here."
+    ],
+    [
+     "Great blocking up front on this one."
+    ],
+    [
+     "Watch how he sets it up."
+    ],
+    [
+     "This is textbook."
+    ],
+    [
+     "Pure effort right there."
+    ],
+    [
+     "Look at the speed."
+    ],
+    [
+     "One more look."
+    ],
+    [
+     "From this angle, you see it all."
+    ],
+    [
+     "Watch it develop."
+    ],
+    [
+     "The timing on this is perfect."
+    ],
+    [
+     "That's a highlight right there."
+    ]
+   ]
+  },
+  "quarter_break": {
+   "vars": [],
+   "lines": [
+    [
+     "Teams switch ends."
+    ],
+    [
+     "Quick break here between quarters."
+    ],
+    [
+     "A chance to catch their breath."
+    ],
+    [
+     "A new quarter is coming up."
+    ],
+    [
+     "Water break for everybody."
+    ],
+    [
+     "Coaches huddle up during the break."
+    ]
+   ]
+  },
+  "signoff": {
+   "vars": [],
+   "lines": [
+    [
+     "What a game. Thanks for watching."
+    ],
+    [
+     "That's it from the booth."
+    ],
+    [
+     "Great effort from both teams."
+    ],
+    [
+     "We'll see you next time."
+    ],
+    [
+     "Thanks for spending the game with us."
+    ],
+    [
+     "What a ride that was."
+    ]
+   ]
+  },
+  "fetch_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Over the fence it goes. Somebody has to get that."
+    ],
+    [
+     "Ball's gone. We'll wait."
+    ],
+    [
+     "Somebody's running to get the ball."
+    ],
+    [
+     "Quick timeout while somebody gets the ball."
+    ],
+    [
+     "That ball is taking a trip."
+    ],
+    [
+     "Hope somebody's fast. That ball is way over there."
+    ],
+    [
+     "Every schoolyard game has a ball over the fence."
+    ],
+    [
+     "Good arm. Bad aim."
+    ]
+   ]
+  },
+  "met_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Nothing beats a schoolyard game."
+    ],
+    [
+     "This is football in its purest form."
+    ],
+    [
+     "Recess rules out here."
+    ],
+    [
+     "Pickup football at its best."
+    ],
+    [
+     "Every kid in the school wants in on this game."
+    ],
+    [
+     "Old school football on the playground."
+    ]
+   ]
+  },
+  "xdance_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Oh, he's dancing!"
+    ],
+    [
+     "Look at those moves!"
+    ],
+    [
+     "Dance break!"
+    ],
+    [
+     "He's got rhythm!"
+    ],
+    [
+     "Somebody give him a soundtrack!"
+    ]
+   ]
+  },
+  "rain_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Wet out there. Ball security is huge."
+    ],
+    [
+     "Slippery footing in this weather."
+    ],
+    [
+     "The rain isn't stopping anybody."
+    ],
+    [
+     "Hold on tight to that wet football."
+    ],
+    [
+     "Rain game. It's all about toughness."
+    ]
+   ]
+  },
+  "snow_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Snow coming down. Classic football weather."
+    ],
+    [
+     "Hard to grip the ball in this cold."
+    ],
+    [
+     "Love a snow game."
+    ],
+    [
+     "Footing is tricky in the snow."
+    ],
+    [
+     "Bundle up out there, folks."
+    ]
+   ]
+  },
+  "night_note": {
+   "vars": [],
+   "lines": [
+    [
+     "Under the lights, this is football at its best."
+    ],
+    [
+     "Nothing like a game under the lights."
+    ],
+    [
+     "The lights make everything feel bigger."
+    ]
+   ]
+  },
+  "qb_look": {
+   "vars": [],
+   "lines": [
+    [
+     "Still looking."
+    ],
+    [
+     "Looking, looking."
+    ],
+    [
+     "Scanning the field."
+    ],
+    [
+     "Waiting for somebody to break open."
+    ],
+    [
+     "Plenty of time."
+    ],
+    [
+     "Working through his reads."
+    ]
+   ]
+  },
+  "qb_rollout": {
+   "vars": [],
+   "lines": [
+    [
+     "Rolling out!"
+    ],
+    [
+     "On the move!"
+    ],
+    [
+     "Buying time!"
+    ]
+   ]
+  },
+  "pocket_live": {
+   "vars": [],
+   "lines": [
+    [
+     "Great protection."
+    ],
+    [
+     "The line is holding up."
+    ],
+    [
+     "Clean pocket."
+    ],
+    [
+     "All day to throw."
+    ]
+   ]
+  },
+  "ball_air": {
+   "vars": [],
+   "lines": [
+    [
+     "Can he get there?"
+    ],
+    [
+     "Under it."
+    ],
+    [
+     "In the air."
+    ],
+    [
+     "Racing the ball!"
+    ],
+    [
+     "Here it comes."
+    ]
+   ]
+  },
+  "run_sideline": {
+   "vars": [],
+   "lines": [
+    [
+     "Down the sideline!"
+    ],
+    [
+     "Racing up the sideline!"
+    ],
+    [
+     "Along the sideline!"
+    ]
+   ]
+  },
+  "run_chase": {
+   "vars": [],
+   "lines": [
+    [
+     "Can anybody catch him?"
+    ],
+    [
+     "He's got a step!"
+    ],
+    [
+     "He's pulling away!"
+    ],
+    [
+     "Somebody's chasing!"
     ]
    ]
   }

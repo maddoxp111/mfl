@@ -660,6 +660,19 @@ const UPDATES = [
       'New About page that says what the league site is.',
     ],
   },
+  {
+    n: 62,
+    date: '2026-11-13',
+    title: 'Real bodies, nonstop commentary, broadcast shots, new moves',
+    items: [
+      'Bodies rebuilt to look real: athletic proportions, shoulders and arms with real muscle, hands with fingers and a thumb, pants with thigh and knee pads and a belt, and jerseys that sit over the shoulder pads.',
+      'The neck now actually joins the head. Every scanned head flows into the neck and collar, with matching skin and no gap or ring, even when the head turns.',
+      'The commentator is always talking: hundreds of new lines, color commentary between plays, more calls during plays, and lines that finish instead of cutting off mid-word. The booth goes quiet when the game is in the background.',
+      'TV-style broadcast shots in 3D Blitz: a pregame flyover and team intros, the coin toss, huddle, sideline, crowd and coach shots, slow-motion replays of big plays from a second angle, drive summaries, stat cards, player spotlights, the two-minute warning and player of the game. Longer ones have a SKIP button, and you can pick All, Some or Off.',
+      'New player-page moves: cool and nonchalant (brushing off the shoulder, a slow nod, calm-down hands, a chill lean and more). Xavier keeps his dance, and Luka\'s backflip now lands with a shoulder brush.',
+      'Admin: a new Avatar moves page to pick each player\'s move, with a preview.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

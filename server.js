@@ -2828,7 +2828,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3271,6 +3271,75 @@ app.post('/admin/scorers/remove', requireAdmin, async (req, res) => {
   db.scorers = (db.scorers || []).filter((n) => n !== name);
   await save();
   res.redirect('/admin/scorers?msg=' + encodeURIComponent(`@${name} was taken off the score panel.`));
+});
+
+// ---------- admin: each player's avatar move (the 3D avatar on his player page) ----------
+// Saved in db.avatarMoves (player id -> move id), so it rides along with the league data through deploys and backups; Auto
+// (no entry) is his default from emotes.js. The page previews a player's avatar doing the picked move.
+app.get('/admin/moves', requireAdmin, (req, res) => {
+  const db = load(), moves = Object.entries(EMO.EMOTES), picked = db.avatarMoves || {};
+  const rows = Object.values(db.teams).map((tm) => `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(teamFull(tm))}</h2></div><div class="mv-list">
+    ${tm.roster.map((p) => { const def = EMO.defaultFor(db, p), cur = Object.prototype.hasOwnProperty.call(picked, p.id) && EMO.isMove(picked[p.id]) ? picked[p.id] : '', av = avatar3d(db, tm, p); delete av.emote; delete av.emoteName;
+      return `<div class="mv-row" data-pid="${esc(p.id)}" data-av="${esc(JSON.stringify(av))}">${avatar(tm, p, 38)}<div class="mv-name"><b>${esc(p.name)}</b><small>${cur ? 'Picked' : 'Auto'}</small></div>
+        <select name="m:${esc(p.id)}" aria-label="Move for ${esc(p.name)}"><option value="" data-move="${esc(def)}">Auto: ${esc(EMO.EMOTES[def])}</option>${moves.map(([id, n]) => `<option value="${esc(id)}" ${id === cur ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+        <button type="button" class="btn sm ghost mv-see" aria-label="Preview ${esc(p.name)}'s move">Preview</button><small class="mv-dup"></small></div>`; }).join('')}
+  </div></div>`).join('');
+  res.send(layout(req, 'Avatar moves', pageHead('Admin', 'Avatar moves', 'The move each player\'s 3D avatar does on his player page. Auto is his default (every player gets a different one). Pick a move to give him that one instead; it shows the next time his page loads.') + `<div class="wrap">${adminNav('/admin/moves')}${savedMsg(req)}
+    <form method="post" class="mv-form"><div class="mv-grid"><div class="mv-rows">${rows}</div>
+      <aside class="mv-side"><div class="card mv-prev"><div class="mv-stage" aria-live="polite"><p class="muted sm mv-hint">Press <b>Preview</b> or pick a move to see it here.</p></div><div class="mv-cap"><b class="mv-who"></b><small class="mv-what"></small></div></div>
+      <button class="btn mv-save">Save moves</button></aside></div></form></div>
+    <style>.mv-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}.mv-side{position:sticky;top:12px;display:flex;flex-direction:column;gap:10px}
+    .mv-list{display:flex;flex-direction:column;gap:6px}.mv-row{display:grid;grid-template-columns:38px minmax(0,1fr) minmax(0,190px) auto;gap:6px 10px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--card2)}
+    .mv-row.on{outline:2px solid var(--a,#ffc21a)}.mv-name{min-width:0}.mv-name b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mv-name small{color:var(--muted);font-size:11px}
+    .mv-row select{width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:6px}.mv-dup{grid-column:2/-1;color:var(--muted);font-size:11px}.mv-dup:empty{display:none}
+    .mv-prev{padding:0;overflow:hidden}.mv-stage{position:relative;height:340px;background:radial-gradient(120% 90% at 50% 85%,#3d465c,#141720);display:flex;align-items:center;justify-content:center}.mv-stage .mv-hint{padding:0 20px;text-align:center;color:#aab}
+    .mv-cap{display:flex;flex-direction:column;padding:10px 12px}.mv-cap small{color:var(--muted)}.mv-save{width:100%}
+    @media (max-width:760px){.mv-grid{grid-template-columns:1fr}.mv-form{padding-bottom:calc(178px + env(safe-area-inset-bottom))}
+      .mv-side{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:30;max-height:45vh;flex-direction:row;align-items:stretch;gap:10px;background:var(--bg);border-top:1px solid var(--line2);box-shadow:0 -10px 28px rgba(0,0,0,.45);padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+      .mv-prev{flex:1;display:flex;min-width:0}.mv-stage{height:150px;width:112px;flex:none}.mv-stage .mv-hint{padding:0 8px;font-size:12px}.mv-cap{justify-content:center;min-width:0}.mv-cap b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mv-save{width:auto;align-self:center;flex:none}
+      .mv-row{grid-template-columns:34px minmax(0,1fr) auto}.mv-row select{grid-column:2/3;grid-row:2}.mv-row .mv-see{grid-row:span 2}}</style>
+    <script>(function(){
+      const SRC='/static/arcade/blitz-avatar.js?v=${fileTag('arcade/blitz-avatar.js')}', st=document.querySelector('.mv-stage'), who=document.querySelector('.mv-who'), what=document.querySelector('.mv-what');
+      let loading=null, view=null, viewPid=null;
+      const load=()=>{ if(window.MFLBlitz&&window.MFLBlitz.avatar) return Promise.resolve(); if(loading) return loading;
+        loading=fetch(SRC).then((r)=>{ if(!r.ok) throw new Error('http '+r.status); return r.text(); }).then((code)=>{ const s=document.createElement('script'); s.textContent=code; document.head.appendChild(s); if(!(window.MFLBlitz&&window.MFLBlitz.avatar)) throw new Error('no avatar'); });
+        loading.catch(()=>{ loading=null; }); return loading; };
+      const moveOf=(row)=>{ const sel=row.querySelector('select'); return sel.value||sel.options[0].dataset.move; };
+      const nameOf=(row)=>{ const sel=row.querySelector('select'); return sel.value? sel.options[sel.selectedIndex].text : sel.options[0].text; };
+      function show(row){
+        document.querySelectorAll('.mv-row.on').forEach((r)=>r.classList.remove('on')); row.classList.add('on');
+        const cfg=JSON.parse(row.dataset.av), mv=moveOf(row); row.style.setProperty('--a', cfg.team.color||'#ffc21a');
+        who.textContent=cfg.player.name; what.textContent=nameOf(row);
+        load().then(()=>{
+          if(view && viewPid===row.dataset.pid){ view.setEmote(mv); return; }
+          if(view){ view.destroy(); view=null; } st.innerHTML='';
+          view=window.MFLBlitz.avatar(st, { player: cfg.player, team: cfg.team, emote: mv, place: 0.5, interactive: true, onError: ()=>{ st.innerHTML='<p class="muted sm mv-hint">3D isn\\'t working on this device.</p>'; } });
+          viewPid=row.dataset.pid;
+          if(!view||!view.ok){ st.innerHTML='<p class="muted sm mv-hint">3D isn\\'t working on this device.</p>'; view=null; }
+        }).catch(()=>{ st.innerHTML='<p class="muted sm mv-hint">The 3D preview couldn\\'t load.</p>'; });
+      }
+      // a note under a player whose move another player is also doing
+      function dups(){
+        const rows=[...document.querySelectorAll('.mv-row')], by={};
+        rows.forEach((r)=>{ const m=moveOf(r); (by[m]=by[m]||[]).push(r); });
+        rows.forEach((r)=>{ const others=by[moveOf(r)].filter((x)=>x!==r).map((x)=>x.querySelector('.mv-name b').textContent); r.querySelector('.mv-dup').textContent=others.length? 'Same move as '+others.join(', ') : '';
+          r.querySelector('.mv-name small').textContent=r.querySelector('select').value? 'Picked' : 'Auto'; });
+      }
+      document.querySelectorAll('.mv-row').forEach((r)=>{ r.querySelector('select').addEventListener('change',()=>{ dups(); show(r); }); r.querySelector('.mv-see').addEventListener('click',()=>show(r)); });
+      dups();
+    })();</script>`, { ticker: false }));
+});
+app.post('/admin/moves', requireAdmin, async (req, res) => {
+  const db = load(), ids = new Set(Object.values(db.teams).flatMap((t) => t.roster.map((p) => p.id))), next = Object.assign({}, db.avatarMoves || {});
+  for (const [k, v] of Object.entries(req.body || {})) {
+    if (!k.startsWith('m:')) continue;
+    const pid = k.slice(2), mv = String(v || '');
+    if (!ids.has(pid)) continue;
+    if (EMO.isMove(mv)) next[pid] = mv; else delete next[pid];
+  }
+  db.avatarMoves = next;
+  await save();
+  res.redirect('/admin/moves?saved=1');
 });
 
 app.post('/admin/game/:id/delete', requireAdmin, async (req, res) => {

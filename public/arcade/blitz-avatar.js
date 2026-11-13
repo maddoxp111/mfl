@@ -1632,10 +1632,88 @@ gl_FragColor=vec4(c,1.0);}`;
     for (const k of ['bulk', 'arms', 'legs', 'neck', 'sw', 'belly']) s[k] = q20(s[k]);
     return s;
   }
+  // ---- shapes shared by the body and the scanned heads (22-heads.js, 09-avatar.js) ----
+  // monotone cubic (no overshoot) through points (xs ascending or descending) -> f(x), clamped at the ends
+  function pchip(xs, ys) {
+    const n = xs.length, d = [], m = new Array(n).fill(0);
+    for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+    for (let i = 0; i < n; i++) {
+      if (i === 0) m[i] = d[0] || 0; else if (i === n - 1) m[i] = d[n - 2] || 0;
+      else if (d[i - 1] * d[i] <= 0) m[i] = 0;
+      else { const w1 = 2 * (xs[i + 1] - xs[i]) + (xs[i] - xs[i - 1]), w2 = (xs[i + 1] - xs[i]) + 2 * (xs[i] - xs[i - 1]); m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
+    }
+    const asc = xs[n - 1] > xs[0];
+    return (x) => {
+      if (n === 1) return ys[0];
+      if (asc ? x <= xs[0] : x >= xs[0]) return ys[0];
+      if (asc ? x >= xs[n - 1] : x <= xs[n - 1]) return ys[n - 1];
+      let i = 0; while (i < n - 2 && (asc ? x > xs[i + 1] : x < xs[i + 1])) i++;
+      const h = xs[i + 1] - xs[i], t = (x - xs[i]) / h, t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h * m[i + 1];
+    };
+  }
+  // radius round a ring from samples at even angles: r5 = front, front-side, side, back-side, back (left/right mirrored); limbs take
+  // r8 = front, front-out, out, back-out, back, back-in, in, front-in (sd: +1 the right side, out = +X; -1 the left). an as in the
+  // lofts: 0 = +X, a quarter turn = the front (+Z)
+  const crI = (a, b, c, d, t) => { const t2 = t * t, t3 = t2 * t; return 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3); };
+  function rad5(r, an) {
+    let ph = Math.abs(Math.atan2(Math.sin(an - Math.PI / 2), Math.cos(an - Math.PI / 2))) / (Math.PI / 4); // 0 front .. 4 back
+    const i = Math.min(3, Math.floor(ph)), t = ph - i, g = (k) => r[k < 0 ? -k : k > 4 ? 8 - k : k];
+    return crI(g(i - 1), g(i), g(i + 1), g(i + 2), t);
+  }
+  function rad8(r, an, sd) {
+    let ph = (sd > 0 ? Math.PI / 2 - an : an - Math.PI / 2) / (Math.PI / 4); ph = ((ph % 8) + 8) % 8;
+    const i = Math.floor(ph), t = ph - i, g = (k) => r[((k % 8) + 8) % 8];
+    return crI(g(i - 1), g(i), g(i + 1), g(i + 2), t);
+  }
+  // the neck (athlete, neck factor 1): y, centre z, r5. It runs from inside the collar up under the jaw and into the skull, its
+  // back meeting the occiput; the sternocleidomastoids are a ridge (scmK) from behind the ears down to the notch at the collar
+  const NECK_K = [[0.68, 0.075, 0.085, 0.095, 0.096, 0.08], [0.72, 0.068, 0.077, 0.084, 0.083, 0.069], [0.75, 0.062, 0.072, 0.077, 0.075, 0.066], [0.78, 0.058, 0.068, 0.074, 0.072, 0.066],
+    [0.81, 0.056, 0.065, 0.072, 0.071, 0.067], [0.835, 0.048, 0.062, 0.07, 0.071, 0.067], [0.86, 0.036, 0.056, 0.068, 0.068, 0.064], [0.88, 0.026, 0.048, 0.064, 0.063, 0.057], [0.9, 0.015, 0.036, 0.056, 0.052, 0.046]];
+  const NECK_CZ = -0.016;
+  const NECK_F = [1, 2, 3, 4, 5].map((k) => pchip(NECK_K.map((r) => r[0]), NECK_K.map((r) => r[k])));
+  function neckR5(y, NK) { const nk = NK || 1, dk = 1 + (nk - 1) * 0.8; return [NECK_F[0](y) * dk, NECK_F[1](y) * nk, NECK_F[2](y) * nk, NECK_F[3](y) * nk, NECK_F[4](y) * dk]; }
+  function neckRad(y, an, NK) { // the neck's radius at height y round angle an, with the sternocleidomastoid ridge
+    const r = rad5(neckR5(y, NK), an), ph = Math.abs(Math.atan2(Math.sin(an - Math.PI / 2), Math.cos(an - Math.PI / 2)));
+    const c = lerp(0.42, 1.25, clamp((y - 0.74) / 0.12, 0, 1)), k = clamp((y - 0.725) / 0.02, 0, 1) * clamp((0.875 - y) / 0.03, 0, 1);
+    return r + 0.0045 * (NK || 1) * k * Math.exp(-Math.pow((ph - c) / 0.2, 2));
+  }
+  // the neck as built for a player: his neck factor below the jaw line, the standard neck above it (inside the jaw and the skull,
+  // where only the head shows), so a scanned head's neck sized the same way always covers it
+  function neckRadP(y, an, NK) {
+    const r1 = neckRad(y, an, 1); if (!NK || NK === 1) return r1;
+    const k = clamp((0.858 - 0.023 * Math.sin(an) - y) / 0.04, 0, 1);
+    return r1 * lerp(1, neckRad(y, an, NK) / r1, k);
+  }
+  // its weights: the collar end blends chest -> neck (the neck bone turns at its base, 0.70), the top neck -> head along the jaw line,
+  // low under the chin and high at the nape; the same function weights the jersey's collar and the scanned heads' necks, so they move together
+  function neckWt(y, z) {
+    if (y < 0.765) { const t = clamp((y - 0.7) / 0.065, 0, 1); return [B.neck, B.chest, t * t * (3 - 2 * t)]; }
+    const yj = z > 0.04 ? 0.79 : z < -0.06 ? 0.86 : lerp(0.86, 0.79, (z + 0.06) / 0.1), t = clamp((y - (yj - 0.03)) / 0.06, 0, 1);
+    return [B.head, B.neck, t * t * (3 - 2 * t)];
+  }
+  // a scanned head (22-heads.js, 09-avatar.js), unpacked into the athlete layout in bind-pose body space: weight it like the body's
+  // neck (head above the jaw line, neck below, chest at the collar) so the scan's neck bends with the body, and size its neck to this
+  // player's (neck factor NK) as the body's own neck is sized: tools/heads.js left it just clear of the body's neck at factor 1, so
+  // scaling both alike keeps the body's neck hidden inside it. The neck tools/heads.js rebuilt below the jaw line (e.neck: from v0)
+  // is shaded toward the collar. V: Float32Array of nv vertices (VSTRIDE)
+  function headNeck(V, nv, e, NK) {
+    const nk = e && e.neck, v0 = nk ? nk.v0 : nv, v1 = nk ? v0 + (nk.n || 0) : nv, rows = nk && nk.rows, vj = nk ? v0 + (nk.j || 0) : nv; // the neck: its jaw row from v0, then its columns of rows from vj
+    for (let i = 0; i < nv; i++) {
+      const o = i * VSTRIDE, x = V[o], y = V[o + 1], z = V[o + 2];
+      if (y > 0.92) continue;
+      const an = Math.atan2(z - NECK_CZ, x), r = Math.hypot(x, z - NECK_CZ);
+      if (i >= vj && i < v1 && rows) V[o + 12] = lerp(1, 0.5, Math.pow(rows[(i - vj) % rows.length], 1.4)); // shade into the collar
+      if (NK !== 1 && r > 0.012 && r < 0.14) { const s = neckRadP(y, an, NK) / neckRad(y, an, 1); V[o] = x * s; V[o + 2] = NECK_CZ + (z - NECK_CZ) * s; } // sized as the body's neck is
+      const w = neckWt(y, z); V[o + 6] = w[0]; V[o + 7] = w[1]; V[o + 8] = w[2];
+    }
+  }
   function buildBody(S, lod) {
     const V = [], I = [];
     let nv = 0;
-    const Q = lod ? 0.62 : 1, HPI = Math.PI / 2, TAU = Math.PI * 2;
+    // detail: the far / shadow mesh, the game's near mesh, and the player page's close-up (S.bare: the avatar viewer only)
+    // detail: the player page's hero most; in game a little under 1 (every near player draws it: the scene's cost); far off the light list
+    const Q = lod ? 0.6 : S.bare ? 1.45 : 0.86, HPI = Math.PI / 2, TAU = Math.PI * 2, HERO = !lod && !!S.bare;
     const SG = (n) => Math.max(5, Math.round(n * Q));
     const BIND = bindFor(S.sw, S.ll || 1), LL = S.ll || 1;
     // leg rings are authored for the full-length leg: between the hip and the ankle they scale with the leg length, below it they just move up
@@ -1661,29 +1739,32 @@ gl_FragColor=vec4(c,1.0);}`;
         for (let j = 0; j <= seg; j++) { const an = a0 + (a1 - a0) * j / seg, k = r.f ? r.f(an) : 1; row.push([cx + r.rx * k * Math.cos(an), r.y + (r.fy ? r.fy(an) : 0), cz + r.rz * k * Math.sin(an)]); }
         P.push(row);
       }
-      for (let i = 0; i < nR; i++) {
-        const row = [], r = R[i], cx = r.cx || 0, cz = r.cz || 0;
+      for (let i = 0; i < nR; i++) { // normals across the ring and along the loft (scalar math: this runs for every point of every body)
+        const row = [], r = R[i], cx = r.cx || 0, cz = r.cz || 0, Pi = P[i];
+        let im = i - 1, ip = i + 1; while (im > 0 && R[im].dup) im--; while (ip < nR - 1 && R[ip].dup) ip++; im = Math.max(0, im); ip = Math.min(nR - 1, ip);
+        const Pm = P[im], Pp = P[ip], sg = o.flip ? -1 : 1;
         for (let j = 0; j <= seg; j++) {
           const jm = full ? (j === 0 ? seg - 1 : j - 1) : Math.max(0, j - 1), jp = full ? (j === seg ? 1 : j + 1) : Math.min(seg, j + 1);
-          const dR = v3s(P[i][jp], P[i][jm]);
-          let im = i - 1, ip = i + 1; while (im > 0 && R[im].dup) im--; while (ip < nR - 1 && R[ip].dup) ip++; im = Math.max(0, im); ip = Math.min(nR - 1, ip);
-          let dL = v3s(P[ip][j], P[im][j]);
-          if (Math.hypot(dL[0], dL[1], dL[2]) < 1e-6) dL = [0, 1, 0];
-          let n = v3c(dL, dR); const l = Math.hypot(n[0], n[1], n[2]);
-          if (l < 1e-9) { const out = v3s(P[i][j], [cx, r.y, cz]); n = Math.hypot(out[0], out[1], out[2]) > 1e-6 ? v3n(out) : [0, 1, 0]; } else { n = [n[0] / l, n[1] / l, n[2] / l]; }
-          const out = v3s(P[i][j], [cx, r.y, cz]); if (v3d(n, out) < 0 && Math.hypot(out[0], out[1], out[2]) > 1e-6) n = [-n[0], -n[1], -n[2]];
-          if (o.flip) n = [-n[0], -n[1], -n[2]];
-          row.push(n);
+          const a = Pi[jp], b = Pi[jm], c = Pp[j], d = Pm[j], q = Pi[j];
+          const rx = a[0] - b[0], ry = a[1] - b[1], rz = a[2] - b[2];
+          let lx = c[0] - d[0], ly = c[1] - d[1], lz = c[2] - d[2];
+          if (lx * lx + ly * ly + lz * lz < 1e-12) { lx = 0; ly = 1; lz = 0; }
+          let nx = ly * rz - lz * ry, ny = lz * rx - lx * rz, nz = lx * ry - ly * rx;
+          const ox = q[0] - cx, oy = q[1] - r.y, oz = q[2] - cz, ol = Math.sqrt(ox * ox + oy * oy + oz * oz);
+          let l = Math.sqrt(nx * nx + ny * ny + nz * nz);
+          if (l < 1e-9) { if (ol > 1e-6) { nx = ox / ol; ny = oy / ol; nz = oz / ol; } else { nx = 0; ny = 1; nz = 0; } } else { nx /= l; ny /= l; nz /= l; }
+          if (nx * ox + ny * oy + nz * oz < 0 && ol > 1e-6) { nx = -nx; ny = -ny; nz = -nz; }
+          row.push([nx * sg, ny * sg, nz * sg]);
         }
         Nn.push(row);
       }
-      const base = nv, bodyP = (p) => mPt(m, p[0], p[1], p[2]), bodyN = (n) => v3n([m[0] * n[0] + m[1] * n[1] + m[2] * n[2], m[4] * n[0] + m[5] * n[1] + m[6] * n[2], m[8] * n[0] + m[9] * n[1] + m[10] * n[2]]);
+      const ident = m === IDM, base = nv, bodyP = (p) => (ident ? p : mPt(m, p[0], p[1], p[2])), bodyN = (n) => (ident ? n : v3n([m[0] * n[0] + m[1] * n[1] + m[2] * n[2], m[4] * n[0] + m[5] * n[1] + m[6] * n[2], m[8] * n[0] + m[9] * n[1] + m[10] * n[2]]));
       for (let i = 0; i < nR; i++) {
-        const r = R[i], w = r.w || o.w || [0, 0, 1], s = r.s != null ? r.s : o.s, vv = r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0;
+        const r = R[i], s = r.s != null ? r.s : o.s, vv = r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0;
         for (let j = 0; j <= seg; j++) {
-          const an = a0 + (a1 - a0) * j / seg, p = bodyP(P[i][j]), n = bodyN(Nn[i][j]);
+          const an = a0 + (a1 - a0) * j / seg, p = bodyP(P[i][j]), n = bodyN(Nn[i][j]), w = r.wa ? r.wa(an, P[i][j]) : r.w || o.w || [0, 0, 1]; // per-vertex weights where the ring has them
           let u = j / seg; if (o.mirrorU) u = 1 - u;
-          const ao = (r.ao != null ? r.ao : 1) * (o.ao ? o.ao(i, an) : 1);
+          const ao = (r.ao != null ? r.ao : 1) * (o.ao ? o.ao(i, an) : 1) * (r.aoa ? r.aoa(an) : 1);
           push(p, n, w[0], w[1], w[2], s, uv[0] + (uv[1] - uv[0]) * u, uv[2] + (uv[3] - uv[2]) * vv, ao);
         }
       }
@@ -1696,7 +1777,7 @@ gl_FragColor=vec4(c,1.0);}`;
         }
       }
       const cap = (i, dir) => {
-        const r = R[i], w = r.w || o.w || [0, 0, 1], s = r.s != null ? r.s : o.s, c = bodyP([r.cx || 0, r.y + dir * Math.min(r.rx, r.rz) * 0.3, r.cz || 0]), n = bodyN([0, dir * (o.flip ? -1 : 1), 0]);
+        const r = R[i], w = r.wa ? r.wa(HPI, [r.cx || 0, r.y, r.cz || 0]) : r.w || o.w || [0, 0, 1], s = r.s != null ? r.s : o.s, rad = r.f ? Math.min(r.rx * r.f(0), r.rz * r.f(HPI), r.rx * r.f(Math.PI), r.rz * r.f(-HPI)) : Math.min(r.rx, r.rz), c = bodyP([r.cx || 0, r.y + dir * rad * 0.3, r.cz || 0]), n = bodyN([0, dir * (o.flip ? -1 : 1), 0]);
         const pole = push(c, n, w[0], w[1], w[2], s, uv[0] + (uv[1] - uv[0]) * 0.5, uv[2] + (uv[3] - uv[2]) * (r.v != null ? r.v : tot > 0 ? tv[i] / tot : 0), (r.ao != null ? r.ao : 1));
         for (let j = 0; j < seg; j++) { const a = base + i * (seg + 1) + j; if ((dir > 0) !== !!o.flip) I.push(pole, a, a + 1); else I.push(pole, a + 1, a); }
       };
@@ -1725,82 +1806,204 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     const uvOf = (k, u0, u1, v0, v1) => { const r = KIT[k]; return [r[0] + (r[2] - r[0]) * (u0 || 0), r[0] + (r[2] - r[0]) * (u1 == null ? 1 : u1), r[1] + (r[3] - r[1]) * (v0 || 0), r[1] + (r[3] - r[1]) * (v1 == null ? 1 : v1)]; };
+    // keyed loft: anatomical sections (top to bottom) interpolated into dense rings, every number by a monotone cubic in y, so the
+    // silhouette is smooth and never bulges past the keys. A key at the same y as the one before starts a new run (a hard edge:
+    // a hem, a cuff). key: { y, r (r5, or r8 with o.sd), cx, cz, s (slot, kept down to the next key that names one), ao, v,
+    // fx(an) (extra radius) }; o: { sd, step (ring spacing in yards at the near detail), wf(y) | waf(y) -> (an, p) => weights,
+    // aof(y) -> (an) => ao, fxf(y) -> (an) => extra radius } plus the loft's own options. Returns the dense rings (for patches).
+    function kloft(o, keys) {
+      const step = (o.step || 0.03) * (lod ? 2.3 : HERO ? 0.7 : 1), prof = o.sd ? (r, an) => rad8(r, an, o.sd) : rad5;
+      if (lod) keys = keys.filter((k, i) => i === 0 || i === keys.length - 1 || k.s != null || i % 2 === 0 || Math.abs(k.y - keys[i - 1].y) < 1e-7 || Math.abs(keys[i + 1].y - k.y) < 1e-7); // far off: half the sections
+      const runs = []; let cur = [keys[0]];
+      for (let i = 1; i < keys.length; i++) { if (Math.abs(keys[i].y - cur[cur.length - 1].y) < 1e-7) { runs.push(cur); cur = [keys[i]]; } else cur.push(keys[i]); }
+      runs.push(cur);
+      const out = [];
+      let slot = keys[0].s != null ? keys[0].s : o.s;
+      for (const run of runs) {
+        const ys = run.map((k) => k.y), F = (get, dflt) => { const v = run.map((k) => { const x = get(k); return x == null ? dflt : x; }); return run.length > 1 ? pchip(ys, v) : () => v[0]; };
+        const nr = run[0].r.length, fr = []; for (let c = 0; c < nr; c++) fr.push(F((k) => k.r[c], 0));
+        const fcx = F((k) => k.cx, 0), fcz = F((k) => k.cz, 0), fao = F((k) => k.ao, 1), hasV = run.every((k) => k.v != null), fv = hasV ? F((k) => k.v, 0) : null;
+        for (let k = 0; k < run.length; k++) {
+          const n = k === run.length - 1 ? 1 : Math.max(1, Math.round(Math.abs(run[k + 1].y - run[k].y) / step));
+          for (let q = 0; q < n; q++) {
+            const y = k === run.length - 1 ? run[k].y : lerp(run[k].y, run[k + 1].y, q / n), key = q === 0 ? run[k] : null;
+            if (key && key.s != null) slot = key.s;
+            const rr = fr.map((f) => f(y)), fx = key && key.fx, gx = o.fxf ? o.fxf(y) : null;
+            const ring = { y, rx: 1, rz: 1, cx: fcx(y), cz: fcz(y), ao: fao(y), s: slot, f: fx || gx ? (an) => prof(rr, an) + (fx ? fx(an) : 0) + (gx ? gx(an) : 0) : (an) => prof(rr, an), rr };
+            if (hasV) ring.v = fv(y);
+            if (o.waf) ring.wa = o.waf(y) || undefined;
+            if (!ring.wa && o.wf) ring.w = o.wf(y);
+            if (o.aof) ring.aoa = o.aof(y);
+            if (o.fyf) ring.fy = o.fyf(y);
+            out.push(ring);
+          }
+        }
+      }
+      loft(o, out);
+      return out;
+    }
     const CAS = S.cas || null; // casual clothes (Metcalf): no pads, no helmet, a slimmer natural build in the mesh only
     const W = S.bulk * (CAS ? 0.93 : 1), W2 = 0.6 + 0.4 * S.bulk * (CAS ? 0.93 : 1), BEL = S.belly, gear = !S.noGear && !CAS;
     const torsoW = (y) => { // weights along the spine: hips -> spine (0.16) -> chest (0.40) -> neck (0.70)
       if (y < 0.16) return wt(y, 0, 0.16, B.hips, B.spine, 0.06);
       if (y < 0.40) return wt(y, 0.16, 0.40, B.spine, B.chest, 0.07);
-      return wt(y, 0.40, 0.70, B.chest, B.neck, 0.05);
+      if (y < 0.7) return [B.chest, B.neck, 1];
+      return neckWt(y, 0);
     };
+    // the torso's weights per vertex: below the collar by height; from the pads' top up, the neck's own blend (by height and depth)
+    const torsoWa = (y) => (y < 0.7 ? null : (an, p) => { const w = neckWt(y, p ? p[2] : 0), d = p ? Math.hypot(p[0], p[2] - NECK_CZ) : 0, k = clamp((0.135 - d) / 0.035, 0, 1); return [B.neck, B.chest, w[2] * k]; });
+    // the pads' arches: in game gear the jersey rises over the pads beside the neck to nearly the jaw, then falls away over the caps
+    // (an offset in y at the sides of each top ring; a little at the front and back too)
+    const ARCH = pchip([0.765, 0.749, 0.743, 0.735, 0.725, 0.711, 0.69, 0.665, 0.635, 0.6, 0.565], [0.006, 0.007, 0.012, 0.015, 0.015, 0.013, 0.01, 0.007, 0.004, 0.002, 0]);
+    // no pads (T-shirts, officials): the trapezius still rises beside the neck, so the neckline sits high at the sides
+    // (and behind, the crew neck sits higher than in front, at the base of the neck)
+    const ARCH_T = pchip([0.765, 0.748, 0.741, 0.726, 0.706, 0.685, 0.66], [0.012, 0.012, 0.022, 0.028, 0.022, 0.012, 0]), BACK_T = pchip([0.765, 0.748, 0.735, 0.715, 0.69], [0.008, 0.008, 0.006, 0.002, 0]);
+    const archY = (y) => (gear ? (an) => ARCH(y) * (0.12 + 0.88 * Math.pow(Math.abs(Math.cos(an)), 1.3)) : (an) => ARCH_T(y) * (0.1 + 0.9 * Math.pow(Math.abs(Math.cos(an)), 1.5)) + BACK_T(y) * Math.pow(Math.max(0, -Math.sin(an)), 1.2));
     const bellyK = (y) => BEL * Math.max(0, Math.sin(Math.PI * clamp((y - 0.06) / 0.34, 0, 1))); // 0..1 over the abdomen
-    const T = (y, rx, rz, e) => { const bk = bellyK(y), r = Object.assign({ y, rx: rx * W * (1 + 0.1 * bk), rz: rz * W2 * (1 + 0.42 * bk), cz: 0.045 * bk, w: torsoW(y) }, e || {}); return r; };
-    // ---- torso: jersey stretched over the shoulder pads (hard shelf + rounded caps), chest plate, tucked at the belt ----
-    const shelf = gear ? 1 : 0;
-    const torso = [T(0.745, 0.08, 0.07, { v: 0, ao: 0.5 }), T(0.728, 0.12, 0.098, { v: 0.025, ao: 0.68 }), T(0.705, 0.22 + 0.03 * shelf, 0.148, { v: 0.06, ao: 0.85 }),
-      T(0.685, 0.305 + 0.05 * shelf, 0.182, { v: 0.1 }), T(0.665, 0.325 + 0.05 * shelf, 0.2, { v: 0.14 }), T(0.635, 0.32 + 0.045 * shelf, 0.208, { v: 0.19, ao: 0.92 }),
-      T(0.58, 0.295 + 0.02 * shelf, 0.208, { v: 0.27 }), T(0.5, 0.268, 0.195, { v: 0.38, ao: 0.9 }), T(0.42, 0.245, 0.176, { v: 0.48 }), T(0.33, 0.228, 0.162, { v: 0.6 }),
-      T(0.24, 0.218, 0.153, { v: 0.72 }), T(0.15, 0.212, 0.148, { v: 0.84, ao: 0.92 }), T(0.085, 0.212, 0.148, { v: 0.94, ao: 0.75 }), T(0.05, 0.205, 0.144, { v: 1, ao: 0.6 })];
-    // pectoral / lat shaping: a little fuller at the front top and at the back for the lats
-    for (const r of torso) { if (r.y > 0.45 && r.y < 0.65) r.f = (an) => 1 + 0.035 * Math.max(0, Math.sin(an)) * Math.abs(Math.cos(an)) * 2; }
-    if (CAS) { // a T-shirt: natural shoulders (no pads) and an untucked hem that hangs straight over the waistband
-      // the shoulder line slopes from the neck down to the deltoids instead of the pads' flat shelf
-      torso.length = 0;
-      for (const [y, rx, rz, v, ao] of [[0.745, 0.075, 0.066, 0, 0.5], [0.735, 0.11, 0.09, 0.02, 0.68], [0.72, 0.16, 0.12, 0.05, 0.82], [0.7, 0.207, 0.148, 0.09, 1], [0.68, 0.242, 0.17, 0.13, 1], [0.655, 0.264, 0.186, 0.17, 1],
-        [0.625, 0.274, 0.195, 0.22, 0.95], [0.58, 0.272, 0.2, 0.28, 0.95], [0.5, 0.26, 0.193, 0.38, 0.9], [0.42, 0.245, 0.178, 0.48, 1], [0.33, 0.232, 0.166, 0.6, 1], [0.24, 0.225, 0.159, 0.72, 1], [0.15, 0.222, 0.156, 0.84, 0.95]]) torso.push(T(y, rx, rz, { v, ao }));
-      for (const r of torso) { if (r.y > 0.45 && r.y < 0.65) r.f = (an) => 1 + 0.03 * Math.max(0, Math.sin(an)) * Math.abs(Math.cos(an)) * 2; }
-      const pk = (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL) * 1.04, pz = W2 * (1 + 0.12 * BEL) * 1.04;
-      const hem = (y, ex, v, ao) => ({ y, rx: Math.max(0.212 * W * 0.97, 0.226 * pk) + ex, rz: Math.max(0.148 * W2, 0.158 * pz) + ex, cz: 0.02 * BEL, w: torsoW(Math.max(0, y)), v, ao });
-      torso.push(hem(0.09, 0.01, 0.9, 0.95), hem(0.03, 0.02, 0.96, 0.9), hem(-0.02, 0.022, 0.99, 0.85), hem(-0.026, 0.008, 1, 0.55));
+    // a torso key: r5 radii scaled by build (side by bulk, front/back by depth), the belly pushing the front out
+    // (the shoulder pads grow with a big build less than the body under them: a lineman's pads are a size up, not half again as wide)
+    const TK = (y, r, e) => { const bk = bellyK(y), pk = gear && W > 1 ? clamp((y - 0.5) / 0.12, 0, 1) : 0, Wp = W - (W - 1) * 0.45 * pk * pk * (3 - 2 * pk), Wm = (Wp + W2) / 2; return Object.assign({ y, r: [r[0] * W2 * (1 + 0.42 * bk), r[1] * Wm * (1 + 0.25 * bk), r[2] * Wp * (1 + 0.1 * bk), r[3] * Wm, r[4] * W2], cz: 0.045 * bk }, e || {}); };
+    // ---- torso ----
+    // gear: the jersey stretched over the shoulder pads: the pads' top nearly flat from the collar out to the caps over the deltoids,
+    // the caps rounding down to the armpits; a flat chest plate whose lower edge leaves a little shelf where the jersey drops to the
+    // body; the flat back plate; then the jersey taut over the ribs and tucked into the pants at the belt
+    // casual: a plain T-shirt on a natural build: the trapezius sloping from the neck to the shoulder seams, the chest and lats, the
+    // hem hanging straight over the waistband
+    let TKEYS;
+    if (CAS) {
+      TKEYS = [TK(0.748, [0.071, 0.079, 0.087, 0.085, 0.076], { v: 0, ao: 0.55 }), TK(0.741, [0.083, 0.102, 0.122, 0.115, 0.093], { v: 0.02, ao: 0.72 }), TK(0.726, [0.106, 0.146, 0.176, 0.162, 0.122], { v: 0.05, ao: 0.86 }),
+        TK(0.706, [0.13, 0.186, 0.224, 0.2, 0.147], { v: 0.09, ao: 0.95 }), TK(0.685, [0.15, 0.21, 0.258, 0.224, 0.164], { v: 0.13 }), TK(0.66, [0.165, 0.224, 0.278, 0.236, 0.176], { v: 0.17 }),
+        TK(0.63, [0.173, 0.229, 0.282, 0.24, 0.183], { v: 0.22 }), TK(0.59, [0.177, 0.229, 0.272, 0.238, 0.186], { v: 0.27 }), TK(0.55, [0.177, 0.226, 0.256, 0.231, 0.184], { v: 0.32 }),
+        TK(0.5, [0.175, 0.221, 0.244, 0.223, 0.179], { v: 0.38 }), TK(0.42, [0.171, 0.213, 0.235, 0.215, 0.173], { v: 0.48 }), TK(0.33, [0.167, 0.207, 0.229, 0.209, 0.168], { v: 0.6 }),
+        TK(0.24, [0.165, 0.204, 0.226, 0.206, 0.165], { v: 0.72 }), TK(0.15, [0.165, 0.204, 0.225, 0.206, 0.165], { v: 0.84 })];
+      // the untucked hem: straight down over the waistband, a little fuller, then turned in
+      const pk = (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL) * 1.04, hz = (0.158 * W2 * (1 + 0.12 * BEL) * 1.04) / (0.165 * W2), hx = Math.max(1, (0.226 * pk) / (0.225 * W));
+      const hem = (y, ex, v, ao) => { const k = TK(y, [0.165 * hz + ex / W2, 0.204 * (hx + hz) / 2 + ex, 0.225 * hx + ex / W, 0.206 * (hx + hz) / 2 + ex, 0.165 * hz + ex / W2], { v, ao }); k.cz = 0.02 * BEL; return k; };
+      TKEYS.push(hem(0.09, 0.008, 0.9, 0.95), hem(0.03, 0.016, 0.96, 0.9), hem(-0.02, 0.019, 0.99, 0.85), hem(-0.02, 0.004, 1, 0.5));
+    } else if (gear) { // v: the kit's collar trim (v 0..0.05) stays in the first section, a band about an inch wide round the neck
+      TKEYS = [TK(0.749, [0.074, 0.083, 0.094, 0.09, 0.08], { v: 0, ao: 0.55 }), TK(0.743, [0.098, 0.125, 0.15, 0.135, 0.11], { v: 0.055, ao: 0.7 }), TK(0.735, [0.125, 0.19, 0.262, 0.205, 0.14], { v: 0.072, ao: 0.8 }),
+        TK(0.725, [0.148, 0.226, 0.318, 0.244, 0.163], { v: 0.088, ao: 0.88 }), TK(0.711, [0.166, 0.249, 0.352, 0.265, 0.182], { v: 0.103, ao: 0.95 }), TK(0.69, [0.18, 0.263, 0.372, 0.279, 0.194], { v: 0.123 }),
+        TK(0.665, [0.19, 0.271, 0.378, 0.287, 0.2], { v: 0.145 }), TK(0.635, [0.196, 0.274, 0.372, 0.286, 0.204], { v: 0.19 }), TK(0.6, [0.199, 0.272, 0.35, 0.279, 0.205], { v: 0.24 }),
+        TK(0.565, [0.2, 0.266, 0.31, 0.27, 0.203], { v: 0.29 }), TK(0.53, [0.199, 0.258, 0.272, 0.258, 0.199], { v: 0.335, ao: 0.97 }), TK(0.495, [0.194, 0.246, 0.25, 0.246, 0.193], { v: 0.375, ao: 0.96 }),
+        TK(0.472, [0.187, 0.236, 0.242, 0.238, 0.188], { v: 0.405 }), TK(0.454, [0.179, 0.226, 0.237, 0.229, 0.183], { v: 0.432, ao: 0.97 }), TK(0.42, [0.168, 0.214, 0.232, 0.218, 0.176], { v: 0.48 }),
+        TK(0.37, [0.158, 0.205, 0.228, 0.208, 0.165], { v: 0.54 }), TK(0.3, [0.153, 0.199, 0.224, 0.2, 0.157], { v: 0.63 }), TK(0.22, [0.149, 0.194, 0.219, 0.195, 0.153], { v: 0.73 }),
+        TK(0.185, [0.146, 0.189, 0.213, 0.19, 0.15], { v: 0.8, ao: 0.9 }), TK(0.15, [0.135, 0.177, 0.198, 0.178, 0.138], { v: 0.86, ao: 0.7 }), TK(0.09, [0.132, 0.173, 0.194, 0.174, 0.135], { v: 0.94, ao: 0.6 }), TK(0.05, [0.13, 0.17, 0.19, 0.17, 0.133], { v: 1, ao: 0.5 })];
+    } else { // referees and coaches: no pads, a shirt over a natural build
+      TKEYS = [TK(0.748, [0.074, 0.082, 0.09, 0.088, 0.078], { v: 0, ao: 0.55 }), TK(0.738, [0.092, 0.118, 0.14, 0.13, 0.102], { v: 0.03, ao: 0.75 }), TK(0.72, [0.12, 0.165, 0.2, 0.18, 0.135], { v: 0.06, ao: 0.9 }),
+        TK(0.695, [0.148, 0.205, 0.25, 0.22, 0.16], { v: 0.11 }), TK(0.665, [0.168, 0.228, 0.282, 0.24, 0.178], { v: 0.15 }), TK(0.63, [0.178, 0.236, 0.29, 0.247, 0.186], { v: 0.2 }),
+        TK(0.58, [0.183, 0.236, 0.278, 0.244, 0.19], { v: 0.27 }), TK(0.5, [0.18, 0.228, 0.256, 0.232, 0.186], { v: 0.38 }), TK(0.42, [0.175, 0.218, 0.243, 0.222, 0.178], { v: 0.48 }),
+        TK(0.33, [0.17, 0.21, 0.235, 0.213, 0.17], { v: 0.6 }), TK(0.24, [0.166, 0.206, 0.229, 0.208, 0.166], { v: 0.72 }), TK(0.15, [0.163, 0.203, 0.225, 0.205, 0.163], { v: 0.84, ao: 0.92 }),
+        TK(0.085, [0.163, 0.203, 0.224, 0.205, 0.163], { v: 0.94, ao: 0.75 }), TK(0.05, [0.16, 0.2, 0.22, 0.202, 0.16], { v: 1, ao: 0.6 })];
     }
-    if (S.bare) for (const r of torso) if (r.y < 0.26) { r.rx *= 0.93; r.rz *= 0.93; } // the avatar close up: the jersey tucked well inside the pants (no zigzag at the belt)
-    loft({ s: S.noGear && S.cap ? SL.stripes : SL.jer, seg: SG(28), uv: uvOf('torso'), ao: (i, an) => (i >= 4 && i <= 7 && Math.abs(Math.cos(an)) > 0.9 ? 0.72 : 1) }, torso);
-    // decal patches (numbers / name plate) ride a hair above the jersey
+    // the V-neck (game jerseys): the neckline dips VD at the front middle with straight sides; there the top rings slide down the
+    // jersey's own surface, so the opening is a V cut into it, and the collar's trim fills it (a V insert), the neck clear above it
+    const VD = gear ? 0.046 : 0, TKF = VD ? [0, 1, 2, 3, 4].map((c) => pchip(TKEYS.map((k) => k.y), TKEYS.map((k) => k.r[c]))) : null;
+    const tkR = (y, an) => rad5(TKF.map((f) => f(y)), an), vF = (an) => Math.max(0, 1 - Math.abs(angD(an, HPI)) / 0.72);
+    const vDy = (y, an) => -VD * vF(an) * clamp((y - 0.69) / 0.059, 0, 1), vDr = (y, an) => { const dy = vDy(y, an); return dy ? tkR(y + dy, an) - tkR(y, an) : 0; };
+    // surface detail (radius offsets round the ring): the pads' two halves meeting down the sternum, the shoulder-blade edges of the
+    // back plate, jersey folds where it is tucked and gathered at the armpits; the T-shirt's chest, shoulder blades and soft folds
+    const torsoFx = (y) => {
+      const ph = (an) => Math.atan2(Math.sin(an - HPI), Math.cos(an - HPI)); // 0 front, +-pi back
+      if (CAS) {
+        const pec = clamp((y - 0.44) / 0.06, 0, 1) * clamp((0.64 - y) / 0.08, 0, 1), sb = clamp((y - 0.46) / 0.08, 0, 1) * clamp((0.68 - y) / 0.08, 0, 1), fold = clamp((0.3 - y) / 0.2, 0, 1) * (HERO || !lod ? 1 : 0);
+        return (an) => { const p = ph(an), a = Math.abs(p); return 0.006 * pec * Math.exp(-Math.pow((a - 0.42) / 0.3, 2)) - 0.004 * pec * Math.exp(-Math.pow(a / 0.1, 2)) + 0.005 * sb * Math.exp(-Math.pow((Math.PI - a - 0.55) / 0.28, 2)) + 0.0022 * fold * Math.sin(an * 9 + y * 31) * Math.sin(an * 4 - y * 17); };
+      }
+      if (!gear) return null;
+      const st = clamp((y - 0.48) / 0.03, 0, 1) * clamp((0.7 - y) / 0.05, 0, 1), bp = clamp((y - 0.4) / 0.04, 0, 1) * clamp((0.69 - y) / 0.06, 0, 1);
+      const tuck = clamp((y - 0.195) / 0.02, 0, 1) * clamp((0.28 - y) / 0.05, 0, 1) * (lod ? 0 : 1), pit = clamp((y - 0.47) / 0.04, 0, 1) * clamp((0.6 - y) / 0.05, 0, 1) * (lod ? 0 : 1);
+      return (an) => {
+        const p = ph(an), a = Math.abs(p);
+        return -0.0045 * st * Math.exp(-Math.pow(a / 0.07, 2)) + 0.004 * bp * Math.exp(-Math.pow((Math.PI - a - 0.62) / 0.12, 2)) + 0.0028 * tuck * Math.sin(an * 13 + 0.6) * (0.6 + 0.4 * Math.sin(an * 5)) - 0.004 * pit * Math.exp(-Math.pow((a - HPI) / 0.25, 2)) * (0.5 + 0.5 * Math.sin(y * 260));
+      };
+    };
+    const torsoS = S.noGear && S.cap ? SL.stripes : SL.jer;
+    const torsoRings = kloft({ s: torsoS, seg: SG(28), step: 0.03, uv: uvOf('torso'), waf: torsoWa, wf: torsoW,
+      fxf: VD ? (y) => { const t = torsoFx(y); return (an) => (t ? t(an) : 0) + vDr(y, an); } : torsoFx, fyf: VD ? (y) => { const a = archY(y); return (an) => a(an) + vDy(y, an); } : archY,
+      aof: (y) => (an) => 1 - 0.3 * clamp((y - 0.46) / 0.04, 0, 1) * clamp((0.6 - y) / 0.05, 0, 1) * Math.pow(Math.abs(Math.cos(an)), 6) }, TKEYS); // the armpits in shade
+    // the torso's surface radius at (y, an), from its dense rings (each ring's height at that angle, the pads' arches included)
+    const torsoAt = (y, an) => {
+      const ey = (r) => r.y + (r.fy ? r.fy(an) : 0);
+      let k = 1; while (k < torsoRings.length - 1 && ey(torsoRings[k]) > y) k++;
+      const a = torsoRings[k - 1], b = torsoRings[k], ya = ey(a), yb = ey(b), t = clamp((ya - y) / (ya - yb || 1e-6), 0, 1); return [lerp(a.f(an), b.f(an), t), lerp(a.cz, b.cz, t)];
+    };
+    // decal patches (numbers / name plate) ride a hair above the jersey, in rings close enough to follow its curve (a chord across
+    // the shoulder blades or the chest would sink in)
     const patch = (s, y0, y1, aC, aW, scale) => {
-      const rs = [];
-      for (let i = 0; i <= 3; i++) {
-        const y = y0 + (y1 - y0) * i / 3; let k = 1; while (k < torso.length - 1 && torso[k].y > y) k++;
-        const a = torso[k - 1], b = torso[k], t = clamp((a.y - y) / (a.y - b.y || 1e-6), 0, 1);
-        rs.push({ y, rx: lerp(a.rx, b.rx, t) * scale, rz: lerp(a.rz, b.rz, t) * scale, cz: lerp(a.cz, b.cz, t) * scale, w: torsoW(y), v: i / 3, ao: 0.95 });
+      const rs = [], n = lod ? 3 : Math.max(3, Math.round(Math.abs(y1 - y0) / 0.027));
+      for (let i = 0; i <= n; i++) {
+        const y = y0 + (y1 - y0) * i / n;
+        rs.push({ y, rx: 1, rz: 1, cz: torsoAt(y, aC)[1] * scale, f: (an) => torsoAt(y, an)[0] * scale + 0.003, w: torsoW(y), v: i / n, ao: 0.95 });
       }
       loft({ s, seg: SG(8), a0: aC - aW, a1: aC + aW }, rs);
     };
     if (gear) {
-      patch(SL.num, 0.5, 0.26, HPI, 0.5, 1.012);            // front number
-      patch(SL.num, 0.56, 0.24, -HPI, 0.62, 1.012);          // back number
-      if (!lod) patch(SL.name, 0.645, 0.585, -HPI, 0.75, 1.012); // name plate
+      patch(SL.num, 0.645, 0.37, HPI, 0.56, 1.004);          // front number (big, on the chest under the V)
+      patch(SL.num, 0.56, 0.24, -HPI, 0.62, 1.004);          // back number
+      if (!lod) patch(SL.name, 0.645, 0.585, -HPI, 0.75, 1.004); // name plate
     }
-    // ---- neck + collar ----
-    const NK = S.neck * (CAS ? 1.1 : 1);
-    loft({ s: SL.skin, seg: SG(12) }, [{ y: 0.69, rx: 0.068 * NK, rz: 0.062 * NK, w: [B.chest, B.neck, 0.7], ao: 0.5, cz: -0.005 }, { y: 0.745, rx: 0.062 * NK, rz: 0.058 * NK, w: [B.neck, B.chest, 0.8], ao: 0.6, cz: -0.004 }, { y: 0.8, rx: 0.06 * NK, rz: 0.057 * NK, w: [B.neck, B.head, 0.6], ao: 0.62 }, { y: 0.85, rx: 0.062 * NK, rz: 0.06 * NK, w: [B.head, B.neck, 0.85], ao: 0.6, cz: 0.004 }]);
-    if (CAS) loft({ s: SL.jer, seg: SG(14), uv: uvOf('torso', 0, 1, 0, 0.03) }, [{ y: 0.738, rx: 0.074 * W, rz: 0.064 * W2, w: torsoW(0.72), ao: 0.7 }, { y: 0.749, rx: 0.084 * W, rz: 0.072 * W2, w: torsoW(0.72) }, { y: 0.741, rx: 0.098 * W, rz: 0.082 * W2, w: torsoW(0.72) }]); // a slim crew-neck rib
-    else loft({ s: SL.trim, seg: SG(14) }, [{ y: 0.735, rx: 0.095 * W, rz: 0.082 * W2, w: torsoW(0.72), ao: 0.8 }, { y: 0.752, rx: 0.115 * W, rz: 0.098 * W2, w: torsoW(0.72) }, { y: 0.74, rx: 0.132 * W, rz: 0.112 * W2, w: torsoW(0.72) }]);
+    // ---- neck (shared profile with the scanned heads: neckRad / neckWt) and the collar ----
+    const NK = S.neck * (CAS ? 1.0 : 1);
+    // the neck's weights, never all head: under a scanned head the shader drops head-only vertices above 0.8 (the drawn head) to the
+    // body's origin, and a ring of this loft dropped next to one kept would stretch slivers down to the hips when the neck bends; so
+    // the whole neck stays, inside the scan
+    const neckLoftWt = (y) => (an, p) => { const w = neckWt(y, p[2]); return w[0] === B.head && w[2] > 0.998 ? [w[0], w[1], 0.998] : w; };
+    { // dense rings from inside the collar up into the skull, top first
+      const rings = [], n = Math.max(6, Math.round(12 * Q));
+      for (let i = 0; i <= n; i++) {
+        const y = 0.9 - (0.9 - 0.69) * i / n;
+        const tuck = 0.0055 * clamp((y - 0.752) / 0.025, 0, 1); // a little inside the profile where the jaw and the scans' necks cover it
+        rings.push({ y, rx: 1, rz: 1, cz: NECK_CZ, f: (an) => neckRadP(y, an, NK) - tuck, wa: neckLoftWt(y), ao: y < 0.735 ? 0.45 : y < 0.765 ? 0.45 + (y - 0.735) * 14 : y > 0.84 ? 0.75 : 0.88 });
+      }
+      loft({ s: SL.skin, seg: SG(15), capTop: true }, rings);
+    }
+    // collar: a ribbed band round the neck on the pads' opening (game jerseys), a crew-neck rib on the T-shirt; weighted with the neck
+    {
+      const top = TKEYS[0], t2 = TKEYS[1], nk = (y) => (an) => neckRadP(y, an, NK);
+      const band = gear ? [[0.7535, (an) => nk(0.752)(an) - 0.0015, 0.75], [0.7555, (an) => nk(0.752)(an) + 0.007, 0.95], [0.751, (an) => rad5(top.r, an) + 0.009, 1], [0.7455, (an) => rad5(t2.r, an) * 0.92 + rad5(top.r, an) * 0.08 + 0.004, 0.9], [0.7435, (an) => rad5(t2.r, an) * 0.92 + rad5(top.r, an) * 0.08 - 0.002, 0.8]]
+        : [[0.7525, (an) => nk(0.752)(an) - 0.0012, 0.75], [0.754, (an) => nk(0.752)(an) + 0.004, 0.95], [0.7505, (an) => rad5(top.r, an) + 0.0045, 1], [0.7465, (an) => rad5(top.r, an) * 0.6 + rad5(t2.r, an) * 0.4 - 0.001, 0.85]];
+      const dip = (an) => -0.006 * Math.exp(-Math.pow(Math.atan2(Math.sin(an - HPI), Math.cos(an - HPI)) / 0.5, 2)); // a touch lower at the throat
+      // (game jerseys: the band's outer rings follow the V's edge down the jersey, its inner ones stay round the neck)
+      const rs = band.map(([y, f, ao], i) => { const ay = archY(i < 2 ? 0.749 : y), v = VD && i >= 2; return { y, rx: 1, rz: 1, cz: top.cz || 0, f: v ? (an) => f(an) + vDr(0.749, an) : f, fy: (an) => dip(an) + ay(an) + (v ? vDy(0.749, an) : 0), ao, wa: (an, p) => neckWt(Math.min(y, 0.76), p[2]) }; });
+      if (CAS) loft({ s: SL.jer, seg: SG(24), uv: uvOf('torso', 0, 1, 0, 0.03) }, rs);
+      else loft({ s: SL.trim, seg: SG(24) }, rs);
+    }
     // ---- head (human scale: ~0.2 yd wide, 0.26 tall): jaw, cheekbones, brow, crown; eye sockets; nose; ears ----
     const HW = [B.head, B.neck, 1];
-    const faceF = (y) => (an) => { // radius modulation around the ring: eye sockets, cheekbones, chin, occipital bulge
-      const f = Math.max(0, Math.sin(an));
+    const faceF = (y) => (an) => { // radius modulation round the ring: brow ridge, eye sockets, cheekbones, the hollow under them, lips,
+      // chin, the jaw's angle under the ears, occipital bulge (each a smooth bump, so the denser rings make no ledges)
+      const f = Math.max(0, Math.sin(an)), d = Math.abs(angD(an, HPI)), g = (x, c, w) => Math.exp(-Math.pow((x - c) / w, 2));
       let k = 1;
-      if (y > 0.935 && y < 0.985) k -= 0.06 * f * Math.max(0, 1 - Math.abs(Math.abs(angD(an, HPI)) - 0.4) * 2.6); // sockets
-      if (y > 0.9 && y < 0.95) k += 0.035 * f * Math.max(0, Math.abs(angD(an, HPI)) - 0.5); // cheekbones
-      if (y < 0.875) k += 0.07 * f * (1 - Math.min(1, Math.abs(angD(an, HPI)) * 1.5)); // chin forward
+      k -= 0.06 * f * Math.max(0, 1 - Math.abs(d - 0.4) * 2.6) * Math.max(0, Math.sin(Math.PI * clamp((y - 0.933) / 0.052, 0, 1))); // sockets
+      k += 0.02 * f * g(y, 0.981, 0.009) * Math.max(0, 1 - d / 0.95); // brow ridge
+      k += 0.035 * f * Math.max(0, d - 0.5) * clamp((y - 0.895) / 0.01, 0, 1) * clamp((0.955 - y) / 0.01, 0, 1); // cheekbones
+      k += 0.022 * g(y, 0.925, 0.014) * g(d, 0.75, 0.22); // the cheekbone's point
+      k -= 0.016 * g(y, 0.889, 0.016) * g(d, 0.8, 0.25); // a little hollow below it
+      k += 0.012 * g(y, 0.893, 0.007) * g(d, 0, 0.3); // lips
+      k += 0.07 * f * (1 - Math.min(1, d * 1.5)) * smo(clamp((0.886 - y) / 0.022, 0, 1)); // chin forward
+      k += 0.03 * g(y, 0.862, 0.02) * g(d, 1.15, 0.25); // the jaw's angle
       k += 0.025 * Math.max(0, -Math.sin(an)); // occipital bulge
       return k;
     };
-    const HR = [{ y: 0.828, rx: 0.04, rz: 0.044, cz: 0.034, ao: 0.6 }, { y: 0.85, rx: 0.066, rz: 0.072, cz: 0.022, ao: 0.7 }, { y: 0.878, rx: 0.083, rz: 0.09, cz: 0.011, ao: 0.78 }, { y: 0.905, rx: 0.093, rz: 0.1, cz: 0.005, ao: 0.85 }, { y: 0.932, rx: 0.099, rz: 0.104, cz: 0.002, ao: 0.88 },
-      { y: 0.957, rx: 0.101, rz: 0.106, cz: 0.0, ao: 0.9 }, { y: 0.985, rx: 0.1, rz: 0.107, cz: 0.003, ao: 0.85 }, { y: 1.013, rx: 0.096, rz: 0.1, cz: 0.0, ao: 0.75 }, { y: 1.042, rx: 0.082, rz: 0.084, cz: -0.003, ao: 0.6 }, { y: 1.066, rx: 0.05, rz: 0.051, cz: -0.005, ao: 0.5 }, { y: 1.08, rx: 0.012, rz: 0.012, cz: -0.005, ao: 0.5 }];
+    // the rings: sections through the skull and face (rx, rz, centre z, ao), denser over the face at full detail
+    const HRK = [[0.828, 0.04, 0.044, 0.034, 0.6], [0.85, 0.066, 0.072, 0.022, 0.7], [0.878, 0.083, 0.09, 0.011, 0.78], [0.905, 0.093, 0.1, 0.005, 0.85], [0.932, 0.099, 0.104, 0.002, 0.88], [0.957, 0.101, 0.106, 0, 0.9],
+      [0.985, 0.1, 0.107, 0.003, 0.85], [1.013, 0.096, 0.1, 0, 0.75], [1.042, 0.082, 0.084, -0.003, 0.6], [1.066, 0.05, 0.051, -0.005, 0.5], [1.08, 0.012, 0.012, -0.005, 0.5]];
+    const HRF = [1, 2, 3, 4].map((c) => pchip(HRK.map((k) => k[0]), HRK.map((k) => k[c])));
+    const HR = (lod ? HRK.map((k) => k[0]) : [0.828, 0.839, 0.85, 0.864, 0.878, 0.891, 0.905, 0.918, 0.932, 0.944, 0.957, 0.971, 0.985, 0.999, 1.013, 1.028, 1.042, 1.066, 1.08]).map((y) => ({ y, rx: HRF[0](y), rz: HRF[1](y), cz: HRF[2](y), ao: HRF[3](y) }));
     for (const r of HR) { r.w = HW; r.f = faceF(r.y); }
     loft({ s: SL.skin, seg: SG(20), capTop: false, capBot: true }, HR.slice().reverse());
     // face patch: the front arc of the head rings, slightly proud of the skin; photo UVs put the eyes at v ~ 0.4 and the chin at the bottom
     {
       const FR = [];
       const yTop = 1.045, yBot = 0.826;
-      for (let i = HR.length - 1; i >= 0; i--) { const r = HR[i]; if (r.y > yTop + 0.02 || r.y < yBot) continue; FR.push(Object.assign({}, r, { rx: r.rx * 1.015 + 0.0015, rz: r.rz * 1.015 + 0.0015, v: clamp((yTop - r.y) / (yTop - yBot), 0, 1), ao: 0.95 })); }
-      loft({ s: SL.face, seg: SG(10), a0: HPI - 1.3, a1: HPI + 1.3, mirrorU: true }, FR);
+      for (let i = HR.length - 1; i >= 0; i--) { const r = HR[i]; if (r.y > yTop + 0.02 || r.y < yBot) continue; FR.push(Object.assign({}, r, { f: (an) => { const e = Math.min(1, (1.3 - Math.abs(angD(an, HPI))) / 0.45); return r.f(an) * (1 + 0.004 + 0.011 * e) + (0.0006 + 0.0009 * e) / r.rx; }, v: clamp((yTop - r.y) / (yTop - yBot), 0, 1), ao: 0.95 })); } // (proud of the skin, less so toward its edges, which then barely show)
+      loft({ s: SL.face, seg: SG(14), a0: HPI - 1.3, a1: HPI + 1.3, mirrorU: true }, FR);
     }
     if (!lod) {
       // nose: bridge to tip
-      loft({ s: SL.face, seg: SG(6), capBot: true, w: HW, uv: [0.49, 0.51, 0.47, 0.55] }, [{ y: 0.962, rx: 0.011, rz: 0.005, cz: 0.106, w: HW, ao: 0.95 }, { y: 0.942, rx: 0.013, rz: 0.009, cz: 0.113, w: HW, ao: 0.95 }, { y: 0.922, rx: 0.017, rz: 0.012, cz: 0.12, w: HW, ao: 0.92 }, { y: 0.909, rx: 0.015, rz: 0.009, cz: 0.116, w: HW, ao: 0.85 }]);
+      loft({ s: SL.face, seg: SG(8), capBot: true, w: HW, uv: [0.49, 0.51, 0.47, 0.55] }, [{ y: 0.975, rx: 0.009, rz: 0.004, cz: 0.1, w: HW, ao: 0.95 }, { y: 0.958, rx: 0.011, rz: 0.006, cz: 0.108, w: HW, ao: 0.95 }, { y: 0.94, rx: 0.0125, rz: 0.009, cz: 0.115, w: HW, ao: 0.95 },
+        { y: 0.924, rx: 0.016, rz: 0.012, cz: 0.122, w: HW, ao: 0.92 }, { y: 0.912, rx: 0.019, rz: 0.011, cz: 0.12, w: HW, ao: 0.85 }, { y: 0.904, rx: 0.015, rz: 0.007, cz: 0.112, w: HW, ao: 0.75 }]);
       // eyes: spheres in the sockets (the iris is shaded from the gaze direction)
-      for (const sd of [-1, 1]) ellipsoid({ s: SL.eye, seg: SG(10), w: HW, ring: () => ({ w: HW, ao: 1 }) }, [sd * 0.035, 0.956, 0.09], 0.0145, 0.014, 0.0145, 0, Math.PI, 5);
+      for (const sd of [-1, 1]) ellipsoid({ s: SL.eye, seg: SG(10), w: HW, ring: () => ({ w: HW, ao: 1 }) }, [sd * 0.035, 0.955, 0.0885], 0.0135, 0.0085, 0.0125, 0, Math.PI, 5); // (flattened top and bottom: the lids)
       // ears
       for (const sd of [-1, 1]) ellipsoid({ s: SL.skin, seg: SG(8), w: HW, ring: () => ({ w: HW, ao: 0.7 }) }, [sd * 0.1, 0.945, -0.01], 0.01, 0.027, 0.019, 0, Math.PI, 4);
     }
@@ -1817,7 +2020,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const helmRing = (th, i) => { const flare = th > 2.0 ? 1 + 0.06 * (th - 2.0) : 1, brow = th > 0.9 && th < 1.4 ? 1.03 : 1, flat = th < 0.5 ? 0.985 + 0.015 * (th / 0.5) : 1; return { rx: Math.max(1e-4, HRR[0] * Math.sin(th) * flare * flat), rz: Math.max(1e-4, HRR[2] * Math.sin(th) * brow * flat), cz: HEC[2] + (th > 1.9 ? 0.028 * (th - 1.9) : 0), v: th / HELM_TH, w: HW,
         f: (an) => 1 + (th > 1.6 && th < 2.5 ? 0.04 * Math.pow(Math.abs(Math.cos(an)), 4) * Math.sin((th - 1.6) / 0.9 * Math.PI) : 0) }; }; // ear flap bulge
       ellipsoid({ s: SL.helm, seg: SG(30), uv: uvOf('helm'), skip: helmSkip(thAt), ring: helmRing, capTop: true }, HEC, HRR[0], HRR[1], HRR[2], 0, HELM_TH, NHR);
-      if (!lod) ellipsoid({ s: SL.pad, seg: SG(30), uv: uvOf('helm'), skip: helmSkip(thAt), flip: true, ring: (th, i) => Object.assign(helmRing(th, i), { ao: 0.35, rx: Math.max(1e-4, HRR[0] * 0.94 * Math.sin(th)), rz: Math.max(1e-4, HRR[2] * 0.94 * Math.sin(th)) }) }, HEC, HRR[0] * 0.94, HRR[1] * 0.94, HRR[2] * 0.94, 0.35, HELM_TH, NHR);
+      // the lining: only its front half (all that shows through the face opening) and well inside the shell, so no depth buffer,
+      // however coarse (phones), can mix the dark lining into the shell from outside
+      const front = helmSkip(thAt);
+      if (!lod) ellipsoid({ s: SL.pad, seg: SG(30), uv: uvOf('helm'), skip: (i, j, an) => front(i, j, an) || Math.abs(angD(an, HPI)) > 1.9, flip: true, ring: (th, i) => Object.assign(helmRing(th, i), { ao: 0.35, rx: Math.max(1e-4, HRR[0] * 0.91 * Math.sin(th)), rz: Math.max(1e-4, HRR[2] * 0.91 * Math.sin(th)) }) }, HEC, HRR[0] * 0.91, HRR[1] * 0.91, HRR[2] * 0.91, 0.35, HELM_TH, NHR);
       // jaw pads inside the ear flaps
       if (!lod) for (const sd of [-1, 1]) loft({ s: SL.pad, seg: SG(8), w: HW, capBot: true }, [{ y: 0.905, rx: 0.02, rz: 0.058, cx: sd * 0.118, cz: 0.025, w: HW, ao: 0.5 }, { y: 0.86, rx: 0.022, rz: 0.054, cx: sd * 0.112, cz: 0.032, w: HW, ao: 0.5 }, { y: 0.83, rx: 0.016, rz: 0.042, cx: sd * 0.1, cz: 0.036, w: HW, ao: 0.5 }]);
       // facemask: tubular bars (open cage; linemen get the extra lower bar)
@@ -1912,108 +2118,283 @@ gl_FragColor=vec4(c,1.0);}`;
         shell(SL.tape, bl, (v) => 0.02 + 0.012 * (1 - v) + (v > 0.72 ? 0.007 : 0), { ao: (v) => (v > 0.72 ? 0.9 : 1) });
       }
     }
-    // a casual leg: sweats (loose to the shoe), joggers (tapered into a cuff) or shorts (three lengths) over a bare knee and calf, then
-    // crew or ankle socks. Radii are a lean natural leg (no thigh or knee pads)
-    function casLeg(sd, hp, kn, ft, X, inner) {
-      const LW = S.legs * 0.96, kind = CAS_BOT[CAS.bot] || 'sweats', KY = -0.53;
-      const LT = [[-0.02, 0.134, 0.012], [-0.14, 0.126, 0.02], [-0.27, 0.113, 0.018], [-0.4, 0.097, 0.01], [-0.49, 0.087, 0.014], [-0.555, 0.081, 0.01], [-0.63, 0.075, 0], [-0.7, 0.079, -0.012], [-0.78, 0.071, -0.008], [-0.88, 0.061, -0.004], [-0.95, 0.054, 0], [-1.0, 0.05, 0], [-1.04, 0.046, -0.006]];
-      const at = (y) => { let i = 0; while (i < LT.length - 2 && LT[i + 1][0] > y) i++; const a = LT[i], b = LT[i + 1], t = clamp((a[0] - y) / (a[0] - b[0]), 0, 1); return [lerp(a[1], b[1], t) * LW, lerp(a[2], b[2], t)]; };
-      const wL = (y) => (y > -0.05 ? [hp, B.hips, 0.75] : y > KY + 0.07 ? [hp, kn, 1] : y > KY - 0.07 ? wt(y, 0, KY, hp, kn, 0.07) : y > -0.76 ? [kn, hp, 1] : y > -0.92 ? [kn, ft, 1] : [kn, ft, 1 - smo(clamp((-0.92 - y) / 0.12, 0, 1))]);
-      const ring = (y, r, e) => { const q = at(y); return Object.assign({ y: legY(y), rx: r, rz: r * 1.03, cx: X, cz: q[1], w: wL(y) }, e || {}); };
-      const calf = (an) => 1 + 0.1 * Math.max(0, -Math.sin(an)), knee = (an) => 1 + 0.04 * Math.max(0, Math.sin(an));
-      const cloth = [], skin = [], sock = [];
-      const shorts = kind === 'shorts' || kind === 'midshorts' || kind === 'hoops';
-      if (shorts) {
-        const yH = kind === 'shorts' ? -0.33 : kind === 'midshorts' ? -0.43 : -0.54, lo = kind === 'hoops' ? 1.2 : kind === 'midshorts' ? 1.12 : 1.1;
-        for (const y of [-0.02, -0.14, -0.24, -0.33, -0.43, -0.54]) if (y > yH + 0.01) cloth.push(ring(y, at(y)[0] * lo + 0.014, { ao: y < -0.05 ? 1 : 0.85 }));
-        const rH = at(yH)[0] * lo + 0.016;
-        cloth.push(ring(yH, rH, { ao: 0.95 }), ring(yH + 0.008, at(yH)[0] + 0.006, { ao: 0.45 }));
-        const sockTop = CAS.sock ? -0.972 : -0.8;
-        for (const y of [yH + 0.004, -0.4, -0.49, -0.53, -0.57, -0.63, -0.7, -0.78, -0.8]) if (y <= yH + 0.004 && y > sockTop + 0.005) skin.push(ring(y, at(y)[0], { f: y < -0.66 && y > -0.75 ? calf : y < -0.5 && y > -0.56 ? knee : null, ao: y > yH - 0.03 ? 0.7 : 1 }));
-        skin.push(ring(sockTop + 0.004, at(sockTop)[0], { ao: 0.9 }));
-        sock.push(ring(sockTop + 0.006, at(sockTop)[0] + 0.006, { ao: 0.9 }), ring(sockTop - 0.012, at(sockTop - 0.012)[0] + 0.007));
-        for (const y of [-0.88, -0.95, -1.0, -1.04]) if (y < sockTop - 0.03) sock.push(ring(y, at(y)[0] + 0.004, { ao: y < -0.99 ? 0.75 : 1 }));
-        if (sock[sock.length - 1].y > legY(-1.04) + 0.001) sock.push(ring(-1.04, at(-1.04)[0] + 0.004, { ao: 0.7 }));
-      } else if (kind === 'joggers') {
-        for (const y of [-0.02, -0.14, -0.27, -0.4, -0.49, -0.57, -0.66, -0.75, -0.84]) cloth.push(ring(y, at(y)[0] * 1.08 + 0.014, { f: y === -0.49 ? knee : null }));
-        cloth.push(ring(-0.9, 0.068 * LW + 0.004), ring(-0.925, 0.06 * LW + 0.004, { ao: 0.8 }), ring(-0.975, 0.054 * LW + 0.004), ring(-0.99, 0.05 * LW, { ao: 0.5 }));
-        sock.push(ring(-0.97, at(-0.97)[0] + 0.002), ring(-1.0, at(-1.0)[0] + 0.004), ring(-1.04, at(-1.04)[0] + 0.004, { ao: 0.7 }));
-      } else { // sweats: straight and roomy, bunched over the shoe
-        for (const y of [-0.02, -0.14, -0.27, -0.4, -0.49, -0.57, -0.66, -0.75, -0.84]) cloth.push(ring(y, Math.max(at(y)[0] * 1.12 + 0.016, 0.082 * LW + 0.004), { f: y === -0.49 ? knee : null }));
-        cloth.push(ring(-0.9, 0.084 * LW + 0.004), ring(-0.935, 0.089 * LW + 0.004, { ao: 0.9 }), ring(-0.965, 0.083 * LW + 0.004), ring(-0.995, 0.08 * LW + 0.004, { ao: 0.8 }), ring(-1.003, 0.058 * LW, { ao: 0.4 }));
-      }
-      loft({ s: SL.cloth, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, cloth);
-      if (skin.length > 1) loft({ s: SL.skin, seg: SG(14) }, skin);
-      if (sock.length > 1) loft({ s: SL.wht, seg: SG(12) }, sock);
-    }
-    // ---- arms: deltoid -> biceps -> elbow -> forearm -> wrist as one surface ----
+    // ---- arms: the jersey sleeve over the pad's epaulet (a dome that starts under the cap), then the bare arm: deltoid insertion,
+    // biceps in front and triceps behind, the elbow with its point (olecranon) behind, the forearm full below the elbow
+    // (brachioradialis) tapering to a wrist that is wide across and thin front to back. Bind pose: hanging, palm forward ----
+    // a superellipse section (a rounded rectangle for the palm): half widths a (x) and b (z), squareness n
+    const se = (an, a, b, n) => Math.pow(Math.pow(Math.abs(Math.cos(an) / a), n) + Math.pow(Math.abs(Math.sin(an) / b), n), -1 / n);
     for (const sd of [-1, 1]) {
       const sh = sd < 0 ? B.shL : B.shR, el = sd < 0 ? B.elL : B.elR, ha = sd < 0 ? B.haL : B.haR, X = BIND[sh][0], AW = S.arms, mir = sd < 0;
-      const SY = 0.64, EY = 0.28, HY = -0.04; // joint heights
-      const aw = (y) => (y > EY + 0.06 ? [sh, el, 1] : y < EY - 0.06 ? [el, sh, 1] : wt(y, SY, EY, sh, el, 0.06));
-      const sleeve = gear || CAS ? SL.jer : SL.stripes, armS = S.sleeves ? SL.arm : SL.skin;
-      let rings = [
-        { y: 0.705, rx: 0.075 * AW, rz: 0.072 * AW, cx: X + sd * 0.025, s: sleeve, ao: 0.85, w: [sh, B.chest, 0.6] }, { y: 0.675, rx: 0.118 * AW, rz: 0.11 * AW, cx: X + sd * 0.03, s: sleeve, w: [sh, B.chest, 0.8] }, { y: 0.62, rx: 0.125 * AW, rz: 0.118 * AW, cx: X + sd * 0.022, s: sleeve, w: [sh, el, 1] },
-        { y: 0.55, rx: 0.112 * AW, rz: 0.106 * AW, cx: X + sd * 0.012, s: sleeve, ao: 0.9, w: [sh, el, 1] }, { y: 0.5, rx: 0.1 * AW, rz: 0.095 * AW, cx: X + sd * 0.006, s: sleeve, ao: 0.85, w: [sh, el, 1] },
-        { y: 0.5, rx: 0.092 * AW, rz: 0.088 * AW, cx: X + sd * 0.004, s: armS, ao: 0.8, w: [sh, el, 1] }, { y: 0.44, rx: 0.088 * AW, rz: 0.09 * AW, cx: X + sd * 0.002, cz: 0.004, s: armS, w: [sh, el, 1], f: (an) => 1 + 0.06 * Math.max(0, Math.sin(an)) }, // biceps
-        { y: 0.37, rx: 0.08 * AW, rz: 0.08 * AW, cx: X, s: armS, w: [sh, el, 1] }, { y: 0.31, rx: 0.071 * AW, rz: 0.069 * AW, cx: X, s: armS, w: aw(0.31) }, { y: 0.28, rx: 0.068 * AW, rz: 0.066 * AW, cx: X, cz: -0.004, s: armS, w: aw(0.28) },
-        { y: 0.25, rx: 0.069 * AW, rz: 0.067 * AW, cx: X, s: armS, w: aw(0.25) }, { y: 0.19, rx: 0.074 * AW, rz: 0.072 * AW, cx: X, s: armS, w: [el, sh, 1] }, { y: 0.11, rx: 0.062 * AW, rz: 0.058 * AW, cx: X, s: armS, w: [el, sh, 1] },
-        { y: 0.03, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, s: armS, w: [el, ha, 1] }, { y: 0.0, rx: 0.05 * AW, rz: 0.043 * AW, cx: X, s: armS, w: [el, ha, 0.85] }];
-      if (CAS) { // a T-shirt's short sleeve: loose over the deltoid, hemmed at mid upper arm; slimmer arms without the pads' bulk
-        // the upper arm hangs a little inside the (wide) shoulder joint, so the shoulders read as a kid's, not a padded player's
-        const A2 = AW * 0.88, ix = (y) => -sd * 0.024 * clamp((y - 0.36) / 0.26, 0, 1);
-        rings = [{ y: 0.662, rx: 0.045 * A2, rz: 0.045 * A2, cx: X + ix(0.662), s: sleeve, ao: 0.9, w: [sh, B.chest, 0.6] }, { y: 0.642, rx: 0.094 * A2, rz: 0.09 * A2, cx: X + ix(0.642) + sd * 0.006, s: sleeve, w: [sh, B.chest, 0.8] }, { y: 0.6, rx: 0.108 * A2, rz: 0.103 * A2, cx: X + ix(0.6) + sd * 0.008, s: sleeve, w: [sh, el, 1] },
-          { y: 0.55, rx: 0.106 * A2, rz: 0.101 * A2, cx: X + ix(0.55) + sd * 0.006, s: sleeve, w: [sh, el, 1] }, { y: 0.475, rx: 0.104 * A2, rz: 0.1 * A2, cx: X + ix(0.475) + sd * 0.005, s: sleeve, ao: 0.9, w: [sh, el, 1] }, { y: 0.47, rx: 0.094 * A2, rz: 0.09 * A2, cx: X + ix(0.47) + sd * 0.004, s: sleeve, ao: 0.6, w: [sh, el, 1] },
-          { y: 0.47, rx: 0.086 * A2, rz: 0.084 * A2, cx: X + ix(0.47) + sd * 0.003, s: armS, ao: 0.62, w: [sh, el, 1] }, { y: 0.42, rx: 0.086 * A2, rz: 0.088 * A2, cx: X + ix(0.42) + sd * 0.002, cz: 0.004, s: armS, w: [sh, el, 1], f: (an) => 1 + 0.05 * Math.max(0, Math.sin(an)) },
-          { y: 0.36, rx: 0.078 * A2, rz: 0.078 * A2, cx: X, s: armS, w: [sh, el, 1] }].concat(rings.slice(8).map((r) => Object.assign({}, r, { rx: r.rx * 0.92, rz: r.rz * 0.92 })));
+      const EY = 0.28;
+      // weights: the sleeve's top shares the chest; the elbow blends narrowly at its point (behind) and widely in the crook (in
+      // front), so a bent elbow keeps its point and the crook folds instead of pinching; the wrist hands over to the hand
+      const phOf = (an) => { let p = sd > 0 ? HPI - an : an - HPI; p = ((p % TAU) + TAU) % TAU; return p > Math.PI ? TAU - p : p; }; // 0 front .. pi back
+      const armWa = (y) => {
+        if (y > 0.6) { const t = clamp((y - 0.6) / 0.08, 0, 1); return () => [sh, B.chest, 1 - 0.38 * t * t]; }
+        if (y > 0.36) return () => [sh, el, 1];
+        if (y > 0.19) return (an) => { const z = lerp(0.07, 0.022, Math.pow(phOf(an) / Math.PI, 1.5)), c = EY + 0.012 * (1 - phOf(an) / Math.PI), t = clamp((y - (c - z)) / (2 * z), 0, 1), s = t * t * (3 - 2 * t); return [sh, el, s]; };
+        if (y > 0.04) return () => [el, ha, 1];
+        const t = clamp((y + 0.03) / 0.07, 0, 1); return () => [el, ha, t * t * (3 - 2 * t)];
+      };
+      const sleeve = gear || CAS ? SL.jer : SL.stripes, armS = S.sleeves ? SL.arm : SL.skin, A2 = CAS ? AW * 0.88 : AW;
+      // the casual upper arm hangs a little inside the (wide) shoulder joint, so a kid's shoulders read narrower than a padded player's
+      const ix = (y) => (CAS ? -sd * 0.026 * clamp((y - 0.34) / 0.28, 0, 1) : 0);
+      const AK = (y, r, e) => Object.assign({ y, r: r.map((x) => x * A2), cx: X + ix(y) }, e || {});
+      let keys;
+      const skinArm = [AK(0.5, [0.078, 0.076, 0.075, 0.079, 0.08, 0.07, 0.065, 0.071]), AK(0.46, [0.079, 0.073, 0.07, 0.076, 0.078, 0.067, 0.062, 0.07]), AK(0.41, [0.075, 0.068, 0.065, 0.071, 0.073, 0.063, 0.059, 0.066]),
+        AK(0.36, [0.066, 0.063, 0.06, 0.065, 0.066, 0.059, 0.056, 0.06]), AK(0.32, [0.058, 0.058, 0.056, 0.059, 0.06, 0.056, 0.054, 0.055]), AK(0.285, [0.055, 0.057, 0.056, 0.059, 0.062, 0.056, 0.053, 0.052]),
+        AK(0.255, [0.058, 0.063, 0.059, 0.058, 0.057, 0.054, 0.053, 0.055]), AK(0.21, [0.058, 0.063, 0.058, 0.055, 0.053, 0.052, 0.052, 0.055]), AK(0.15, [0.052, 0.055, 0.051, 0.048, 0.046, 0.046, 0.047, 0.049]),
+        AK(0.08, [0.042, 0.045, 0.043, 0.039, 0.036, 0.038, 0.041, 0.041]), AK(0.02, [0.032, 0.037, 0.041, 0.035, 0.029, 0.034, 0.039, 0.035]), AK(-0.028, [0.03, 0.035, 0.039, 0.033, 0.027, 0.032, 0.037, 0.033])];
+      if (CAS) { // a T-shirt's short sleeve: loose over the deltoid, hemmed above the elbow
+        keys = [AK(0.668, [0.045, 0.05, 0.04, 0.05, 0.05, 0.045, 0.04, 0.045], { s: sleeve, ao: 0.9, v: 0 }), AK(0.645, [0.084, 0.086, 0.078, 0.086, 0.086, 0.08, 0.072, 0.078], { v: 0.15 }),
+          AK(0.6, [0.093, 0.095, 0.092, 0.096, 0.095, 0.089, 0.082, 0.087], { v: 0.4 }), AK(0.54, [0.094, 0.095, 0.094, 0.097, 0.096, 0.09, 0.085, 0.089], { v: 0.7 }), AK(0.478, [0.094, 0.094, 0.093, 0.096, 0.095, 0.09, 0.085, 0.088], { v: 1, ao: 0.92 }),
+          AK(0.478, [0.084, 0.083, 0.082, 0.085, 0.085, 0.08, 0.076, 0.079], { s: armS, ao: 0.55 }), AK(0.46, [0.078, 0.073, 0.07, 0.076, 0.078, 0.067, 0.062, 0.07], { ao: 0.75 })].concat(skinArm.slice(2).map((k) => Object.assign({}, k, { r: k.r.map((x) => x * 0.93) })));
+      } else {
+        keys = [AK(0.69, [0.06, 0.062, 0.05, 0.06, 0.065, 0.06, 0.055, 0.058], { s: sleeve, ao: 0.85, v: 0 }), AK(0.66, [0.085, 0.085, 0.072, 0.085, 0.088, 0.08, 0.072, 0.08], { v: 0.12 }),
+          AK(0.63, [0.095, 0.097, 0.088, 0.098, 0.098, 0.088, 0.08, 0.088], { v: 0.3 }), AK(0.6, [0.095, 0.1, 0.096, 0.1, 0.098, 0.089, 0.081, 0.088], { v: 0.48 }),
+          AK(0.565, [0.091, 0.095, 0.095, 0.096, 0.094, 0.086, 0.079, 0.084], { v: 0.6 }), AK(0.52, [0.089, 0.089, 0.087, 0.091, 0.091, 0.081, 0.075, 0.08], { v: 0.8 }), AK(0.48, [0.088, 0.085, 0.082, 0.087, 0.088, 0.077, 0.071, 0.079], { v: 0.95 }), AK(0.47, [0.087, 0.084, 0.081, 0.086, 0.087, 0.076, 0.07, 0.078], { v: 1, ao: 0.92 }),
+          AK(0.47, [0.079, 0.074, 0.071, 0.077, 0.079, 0.068, 0.063, 0.071], { s: armS, ao: 0.55 })].concat(skinArm.slice(2).map((k, i) => (i === 0 ? Object.assign({}, k, { ao: 0.82 }) : k)));
+        if (!gear) keys[0].s = sleeve;
       }
-      loft({ s: sleeve, seg: SG(16), uv: uvOf('sleeve'), mirrorU: mir, capTop: true, ao: (i, an) => (i >= 2 && i <= 5 && Math.cos(an) * sd < -0.5 ? 0.72 : 1) }, rings);
-      if (!lod && gear) { // sleeve number
-        const rs = []; for (let i = 0; i <= 2; i++) { const y = 0.645 - 0.08 * i; rs.push({ y, rx: (0.127 - 0.011 * i) * AW, rz: (0.119 - 0.011 * i) * AW, cx: X + sd * 0.024, v: i / 2, ao: 0.95, w: [sh, el, 1] }); }
+      // the arm's own AO: the crook of the elbow in shade
+      const armRings = kloft({ sd, seg: SG(15), step: 0.03, uv: uvOf('sleeve'), mirrorU: mir, capTop: true, waf: armWa,
+        aof: (y) => (an) => 1 - 0.22 * Math.max(0, Math.cos(phOf(an))) * clamp((0.045 - Math.abs(y - 0.28)) / 0.045, 0, 1) }, keys);
+      if (!lod && gear) { // sleeve number on the outside of the sleeve, just over the sleeve's own surface (its dense rings)
+        const armAt = (y, an) => { let k = 1; while (k < armRings.length - 1 && armRings[k].y > y) k++; const a = armRings[k - 1], b = armRings[k], t = clamp((a.y - y) / (a.y - b.y || 1e-6), 0, 1); return lerp(a.f(an), b.f(an), t); };
+        const rs = []; for (let i = 0; i <= 2; i++) { const y = 0.615 - 0.06 * i; rs.push({ y, rx: 1, rz: 1, cx: X, f: (an) => armAt(y, an) * 1.012 + 0.0032, v: i / 2, ao: 0.95, wa: armWa(y) }); }
         loft({ s: SL.snum, seg: SG(6), a0: (sd > 0 ? 0 : Math.PI) - 0.5, a1: (sd > 0 ? 0 : Math.PI) + 0.5 }, rs);
       }
-      // wrist tape
-      if (!lod && !CAS) loft({ s: SL.tape, seg: SG(10) }, [{ y: 0.015, rx: 0.054 * AW, rz: 0.048 * AW, cx: X, w: [el, ha, 0.7] }, { y: -0.02, rx: 0.054 * AW, rz: 0.047 * AW, cx: X, w: [ha, el, 0.9] }, { y: -0.045, rx: 0.052 * AW, rz: 0.046 * AW, cx: X, w: [ha, el, 1] }]);
-      // hand: gloved palm with knuckles, four fingers and a thumb (fingers only at full detail)
-      const HWt = [ha, el, 1], GS = gear ? SL.glove : SL.skin;
-      loft({ s: GS, seg: SG(10), uv: uvOf('glove'), capBot: true, w: HWt }, [{ y: -0.035, rx: 0.048, rz: 0.03, cx: X, w: HWt }, { y: -0.09, rx: 0.06, rz: 0.032, cx: X, cz: 0.004, w: HWt }, { y: -0.14, rx: 0.062, rz: 0.03, cx: X, cz: 0.006, w: HWt }, { y: -0.175, rx: 0.058, rz: 0.028, cx: X, cz: 0.006, w: HWt, ao: 0.85 }]);
-      if (!lod) {
-        for (let f = 0; f < 4; f++) { const fx = X + sd * (-0.042 + 0.028 * f), len = [0.075, 0.085, 0.08, 0.065][f], curl = 0.35; tube({ s: GS, w: HWt }, [[fx, -0.175, 0.008], [fx, -0.175 - len * 0.5, 0.008 + curl * len * 0.3], [fx, -0.175 - len * 0.82, 0.008 + curl * len * 0.9], [fx, -0.175 - len, 0.008 + curl * len * 1.6]], 0.0125, 5, (t) => 1 - 0.25 * t); }
-        tube({ s: GS, w: HWt }, [[X + sd * 0.045, -0.07, 0.012], [X + sd * 0.072, -0.1, 0.034], [X + sd * 0.085, -0.13, 0.05]], 0.016, 5, (t) => 1 - 0.2 * t);
-      } else loft({ s: GS, seg: SG(8), w: HWt, capBot: true }, [{ y: -0.175, rx: 0.055, rz: 0.028, cx: X, cz: 0.012, w: HWt }, { y: -0.245, rx: 0.042, rz: 0.024, cx: X, cz: 0.03, w: HWt }, { y: -0.27, rx: 0.02, rz: 0.012, cx: X, cz: 0.04, w: HWt }]);
+      // wrist tape over the wrist
+      if (!lod && !CAS) loft({ s: SL.tape, seg: SG(12) }, [0.03, 0.012, -0.012, -0.03].map((y, i) => ({ y, rx: 1, rz: 1, cx: X, f: (an) => rad8(i < 2 ? [0.033, 0.038, 0.043, 0.037, 0.031, 0.036, 0.041, 0.037] : [0.032, 0.037, 0.041, 0.035, 0.029, 0.034, 0.039, 0.035], an, sd) * AW + (i === 0 || i === 3 ? 0.002 : 0.0035), wa: armWa(y), ao: i === 0 || i === 3 ? 0.8 : 1 })));
+      hand(sd, X, ha, el, gear ? SL.glove : SL.skin, AW, armWa);
     }
-    // ---- pelvis + legs: hip -> thigh (pads) -> knee -> calf -> ankle as one surface; socks; cleats ----
+    // ---- hands: a palm with the thumb's mound and the knuckles, four jointed fingers in a relaxed curl and a thumb that lies along
+    // the index finger; gloved in the game (the glove's palm side white, its back in team colour), bare at Metcalf ----
+    function hand(sd, X, ha, el, GS, AW, armWa) {
+      const HWt = [ha, el, 1], gl = GS === SL.glove ? 0.0026 : 0, hk = 0.92 + 0.08 * AW, fk = GS === SL.glove ? 1.18 : 1.08; // a glove's thickness (padded fingers); bigger players, bigger hands (a little)
+      const gu = (u, v) => [KIT.glove[0] + (KIT.glove[2] - KIT.glove[0]) * u, KIT.glove[1] + (KIT.glove[3] - KIT.glove[1]) * v];
+      const out = (an) => (sd > 0 ? Math.cos(an) : -Math.cos(an)); // +1 toward the thumb side
+      // palm sections: y, half width, half thickness, squareness, forward shift
+      const PS = [[-0.026, 0.037, 0.027, 2.2, 0], [-0.05, 0.045, 0.024, 2.6, 0.002], [-0.085, 0.049, 0.0215, 3.0, 0.002], [-0.12, 0.05, 0.02, 3.2, 0.0015], [-0.143, 0.049, 0.0185, 3.0, 0.0005], [-0.156, 0.045, 0.015, 2.6, 0]];
+      if (lod) PS.splice(4, 2, [-0.15, 0.046, 0.015, 2.8, 0]);
+      const rings = PS.map(([y, a, b, n, z]) => ({ y: y * hk, rx: 1, rz: 1, cx: X, cz: z, w: HWt, ao: 1,
+        f: (an) => {
+          const s = Math.sin(an), o = out(an), yy = -y;
+          let r = se(an, a * hk, b * hk, n);
+          r += 0.0095 * Math.max(0, s) * Math.max(0, o) * clamp((yy - 0.035) / 0.02, 0, 1) * clamp((0.115 - yy) / 0.03, 0, 1); // thenar (the thumb's mound)
+          r += 0.0035 * Math.max(0, s) * Math.max(0, -o) * clamp((yy - 0.05) / 0.02, 0, 1) * clamp((0.13 - yy) / 0.03, 0, 1); // hypothenar
+          if (yy > 0.13) r += 0.0025 * Math.max(0, -s) * (0.5 + 0.5 * Math.cos((Math.cos(an) * 0.046 - 0.0105) / 0.021 * TAU)); // knuckles
+          return r + gl;
+        } }));
+      loft({ s: GS, seg: SG(12), uv: uvOf('glove'), capBot: true, w: HWt }, rings);
+      if (lod) { // far: the fingers as one curled block
+        loft({ s: GS, seg: SG(8), w: HWt, capBot: true }, [{ y: -0.15 * hk, rx: 0.046 * hk, rz: 0.015, cx: X, cz: 0.004, w: HWt }, { y: -0.215 * hk, rx: 0.042 * hk, rz: 0.014, cx: X, cz: 0.022, w: HWt }, { y: -0.245 * hk, rx: 0.026 * hk, rz: 0.011, cx: X, cz: 0.038, w: HWt }]);
+        tube({ s: GS, w: HWt }, [[X + sd * 0.04 * hk, -0.065 * hk, 0.012], [X + sd * 0.055 * hk, -0.1 * hk, 0.03], [X + sd * 0.058 * hk, -0.13 * hk, 0.042]], 0.012, 5, (t) => 1 - 0.2 * t);
+        return;
+      }
+      // a finger: a chain of segments flexing toward the palm (+Z); its tube's u reads the glove's palm (front) or back
+      const digit = (base, dir, side, lens, flex, r0) => {
+        const pts = [base.slice()], rad = [r0]; let d = v3n(dir), p = base.slice();
+        const ax = v3n(v3c(d, [0, 0, 1])); // the bending axis (across the finger)
+        for (let k = 0; k < lens.length; k++) {
+          const sub = HERO ? 3 : lod ? 1 : 1;
+          for (let q = 1; q <= sub; q++) {
+            const a = flex[k] / sub, c = Math.cos(a), s = Math.sin(a); // rotate d about ax toward the palm (+Z): ax x d is +Z's part across d
+            d = v3n(v3a([d[0] * c, d[1] * c, d[2] * c], v3c(ax, d), s));
+            p = v3a(p, d, lens[k] / sub); pts.push(p.slice()); rad.push(r0 * (1 - 0.22 * (k + q / sub) / lens.length) * (q === sub && k < lens.length - 1 ? 1.06 : 1));
+          }
+        }
+        pts.push(v3a(p, d, r0 * 0.55)); rad.push(r0 * 0.45); // a rounded tip
+        const seg = SG(6), base0 = nv, n = pts.length;
+        let Xf = null; const frames = [];
+        for (let i = 0; i < n; i++) {
+          const T = v3n(v3s(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]));
+          if (!Xf) Xf = v3c(T, [0, 0, 1]); else Xf = v3s(Xf, [T[0] * v3d(Xf, T), T[1] * v3d(Xf, T), T[2] * v3d(Xf, T)]);
+          Xf = v3n(Xf); frames.push([Xf, v3c(T, Xf)]);
+        }
+        for (let i = 0; i < n; i++) for (let j = 0; j <= seg; j++) {
+          const an = j / seg * TAU, [Xa, Ya] = frames[i], nn = v3a(v3a([0, 0, 0], Xa, Math.cos(an) * 1.08), Ya, Math.sin(an) * 0.94), nr = v3n(nn), rr = (rad[i] * fk + gl) * hk;
+          const pz = nr[2], uv = gu(0.25 + 0.25 * pz, 0.55 + 0.4 * i / (n - 1));
+          push(v3a(pts[i], nn, rr), nr, HWt[0], HWt[1], HWt[2], GS, uv[0], uv[1], i === 0 ? 0.75 : 1 - 0.15 * Math.max(0, -pz) * (side || 0));
+        }
+        for (let i = 0; i < n - 1; i++) for (let j = 0; j < seg; j++) { const a = base0 + i * (seg + 1) + j, c = a + seg + 1; I.push(a, c, a + 1, a + 1, c, c + 1); }
+        const T = v3n(v3s(pts[n - 1], pts[n - 2])), pole = push(v3a(pts[n - 1], T, rad[n - 1] * hk * 0.6), T, HWt[0], HWt[1], HWt[2], GS, gu(0.4, 0.97)[0], gu(0.4, 0.97)[1], 1);
+        for (let j = 0; j < seg; j++) { const a = base0 + (n - 1) * (seg + 1) + j; I.push(pole, a, a + 1); }
+      };
+      // index, middle, ring, little: knuckle x across the palm (toward the thumb +), length, radius, curl per joint (relaxed: the
+      // fingers together, a soft group curl, each a little more than the one before)
+      const F = [[0.032, -0.148, 0.084, 0.0102, [0.2, 0.3, 0.16], -0.008], [0.0108, -0.152, 0.091, 0.0106, [0.24, 0.34, 0.18], 0], [-0.0105, -0.149, 0.086, 0.0099, [0.28, 0.38, 0.2], 0.01], [-0.031, -0.142, 0.069, 0.0089, [0.32, 0.42, 0.22], 0.022]];
+      for (const [fx, fy, len, r0, flex, spl] of F) digit([X + sd * fx * hk, fy * hk + 0.012, 0.003], [sd * spl, -1, 0.04], 1, [len * 0.45 * hk, len * 0.3 * hk, len * 0.25 * hk], flex, r0);
+      // the thumb: from its base in the heel of the hand, down, out and forward, lying along the index finger
+      digit([X + sd * 0.032 * hk, -0.048 * hk, 0.009], [sd * 0.16, -0.86, 0.46], 0, [0.033 * hk, 0.029 * hk, 0.025 * hk], [0.1, 0.18, 0.14], 0.0132);
+    }
+    // ---- hips and legs ----
+    // the natural leg (r8 per height on the full-length leg, LW 1): glutes behind the hip, the quads in front, the inner thigh
+    // narrowing to the knee with the teardrop of the inner quad above it, the kneecap, the calf (its inner head bigger and lower),
+    // the shin flat in front, the Achilles behind, the ankle bones (the outer one lower)
+    const LEG = [[0.02, [0.07, 0.062, 0.04, 0.07, 0.08, 0.066, 0.055, 0.062]], [-0.07, [0.116, 0.108, 0.075, 0.114, 0.13, 0.112, 0.11, 0.108]], [-0.11, [0.117, 0.112, 0.086, 0.115, 0.127, 0.114, 0.122, 0.113]], [-0.16, [0.113, 0.11, 0.09, 0.104, 0.105, 0.104, 0.113, 0.11]],
+      [-0.24, [0.106, 0.104, 0.09, 0.094, 0.094, 0.093, 0.099, 0.102]], [-0.33, [0.096, 0.095, 0.085, 0.086, 0.085, 0.082, 0.086, 0.09]], [-0.42, [0.083, 0.083, 0.076, 0.075, 0.074, 0.073, 0.077, 0.082]],
+      [-0.47, [0.075, 0.074, 0.069, 0.068, 0.068, 0.068, 0.073, 0.076]], [-0.51, [0.071, 0.068, 0.066, 0.066, 0.065, 0.066, 0.068, 0.068]], [-0.555, [0.064, 0.064, 0.064, 0.066, 0.066, 0.066, 0.063, 0.062]],
+      [-0.6, [0.059, 0.064, 0.067, 0.072, 0.074, 0.074, 0.065, 0.058]], [-0.66, [0.056, 0.064, 0.069, 0.076, 0.079, 0.079, 0.067, 0.055]], [-0.73, [0.053, 0.06, 0.063, 0.068, 0.07, 0.072, 0.061, 0.052]],
+      [-0.8, [0.047, 0.052, 0.054, 0.056, 0.057, 0.057, 0.052, 0.046]], [-0.88, [0.041, 0.045, 0.045, 0.045, 0.045, 0.044, 0.043, 0.04]], [-0.95, [0.037, 0.041, 0.043, 0.041, 0.037, 0.04, 0.042, 0.037]],
+      [-0.99, [0.037, 0.043, 0.048, 0.041, 0.036, 0.041, 0.047, 0.038]], [-1.04, [0.041, 0.045, 0.047, 0.043, 0.039, 0.043, 0.046, 0.041]]];
+    const LEGF = [0, 1, 2, 3, 4, 5, 6, 7].map((c) => pchip(LEG.map((k) => k[0]), LEG.map((k) => k[1][c])));
+    const legAt = (y) => LEGF.map((f) => f(y));
+    const legYi = (Y) => (Y >= -0.03 - 0.97 * LL ? (Y + 0.03) / LL - 0.03 : Y - 0.97 * (1 - LL)); // legY's inverse: the full-length leg's height
+    const legPY = (y) => (y < -0.03 ? legY(y) : y); // body height of a leg-height (the hips above the hip joints keep their size)
     const PLX = CAS ? 1.04 : 1; // casual bottoms sit a little looser than game pants
-    const pel = (y, rx, rz, e) => Object.assign({ y: y < -0.03 ? legY(y) : y, rx: rx * PLX * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), rz: rz * PLX * W2 * (1 + 0.12 * BEL), cz: 0.02 * BEL, w: torsoW(Math.max(0, y)) }, e || {});
     const PS = CAS ? SL.cloth : SL.pant;
-    loft({ s: PS, seg: SG(24), uv: uvOf('pant', 0, 1, 0, 0.38), capBot: true }, [CAS ? pel(0.07, 0.19, 0.13, { v: 0 }) : pel(0.17, 0.205, 0.142, { v: 0 }), CAS ? pel(0.04, 0.208, 0.145, { v: 0.3 }) : pel(0.1, 0.212, 0.148, { v: 0.3 }), pel(0.0, 0.228, 0.16, { v: 0.6, f: (an) => 1 + 0.05 * Math.max(0, -Math.sin(an)) }), pel(-0.1, 0.212, 0.155, { v: 0.85, ao: 0.82, w: [B.hips, B.hips, 1], f: (an) => 1 + 0.08 * Math.max(0, -Math.sin(an)) }), pel(-0.18, 0.165, 0.13, { v: 1, ao: 0.62, w: [B.hips, B.hips, 1] })]);
+    // the hips' outline (r5 round the body's middle, forward with the belly) from the waistband to the crotch: the belt at the top of
+    // game pants, the seat and the glutes full behind, the thighs' tops at the crotch
+    const PW = PLX * (0.85 + 0.15 * S.legs) * (1 + 0.08 * BEL), PD = PLX * W2 * (1 + 0.12 * BEL), PCZ = 0.02 * BEL;
+    const PELK = (CAS ? [[0.05, [0.13, 0.168, 0.19, 0.168, 0.132]], [0.025, [0.142, 0.182, 0.205, 0.183, 0.146]]]
+      : [[0.17, [0.143, 0.18, 0.206, 0.18, 0.143]], [0.147, [0.145, 0.183, 0.208, 0.183, 0.146]], [0.1, [0.148, 0.188, 0.212, 0.19, 0.155]]])
+      .concat([[0.03, [0.142, 0.19, 0.22, 0.2, 0.17]], [-0.03, [0.132, 0.19, 0.227, 0.206, 0.176]], [-0.09, [0.122, 0.184, 0.226, 0.204, 0.164]]]);
+    const PELF = [0, 1, 2, 3, 4].map((c) => pchip(PELK.map((k) => k[0]), PELK.map((k) => k[1][c])));
+    const YC0 = -0.09, YC1 = -0.26; // the crotch (the legs part below it) and where each leg is wholly its own ring
+    const pelR = (y, an) => { // the hips' radius round (0, PCZ) at leg-height y (frozen below the crotch), with the seat and the belt
+      const yy = Math.max(y, YC0), r = PELF.map((f) => f(yy)), p = Math.atan2(Math.sin(an + HPI), Math.cos(an + HPI)); // p: 0 at the back's middle
+      const sk = clamp((0.07 - y) / 0.05, 0, 1) * clamp((y + 0.16) / 0.06, 0, 1);
+      return rad5([r[0] * PD, r[1] * (PW + PD) / 2, r[2] * PW, r[3] * (PW + PD) / 2, r[4] * PD], an) + sk * (0.013 * Math.exp(-Math.pow((Math.abs(p) - 0.62) / 0.42, 2)) - 0.008 * Math.exp(-Math.pow(p / 0.12, 2))) + (gear && y > 0.148 ? 0.0035 : 0);
+    };
+    // one leg's surface from the waistband down: rows of leg-heights, and round each row NO columns over the outside (front middle ->
+    // outside -> back middle) and NI over the inside (back middle -> inside -> front middle). Above the crotch the ring is this
+    // side's half of the hips, closed along the body's middle (x = 0), where the other leg's half meets it point for point (same
+    // places, same weights: the hips only there); below YC1 it is the leg's own ring legR(y, an); between them each column blends
+    // from one to the other, so the hips flow into the thigh with only the crotch's notch between the legs. Columns sit exactly on
+    // the middle's front and back points; below the crotch they ease to an even spread, the angles a kloft with NO + NI segments
+    // uses, so a kloft can carry on from the last ring edge to edge. o: { rows: [[y, v]...] (a repeated y is a seam in the
+    // texture), s, legR(y, an), waf(y) -> (an, p) -> w, aof(y) -> (an) -> ao, ao(y), us: [u at the front, at the back, inside at
+    // the back, inside at the front], uvr }
+    function legSurf(sd, X, o) {
+      const NO = SG(16), NI = SG(8), NC = NO + NI, LCZ = 0.004, step = TAU / NC, thU0 = -HPI + Math.round((HPI + TAU / 3) / step) * step; // (the even spread starts front-inside)
+      const mir = (th) => (sd > 0 ? th : Math.PI - th); // angles are worked out for the right leg and mirrored for the left
+      // the hips' edge along a ray from the leg's middle (inside the outline at t = 0, outside by t = 0.4); the body's middle plane
+      const pelHit = (y, th) => { const a = mir(th), dx = Math.cos(a), dz = Math.sin(a); let lo = 0, hi = 0.4; for (let it = 0; it < 22; it++) { const t = (lo + hi) / 2, x = X + dx * t, z = LCZ + dz * t - PCZ; if (Math.hypot(x, z) < pelR(y, Math.atan2(z, x))) lo = t; else hi = t; } return (lo + hi) / 2; };
+      const midHit = (th) => { const c = Math.cos(th); return c < -1e-6 ? 0.15 / -c : 1e9; };
+      const uvr = o.uvr || [0, 1, 0, 1], rows = o.rows, nR = rows.length, W = NC + 2, base = nv, seamV = new Set();
+      const jOf = (jj) => (jj <= NO ? jj : jj + 1); // ring position jj -> column (column NO is made twice: the texture's seam at the back)
+      for (let ri = 0; ri < nR; ri++) {
+        const [y, v] = rows[ri], Y = legPY(y), k = smo(clamp((YC0 - y) / (YC0 - YC1), 0, 1)), yy = Math.max(y, YC0);
+        const thf = Math.atan2(PCZ + pelR(yy, HPI) - LCZ, -0.15); let thb = Math.atan2(PCZ - pelR(yy, -HPI) - LCZ, -0.15); if (thb > 0) thb -= TAU;
+        const wa = o.waf(y), aoa = o.aof(y), ao = o.ao ? o.ao(y) : 1;
+        for (let j = 0; j < W; j++) {
+          const jj = j <= NO ? j : j - 1, inside = j > NO;
+          const thD = jj <= NO ? thf + (thb - thf) * (jj / NO) : thb + (thf - TAU - thb) * ((jj - NO) / NI), th = thD + (thU0 - jj * step - thD) * k;
+          const r = k === 0 && inside ? midHit(th) : Math.min(midHit(th), pelHit(y, th)) * (1 - k) + o.legR(y, mir(th)) * k;
+          const a = mir(th), p = [X + r * Math.cos(a), Y, LCZ + r * Math.sin(a)], w = wa(a, p), us = o.us;
+          const u = jj <= NO && !inside ? us[0] + (us[1] - us[0]) * (jj / NO) : us[2] + (us[3] - us[2]) * ((jj - NO) / NI);
+          push(p, [0, 1, 0], w[0], w[1], w[2], o.s, uvr[0] + (uvr[1] - uvr[0]) * u, uvr[2] + (uvr[3] - uvr[2]) * v, ao * aoa(a));
+          if (k === 0 && (jj === 0 || jj === NO || jj === NC)) seamV.add(nv - 1);
+        }
+      }
+      // normals from the surface (across the ring, down the column); at the middle's seams the across direction comes from the
+      // outside neighbour and its mirror image, so both legs' halves shade there as one surface
+      const P3 = (i) => [V[i * VSTRIDE], V[i * VSTRIDE + 1], V[i * VSTRIDE + 2]], at = (ri, j) => base + ri * W + j;
+      for (let ri = 0; ri < nR; ri++) for (let j = 0; j < W; j++) {
+        const i = at(ri, j), jj = j <= NO ? j : j - 1, q = P3(i);
+        let a = P3(at(ri, jj === NC ? jOf(1) : jOf(jj + 1))), b = P3(at(ri, jj === 0 ? jOf(NC - 1) : jOf(jj - 1)));
+        if (seamV.has(i)) { a = P3(at(ri, jj === NO ? NO - 1 : 1)); b = [-a[0], a[1], a[2]]; }
+        const up = P3(at(Math.max(0, ri - 1), j)), dn = P3(at(Math.min(nR - 1, ri + 1), j));
+        let n = v3c([a[0] - b[0], a[1] - b[1], a[2] - b[2]], [dn[0] - up[0], dn[1] - up[1], dn[2] - up[2]]); const l = Math.hypot(n[0], n[1], n[2]) || 1; n = [n[0] / l, n[1] / l, n[2] / l];
+        const ox = q[0] - X, oz = q[2] - LCZ; if (n[0] * ox + n[2] * oz < 0) n = [-n[0], -n[1], -n[2]];
+        V[i * VSTRIDE + 3] = n[0]; V[i * VSTRIDE + 4] = n[1]; V[i * VSTRIDE + 5] = n[2];
+      }
+      for (let ri = 0; ri < nR - 1; ri++) {
+        if (rows[ri + 1][0] === rows[ri][0]) continue; // (a seam in the texture: the two rows are the same ring)
+        const hid = rows[ri][0] >= YC0 && rows[ri + 1][0] >= YC0;
+        for (let j = 0; j < W - 1; j++) {
+          if (j === NO) continue; // (between the two copies of the back's middle)
+          if (j > NO && hid) continue; // the inside above the crotch lies on the body's middle, against the other leg's: never seen
+          const a = at(ri, j), c = at(ri + 1, j);
+          if (sd > 0) I.push(a, a + 1, c, a + 1, c + 1, c); else I.push(a, c, a + 1, a + 1, c, c + 1);
+        }
+      }
+      return NC;
+    }
+    // the rows of a leg's surface: fixed leg-heights (a repeated one is a seam in the texture) with even steps between them; vOf(y, n)
+    // gives the texture row, n counting the seams above
+    const legRows = (keys, vOf) => {
+      const st = lod ? 0.078 : HERO ? 0.024 : 0.044, out = []; let n = 0; // (rows between the keys: the keys already hold the knee and the seat)
+      for (let i = 0; i < keys.length; i++) {
+        const a = keys[i]; if (i > 0 && a === keys[i - 1]) n++; out.push([a, vOf(a, n)]);
+        if (i < keys.length - 1 && keys[i + 1] !== a) { const b = keys[i + 1], m = Math.max(1, Math.round((a - b) / st)); for (let q = 1; q < m; q++) { const y = a + (b - a) * q / m; out.push([y, vOf(y, n)]); } }
+      }
+      return out;
+    };
     for (const sd of [-1, 1]) {
       const hp = sd < 0 ? B.hipL : B.hipR, kn = sd < 0 ? B.knL : B.knR, ft = sd < 0 ? B.ftL : B.ftR, X = sd * 0.15, LW = S.legs;
-      const KY = -0.53, FY = -1.0;
-      const lw = (y) => (y > KY + 0.07 ? [hp, kn, 1] : y < KY - 0.07 ? [kn, hp, 1] : wt(y, 0, KY, hp, kn, 0.07));
-      const inner = (i, an) => (i <= 2 && Math.cos(an) * sd < -0.6 ? 0.7 : 1);
-      if (CAS) casLeg(sd, hp, kn, ft, X, inner); else {
-      const legR = [
-        { y: -0.02, rx: 0.14 * LW, rz: 0.135 * LW, cx: X, cz: 0.012, v: 0, ao: 0.8, w: [hp, B.hips, 0.75], s: PS }, { y: -0.14, rx: 0.135 * LW, rz: 0.135 * LW, cx: X, cz: 0.02, v: 0.2, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.03 * Math.max(0, Math.sin(an)) },
-        { y: -0.27, rx: 0.122 * LW, rz: 0.125 * LW, cx: X, cz: 0.018, v: 0.42, w: [hp, kn, 1], s: PS, f: (an) => 1 + 0.05 * Math.max(0, Math.sin(an)) }, // thigh pad
-        { y: -0.4, rx: 0.105 * LW, rz: 0.108 * LW, cx: X, cz: 0.01, v: 0.62, w: lw(-0.4), s: PS }, { y: -0.49, rx: 0.094 * LW, rz: 0.1 * LW, cx: X, cz: 0.014, v: 0.78, w: lw(-0.49), s: PS, f: (an) => 1 + 0.06 * Math.max(0, Math.sin(an)) }, // knee pad
-        { y: -0.555, rx: 0.088 * LW, rz: 0.092 * LW, cx: X, cz: 0.01, v: 0.9, w: lw(-0.555), s: PS }, { y: -0.63, rx: 0.081 * LW, rz: 0.081 * LW, cx: X, v: 1, w: [kn, hp, 1], s: PS, ao: 0.85 },
-        { y: -0.63, rx: 0.076 * LW, rz: 0.076 * LW, cx: X, w: [kn, hp, 1], s: SL.skin, ao: 0.75 }, { y: -0.7, rx: 0.08 * LW, rz: 0.084 * LW, cx: X, cz: -0.012, w: [kn, hp, 1], s: SL.skin, f: (an) => 1 + 0.1 * Math.max(0, -Math.sin(an)) }, // calf
-        { y: -0.78, rx: 0.072 * LW, rz: 0.074 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.skin }, { y: -0.8, rx: 0.07 * LW, rz: 0.072 * LW, cx: X, cz: -0.008, w: [kn, ft, 1], s: SL.sock },
-        { y: -0.88, rx: 0.062 * LW, rz: 0.064 * LW, cx: X, cz: -0.004, w: [kn, ft, 1], s: SL.sock }, { y: -0.95, rx: 0.054 * LW, rz: 0.056 * LW, cx: X, w: [kn, ft, 0.8], s: SL.sock }, { y: -1.0, rx: 0.05 * LW, rz: 0.054 * LW, cx: X, w: [ft, kn, 0.8], s: SL.sock, ao: 0.8 }, { y: -1.04, rx: 0.046 * LW, rz: 0.05 * LW, cx: X, cz: -0.006, w: [ft, kn, 1], s: SL.sock, ao: 0.7 }];
-      // pants and socks have their own UV regions; the loft takes one uv box, so split the strip by slot
-      for (const r of legR) r.y = legY(r.y); // weights above were set on the full-length leg
-      loft({ s: PS, seg: SG(16), uv: uvOf('pant', 0, 1, 0.38, 1), mirrorU: sd < 0, ao: inner }, legR.filter((r) => r.s === PS));
-      loft({ s: SL.skin, seg: SG(16) }, legR.filter((r) => r.s === SL.skin));
-      loft({ s: SL.sock, seg: SG(12), uv: uvOf('sock') }, legR.filter((r) => r.s === SL.sock));
+      const KY = -0.53;
+      const phOf = (an) => { let p = sd > 0 ? HPI - an : an - HPI; p = ((p % TAU) + TAU) % TAU; return p > Math.PI ? TAU - p : p; }; // 0 front .. pi back
+      // weights: the hips over the seat and down the body's middle (both legs' halves move together there), the thigh's bone
+      // taking over toward the outside and down the thigh; the knee blends narrowly over the kneecap and widely behind; the ankle
+      // hands over to the foot
+      const legWa = (y) => {
+        if (y > 0.09) return () => [B.hips, B.spine, 0.85]; // the waistband and belt move as one with the pelvis (no stretch across it when the body twists)
+        if (y > YC1) { const wv = smo(clamp((0.08 - y) / 0.26, 0, 1)), k = smo(clamp((YC0 - y) / (YC0 - YC1), 0, 1)); return (an, p) => { const wl = smo(clamp(Math.abs(p ? p[0] : X) / 0.1, 0, 1)); return [hp, B.hips, wv * (wl + (1 - wl) * k)]; }; }
+        if (y > KY + 0.09) return () => [hp, kn, 1];
+        if (y > KY - 0.09) return (an) => { const z = lerp(0.03, 0.075, phOf(an) / Math.PI), t = clamp((y - (KY - z)) / (2 * z), 0, 1); return [kn, hp, 1 - t * t * (3 - 2 * t)]; };
+        if (y > -0.92) return () => [kn, ft, 1];
+        const t = clamp((-0.92 - y) / 0.12, 0, 1); return () => [kn, ft, 1 - t * t * (3 - 2 * t)];
+      };
+      const inner = (y) => (an) => 1 - 0.3 * clamp((y + 0.2) / 0.11, 0, 1) * clamp((0.0 - y) / 0.06, 0, 1) * Math.max(0, -Math.cos(an) * sd - 0.3) * 1.43; // the crotch side in shade
+      const LK = (y, add, e) => { const r = legAt(y); return Object.assign({ y: legY(y), r: r.map((x, i) => x * LW + (typeof add === 'function' ? add(i) : add || 0)), cx: X, cz: 0.004 }, e || {}); };
+      const waf = (Y) => legWa(legYi(Y)), aof = (Y) => inner(legYi(Y));
+      const pantU = sd > 0 ? [0.5, 0.012, 0.98, 0.88] : [0.5, 0.988, 0.02, 0.12]; // the kit's stripe down the outside (u 0.25 / 0.75), plain inside
+      if (CAS) {
+        // casual bottoms: sweats (loose to the shoe), joggers (tapered into a cuff) or shorts (three lengths) over the natural leg,
+        // then crew or ankle socks; the cloth from the waistband down is one surface with the hips (legSurf), and the cuffs, hems,
+        // skin and socks below are lofts that carry on from it
+        const kind = CAS_BOT[CAS.bot] || 'sweats', LW2 = S.legs * 0.96, shorts = kind === 'shorts' || kind === 'midshorts' || kind === 'hoops';
+        const yH = kind === 'shorts' ? -0.33 : kind === 'midshorts' ? -0.43 : kind === 'hoops' ? -0.54 : -0.84;
+        const lo = kind === 'hoops' ? 1.2 : kind === 'midshorts' ? 1.12 : shorts ? 1.1 : kind === 'joggers' ? 1.08 : 1.12, add = kind === 'sweats' ? 0.016 : 0.014;
+        const clothA = (y) => { let r = legAt(y).map((x) => x * LW2 * lo + add); if (kind === 'sweats') r = r.map((x) => Math.max(x, 0.082 * LW2 + 0.004)); if (kind === 'joggers' && y < -0.6) r = r.map((x) => x + 0.004 * Math.max(0, Math.sin((y + 0.45) * 18))); return r; };
+        const rows = legRows([0.05, 0.03, -0.06, -0.06, YC0, YC1, yH], (y, n) => (n ? 0.39 + 0.61 * (-0.06 - y) / (-0.06 - yH) : 0.37 * (0.05 - y) / 0.11));
+        const NC = legSurf(sd, X, { rows, s: SL.cloth, legR: (y, an) => rad8(clothA(y), an, sd), waf: legWa, aof: inner, us: pantU, uvr: uvOf('pant'), ao: (y) => (y > 0.04 ? 0.85 : 1) });
+        const NL = (y, k, ad, e) => { const q = LK(y, 0, e); q.r = legAt(y).map((x) => x * LW2 * k + ad); return q; };
+        const top = Object.assign(LK(yH, 0, { s: SL.cloth }), { r: clothA(yH) }); // the surface's last ring (the same angles: edge to edge)
+        const cloth = [top], skin = [], sock = [];
+        if (shorts) {
+          cloth.push(NL(yH + 0.0001, 1, 0.006, { ao: 0.45 })); // the hem turned in
+          const sockTop = CAS.sock ? -0.972 : -0.8;
+          skin.push(NL(yH, 1, 0.004, { s: SL.skin, ao: 0.55 }));
+          for (const y of [-0.42, -0.47, -0.51, -0.555, -0.6, -0.66, -0.73, -0.8, -0.88, -0.95]) if (y < yH - 0.025 && y > sockTop + 0.01) skin.push(NL(y, 1, 0, { ao: 1 }));
+          skin.push(NL(sockTop, 1, 0, { ao: 0.9 }));
+          sock.push(NL(sockTop, 1, 0.005, { s: SL.wht, ao: 0.9 }), NL(sockTop - 0.014, 1, 0.006));
+          for (const y of [-0.88, -0.95, -0.99, -1.04]) if (y < sockTop - 0.03) sock.push(NL(y, 1, 0.004, { ao: y < -0.98 ? 0.75 : 1 }));
+          if (sock[sock.length - 1].y > legY(-1.04) + 0.001) sock.push(NL(-1.04, 1, 0.004, { ao: 0.7 }));
+        } else if (kind === 'joggers') {
+          cloth.push(NL(-0.9, 0, 0.068 * LW2 + 0.004), NL(-0.925, 0, 0.06 * LW2 + 0.004, { ao: 0.8 }), NL(-0.975, 0, 0.054 * LW2 + 0.004), NL(-0.99, 0, 0.05 * LW2, { ao: 0.5 }));
+          sock.push(NL(-0.97, 1, 0.002, { s: SL.wht }), NL(-1.0, 1, 0.004), NL(-1.04, 1, 0.004, { ao: 0.7 }));
+        } else { // sweats: straight and roomy, bunched over the shoe
+          cloth.push(NL(-0.9, 0, 0.084 * LW2 + 0.004), NL(-0.935, 0, 0.089 * LW2 + 0.004, { ao: 0.9 }), NL(-0.965, 0, 0.083 * LW2 + 0.004), NL(-0.995, 0, 0.08 * LW2 + 0.004, { ao: 0.8 }), NL(-1.003, 0, 0.058 * LW2, { ao: 0.4 }));
+        }
+        cloth.forEach((k, i) => { k.v = i / Math.max(1, cloth.length - 1); });
+        if (cloth.length > 1) kloft({ sd, s: SL.cloth, seg: NC, step: 0.04, uv: uvOf('pant', 0, 1, 0.92, 1), mirrorU: sd < 0, waf, aof }, cloth);
+        if (skin.length > 1) kloft({ sd, s: SL.skin, seg: SG(14), step: 0.04, waf }, skin);
+        if (sock.length > 1) kloft({ sd, s: SL.wht, seg: SG(12), step: 0.05, waf }, sock);
+      } else {
+        // game pants over the leg: the hip pads a little proud at the sides, the thigh pad a low plate on the front of the thigh, the
+        // knee pad a dome over the kneecap; tight below the knee, the hem turned in; then a little calf, the sock from mid-calf, and
+        // the cleat
+        const thighPad = (y) => clamp((-0.13 - y) / 0.04, 0, 1) * clamp((y + 0.38) / 0.05, 0, 1), kneePad = (y) => clamp((-0.455 - y) / 0.025, 0, 1) * clamp((y + 0.58) / 0.025, 0, 1), hipPad = (y) => clamp((-0.02 - y) / 0.03, 0, 1) * clamp((y + 0.15) / 0.04, 0, 1);
+        const pantR = (y, an) => { const ph = phOf(an), out = Math.max(0, Math.cos(an) * sd); return rad8(legAt(y).map((x) => x * LW), an, sd) + 0.007 + 0.0055 * thighPad(y) * Math.exp(-Math.pow(ph / 0.75, 2)) + 0.016 * kneePad(y) * Math.exp(-Math.pow(ph / 0.8, 2)) + 0.006 * hipPad(y) * out * out; };
+        const rows = legRows([0.17, 0.15, 0.147, 0.1, -0.06, -0.06, YC0, YC1, -0.42, -0.455, -0.49, -0.53, -0.565, -0.59, -0.605], (y, n) => (n ? 0.39 + 0.61 * (-0.06 - y) / 0.545 : y >= 0.15 ? 0.09 * (0.17 - y) / 0.02 : 0.09 + 0.28 * (0.15 - y) / 0.21));
+        legSurf(sd, X, { rows, s: PS, legR: pantR, waf: legWa, aof: inner, us: pantU, uvr: uvOf('pant'), ao: (y) => (y > 0.16 ? 0.85 : y > 0.146 && y < 0.149 ? 0.8 : 1) });
+        kloft({ sd, s: PS, seg: SG(14), step: 0.04, uv: uvOf('pant', 0, 1, 0.97, 1), waf }, [LK(-0.605, 0.007, { ao: 0.85 }), LK(-0.598, -0.003, { ao: 0.45 })]); // the hem's lip
+        const skinKeys = [LK(-0.603, -0.001, { s: SL.skin, ao: 0.6 }), LK(-0.64, 0, { ao: 0.9 }), LK(-0.7, 0), LK(-0.765, 0)];
+        const sockKeys = [LK(-0.765, 0.003, { s: SL.sock, v: 0, ao: 0.9 }), LK(-0.8, 0.004, { v: 0.15 }), LK(-0.88, 0.004, { v: 0.45 }), LK(-0.95, 0.004, { v: 0.72 }), LK(-0.99, 0.004, { v: 0.88, ao: 0.85 }), LK(-1.04, 0.004, { v: 1, ao: 0.7 })];
+        kloft({ sd, s: SL.skin, seg: SG(14), step: 0.04, waf }, skinKeys);
+        kloft({ sd, s: SL.sock, seg: SG(12), step: 0.05, uv: uvOf('sock'), waf }, sockKeys);
       }
       // shoe: heel counter -> arch -> ball -> toe box, lofted along +Z; sole plate; studs at full detail
       const FW = [ft, ft, 1];
       const shoeM = mMul(mT(IDM, X, legY(-1.05), -0.012), mRX(IDM, -HPI)); // loft -Y -> body +Z, loft +Z -> body +Y
-      const shoe = [{ y: 0.1, rx: 0.03, rz: 0.024, w: FW }, { y: 0.075, rx: 0.046, rz: 0.034, w: FW }, { y: 0.02, rx: 0.052, rz: 0.04, cz: 0.008, w: FW, ao: 0.85 }, { y: -0.05, rx: 0.054, rz: 0.038, cz: 0.012, w: FW, f: (an) => 1 + 0.08 * Math.max(0, Math.sin(an)) }, { y: -0.12, rx: 0.056, rz: 0.03, cz: 0.004, w: FW }, { y: -0.18, rx: 0.05, rz: 0.024, w: FW }, { y: -0.225, rx: 0.028, rz: 0.012, w: FW }];
+      const shoe = [{ y: 0.1, rx: 0.03, rz: 0.024, w: FW }, { y: 0.082, rx: 0.044, rz: 0.034, w: FW }, { y: 0.045, rx: 0.05, rz: 0.042, cz: 0.006, w: FW, ao: 0.9 }, { y: 0.0, rx: 0.051, rz: 0.04, cz: 0.012, w: FW, ao: 0.85 }, { y: -0.05, rx: 0.053, rz: 0.037, cz: 0.012, w: FW, f: (an) => 1 + 0.07 * Math.max(0, Math.sin(an)) },
+        { y: -0.11, rx: 0.056, rz: 0.03, cz: 0.005, w: FW }, { y: -0.16, rx: 0.053, rz: 0.026, cz: 0.002, w: FW }, { y: -0.2, rx: 0.044, rz: 0.021, cz: 0.001, w: FW }, { y: -0.228, rx: 0.026, rz: 0.013, cz: 0.002, w: FW }];
       if (CAS) for (const r of shoe) { r.rx *= 1.07; r.rz *= 1.12; if (r.y > 0.05) r.rz += 0.006; } // sneakers: roomier, a padded collar, a thick cupsole and no studs
-      loft({ s: SL.cleat, seg: SG(12), m: shoeM, capTop: true, capBot: true }, shoe);
-      loft({ s: SL.sole, seg: SG(10), m: mMul(mT(IDM, X, legY(CAS ? -1.07 : -1.074), -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + (CAS ? 0.006 : 0.004), rz: CAS ? 0.016 : 0.008, cz: 0, w: FW })));
+      loft({ s: SL.cleat, seg: SG(14), m: shoeM, capTop: true, capBot: true }, shoe);
+      loft({ s: SL.sole, seg: SG(12), m: mMul(mT(IDM, X, legY(CAS ? -1.07 : -1.074), -0.012), mRX(IDM, -HPI)), capTop: true, capBot: true }, shoe.map((r) => ({ y: r.y, rx: r.rx + (CAS ? 0.006 : 0.004), rz: CAS ? 0.016 : 0.008, cz: 0, w: FW })));
       if (!lod && !CAS) for (const [sx, sz] of [[-0.03, 0.17], [0.03, 0.17], [-0.035, 0.1], [0.035, 0.1], [0, 0.04], [-0.02, -0.05], [0.02, -0.05]]) tube({ s: SL.sole, w: FW }, [[X + sx, legY(-1.082), sz], [X + sx, legY(-1.1), sz]], 0.006, 4, (t) => 1 - 0.4 * t);
     }
     // ---- belt towel (hidden for players who do not carry one) ----
@@ -2128,216 +2509,634 @@ gl_FragColor=vec4(c,1.0);}`;
     return c;
   }
   // =====================================================================================
-  // Emotes: looping signature moves for the player avatars (09-avatar.js, the site's player pages). Each is { name, T (loop
-  // seconds), pose(t) -> a pose (05-anim.js pb layout, ground-fitted), still (the time shown when motion is reduced) }.
-  // Poses use the 05-anim conventions: limb X swings forward (arm raise, thigh lift), elbow flex positive, knee flex negative;
-  // shoulder Z lifts the arm out to the side (R positive, L negative), hip Z spreads the legs the same way; spine X bends forward;
-  // neck X negative looks up; root extras are hip lift, pitch (forward), roll, yaw.
-  // Which player does which move is the site's table (emotes.js at the site root), keyed by player id.
+  // Emotes: the looping moves for the player avatars (09-avatar.js, the site's player pages). Each is { name, T (loop seconds),
+  // pose(t, fit) -> a pose (05-anim.js pb layout, ground-fitted; .ox / .oz: where his root stands, yards, for whoever draws him),
+  // still (the time shown when motion is reduced) }; fit is the avatar's build ({ sw, bulk, belly }: shoulder width, torso size,
+  // belly), so hands that touch the body land on it for every build.
+  // Which player does which move is the site's choice (emotes.js at the site root, overridden per player in the admin panel).
+  //
+  // The moves are the body language of a player who just made a big play and isn't surprised about it: unbothered. Each is a
+  // relaxed stance, weight sitting in one hip (the feet are planted by leg IK, so the hips shift and turn and the feet never
+  // slide), breathing and a slow sway that never stop, and one gesture on top, eased in and out and held, with the elbows,
+  // hands and head trailing the body a beat so nothing moves as one stiff piece. Then he settles and breathes before it loops.
+  // Pose conventions (05-anim): limb X swings forward (arm raise, thigh lift), elbow flex positive, knee flex negative; spine X
+  // bends forward; neck X negative looks up; root extras are hip lift, pitch (forward), roll, yaw.
   // =====================================================================================
   const EM_STAND = { hipL: [0.04, 0, -0.07], hipR: [0.04, 0, 0.07], knL: [-0.1], knR: [-0.1], shL: [0.1, 0, -0.18], shR: [0.1, 0, 0.18], elL: [0.35], elR: [0.35], haL: [0.1], haR: [0.1], spine: [0.04, 0, 0], neck: [-0.06, 0, 0] };
   const emM = (...os) => Object.assign({}, ...os);
   const emP = (o, y, p, r, w) => pb(emM(EM_STAND, o), y, p, r, w);
-  const emG = (o, lift, p, r, w) => gfit(emP(o, 0, p, r, w), lift);
   const emS = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
-  const emSeg = (t, a, b) => emS((t - a) / (b - a));
-  // looping Catmull-Rom through key poses: keys [[t, pose], ...] with times in [0, T) (smooth motion through every key)
-  function emCyc(t, T, keys) {
-    const n = keys.length; t = ((t % T) + T) % T;
-    let i = n - 1; for (let k = 0; k < n; k++) if (keys[k][0] > t) { i = k - 1; break; }
-    if (i < 0) i = n - 1;
-    const k1 = keys[i], k2 = keys[(i + 1) % n], k0 = keys[(i - 1 + n) % n], k3 = keys[(i + 2) % n];
-    let t2 = k2[0]; if (t2 <= k1[0]) t2 += T; let tt = t; if (tt < k1[0]) tt += T;
-    const u = (tt - k1[0]) / (t2 - k1[0]), u2 = u * u, u3 = u2 * u, out = newPose();
-    for (let j = 0; j < PLEN; j++) { const p0 = k0[1][j], p1 = k1[1][j], p2 = k2[1][j], p3 = k3[1][j]; out[j] = 0.5 * (2 * p1 + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2 + (-p0 + 3 * p1 - 3 * p2 + p3) * u3); }
-    return out;
+
+  // ---- channels: what a key can set (everything is interpolated, so a key only names what changes) ----
+  // w: weight (-1 all on his left leg .. +1 all on his right), drop: hips lower (yards), yaw / lean: pelvis turn / forward pitch,
+  // sp / ch: spine / chest [x, y, z], nk: where he looks [down, turn to his right, tilt to his left] with the head kept level on
+  // top of whatever the body does, L / R: an arm (EM_ARM), fL / fR: a foot [x (his right +), z (forward), toe-out, heel up (rad),
+  // lift (yd)]
+  const EC = { w: 0, drop: 1, yaw: 2, lean: 3, sp: 4, ch: 7, nk: 10, L: 13, R: 21, fL: 29, fR: 34 }, ECN = 39;
+  const EM_REST = { w: 0.6, drop: 0, yaw: 0.05, lean: 0.02, sp: [0.03, 0.03, 0], ch: [-0.03, 0.03, 0], nk: [0.02, -0.04, 0], L: 'rest', R: 'rest', fL: [-0.135, 0.06, 0.24, 0.05, 0], fR: [0.12, -0.02, 0.16, 0, 0] };
+  // ---- arms: a palm target in the chest frame (x his right, y up, z forward; yards; the chest joint is the origin, his shoulders
+  // are at [±0.3, 0.24, 0], the front of his chest at z ~0.2) with where the palm faces, where the fingers point and a point the
+  // elbow leans towards (its side of the shoulder-to-wrist line), solved once by IK into shoulder (3 axes), elbow (bend + forearm
+  // twist) and wrist angles. Named arms are written for his right side and mirrored for the left. on: 1 marks a target on his
+  // torso (moved with the build's width and depth); pt: EM_FTIP puts the fingertip on the target instead of the palm.
+  const EM_ARM = {
+    rest: { at: [0.36, -0.5, 0.05], palm: [-1, 0, -0.3], elb: [0.35, -0.1, -0.05] },
+    hip: { at: [0.25, -0.34, 0.02], palm: [-1, 0, 0.1], fing: [0, -0.55, 0.85], elb: [0.52, -0.12, -0.12], on: 1 },
+  };
+  const emMirArm = (g) => { const f = (v) => v && [-v[0], v[1], v[2]]; return { at: f(g.at), palm: f(g.palm), fing: f(g.fing), elb: f(g.elb), pt: g.pt, on: g.on }; };
+  const EM_HP = [0, -0.095, 0.035]; // the middle of the palm in the hand bone's frame (the wrist is its origin; the fingers hang along -Y, the palm faces +Z)
+  const EM_FTIP = [0, -0.235, 0.05]; // the tip of the middle finger
+  // the arm chain alone (chest frame, no torso rotation): shoulder, elbow, hand matrices for raw angles a = [sh x y z, el x y, ha x y z]
+  function emArmFK(sd, a, sw) {
+    let s = mT(IDM, sd * 0.3 * sw, 0.24, 0); s = mRZ(mRY(mRX(s, a[0]), a[1]), a[2]);
+    let e = mT(s, 0, -0.36, 0); e = mRY(mRX(e, a[3]), a[4]);
+    let h = mT(e, 0, -0.32, 0); h = mRZ(mRY(mRX(h, a[5]), a[6]), a[7]);
+    return [s, e, h];
   }
-  // the same, ground-fitted every frame (keys hold unfitted poses; a lift curve can raise him)
-  const emCycG = (t, T, keys, lift) => gfit(emCyc(t, T, keys), lift || 0);
-  // both feet on the ground: bend the knee (and hip) of whichever leg reaches lower until the two feet's lowest points match
-  function emPlant(q) {
-    const lowF = (b, f) => { const m = b[f]; return Math.min(m[7] - 0.04 * m[5] + 0.2 * m[6], m[7] - 0.06 * m[5] - 0.08 * m[6]); };
-    for (let it = 0; it < 5; it++) {
-      const b = fk(q, 0, 0, 0, 0, 1), d = lowF(b, B.ftL) - lowF(b, B.ftR);
-      if (Math.abs(d) < 0.005) break;
-      const kn = d < 0 ? B.knL : B.knR, hp = d < 0 ? B.hipL : B.hipR, k = Math.abs(d) * 2.2;
-      q[kn * 3] += k; q[hp * 3] -= k * 0.5; // raw (flipped) angles: more knee flex, a little more thigh lift
+  // his torso in the chest frame for a build (bulk: width, depth; belly: the abdomen pushing the front out, as 06-body.js): a point
+  // inside it (plus a margin) is moved out to the surface in front (or behind), so hands rest on him instead of in him
+  function emOut(fit, p, m) {
+    if (p[1] < -0.56 || p[1] > 0.32) return p;
+    const bx = fit.bulk || 1, bz = 0.6 + 0.4 * bx, bk = (fit.belly || 0) * Math.max(0, Math.sin(Math.PI * clamp((p[1] + 0.34) / 0.34, 0, 1)));
+    const rx = 0.26 * bx + m, rz = 0.19 * bz * (1 + 0.42 * bk) + 0.045 * bk + m, k = (p[0] / rx) * (p[0] / rx);
+    if (k >= 1 || k + (p[2] / rz) * (p[2] / rz) >= 1) return p;
+    return [p[0], p[1], (p[2] < -0.05 ? -1 : 1) * rz * Math.sqrt(1 - k)];
+  }
+  // damped least squares on the 8 arm angles (bounded), from a start; residual: palm (or fingertip) on target, palm facing,
+  // fingers pointing, elbow near its hint and out of his torso, and small priors (wrist straight-ish, forearm twist shared with the wrist)
+  function emArmIK(sd, g, a0, fit, maxIt) {
+    const bx = fit.bulk || 1, bz = 0.6 + 0.4 * bx, sw = fit.sw || 1, S = (v, on) => v && (on ? [v[0] * bx, v[1], v[2] * bz] : [v[0] * sw, v[1], v[2]]);
+    const at = g.raw ? g.at : emOut(fit, S(g.at, g.on), g.pt ? 0.02 : 0.045), elb = g.raw ? g.elb : S(g.elb, 0), palm = g.palm && v3n(g.palm), fing = g.fing && v3n(g.fing), P = g.pt || EM_HP;
+    const lo = [-3.1, -1.7, sd < 0 ? -3.0 : -1.7, -2.65, sd < 0 ? -0.6 : -2.3, -1.25, -0.5, -0.6], hi = [1.2, 1.7, sd < 0 ? 1.7 : 3.0, -0.04, sd < 0 ? 2.3 : 0.6, 1.0, 0.5, 0.6];
+    const a = a0.slice();
+    const res = (x) => {
+      const [s, e, h] = emArmFK(sd, x, sw), p = mPt(h, P[0], P[1], P[2]), r = [(p[0] - at[0]) * 10, (p[1] - at[1]) * 10, (p[2] - at[2]) * 10];
+      if (palm) r.push((h[2] - palm[0]) * 1.1, (h[6] - palm[1]) * 1.1, (h[10] - palm[2]) * 1.1);
+      if (fing) r.push((-h[1] - fing[0]) * 1.0, (-h[5] - fing[1]) * 1.0, (-h[9] - fing[2]) * 1.0);
+      if (elb) { // a pole: which side of the shoulder-to-wrist line the elbow sits on (the lengths are the arm's own)
+        const d = v3n([h[3] - s[3], h[7] - s[7], h[11] - s[11]]), pp = (v) => { const k = v3d(v, d); return v3n([v[0] - d[0] * k, v[1] - d[1] * k, v[2] - d[2] * k]); };
+        const uh = pp([elb[0] - s[3], elb[1] - s[7], elb[2] - s[11]]), ue = pp([e[3] - s[3], e[7] - s[7], e[11] - s[11]]);
+        r.push((ue[0] - uh[0]) * 1.2, (ue[1] - uh[1]) * 1.2, (ue[2] - uh[2]) * 1.2);
+      }
+      { const ep = [e[3], e[7], e[11]], eo = emOut(fit, ep, 0.05); r.push((eo[0] - ep[0]) * 8, (eo[1] - ep[1]) * 8, (eo[2] - ep[2]) * 8); } // the elbow stays out of his torso
+      r.push(x[5] * 0.25, (x[6] - 0.35 * x[4]) * 1.2, x[7] * 0.45, x[1] * 0.1);
+      if (g.near) for (let j = 0; j < 8; j++) r.push((x[j] - g.near[j]) * 0.35); // on the way between two keys: stay near the blend of their angles
+      return r;
+    };
+    let c0 = 1e9;
+    for (let it = 0; it < (maxIt || 120); it++) {
+      const r0 = res(a), m = r0.length, J = [];
+      let c = 0; for (let i = 0; i < m; i++) c += r0[i] * r0[i];
+      if (Math.abs(c0 - c) < 1e-6 * (1 + c) && it > 4) break; // settled
+      c0 = c;
+      for (let j = 0; j < 8; j++) { const o = a[j]; a[j] = o + 1e-4; const r1 = res(a); a[j] = o; J.push(r1.map((v, i) => (v - r0[i]) / 1e-4)); }
+      const A = [], gr = [];
+      for (let i = 0; i < 8; i++) { A.push([]); let s = 0; for (let k = 0; k < m; k++) s += J[i][k] * r0[k]; gr.push(s); for (let j = 0; j < 8; j++) { let t = i === j ? 0.02 : 0; for (let k = 0; k < m; k++) t += J[i][k] * J[j][k]; A[i].push(t); } }
+      for (let c = 0; c < 8; c++) for (let r = c + 1; r < 8; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; gr[r] -= f * gr[c]; }
+      const d = new Array(8).fill(0); for (let c = 7; c >= 0; c--) { let s = gr[c]; for (let k = c + 1; k < 8; k++) s -= A[c][k] * d[k]; d[c] = s / A[c][c]; }
+      let mx = 0; for (let j = 0; j < 8; j++) { const st = clamp(d[j], -0.25, 0.25); a[j] = clamp(a[j] - st, lo[j], hi[j]); mx = Math.max(mx, Math.abs(st)); }
+      if (mx < 2e-4) break;
     }
+    const r = res(a); let e2 = 0, c2 = 0; for (let i = 0; i < r.length; i++) { c2 += r[i] * r[i]; if (i < 3) e2 += r[i] * r[i]; }
+    a.err = Math.sqrt(e2) / 10; a.cost = c2; // how far the palm is from its target (yards), and the whole residual
+    return a;
+  }
+  const emMirA = (a) => a.map((v, i) => (i === 1 || i === 2 || i === 4 || i === 6 || i === 7 ? -v : v)); // raw arm angles to the other side
+  // starts for the solver (right arm, raw): hanging palm in, forward, across the body, overhead, out to the side, hand by the face
+  const EM_A0S = [[-0.12, 0, 0.18, -0.35, -0.9, -0.15, -0.3, 0], [-1.2, 0, 0.1, -1.4, -0.9, 0, -0.3, 0], [-1.0, -0.4, -1.0, -1.2, -0.6, 0, -0.2, 0],
+    [-2.6, 0, 0.3, -0.3, -0.5, 0, 0, 0], [-0.3, 0, 1.3, -1.2, -0.5, 0, 0, 0], [-1.4, -0.5, -0.4, -2.2, -0.8, 0, 0, 0]];
+  const emA0 = (sd, i) => (sd < 0 ? emMirA(EM_A0S[i || 0]) : EM_A0S[i || 0].slice());
+
+  const EM_JW = [1, 1, 1, 1, 0.4, 0.25, 0.25, 0.25]; // how much each arm angle counts toward how far the arm moves
+  const EM_REACH = 0.5; // the least time an arm takes to go from one shape to another (s)
+  // ---- a move: { T, keys: [[t, key], ...] (key: any channels, as EM_REST), rest (overrides EM_REST), sway, still } ----
+  // Keys are joined by a monotone cubic per channel (smooth through a motion, eased into every stop, never overshooting), looped.
+  // Each arm has its own track: between two different arm keys the hand travels a straight path (bowed out around his torso)
+  // solved by IK at three points on the way, so an arm never swings wide just because the joint angles took a long way round.
+  function emSlopes(Ts, V, T, nc) {
+    const n = V.length, Mt = V.map(() => new Float32Array(nc));
+    for (let i = 0; i < n; i++) {
+      const ip = (i + n - 1) % n, inx = (i + 1) % n, h0 = ((Ts[i] - Ts[ip] + T) % T) || T, h1 = ((Ts[inx] - Ts[i] + T) % T) || T;
+      for (let j = 0; j < nc; j++) {
+        const d0 = (V[i][j] - V[ip][j]) / h0, d1 = (V[inx][j] - V[i][j]) / h1;
+        Mt[i][j] = d0 * d1 <= 0 ? 0 : 3 * (h0 + h1) / ((2 * h1 + h0) / d0 + (h1 + 2 * h0) / d1);
+      }
+    }
+    return { Ts, V, Mt, n };
+  }
+  // ---- the solved arms, precomputed: tools/emotes-bake.js runs every move's solves for the common builds and writes their
+  // angles into EM_BAKE (the end of this file), keyed by move and build and stamped with a hash of everything they came from
+  // (the move's keys, the arm shapes, the solver's own source). A move whose stamp matches takes its angles from there: the
+  // exact ones for a baked build, or as the starting point of each solve for any other (a few iterations, no search), so a
+  // phone doesn't stall solving on the first frame. A stale stamp (the move or the solver changed since) just solves as before.
+  let EM_BAKE = null;
+  const emHash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+  const emFitKey = (fit) => Math.round((fit.sw || 1) * 50) + ':' + Math.round((fit.bulk || 1) * 50) + (fit.belly ? ':' + Math.round(fit.belly * 20) : '');
+  let emSigBase = null;
+  const emSig = (M) => emHash(JSON.stringify([M.T, M.keys, M.rest || null]) + (emSigBase || (emSigBase = JSON.stringify(EM_ARM) + emArmFK + emOut + emArmIK + emBuild + EM_A0S)));
+  function emBaked(M, fk2) {
+    const e = EM_BAKE && M.id && EM_BAKE[M.id];
+    if (!e || e.sig !== emSig(M)) return null;
+    let best = null, bd = 1e9;
+    for (const k in e.fits) { const a = k.split(':'), b = fk2.split(':'), d = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs((a[2] || 0) - (b[2] || 0)) * 2.5; if (d < bd) { bd = d; best = k; } }
+    if (!best) return null;
+    return { v: emBakeDec(e, best), exact: bd === 0 };
+  }
+  // decoded once: p, a bit per slot (it has a solve); the first build's angles as int16 (radians x 4000), the others' as int8
+  // steps of 1/800 rad from the first's in the same slot (-128, or no such slot there: an int16 follows)
+  function emBakeDec(e, k) {
+    const f = e.fits[k];
+    if (f.v) return f.v;
+    const bits = atob(f.p), bin = atob(f.d || f.x), u8 = (i) => bin.charCodeAt(i), i16 = (i) => { const x = u8(i) | (u8(i + 1) << 8); return x > 32767 ? x - 65536 : x; };
+    const b0 = f.d ? null : emBakeDec(e, Object.keys(e.fits)[0]), v = [];
+    let i = 0;
+    for (let s = 0; s < bits.length * 8; s++) {
+      if (!((bits.charCodeAt(s >> 3) >> (s & 7)) & 1)) continue;
+      const a = [];
+      for (let j = 0; j < 8; j++) {
+        if (f.d) { a.push(i16(i) / 4000); i += 2; continue; }
+        let x = u8(i);
+        if (x === 128 || !b0[s]) { a.push(i16(i + 1) / 4000); i += 3; } else { if (x > 127) x -= 256; a.push(b0[s][j] + x / 800); i++; }
+      }
+      a.err = 0; a.cost = 0; v[s] = a;
+    }
+    return (f.v = v);
+  }
+  function emBuild(M, fit) {
+    const fk2 = emFitKey(fit);
+    M.S = M.S || {}; if (M.S[fk2]) return M.S[fk2];
+    const R = emM(EM_REST, M.rest || {}), sol = {}, keys = M.keys.slice().sort((a, b) => a[0] - b[0]), T = M.T, sw = fit.sw || 1;
+    const spec = (sd, g) => (typeof g === 'string' ? (sd < 0 ? emMirArm(EM_ARM[g]) : EM_ARM[g]) : g);
+    // every solve goes through here, in one fixed order: from the bake when it has this move (exact, or a start for this build)
+    // (slots: every place a solve may happen, numbered in that order whatever the build; the bake has the ones its build solved)
+    const bk = emBaked(M, fk2), rec = M.rec ? (M.rec[fk2] = []) : null; let si = 0;
+    const pick = (solve) => { const s = si++, b = bk && bk.v[s], a = b && bk.exact ? b : solve(b && b.slice()); if (rec) rec[s] = a; return a; };
+    const skip = () => { si++; };
+    const arm = (sd, g, prev) => (sol[sd + JSON.stringify(g)] = sol[sd + JSON.stringify(g)] || pick((b) => { // -> 8 raw angles
+      // from where the arm already is first (it stays on its branch: no flips between keys); the other starts only when that misses
+      // (from a near build's baked angles: that already is the best branch, no search)
+      let best = b || prev ? emArmIK(sd, g, b || prev, fit, b && 20) : null;
+      if (!best || (b ? best.err > 0.025 : best.err > 0.01 || best.cost > 0.08)) {
+        const keep = best;
+        for (const st of [g.a0 && (sd < 0 ? emMirA(g.a0) : g.a0), ...EM_A0S.map((_, i) => emA0(sd, i))]) { if (!st) continue; const a = emArmIK(sd, g, st, fit); if (!best || a.cost < best.cost - 1e-6) best = a; }
+        if (keep && keep.cost < best.cost * 1.25 + 0.03) best = keep;
+      }
+      return best;
+    }));
+    let k0 = emM(R); const errs = [], V = [], Ts = [], AS = { '-1': [], 1: [] }, AI = { '-1': [], 1: [] };
+    for (const [t, k] of keys) {
+      const c = emM(k.back ? R : k0, k); k0 = c; // a key keeps whatever the one before it set (a held arm stays held); back: 1 starts from the rest
+      const v = new Float32Array(ECN);
+      v[EC.w] = c.w; v[EC.drop] = c.drop; v[EC.yaw] = c.yaw; v[EC.lean] = c.lean;
+      for (let j = 0; j < 3; j++) { v[EC.sp + j] = c.sp[j]; v[EC.ch + j] = c.ch[j]; v[EC.nk + j] = c.nk[j]; }
+      for (let j = 0; j < 5; j++) { v[EC.fL + j] = c.fL[j] || 0; v[EC.fR + j] = c.fR[j] || 0; }
+      const e = [t];
+      for (const sd of [-1, 1]) { const g = spec(sd, sd < 0 ? c.L : c.R), A = AS[sd], a = arm(sd, g, A[A.length - 1]); A.push(a); AI[sd].push(sd + JSON.stringify(g)); e.push(a.err || 0); }
+      errs.push(e); V.push(v); Ts.push(t);
+    }
+    // the arm tracks
+    const fkP = (sd, a) => { const [, e, h] = emArmFK(sd, a, sw); return { p: mPt(h, EM_HP[0], EM_HP[1], EM_HP[2]), pn: [h[2], h[6], h[10]], fg: [-h[1], -h[5], -h[9]], el: [e[3], e[7], e[11]] }; };
+    const outside = (p) => emOut(fit, p, 0.075); // on the way, the palm passes clear of his torso
+    const L3 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    const tracks = {};
+    for (const sd of [-1, 1]) {
+      const A = AS[sd], I = AI[sd], n = A.length, tt = [], vv = [];
+      for (let i = 0; i < n; i++) {
+        tt.push(Ts[i]); vv.push(A[i]);
+        const j = (i + 1) % n; if (I[i] === I[j]) continue;
+        const t1 = j > i ? Ts[j] : Ts[j] + T;
+        // an arm gets at least EM_REACH to get there: when the key before was only for something else (the other arm, a nod),
+        // it leaves earlier, from the hold it was in
+        let t0 = Ts[i], p = i; while (p > 0 && I[p - 1] === I[i]) p--;
+        if (t1 - t0 < EM_REACH && Ts[p] < t0) {
+          t0 = Math.max(Ts[p], t1 - EM_REACH);
+          while (tt.length && tt[tt.length - 1] > t0 + 1e-4 && vv[vv.length - 1] === A[i]) { tt.pop(); vv.pop(); }
+          if (!tt.length || tt[tt.length - 1] < t0 - 1e-4) { tt.push(t0); vv.push(A[i]); }
+        }
+        const a = fkP(sd, A[i]), b = fkP(sd, A[j]);
+        const U = [0.25, 0.5, 0.75], mid = U.map((u) => {
+          // where the blended angles put the hand (the shoulder swinging it round on a natural arc), kept within a hand's width
+          // of the straight line between the two (no wide swings) and clear of his torso; then solved
+          const st = A[i].map((x, k) => x + (A[j][k] - x) * u), f = fkP(sd, st), ps = L3(a.p, b.p, u), d = [f.p[0] - ps[0], f.p[1] - ps[1], f.p[2] - ps[2]], dl = Math.hypot(d[0], d[1], d[2]), k = dl > 0.14 ? 0.14 / dl : 1;
+          const p0 = [ps[0] + d[0] * k, ps[1] + d[1] * k, ps[2] + d[2] * k], at = outside(p0);
+          if (k === 1 && at === p0 && emOut(fit, f.el, 0.05) === f.el) { skip(); return st; } // the blend is already fine: no solve
+          const g = { raw: 1, at, palm: f.pn, fing: f.fg, elb: f.el, near: st };
+          return pick((b) => emArmIK(sd, g, b || st, fit, 20));
+        });
+        // timed by how far the joints turn between them (mostly; a quarter even), so the elbow doesn't snap through the part of
+        // the path where it does most of its bending
+        const ch = [A[i], ...mid, A[j]], cum = [0];
+        for (let k = 1; k < 5; k++) { let d = 0; for (let m = 0; m < 8; m++) d += EM_JW[m] * (ch[k][m] - ch[k - 1][m]) ** 2; cum.push(cum[k - 1] + Math.sqrt(d) + 1e-4); }
+        U.forEach((u, k) => { tt.push((t0 + (t1 - t0) * (0.25 * u + 0.75 * cum[k + 1] / cum[4])) % T); vv.push(mid[k]); });
+      }
+      const ord = tt.map((x, k) => k).sort((x, y) => tt[x] - tt[y]);
+      tracks[sd] = emSlopes(ord.map((k) => tt[k]), ord.map((k) => vv[k]), T, 8);
+    }
+    const S = Object.assign(emSlopes(Ts, V, T, ECN), { aL: tracks[-1], aR: tracks[1], v: new Float32Array(ECN), R, errs, nb: Math.max(1, Math.round(T / 3.8)), ns: Math.max(1, Math.round(T / 6.5)) });
+    return (M.S[fk2] = S);
+  }
+  // channels [j0, j1) of a track at time t into out[o + j]
+  function emAt(S, T, t, j0, j1, out, o) {
+    t = ((t % T) + T) % T; o = o || 0;
+    const { Ts, V, Mt, n } = S;
+    let i = n - 1; for (let k = 0; k < n; k++) if (Ts[k] > t) { i = k - 1; break; }
+    if (i < 0) i = n - 1;
+    const i2 = (i + 1) % n, h = ((Ts[i2] - Ts[i] + T) % T) || T, u = ((t - Ts[i] + T) % T) / h, u2 = u * u, u3 = u2 * u;
+    const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+    const a = V[i], b = V[i2], ma = Mt[i], mb = Mt[i2];
+    for (let j = j0; j < j1; j++) out[o + j] = h00 * a[j] + h10 * h * ma[j] + h01 * b[j] + h11 * h * mb[j];
+  }
+  // ---- the legs: each foot f = [x (his right), z (forward), toe-out, heel up (rad), lift (yd)] is a spot on the ground around
+  // where he stands; the root stands over (ox, oz) (the hips go over the weight leg: the whole body moves, the feet don't), at the
+  // pose's height, turned as its root extras say. Leg IK puts each ankle over its spot and the foot keeps its own turn, so
+  // whatever the hips do, a planted foot stays exactly where it is. q.ox / q.oz carry the offset to whoever draws him. ----
+  function emHipAt(sd, cr, sr, cp, sp, cy, sy) { // a hip joint from the root (roll, then pitch, then yaw, as fk)
+    let x = sd * 0.15, y = -0.03, z = 0;
+    { const tx = cr * x - sr * y; y = sr * x + cr * y; x = tx; } { const ty = cp * y - sp * z; z = sp * y + cp * z; y = ty; } { const tx = cy * x + sy * z; z = -sy * x + cy * z; x = tx; }
+    return [x, y, z];
+  }
+  // the highest the root can stand with every leg reaching its spot (D(sd): how far that leg extends, hip to ankle)
+  function emRootMax(feet, ox, oz, pitch, roll, yaw, D) {
+    const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+    let r = 9;
+    for (const sd of [-1, 1]) {
+      const f = feet[sd < 0 ? 0 : 1], h = emHipAt(sd, cr, sr, cp, sp, cy, sy), d = D(sd), dx = f[0] - ox - h[0], dz = f[1] - oz - h[2];
+      r = Math.min(r, gAnk(f[3] || 0) + (f[4] || 0) - (HIP_H + h[1]) + Math.sqrt(Math.max(0, d * d - dx * dx - dz * dz)));
+    }
+    return r;
+  }
+  function emLegs(q, feet, ox, oz) {
+    const rootY = q[PN], pitch = q[PN + 1], roll = q[PN + 2], yaw = q[PN + 3];
+    const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+    for (const sd of [-1, 1]) {
+      const f = feet[sd < 0 ? 0 : 1], fp = f[3] || 0;
+      let x = f[0] - ox, y = gAnk(fp) + (f[4] || 0) - (HIP_H + rootY), z = f[1] - oz;
+      { const tx = x * cy - z * sy; z = x * sy + z * cy; x = tx; } { const ty = y * cp + z * sp; z = -y * sp + z * cp; y = ty; } { const tx = x * cr + y * sr; y = -x * sr + y * cr; x = tx; }
+      legSolve(q, sd, x - sd * 0.15, y + 0.03, z, fp, pitch);
+      q[(sd < 0 ? B.ftL : B.ftR) * 3 + 1] = sd * (f[2] || 0) - yaw;
+    }
+    q.ox = ox; q.oz = oz;
     return q;
   }
-  // a held key pose: the same pose twice
-  const emHold = (a, b, q) => [[a, q], [b, q]];
+  // a stance's feet turned by th about the spot he stands on (a turn is made of steps between these)
+  const emTurnF = (f, th, sd) => { const c = Math.cos(th), s = Math.sin(th); return [f[0] * c + f[1] * s, -f[0] * s + f[1] * c, f[2] + sd * th, f[3] || 0, f[4] || 0]; };
+  const emMidF = (a, b, heel, lift) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, heel, lift]; // a foot in the air between two spots
 
-  // ---- the backflip: load, drive the arms up, a tucked back somersault (one full turn about the hips), land in a crouch, stick it ----
+  function emPose(M, t, fit) {
+    fit = fit || {};
+    const S = emBuild(M, fit), T = M.T, v = S.v, q = newPose();
+    emAt(S, T, t, 0, ECN, v);
+    emAt(S, T, t - 0.07, EC.nk, EC.nk + 3, v); // the head trails the body
+    for (const [a, tr] of [[EC.L, S.aL], [EC.R, S.aR]]) { emAt(tr, T, t - 0.03, 0, 3, v, a); emAt(tr, T, t - 0.075, 3, 5, v, a); emAt(tr, T, t - 0.12, 5, 8, v, a); } // shoulder, then elbow, then hand
+    // breathing and a slow sway, whole cycles per loop so the loop is seamless
+    const br = Math.sin(TAU * S.nb * t / T), sw = Math.sin(TAU * S.ns * t / T + 0.7) * (M.sway == null ? 1 : M.sway), lk = Math.sin(TAU * t / T + 1.9);
+    // pelvis: over the weight leg, that hip higher, a slight turn; the legs: the root as high as leaves the weight leg nearly
+    // straight and the free one soft, lowered by the move's drop (the knees bend), then IK to the feet
+    const w = clamp(v[EC.w] + 0.12 * sw, -1, 1), roll = 0.055 * w, yaw = v[EC.yaw] + 0.025 * sw, pitch = 0.02 + v[EC.lean], shift = 0.06 * w;
+    q[PN + 1] = pitch; q[PN + 2] = roll; q[PN + 3] = yaw;
+    const feet = [v.subarray(EC.fL, EC.fL + 5), v.subarray(EC.fR, EC.fR + 5)], ox = shift * Math.cos(yaw), oz = -shift * Math.sin(yaw);
+    q[PN] = emRootMax(feet, ox, oz, pitch, roll, yaw, (sd) => { const free = clamp((1 - sd * w) / 2, 0, 1); return 0.962 - 0.03 * free * free; }) - v[EC.drop];
+    emLegs(q, feet, ox, oz);
+    // trunk: the shoulders tilt against the hips, the chest turns back a little against the pelvis, breathing lifts the chest
+    const spx = v[EC.sp] - 0.006 * br, spy = v[EC.sp + 1] - 0.35 * yaw, spz = v[EC.sp + 2] - 1.15 * roll, chx = v[EC.ch] - 0.02 * br, chy = v[EC.ch + 1], chz = v[EC.ch + 2];
+    q[B.spine * 3] = spx; q[B.spine * 3 + 1] = spy; q[B.spine * 3 + 2] = spz;
+    q[B.chest * 3] = chx; q[B.chest * 3 + 1] = chy; q[B.chest * 3 + 2] = chz;
+    // the head: where he looks, kept level (and a slow drift of the eyes so he is never frozen)
+    const lx = v[EC.nk] - 0.88 * (pitch + spx + chx) + 0.012 * br, ly = v[EC.nk + 1] - 0.7 * (yaw + spy + chy) + 0.035 * lk, lz = v[EC.nk + 2] - 0.85 * (roll + spz + chz);
+    q[B.neck * 3] = 0.6 * lx; q[B.neck * 3 + 1] = 0.6 * ly; q[B.neck * 3 + 2] = 0.6 * lz;
+    q[B.head * 3] = 0.4 * lx; q[B.head * 3 + 1] = 0.4 * ly; q[B.head * 3 + 2] = 0.4 * lz;
+    // arms (raw, solved in the chest frame), with the breath
+    for (const [sd, c] of [[-1, EC.L], [1, EC.R]]) {
+      const s = (sd < 0 ? B.shL : B.shR) * 3, e = (sd < 0 ? B.elL : B.elR) * 3, h = (sd < 0 ? B.haL : B.haR) * 3;
+      q[s] = v[c]; q[s + 1] = v[c + 1]; q[s + 2] = v[c + 2] + sd * 0.012 * br; q[e] = v[c + 3]; q[e + 1] = v[c + 4]; q[h] = v[c + 5]; q[h + 1] = v[c + 6]; q[h + 2] = v[c + 7];
+    }
+    return gfit(q);
+  }
+  const emMove = (name, M) => Object.assign(M, { name, pose: (t, fit) => emPose(M, t, fit) });
+
+  // ---- the moves ----
+  // Each one is a single gesture done slow and held: in, a hold where it reads (a second or two, the body still breathing and
+  // shifting under it), out, and a short breath in his stance before it comes round again. Gestures are made for a small
+  // banner on a phone: arms away from the body, elbows out, hands overhead or across the chest, the whole body going with it.
+  // Nothing needs fingers (the hands are a relaxed glove), and elbows stay open enough not to fold into a stub.
+  // arm shapes (right arm; the left is mirrored when an arm is named)
+  Object.assign(EM_ARM, {
+    belt: { at: [0.15, -0.35, 0.2], palm: [-0.35, 0, -1], fing: [-0.1, -1, 0.1], elb: [0.5, -0.22, -0.08], on: 1 }, // a thumb hooked in his belt
+    palmsDn: { at: [0.42, -0.2, 0.33], palm: [0, -1, 0.1], fing: [0.3, 0.05, 1], elb: [0.46, -0.14, 0] }, // out in front, wide, palms down
+    palmsLo: { at: [0.47, -0.36, 0.3], palm: [0, -1, 0.15], fing: [0.35, 0.05, 1], elb: [0.48, -0.18, -0.02] }, // ... pressed down
+    shrug: { at: [0.5, -0.12, 0.28], palm: [0.3, 1, 0.15], fing: [0.65, 0.1, 0.75], elb: [0.42, -0.22, -0.05] }, // forearm out, palm up
+    shrugHi: { at: [0.53, -0.04, 0.3], palm: [0.3, 1, 0.15], fing: [0.65, 0.12, 0.75], elb: [0.44, -0.18, -0.05] },
+    heart: { at: [-0.1, 0.13, 0.25], palm: [0, 0, -1], fing: [-0.4, 0.75, 0], elb: [0.25, -0.1, 0.2], on: 1 }, // flat on the left of his chest
+    sky: { at: [0.24, 0.95, 0.14], palm: [-1, 0, 0], fing: [0, 1, 0.1], elb: [0.42, 0.6, 0.08] }, // straight up
+    wide: { at: [0.68, -0.26, 0.2], palm: [0.15, 0, 1], fing: [0.45, -1, 0.05], elb: [0.62, 0, -0.12] }, // out wide and low, palms to you
+    clasp: { at: [0.08, 0.89, 0.08], palm: [-0.35, 1, 0], fing: [-1, 0.3, 0], elb: [0.45, 0.7, 0.02] }, // overhead, hands together
+    tee: { at: [0.85, 0.05, 0.12], palm: [0.2, -1, 0.1], fing: [1, 0, 0.1], elb: [0.65, 0.17, 0.02] }, // out to the side at shoulder height
+    loose: { at: [0.33, -0.3, 0.18], palm: [-1, 0, 0.25], elb: [0.37, -0.12, -0.05] }, // elbow bent, hand at the belt
+    sideUp: { at: [0.58, 0.55, 0.14], palm: [-0.2, -1, 0.1], elb: [0.6, 0.3, 0.02] }, // raised out to the side, high
+    overHead: { at: [0.12, 0.84, 0.08], palm: [-0.3, -1, 0], fing: [-1, 0, 0.1], elb: [0.44, 0.58, 0.06] }, // up over his head, palm down
+    grip: { at: [0.14, 0.0, 0.22], palm: [-0.4, 0.5, -1], elb: [0.42, -0.12, 0.04], on: 1 }, // a fistful of the front of his jersey
+  });
+  const EM_FEETL = { fL: [-0.12, -0.02, 0.16, 0, 0], fR: [0.135, 0.06, 0.24, 0.05, 0] }; // weight on the left: the right foot is the loose one
+  const EM_FOLD = {
+    R: { at: [-0.2, -0.03, 0.25], palm: [-0.3, 0, -1], fing: [-1, 0, -0.35], elb: [0.22, -0.06, 0.24], on: 1 }, // tucked under
+    L: { at: [0.21, 0.07, 0.28], palm: [0.2, -0.2, -1], fing: [1, 0, -0.2], elb: [-0.22, 0.03, 0.28], on: 1 }, // over it, the hand on the right biceps (both sized to his build)
+  };
+  const emSide = (sd, g) => (sd > 0 ? g : emMirArm(g)); // an arm written for his right, for the side sd
+  // the brush off: the hand on side sd brushes the far shoulder twice (eyes on it), flicks the dirt off forward, and drops
+  const EM_BRUSH0 = { at: [-0.16, 0.3, 0.21], palm: [-0.2, -0.6, -0.8], fing: [-1, 0.25, 0.1], elb: [0.14, -0.04, 0.26], on: 1 }; // on the front of his left shoulder
+  const EM_BRUSH1 = { at: [-0.39, 0.21, 0.15], palm: [-0.15, -0.75, -0.6], fing: [-1, -0.15, 0.1], elb: [0.06, -0.06, 0.29], on: 1 }; // swept off its edge
+  const EM_FLICK = { at: [-0.22, 0.02, 0.46], palm: [-0.3, -0.6, 0.5], fing: [-0.55, -0.2, 0.8], elb: [0.25, -0.1, 0.22] }; // flicked off, forward
+  const emBrush = (t0, sd, keep) => { const H = sd > 0 ? 'R' : 'L', A = (g) => ({ [H]: emSide(sd, g) }); return [
+    [t0, Object.assign(A(EM_BRUSH0), { nk: [0.24, -0.55 * sd, -0.1 * sd], ch: [-0.03, -0.07 * sd, -0.05 * sd], w: 0.3 * sd })],
+    [t0 + 0.2, A(EM_BRUSH1)], [t0 + 0.42, A(EM_BRUSH0)], [t0 + 0.64, Object.assign(A(EM_BRUSH1), { nk: [0.2, -0.5 * sd, -0.08 * sd] })],
+    [t0 + 0.95, Object.assign(A(EM_FLICK), { nk: [0.1, -0.2 * sd, -0.03 * sd], ch: [-0.03, 0.02 * sd, 0] })],
+    ...(keep ? [] : [[t0 + 1.4, { [H]: 'rest', nk: [0.04, 0, 0], ch: [-0.03, 0.03, 0], w: 0.45 }]])]; };
+  const EM_MOVES = {
+    // arms folded, two slow nods and a chin-up, a long look off to the side, back to you
+    foldnod: emMove('Arms Folded', { T: 7.4, still: 3.0, rest: { w: 0.65 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [1.05, { L: EM_FOLD.L, R: EM_FOLD.R, w: 0.5, ch: [-0.07, 0.03, 0], nk: [0.02, -0.06, 0] }],
+      [1.75, { nk: [0.26, -0.04, 0.03] }], [2.3, { nk: [-0.12, -0.03, 0] }], [2.85, { nk: [0.22, 0, 0.02] }], [3.4, { nk: [-0.08, 0, 0] }],
+      [4.2, { nk: [0.02, 0.55, -0.05], w: 0.82, yaw: 0.14, ch: [-0.06, 0.12, 0] }], [5.0, { nk: [0.05, 0.5, -0.05] }],
+      [5.6, { nk: [-0.14, 0.0, 0], w: 0.55, yaw: 0.05, ch: [-0.07, 0.03, 0] }], [6.0, { nk: [0.02, 0, 0] }],
+      [6.55, { back: 1 }]] }),
+    // brushes the dirt off one shoulder, then the other, then the chin comes up
+    dustoff: emMove('Dust Off', { T: 6.2, still: 1.0, rest: { w: 0.45 }, keys: [
+      [0, { back: 1 }], [0.35, {}], ...emBrush(0.75, 1), ...emBrush(2.4, -1, 1),
+      // and dusts his hands off, chin up
+      ...[3.9, 4.15, 4.4, 4.65].map((t, i) => [t, { L: { at: [0.0, -0.2, 0.35], palm: [0.15, 1, 0], fing: [0.35, 0, 1], elb: [-0.34, -0.16, 0.06] }, R: { at: [0.03, -0.14, i % 2 ? 0.43 : 0.31], palm: [0, -1, 0], fing: [-0.25, 0, 1], elb: [0.34, -0.14, 0.04] }, nk: [i ? -0.12 : 0.1, 0.03, 0], ch: [-0.06, 0.03, 0] }]),
+      [5.1, { L: 'rest', R: 'rest', nk: [0.04, 0.02, 0], w: 0.45 }], [5.4, { back: 1 }]] }),
+    // hands on his hips, chest out, looking round like he owns the place, a nod, a breath out
+    hips: emMove('Hands on Hips', { T: 7.0, still: 2.4, rest: { w: 0.35, fL: [-0.16, 0.02, 0.22, 0, 0], fR: [0.15, 0.0, 0.2, 0, 0] }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [1.0, { L: 'hip', R: 'hip', sp: [-0.04, 0.03, 0], ch: [-0.1, 0.03, 0], nk: [-0.1, 0, 0] }],
+      [1.9, { nk: [-0.05, 0.55, 0.03], w: 0.1, yaw: -0.06 }], [2.5, { nk: [-0.04, 0.5, 0.03] }],
+      [3.3, { nk: [-0.03, -0.45, -0.03], w: 0.6, yaw: 0.1 }], [3.9, { nk: [-0.02, -0.42, -0.03] }],
+      [4.5, { nk: [0.18, -0.02, 0], ch: [-0.05, 0.03, 0] }], [4.95, { nk: [-0.08, 0, 0], ch: [-0.12, 0.03, 0] }], [5.4, { nk: [0.02, 0, 0], ch: [-0.06, 0.03, 0], w: 0.35, yaw: 0.05 }],
+      [5.85, { back: 1 }]] }),
+    // "relax": both hands out wide, palms down, pressing it down with the knees, then a slow shake of the head
+    calmdown: emMove('Calm Down', { T: 6.8, still: 1.4, rest: Object.assign({ w: -0.5 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.95, { L: 'palmsDn', R: 'palmsDn', nk: [0.08, 0.08, 0], lean: 0.05, w: -0.15, drop: 0.02 }],
+      [1.4, { L: 'palmsLo', R: 'palmsLo', nk: [0.16, -0.08, 0], drop: 0.075, lean: 0.07 }],
+      [1.85, { L: 'palmsDn', R: 'palmsDn', nk: [0.08, 0.06, 0], drop: 0.025, lean: 0.05 }],
+      [2.35, { L: 'palmsLo', R: 'palmsLo', nk: [0.17, -0.06, 0], drop: 0.08, lean: 0.07 }],
+      [2.85, { L: 'palmsDn', R: 'palmsDn', nk: [0.08, 0.05, 0], drop: 0.025, lean: 0.05 }],
+      [3.4, { L: 'palmsLo', R: 'palmsLo', nk: [0.15, 0.0, 0], drop: 0.085, lean: 0.08 }],
+      [3.9, { nk: [0.13, 0.24, 0] }], [4.35, { nk: [0.13, -0.22, 0] }], [4.8, { nk: [0.1, 0.0, 0] }],
+      [5.3, { back: 1 }]] }),
+    // "too easy": a big shrug, palms up and out, the chest up and the head tipped, twice; then a look away
+    tooeasy: emMove('Too Easy', { T: 5.6, still: 1.25, rest: Object.assign({ w: -0.35 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.9, { L: 'shrug', R: 'shrug', sp: [-0.06, 0, 0], ch: [-0.08, 0, 0], nk: [-0.08, 0.1, 0.22], lean: -0.02, w: -0.1 }],
+      [1.25, { L: 'shrugHi', R: 'shrugHi', ch: [-0.11, 0, 0], nk: [-0.1, 0.1, 0.26] }],
+      [1.65, { L: 'shrug', R: 'shrug', ch: [-0.08, 0, 0], nk: [-0.06, 0.08, 0.22] }],
+      [2.45, { nk: [-0.04, -0.1, -0.22] }],
+      [2.8, { L: 'shrugHi', R: 'shrugHi', ch: [-0.11, 0, 0], nk: [-0.08, -0.1, -0.26] }],
+      [3.2, { L: 'shrug', R: 'shrug', ch: [-0.08, 0, 0], nk: [-0.06, -0.08, -0.2] }], [3.65, { nk: [0.04, -0.06, -0.16] }],
+      [4.2, { L: 'rest', R: 'rest', sp: [0.03, 0.03, 0], ch: [-0.03, 0.03, 0], nk: [0.04, 0.42, 0.02], lean: 0.02, w: -0.45, yaw: 0.08 }],
+      [4.7, { nk: [0.04, 0.38, 0.02] }],
+      [5.05, { back: 1 }]] }),
+    // a thump on the heart, then his arm straight up to the sky, head back, held; back to the heart
+    skypoint: emMove('Point to the Sky', { T: 6.6, still: 2.6, rest: { w: 0.5 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.85, { R: 'heart', nk: [0.16, 0, 0], w: 0.4 }],
+      [1.08, { R: { at: [-0.06, 0.15, 0.34], palm: [0, 0, -1], fing: [-0.4, 0.75, 0], elb: [0.26, -0.08, 0.24] } }], [1.28, { R: 'heart', nk: [0.18, 0, 0] }],
+      [2.0, { R: 'sky', nk: [-0.55, 0.06, 0], sp: [-0.05, 0.03, 0], ch: [-0.1, 0.03, 0], w: 0.65 }],
+      [3.0, { nk: [-0.5, 0.0, 0.04] }], [3.6, { nk: [-0.56, 0.04, 0] }],
+      [4.25, { R: 'heart', nk: [0.14, 0, 0], sp: [0.03, 0.03, 0], ch: [-0.05, 0.03, 0] }],
+      [4.7, { nk: [-0.04, 0, 0] }],
+      [5.15, { back: 1 }]] }),
+    // a slow clap, five of them, wide, unimpressed
+    slowclap: emMove('Slow Clap', { T: 6.4, still: 1.25, rest: { w: 0.2 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      ...[0.8, 1.55, 2.3, 3.05, 3.8].flatMap((t, i) => [
+        [t, { L: { at: [-0.31, 0.04, 0.33], palm: [1, 0, 0.2], fing: [-0.1, 0.45, 1], elb: [-0.38, -0.15, 0.02] }, R: { at: [0.31, 0.05, 0.33], palm: [-1, 0, 0.2], fing: [0.1, 0.45, 1], elb: [0.38, -0.15, 0.02] }, nk: [-0.06, 0.04 * (i % 2 ? 1 : -1), 0], ch: [-0.06, 0, 0], drop: 0 }],
+        [t + 0.3, { L: { at: [-0.06, 0.05, 0.39], palm: [1, 0, 0], fing: [0, 0.45, 1], elb: [-0.31, -0.13, 0.1] }, R: { at: [0.06, 0.06, 0.39], palm: [-1, 0, 0], fing: [0, 0.45, 1], elb: [0.31, -0.13, 0.1] } }],
+        [t + 0.38, { L: { at: [-0.035, 0.05, 0.39], palm: [1, 0, 0], fing: [0, 0.45, 1], elb: [-0.3, -0.13, 0.1] }, R: { at: [0.035, 0.05, 0.39], palm: [-1, 0, 0], fing: [0, 0.45, 1], elb: [0.3, -0.13, 0.1] }, nk: [0.1, 0, 0], drop: 0.025 }]]),
+      [4.75, { L: 'rest', R: 'rest', nk: [0.02, 0, 0], ch: [-0.03, 0.03, 0], drop: 0 }],
+      [5.1, { back: 1 }]] }),
+    // checks the watch: the left forearm up across him, eyes on it, two taps on the wrist; then he looks up at you: it's time
+    watch: emMove('Check the Watch', { T: 5.8, still: 1.55, rest: Object.assign({ w: -0.55 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.9, { L: { at: [0.02, -0.04, 0.36], palm: [0, -1, 0.1], fing: [1, 0, 0.2], elb: [-0.34, -0.1, 0.12] }, nk: [0.4, -0.14, 0], sp: [0.05, 0, 0], w: -0.3 }],
+      [1.3, { R: { at: [-0.06, 0.1, 0.38], palm: [0, -1, 0.1], fing: [-1, 0, 0.35], elb: [0.32, -0.12, 0.06] } }],
+      [1.45, { R: { at: [-0.08, 0.025, 0.37], palm: [0, -1, 0.1], fing: [-1, 0, 0.35], elb: [0.32, -0.12, 0.06] } }],
+      [1.62, { R: { at: [-0.06, 0.1, 0.38], palm: [0, -1, 0.1], fing: [-1, 0, 0.35], elb: [0.32, -0.12, 0.06] } }],
+      [1.78, { R: { at: [-0.08, 0.025, 0.37], palm: [0, -1, 0.1], fing: [-1, 0, 0.35], elb: [0.32, -0.12, 0.06] }, nk: [0.36, -0.12, 0] }],
+      [2.35, { nk: [-0.12, 0, 0], sp: [0.0, 0, 0], ch: [-0.07, 0, 0] }],
+      [3.2, { nk: [-0.1, 0.05, 0.03] }],
+      [3.6, { L: 'rest', R: 'loose', nk: [0.06, 0, 0], ch: [-0.03, 0.03, 0], sp: [0.03, 0.03, 0], w: -0.55 }],
+      [4.4, { back: 1 }]] }),
+    // the wave-off: winds up across his chest, a full-arm backhand out to the side as the hips turn away, "nah"; a second lazy one,
+    // and he keeps looking away
+    waveoff: emMove('Wave-Off', { T: 5.9, still: 1.3, rest: { w: 0.45 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.8, { R: { at: [-0.06, 0.06, 0.4], palm: [0.15, -0.1, -1], fing: [-0.6, 0.45, 0.6], elb: [0.3, -0.1, 0.18] }, nk: [0.04, 0.1, 0], ch: [-0.03, -0.1, 0], yaw: -0.05 }],
+      [1.2, { R: { at: [0.62, -0.12, 0.28], palm: [0.4, -0.2, -1], fing: [0.9, -0.15, 0.45], elb: [0.55, 0, 0.05] }, nk: [0.03, 0.45, 0.06], yaw: 0.25, ch: [-0.03, 0.17, 0], w: 0.7 }],
+      [1.75, { R: { at: [0.6, -0.24, 0.22], palm: [0.4, -0.2, -1], fing: [0.85, -0.35, 0.4], elb: [0.55, -0.05, 0] }, nk: [0.05, 0.5, 0.05] }],
+      [2.3, { R: { at: [0.16, -0.14, 0.36], palm: [0.2, -0.3, -1], fing: [-0.3, 0.2, 0.9], elb: [0.36, -0.14, 0.08] }, nk: [0.04, 0.3, 0.03] }],
+      [2.7, { R: { at: [0.58, -0.2, 0.22], palm: [0.4, -0.2, -1], fing: [0.85, -0.3, 0.4], elb: [0.53, -0.05, 0] }, nk: [0.05, 0.58, 0.05], yaw: 0.3 }],
+      [3.2, { R: { at: [0.56, -0.3, 0.17], palm: [0.4, -0.3, -1], fing: [0.8, -0.5, 0.3], elb: [0.52, -0.08, -0.02] } }],
+      [3.7, { R: 'rest', nk: [0.06, 0.55, 0.04] }], [4.2, { nk: [0.04, 0.42, 0.02] }],
+      [4.65, { yaw: 0.05, ch: [-0.03, 0.03, 0], nk: [0.02, 0, 0], w: 0.45 }],
+      [4.95, { back: 1 }]] }),
+    // the flat hand to the brow, held, chin up, then snapped off toward you
+    salute: emMove('Brow Salute', { T: 5.5, still: 1.6, rest: Object.assign({ w: -0.6 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.75, { R: { at: [0.3, 0.2, 0.32], fing: [-0.3, 0.9, 0.3], palm: [-0.8, 0, 0.5], elb: [0.48, -0.04, 0.05] } }],
+      [1.0, { R: { pt: EM_FTIP, at: [0.1, 0.56, 0.15], fing: [-0.75, 0.45, 0.2], palm: [0, -0.5, 0.85], elb: [0.55, 0.22, 0.12] }, nk: [0.06, 0.06, 0] }],
+      [1.6, { nk: [-0.05, 0.05, 0] }], [2.3, { nk: [-0.02, 0.05, 0] }], [2.65, { nk: [-0.05, 0.05, 0] }],
+      [2.95, { R: { pt: EM_FTIP, at: [0.43, 0.58, 0.46], fing: [0.35, 0.5, 0.75], palm: [0.1, -0.5, 0.85], elb: [0.55, 0.25, 0.25] }, nk: [0.02, 0.08, 0], w: -0.4 }],
+      [3.3, { R: { pt: EM_FTIP, at: [0.47, 0.46, 0.5], fing: [0.4, 0.4, 0.8], palm: [0.1, -0.6, 0.8], elb: [0.55, 0.15, 0.25] } }],
+      [3.8, { R: 'rest', nk: [0.06, 0, 0], w: -0.6 }],
+      [4.15, { nk: [-0.06, 0, 0] }], [4.5, { back: 1 }]] }),
+    // loosening up: a hand over his head pulls it down to the side, a stretch; then the head rolls round with the shoulders and
+    // hips going with it, the arms shaken out loose on a bounce, a shoulder roll, a breath out
+    neckroll: emMove('Neck Roll', { T: 7.9, still: 1.8, rest: { w: 0.4 }, keys: [
+      [0, { back: 1 }], [0.3, {}],
+      [0.65, { R: EM_ARM.sideUp, w: 0.5 }], [1.0, { R: EM_ARM.overHead, nk: [0.04, 0.05, 0] }],
+      // (the hand on the left side of his head, where his head is at that moment: raw, the head is the same size on every build)
+      [1.25, { R: { raw: 1, at: [-0.137, 0.519, 0.013], palm: [0.92, -0.4, 0.04], fing: [-0.35, -0.85, 0.06], elb: [0.4, 0.62, 0.06] }, nk: [0.05, 0.02, 0] }],
+      [1.65, { R: { raw: 1, at: [-0.049, 0.559, 0.018], palm: [0.92, -0.4, 0], fing: [-0.36, -0.83, 0.06], elb: [0.4, 0.62, 0.06] }, nk: [0.08, 0.04, -0.44], ch: [0, 0, -0.03], w: 0.6 }], [2.1, { R: { raw: 1, at: [-0.041, 0.561, 0.015], palm: [0.9, -0.43, 0.01], fing: [-0.38, -0.81, 0.06], elb: [0.4, 0.62, 0.06] }, nk: [0.1, 0.04, -0.47] }],
+      [2.45, { R: EM_ARM.overHead, nk: [0.04, 0, -0.12], ch: [0, 0, 0] }], [2.8, { R: EM_ARM.sideUp, nk: [0.06, 0, -0.04] }],
+      [3.3, { R: 'rest', nk: [0.48, 0, 0.1], sp: [0.1, 0, 0.03], ch: [0.06, 0, 0], drop: 0.045, w: 0.3 }],
+      [3.6, { nk: [0.1, -0.05, 0.44], sp: [0, 0, 0.13], ch: [0, 0, 0.08], drop: 0.02, w: -0.1 }],
+      [4.0, { nk: [-0.36, 0, 0.08], sp: [-0.04, 0, 0], ch: [-0.11, 0.03, 0], drop: 0, w: 0.4 }],
+      [4.35, { nk: [0.0, 0, 0], sp: [0.03, 0.03, 0], ch: [-0.03, 0.03, 0] }],
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => { const o = i % 2, out = { at: [0.55, -0.37, 0.14], palm: [-0.6, -0.3, 0.6], elb: [0.5, -0.06, -0.02] }, inn = { at: [0.33, -0.53, -0.04], palm: [-1, 0, -0.2], elb: [0.38, -0.12, -0.06] };
+        return [4.55 + i * 0.18, { L: emMirArm(o ? inn : out), R: o ? out : inn, drop: o ? 0.0 : 0.05, nk: [0.05, o ? 0.12 : -0.12, 0], w: o ? 0.6 : 0.2 }]; }),
+      [6.1, { L: 'rest', R: 'rest', drop: 0.01, nk: [0.02, 0, 0], w: 0.4 }],
+      [6.45, { L: { at: [-0.36, -0.46, -0.14], palm: [1, 0, -0.2], elb: [-0.38, -0.1, -0.1] }, R: { at: [0.36, -0.46, -0.14], palm: [-1, 0, -0.2], elb: [0.38, -0.1, -0.1] }, ch: [-0.13, 0, 0], sp: [-0.03, 0, 0], nk: [-0.14, 0, 0] }],
+      [6.9, { L: { at: [-0.36, -0.42, 0.18], palm: [1, 0, 0.3], elb: [-0.38, -0.12, 0.02] }, R: { at: [0.36, -0.42, 0.18], palm: [-1, 0, 0.3], elb: [0.38, -0.12, 0.02] }, ch: [0.07, 0, 0], sp: [0.08, 0, 0], nk: [0.16, 0, 0], drop: 0.03 }],
+      [7.35, { back: 1 }]] }),
+    // tugs his gloves on tight, one then the other, held up at his chest, then knocks them together and looks up
+    gloves: emMove('Glove Tug', { T: 6.0, still: 1.15, rest: Object.assign({ w: -0.4 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.85, { L: { at: [-0.09, -0.03, 0.35], palm: [0.6, 0.6, 0.1], fing: [0.3, 0.1, 1], elb: [-0.32, -0.16, 0.12] }, R: { at: [-0.1, 0.02, 0.29], palm: [0, -1, 0], fing: [-0.8, 0, 0.5], elb: [0.3, -0.1, 0.12] }, nk: [0.32, -0.12, 0] }],
+      ...[1.1, 1.3, 1.5].map((t, i) => [t, { R: { at: i % 2 ? [-0.1, 0.02, 0.29] : [-0.16, -0.01, 0.23], palm: [0, -1, 0], fing: [-0.8, 0, 0.5], elb: [0.29, -0.11, 0.08 + 0.04 * (i % 2)] } }]),
+      [2.0, { L: { at: [0.1, 0.02, 0.29], palm: [0, -1, 0], fing: [0.8, 0, 0.5], elb: [-0.3, -0.1, 0.12] }, R: { at: [0.09, -0.03, 0.35], palm: [-0.6, 0.6, 0.1], fing: [-0.3, 0.1, 1], elb: [0.32, -0.16, 0.12] }, nk: [0.32, 0.12, 0] }],
+      ...[2.25, 2.45, 2.65].map((t, i) => [t, { L: { at: i % 2 ? [0.1, 0.02, 0.29] : [0.16, -0.01, 0.23], palm: [0, -1, 0], fing: [0.8, 0, 0.5], elb: [-0.29, -0.11, 0.08 + 0.04 * (i % 2)] } }]),
+      [3.1, { L: { at: [-0.13, 0.02, 0.38], palm: [1, 0, 0.1], fing: [0.2, 0.5, 1], elb: [-0.34, -0.14, 0.06] }, R: { at: [0.13, 0.02, 0.38], palm: [-1, 0, 0.1], fing: [-0.2, 0.5, 1], elb: [0.34, -0.14, 0.06] }, nk: [0.12, 0, 0] }],
+      [3.3, { L: { at: [-0.035, 0.03, 0.39], palm: [1, 0, 0], fing: [0, 0.5, 1], elb: [-0.31, -0.13, 0.1] }, R: { at: [0.035, 0.03, 0.39], palm: [-1, 0, 0], fing: [0, 0.5, 1], elb: [0.31, -0.13, 0.1] }, nk: [-0.1, 0, 0], ch: [-0.06, 0, 0], drop: 0.02 }],
+      [3.9, { nk: [-0.12, 0.05, 0], drop: 0 }],
+      [4.3, { L: 'rest', R: 'rest', nk: [0.02, 0, 0], ch: [-0.03, 0.03, 0] }], [4.8, { back: 1 }]] }),
+    // two pounds on his chest, the hand stays on the heart, chin up, a slow nod, eyes up
+    chesttap: emMove('Chest Pound', { T: 6.0, still: 1.9, rest: { w: 0.3 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.75, { R: { at: [0.0, 0.18, 0.45], palm: [0, -0.2, -1], fing: [-0.4, 0.75, 0], elb: [0.3, -0.08, 0.22] } }],
+      [0.92, { R: 'heart', ch: [0.05, 0, 0], drop: 0.015, nk: [0.06, 0, 0] }],
+      [1.2, { R: { at: [0.0, 0.18, 0.45], palm: [0, -0.2, -1], fing: [-0.4, 0.75, 0], elb: [0.3, -0.08, 0.22] }, ch: [-0.04, 0, 0], drop: 0 }],
+      [1.37, { R: 'heart', ch: [0.05, 0, 0], drop: 0.015 }],
+      [1.75, { ch: [-0.09, 0.03, 0], drop: 0, nk: [-0.14, 0, 0] }],
+      [2.5, { nk: [0.16, 0, 0] }], [3.0, { nk: [-0.1, 0, 0] }],
+      [3.5, { nk: [-0.42, 0.05, 0] }], [3.9, { nk: [-0.4, 0.02, 0] }],
+      [4.3, { R: 'rest', nk: [0.02, 0, 0], ch: [-0.03, 0.03, 0] }], [4.6, { back: 1 }]] }),
+    // the chill lean: thumbs in his belt, all his weight in one hip, the other foot crossed over on its toes; a chin-up nod,
+    // a slow bob; then he switches hips (uncrosses, crosses the other) and looks off
+    lean: (() => {
+      const A = { w: 0.95, fL: [-0.03, 0.14, 0.5, 0.45, 0], fR: [0.14, -0.02, 0.18, 0, 0], yaw: 0.12, L: 'belt', R: 'belt', nk: [-0.04, 0.06, 0.1] };
+      return emMove('Chill Lean', { T: 8.4, still: 1.0, sway: 0.5, rest: A, keys: [
+        [0, { back: 1 }],
+        [0.8, { nk: [-0.26, 0.06, 0.1] }], [1.15, { nk: [0.02, 0.06, 0.1] }],
+        [1.9, { nk: [0.13, 0.08, 0.12], drop: 0.02 }], [2.4, { nk: [-0.02, 0.08, 0.1], drop: 0 }], [2.9, { nk: [0.13, 0.06, 0.1], drop: 0.02 }], [3.35, { nk: [-0.04, 0.06, 0.1], drop: 0 }],
+        [3.7, { w: 0.0, fL: [-0.13, 0.05, 0.3, 0.15, 0.04], yaw: 0.0, nk: [0, 0, 0] }],
+        [3.95, { w: -0.6, fL: [-0.14, -0.02, 0.18, 0, 0] }],
+        [4.25, { fR: [0.08, 0.08, 0.35, 0.3, 0.05], w: -0.9, yaw: -0.06 }],
+        [4.5, { w: -0.95, fR: [0.03, 0.14, 0.5, 0.45, 0], yaw: -0.12, nk: [-0.04, -0.06, -0.1] }],
+        [5.2, { nk: [-0.26, -0.06, -0.1] }], [5.55, { nk: [0.02, -0.06, -0.1] }],
+        [6.0, { nk: [0.12, -0.08, -0.12], drop: 0.02 }], [6.45, { nk: [0.0, -0.3, -0.08], drop: 0 }], [6.9, { nk: [0.06, -0.45, -0.06], drop: 0.015 }],
+        [7.35, { w: -0.2, fR: [0.13, 0.05, 0.25, 0.15, 0.04], yaw: 0, nk: [0, 0, 0] }],
+        [7.6, { w: 0.6, fR: [0.14, -0.02, 0.18, 0, 0] }],
+        [7.9, { fL: [-0.08, 0.08, 0.35, 0.3, 0.05], w: 0.9, yaw: 0.06 }],
+        [8.15, { back: 1 }]] });
+    })(),
+    // the stare-down: a half step in, squared up, chin down, a long look; then he turns away (two steps round), a glance back over
+    // his shoulder, and squares back up
+    staredown: (() => {
+      const R0 = { w: 0.15, fL: [-0.17, 0.02, 0.2, 0, 0], fR: [0.17, 0.0, 0.2, 0, 0] }, TH = 0.7, tL = emTurnF(R0.fL, TH, -1), tR = emTurnF(R0.fR, TH, 1), fwdR = [0.15, 0.25, 0.12, 0, 0];
+      const puff = { at: [0.44, -0.44, 0.08], palm: [-1, 0, 0.1], elb: [0.46, -0.1, -0.06] };
+      return emMove('Stare-Down', { T: 7.6, still: 2.2, rest: R0, keys: [
+        [0, { back: 1 }], [0.4, {}],
+        [0.75, { w: -0.4, fR: emMidF(R0.fR, fwdR, 0.25, 0.06) }],
+        [1.05, { fR: fwdR, w: 0.5, lean: 0.08, sp: [0.07, 0, 0], ch: [0.02, 0, 0], drop: 0.02, nk: [0.2, 0, 0], L: emMirArm(puff), R: puff }],
+        [1.6, { nk: [0.22, 0.02, 0] }], [2.4, { nk: [0.2, -0.02, 0.03] }], [3.1, { nk: [0.22, 0, 0] }],
+        [3.45, { w: -0.45, fR: emMidF(fwdR, tR, 0.3, 0.06), yaw: 0.25, lean: 0.03, sp: [0.03, 0, 0], ch: [0, 0, 0], drop: 0.01, nk: [0.1, 0.4, 0], L: 'rest', R: 'rest' }],
+        [3.8, { fR: tR, w: 0.55, yaw: 0.42 }],
+        [4.1, { fL: emMidF(R0.fL, tL, 0.3, 0.06), w: 0.85, yaw: 0.58 }],
+        [4.4, { fL: tL, w: 0.35, yaw: TH, drop: 0, ch: [-0.02, 0.2, 0], nk: [0.06, 0.95, 0] }],
+        [5.0, { nk: [0.04, 0.9, 0] }],
+        [5.5, { nk: [0.08, -0.3, 0.05] }], [5.95, { nk: [0.08, -0.25, 0.05] }],
+        [6.25, { fL: emMidF(tL, R0.fL, 0.3, 0.06), w: 0.85, yaw: 0.45, ch: [-0.03, 0.08, 0] }],
+        [6.55, { fL: R0.fL, w: 0.3, yaw: 0.3 }],
+        [6.85, { fR: emMidF(tR, R0.fR, 0.3, 0.06), w: -0.5, yaw: 0.12 }],
+        [7.15, { back: 1 }]] });
+    })(),
+    // a big stretch: hands together overhead, leaning to one side, then the other, the arms coming down wide on a breath out
+    stretch: emMove('Big Stretch', { T: 6.8, still: 1.9, rest: { w: 0.2, fL: [-0.16, 0.02, 0.22, 0, 0], fR: [0.16, 0.0, 0.2, 0, 0] }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.7, { L: emMirArm({ at: [0.42, 0.42, 0.42], palm: [-0.6, 0.3, 0.5], fing: [0, 1, 0.4], elb: [0.5, 0.15, 0.2] }), R: { at: [0.42, 0.42, 0.42], palm: [-0.6, 0.3, 0.5], fing: [0, 1, 0.4], elb: [0.5, 0.15, 0.2] } }],
+      [1.05, { L: 'clasp', R: 'clasp', ch: [-0.08, 0, 0], sp: [-0.03, 0, 0], nk: [-0.1, 0, 0], w: 0.2 }],
+      [1.7, { sp: [-0.02, 0, 0.16], ch: [-0.06, 0, 0.1], nk: [-0.05, 0, -0.1], w: 0.6 }], [2.4, { sp: [-0.02, 0, 0.17], ch: [-0.06, 0, 0.11] }],
+      [3.1, { sp: [-0.02, 0, -0.16], ch: [-0.06, 0, -0.1], nk: [-0.05, 0, 0.1], w: -0.2 }], [3.8, { sp: [-0.02, 0, -0.17], ch: [-0.06, 0, -0.11] }],
+      [4.3, { sp: [-0.04, 0, 0], ch: [-0.1, 0, 0], nk: [-0.14, 0, 0], w: 0.2 }],
+      [4.8, { L: 'tee', R: 'tee', ch: [-0.05, 0, 0], nk: [0, 0, 0] }],
+      [5.3, { back: 1 }]] }),
+    // arms out wide and low, chin up, soaking it in: a slow look round one side, then the other, and a nod
+    armsout: emMove('Arms Out', { T: 6.1, still: 2.0, rest: { w: 0.3 }, keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [1.0, { L: 'wide', R: 'wide', ch: [-0.1, 0, 0], sp: [-0.03, 0, 0], nk: [-0.16, 0, 0], w: 0.25 }],
+      [1.8, { yaw: 0.14, ch: [-0.1, 0.14, 0], nk: [-0.14, 0.3, 0], w: 0.55 }], [2.6, { yaw: 0.14, ch: [-0.1, 0.14, 0], nk: [-0.12, 0.34, 0] }],
+      [3.4, { yaw: -0.14, ch: [-0.1, -0.14, 0], nk: [-0.14, -0.3, 0], w: 0 }], [4.1, { yaw: -0.12, ch: [-0.1, -0.12, 0], nk: [-0.12, -0.32, 0] }],
+      [4.6, { yaw: 0.05, ch: [-0.06, 0.03, 0], nk: [0.14, 0, 0], L: 'rest', R: 'rest', w: 0.3 }],
+      [5.0, { back: 1 }]] }),
+    // grabs the front of his jersey, pops it out twice looking down at it, then holds it out, chin up: the name on the front
+    jersey: emMove('Jersey Pop', { T: 5.7, still: 2.2, rest: Object.assign({ w: -0.4 }, EM_FEETL), keys: [
+      [0, { back: 1 }], [0.35, {}],
+      [0.85, { L: emMirArm(EM_ARM.grip), R: 'grip', nk: [0.32, 0, 0], sp: [0.03, 0, 0] }],
+      ...[1.1, 1.3, 1.5].map((t, i) => { const g = i % 2 ? EM_ARM.grip : { at: [0.15, 0.02, 0.34], palm: [-0.4, 0.5, -1], elb: [0.42, -0.12, 0.06] };
+        return [t, { L: emMirArm(g), R: g, ch: [i % 2 ? 0 : -0.06, 0, 0] }]; }),
+      [1.95, { nk: [-0.18, 0, 0], ch: [-0.1, 0, 0], sp: [-0.03, 0, 0] }],
+      [2.8, { nk: [-0.16, 0.25, 0] }], [3.5, { nk: [-0.18, -0.15, 0] }],
+      [3.9, { L: 'rest', R: 'rest', nk: [0.04, 0, 0], ch: [-0.03, 0.03, 0], sp: [0.03, 0.03, 0] }],
+      [4.4, { back: 1 }]] }),
+  };
+  // the step-touch two-step: a foot taps out to the side and back, then the other, the knees bob on the beat, arms loose
+  (() => {
+    const K = [], b = 0.5, armF = (sd, f) => ({ at: [sd * 0.31, -0.3, 0.17 + 0.07 * f], palm: [-sd, 0, 0.25], elb: [sd * 0.37, -0.12, -0.05 + 0.04 * f] });
+    for (let c = 0; c < 2; c++) for (let s = 0; s < 2; s++) {
+      const t = (c * 2 + s) * 2 * b, sd = s ? -1 : 1, base = { fL: [-0.14, 0.02, 0.2, 0, 0], fR: [0.14, 0.02, 0.2, 0, 0] };
+      const out = sd > 0 ? { fR: [0.3, 0.04, 0.35, 0.45, 0] } : { fL: [-0.3, 0.04, 0.35, 0.45, 0] }, mid = sd > 0 ? { fR: [0.22, 0.04, 0.28, 0.25, 0.05] } : { fL: [-0.22, 0.04, 0.28, 0.25, 0.05] };
+      K.push([t, Object.assign({ w: 0, drop: 0.015, nk: [0.0, 0, 0], L: armF(-1, 0), R: armF(1, 0) }, base)]);
+      K.push([t + 0.5 * b, Object.assign({ w: -sd * 0.75, drop: 0.05, nk: [0.1, sd * 0.06, 0], ch: [-0.03, -sd * 0.08, 0], L: armF(-1, sd), R: armF(1, -sd) }, mid)]);
+      K.push([t + b, Object.assign({ w: -sd * 0.8, drop: 0.02, nk: [0.0, sd * 0.08, sd * 0.04] }, out)]);
+      K.push([t + 1.5 * b, Object.assign({ w: -sd * 0.6, drop: 0.05, nk: [0.1, sd * 0.04, 0] }, mid)]);
+    }
+    EM_MOVES.twostep = emMove('Two-Step', { T: 8 * b, still: 0.5, sway: 0, rest: { w: 0, fL: [-0.14, 0.02, 0.2, 0, 0], fR: [0.14, 0.02, 0.2, 0, 0] }, keys: K });
+  })();
+  // ---- the backflip: from his stance, load, drive the arms up, a tucked back somersault (one full turn about the hips), land in a
+  // crouch that soaks it up, come up out of it like it was nothing and brush the dirt off his shoulder. On the ground (the load, the
+  // push, the landing, standing up) the legs are solved to his stance's own foot spots, so his feet never slide. ----
   const BF = {
-    stand: emP({}),
     load: emP({ hipL: [1.05, 0, -0.08], hipR: [1.05, 0, 0.08], knL: [-1.7], knR: [-1.7], ftL: [-0.6], ftR: [-0.6], spine: [0.5, 0, 0], neck: [-0.35, 0, 0], shL: [-0.85, 0, -0.15], shR: [-0.85, 0, 0.15], elL: [0.25], elR: [0.25] }),
     take: emP({ hipL: [-0.05, 0, -0.06], hipR: [-0.05, 0, 0.06], knL: [-0.05], knR: [-0.05], ftL: [0.55], ftR: [0.55], spine: [-0.15, 0, 0], neck: [-0.45, 0, 0], shL: [2.95, 0, -0.2], shR: [2.95, 0, 0.2], elL: [0.1], elR: [0.1] }, 0, -0.22),
-    land: emP({ hipL: [1.15, 0, -0.14], hipR: [1.15, 0, 0.14], knL: [-1.75], knR: [-1.75], ftL: [-0.6], ftR: [-0.6], spine: [0.45, 0, 0], neck: [-0.4, 0, 0], shL: [1.2, 0, -0.65], shR: [1.2, 0, 0.65], elL: [0.35], elR: [0.35] }, 0, 0.15),
-    stick: emP({ hipL: [0.05, 0, -0.14], hipR: [0.05, 0, 0.14], knL: [-0.12], knR: [-0.12], spine: [-0.12, 0, 0], neck: [-0.25, 0, 0], shL: [0.45, 0, -2.45], shR: [0.45, 0, 2.45], elL: [0.15], elR: [0.15], haL: [-0.3], haR: [-0.3] }),
+    land: emP({ hipL: [1.15, 0, -0.14], hipR: [1.15, 0, 0.14], knL: [-1.75], knR: [-1.75], ftL: [-0.6], ftR: [-0.6], spine: [0.45, 0, 0], neck: [-0.4, 0, 0], shL: [0.75, 0, -0.45], shR: [0.75, 0, 0.45], elL: [0.55], elR: [0.55] }, 0, 0.15),
+    sink: emP({ hipL: [1.3, 0, -0.16], hipR: [1.3, 0, 0.16], knL: [-1.95], knR: [-1.95], ftL: [-0.6], ftR: [-0.6], spine: [0.52, 0, 0], neck: [-0.5, 0, 0], shL: [0.6, 0, -0.5], shR: [0.6, 0, 0.5], elL: [0.7], elR: [0.7] }, 0, 0.2),
   };
-  const BF_T = 3.0, BF_T0 = 0.86, BF_T1 = 1.5; // takeoff and touchdown
-  const BF_K = [[0, BF.stand], [0.32, BF.stand], [0.66, BF.load], [BF_T0, BF.take], [BF_T1, BF.land], [1.78, BF.land], [2.15, BF.stick], [2.55, BF.stick], [2.95, BF.stand]];
-  function emBackflip(t) {
-    if (t < BF_T0 || t > BF_T1) return gfit(kf(t, BF_K));
-    const u = (t - BF_T0) / (BF_T1 - BF_T0);
-    const a = gfit(lerpPose(BF.take, BF.take, 0)), b = gfit(lerpPose(BF.land, BF.land, 0));
-    const q = lerpPose(a, b, emS(u)), tk = emS(u / 0.22) * (1 - emS((u - 0.72) / 0.24)); // the tuck: in fast, out before landing
-    const tuck = pb({ hipL: [2.15, 0, -0.18], hipR: [2.15, 0, 0.18], knL: [-2.35], knR: [-2.35], ftL: [0.5], ftR: [0.5], spine: [0.55, 0, 0], neck: [0.25, 0, 0], shL: [1.05, 0, -0.35], shR: [1.05, 0, 0.35], elL: [1.25], elR: [1.25] });
-    for (let i = 0; i < PN; i++) q[i] += (tuck[i] - q[i]) * tk;
-    // one full turn backwards about the hips, quickest in the tuck; the hips fly up and come down on a parabola
-    const s = u < 0.5 ? 0.5 * Math.pow(2 * u, 1.6) : 1 - 0.5 * Math.pow(2 - 2 * u, 1.6);
-    q[PN + 1] = -0.22 + (-TAU + 0.15 + 0.22) * s;
-    q[PN] = a[PN] + (b[PN] - a[PN]) * u + 0.95 * 4 * u * (1 - u);
-    return q;
+  for (const k in BF) gfit(BF[k]); // their own heights (the crouches are low)
+  const BF_T = 6.4, BF_T0 = 1.5, BF_T1 = 2.14, BF_UP = 2.5; // takeoff, touchdown, starts to stand
+  // his stance around it: settles, then (once he's up) the brush off, a nod, and he breathes until the next one
+  const BF_M = emMove('', { T: BF_T, rest: { w: 0.5 }, keys: [[0, { back: 1 }], [0.7, { nk: [0.04, 0.05, 0] }], [1.0, {}], [2.6, { back: 1, w: 0.1 }], ...emBrush(3.1, 1), [4.95, { nk: [-0.14, 0.05, 0], ch: [-0.07, 0.03, 0] }], [5.4, { nk: [0.02, 0.02, 0] }], [5.75, { back: 1 }]] });
+  const BF_FEET = [EM_REST.fL, EM_REST.fR], BF_OX = (EM_REST.fL[0] + EM_REST.fR[0]) / 2, BF_OZ = (EM_REST.fL[1] + EM_REST.fR[1]) / 2; // his own spots; over the middle of them to jump
+  // a ground pose: the body as q says (blended), the root over (ox, oz) no higher than his legs reach, the feet on his spots
+  // (heels up by heel: the push)
+  function bfGround(q, ox, oz, heel) {
+    const feet = BF_FEET.map((f) => [f[0], f[1], f[2], heel, 0]);
+    q[PN] = Math.min(q[PN], emRootMax(feet, ox, oz, q[PN + 1], q[PN + 2], q[PN + 3], () => LEGR - 0.005));
+    return gfit(emLegs(q, feet, ox, oz));
   }
-  // ---- the jump spin: crouch, jump, a full turn in the air with the arms pulled in, land, arms up ----
-  const JS = {
-    load: emP({ hipL: [0.9, 0, -0.1], hipR: [0.9, 0, 0.1], knL: [-1.45], knR: [-1.45], ftL: [-0.55], ftR: [-0.55], spine: [0.4, 0.25, 0], neck: [-0.3, 0, 0], shL: [0.5, 0, -0.9], shR: [-0.5, 0, 0.6], elL: [0.9], elR: [0.6] }, 0, 0, 0, -0.35),
-    take: emP({ hipL: [0.1, 0, -0.04], hipR: [0.1, 0, 0.04], knL: [-0.15], knR: [-0.15], ftL: [0.5], ftR: [0.5], spine: [-0.05, 0, 0], neck: [-0.2, 0, 0], shL: [1.0, 0, -0.25], shR: [1.0, 0, 0.25], elL: [2.2], elR: [2.2] }, 0, 0, 0, -0.1),
-    air: pb({ hipL: [0.35, 0, -0.03], hipR: [0.55, 0, 0.03], knL: [-0.6], knR: [-0.9], ftL: [0.45], ftR: [0.45], spine: [0.0, 0, 0], neck: [-0.15, 0, 0], shL: [1.0, 0, -0.15], shR: [1.0, 0, 0.15], elL: [2.4], elR: [2.4] }),
-    land: emP({ hipL: [0.95, 0, -0.16], hipR: [0.95, 0, 0.16], knL: [-1.45], knR: [-1.45], ftL: [-0.5], ftR: [-0.5], spine: [0.35, 0, 0], neck: [-0.3, 0, 0], shL: [0.9, 0, -0.9], shR: [0.9, 0, 0.9], elL: [0.4], elR: [0.4] }),
-    up: emP({ hipL: [0.04, 0, -0.16], hipR: [0.04, 0, 0.16], spine: [-0.1, 0, 0], neck: [-0.3, 0, 0], shL: [0.4, 0, -2.6], shR: [0.4, 0, 2.6], elL: [0.2], elR: [0.2] }),
-  };
-  const JS_T = 2.8, JS_T0 = 0.75, JS_T1 = 1.3;
-  const JS_K = [[0, BF.stand], [0.25, BF.stand], [0.58, JS.load], [JS_T0, JS.take], [JS_T1, JS.land], [1.55, JS.land], [1.9, JS.up], [2.35, JS.up], [2.75, BF.stand]];
-  function emJumpSpin(t) {
-    if (t < JS_T0 || t > JS_T1) return gfit(kf(t, JS_K));
-    const u = (t - JS_T0) / (JS_T1 - JS_T0);
-    const a = gfit(lerpPose(JS.take, JS.take, 0)), b = gfit(lerpPose(JS.land, JS.land, 0));
-    const q = lerpPose(a, b, emS(u)), k = Math.sin(Math.PI * Math.min(1, u * 1.15));
-    for (let i = 0; i < PN; i++) q[i] += (JS.air[i] - q[i]) * k;
-    q[PN + 3] = -0.1 + (TAU + 0.1) * (u < 0.5 ? 0.5 * Math.pow(2 * u, 1.3) : 1 - 0.5 * Math.pow(2 - 2 * u, 1.3));
-    q[PN] = a[PN] + (b[PN] - a[PN]) * u + 0.55 * 4 * u * (1 - u);
-    q[PN + 3] = q[PN + 3] % TAU;
-    return q;
+  const bfMix = (a, b, k) => { const q = lerpPose(a, b, k); q.ox = (a.ox || 0) + ((b.ox || 0) - (a.ox || 0)) * k; q.oz = (a.oz || 0) + ((b.oz || 0) - (a.oz || 0)) * k; return q; };
+  function emBackflip(t, fit) {
+    const st = (u) => emPose(BF_M, u, fit);
+    const L0 = BF_T0 - 0.62;
+    if (t < L0) return st(t);
+    if (t < BF_T0) { // load (arms back, a deep crouch), then the push (arms up, legs driving straight, up on his toes)
+      const s0 = st(L0), k = emS((t - L0) / 0.42), k2 = emS((t - (BF_T0 - 0.2)) / 0.2);
+      const q = t < BF_T0 - 0.2 ? bfMix(s0, BF.load, k) : bfMix(BF.load, BF.take, k2);
+      const ox = (s0.ox || 0) + (BF_OX - (s0.ox || 0)) * k, oz = (s0.oz || 0) + (BF_OZ - (s0.oz || 0)) * k;
+      return bfGround(q, ox, oz, t < BF_T0 - 0.2 ? 0 : 0.75 * k2);
+    }
+    if (t <= BF_T1) { // the flip, from the push to the landing
+      const u = (t - BF_T0) / (BF_T1 - BF_T0);
+      const a = bfGround(bfMix(BF.take, BF.take, 0), BF_OX, BF_OZ, 0.75), b = bfGround(bfMix(BF.land, BF.land, 0), BF_OX, BF_OZ, 0);
+      const q = bfMix(a, b, emS(u)), tk = emS(u / 0.22) * (1 - emS((u - 0.72) / 0.24)); // the tuck: in fast, out before landing
+      const tuck = pb({ hipL: [2.15, 0, -0.18], hipR: [2.15, 0, 0.18], knL: [-2.35], knR: [-2.35], ftL: [0.5], ftR: [0.5], spine: [0.55, 0, 0], neck: [0.25, 0, 0], shL: [1.05, 0, -0.35], shR: [1.05, 0, 0.35], elL: [1.25], elR: [1.25] });
+      for (let i = 0; i < PN; i++) q[i] += (tuck[i] - q[i]) * tk;
+      // one full turn backwards about the hips, quickest in the tuck; the hips fly up and come down on a parabola
+      const s = u < 0.5 ? 0.5 * Math.pow(2 * u, 1.6) : 1 - 0.5 * Math.pow(2 - 2 * u, 1.6);
+      q[PN + 1] = -0.22 + (-TAU + 0.15 + 0.22) * s;
+      q[PN] = a[PN] + (b[PN] - a[PN]) * u + 0.95 * 4 * u * (1 - u);
+      return q;
+    }
+    // the landing: soaks it up (sinks a little lower, arms out in front), settles, then stands up into his stance
+    const ks = emS((t - BF_T1) / 0.2) * (1 - emS((t - BF_T1 - 0.2) / 0.3)), land = bfMix(BF.land, BF.sink, ks);
+    land.ox = BF_OX; land.oz = BF_OZ;
+    const k = emS((t - BF_UP) / 0.75);
+    if (k <= 0) return bfGround(land, BF_OX, BF_OZ, 0);
+    const s1 = st(t), q = bfMix(land, s1, k);
+    return k >= 1 ? s1 : bfGround(q, q.ox, q.oz, 0);
   }
 
-  // ---- the rest: keyframed loops ----
-  const EM_HEIS = emP({ hipL: [1.55, 0, -0.1], knL: [-2.0], ftL: [0.35], hipR: [-0.05, 0, 0.1], knR: [-0.15], spine: [0.08, 0.28, 0], chest: [0, 0.1, 0], neck: [-0.1, -0.35, 0], shL: [1.45, 0, -0.45], elL: [0.05], haL: [-0.9], shR: [-0.16, -0.56, 0], elR: [1.93], haR: [0.3] }, 0, 0.05, 0, 1.15);
-  const EM_FLEX1 = emP({ hipL: [0.06, 0, -0.2], hipR: [0.06, 0, 0.2], knL: [-0.1], knR: [-0.1], spine: [-0.1, 0, 0], neck: [-0.15, 0, 0], shL: [1.5, 0, -1.45], shR: [1.5, 0, 1.45], elL: [2.0], elR: [2.0], haL: [0.4], haR: [0.4] });
-  const EM_FLEX2 = emP({ hipL: [0.3, 0, -0.22], hipR: [0.3, 0, 0.22], knL: [-0.45], knR: [-0.45], spine: [0.3, 0, 0], chest: [0.1, 0, 0], neck: [-0.35, 0, 0], shL: [0.27, 0.96, -0.16], shR: [0.27, -0.96, 0.16], elL: [1.41], elR: [1.41], haL: [0.6], haR: [0.6] });
-  const EM_SAL0 = emP({ hipL: [0, 0, -0.03], hipR: [0, 0, 0.03], knL: [-0.02], knR: [-0.02], spine: [-0.06, 0, 0], neck: [-0.05, 0, 0], shL: [0.02, 0, -0.08], shR: [0.02, 0, 0.08], elL: [0.08], elR: [0.08], haL: [0], haR: [0] });
-  const EM_SAL1 = emP({ hipL: [0, 0, -0.03], hipR: [0, 0, 0.03], knL: [-0.02], knR: [-0.02], spine: [-0.06, 0, 0], neck: [-0.05, 0, 0], shL: [0.02, 0, -0.08], elL: [0.08], haL: [0], shR: [1.54, -0.92, 0.83], elR: [1.94], haR: [-0.15] });
-  const EM_HERO = (nod, look, br) => emP({ hipL: [0.02, 0, -0.24], hipR: [0.02, 0, 0.24], knL: [-0.06], knR: [-0.06], spine: [-0.14 + br, 0, 0], chest: [-0.05, 0, 0], neck: [nod, look, 0], shL: [-0.56, 0.72, -0.41], shR: [-0.56, -0.72, 0.41], elL: [1.04], elR: [1.04], haL: [0.3], haR: [0.3] });
-  const EM_BOWD = emP({ hipL: [0.05, 0, -0.24], hipR: [0.05, 0, 0.24], knL: [-0.15], knR: [-0.1], spine: [-0.04, 0, 0.04], neck: [-0.25, -0.9, 0], shL: [1.12, 0.74, -1.65], elL: [0.14], haL: [0], shR: [0.99, -1.12, 2.23], elR: [2.2], haR: [0.3] }, 0, -0.03, 0, 0.35);
-  const EM_BOWR = emP({ hipL: [0.05, 0, -0.24], hipR: [0.05, 0, 0.24], knL: [-0.15], knR: [-0.1], spine: [-0.06, 0, 0.06], neck: [-0.28, -0.9, 0], shL: [1.12, 0.74, -1.65], elL: [0.14], haL: [0], shR: [3.01, -0.14, 0.85], elR: [1.23], haR: [-0.4] }, 0, -0.05, 0, 0.35);
-
-  const EMOTES = {
+  for (const id in EM_MOVES) EM_MOVES[id].id = id;
+  BF_M.id = 'backflip';
+  const EMOTES = Object.assign({
     // Xavier Davenport's dance (05-anim.js xavPose)
     xavdance: { name: 'Signature Dance', T: XAV_T, pose: (t) => xavPose(t), still: 0.35 },
-    backflip: { name: 'Backflip', T: BF_T, pose: emBackflip, still: 1.18 },
-    jumpspin: { name: '360 Jump Spin', T: JS_T, pose: emJumpSpin, still: 1.02 },
-    // a heel-tap shuffle: hop, tap one heel out in front, hop, the other; arms swinging across like he is rowing
-    heelshuffle: { name: 'Heel-Tap Shuffle', T: 0.96, still: 0.24, pose(t) {
-      const ph = (t / 0.96) * TAU, s = Math.sin(ph), c = Math.cos(ph), L = Math.max(0, s), R = Math.max(0, -s);
-      return gfit(emP({ hipL: [0.3 + 0.35 * L - 0.15 * R, 0, -0.1], knL: [-0.55 + 0.45 * L], ftL: [-0.2 - 0.25 * L + 0.2 * R], hipR: [0.3 + 0.35 * R - 0.15 * L, 0, 0.1], knR: [-0.55 + 0.45 * R], ftR: [-0.2 - 0.25 * R + 0.2 * L],
-        spine: [0.28, 0.18 * s, 0], neck: [-0.25, -0.12 * s, 0], shL: [0.55 - 0.65 * s, 0, -0.35], shR: [0.55 + 0.65 * s, 0, 0.35], elL: [1.5 + 0.2 * c], elR: [1.5 - 0.2 * c], haL: [0.4], haR: [0.4] }, 0, 0.06, 0.04 * s), 0.06 * Math.abs(Math.sin(ph)));
-    } },
-    heisman: { name: 'Stiff-Arm Pose', T: 3.4, still: 1.6, pose: (t) => emCycG(t, 3.4, [[0, BF.stand], [0.35, emP({ hipL: [0.6, 0, -0.1], knL: [-0.9], spine: [0.15, 0.1, 0], shL: [0.6, 0, -0.3], shR: [0.4, 0, 0.2], elR: [1.6] }, 0, 0, 0, 0.6)], [0.75, EM_HEIS],
-      [1.7, pb(emM(EM_STAND, { hipL: [1.6, 0, -0.1], knL: [-2.05], ftL: [0.35], hipR: [-0.05, 0, 0.1], knR: [-0.12], spine: [0.06, 0.3, 0], chest: [0, 0.1, 0], neck: [-0.12, -0.35, 0], shL: [1.5, 0, -0.45], elL: [0.03], haL: [-0.9], shR: [-0.16, -0.56, 0], elR: [1.93], haR: [0.3] }), 0, 0.04, 0, 1.15)],
-      [2.55, EM_HEIS], [2.95, emP({ shR: [0.3, 0, 0.2], elR: [1.0] }, 0, 0, 0, 0.4)]]) },
-    flex: { name: 'Double Flex', T: 3.6, still: 0.9, pose: (t) => emCycG(t, 3.6, [[0, BF.stand], [0.45, EM_FLEX1], [0.8, emP({ hipL: [0.06, 0, -0.2], hipR: [0.06, 0, 0.2], spine: [-0.14, 0, 0], neck: [-0.2, 0, 0], shL: [1.55, 0, -1.6], shR: [1.55, 0, 1.6], elL: [2.3], elR: [2.3], haL: [0.5], haR: [0.5] })], [1.15, EM_FLEX1],
-      [1.75, EM_FLEX2], [2.15, emP({ hipL: [0.32, 0, -0.22], hipR: [0.32, 0, 0.22], knL: [-0.5], knR: [-0.5], spine: [0.38, 0, 0], neck: [-0.45, 0, 0], shL: [0.3, 0.96, -0.1], shR: [0.3, -0.96, 0.1], elL: [1.55], elR: [1.55], haL: [0.6], haR: [0.6] })], [2.55, EM_FLEX2], [3.1, BF.stand]]) },
-    // the robot: stiff, popping from shape to shape and freezing in between
-    robot: { name: 'The Robot', T: 4.2, still: 0.9, pose(t) {
-      const K = [
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], shL: [0, 0, -0.1], shR: [0, 0, 0.1], elL: [1.57], elR: [1.57], haL: [0], haR: [0] },
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], shL: [0, 0, -0.1], shR: [1.5, 0, 1.5], elL: [1.57], elR: [1.57], haL: [0], haR: [0] },
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], shL: [1.5, 0, -1.5], shR: [1.5, 0, 1.5], elL: [1.57], elR: [1.57], haL: [0], haR: [0], neck: [0, 0.6, 0] },
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], shL: [1.57, 0, -0.05], shR: [1.57, 0, 0.05], elL: [0], elR: [0], haL: [0], haR: [0], neck: [0, -0.6, 0] },
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], spine: [0, 0.6, 0], shL: [1.57, 0, -0.05], shR: [0, 0, 0.1], elL: [1.57], elR: [1.57], haL: [0], haR: [0], neck: [0, -0.5, 0] },
-        { hipL: [0.15, 0, -0.12], hipR: [0.15, 0, 0.12], knL: [-0.3], knR: [-0.3], spine: [0.45, 0, 0], neck: [-0.2, 0, 0], shL: [0.3, 0, -0.1], shR: [0.3, 0, 0.1], elL: [1.57], elR: [1.57], haL: [0], haR: [0] },
-      ];
-      const n = K.length, seg = 4.2 / n, i = Math.floor(t / seg) % n, u = (t - i * seg) / seg, k = emS(Math.min(1, u / 0.18));
-      const a = emP(K[(i + n - 1) % n]), b = emP(K[i]), q = lerpPose(a, b, k);
-      q[PN + 3] = 0.004 * Math.sin(t * 90) * (k < 1 && k > 0 ? 1 : 0); // a buzz as each joint locks in
-      return gfit(q, 0.012 * Math.max(0, 1 - Math.abs(u - 0.2) * 8));
-    } },
-    shimmy: { name: 'Shoulder Shimmy', T: 2.4, still: 0.6, pose(t) {
-      const ph = (t / 2.4) * TAU, f = Math.sin(t * 26), sw = Math.sin(ph), dn = Math.abs(Math.sin(ph * 2));
-      return gfit(emP({ hipL: [0.4 + 0.15 * dn, 0, -0.18], hipR: [0.4 + 0.15 * dn, 0, 0.18], knL: [-0.75 - 0.3 * dn], knR: [-0.75 - 0.3 * dn], ftL: [-0.35 - 0.15 * dn], ftR: [-0.35 - 0.15 * dn],
-        spine: [0.3, 0.12 * sw, 0.12 * sw], chest: [0, 0.2 * f, 0], neck: [-0.35, -0.15 * sw, -0.1 * sw], shL: [0.45 + 0.28 * f, 0, -0.6], shR: [0.45 - 0.28 * f, 0, 0.6], elL: [1.3], elR: [1.3], haL: [0.3], haR: [0.3] }, 0, 0.1, 0.08 * sw));
-    } },
-    // the sprinkler: one hand behind the head, the other arm ticking across in steps and sweeping back
-    sprinkler: { name: 'The Sprinkler', T: 2.6, still: 0.7, pose(t) {
-      const ticks = 6, tA = 1.8; let a;
-      if (t < tA) { const i = Math.floor(t / (tA / ticks)), u = (t - i * (tA / ticks)) / (tA / ticks); a = (i + emS(Math.min(1, u / 0.3))) / ticks; } else a = 1 - emS((t - tA) / (2.6 - tA));
-      const tick = t < tA ? Math.max(0, 1 - ((t % (tA / ticks)) / (tA / ticks)) * 5) : 0;
-      return gfit(emP({ hipL: [0.55, 0, -0.12], knL: [-0.75], ftL: [-0.2], hipR: [0.1, 0, 0.16], knR: [-0.45], ftR: [-0.3], spine: [0.2, -0.45 + 0.9 * a, 0], neck: [-0.2, 0.3 - 0.6 * a, 0],
-        shL: [-2.47, 0.95, 0.19], elL: [1.7], haL: [0.4], shR: [1.45, 0, -0.55 + 1.9 * a], elR: [0.15], haR: [0] }, 0, 0.05, 0, 0.05), 0.015 * tick);
-    } },
-    // a moon glide: one foot flat and sliding back while the other rides on its toes; the two swap
-    moonglide: { name: 'Moon Glide', T: 1.7, still: 0.4, pose(t) {
-      const ph = (t / 1.7) * TAU, s = Math.sin(ph), c = Math.cos(ph), A = 0.5 + 0.5 * s, Bv = 1 - A;
-      const hL = 0.3 - 0.65 * Bv + 0.1 * A, kL = -0.05 - 0.95 * A, hR = 0.3 - 0.65 * A + 0.1 * Bv, kR = -0.05 - 0.95 * Bv; // the flat foot slides back, the other rides its toes
-      return gfit(emPlant(emP({ hipL: [hL, 0, -0.06], knL: [kL], ftL: [hL + kL + 1.1 * A], hipR: [hR, 0, 0.06], knR: [kR], ftR: [hR + kR + 1.1 * Bv],
-        spine: [0.04, 0.12 * c, 0], neck: [-0.1, -0.35, 0], shL: [0.05 - 0.3 * c, 0, -0.15], shR: [0.05 + 0.3 * c, 0, 0.15], elL: [0.45], elR: [0.45], haL: [0.3], haR: [0.3] }, 0, -0.04, 0, 1.2 + 0.06 * c)));
-    } },
-    spike: { name: 'Spike and Point', T: 3.0, still: 1.7, pose: (t) => emCycG(t, 3.0, [[0, BF.stand], [0.45, emP({ hipL: [0.75, 0, -0.1], knL: [-1.0], hipR: [0, 0, 0.1], spine: [-0.18, 0, 0], neck: [-0.3, 0, 0], shR: [2.7, 0, 0.35], elR: [0.5], shL: [0.6, 0, -0.5], elL: [0.8] })],
-      [0.66, emP({ hipL: [0.95, 0, -0.14], hipR: [0.8, 0, 0.14], knL: [-1.4], knR: [-1.3], ftL: [-0.45], ftR: [-0.5], spine: [0.65, 0, 0], neck: [-0.45, 0, 0], shR: [-0.35, 0, 0.3], elR: [0.15], shL: [0.4, 0, -0.7], elL: [0.6] })],
-      [0.95, emP({ hipL: [0.8, 0, -0.14], hipR: [0.7, 0, 0.14], knL: [-1.2], knR: [-1.1], ftL: [-0.4], ftR: [-0.4], spine: [0.55, 0, 0], neck: [-0.4, 0, 0], shR: [-0.25, 0, 0.35], elR: [0.3], shL: [0.4, 0, -0.7], elL: [0.6] })],
-      [1.4, emP({ spine: [-0.15, 0, 0], neck: [-0.6, 0, 0], shL: [2.9, 0, -0.3], shR: [2.9, 0, 0.3], elL: [0.05], elR: [0.05], haL: [-0.2], haR: [-0.2] })],
-      [1.75, emP({ spine: [-0.12, 0, 0], neck: [-0.65, 0, 0], shL: [2.75, 0, -0.35], shR: [2.75, 0, 0.35], elL: [0.15], elR: [0.15] })], [2.1, emP({ spine: [-0.15, 0, 0], neck: [-0.6, 0, 0], shL: [2.9, 0, -0.3], shR: [2.9, 0, 0.3], elL: [0.05], elR: [0.05] })],
-      [2.5, BF.stand]]) },
-    salute: { name: 'Salute', T: 3.4, still: 1.5, pose: (t) => emCycG(t, 3.4, [[0, BF.stand], [0.4, EM_SAL0], [0.6, EM_SAL0], [0.85, EM_SAL1], ...emHold(1.2, 2.3, EM_SAL1), [2.55, EM_SAL0], [2.85, EM_SAL0], [3.15, BF.stand]]) },
-    // shadow boxing: bouncing on his toes behind his guard, jab, jab, cross
-    boxer: { name: 'Shadow Boxer', T: 1.8, still: 1.1, pose(t) {
-      const bo = Math.abs(Math.sin((t / 1.8) * TAU * 3)), j1 = Math.sin(Math.PI * clamp((t - 0.2) / 0.28, 0, 1)), j2 = Math.sin(Math.PI * clamp((t - 0.6) / 0.28, 0, 1)), cr = Math.sin(Math.PI * clamp((t - 1.05) / 0.4, 0, 1)), jab = Math.max(j1, j2);
-      return gfit(emP({ hipL: [0.42, 0, -0.14], knL: [-0.55], ftL: [-0.15], hipR: [-0.05, 0, 0.16], knR: [-0.5], ftR: [0.15], spine: [0.2, -0.25 + 0.55 * cr - 0.15 * jab, 0], neck: [-0.15, 0.25 - 0.45 * cr, 0],
-        shL: [0.62 + 1.2 * jab, 0.38 - 0.58 * jab, 0.09 + 0.16 * jab], elL: [2.51 - 2.33 * jab], haL: [0.2], shR: [0.57 + 0.87 * cr, -0.41 + 1.0 * cr, -0.11 - 0.69 * cr], elR: [2.56 - 2.54 * cr], haR: [0.2] }, 0, 0.08, 0, 0.3), 0.05 * bo);
-    } },
-    hero: { name: 'Hands-on-Hips Nod', T: 3.2, still: 0.5, pose(t) {
-      const nod = 0.3 * Math.max(Math.sin(Math.PI * clamp((t - 0.9) / 0.35, 0, 1)), Math.sin(Math.PI * clamp((t - 1.35) / 0.35, 0, 1))), look = 0.4 * Math.sin((t / 3.2) * TAU), br = 0.03 * Math.sin((t / 3.2) * TAU * 2);
-      return gfit(EM_HERO(-0.05 + nod, look, br));
-    } },
-    qbclap: { name: 'QB Clap', T: 2.0, still: 1.2, pose: (t) => emCycG(t, 2.0, [[0, emP({ spine: [0.15, 0, 0], shL: [0.24, 0.31, -0.38], shR: [0.24, -0.31, 0.38], elL: [1.87], elR: [1.87], haL: [0.3], haR: [0.3], hipL: [0.3, 0, -0.15], hipR: [0.3, 0, 0.15], knL: [-0.45], knR: [-0.45] })],
-      [0.2, emP({ spine: [0.15, 0, 0], shL: [0.62, 0.77, 0.14], shR: [0.62, -0.77, -0.14], elL: [1.54], elR: [1.54], haL: [0.2], haR: [0.2], hipL: [0.3, 0, -0.15], hipR: [0.3, 0, 0.15], knL: [-0.45], knR: [-0.45] })],
-      [0.4, emP({ spine: [0.15, 0, 0], shL: [0.24, 0.31, -0.38], shR: [0.24, -0.31, 0.38], elL: [1.87], elR: [1.87], haL: [0.3], haR: [0.3], hipL: [0.3, 0, -0.15], hipR: [0.3, 0, 0.15], knL: [-0.45], knR: [-0.45] })],
-      [0.6, emP({ spine: [0.15, 0, 0], shL: [0.62, 0.77, 0.14], shR: [0.62, -0.77, -0.14], elL: [1.54], elR: [1.54], haL: [0.2], haR: [0.2], hipL: [0.3, 0, -0.15], hipR: [0.3, 0, 0.15], knL: [-0.45], knR: [-0.45] })],
-      [1.0, emP({ spine: [0.3, -0.25, 0], neck: [-0.4, 0.2, 0], shR: [1.55, 0, 0.1], elR: [0.03], haR: [-0.1], shL: [0.5, 0, -0.4], elL: [1.9], hipL: [0.55, 0, -0.15], knL: [-0.7], hipR: [0.1, 0, 0.15], knR: [-0.35] })],
-      ...emHold(1.3, 1.55, emP({ spine: [0.3, -0.25, 0], neck: [-0.4, 0.2, 0], shR: [1.6, 0, 0.1], elR: [0.03], haR: [-0.1], shL: [0.5, 0, -0.4], elL: [1.9], hipL: [0.55, 0, -0.15], knL: [-0.7], hipR: [0.1, 0, 0.15], knR: [-0.35] }))]) },
-    lasso: { name: 'Lasso Throw', T: 3.2, still: 0.5, pose(t) {
-      const tA = 1.7;
-      if (t < tA) { const ph = t * TAU * 1.6, sw = Math.sin((t / tA) * TAU);
-        return gfit(emP({ hipL: [0.3, 0, -0.18], hipR: [0.15, 0, 0.18], knL: [-0.45], knR: [-0.35], spine: [0.05, 0.1 * sw, 0.06 * sw], neck: [-0.45, 0, 0], shR: [2.55 + 0.25 * Math.cos(ph), 0.3, 0.55 + 0.35 * Math.sin(ph)], elR: [0.6 + 0.2 * Math.sin(ph)], haR: [0.2], shL: [-0.2, -0.5, -0.65], elL: [1.8], haL: [0.4] }, 0, 0, 0.05 * sw)); }
-      return emCycG(t, 3.2, [[tA - 0.01, emP({ hipL: [0.3, 0, -0.18], hipR: [0.15, 0, 0.18], knL: [-0.45], knR: [-0.35], neck: [-0.45, 0, 0], shR: [2.8, 0.3, 0.55], elR: [0.6], haR: [0.2], shL: [-0.2, -0.5, -0.65], elL: [1.8], haL: [0.4] })],
-        [1.95, emP({ hipL: [0.55, 0, -0.18], hipR: [-0.1, 0, 0.18], knL: [-0.6], knR: [-0.2], spine: [0.35, 0, 0], neck: [-0.4, 0, 0], shR: [1.45, 0, 0.1], elR: [0.05], haR: [0], shL: [0.4, 0, -0.5], elL: [0.9] })],
-        [2.25, emP({ hipL: [0.35, 0, -0.18], hipR: [-0.05, 0, 0.18], knL: [-0.5], knR: [-0.3], spine: [0.1, 0, 0], neck: [-0.2, 0, 0], shR: [0.9, 0, 0.25], elR: [1.6], shL: [1.4, 0, -0.2], elL: [0.4] })],
-        [2.55, emP({ hipL: [0.35, 0, -0.18], hipR: [-0.05, 0, 0.18], knL: [-0.5], knR: [-0.3], spine: [0.1, 0, 0], neck: [-0.2, 0, 0], shR: [1.4, 0, 0.2], elR: [0.4], shL: [0.9, 0, -0.25], elL: [1.6] })],
-        [2.85, emP({ hipL: [0.3, 0, -0.18], hipR: [0.05, 0, 0.18], knL: [-0.45], knR: [-0.35], neck: [-0.3, 0, 0], shR: [0.9, 0, 0.25], elR: [1.6], shL: [1.4, 0, -0.2], elL: [0.4] })],
-        [3.19, emP({ hipL: [0.3, 0, -0.18], hipR: [0.15, 0, 0.18], knL: [-0.45], knR: [-0.35], neck: [-0.45, 0, 0], shR: [2.8, 0.3, 0.55], elR: [0.6], haR: [0.2], shL: [-0.2, -0.5, -0.65], elL: [1.8], haL: [0.4] })]]);
-    } },
-    bow: { name: 'Bow and Arrow', T: 3.2, still: 1.2, pose: (t) => emCycG(t, 3.2, [[0, BF.stand], [0.35, emP({ neck: [-0.1, -0.7, 0], shL: [0.4, 0, -1.2], elL: [0.4], shR: [0.6, -0.5, 0.6], elR: [1.9] }, 0, 0, 0, 0.25)],
-      [0.75, EM_BOWD], [1.5, (() => { const q = lerpPose(EM_BOWD, EM_BOWD, 0); q[B.elR * 3] -= 0.12; return q; })()], [1.62, EM_BOWR], [2.3, EM_BOWR], [2.8, emP({ neck: [-0.1, -0.4, 0] }, 0, 0, 0, 0.15)]]) },
-    // the airplane: arms out like wings, banking left and right as he turns a full circle on the spot
-    airplane: { name: 'Airplane', T: 4.0, still: 0.6, pose(t) {
-      const ph = (t / 4.0) * TAU, bank = Math.sin(ph * 2), st = Math.sin(ph * 6);
-      return gfit(emP({ hipL: [0.35 + 0.25 * Math.max(0, st), 0, -0.1], hipR: [0.35 + 0.25 * Math.max(0, -st), 0, 0.1], knL: [-0.55 - 0.35 * Math.max(0, st)], knR: [-0.55 - 0.35 * Math.max(0, -st)], ftL: [-0.15], ftR: [-0.15],
-        spine: [0.32, 0, 0.12 * bank], neck: [-0.45, 0, -0.1 * bank], shL: [0.25, 0, -1.55 + 0.2 * bank], shR: [0.25, 0, 1.55 + 0.2 * bank], elL: [0.08], elR: [0.08], haL: [0], haR: [0] }, 0, 0.12, 0.3 * bank, ph), 0.02 * Math.abs(st));
-    } },
-    raiseroof: { name: 'Raise the Roof', T: 1.1, still: 0.3, pose(t) {
-      const ph = (t / 1.1) * TAU * 2, s = 0.5 + 0.5 * Math.sin(ph), bo = Math.abs(Math.sin(ph / 2 + 0.5));
-      return gfit(emP({ hipL: [0.3 + 0.2 * (1 - s), 0, -0.18], hipR: [0.3 + 0.2 * (1 - s), 0, 0.18], knL: [-0.5 - 0.35 * (1 - s)], knR: [-0.5 - 0.35 * (1 - s)], ftL: [-0.2 - 0.15 * (1 - s)], ftR: [-0.2 - 0.15 * (1 - s)], spine: [0.08, 0, 0], neck: [-0.25 - 0.2 * s, 0, 0],
-        shL: [0.87 + 0.48 * s, -0.22 + 1.32 * s, -0.97 - 0.74 * s], shR: [0.87 + 0.48 * s, 0.22 - 1.32 * s, 0.97 + 0.74 * s], elL: [2.67 - 2.08 * s], elR: [2.67 - 2.08 * s], haL: [-0.9], haR: [-0.9] }, 0, 0, 0.06 * Math.sin(ph / 2)), 0.03 * bo);
-    } },
-    kick: { name: 'Karate Kick', T: 2.6, still: 0.82, pose: (t) => emCycG(t, 2.6, [[0, emP({ hipL: [0.3, 0, -0.15], hipR: [0.15, 0, 0.15], knL: [-0.5], knR: [-0.4], shL: [0.56, 0.46, 0.13], shR: [0.38, -0.42, -0.07], elL: [1.91], elR: [2.04] }, 0, 0, 0, 0.3)],
-      [0.45, emP({ hipL: [0.15, 0, -0.1], knL: [-0.3], hipR: [1.7, 0, 0.1], knR: [-2.1], ftR: [-0.3], spine: [-0.05, 0, 0], shL: [0.56, 0.46, 0.13], shR: [0.38, -0.42, -0.07], elL: [1.91], elR: [2.04] }, 0, 0, 0, 0.3)],
-      [0.7, emP({ hipL: [0.1, 0, -0.1], knL: [-0.2], hipR: [1.85, 0, 0.1], knR: [-0.1], ftR: [-0.5], spine: [-0.2, 0, 0], neck: [0.1, 0, 0], shL: [0.9, 0, -0.5], shR: [-0.3, 0, 0.6], elL: [1.6], elR: [1.5] }, 0, -0.1, 0, 0.3)],
-      [0.95, emP({ hipL: [0.15, 0, -0.1], knL: [-0.3], hipR: [1.7, 0, 0.1], knR: [-2.1], ftR: [-0.3], spine: [-0.05, 0, 0], shL: [0.56, 0.46, 0.13], shR: [0.38, -0.42, -0.07], elL: [1.91], elR: [2.04] }, 0, 0, 0, 0.3)],
-      [1.3, emP({ hipL: [0.3, 0, -0.15], hipR: [0.15, 0, 0.15], knL: [-0.5], knR: [-0.4], shL: [0.56, 0.46, 0.13], shR: [0.38, -0.42, -0.07], elL: [1.91], elR: [2.04] }, 0, 0, 0, 0.3)],
-      [1.75, emP({ hipL: [0.15, 0, -0.08], hipR: [0.15, 0, 0.08], spine: [0.55, 0, 0], neck: [0.15, 0, 0], shL: [1.0, 0.3, 0.1], shR: [1.0, -0.3, -0.1], elL: [1.9], elR: [1.9] })],
-      [2.2, emP({ hipL: [0.15, 0, -0.08], hipR: [0.15, 0, 0.08], spine: [0.05, 0, 0], shL: [1.0, 0.3, 0.1], shR: [1.0, -0.3, -0.1], elL: [1.9], elR: [1.9] })]]) },
-    // can't hear you: a hand cupped to his ear leaning towards the crowd, waving them on, then fist pumps
-    cupear: { name: "Can't Hear You", T: 3.0, still: 0.8, pose(t) {
-      if (t < 1.6) { const w = Math.sin(t * 9), e = emS(t / 0.35) * (1 - emS((t - 1.35) / 0.25));
-        const a = emP({}), b = emP({ hipL: [0.15, 0, -0.22], hipR: [0.15, 0, 0.22], knL: [-0.25], knR: [-0.2], spine: [0.1, -0.2, -0.3], neck: [-0.1, 0.4, -0.25], shR: [1.86, -0.79, 1.14], elR: [2.51], haR: [-0.5], shL: [1.3, 0, -0.5], elL: [1.2 + 0.6 * w], haL: [-0.4] }, 0, 0, -0.1);
-        return gfit(lerpPose(a, b, e)); }
-      const u = (t - 1.6) / 1.4, p = Math.max(0, Math.sin(u * TAU * 2.5)), e = emS(u / 0.15) * (1 - emS((u - 0.8) / 0.2));
-      const a = emP({}), b = emP({ hipL: [0.35 + 0.2 * p, 0, -0.2], hipR: [0.35 + 0.2 * p, 0, 0.2], knL: [-0.6 - 0.25 * p], knR: [-0.6 - 0.25 * p], spine: [0.12, 0, 0], neck: [-0.5, 0, 0], shL: [2.1 + 0.6 * p, 0, -0.35], shR: [2.1 + 0.6 * p, 0, 0.35], elL: [1.6 - 1.2 * p], elR: [1.6 - 1.2 * p] });
-      return gfit(lerpPose(a, b, e), 0.04 * p * e);
-    } },
-  };
+    backflip: { name: 'Backflip', T: BF_T, pose: emBackflip, still: 3.3 },
+  }, EM_MOVES);
+  // ---- EM_BAKE: generated by tools/emotes-bake.js, do not edit by hand ----
+  EM_BAKE = {"foldnod":{"sig":"ayv5b2","fits":{"48:45":{"p":"//8=","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//855PUUjw2Y6SIK8f6JAz0BPunF6obzGOs79ZD9P/w+/1ED2QJwAAbuthMU/PMGgv+mAAAMmPzC6LEP/ft6BQUAPvE/FGUEU+k6DI4APgT+/j7xPxRlBFPpOgyOAD4E/v6mAAAMmPzC6LEP/ft6BQUAUQPZAnAABu62ExT88waC/7cCav14/+zvD+xt+/z4TgCnAN3zJAJm6x7wdfxr+vkAwfTd7PD7b+sY85r+fPvwAMH03ezw+2/rGPOa/nz78ACnAN3zJAJm6x7wdfxr+vkAtwJq/Xj/7O8P7G37/PhOAA=="},"53:55:5":{"p":"//8=","x":"/xb0B+4B+gD/6gwHEgEGAIBe34DxEYA7EoDK7gi7A9iAxOOAz+2AP+6ACvD2xfwfrYD6B4Dw/SmAkBCAxf+OzoCO+4DlCIDeAlyAdROAcvlufYCf6d2AVQuA9evg3vTvgJ/p3YBVC4D16+De9O+AjvuA5QiA3gJcgHUTgHL5bn2tgPoHgPD9KYCQEIDF/47OkoCB94AkAkaAoO+A5P9tbIAn/ICi8Lp2emAwR4BW7f+AbPV4K/0RI4BW7f+AbPV4K/0RI4An/ICi8Lp2emAwR5KAgfeAJAJGgKDvgOT/bWw="},"48:50:4":{"p":"//8=","x":"AAAAAAAAAAAAAAAAAAAAAKrTU1EC5AH2ny6iSv3o/wX19xsGBP8C8bjWZj0W5QnigJ7u+3os9fX89YCe7vt6LPX1/PW41mY9FuUJ4vX3GwYE/wLxgCAAgDj5gBgCdIDp7oAA/1+ABwOkmuc3QXgUSpEEmicI9gMKkQSaJwj2Awqkmuc3QXgUSoAgAIA4+YAYAnSA6e6AAP9fgAcD"},"50:50:3":{"p":"//8=","x":"/wv6A/cA/QD/9QYDCQADAIAr4biAhhB9A+EB74DD5UiAIvB2/Ob/DM6UgCgD83qAPvksgIkCnTE+Ne4c+fuAjewBgKEIPuv5+O6AjewBgKEIPuv5+O6dMT417hz5+86UgCgD83qAPvksgIkC9TW+AePr8wOZwMA7KkYMPYDC8PeAVvg5E/0HFYDC8PeAVvg5E/0HFZnAwDsqRgw99TW+AePr8wM="}}},"dustoff":{"sig":"1j9975q","fits":{"48:45":{"p":"/z/DGGeYAw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4///q6jLz2PXy4g3wafu/+qD2bd4X9MzrHO1E7aT9lfky+BDqTfLf85rywd9yBTD4Y/vq6s4MKAry4vMPaftBBWAJbd7pCzQUHO28EqT9awbOBxDqsw0hDJryPyByBdAHnQQq/JUOvgCk7zT/0vvs//T4xgDo8WgCleYc3Z0AMPhF+CT7IvXV/jfrMN29ADD4+fqxBHcBQQAz63oUavsaB+MBDQNsCRP99eLXEeb9LQbuAvT1ug1YA2HiOhGi/voFZQVK4WEMwBHW6uQRpv0pBkcGSuFhDMAR1urkEab9KQZHBkrhYQzAEdbq5BGm/SkGRwYm4ZEMLhKu7kIVEgBaB2EFJPMiDmEGCPGoDpIA/QQR/9j3Tw5TAw/w8wZb/mUC2vyxBIn+v/8z64bravvm+B3+DQOU9u0C9eIp7uX90/kR/fT1RvKo/GHixu6i/gb6m/pK4Z/zQO7W6hvupv3X+bn5SuGf80Du1uob7qb91/m5+Urhn/NA7tbqG+6m/df5ufkm4W/z0u2u7r7qEgCm+J/6U/Gs9Dz4FPKj5EwDMPjo/Kj7wvS7/lfuYeilAjD4kPz5/kP6GwCj81HqwP+Z+Dr+"},"53:55:5":{"p":"/7/nf/f84/8=","x":"/xb0B+4B+gD/6gwHEgEGAIkqkICM5tT870aAjtuARvfEgIj0JD0HgDb8gBDmQoDh8ID59i1kAEuJ1nCAjOYs/BG6gI7bgLoIPICI9Nw9+YDKA4AQ5r6AHw+A+fbTZAC1yXb6BcYh69250sksAgYA4caaByY7HwDZ7zH4EOok+fuKClpcBvABAoD78hVudQEdAN2ASOGA3wqA7hCAnu2A6hCA5f2A1wWAXASAVt2hUYB28MVN7oB4A4BW3aFRgHbwxU3ugHgDgEjhgN8KgO4QgJ7tgOoQgOX9gNcFgFwEgEjhgN8KgO4QgJ7tgOoQgOX9gNcFgFwEgFbdoVGAdvDFTe6AeAOA/NyoYYDe87pT6IDSAoBG4IBVC4BNEoD89IAOF4BcA4DQB4ClAoBj44DjC4CNEIDd9YApGoBRBYDQB4BQAoBR64CCDYByC4Al9YCAFYCNBIBOB4AaAIBK8DJKacJL6dOoYRAvvT3o14B8/YBjDIBj/4A78YDBA4DS/IBkAYCJ+4AY/4C5B4Ag/4Co84CzCYBt/IB0A4AW/e/PCBAWJAcFivamXPrx//6A+/LrknX/HQAjgEjhgCH1gBLvgJ7tgBbvgOX9gCn6gKT7gFbdX6+AdvA7TRKAiPyAVt1fr4B28DtNEoCI/IBI4YAh9YAS74Ce7YAW74Dl/YAp+oCk+4BI4YAh9YAS74Ce7YAW74Dl/YAp+oCk+4BW3V+vgHbwO00SgIj8gPvcWJ+A3vNGUxiALv2ARuCAq/SAs+2A/PSA8uiAXAOAMPiAW/2AY+OAHfSAcu+A3fWA1+WAUQWAMPiAsP2Anu3KhmBJVwAGxYCU8RUHdYAlBRwR64AN9zADgPfsgBsDOiaAQP6AH/KArQCAouiAM+CATgGAMPiAevqAAf2ARPKAewCAtemAqOCAmwGAMPiA4vqAm/uAuvKA3/+A2OqA5uCAtgGAMPiAVfuAm/uAuvKA3/+A2OqA5uCAtgGAMPiAVfuAAf2ARPKAewCAtemAqOCAmwGAMPiA4vqAQP6AH/KArQCAouiAM+CATgGAMPiAevqAQP6AH/KArQCAouiAM+CATgGAMPiAevqAAf2ARPKAewCAtemAqOCAmwGAMPiA4vqAm/uAuvKA3/+A2OqA5uCAtgGAMPiAVfuAWfyAQvaAKwCAHu+AxOOAewCAMPiArvyAb/6AHvqAowCAU/KA4OWA4/6AMPiAwv0="},"48:50:4":{"p":"/z/DP2f4g+E=","x":"AAAAAAAAAAAAAAAAAAAAAOML6DT3+/wStjrlgO7vFhsFTwAAAAAAAAAA4/UYNAn7BO62xhuA7u/qG/uxAAAAAAAAAAAkN77f3hjz+AAAAAAAAAAABMow+i0MAO/8GvcC9Br8/MbzNCwI8gMD2AQZI/8HAPap3B5y4x73yKncHnLjHvfIqdwecuMe98iy4Bph4xr2z4CF44BcDIBXEIBj8YDlF4AeAoDQB4AYBIAu54DTDIAJDoAJ8oADG4DZA4DQB4CVA4CV7oBcDoDzCIC/8YDtFYA9A4B0B4AYAQE92unXHvD4HkW63tQf8POAfv6A3wqAFP+A9PCAewSAY/yAqAGA7vv85gkCDBoEBMYNzCz48v392PznIwEHAAqpJOJyHR4JOKkk4nIdHgk4qSTich0eCTiyIOZhHRoKMYCF44Ck84Cp74Bj8YAb6IAeAoAw+IDo+4Au54At84D38YAJ8oD95IDZA4Aw+IBs/NnZ+ggeEgD0ApI28DlVBvEXgML8u9Kqqev6gMj8gMzzgIsAgATqgJ7ggE8BgDD4gLP7gMj8gMzzgIsAgATqgJ7ggE8BgDD4gLP7gMj8gMzzgIsAgATqgJ7ggE8BgDD4gLP7gED9gCP3gKcAgHTugHXjgCoAgDD4gOv8gA3/gMj6gOoAgNDxgJrlgLL+gDD4gOr9"},"50:50:3":{"p":"/7/nP/f8A0A=","x":"/wv6A/cA/QD/9QYDCQADAMISxlrq/vcgpVPbgPfwGCMFa5sjrnESOQAewu46Whb+CeClrSWA9/DoI/uVm91Sce45AOLjNwEG5g737d7o5hUBAwDw5NACExoPAOz4BwcJ//8AAMUILC0D+QECtwc7OgUHAvOA7eKAnwuAKRCAFeuAMRGAXf2A6gWAhwWMyy+A7+3gKPe0jMsvgO/t4Cj3tIDt4oCfC4ApEIAV64AxEYBd/YDqBYCHBYDt4oCfC4ApEIAV64AxEYBd/YDqBYCHBYzLL4Dv7eAo97SDzDmAr/HYL/K5gC7igOsLgEkRgNjygJ4XgL4CgNAHgKUDgHblgFQMgFIPgNbzgLQagLEEgNAHgB4DgPnsgKkNgG8KgI/zgO4VgOQDgHUHgK8Ash8pNd4s8+rSNgkY3SPz6oCs/YAWC4Dc/4Bu8YB4BIBY/ICoAYDH+/j5+QkB/wAAxfjULf35//63+cU6+wf+DYDt4oBh9IDX74AV64DP7oBd/YAW+oB4+ow10YDv7SAoCUyMNdGA7+0gKAlMgO3igGH0gNfvgBXrgM/ugF39gBb6gHj6gO3igGH0gNfvgBXrgM/ugF39gBb6gHj6jDXRgO/tICgJTIM0x4Cv8SgvDkeALuKAFfSAt+6A2PKAYuiAvgKAMPiAW/yAduWArPOArvCA1vOATOWAsQSAMPiA4vyg48E1JjMA/+KjCgI8UwcAHnrD0KbD6wCAvfyAbfeA1/+A3u6AHeOAFwCAMPiA6/w="}}},"hips":{"sig":"1rvv4kb","fits":{"48:45":{"p":"Dw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+ACysLcvZt6iUJXQm/At35gAvV9I4Jberb9l0JQf0jBg=="},"53:55:5":{"p":"Dw==","x":"/xb0B+4B+gD/6gwHEgEGABrx1/7q7fn7Gg8p/hbtBwU="},"48:50:4":{"p":"Dw==","x":"AAAAAAAAAAAAAAAAAAAAAAbS+v4E1AQKBi4G/vzU/PY="},"50:50:3":{"p":"Dw==","x":"/wv6A/cA/QD/9QYDCQADAA756/719/z9DgcV/gv3BAM="}}},"calmdown":{"sig":"l7mziz","fits":{"48:45":{"p":"Pw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//9fBKQCbfl4514fQgfQB90BXwRc/ZMGeOei4EIHMPgj/ugCjAWT+fLxvxugD9AHEPzoAnT6bQby8UHkoA8w+PAD"},"53:55:5":{"p":"Pw==","x":"/xb0B+4B+gD/6gwHEgEGAAcE4QjoDQD8B/wfCBgNAAQIDOMS3gAA9Aj0HRIiAAAM"},"48:50:4":{"p":"Pw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},"50:50:3":{"p":"Pw==","x":"/wv6A/cA/QD/9QYDCQADAAMC8QT0BwD+A/4PBAwHAAIEBvEJ7wAA+gT6DwkRAAAG"}}},"tooeasy":{"sig":"ei172u","fits":{"48:45":{"p":"Pw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//8jBBz8NP2o5RD7g/5U/oH6IwTkA8wCqOXwBIP+rAF/BbMC7PoT/B3jjvohAgT+hvqzAhQF7QMd43IFIQL8AXoF"},"53:55:5":{"p":"Pw==","x":"/xb0B+4B+gD/6gwHEgEGAO/l7BPxBPoX7xsTEw8EBuno5OMc7gH6GOgcHRwSAQbo"},"48:50:4":{"p":"Pw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},"50:50:3":{"p":"Pw==","x":"/wv6A/cA/QD/9QYDCQADAPjy9gn5Av0L+A4KCQcCA/X08vIO9wH9DPQODg4JAQP0"}}},"skypoint":{"sig":"hesrrp","fits":{"48:45":{"p":"/8B/","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+I9Gfv8Psr5tj0mfra+9oGAPRZ8j79uOis9n33aPzpBazopexrFvvzWf+gBtP/GQECAwH9TgGr7zztvvtr+UUBmwJL95oCAun370/8UvozAzL7HfOE//LnNvKN+xD7NgSX8vfvSQMX5HP3HwD//PsBdezV8qwHMuN8+d4Eif0O/hTnoPEiDETqCfvWBRT+3f4U56DxIgxE6gn71gUU/t3+dezV8qwHMuN8+d4Eif0O/pfy9+9JAxfkc/cfAP/8+wEy+x3zhP/y5zbyjfsQ+zYEmwJL95oCAun370/8UvozAwIDAf1OAavvPO2++2v5RQE="},"53:55:5":{"p":"/8B/","x":"/xb0B+4B+gD/6gwHEgEGAIBA8BSAVPiAK+n7+vwmj+agSu4Y+CQH9wgCAwYBAfcI4v4B7AAErPm3NATkAQaATPi2sE4iMwwwgPLv9I1g9BH8HdDl0TXpIvca7+7xHP0a/xLv7vEc/Rr/EtDl0TXpIvcagPLv9I1g9BH8HYBM+LawTiIzDDCs+bc0BOQBBvcI4v4B7AAE"},"48:50:4":{"p":"/8B/","x":"AAAAAAAAAAAAAAAAAAAAANIP2CkB8f8EAAAAAAAAAAAAAAAAAAAAAPoH9QT++f//7APsDQH2AP/f6P0WEhMHD+UF5xz/+gAF+v34EPwC/wb//v8IAAIABP/+/wgAAgAE+v34EPwC/wblBecc//oABd/o/RYSEwcP7APsDQH2AP/6B/UE/vn//w=="},"50:50:3":{"p":"/8B/","x":"/wv6A/cA/QD/9QYDCQADAJQMn0z6+f0PyfHRJPcN/BIE/AQBAQMBAfsF8P8A9QAB4/XkDwP3AQW67cspBgkCD778wy/4Bv0L6PTmGvQP+wr3+PcN/gz/B/f49w3+DP8H6PTmGvQP+wq+/MMv+Ab9C7rtyykGCQIP4/XkDwP3AQX7BfD/APUAAQ=="}}},"slowclap":{"sig":"1qow433","fits":{"48:45":{"p":"/wAAAAAAQAIAAAAAQA==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+lAisAEv333jYR6gP2BVX+cwLj/+wCo96+7ucDAvpAAYz8cgqp/7DjYxOQCngGkf1R/J71NABr42/seApv+QkCsvsQC4IAUuSuEyMLhwZn/bL78PR+/1LkUuwjC3n5mQIYAQ8Ftf7p64IUmAMmB2H/sQKVAIICWuuu7Pz/Pfl4ABgB8fpLAenrfuuYA9r4nwA="},"53:55:5":{"p":"/8CBAwcO/MKBAwcO/A==","x":"/xb0B+4B+gD/6gwHEgEGAAII7wD4EP37AvgRAAgQAwXUNRUgADb89dTJ7SAAOAQLyEwGJu5Q9PLItPomElAMDoB5+4CGC4ArAIBL5ICPE4AXC4CeBoAw/oA2+4DLC4BKAIB45ICLE4BaC4CaBoAm/oDz+oAPDIBrAICm5ICJE4CcC4CXBoAd/oB5+4CGC4ArAIBL5ICPE4AXC4CeBoAw/oA2+4DLC4BKAIB45ICLE4BaC4CaBoAm/oDz+oAPDIBrAICm5ICJE4CcC4CXBoAd/oB5+4CGC4ArAIBL5ICPE4AXC4CeBoAw/oA2+4DLC4BKAIB45ICLE4BaC4CaBoAm/oDz+oAPDIBrAICm5ICJE4CcC4CXBoAd/oB5+4CGC4ArAIBL5ICPE4AXC4CeBoAw/oA2+4DLC4BKAIB45ICLE4BaC4CaBoAm/oDz+oAPDIBrAICm5ICJE4CcC4CXBoAd/oB5+4CGC4ArAIBL5ICPE4AXC4CeBoAw/oA2+4DLC4BKAIB45ICLE4BaC4CaBoAm/oDz+oAPDIBrAICm5ICJE4CcC4CXBoAd/oC2/IBCCYCt/4Cx6YCoE4AnCIC7BoB6/vw27/vtLvn9gP0AgH4CgGD+gDfzgI8UgDkAgC8HgIH/AfIPAg0IBQKATPuAgPSAwf+AHeSAVuyAEAuAVPmAmAGAGPuAOfSAqP+AWuSAYuyAVQuAXPmAtAGA5PqA8/OAjv+Al+SAbuyAmQuAZfmA0AGATPuAgPSAwf+AHeSAVuyAEAuAVPmAmAGAGPuAOfSAqP+AWuSAYuyAVQuAXPmAtAGA5PqA8/OAjv+Al+SAbuyAmQuAZfmA0AGATPuAgPSAwf+AHeSAVuyAEAuAVPmAmAGAGPuAOfSAqP+AWuSAYuyAVQuAXPmAtAGA5PqA8/OAjv+Al+SAbuyAmQuAZfmA0AGATPuAgPSAwf+AHeSAVuyAEAuAVPmAmAGAGPuAOfSAqP+AWuSAYuyAVQuAXPmAtAGA5PqA8/OAjv+Al+SAbuyAmQuAZfmA0AGATPuAgPSAwf+AHeSAVuyAEAuAVPmAmAGAGPuAOfSAqP+AWuSAYuyAVQuAXPmAtAGA5PqA8/OAjv+Al+SAbuyAmQuAZfmA0AGAtvyAvvaAUwCAsemAWOyAJwiARfmAhgH8yhH7Ey4HA4D9AICC/YCgAYA384Bx64A5AIDR+IB/AA=="},"48:50:4":{"p":"/8CBAwcOfMKBAwcOfA==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBPoA/QX//wH6CAAFCAIBAhri/u4d+PwC5h7+Eh0IBIBi/ICSCoCi/4Cn44B4E4AvCoCgBoBQ/oAv/IDVCoC3/4DM44B5E4BuCoCeBoBH/oD7+4AXC4DN/4Dx44B7E4CtCoCcBoA+/oBi/ICSCoCi/4Cn44B4E4AvCoCgBoBQ/oAv/IDVCoC3/4DM44B5E4BuCoCeBoBH/oD7+4AXC4DN/4Dx44B7E4CtCoCcBoA+/oBi/ICSCoCi/4Cn44B4E4AvCoCgBoBQ/oAv/IDVCoC3/4DM44B5E4BuCoCeBoBH/oD7+4AXC4DN/4Dx44B7E4CtCoCcBoA+/oBi/ICSCoCi/4Cn44B4E4AvCoCgBoBQ/oAv/IDVCoC3/4DM44B5E4BuCoCeBoBH/oD7+4AXC4DN/4Dx44B7E4CtCoCcBoA+/oBi/ICSCoCi/4Cn44B4E4AvCoCgBoBQ/oAv/IDVCoC3/4DM44B5E4BuCoCeBoBH/oD7+4AXC4DN/4Dx44B7E4CtCoCcBoA+/oCO/YBmCIA+/4Aa6YDAE4BtB4DKBoCW/gUO7/v2Efz/AAAAAAAAAACANvyAcfWATACAeOOAb+yAKQqAVPmAeAGAEfyALvWAPQCArOOAduyAagqAWvmAkwGA7fuA6vSALQCA4eOAfeyAqwqAYPmArwGANvyAcfWATACAeOOAb+yAKQqAVPmAeAGAEfyALvWAPQCArOOAduyAagqAWvmAkwGA7fuA6vSALQCA4eOAfeyAqwqAYPmArwGANvyAcfWATACAeOOAb+yAKQqAVPmAeAGAEfyALvWAPQCArOOAduyAagqAWvmAkwGA7fuA6vSALQCA4eOAfeyAqwqAYPmArwGANvyAcfWATACAeOOAb+yAKQqAVPmAeAGAEfyALvWAPQCArOOAduyAagqAWvmAkwGA7fuA6vSALQCA4eOAfeyAqwqAYPmArwGANvyAcfWATACAeOOAb+yAKQqAVPmAeAGAEfyALvWAPQCArOOAduyAagqAWvmAkwGA7fuA6vSALQCA4eOAfeyAqwqAYPmArwGAjv2AmveAwgCAGumAQOyAbQeANvmAagEF8hH7ChEEAQ=="},"50:50:3":{"p":"/wAAAAAAYAIAAAAAYA==","x":"/wv6A/cA/QD/9QYDCQADAAEE9wD8CP79AfwIAAQIAgPrGA0QAxj/++ro8hD9GAAF5RoPEwAc/vrl5vETABwCBoAb/YBKCIAIAIBx6YAZFIBHB4DrBoCQ/vwU/wD7D/7/AfkHAQYEAgGAG/2AtveA+P+AcemA5+uARweAFfmAcAH87AEABQ8CAQ=="}}},"watch":{"sig":"8urve","fits":{"48:45":{"p":"v3QAAQ==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//8W+/4Mbf5U5vMgBPvQB3X8vPUE9gH8COWq3pbzMPjI/jH3e/R2/J3mqd1n9zD4XAA2CBT+uAMp6GbyygRA++P/IwA4Brv94+20GaX70AcQ/yMAOAa7/ePttBml+9AHEP/XAG3+vgDl8VPoAfow+H7/l/8o+xcA1uou5tD3MPjE/nD5l/jN/Yfpf+PZ9TD4p/5v+1D2xf4L50PlNPsw+MP/"},"53:55:5":{"p":"v/T/Aw==","x":"/xb0B+4B+gD/6gwHEgEGALE0PTX+EwAbp8jUSBUxAOqHrNZQMzoA4AXwFv8SDgf/8CoMBPMMAA3wKgwE8wwADQDjBPoTCwD47ssDBxofAPLBnAkmNUQA7oBG9IBH9IB8+4AT54Ba4YCn9YAw+IAz/oBz9IC684Cc+4B+54Ba4YCg9oAw+IB8/oCh9IAu84C6+4Dn54BW4YCa94Aw+IDJ/oCh9IAu84C6+4Dn54BW4YCa94Aw+IDJ/oBz9IC684Cc+4B+54Ba4YCg9oAw+IB8/oBG9IBH9IB8+4AT54Ba4YCn9YAw+IAz/oBG9IBH9IB8+4AT54Ba4YCn9YAw+IAz/oBz9IC684Cc+4B+54Ba4YCg9oAw+IB8/oCh9IAu84C6+4Dn54BW4YCa94Aw+IDJ/qGc/zs4SwDxgIP+gEf4gN//gC3ogP3pgNv+gHX4gMz/"},"48:50:4":{"p":"v/T/Aw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA+O4TAhcLAPrz1CcCLRUA8QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD5Bv0HBQD+/fIN/Q8MAPz1yC4ALSYA+4AK9oAQ9YDL/ICp5YBQ4YDi9IAw+IBo/oBb9oCI9IAC/YAJ5oBI4YDZ9YAw+ICv/oCs9oAC9IA3/YBp5oA74YDR9oAw+ID6/oCs9oAC9IA3/YBp5oA74YDR9oAw+ID6/oBb9oCI9IAC/YAJ5oBI4YDZ9YAw+ICv/oAK9oAQ9YDL/ICp5YBQ4YDi9IAw+IBo/oAK9oAQ9YDL/ICp5YBQ4YDi9IAw+IBo/oBb9oCI9IAC/YAJ5oBI4YDZ9YAw+ICv/oCs9oAC9IA3/YBp5oA74YDR9oAw+ID6/vjINQApJwD5gIz/gM/4gHgAgGrngMTpgF7+gGL4gOn/"},"50:50:3":{"p":"v/T/Aw==","x":"/wv6A/cA/QD/9QYDCQADANocHBr/CQAO2OnmIgIVAPbG0vEnGx4A7gL4CwAJBwMA+BYFAvoGAAf4FgUC+gYABwDzAP4HBAD8+Or+BAkMAPnhzAYUGyMA94Be9YAL9YDR+4BQ5oD54IAB9YAw+IBT/oCd9YCG9ID7+4C25oD04ID49YAw+ICc/oDe9YAC9IAl/IAc54Dr4IDw9oAw+IDq/oDe9YAC9IAl/IAc54Dr4IDw9oAw+IDq/oCd9YCG9ID7+4C25oD04ID49YAw+ICc/oBe9YAL9YDR+4BQ5oD54IAB9YAw+IBT/oBe9YAL9YDR+4BQ5oD54IAB9YAw+IBT/oCd9YCG9ID7+4C25oD04ID49YAw+ICc/oDe9YAC9IAl/IAc54Dr4IDw9oAw+IDq/tTMBBwcJgD3gCn/gL34gAsAgMbngLbpgH7+gF/4gOT/"}}},"waveoff":{"sig":"14a86dx","fits":{"48:45":{"p":"/wc=","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+M9cDz8/2k6471YfdC/PkBHgQhAHgMpuVP3Z/uMPig9vwGqP3ZC+/oKN+98jD4oPar/zT6dAPV5y7qTPWn+DX+Wgar/20KQuY63UXwMPig9igIoPyOCi/qdN/39DD4oPZLAMP9MAEJ9HTtLvuH+U0AKP/g+SIBPe538Jv6lPqRAAL5EPcR/4Lu1vLj+F/7LwE="},"53:55:5":{"p":"/xc=","x":"/xb0B+4B+gD/6gwHEgEGAJ/esETvIfkiAvovOx03AAAC+Sk3EjIAAP7PDwcSLgQE//0sLRksAAAE+icqFSoAAAPp+/ILBwQC79vxAgQUAQzI3NAe+hz9EoBz/IBp+YBaBYCP6YCo6oBr9IAR+YAb/Q=="},"48:50:4":{"p":"/wc=","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"50:50:3":{"p":"/wc=","x":"/wv6A/cA/QD/9QYDCQADANHt2iH3EfwRAf0ZHBAbAAAC/RUbChkAAP/nCAMJFwICAP8WFg0WAAAC/RQUCxUAAAL0/vkFBAIB+O35AQIKAQbl7ekO/Q/+CQ=="}}},"salute":{"sig":"u5vqli","fits":{"48:45":{"p":"/wEc","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+D/of9Bwjw3IjqmAkv+dwHQugV+l0RBtup7/74m/p7+lTxTv2RDuDfMOYy+jD4oPb49Eb/pAxW34XkBfsw+KD2SwMuAI8DYu/j6q3/ovhBAXwEaP8zBSTmquqCA6D4xQK4AML+eQYP4lnqwQWd+FkEfPoZAQ4KNeL/5n77MPih+cIBqQFNBxbkpehz/DD46PoAA7oAsQRk7fjpgfxu+GX9"},"53:55:5":{"p":"/wEc","x":"/xb0B+4B+gD/6gwHEgEGAAvuI/8GJQYBCr8WBQMv/+sNBCgLGSMAAAYIKBAdIwAABesUARAMBgAI7hz/DBgFAAnvHv8IHAQAAQUhDRYbAAEBARwIFRUAAAPzFwUVDQcA"},"48:50:4":{"p":"/wEc","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},"50:50:3":{"p":"/wEc","x":"/wv6A/cA/QD/9QYDCQADAAX3EgADEwMABd8LAgIYAPUHAhUFDRIAAAMEFQgPEgAAAvUKAAgGAwAE9w7/BgwCAAT3D/8EDgIAAQIRBwsOAAABAQ4ECgsAAAL6DAIKBwMA"}}},"neckroll":{"sig":"i4q3wc","fits":{"48:45":{"p":"/38AAIAAOAAAJw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//+Z66D/jhhE5233ke4Y/WgAxOMO7JgS+/K0/THzT/8O/+ftcOV6HaLs3f4F7ev/W/5l/Brm7Cuu6qH/eOxEAOv9j9AZ6f7/SeqV/3jsTACv/acJRgWL9BvuHgNACxcBNQB/AzH09ALl/Xr0Tf/4+8f/gAPPCwv94/2GC07/CAQ5AKcJufp1Cxvu4vxAC+r+zP+/DMEJOfi285YLwAEPBFsAvww/9scHtvNq9MAB8ful/3gFawWY+nnw4QlGBHUDRAB4BZb6aAV58B/2RgSL/Lz/9gFFBsb9c/yBD1z+eAXoAPkGjgCsCIDpLfBj/Ir6SQAtAq0IxgrT4APyi/ck+3UAp/GnBuoSlOIR9jbyCf1N/qfxpwbqEpTiEfY28gn9Tf4tAq0IxgrT4APyi/ck+3UA+QaOAKwIgOkt8GP8ivpJAPMBvvk5AnX8ffBc/oj6F/8="},"53:55:5":{"p":"/38AAIADOAAAPw==","x":"/xb0B+4B+gD/6gwHEgEGAPYDADza0fQD+OH7DgQQAQTWANRC+vr//YBi896A1CJH/AD//ICG9oCB5YD/JUT6APwKCwnaK+PX9v4NzBAGJ/4O/w408AXZ//IBC/cmKx3XCgIkLc8D1AzxASTTMQMsDA//Dh7hAuAH9QAO4h8CIAcLAJjFDzMm7g8sgNsAgCMEgML9gO37gCwRgFT9gAQGgD0BgKoCgHoCgHr9gNX5gJASgPn8gHwGgEUA9gQKEQLoAfzkBwMj/NsA/er/BTPszf786v8FM+zN/vzkBwMj/NsA/fYEChEC6AH8gKMCgIj9gIQCgNn5gG7tgPf8gIT5gLj/gNMAgOD7gDsCgPX7gNLugFL9gPv5gML+lzvxNNnu8dQ="},"48:50:4":{"p":"/38AAIADOAAAPw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgDn/ohtEQuwYMoANAIB1A4AO/oBP/IC3EYBI/YAzBoBmAYCWAYDFAYDQ/YAs+oAeE4DX/ICqBoCxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAICWAYA7/oAwAoAs+oDh7IDX/IBW+YBP/4AMAICL/IDyAYBQ/IBJ7oBI/YDN+YCZ/oA4/17lRL7s6M4="},"50:50:3":{"p":"/38AAIABOAAANw==","x":"/wv6A/cA/QD/9QYDCQADAPsCAB7u6PoC/vH/BgIIAALoAOch/f3//4DS9u6ATiYi/gAA/oA0+4Dg5YC4KiH9AP0MBgXsFfHs+/8H5QgCFP8H/wcb+APs//kBBvsUFQ/sBQESGOcB6Qf4ABLoGQEXBggABw/wAfAE+gAH8BABEAQGALzRDB0f9AwegJUBgEAEgLv9gH37gBwRgHX9gP4FgPMA+wIFCQH0Af7xBAES/u0A/vUAAhn35//+9QACGffn//7xBAES/u0A/vsCBQkB9AH+gJYBgL/7gEUCgH37gOTugHb9gAL6gA3/vS71HeH09OI="}}},"gloves":{"sig":"zgwr7v","fits":{"48:45":{"p":"/7/AedA5BxA=","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4///VABgLRPx+4/8FJgnKAaf77/fz73f9P+Sx39T3MPjs+VH0C+12+anlYd8w+jD4FPkF+DjwPP0+5HDfpPcw+BD67/cNEIkCP+RPINT30AcUBtUA6PS8A37jAPomCTb+WgRR9PUSigap5Z8gMPrQB+wGBfjID8QCPuSQIKT30AfwBVb/1Acg/uHiChO1B2gGmPxW/yz44AHh4vbstQeY+WgDH/xqC/j//+QiE4sLMQYH/B/8lvQIAP/k3uyLC8/5+QPtAbwEIP2g7cENbgLIBGD+1vUGEv0EkOV/HgP60Ad+BdT1BRICBY7lfx4F+tAHewW29hkRPgQ35ZseQ/nQB0wFtvYZET4EN+WbHkP50AdMBdT1BRICBY7lfx4F+tAHewUt93YQ8QMh5TEbPP7QB2sD2vmIDRkCVORpGDUB0AdJAQABMgWG/pPsORTCAwcHzf4xAdH8LQEZ8oLoRPsw+K3+zQDh93ABAeuD5p/6MPgn/T77NfQE/w/p6eNI+TD4IfzW9frtA/uQ5YHhAvow+IP61fX77f76juWB4QX6MPiF+rb25+7C+zflZeFD+TD4tPq29ufuwvs35WXhQ/kw+LT61fX77f76juWB4QX6MPiF+pb36O5K/FHl7OdQ/jD4zPwAAc76egGT7MfrwgP5+DMB"},"53:55:5":{"p":"/7/4/9j/Hxg=","x":"/xb0B+4B+gD/6gwHEgEGAOIzDBfzHPjggEn0woVWJ0AA6YA67NqAiPNtVVIA84Bf9LeSVjFIAOSASfQ+e1bZQAAX4s30Fw0cCCCAOuwmgHgMbatSAA2AX/RJblbPSAAc7y0CDwQt//nv0/4P/C0BB8g/FSb3QPf0yMHrJglACQz8JfwA8BL684Be94AcEICVAoCg5YBlF4Cf/YDQB4DiAoCY8oAKEoA1BoCi5oBeHYB4+oDQB4B5BYBh8IDTEoAdCIAQ54AYHYBN+4DQB4CSBYBx7kCAzwlvr2YAAIBz7kCAzglvr2UAAIBm8FiAGghes2kADYCi8oAHEoAuBoCd5oBfHYB6+oDQB4BzBYCi8oAHEoAuBoCd5oBfHYB6+oDQB4BzBYBm8FiAGghes2kADYBz7kCAzglvr2UAAIDn71GAjghQrm4ABYAT9WFzObx0AAWARvqAJgyA2ACALOSAAhWA7wWALweASv+ACf2AQAmAj/+AI+qAcBOAIwiAngaAt/36L/n98SX6/gvj+twWDAD57r/99B8tAPuhiewWP1sA64CY8oD27YDM+YCi5oCi4oB4+oAw+ICH+oBh8IAt7YDj94AQ54Do4oBN+4Aw+IBu+oBy7sCAMfZvUWYAAIBz7sCAMvZvUWUAAIBn8KiA5vdeTWkA84Cj8oD57YDS+YCd5oCh4oB6+oAw+ICN+oCj8oD57YDS+YCd5oCh4oB6+oAw+ICN+oBn8KiA5vdeTWkA84Bz7sCAMvZvUWUAAICW8L6A/PdgV2ELDYD09YBC74A8/IDM5YBm74CVA4Bf+oB+/4BP+4AS8oC7/4DP5ICf9IABBoAu/ICeAYAJ/YDA9oBxAIAj6oCQ7IAjCIBi+YBJAvrRB/0PJQYC"},"48:50:4":{"p":"/7/w/9j/Dxg=","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+8T/xAPAPvb0xH7LiIA9P7kH/4bGQD2/xHt//APAAUAAAAAAAAAANst7/vSIgAM/hzh/uUZAAoAAAAAAAAAAAAAAAAAAAAAAgvz//gM/f8C9Q3/CAwDAQAAAAAAAAAAgEr3gCwRgKACgNLkgPEdgF/5gNAHgEgFgD72gCgSgHkDgCPlgMYdgCv6gNAHgHMF3zDgANUtAALgMN8A1S0AAuk22PvWLwAHgFX3gCkRgJkCgM7kgPIdgGX5gNAHgEEFgFX3gCkRgJkCgM7kgPIdgGX5gNAHgEEF6TbY+9YvAAfgMN8A1S0AAt834PrWLwAG7DbU+9ozAAWAcPyAJQuAof+AcOOAVxWAtASAVQeAWv+A3f2AXgiAJv+AjumAjhOAYweAsAaA0v0CBvn+/Af+/wL7Bf4EBQD/BPUN/QgLAP4F1Cz6ICUA+4BK94DU7oBg/YDS5IAP4oBf+YAw+IC4+oA+9oDY7YCH/IAj5YA64oAr+oAw+ICN+t/QIAArLQD+4NAiACstAP7pyij7Ki8A+YBV94DX7oBn/YDO5IAO4oBl+YAw+IC/+oBV94DX7oBn/YDO5IAO4oBl+YAw+IC/+unKKPsqLwD54NAiACstAP7ezSH+Ky8AAIBI+oAt8IBF/4CH5ICc7oBmAoAT+oAg/4Dd/YCi94DaAICO6YBy7IBjB4BQ+YAuAgL6B/4EBwIB"},"50:50:3":{"p":"/7/w/9D/DxA=","x":"/wv6A/cA/QD/9QYDCQADAPIaBQv5D/zvrOu9KwYVAPaAfvDigMr2NC0tAPes4MoqER8A8qwVQyv6FQAK8ub7CwcPBBCAfvAegDYJNNMtAAmsIDYq7x8ADvgXAAcCF//8+OkAB/4XAQTlGBMTAhj/++Xo7RP+GAEF/hP+APgJ/fqASvWANBGAoASAvOWADB6AgfmA0AeAWgWAzvOAHxKA3AWAHeaA0x2AV/qA0AeAfwWAU/IwbzDVOQAGgFbyMG4w1TkABoDU8zRSLdg4AAmAVvWAMRGAmQSAt+WADR6AhvmA0AeAUgWAVvWAMRGAmQSAt+WADR6AhvmA0AeAUgWA1PM0Ui3YOAAJgFbyMG4w1TkABoDk8zNgJtU9AASSOCsb3D8AAoCC+4AyC4CrAIDV44B/FYDSBIBkB4BR//wTAgD8Df7/BPT68ggDAPz16Pb9CQ0A/dTL8g4aJgD2gEr1gMzugGD7gLzlg PThgIH5gDD4gKb6gM7zgOHtgCT6gB3mgC3igFf6gDD4gIH6gFPy0JEwKzkA+oBW8tCSMCs5APqA1PPMri0oOAD3gFb1gM/ugGf7gLflgPPhgIb5gDD4gK76gFb1gM/ugGf7gLflgPPhgIb5gDD4gK76gNTzzK4tKDgA94BW8tCSMCs5APqAWPTMoictPQADgIX4gCTwgJH9gDPlgKHugIsCgBX6gD///O3+AAQNAgE="}}},"chesttap":{"sig":"z9s7ji","fits":{"48:45":{"p":"fwAH","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//888uX2Xf3o7LP2WfJc/GkEiPRn7/D7K+bY9Jn62vvaBqcAyP4bAajyxO3R+aX5fQDD/rr74wDb7CfxGPjS+ikBYvdO+fP+Iu7T83X1o/t/AjL7HfOE//LnNvKN+xD7NgSbAkv3mgIC6ffvT/xS+jMDAgMB/U4Bq+887b77a/lFAQ=="},"53:55:5":{"p":"fwAH","x":"/xb0B+4B+gD/6gwHEgEGAMbg0jPnG/QngEDwFIBU+IAr6fv6/CYB6wL8BwUCBPbf/QT+EP8M3+DmGPMV+hSATPi2sE4iMwwwrPm3NATkAQb3COL+AewABA=="},"48:50:4":{"p":"fwAH","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0g/YKQHx/wQAAAAAAAAAAAH0B/8GCQIFAAAAAAAAAADf6P0WEhMHD+wD7A0B9gD/+gf1BP74//8="},"50:50:3":{"p":"fwAH","x":"/wv6A/cA/QD/9QYDCQADAOTv6hnzDvoTlAyfTPr5/Q8B9QH+BAMBAvvv/wL/CP8G8PDzDPkL/Qq67cspBgkCD+P15A8D9wEF+wXw/wD1AAE="}}},"lean":{"sig":"146nbxb","fits":{"48:45":{"p":"Aw==","d":"sAOlDI360OwXE1j6HAZgCbADWvNzBdDs6exY+uT5oPY="},"53:55:5":{"p":"Aw==","x":"7A76E/AA+wDs8gYTEAAFAA=="},"48:50:4":{"p":"Aw==","x":"BOT3/Qbk/wAEHQn9+uQBAA=="},"50:50:3":{"p":"Aw==","x":"9gf9CfgA/QD2+QMJCAADAA=="}}},"staredown":{"sig":"1avw3ou","fits":{"48:45":{"p":"Dw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//91CGkGvPdq8ocJtQBWAxcAdQiX+UQIavJ59rUAqvzp/w=="},"53:55:5":{"p":"Dw==","x":"/xb0B+4B+gD/6gwHEgEGABMb2hPf9/QAE+UmEyH3DAA="},"48:50:4":{"p":"Dw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="},"50:50:3":{"p":"Dw==","x":"/wv6A/cA/QD/9QYDCQADAAkO7Qnv/PoACfITCRH8BgA="}}},"stretch":{"sig":"qlkjvi","fits":{"48:45":{"p":"/////w==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//8c9PoCLPSe4kgQ6gtNBRv9HPQG/dQLnuK47+oLs/rlAm33OhOz2Hvy9SGgD9AHrvlt98bsTSd78gveoA8w+FMGXQ2l+hnpv+ZnDKAPHgUcB10NWwXnFr/mmfOgD+L65PjCA93/X/um7HkT2gDKBmUATgJt/7z4z+PQElAFlgZUACj6awCS9ijjGxLYB1QGl/+B9NgGtO045qMU5gvRBjX92fOfCpbnvOcPGTEL0Ad8/Tz2+g7J31ftpByoDdAHs/tt8WAKPOVC5dUcnQjQB7D+bveJ/dzliN1+GNYH0AfsAVIHrfjq5NfghxGgDzYGNwP6Cov7bu6o6r4OxQpuBYkE+gku/e7zxev5EIoHKQZkBDcGIP7O+K/y8hJyAaYG2QHCAyMAoQSm7Ifs2gA2+Zv/TgKTAEQHz+Mw7VAFavms/yj6lf9uCSjj5e3YB6z5aQCC9Cj5TBI45l7r5gsv+csC2fNh9WoYvOfx5jELMPiEAjv2BvE3IFftXeOoDTD4TQRt8aD1xBpC5SvjnQgw+FABbvd3AiQaiN2D59YHMPgU/lIHUwcWG9fgee6gD8r5yfz7CnUEkhGo6kLxxQqS+nf7+gnSAhIMxesI74oH1/mc+zgG4AEyB6/yDu1yAVr5J/4="},"53:55:5":{"p":"/////w==","x":"/xb0B+4B+gD/6gwHEgEGAA7/2AnaDfHtDgEoCSYNDxNBJ8IaBgAA+UHZPRr6AAAH4C78gCfq3LzoxODSBIAn6iS8GDwEDugG5wn3+wMB5AfkDfb2Bv/gCuAN9PMYCdQI6Aj39h0Q1QjyBAD3LBzOD/wAAPrvFRQHD+QABQj8AhoYBQD2CwblU9wA8OPfKfaAoO3dwe/U3gzwZuLH8+PjD/JT8eL65wTyGAYZCQkFA/8cBxwNCgoGASAKIA0MDRj3LAgYCAkKHfArCA4EAAks5DIPBAAABu/r7Afx5AD7CAT+GugFAAoL+htTJAAQHd/XCoCg7SPCESze9BBmHscNHePxDlMP4gYZ"},"48:50:4":{"p":"/////w==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"50:50:3":{"p":"/////w==","x":"/wv6A/cA/QD/9QYDCQADAAcA7AXtB/j3BwAUBRMHCAkcFOYMAwAA/BzsGgz9AAAE8BX+VOzn9OHw6wJUFOcMHwIH9AP0Bfz+AgDxBPIH+/sD/+8F8Af6+gwF6wT0Bfv7DgnsBPkDAPsUDukI/gEA/fcLCgQH9QAB//8FDgsAAPkDA/Qp7gD48e8S+0nt5/fq7wT4MfDo+fHyBvkn+PP99AL5DAMMBQQCAgAPBA4HBQUDAREFEAcGBgv7FQUMBQUFDvcUBAcDAAUU8hcIAgEAA/f19gT59QD//wH7DvQAAAcD/QwpEgAID+/uBUkT5wkW7/wIMRDoBw/y+gcoCPMDDA=="}}},"armsout":{"sig":"13qn5hi","fits":{"48:45":{"p":"Dw==","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4//8nBzMBr/JV7Gr3gA30/ND+JwfN/lENVeyWCIANDAMwAQ=="},"53:55:5":{"p":"Dw==","x":"/xb0B+4B+gD/6gwHEgEGAPYQ2V0D0wY09vAnXf3T+sw="},"48:50:4":{"p":"Dw==","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="},"50:50:3":{"p":"Dw==","x":"/wv6A/cA/QD/9QYDCQADAPsH7C0B6gMa+/kULf/q/eY="}}},"jersey":{"sig":"1u59h1d","fits":{"48:45":{"p":"vwBIAAQ=","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4///lBp4J2/al394IxfsYAwcA5QZi9iUJpd8i98X76Pz5/0cA7Qdr+gPk8QZr+WoCDwBHABP4lQUD5A/5a/mW/fH/JAVMBEj6p+sYD0X8RgX1//cBeQML/KHtGg4q++wE+f8kBbT7uAWn6+jwRfy6+gsA9wGH/PUDoe3m8Sr7FPsHAA=="},"53:55:5":{"p":"vwBIAAQ=","x":"/xb0B+4B+gD/6gwHEgEGANIEDR7v/foB0vzzHhH9Bv/8LO8CAyUBAfzUEQL9Jf//7A3/D+8A+gAGIe/6+BX9AezzAQ8RAAYABt8R+ggVA/8="},"48:50:4":{"p":"vwBIAAQ=","x":"AAAAAAAAAAAAAAAAAAAAAOzWFQzx1fv/7CrrDA/VBQEAAAAAAAAAAAAAAAAAAAAA7+oMDvno/v8AAAAAAAAAAO8W9A4H6AIBAAAAAAAAAAA="},"50:50:3":{"p":"vwBIAAQ=","x":"/wv6A/cA/QD/9QYDCQADAOkCBw/3//0A6f75Dwn/AwD+FvcBARMAAf7qCQH/EwD/9gcAB/cA/QADEPf9/Av/APb5AAcJAAMAA/AJ/QQLAQA="}}},"twostep":{"sig":"m2k56i","fits":{"48:45":{"p":"Pw==","d":"ywhSA6L7v+fxDCwGgwQuAMsIrvxeBL/nD/MsBn370v8zBp8DyPs76QENOAaJBCcAPQvl/HkEzeY28/oFivvL/z0LGwOH+83mygz6BXYENQAzBmH8OAQ76f/yOAZ3+9n/"},"53:55:5":{"p":"P8AADAMw","x":"BxXn/usT+QEH6xn+FRMH/wcW6P7qEvgBB+sa/RYUB/8HFeb96hT5AQfqGP4WEgj/gJwKgGcDgCv7gBPngH0MgAgGgF8EgFEAgJwKgGcDgCv7gBPngH0MgAgGgF8EgFEAgJwKgGcDgCv7gBPngH0MgAgGgF8EgFEAgJwKgGcDgCv7gBPngH0MgAgGgF8EgFEAgJwKgJn8gNUEgBPngIPzgAgGgKH7gK//gJwKgJn8gNUEgBPngIPzgAgGgKH7gK//gJwKgJn8gNUEgBPngIPzgAgGgKH7gK//gJwKgJn8gNUEgBPngIPzgAgGgKH7gK//"},"48:50:4":{"p":"P8AADAMw","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgDMKgP0CgLL7gDHngO0MgK4FgIkEgHIAgDMKgP0CgLL7gDHngO0MgK4FgIkEgHIAgDMKgP0CgLL7gDHngO0MgK4FgIkEgHIAgDMKgP0CgLL7gDHngO0MgK4FgIkEgHIAgDMKgAP9gE4EgDHngBPzgK4FgHf7gI7/gDMKgAP9gE4EgDHngBPzgK4FgHf7gI7/gDMKgAP9gE4EgDHngBPzgK4FgHf7gI7/gDMKgAP9gE4EgDHngBPzgK4FgHf7gI7/"},"50:50:3":{"p":"Pw==","x":"Awv0//UK/AAD9Qz/CwoEAAML9P/1CfwAA/UN/wsKBAADC/P/9Qr8AAP1DP8LCQQA"}}},"backflip":{"sig":"186yxgy","fits":{"48:45":{"p":"/wxz","d":"4gK//uX9NvhqFSH8ewcBAOICQQEbAjb4luoh/IX4///q6jLz2PXy4g3wafu/+qD2bd4X9MzrHO1E7aT9lfky+BDqTfLf85rywd9yBTD4Y/uxBIn+v/8z64bravvm+B3+DQOU9u0C9eIp7uX90/kR/fT1RvKo/GHixu6i/gb6m/pK4Z/zQO7W6hvupv3X+bn5SuGf80Du1uob7qb91/m5+Urhn/NA7tbqG+6m/df5ufkm4W/z0u2u7r7qEgCm+J/6U/Gs9Dz4FPKj5EwDMPjo/Kj7wvS7/lfuYeilAjD4kPz5/kP6GwCj81HqwP+Z+Dr+"},"53:55:5":{"p":"/55/","x":"/xb0B+4B+gD/6gwHEgEGAIkqkICM5tT870aAjtuARvfEgIj0JD0HgDb8gBDmQoDh8ID59i1kAEvvzwgQFiQHBYr2plz68f/+gPvy65J1/x0AI4BI4YAh9YAS74Ce7YAW74Dl/YAp+oCk+4BW3V+vgHbwO00SgIj8gFbdX6+AdvA7TRKAiPyASOGAIfWAEu+Anu2AFu+A5f2AKfqApPuASOGAIfWAEu+Anu2AFu+A5f2AKfqApPuAVt1fr4B28DtNEoCI/ID73FifgN7zRlMYgC79gEbggKv0gLPtgPz0gPLogFwDgDD4gFv9gGPjgB30gHLvgN31gN flgFEFgDD4gLD9gJ7tyoZgSVcABsWAlPEVB3WAJQUcEeuADfcwA4D37IAbAzom"},"48:50:4":{"p":"/wx/","x":"AAAAAAAAAAAAAAAAAAAAAOML6DT3+/wStjrlgO7vFhsFTwAAAAAAAAAA/OYJAgwaBATGDcws+PL9/dj85yMBBwAKqSTich0eCTipJOJyHR4JOKkk4nIdHgk4siDmYR0aCjGAheOApPOAqe+AY/GAG+iAHgKAMPiA6PuALueALfOA9/GACfKA/eSA2QOAMPiAbPzZ2foIHhIA9AKSNvA5VQbxF4DC/LvSqqnr+g=="},"50:50:3":{"p":"/55/","x":"/wv6A/cA/QD/9QYDCQADAMISxlrq/vcgpVPbgPfwGCMFa5sjrnESOQAe+Pn5CQH/AADF+NQt/fn//rf5xTr7B/4NgO3igGH0gNfvgBXrgM/ugF39gBb6gHj6jDXRgO/tICgJTIw10YDv7SAoCUyA7eKAYfSA1++AFeuAz+6AXf2AFvqAePqA7eKAYfSA1++AFeuAz+6AXf2AFvqAePqMNdGA7+0gKAlMgzTHgK/xKC8OR4Au4oAV9IC37oDY8oBi6IC+AoAw+IBb/IB25YCs84Cu8IDW84BM5YCxBIAw+IDi/KDjwTUmMwD/4qMKAjxTBwAeesPQpsPrAA=="}}}};
+  // ---- end EM_BAKE ----
   const EMOTE_IDS = Object.keys(EMOTES);
   // =====================================================================================
   // Avatar viewer: window.MFLBlitz.avatar(el, opts) draws ONE player, full body, in his team's uniform with the helmet off and his
@@ -2360,7 +3159,7 @@ gl_FragColor=vec4(c,1.0);}`;
     return avHeadIdx[base].then((by) => by[avKey(name)] || null);
   }
   // a scanned head (.bin from tools/heads.js) in the athlete vertex layout: pos3 nrm3 bone2 weight slot uv2 ao (as 22-heads.js)
-  function avUnpackHead(e, ab) {
+  function avUnpackHead(e, ab, NK) {
     const dv = new DataView(ab);
     if (dv.getUint32(0, true) !== 0x3144484d) throw new Error('bad head file');
     const nv = dv.getUint32(4, true), n0 = dv.getUint32(8, true), n1 = dv.getUint32(12, true), q = dv.getFloat32(16, true);
@@ -2373,6 +3172,7 @@ gl_FragColor=vec4(c,1.0);}`;
       V[o + 3] = N[i * 4] / 127; V[o + 4] = N[i * 4 + 1] / 127; V[o + 5] = N[i * 4 + 2] / 127;
       V[o + 6] = B.head; V[o + 7] = B.neck; V[o + 8] = 1; V[o + 9] = 25; V[o + 10] = T[i * 2] / 65535; V[o + 11] = T[i * 2 + 1] / 65535; V[o + 12] = 1;
     }
+    headNeck(V, nv, e, NK || 1); // weighted like the body's neck, fitted to his (06-body.js)
     return { v: V, i: new Uint16Array(ab.slice(oI, oI + n0 * 2)), n: n0 };
   }
   const AV_SKIN = ['#f3cfae', '#dcaa83', '#b98056', '#8a5535', '#5a361f'];
@@ -2390,24 +3190,25 @@ gl_FragColor=vec4(c,1.0);}`;
   // the emote's extent in body space (yards, standing at the origin facing +Z at height scale 1): every joint over the loop,
   // padded by the body's own thickness and the top of the head
   const avBoxes = {};
-  function avBox(id) {
-    if (avBoxes[id]) return avBoxes[id];
+  function avBox(id, fit) {
+    const key = id + (fit ? ':' + (fit.sw || 1).toFixed(2) + ':' + (fit.bulk || 1).toFixed(2) + ':' + (fit.belly || 0).toFixed(2) : '');
+    if (avBoxes[key]) return avBoxes[key];
     const E = EMOTES[id], n = 72, bx = [9, -9, 9, -9, 9, -9], pts2 = [];
     for (let k = 0; k < n; k++) {
-      const q = E.pose((k / n) * E.T), b = fk(q, 0, 0, 0, 0, 1);
+      const q = E.pose((k / n) * E.T, fit), b = fk(q, q.ox || 0, 0, q.oz || 0, 0, 1, fit && fit.sw); // (ox, oz: the hips over his weight leg, the feet planted)
       for (let i = 0; i < NB; i++) {
         const m = b[i], pts = [[m[3], m[7], m[11]]];
         if (i === B.head) pts.push(mPt(m, 0, 0.3, 0));
-        if (i === B.haL || i === B.haR) pts.push(mPt(m, 0, -0.12, 0));
+        if (i === B.haL || i === B.haR) pts.push(mPt(m, 0, -0.12, 0), mPt(m, 0, -0.25, 0.05)); // the palm and the fingertips
         if (i === B.ftL || i === B.ftR) pts.push(mPt(m, 0, -0.05, 0.2));
         if (k % 2 === 0) for (const p of pts) pts2.push(p[0], p[2]);
         for (const p of pts) { bx[0] = Math.min(bx[0], p[0]); bx[1] = Math.max(bx[1], p[0]); bx[2] = Math.min(bx[2], p[1]); bx[3] = Math.max(bx[3], p[1]); bx[4] = Math.min(bx[4], p[2]); bx[5] = Math.max(bx[5], p[2]); }
       }
     }
     const pad = 0.16;
-    const r = [bx[0] - pad, bx[1] + pad, Math.max(0, bx[2] - 0.05), bx[3] + 0.12, bx[4] - pad, bx[5] + pad];
+    const r = [bx[0] - pad, bx[1] + pad, Math.min(0, bx[2]) - 0.12, bx[3] + 0.14, bx[4] - pad, bx[5] + pad]; // room under his feet (they sit nearer the camera) and over his head and hands
     r.xz = new Float32Array(pts2); r.pad = pad; r.yaw = {}; // the sampled points across the ground, for a tight fit from one side
-    return (avBoxes[id] = r);
+    return (avBoxes[key] = r);
   }
   // GLSL: the athlete shader with a tone map at the end (the game tone maps in its post pass; here he draws straight to the page)
   const AV_TONE = 'uniform float uExpo;vec3 avTone(vec3 c){c*=uExpo;c=clamp((c*(2.51*c+0.03))/(c*(2.43*c+0.59)+0.14),0.0,1.0);return pow(c,vec3(1.0/2.2));}\n';
@@ -2426,7 +3227,8 @@ gl_FragColor=vec4(c,1.0);}`;
     const fail = (why) => { try { if (opts.onError) opts.onError(why); } catch (e) {} };
     const noop = { destroy() {}, reset() {}, setEmote() {}, pause() {}, play() {}, frame() {}, emote: null, ok: false };
     if (!el) return noop;
-    let emote = EMOTES[opts.emote] ? opts.emote : EMOTE_IDS[avHash(String(pl.id || pl.name || '')) % EMOTE_IDS.length];
+    const isEm = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(EMOTES, id); // a real move (not an object built-in)
+    let emote = isEm(opts.emote) ? opts.emote : EMOTE_IDS[avHash(String(pl.id || pl.name || '')) % EMOTE_IDS.length];
     const cv = document.createElement('canvas');
     cv.className = 'bz-av'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', (pl.name ? pl.name + ': ' : '') + EMOTES[emote].name);
     cv.style.cssText = 'display:block;width:100%;height:100%;' + (opts.interactive ? 'touch-action:none;cursor:grab;' : 'pointer-events:none;');
@@ -2447,6 +3249,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const hr = avHash('h' + (pl.id || pl.name || ''));
     const hairI = [0, 1, 2, 3, 1, 2][hr % 6], hairC = hex(AV_HAIRC[skinI >= 3 ? hr % 2 : (hr >>> 3) % 5]);
     const spec = Object.assign({}, bodySpec(base, lk, +pl.wgt > 0 ? +pl.wgt : 0), { bare: { hair: hairI } });
+    const fit = { sw: spec.sw || 1, bulk: spec.bulk || 1, belly: spec.belly || 0 }; // his build, for the moves whose hands touch his body
     const TEAM = hex(tm.color) || hex('#ffc21a'); let TEAM2 = hex(tm.color2) || hex('#1b1e27');
     if (Math.abs(lum(TEAM) - lum(TEAM2)) < 0.12) TEAM2 = lum(TEAM) > 0.5 ? hex('#15171d') : hex('#f2f4f7');
     const WHITE = hex('#f2f3f5'), DARK = hex('#15171c');
@@ -2565,7 +3368,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const k = base + e.slug;
         if (!avHeadData[k]) {
           avHeadData[k] = Promise.all([fetch(base + e.slug + '.bin').then((r) => { if (!r.ok) throw new Error('head ' + r.status); return r.arrayBuffer(); }),
-            new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = base + e.slug + '.jpg'; })]).then(([ab, im]) => { const h = avUnpackHead(e, ab); h.img = im; return h; });
+            new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = base + e.slug + '.jpg'; })]).then(([ab, im]) => { const h = avUnpackHead(e, ab, spec.neck); h.img = im; return h; });
           avHeadData[k].catch(() => { delete avHeadData[k]; });
         }
         return avHeadData[k].then((h) => {
@@ -2592,7 +3395,7 @@ gl_FragColor=vec4(c,1.0);}`;
       W = w; H = h;
     }
     function camera() {
-      const bx = avBox(emote), asp = W / H;
+      const bx = avBox(emote, fit), asp = W / H;
       const cyB = (bx[2] + bx[3]) / 2 * hs, hh = (bx[3] - bx[2]) / 2 * hs;
       const rad = Math.max(Math.abs(bx[0]), Math.abs(bx[1]), Math.abs(bx[4]), Math.abs(bx[5])) * hs; // he may face any way while it spins
       const ty = Math.tan(FOVY / 2), tx = ty * asp;
@@ -2634,8 +3437,8 @@ gl_FragColor=vec4(c,1.0);}`;
     function render(t) {
       if (!R || lost) return;
       sizeTo(); camera();
-      const E = EMOTES[emote], q = E.pose(((t % E.T) + E.T) % E.T);
-      const bones = fk(q, 0, 0, 0, 0, hs, spec.sw, spec.ll || 1); nFrames++;
+      const E = EMOTES[emote], q = E.pose(((t % E.T) + E.T) % E.T, fit);
+      const ll = spec.ll || 1, bones = fk(q, (q.ox || 0) * hs * ll, 0, (q.oz || 0) * hs * ll, 0, hs, spec.sw, ll); nFrames++; // the root over his weight leg (scaled with the legs, so the feet stay put)
       gl.viewport(0, 0, W, H);
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.disable(gl.CULL_FACE);
@@ -2768,7 +3571,7 @@ gl_FragColor=vec4(c,1.0);}`;
       get emote() { return emote; }, get emoteName() { return EMOTES[emote].name; }, get scanned() { return !!(R && R.head); },
       get view() { return { yaw: cam.yaw, pitch: cam.pitch, zoom: cam.zoom }; }, get frames() { return nFrames; },
       setView(v) { if (!v) return; if (v.yaw != null) cam.yaw = +v.yaw; if (v.pitch != null) cam.pitch = clamp(+v.pitch, -0.25, 0.75); if (v.zoom != null) cam.zoom = clamp(+v.zoom, 0.42, 1.35); resetting = 0; spinV = 0; if (frozen != null) render(frozen); want(); },
-      setEmote(id) { if (!EMOTES[id]) return; emote = id; clockT = 0; cv.setAttribute('aria-label', (pl.name ? pl.name + ': ' : '') + EMOTES[id].name); want(); },
+      setEmote(id) { if (!isEm(id)) return; emote = id; clockT = 0; cv.setAttribute('aria-label', (pl.name ? pl.name + ': ' : '') + EMOTES[id].name); want(); },
       reset, pause() { paused = true; stop(); }, play() { paused = false; frozen = null; want(); },
       frame(t) { frozen = +t || 0; tNow = frozen; try { render(frozen); } catch (e) { fail('render: ' + (e && e.message)); } },
       destroy() {

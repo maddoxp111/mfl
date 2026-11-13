@@ -364,7 +364,7 @@ function manifestEvents(db, c) {
   const keys = existingKeys(), segsOf = (l) => l.map(segVars);
   const events = {};
   for (const [id, ev] of Object.entries(LINES.events)) {
-    const o = { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map(segsOf), ready: ev.lines.map((l) => lineReady(l, dom, c, keys, SETTINGS_V)) };
+    const o = { n: ev.lines.length, vars: ev.vars, segs: ev.lines.map(segsOf), len: ev.lines.map(textLen), ready: ev.lines.map((l) => lineReady(l, dom, c, keys, SETTINGS_V)) };
     if (!o.ready.every(Boolean)) {
       const prev = o.ready.map((r, v) => {
         if (r) return null;
@@ -379,9 +379,15 @@ function manifestEvents(db, c) {
     }
     events[id] = o;
   }
-  manifestMemo = { at: Date.now(), key: mk, events };
+  manifestMemo = { at: Date.now(), key: mk, events, dom: { teams: dom.away || [], roster: dom.player || [] } };
   return events;
 }
+// how long a variant takes to say, in characters, besides its names and numbers (a pause inside a clip, after a sentence or
+// a comma, counts as a few): the game adds the names and works out the seconds
+const textLen = (line) => line.reduce((n, seg) => { const t = seg.replace(/\{[a-z]+\}/g, ''); return n + t.length + 6 * (t.match(/[.!?] +\S/g) || []).length + 2 * (t.match(/, /g) || []).length; }, 0);
+// the team and player names clips are made for: a line that needs another name (a random opponent, a stand-in) is said
+// without it
+const manifestDom = (db, c) => { manifestEvents(db, c); return manifestMemo.dom || null; };
 const readiness = (events) => { let ready = 0, total = 0, fallback = 0; for (const o of Object.values(events)) { total += o.n; ready += o.ready.filter(Boolean).length; if (o.prev) fallback += o.prev.filter(Boolean).length; } return { ready, total, fallback }; };
 function coverage(p) {
   let have = 0, missingChars = 0;
@@ -500,6 +506,7 @@ function register(app, h) {
       enabled: enabled(c) && !!h.currentUser(req),
       model: c.model,
       events: manifestEvents(h.load(), c),
+      dom: manifestDom(h.load(), c),
     });
   });
 
