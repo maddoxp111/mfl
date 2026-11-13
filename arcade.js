@@ -21,7 +21,7 @@ const RISK_MULT = [3, 4, 5, 6, 7, 6.5];
 const levelsOf = (G) => LEVEL_ORDER.filter((i) => i < G.prizes.length);
 const OPEN_MAX_MS = 3 * 3600e3; // an unfinished match is a loss after this
 // A 3D Blitz game of a run (Double or Nothing / Double or Double) can be continued where it was left: the page sends the game's
-// save (the latest only) to /api/m/save, kept in its own doc "blitzrun/<user>" = { id (the match), seq, at, last, act, snap, live,
+// save (the latest only) to /arcade/run/save, kept in its own doc "blitzrun/<user>" = { id (the match), seq, at, last, act, snap, live,
 // sum, data (the start's data, so the game resumes with the same Lineup) }. A run game with a save is never forfeited by another
 // game (only by starting or playing on in a run) or voided by a restart, and its 'ran too long' limit counts active play time (act:
 // the time between saves, each gap counted up to RSM_GAP), so time away never counts. It stays resumable for RSM_KEEP after its
@@ -308,7 +308,7 @@ function challengesFor(day) {
 }
 
 module.exports = function arcade(app, h) {
-  const { esc, icon, layout, pk, TZ, load, getDoc, putDoc, userKey, currentUser, loadAccount, ratingOf, coins, shortDate } = h;
+  const { esc, icon, layout, pk, TZ, load, getDoc, putDoc, userKey, currentUser, loadAccount, ratingOf, coins, shortDate, assetUrl } = h;
   const localDay = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(iso));
   const today = () => localDay(new Date().toISOString());
 
@@ -468,38 +468,34 @@ module.exports = function arcade(app, h) {
     });
   }
 
-  const jsCache = new Map();
-  function gameJs(name) {
-    if (!jsCache.has(name)) {
-      const src = require('fs').readFileSync(path.join(__dirname, 'public/arcade', name + '.js'), 'utf8');
-      jsCache.set(name, src.replace(/<\/script/gi, '<\\/script'));
-    }
-    return jsCache.get(name);
-  }
+  // A game page loads its code as ordinary script files from /static/arcade/ (gzipped, cached until the file changes).
+  const gameScripts = (names) => names.map((f) => `<script src="${esc(assetUrl('arcade/' + f + '.js'))}"></script>`).join('');
 
   // ---------- routes ----------
   require('./career')(app, h, db => Object.values(db.teams).slice(0, 2).map(t => ({
     ...bowlTeam(db, null, t.id), id: t.id,
   })));
-  // The supplied runtime has global input handlers, so isolate it in a frame.
-  // Inline the scripts to retain Chromebook compatibility (see gameJs above).
+  // The supplied runtime has global input handlers, so isolate it in a frame. Its scripts load as ordinary files from
+  // /static/football/ (in this order).
   app.get('/play/football', (req, res) => {
-    const fs = require('fs');
-    const dir = path.join(__dirname, 'public/football');
-    const inline = name => '<script>' + fs.readFileSync(path.join(dir, name), 'utf8').replace(/<\/script/gi, '<\\/script') + '</script>';
-    res.type('html').send(fs.readFileSync(path.join(dir, 'frame.html'), 'utf8')
-      .replace('<!-- MFL_EXTENSION -->', () => inline('html5game/uph_poki.js'))
-      .replace('<!-- MFL_RUNTIME -->', () => inline('runtime.js'))
-      .replace('<!-- MFL_QUALITY -->', () => inline('quality.js'))
-      .replace('<!-- MFL_APPEARANCE -->', () => inline('appearance.js'))
-      .replace('<!-- MFL_RENDERER -->', () => inline('renderer.js'))
-      .replace('<!-- MFL_DIFFICULTY -->', () => inline('difficulty.js'))
-      .replace('<!-- MFL_BRIDGE -->', () => inline('bridge.js')));
+    const src = (name) => `<script src="${esc(assetUrl('football/' + name))}"></script>`;
+    res.type('html').set('X-Robots-Tag', 'noindex').send(require('fs').readFileSync(path.join(__dirname, 'public/football/frame.html'), 'utf8')
+      .replace('<!-- MFL_EXTENSION -->', () => src('html5game/uph_poki.js'))
+      .replace('<!-- MFL_RUNTIME -->', () => src('runtime.js'))
+      .replace('<!-- MFL_QUALITY -->', () => src('quality.js'))
+      .replace('<!-- MFL_APPEARANCE -->', () => src('appearance.js'))
+      .replace('<!-- MFL_RENDERER -->', () => src('renderer.js'))
+      .replace('<!-- MFL_DIFFICULTY -->', () => src('difficulty.js'))
+      .replace('<!-- MFL_BRIDGE -->', () => src('bridge.js')));
   });
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);
+  // Until Nov 12, 2026 the game pages called /api/m/start, /api/m/finish, /api/m/save and /api/m/resume. Nothing on the site
+  // uses those now; they still answer for a few days so a game left open in a tab across the change keeps its result. Remove
+  // after Nov 19, 2026.
+  const OLD = (what) => (Date.now() < Date.parse('2026-11-20T00:00:00Z') ? ['/api/m/' + what] : []);
   const paidToday = (user, game) => (user.arcade || []).filter((m) => m.game === game && m.status === 'won' && m.local?.slice(0, 10) === today()).length;
 
-  app.post(['/arcade/start', '/api/m/start'], async (req, res) => {
+  app.post(['/arcade/start', ...OLD('start')], async (req, res) => {
     try {
       const db = load();
       const G = !HIDDEN.has(req.body.game) && GAMES[req.body.game];
@@ -598,11 +594,11 @@ module.exports = function arcade(app, h) {
   app.post('/arcade/run/double', (req, res) => runChoice(req, res, 'double').catch((e) => { console.error(e); json(res, { ok: false, error: 'Could not start the next game.' }); }));
 
   // ---------- 3D Blitz run games: save, and continue later ----------
-  // POST /api/m/save  body (text/plain JSON, so a page going away can send it with a beacon):
+  // POST /arcade/run/save  body (text/plain JSON, so a page going away can send it with a beacon):
   //   { id: match id, seq: the save's number (only a higher one replaces the one kept), live: null | the live play it was sent at
   //     ('snap', 'pass', 'kick', 'ko', 'ons', 'dsnap': that play is already settled against the player in it), snap: the save }
   const rsText = require('express').text({ type: 'text/plain', limit: '200kb' });
-  app.post('/api/m/save', rsText, async (req, res) => {
+  app.post(['/arcade/run/save', ...OLD('save')], rsText, async (req, res) => {
     const name = currentUser(req);
     if (!name) return json(res, { ok: false, error: 'Log in again.' });
     let b = req.body;
@@ -628,8 +624,8 @@ module.exports = function arcade(app, h) {
       json(res, out);
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not save the game.' }); }
   });
-  // POST /api/m/resume { id }: the run game in progress, from its latest save (the same answer as /api/m/start, plus save)
-  app.post('/api/m/resume', async (req, res) => {
+  // POST /arcade/run/resume { id }: the run game in progress, from its latest save (the same answer as /arcade/start, plus save)
+  app.post(['/arcade/run/resume', ...OLD('resume')], async (req, res) => {
     try {
       const name = currentUser(req);
       if (!name) return json(res, { ok: false, error: 'Log in to continue your game.' });
@@ -656,7 +652,7 @@ module.exports = function arcade(app, h) {
     return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: m.run.step, levelName: LEVELS[m.level], sum: doc.sum || null, at: doc.at };
   }
 
-  app.post(['/arcade/finish', '/api/m/finish'], async (req, res) => {
+  app.post(['/arcade/finish', ...OLD('finish')], async (req, res) => {
     try {
       const db = load();
       const name = currentUser(req);
@@ -774,7 +770,7 @@ module.exports = function arcade(app, h) {
 
   // ---------- 3D Blitz career mode (formerly "franchise": routes /api/bf/* and doc keys keep that name) ----------
   // Saves live in docs "blitzfranchise/<user>": { slots: { 1: { meta, data, updated } } }. The client owns
-  // the save; the server only stores it (size-capped). Coins for 3D wins go through /api/m/start + /api/m/finish
+  // the save; the server only stores it (size-capped). Coins for 3D wins go through /arcade/start + /arcade/finish
   // with the career flag, so they get the same server checks as the Arcade.
   const BF_SLOTS = ['1', '2', '3'], BF_MAX = 600 * 1024;
   const bfKey = (name) => 'blitzfranchise/' + name;
@@ -794,7 +790,7 @@ module.exports = function arcade(app, h) {
       const mine = h.careerLineup(db, user);
       const lineup = mine ? mine.players.filter(Boolean).map((p) => ({ ...p, ...realOf(p.name) })) : null;
       const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS, prizes: GAMES.blitz3d.prizes, lineup };
-      const script = ['arcade', 'blitz3d', 'blitzfranchise'].map((f) => `<script>${gameJs(f)}</script>`).join('');
+      const script = gameScripts(['arcade', 'blitz3d', 'blitzfranchise']);
       res.send(layout(req, '3D Blitz Career', `<div class="wrap arc-page bf-page">
         <div class="arc-head"><a href="/career" class="muted sm">${icon('arrow')} Career</a><h1><span>🏟️</span> 3D Blitz Career</h1><p class="muted">Build a program, play every game, win titles. Every game you win in 3D pays ${GAMES.blitz3d.prizes.map(fmt).join(' / ')} coins (Rookie / Pro / All-Pro / Legend).</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
         ${name ? '' : `<p class="muted sm"><a href="/pickem/login?next=/career/blitz">Log in</a> to save your career to your account and earn coins for wins (otherwise it saves on this device only).</p>`}
@@ -849,8 +845,7 @@ module.exports = function arcade(app, h) {
       const levels = levelsOf(G).map((i) => [LEVELS[i], i]).map(([n, i]) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${n}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: put up ${fmt(G.prizes[i])} → win ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em></span></label>`).join('');
       const teamOpts = (sel) => [user ? ['mine', 'My Lineup'] : null, ...Object.values(db.teams).map((t) => [t.id, t.name]), ...CPU_TEAMS.slice(0, 4).map((c, i) => ['cpu' + i, c.name + ' (CPU)'])].filter(Boolean).map(([v, n]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
       const teamsIds = Object.keys(db.teams);
-      // Game code is inlined into the page: school web filters often block script URLs with words like "arcade" or "games".
-      const script = ['arcade', ...(G.verify ? ['engines'] : []), id].map((f) => `<script>${gameJs(f)}</script>`).join('');
+      const script = gameScripts(['arcade', ...(G.verify ? ['engines'] : []), id]);
       const runs = id === 'blitz3d' ? Object.keys(RUNS) : [], pending = id === 'blitz3d' ? pendingRun(user) : null;
       const cont = id === 'blitz3d' ? await resumable(name, user) : null; // a run game left in progress
       const contSum = (c) => { const q = c.sum; if (!q || q.hs == null) return ''; const t = Math.max(0, Math.ceil(q.clock || 0)), clk = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; return ` ${q.hs}–${q.as}, ${q.qtr >= 5 ? 'overtime' : 'Q' + q.qtr} ${clk}.`; };
@@ -1125,7 +1120,6 @@ module.exports = function arcade(app, h) {
 
   return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, challengeDays, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData };
 };
-const ASSET_V = Date.now().toString(36);
 module.exports.GAMES = GAMES;
 module.exports.POSITIONS = POSITIONS;
 module.exports.POS_LABEL = POS_LABEL;

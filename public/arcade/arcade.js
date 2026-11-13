@@ -82,7 +82,7 @@
       const t0 = Date.now();
       for (let n = 1; ; n++) {
         try {
-          const res = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result }) });
+          const res = await fetch('/arcade/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result }) });
           if (res.status < 500) { const r = await res.json(); keep(null); return r; } // a real answer (even a refusal): done
         } catch (e) {} // down or restarting (the update page is not JSON either)
         if (Date.now() - t0 > 240e3) return { ok: false, kept: true, error: 'Could not reach the server. Your result is kept on this device and goes in the next time you open the Arcade.' };
@@ -113,9 +113,9 @@
       try { const u = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (u) { $('#arcMsg').textContent = 'Saving your last game\'s result first…'; await resent; const again = JSON.parse(localStorage.getItem('mfl-arc-unsent') || 'null'); if (again) await sendFinish(again.id, again.result); } } catch (e) {}
       let start;
       try {
-        const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await fetch('/arcade/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         start = await r.json();
-      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Your network may be blocking it.' }; }
+      } catch (err) { start = { ok: false, error: 'Could not reach the server (' + (err && err.message || 'network') + '). Check your connection and try again.' }; }
       btn.disabled = false;
       if (!start.ok) { $('#arcMsg').textContent = start.error || 'Something went wrong.'; return; }
       $('#arcMsg').textContent = '';
@@ -191,7 +191,7 @@
       const b = document.getElementById('runContinue');
       if (b) b.addEventListener('click', async () => {
         b.disabled = true;
-        const r = await post('/api/m/resume', { id: cfg.resume.id });
+        const r = await post('/arcade/run/resume', { id: cfg.resume.id });
         b.disabled = false;
         if (!r.ok) { $('#arcMsg').textContent = r.error || 'Could not continue the game.'; return; }
         const w = document.getElementById('runCont'); if (w) w.hidden = true;
@@ -201,8 +201,8 @@
     // a run game's save: sent as text so a page going away can send it with a beacon; a refusal of a game that is over is 'gone'
     function sendSave(id, json, o) {
       const body = '{"id":' + JSON.stringify(id) + ',"seq":' + (o.seq | 0) + ',"live":' + JSON.stringify(o.live || null) + ',"snap":' + json + '}';
-      if (o.beacon && navigator.sendBeacon) { try { if (navigator.sendBeacon('/api/m/save', new Blob([body], { type: 'text/plain' }))) return Promise.resolve(true); } catch (e) {} }
-      return fetch('/api/m/save', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: !!o.beacon && body.length < 60000 })
+      if (o.beacon && navigator.sendBeacon) { try { if (navigator.sendBeacon('/arcade/run/save', new Blob([body], { type: 'text/plain' }))) return Promise.resolve(true); } catch (e) {} }
+      return fetch('/arcade/run/save', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: !!o.beacon && body.length < 60000 })
         .then((r) => r.json()).then((r) => (r && r.ok ? true : r && r.gone ? 'gone' : false), () => false);
     }
     function launch(start) {

@@ -41,14 +41,14 @@
   // started and finished through the Arcade API, which re-checks the saved career result.
   async function startCoinGame() {
     try {
-      const r = await fetch('/api/m/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: 'bowl', level: state.level, career: true }) });
+      const r = await fetch('/arcade/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game: 'bowl', level: state.level, career: true }) });
       const body = await r.json();
       return body.ok && body.id ? body.id : null;
     } catch { return null; }
   }
   async function claimCoins(id, result) {
     try {
-      const r = await fetch('/api/m/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result: { won: result.score > result.opp, tie: result.score === result.opp, score: result.score, stats: result.stats } }) });
+      const r = await fetch('/arcade/finish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result: { won: result.score > result.opp, tie: result.score === result.opp, score: result.score, stats: result.stats } }) });
       const body = await r.json();
       if (body.ok && body.balance != null) document.querySelectorAll('[data-balance]').forEach(n => { n.textContent = fmt(body.balance); });
       if (body.ok && body.net > 0) store.coins = (store.coins || 0) + body.net;
@@ -163,7 +163,7 @@
     live = { save: state.saveId, id: match.id, token: match.token, ...(match.arcade ? { arcade: match.arcade } : {}) };
     field.innerHTML = `<div class="career-game"><p role="status">Loading MFL football…</p><iframe title="MFL career football game" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="career-game-toolbar"><button class="pixel-button" data-fullscreen>FULL SCREEN</button><button class="pixel-button" data-quit>QUIT · LOSS</button><p>Leaving or refreshing is an automatic loss.</p></div></div>`;
     const frame = field.querySelector('iframe'), loading = field.querySelector('[role=status]');
-    const origin = new URL(window.MFL_API_ORIGIN || location.origin).origin, token = crypto.randomUUID();
+    const origin = location.origin, token = crypto.randomUUID();
     let finished = false;
     async function receive(e) {
       if (e.source !== frame.contentWindow || e.origin !== origin) return;
@@ -214,8 +214,8 @@
   hub.addEventListener('change', e => { if (e.target.id === 'career-level') action('difficulty', { level: Number(e.target.value) }); });
   window.addEventListener('pagehide', () => {
     if (live) {
-      // fetch uses the site's authenticated Pages bridge as well as direct
-      // cookies. The next server read also settles the loss if this is dropped.
+      // keepalive lets this go out as the page closes. The next server read also
+      // settles the loss if this is dropped.
       fetch('/api/career/abandon', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...live, client: config.client }) }).catch(() => {});
     }
     if (release) release();

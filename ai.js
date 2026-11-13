@@ -33,7 +33,7 @@ function getClient() {
 }
 
 // Belt and braces for the Pick'em wording rule: swap any betting words the model
-// still uses for prediction-game ones (school web filters flag betting language).
+// still uses for prediction-game ones (the site is for middle schoolers: no betting language).
 const SWAPS = [[/\b(the )?stakes are (high|huge|big)\b/gi, 'it all matters'], [/\bodds\b/gi, 'chances'], [/\bbettors?\b/gi, 'pickers'], [/\bbet(s|ting)?\b/gi, (m, x) => (x === 's' ? 'picks' : 'pick')], [/\bwager(s|ed)?\b/gi, 'pick'], [/\bpayouts?\b/gi, 'reward'], [/\bpaid out\b/gi, 'earned'], [/\bthe spread\b/gi, 'the margin pick'], [/\bspreads?\b/gi, 'margin'], [/\bparlays?\b/gi, 'combo'], [/\bsportsbooks?\b/gi, 'Pick\'em'], [/\bgambl\w*/gi, 'playing'], [/\bstakes?\b/gi, 'coins']];
 function degamble(v) {
   if (typeof v === 'string') return SWAPS.reduce((s, [re, to]) => s.replace(re, to), v);

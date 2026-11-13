@@ -35,7 +35,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
   }
   // Coins paid for career wins (arcade matches started with the career flag).
   const careerCoins = (user, game) => (user?.arcade || []).filter(m => m.career && m.game === game && m.status === 'won').reduce((n, m) => n + (m.payout || 0) - (m.stake || 0), 0);
-  // /api/m/finish asks this before paying a Modern Bowl career match: the win must
+  // /arcade/finish asks this before paying a Modern Bowl career match: the win must
   // match the result recorded through this career's own token flow.
   h.careerResult = async (name, m) => {
     if (m.game !== 'bowl') return null;
@@ -92,7 +92,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
         <p id="career-error" class="err" role="alert"></p><p id="career-status" role="status" aria-live="polite"></p>
         <div id="career-hub"></div><section id="career-field" hidden></section>
         <p class="career-note">A fictional MFL competition featuring local middle schools. Leaving or refreshing during a game is a 0–21 loss. Program credits stay in your career; every win you play also pays site coins at your career's difficulty (${GAMES().bowl.prizes.map(fmt).join(' / ')}).</p>
-      </div><style>${styles()}</style><script>window.MFL_CAREER=${initial};</script><script>${inline('career.js')}</script>`, { ticker: false }));
+      </div><style>${styles()}</style><script>window.MFL_CAREER=${initial};</script><script src="${esc(h.assetUrl ? h.assetUrl('career.js') : '/static/career.js')}"></script>`, { ticker: false }));
     } catch (err) { next(err); }
   });
   app.get('/api/career', async (req, res, next) => {

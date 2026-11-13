@@ -1,5 +1,7 @@
 // Head to Head: 3D Blitz, one player against another, live. The lobby (who's online, challenges) and the match
-// relay run over one WebSocket per tab at /ws/versus; the page is /arcade/blitz3d/versus.
+// relay run over one connection per tab, always to the site's own address: a WebSocket at /ws/versus, or the same messages
+// over ordinary requests (/arcade/versus/http/*) where the hosting in front of the site can't carry WebSockets. The page is
+// /arcade/blitz3d/versus.
 //
 // Coins: accepting a challenge adds an 'open' 3D Blitz record to both players with the wager as its stake (an open
 // record already counts its stake as spent, so that holds both wagers). The winner's record is 'won' and pays 2x the
@@ -12,14 +14,12 @@
 //   server -> client: me · online · challenges · challenge · challenge-sent · challenge-gone · error
 //                     match · go · ev · opp-gone · opp-back · over · detached
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const { EventEmitter } = require('events');
 
 module.exports = function versus(app, h) {
-  const { esc, icon, coins, layout, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, pk, TZ, sign } = h;
+  const { esc, icon, coins, layout, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, pk, TZ, sign, assetUrl } = h;
   const envMs = (k, d) => (Number(process.env[k]) > 0 ? Number(process.env[k]) : d);
   const GONE_MS = envMs('VERSUS_GONE_MS', 60e3); // a player with no connection to a live match for this long forfeits
   const CHALLENGE_MS = envMs('VERSUS_CHALLENGE_MS', 60e3);
@@ -59,15 +59,6 @@ module.exports = function versus(app, h) {
     const origin = req.headers.origin;
     if (origin) { try { if (new URL(origin).host !== req.headers.host) return null; } catch { return null; } }
     return currentUser(req);
-  }
-  // Vercel can't carry WebSockets: anything not served from Railway (or this machine) connects to Railway directly.
-  function wsUrl(req) {
-    const host = String(req.get('host') || ''), hn = host.replace(/:\d+$/, '').toLowerCase();
-    if (hn === 'localhost' || hn === '127.0.0.1' || hn.endsWith('.up.railway.app')) {
-      const https = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
-      return `${https ? 'wss' : 'ws'}://${host}${WS_PATH}`;
-    }
-    return `wss://${process.env.RAILWAY_PUBLIC_DOMAIN || 'mfl-production-8234.up.railway.app'}${WS_PATH}`;
   }
 
   // ---------- state ----------
@@ -561,10 +552,10 @@ module.exports = function versus(app, h) {
   }
 
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);
-  // ---------- the same connection over plain HTTPS ----------
-  // Some networks (school filters among them) block the WebSocket to the Railway host, and the site's own domain (Vercel) can't
-  // carry WebSockets. So the page can also talk over ordinary requests on the site's own domain: a long poll brings the server's
-  // messages (it answers at once when something is waiting, otherwise after HTTP_HOLD), and batched POSTs carry the page's. An
+  // ---------- the same connection over ordinary requests ----------
+  // Where the site's own address can't carry a WebSocket (some hosting set-ups in front of this server can't), the page talks to this
+  // same server over ordinary requests on that address instead: a long poll brings the server's messages (it answers at once
+  // when something is waiting, otherwise after HTTP_HOLD), and batched POSTs carry the page's. An
   // HttpSock behaves like a ws socket (send, close, readyState, bufferedAmount, 'message' and 'close' events), so everything above
   // treats both kinds the same. Binary frames travel as base64. A session with no poll for HTTP_IDLE is closed (which starts the
   // usual disconnect clock).
@@ -631,7 +622,7 @@ module.exports = function versus(app, h) {
   app.get('/arcade/versus/token', (req, res) => {
     const name = currentUser(req);
     if (!name) return json(res, { ok: false, error: 'Log in to play Head to Head.' });
-    json(res, { ok: true, token: makeToken(name), ws: wsUrl(req) });
+    json(res, { ok: true, token: makeToken(name), ws: WS_PATH }); // a path: the page opens it on its own address
   });
   // Your last 10 finished Head to Head games.
   function results(user) {
@@ -649,16 +640,8 @@ module.exports = function versus(app, h) {
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not load your results.' }); }
   });
 
-  // Game code is inlined (school web filters often block script URLs with words like "arcade"); re-read when the file changes.
-  const jsMemo = new Map();
-  function inlineJs(file) {
-    const f = path.join(__dirname, 'public/arcade', file + '.js');
-    const mtime = fs.statSync(f).mtimeMs, c = jsMemo.get(f);
-    if (c && c.mtime === mtime) return c.src;
-    const src = fs.readFileSync(f, 'utf8').replace(/<\/script/gi, '<\\/script');
-    jsMemo.set(f, { mtime, src });
-    return src;
-  }
+  // The game code loads as ordinary script files from /static/arcade/ (gzipped, cached until the file changes).
+  const gameScript = (file) => `<script src="${esc(assetUrl('arcade/' + file + '.js'))}"></script>`;
   const CSS = `<style>
 .vs-conn{display:inline-flex;align-items:center;gap:8px;font:600 13px Inter;color:var(--muted);margin:0 0 14px}.vs-conn:empty{display:none}
 .vs-conn::before{content:'';width:8px;height:8px;border-radius:50%;background:#f5b301}.vs-conn.ok::before{background:#4ade80}
@@ -724,7 +707,7 @@ body.vs-playing .ftr{display:none}
       </div>
       <div class="vs-bar conn" id="vsConnBar" hidden></div>
       <script>window.MFL_VERSUS=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>
-      <script>${inlineJs('blitz3d')}</script><script>${inlineJs('versus')}</script>`));
+      ${gameScript('blitz3d')}${gameScript('versus')}`));
     } catch (e) { next(e); }
   });
 

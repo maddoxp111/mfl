@@ -1,6 +1,7 @@
 // Head to Head (3D Blitz, player vs player): the lobby page's client.
-// Gets a short-lived token from /arcade/versus/token, opens the WebSocket it names (?t=<token>) or, where that is blocked, the
-// same connection over HTTPS on the site's own domain (/arcade/versus/http/*), shows who's online
+// Gets a short-lived token from /arcade/versus/token and opens the WebSocket on this site's own address (/ws/versus?t=<token>),
+// or, where the site's address can't carry a WebSocket, the same connection over ordinary requests to this site
+// (/arcade/versus/http/*). Shows who's online
 // and the challenges, and runs a match: join + ready, then window.MFLBlitz.play(root, { ..., versus: net }) on 'go'.
 // The engine talks to the other player through `net` (see versus.js on the server for the messages).
 (function () {
@@ -34,9 +35,9 @@
   function out(o) { if (live && live.queue.length) { live.queue.push(o); return; } if (!sendRaw(o) && live && live.queue.length < 500) live.queue.push(o); }
   function flushQueue() { while (live && live.queue.length && sock && sock.readyState === OPEN) { if (!sendRaw(live.queue[0])) break; live.queue.shift(); } }
 
-  // The same connection over plain HTTPS on the site's own domain, for networks that block the WebSocket to the game server (school
-  // filters among them): a long poll brings the server's messages, batched POSTs carry ours. It looks like a WebSocket to the rest
-  // of this file (readyState, send, close, onopen / onmessage / onclose).
+  // The same connection over ordinary requests to this site, for when the WebSocket can't connect (the hosting in front of the
+  // site may not carry WebSockets): a long poll brings the server's messages, batched POSTs carry ours. It looks like a WebSocket
+  // to the rest of this file (readyState, send, close, onopen / onmessage / onclose).
   const b64 = (buf) => { const u = new Uint8Array(buf); let t = ''; for (let i = 0; i < u.length; i += 0x8000) t += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(t); };
   const unb64 = (t) => { const b = atob(t), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
   const postJson = (path, body) => fetch(path, { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then((r) => r.json());
@@ -77,8 +78,8 @@
   HttpSock.prototype.dead = function () { if (this.readyState === 3) return; this.readyState = 3; if (this.onclose) this.onclose(); };
   HttpSock.prototype.close = function () { if (this.readyState === 3) return; const sid = this.sid; this.readyState = 3; if (sid) postJson('/arcade/versus/http/close', { sid }).catch(() => {}); if (this.onclose) this.onclose(); };
 
-  // Which way to connect: the WebSocket first; if it has not opened in 4 seconds (or fails before opening), HTTPS from then on
-  // (remembered for an hour on this device, so the next visit goes straight there).
+  // Which way to connect: the WebSocket first; if it has not opened in 4 seconds (or fails before opening), ordinary requests from
+  // then on (remembered for an hour on this device, so the next visit goes straight there).
   const HTTP_KEY = 'mfl-vs-http', WS_WAIT = 4000;
   let useHttp = (() => { try { return Date.now() - (+localStorage.getItem(HTTP_KEY) || 0) < 3600e3; } catch (e) { return false; } })();
   function toHttp() { useHttp = true; try { localStorage.setItem(HTTP_KEY, String(Date.now())); } catch (e) {} }
@@ -126,8 +127,10 @@
     if (tok && tok.ok === false) { connecting = false; loggedOut = true; setConn('Log in again to play.'); return; }
     if (!tok || !tok.ok) { connecting = false; return later(); }
     let ws;
-    try { ws = new WebSocket(tok.ws + (tok.ws.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(tok.token)); } catch (e) { connecting = false; toHttp(); return connect(); }
-    wire(ws, () => { toHttp(); retry = 0; connecting = false; connect(); }); // blocked or not answering: over HTTPS instead
+    // always this page's own address: the server only names the path
+    const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + (String(tok.ws || '').charAt(0) === '/' ? tok.ws : '/ws/versus');
+    try { ws = new WebSocket(url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(tok.token)); } catch (e) { connecting = false; toHttp(); return connect(); }
+    wire(ws, () => { toHttp(); retry = 0; connecting = false; connect(); }); // no WebSocket here: ordinary requests instead
   }
   function later() {
     clearTimeout(retryTimer);
@@ -308,7 +311,7 @@
       matchId: m.id, me: { name: m.me.name }, opp: { name: m.opp.name }, recvFirst: !!m.recvFirst, wager: m.wager, qs: m.qs, venue: m.venue || 'stadium', big: !!m.big, touch: !!m.touch, seed: m.seed, resume: null,
       send(type, data) { if (live && live.net === net && !live.over) out({ t: 'ev', type, data }); },
       sendFrame(buf) { if (sock && sock.readyState === OPEN && live && live.net === net && !live.over) { try { sock.send(buf); } catch (e) {} } },
-      get lag() { return sock && sock.http ? 420 : 140; }, // how far behind to play the other side's stream back (HTTPS arrives in batches)
+      get lag() { return sock && sock.http ? 420 : 140; }, // how far behind to play the other side's stream back (ordinary requests arrive in batches)
       quit() { if (live && live.net === net && !live.over) out({ t: 'quit', id: m.id }); },
     };
     // anything that arrives before the engine is listening waits for it

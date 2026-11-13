@@ -44,36 +44,20 @@ function adminPasswordOk(p) {
 const TZ = process.env.TZ_LEAGUE || 'America/Chicago';
 const VENUE = 'Wildcat Stadium';
 
-// GitHub Pages bridge: the github.io copy loads every page live from this server.
-// Browsers there can't share our cookies, so the bridge sends them in X-MFL-Auth
-// and gets new ones back in X-MFL-Set; redirects come back as X-MFL-Redirect.
-const BRIDGE_ORIGINS = ['https://maddoxp111.github.io', ...(process.env.BRIDGE_ORIGINS || '').split(',').filter(Boolean)];
+// The site's one address. Every page names it in <link rel="canonical">, and robots.txt / sitemap.xml use it.
+const SITE_URL = (process.env.SITE_URL || 'https://www.metcalffootballleague.com').replace(/\/+$/, '');
+// A way for school staff, parents and players to reach whoever runs the site, shown on /about (set it on the server).
+const CONTACT_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.CONTACT_EMAIL || '') ? process.env.CONTACT_EMAIL : '';
+app.disable('x-powered-by');
+// The hosting company's own address for this server (*.up.railway.app) sends visitors to the site's address, so the site
+// lives at one address. A request a front end passed along (X-Forwarded-Host names a different address, or it has a front
+// end's X-Vercel-Id) is served as usual, so pointing a front end at that address can never loop. CANONICAL_REDIRECT=0 turns
+// this off.
+const railwayHost = (h) => /\.up\.railway\.app$/.test(String(h || '').split(',')[0].trim().replace(/:\d+$/, '').toLowerCase());
 app.use((req, res, next) => {
-  const origin = req.get('origin');
-  if (!BRIDGE_ORIGINS.includes(origin)) return next();
-  res.set({
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST',
-    'Access-Control-Allow-Headers': 'Content-Type, X-MFL-Bridge, X-MFL-Auth, X-MFL-Path',
-    'Access-Control-Expose-Headers': 'X-MFL-Set, X-MFL-Redirect',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  });
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (!req.get('X-MFL-Bridge')) return next();
-  req.headers.cookie = req.get('X-MFL-Auth') || '';
-  const here = req.get('X-MFL-Path');
-  req.headers.referer = here && here.startsWith('/') ? `${req.protocol}://${req.get('host')}${here}` : '';
-  const setHeader = res.setHeader.bind(res);
-  res.setHeader = (name, value) => {
-    if (String(name).toLowerCase() === 'set-cookie') {
-      const list = [].concat(value).map((c) => String(c).split(';')[0]);
-      setHeader('X-MFL-Set', JSON.stringify(list));
-    }
-    return setHeader(name, value);
-  };
-  res.redirect = (a, b) => { const url = typeof a === 'number' ? b : a; res.set('X-MFL-Redirect', url).status(200).end(); };
-  next();
+  if (process.env.CANONICAL_REDIRECT === '0' || (req.method !== 'GET' && req.method !== 'HEAD') || !railwayHost(req.headers.host)) return next();
+  if ((req.headers['x-forwarded-host'] && !railwayHost(req.headers['x-forwarded-host'])) || req.headers['x-vercel-id']) return next();
+  res.redirect(301, SITE_URL + req.originalUrl);
 });
 // Gzip pages (they're mostly repeated markup, so they shrink ~10x).
 app.use((req, res, next) => {
@@ -91,7 +75,42 @@ app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 const smallJson = express.json({ limit: '100kb' });
 const saveJson = express.json({ limit: '1mb' }); // 3D Blitz franchise saves
 app.use((req, res, next) => (req.path === '/admin/restore' ? next() : req.path.startsWith('/api/bf/save/') ? saveJson(req, res, next) : smallJson(req, res, next)));
-app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// Scripts and styles go out gzipped (the game scripts are megabytes; they shrink ~5x). Each file is compressed once and kept
+// until it changes. A URL with ?v= (assetUrl below) names one version of the file, so browsers keep it for a year.
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const gzMemo = new Map();
+app.get(/^\/static\/.+\.(js|css|json)$/, (req, res, next) => {
+  if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '')) return next();
+  let rel;
+  try { rel = decodeURIComponent(req.path.slice('/static/'.length)); } catch { return next(); }
+  if (/(^|[\\/])\./.test(rel)) return next(); // no dotfiles, same as express.static
+  const file = path.join(PUBLIC_DIR, rel);
+  if (!file.startsWith(PUBLIC_DIR + path.sep)) return next();
+  let st;
+  try { st = require('fs').statSync(file); } catch { return next(); }
+  if (!st.isFile()) return next();
+  let c = gzMemo.get(file);
+  if (!c || c.mtime !== st.mtimeMs) {
+    const raw = require('fs').readFileSync(file);
+    c = { mtime: st.mtimeMs, gz: require('zlib').gzipSync(raw, { level: 9 }), etag: '"' + crypto.createHash('md5').update(raw).digest('hex').slice(0, 16) + '-gz"' };
+    gzMemo.set(file, c);
+  }
+  res.type(path.extname(file)).set({ 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding', ETag: c.etag,
+    'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=3600' });
+  if (req.fresh) return res.status(304).end();
+  res.set('Content-Length', String(c.gz.length)).end(c.gz);
+});
+app.use('/static', express.static(PUBLIC_DIR, { maxAge: '1h' }));
+// The /static address of a file in public/, tagged with its content: the tag changes only when the file does.
+const assetMemo = new Map();
+function assetUrl(rel) {
+  const file = path.join(PUBLIC_DIR, rel);
+  let mtime;
+  try { mtime = require('fs').statSync(file).mtimeMs; } catch { return '/static/' + rel; }
+  let c = assetMemo.get(rel);
+  if (!c || c.mtime !== mtime) { c = { mtime, v: crypto.createHash('md5').update(require('fs').readFileSync(file)).digest('hex').slice(0, 10) }; assetMemo.set(rel, c); }
+  return `/static/${rel}?v=${c.v}`;
+}
 // Player photos, served from storage (keys are unique per upload, so cache hard).
 app.get('/media/logo/:file', (req, res) => {
   const m = /^([a-z0-9-]+)-([0-9a-f]{10})\.[a-z+]+$/.exec(req.params.file);
@@ -430,6 +449,8 @@ const SITE_NOTICE = { id: 'notice-nov6-fairplay', first: true, wait: 5, button: 
 <p><b>The admin hack.</b> On Nov 6, someone got into the admin panel and handed out fake coins, billions to some accounts. Every fake coin was removed, and the site was put back to how it was at 10:55 AM on Nov 6, before the first fake coins:</p>
 <ul><li>Every pack opened after that is gone, with its cards, and the coins spent on it came back.</li><li>Every pick, card sale, card trade and Lineup change after that was undone.</li><li>The admin password was changed and everyone was signed out of admin.</li></ul>
 <p>If your Lineup went back, set it again before the next game. The coin history on your profile shows exactly what changed.</p>` };
+// What the site is, in one sentence: every page's description.
+const SITE_DESC = 'Metcalf Football League (MFL): a student-made fan site for a middle school flag football league at Wildcat Stadium, with the schedule, scores, standings and player stats, plus a just-for-fun prediction game, player cards and football games played with free play coins.';
 function layout(req, title, body, opts = {}) {
   const db = load();
   const teams = Object.values(db.teams);
@@ -441,7 +462,9 @@ function layout(req, title, body, opts = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · MFL</title>
 <meta name="theme-color" content="#0a0a0d">
-<meta name="description" content="Metcalf Football League: schedule, scores, standings, player stats and a just-for-fun prediction game and collectible player cards for the Wildcat Stadium flag football league.">
+<meta name="description" content="${esc(SITE_DESC)}">
+${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${esc(SITE_URL + req.path)}">`}
+<meta property="og:site_name" content="Metcalf Football League"><meta property="og:type" content="website"><meta property="og:title" content="${esc(title)} · MFL"><meta property="og:description" content="${esc(SITE_DESC)}"><meta property="og:url" content="${esc(SITE_URL + req.path)}">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -477,8 +500,8 @@ ${hypeBanner(db, cur)}
 ${opts.ticker === false ? '' : ticker(db)}
 <main>${body}</main>
 <footer class="ftr"><div class="wrap ftr-in">
-  <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE}</small></div></div>
-  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/coins">Earn coins</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a><a href="/updates">Patch notes</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/admin">Admin</a></div>
+  <div class="ftr-brand"><img src="/static/mfl-logo.webp" alt=""><div><b>Metcalf Football League</b><small>All games at ${VENUE} · a student-made fan site · <a href="/about">About</a></small></div></div>
+  <div class="ftr-links"><a href="/schedule">Schedule</a><a href="/scores">Scores</a><a href="/arcade">Arcade</a><a href="/career">Career</a><a href="/pickem/cards">Cards</a><a href="/pickem">Pick'em</a><a href="/coins">Earn coins</a><a href="/history">Head-to-Head</a><a href="/stats/players">Leaders</a><a href="/stats/rankings">Rankings</a><a href="/records">Records</a><a href="/cards">Cards</a><a href="/calendar.ics">Add to calendar</a><a href="/updates">Patch notes</a>${teams.map((t) => `<a href="/teams/${t.id}">${esc(t.name)}</a>`).join('')}<a href="/about">About this site</a><a href="/admin">Admin</a></div>
 </div></footer>
 ${hypeBowl(db) ? hypeBarScript : ''}<div class="disc" id="disc" hidden role="dialog" aria-modal="true" aria-labelledby="discT"><div class="disc-box">
   <img src="/static/mfl-logo.webp" alt="" width="56" height="56">
@@ -516,7 +539,7 @@ const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scr
 // The header balance loads after the page so every page stays fast.
 if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
 // Start loading a page as soon as a finger or mouse lands on its link.
-if(!window.MFL_ORIGIN){const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
+{const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
 document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
 </script>
 </body></html>`;
@@ -612,7 +635,7 @@ app.get('/', async (req, res, next) => {
     <div class="wrap home">
       ${hypeTakeover(db) || hero}
       <a class="arc-promo" href="/arcade"><div class="arc-promo-art" aria-hidden="true"><div class="px-field"><i></i><i></i><i></i><i></i><b></b></div></div>
-        <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>11 games and Hit or Stand. Real coins.</b><span>3D Blitz, Modern Bowl, Chess, 8-Ball Pool, Trivia and 6 more, plus Hit or Stand for up to ${require('./blackjack').BJ.max.toLocaleString('en-US')} a hand. Win coins, crank up Risk mode, or go Double or Nothing in 3D Blitz.</span></div>
+        <div class="arc-promo-txt"><span class="kicker">🕹️ New · MFL Arcade</span><b>11 games and Hit or Stand. Play for coins.</b><span>3D Blitz, Modern Bowl, Chess, 8-Ball Pool, Trivia and 6 more, plus Hit or Stand for up to ${require('./blackjack').BJ.max.toLocaleString('en-US')} a hand. Win coins, crank up Risk mode, or go Double or Nothing in 3D Blitz.</span></div>
         <span class="btn">Play now ${icon('arrow')}</span></a>
       <div class="home-grid">
         <div class="col">
@@ -1544,9 +1567,9 @@ app.get('/pick-links', (req, res) => {
     </div></div>`).join('')}
   </div>
   <script>
-  document.querySelectorAll('.lk-url').forEach((a) => { a.textContent = (window.MFL_ORIGIN || location.origin) + a.dataset.path; });
+  document.querySelectorAll('.lk-url').forEach((a) => { a.textContent = location.origin + a.dataset.path; });
   function mflCopy(btn) {
-    const url = (window.MFL_ORIGIN || location.origin) + btn.parentElement.querySelector('.lk-url').dataset.path;
+    const url = location.origin + btn.parentElement.querySelector('.lk-url').dataset.path;
     const done = () => { btn.textContent = 'Copied!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('ok'); }, 1600); };
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt('Copy this link:', url));
     else prompt('Copy this link:', url);
@@ -1765,8 +1788,10 @@ app.get('/pickem/rules', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Where to go after logging in or signing up: a path on this site only ("/pickem/me"), never another site ("//x" or "/\\x").
+const sitePath = (v, fallback = '/pickem') => (typeof v === 'string' && /^\/(?![/\\])[a-z0-9/_-]*$/i.test(v) ? v : fallback);
 function authPage(req, mode, err = '') {
-  const next = /^\/[a-z0-9/_-]*$/i.test(req.query.next || req.body?.next || '') ? (req.query.next || req.body.next) : '/pickem';
+  const next = sitePath(req.query.next || req.body?.next);
   const signup = mode === 'signup';
   return layout(req, signup ? 'Sign up' : 'Log in', `<div class="wrap login"><form method="post" class="card form">
     <img src="/static/mfl-logo.webp" alt="" class="login-logo"><h2>${signup ? "Join Pick'em" : 'Log in'}</h2>
@@ -1789,7 +1814,7 @@ app.post('/pickem/signup', async (req, res) => {
   if (await getDoc(userKey(name), { fresh: true })) return res.send(authPage(req, 'signup', 'That username is taken.'));
   await putDoc(userKey(name), { name, ...pk.hashPin(pin), created: new Date().toISOString(), bonuses: [], bets: [] });
   setUserCookie(req, res, name);
-  res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
+  res.redirect(sitePath(req.body.next));
 });
 // Slow down password guessing: a few tries per name, then a cooldown.
 // Older accounts made with a 4-digit PIN log in by typing that PIN as their password.
@@ -1805,7 +1830,7 @@ app.post('/pickem/login', async (req, res) => {
   }
   tries.delete(name);
   setUserCookie(req, res, name);
-  res.redirect(req.body.next && /^\/[a-z0-9/_-]*$/i.test(req.body.next) ? req.body.next : '/pickem');
+  res.redirect(sitePath(req.body.next));
 });
 // Change your own password (must know the current one, or the old 4-digit PIN).
 app.post('/pickem/password', async (req, res) => {
@@ -1934,6 +1959,42 @@ app.get('/updates', (req, res) => {
       <ul>${(u.items || []).map((s) => `<li>${updateItem(s)}</li>`).join('')}</ul>
     </article>`).join('') || '<p class="muted">No updates yet.</p>'}</div>`));
 });
+
+// ---------- about this site, and the files crawlers look for ----------
+app.get('/about', (req, res) => {
+  const host = new URL(SITE_URL).host;
+  const contact = CONTACT_EMAIL
+    ? `Questions about the site, from school staff, parents or players: email <a href="mailto:${esc(CONTACT_EMAIL)}">${esc(CONTACT_EMAIL)}</a>.`
+    : 'Questions about the site, from school staff, parents or players, go to the league\'s commissioner.';
+  res.send(layout(req, 'About this site', pageHead('MFL website', 'About this site', 'What the Metcalf Football League site is, and who runs it.') + `<div class="wrap"><article class="card prose">
+    <h2>What it is</h2>
+    <p>The Metcalf Football League (MFL) site is the home of our middle school flag football league. Every game is played at ${VENUE}. It's an independent, student-made fan site: it is <b>not affiliated with, run by, or endorsed by Thomas Metcalf School</b>.</p>
+    <h2>What's on it</h2>
+    <ul>
+      <li><b>The league:</b> the schedule, scores and box scores, standings and playoffs, team pages and rosters, player stats, power rankings and the records book.</li>
+      <li><b>Pick'em:</b> predict the games with free play coins.</li>
+      <li><b>Cards:</b> collectible cards of the league's players, from packs you open with play coins.</li>
+      <li><b>Arcade and Career:</b> football games with the league's teams and players (3D Blitz, with live Head to Head against another player, and Modern Bowl), plus classics like chess, checkers, pool, trivia and Hit or Stand.</li>
+    </ul>
+    <h2>Play coins</h2>
+    <p>Coins on this site are play coins. They're free, they have no money value, and they can't be bought, sold or cashed out. Nobody pays anything to use the site. <a href="/coins">Every way to earn coins</a>.</p>
+    <h2>One site, one address</h2>
+    <p>Every page and game here comes from this site itself, at one address: <b>${esc(host)}</b>. The site doesn't open, load or pass along other websites.</p>
+    <h2>Who runs it</h2>
+    <p>The league's commissioner runs the site and keeps the scores, stats and rosters up to date. ${contact}</p>
+  </article></div>`));
+});
+app.get('/robots.txt', (req, res) => {
+  res.type('text').set('Cache-Control', 'public, max-age=3600').send(`User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+});
+// The main public pages (team pages included; player pages are reachable from them but not listed here).
+app.get('/sitemap.xml', (req, res) => {
+  const db = load();
+  const paths = ['/', '/about', '/schedule', '/scores', '/history', '/stats/team', '/stats/players', '/stats/rankings', '/records', '/transactions', '/cards', '/midweek', '/analyst', '/updates', '/coins', '/pickem', '/pickem/rules', '/pickem/leaderboard', '/arcade', '/career',
+    ...Object.keys(db.teams).map((id) => `/teams/${id}`), ...(db.bowls || []).map((b) => `/playoffs/${b.slug}`)];
+  res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths.map((p) => `<url><loc>${esc(SITE_URL + p)}</loc></url>`).join('\n')}\n</urlset>\n`);
+});
+app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/mfl-logo.webp'));
 
 // ---------- calendar ----------
 app.get('/calendar.ics', (req, res) => {
@@ -2610,7 +2671,7 @@ app.get('/records', (req, res) => {
   </div>`));
 });
 
-const shareScript = `<script>function mflShare(path,title){const url=(window.MFL_ORIGIN||location.origin)+path;if(navigator.share){navigator.share({title,url}).catch(()=>{});return}navigator.clipboard.writeText(url).then(()=>{const m=document.getElementById('shareMsg');if(m)m.textContent='Link copied! Paste it anywhere.';else alert('Link copied!')}).catch(()=>prompt('Copy this link:',url))}</script>`;
+const shareScript = `<script>function mflShare(path,title){const url=location.origin+path;if(navigator.share){navigator.share({title,url}).catch(()=>{});return}navigator.clipboard.writeText(url).then(()=>{const m=document.getElementById('shareMsg');if(m)m.textContent='Link copied! Paste it anywhere.';else alert('Link copied!')}).catch(()=>prompt('Copy this link:',url))}</script>`;
 
 // ---------- pick'em: profiles, weekly board, daily bonus, sharing ----------
 // Weeks run Monday-Sunday in league time.
@@ -2679,7 +2740,9 @@ app.post('/pickem/daily', async (req, res) => {
       await putDoc(userKey(name), user);
     }
   }
-  res.redirect(req.get('referer')?.includes('/pickem') ? new URL(req.get('referer')).pathname : '/pickem');
+  let back = '/pickem';
+  try { const r = new URL(req.get('referer') || ''); if (r.pathname.startsWith('/pickem')) back = sitePath(r.pathname); } catch {} // the path only, on this site
+  res.redirect(back);
 });
 
 const betLink = (owner, b) => `/pickem/ticket/${owner}/${b.id}`;
@@ -3762,15 +3825,15 @@ function ratingOf(db, t, p) {
   require('./cardbook')(app, funH); }
 
 tts.register(app, { currentUser, requireAdmin, load }); // before /arcade/:game
-arcadeApi = require('./arcade')(app, { esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save, sign });
+arcadeApi = require('./arcade')(app, { assetUrl, esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save, sign });
 // Head to Head (3D Blitz, live): its WebSocket is attached to each server app.listen() starts, below.
-const versusApi = require('./versus')(app, { esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
+const versusApi = require('./versus')(app, { assetUrl, esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
 // Every way to earn coins (/coins).
 Object.assign(earnH, { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS, dailyInfo, addDays, today, packPrices, arcade: () => arcadeApi, TZ, getDoc });
 require('./earn')(app, earnH);
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
-app.use((err, req, res, next) => { console.error(err); res.status(500).send(`Something went wrong. Try again in a moment.<!-- ${esc(err && (err.name + ': ' + err.message))} -->`); });
+app.use((err, req, res, next) => { console.error(err); if (res.headersSent) return next(err); res.status(500).type('text').send('Something went wrong. Try again in a moment.'); }); // no error details in the page
 
 // AI text written before the no-betting-words rule: clean it once on startup.
 function degambleAI(db) {

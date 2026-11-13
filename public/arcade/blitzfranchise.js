@@ -3,7 +3,7 @@
 //
 // Talks to: window.MFL_BLITZ_CAREER (boot data), window.MFLBlitz.play(root, opts) (the 3D engine, optional),
 // the save API /api/bf/* (logged in) or localStorage mfl-bf-slot-<n> (logged out), and the Arcade match
-// API /api/m/start + /api/m/finish (career flag): a 3D win pays the Arcade prize for the career's difficulty.
+// API /arcade/start + /arcade/finish (career flag): a 3D win pays the Arcade prize for the career's difficulty.
 // Everything renders inside #bfRoot; all CSS classes are prefixed bf-.
 (function () {
   'use strict';
@@ -2534,13 +2534,13 @@
   // finishes one, so the server checks it the same way (time, score) and pays exactly the prize.
   const prizeFor = (lvl) => num(BOOT.prizes[clamp(lvl | 0, 0, 3)], 0);
   async function coinStart() {
-    try { const j = await api('/api/m/start', { game: 'blitz3d', level: S.diff, career: true }); return j && j.ok && j.id ? j : null; } catch (e) { return null; }
+    try { const j = await api('/arcade/start', { game: 'blitz3d', level: S.diff, career: true }); return j && j.ok && j.id ? j : null; } catch (e) { return null; }
   }
   async function coinFinish(id, r) {
     const done = !r.quit && !r.error && !r.noGL;
     let tds = 0; for (const k in r.stats || {}) tds += num(r.stats[k] && r.stats[k].rushTD) + num(r.stats[k] && r.stats[k].recTD);
     try {
-      const j = await api('/api/m/finish', { id, result: { won: done && num(r.homeScore) > num(r.awayScore), tie: done && num(r.homeScore) === num(r.awayScore), score: num(r.homeScore), stats: { td: tds, opp: num(r.awayScore), overtime: !!r.overtime } } });
+      const j = await api('/arcade/finish', { id, result: { won: done && num(r.homeScore) > num(r.awayScore), tie: done && num(r.homeScore) === num(r.awayScore), score: num(r.homeScore), stats: { td: tds, opp: num(r.awayScore), overtime: !!r.overtime } } });
       if (j && j.ok && j.balance != null) document.querySelectorAll('[data-balance]').forEach((n) => { n.textContent = fmt(j.balance); });
       return j;
     } catch (e) { return { ok: false, error: (e && e.message) || 'Could not reach the server.' }; }

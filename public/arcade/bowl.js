@@ -6,7 +6,7 @@
       const token = crypto.randomUUID();
       ctx.root.innerHTML = `<div class="bowl-runtime"><p role="status">Loading Modern Bowl…</p><iframe title="Modern Bowl football game" allow="autoplay; fullscreen" style="display:block;width:100%;height:auto;aspect-ratio:16/9;max-height:80vh;border:0;background:#000" allowfullscreen></iframe><button type="button" class="btn ghost sm">Full screen</button></div>`;
       const frame = ctx.root.querySelector('iframe');
-      const runtimeOrigin = new URL(window.MFL_API_ORIGIN || location.origin).origin;
+      const runtimeOrigin = location.origin;
       frame.src = runtimeOrigin + '/play/football';
       const status = ctx.root.querySelector('[role=status]');
       let finished = false;
