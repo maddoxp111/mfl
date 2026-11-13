@@ -19151,7 +19151,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (homeTD && closeP) { at = 0.45; pick = () => shCeleb(Math.max(1.2, deadT - 0.05), closeP) || bcDeadShot('sky'); }
       else if (awayTD) { at = 1.0; pick = () => (side ? shCoach(T(), 0) : null) || shCrowd(T()); }
       else if (res === 'intdown' || res === 'fumlost' || res === 'pick6') { at = 1.0; pick = () => bcDeadAny([side ? 'coach' : null, 'crowd', 'qbreact']); }
-      else if (res && !kickK && was === 'live' && lastBig && !lastBig.played && lastBig.kind === 'big') { at = 1.05; pick = all ? () => bcDeadAny(['man', 'crowd', side ? 'bench' : null]) : null; } // a big play only (first downs, incompletions, sacks and ordinary plays get no cutaway)
+      // (no cutaway after any other play, big gains included: nothing between plays except touchdowns and turnovers)
       if (BC.two && !homeTD) { at = 0.9; pick = () => { BC.two = false; const s = shWide(Math.max(1, deadT - 0.05), 0.3); if (s) { s.start = () => { bcDDGfx('tw'); bcSay('bc_two_minute', {}, 2); }; } return s; }; }
       if (DBG && DBG.bcForce && /^(refsig|man|qbreact|endzone|sky|bench|coach|crowd|celeb)$/.test(DBG.bcForce)) { const id = DBG.bcForce; DBG.bcForce = null; at = 0.6; pick = () => (id === 'celeb' ? shCeleb(Math.max(1.2, deadT - 0.05), closeP || carrier || OK.QB) : bcDeadShot(id, res === 'inc' ? 'siginc' : 'sigfirst')); }
       if (pick && left > at + 0.7) BC.sched = { ph: 'dead', at, fn: pick };
@@ -19254,7 +19254,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const L = lastBig, all = bcAll(), shots = [];
       if (L && !L.played && !L.want && L.kind !== 'td' && replayBuf.length > 24 && all) {
         const gain = pend && pend.los != null ? pend.los - los : 0;
-        if ((L.kind === 'int' || (L.kind === 'big' && gain >= 30)) && BC.plays - BC.lastRep >= 4) { const R = bcReplayShots(L); if (R) shots.push(...R); }
+        if (L.kind === 'int' && BC.plays - BC.lastRep >= 4) { /* a turnover's replay only: big gains get none */ const R = bcReplayShots(L); if (R) shots.push(...R); }
       }
       const scored = hs - (BC.hsLive || 0), K = kick && (kick.type === 'fg'), td = scored >= 6 && !K && playRes === 'td';
       BC.sumPat = null;

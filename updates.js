@@ -700,6 +700,16 @@ const UPDATES = [
       'Broadcast shots now only come at the big moments: touchdowns, interceptions and fumbles, big plays (with a replay), timeouts, the two-minute warning, the end of each quarter, halftime, the pregame intro and the final.',
     ],
   },
+  {
+    n: 66,
+    date: '2026-11-13',
+    title: 'Nothing between plays',
+    items: [
+      'Cutscenes no longer play between ordinary plays, big gains included. The game goes straight to the next play.',
+      'Kept: the touchdown celebration, the touchdown replay from several angles, the drive summary after a touchdown, and the replay after an interception or fumble.',
+      'Also kept: timeouts, the two-minute warning, the end of each quarter, halftime, the pregame intro and the final.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
