@@ -3964,7 +3964,15 @@ Object.assign(earnH, { esc, icon, layout, pageHead, load, currentUser, loadAccou
 require('./earn')(app, earnH);
 
 app.use((req, res) => res.status(404).send(layout(req, 'Not Found', pageHead('404', 'Page not found', '<a href="/">Back home →</a>'))));
-app.use((err, req, res, next) => { console.error(err); if (res.headersSent) return next(err); res.status(500).type('text').send('Something went wrong. Try again in a moment.'); }); // no error details in the page
+// A server error shows a normal page (plain text made phones save it as a file), with no error details in it.
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (res.headersSent) return next(err);
+  let page;
+  try { page = layout(req, 'Something went wrong', pageHead('Oops', 'Something went wrong', 'Try again in a moment. <a href="javascript:history.back()">Go back</a> · <a href="/">Home →</a>')); }
+  catch { page = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MFL</title><p style="font:16px system-ui,sans-serif;padding:24px">Something went wrong. Try again in a moment. <a href="/">Home</a></p>'; }
+  res.status(500).type('html').send(page);
+});
 
 // AI text written before the no-betting-words rule: clean it once on startup.
 function degambleAI(db) {
