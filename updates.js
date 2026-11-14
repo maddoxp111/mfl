@@ -772,6 +772,17 @@ const UPDATES = [
       'Packs you already bought keep the price you paid.',
     ],
   },
+  {
+    n: 73,
+    date: '2026-11-14',
+    title: 'Cash out your picks',
+    items: [
+      'Changed your mind? An open pick can now be cashed out on My picks for part of what you played back right away, any time until picks lock for its game.',
+      'The earlier you cash out, the more you get back: 90% a day or more before the lock, then less and less until it is 50% right before the lock. Example: 1,000 coins played gives 900 back a day before, about 700 half a day before and 500 right before the lock.',
+      'You never get back more than you played, and once picks lock there is no cash-out. The button on each open pick shows what you would get right now.',
+      'A cashed-out pick is settled: it is not a win or a loss, whatever happens in the game. If every pick on it is called off later (the game postponed or voided, or the player you picked ruled out), you get everything you played back instead.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

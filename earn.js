@@ -54,7 +54,7 @@ module.exports = function earn(app, h) {
     const arcGames = arc.filter((m) => !m.versus && !m.career && m.game !== 'blackjack' && (m.status === 'won' || m.status === 'lost'));
     const rows = [
       ['Sign-up coins', pk.START_COINS, 'Everyone starts here', '#other', true],
-      ["Pick'em picks", acct.profit, `${acct.won} won · ${acct.lost} lost`, '#pickem'],
+      ["Pick'em picks", acct.profit, `${acct.won} won · ${acct.lost} lost${acct.cashed ? ` · ${acct.cashed} cashed out` : ''}`, '#pickem'],
       ['In open picks', -sum(open, (b) => b.stake), `${plural(open.length, 'pick')} waiting on a game. Wins pay when it's final`, '#pickem'],
       ['Daily bonus', sum(daily), plural(daily.length, 'day'), '#pickem'],
       ['Lineup', P.fantasy || 0, nGames ? `${plural(nGames, 'game')} scored${rate !== 1 ? ` · ${fmt(rate)} coins a point` : ''}` : '', '#lineup'],
@@ -107,9 +107,11 @@ module.exports = function earn(app, h) {
     for (const b of acct.bets || []) {
       const what = b.legs.length > 1 ? `${b.legs.length}-pick combo` : (b.legs[0] && b.legs[0].label) || 'Pick';
       add(b.placed, 'Made a pick', -b.stake, what, 'pickem');
+      // a cash-out pays when it's pressed (unless every pick on it is later called off: then it's a full refund at the game instead)
+      if (b.status === 'cashed') add(b.cashout.at, 'Cashed out', b.payout, `${what} · ${b.cashout.pct}% back`, 'pickem');
       if (b.status === 'won' || b.status === 'void') {
         const end = b.legs.map((l) => db.games.find((g) => g.id === l.game)).filter(Boolean).map(gameEnd).sort().pop() || b.placed;
-        add(end, b.status === 'won' ? 'Pick won' : 'Pick refunded', b.payout, what, 'pickem');
+        add(end, b.status === 'won' ? 'Pick won' : 'Pick refunded', b.payout, b.cashout ? `${what} · called off, so all of it back instead of the cash-out` : what, 'pickem');
       }
     }
     if (user.bjOld && user.bjOld.hands) { const o = user.bjOld; add(o.to, 'Hit or Stand · older hands', (o.wonNet || 0) - (o.lostNet || 0), `${plural(o.hands, 'hand')}: ${fmt(o.won)} won, ${fmt(o.lost)} lost, ${fmt(o.push)} pushed`, 'arcade'); }
@@ -170,7 +172,7 @@ module.exports = function earn(app, h) {
       const champ = PK.prize;
       const pickem = section('pickem', '🎯', "Pick'em", '/pickem', 'Make picks', [
         item({ t: 'Win a pick', amt: 'Your pick × the reward', when: 'Every MFL game',
-          p: `Pick what happens in the next game: winners, scores, who scores a TD. Play at least ${fmt(pk.MIN_STAKE)} coins. Right picks pay your coins back plus the reward: <b>+150</b> turns 100 coins into 250. Combos of up to ${pk.MAX_LEGS} picks multiply the rewards. Picks lock ${pk.LOCK_MINUTES} minutes before kickoff.`, href: '/pickem', go: 'Make a pick' }),
+          p: `Pick what happens in the next game: winners, scores, who scores a TD. Play at least ${fmt(pk.MIN_STAKE)} coins. Right picks pay your coins back plus the reward: <b>+150</b> turns 100 coins into 250. Combos of up to ${pk.MAX_LEGS} picks multiply the rewards. Picks lock ${pk.LOCK_MINUTES} minutes before kickoff. Changed your mind? Cash an open pick out on My picks before the lock: ${Math.round(pk.CASHOUT_MAX * 100)}% of it back ${pk.CASHOUT_HOURS}+ hours before, sliding to ${Math.round(pk.CASHOUT_MIN * 100)}% right before.`, href: '/pickem', go: 'Make a pick' }),
         item({ t: 'Daily bonus', amt: dStep ? `${amt(dBase)} to ${fmt(dMax)}` : amt(dBase), when: 'Once a day',
           p: `Claim it on the Pick'em page. ${dStep ? `It grows by ${fmt(dStep)} for every day in a row you claim it, up to ${fmt(dMax)} after ${plural(dDays, 'day')}.` : ''}${dNow ? (dNow.claimed ? " <b>You've claimed today's.</b>" : ` <b>Today's is ${fmt(dNow.amount)} and still waiting.</b>`) : ''}`, href: '/pickem', go: 'Claim it' }),
         item({ t: 'Picker of the Week', amt: 'Free pack', when: 'Every week',
@@ -269,7 +271,7 @@ module.exports = function earn(app, h) {
       // ---------- Where coins go ----------
       const neg = pay ? pay.filter((r) => r.v < 0) : [];
       const spend = `<section class="card earn-sec" id="spend"><div class="card-h"><h2><span class="em" aria-hidden="true">💸</span>Where coins go</h2></div><ul class="earn-ul">
-        <li><b>Picks</b> that miss (at least ${fmt(pk.MIN_STAKE)} coins each).</li>
+        <li><b>Picks</b> that miss (at least ${fmt(pk.MIN_STAKE)} coins each), and the ${Math.round((1 - pk.CASHOUT_MAX) * 100)}% to ${Math.round((1 - pk.CASHOUT_MIN) * 100)}% of a pick a cash-out keeps.</li>
         <li><b>Packs</b>: ${fmt(pp.lo)} to ${fmt(pp.hi)} coins.</li>
         <li><b>Risk mode and Double or Double</b> games you lose. Double or Double can take you below zero.</li>
         <li><b>Head to Head</b> games you lose: your wager.</li>

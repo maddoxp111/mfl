@@ -469,7 +469,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=85">
+<link rel="stylesheet" href="/static/style.css?v=86">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -1194,7 +1194,7 @@ function slip(user) {
         if (!d.ok) throw new Error(d.error);
         legs = []; store(); render();
         el('slip').hidden = false; el('slip').classList.remove('min'); el('slipMsg').className = 'slip-msg good';
-        el('slipMsg').innerHTML = 'Locked in! You could get ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a>';
+        el('slipMsg').innerHTML = 'Locked in! You could get ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a><br><small>Changed your mind? Cash it out on My picks until picks lock: ${Math.round(pk.CASHOUT_MAX * 100)}% back ${pk.CASHOUT_HOURS}+ hours before, sliding to ${Math.round(pk.CASHOUT_MIN * 100)}% right before.</small>';
         document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
       } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
       go.disabled = false;
@@ -1291,16 +1291,35 @@ function pickHead(user, acct, mode) {
   </div></section>`;
 }
 function betCard(db, b, opts = {}) {
-  const st = { won: 'Won', lost: 'Lost', void: 'Refunded', pending: 'Open' }[b.status];
+  const st = { won: 'Won', lost: 'Lost', void: 'Refunded', pending: 'Open', cashed: 'Cashed out' }[b.status];
+  // opts.cashout: the owner looking at their own ticket on My picks, so an open one shows what it gives back right now
+  const q = opts.cashout && b.status === 'pending' && b.id ? pk.cashoutQuote(db, b, Date.now(), TZ) : null;
   return `<div class="tkt ${b.status}">
     <div class="tkt-h">${opts.who ? `<a href="/pickem/u/${esc(opts.who)}"><b>@${esc(opts.who)}</b></a>` : `<b>${b.legs.length > 1 ? b.legs.length + '-pick combo' : 'Single'}</b>`}<span class="tkt-st">${st}</span></div>
     ${b.legs.map((l, i) => { const g = db.games.find((x) => x.id === l.game); const r = b.res[i];
       const label = l.key.startsWith('spr:') ? pk.marginLabel(db.teams[l.key.split(':')[1]]?.name || '', Math.sign(Number(l.key.split(':')[2])) * pk.SPREAD) : l.label;
       const [lt, la, lb] = l.key.split(':'), out = lt.startsWith('p') && pk.isOut(g, la, lb);
       return `<div class="tkt-leg ${r}"><i></i><div><b>${esc(label)}</b><small>${g ? `${esc(matchName(db, g))} · ${esc(shortDate(g.date))}` : 'Game removed'}${out ? ' · <span class="out-note">Player out, pick removed</span>' : ''}${pk.isEarly(g) ? ' · <span class="out-note">Early dismissal: pays a third of the winnings</span>' : ''}${g && g.betsVoid ? ` · <span class="out-note">Game voided by the commissioner${g.voidReason ? ': ' + esc(g.voidReason) : ''}. Stake refunded</span>` : ''}</small></div><span>${oddsTxt(l.odds)}</span></div>`; }).join('')}
-    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(pk.potential(db, b))}`}</span></div>
+    <div class="tkt-f"><span>Played ${coins(b.stake)} at ${oddsTxt(b.odds)}</span><span>${b.status === 'won' ? `Won ${coins(b.payout)}` : b.status === 'cashed' ? `Cashed out ${coins(b.payout)} (${b.cashout.pct}%)` : b.status === 'void' ? `Refunded ${coins(b.payout)}` : b.status === 'lost' ? 'Lost' : `Could get ${coins(pk.potential(db, b))}`}</span></div>
+    ${q ? cashoutForm(b, q) : ''}
     ${opts.owner && b.id ? `<div class="tkt-x"><a href="${betLink(opts.owner, b)}">View</a>${shareBtn(opts.owner, b)}</div>` : ''}
   </div>`;
+}
+// Cash-out on the owner's open ticket (pk.cashoutQuote). The page shows today's value and keeps it ticking down (cashScript);
+// the server works the amount out again when it's pressed, so the page's number is only a preview.
+const cashTime = (ms) => new Date(ms).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const cashoutForm = (b, q) => `<form method="post" action="/pickem/picks/${esc(b.id)}/cashout" class="tkt-co" data-played="${b.stake}" data-close="${q.closesAt}" onsubmit="return confirm('Cash out this pick for about ' + this.querySelector('b').textContent + ' coins now? It is then settled for good and can no longer win.')">
+    <button class="btn sm">Cash out ${icon('coin')}<b>${q.amount.toLocaleString('en-US')}</b></button>
+    <small><span>${q.pct}</span>% of your ${b.stake.toLocaleString('en-US')} back · drops to ${Math.round(pk.CASHOUT_MIN * 100)}% as the game gets closer · closes ${esc(cashTime(q.closesAt))}</small></form>`;
+const cashScript = `<script>(()=>{const fs=[...document.querySelectorAll('.tkt-co[data-close]')];if(!fs.length)return;const tick=()=>fs.forEach(f=>{if(!f.isConnected)return;const left=+f.dataset.close-Date.now(),p=+f.dataset.played;if(left<=0){f.outerHTML='<p class="tkt-co muted sm">Cash-out closed: picks on this game are locked.</p>';return}const k=${pk.CASHOUT_MIN}+${pk.CASHOUT_MAX - pk.CASHOUT_MIN}*Math.min(1,left/36e5/${pk.CASHOUT_HOURS});f.querySelector('b').textContent=Math.min(p,Math.floor(p*k)).toLocaleString('en-US');f.querySelector('small span').textContent=Math.floor(k*100)});tick();setInterval(tick,15000)})()</script>`;
+const CASH_MSG = { suspended: "Your Pick'em account is suspended by the commissioner.", gone: "That pick wasn't found.", done: 'That pick was already cashed out.', closed: "That pick can't be cashed out: picks on its game are locked, or it's already settled.", error: 'Could not cash out that pick. Try again.' };
+const cashedMsg = (b) => `Cashed out: ${b.cashout.amount.toLocaleString('en-US')} coins back (${b.cashout.pct}%)`;
+// the message after a cash-out on My picks: built from the ticket itself, never from text in the link
+function cashToast(req, acct) {
+  const b = req.query.cashed && acct.bets.find((x) => x.id === String(req.query.cashed) && x.status === 'cashed');
+  if (b) return `<p class="toast">${esc(cashedMsg(b))} ✓</p>`;
+  const why = String(req.query.cashout || '');
+  return Object.hasOwn(CASH_MSG, why) ? `<p class="toast bad">${esc(CASH_MSG[why])}</p>` : '';
 }
 async function leaderboard(db) {
   const users = await listDocs('users/');
@@ -1313,7 +1332,7 @@ function propBtn(db, g, m, short) {
   if (!m) return `<span class="pb off"><span>${short}</span><b>–</b></span>`;
   return `<button type="button" class="ob pb" data-game="${g.id}" data-key="${esc(m.key)}" data-label="${esc(m.label)}" data-m="${m.odds}" data-match="${esc(matchName(db, g))}"><span>${short}</span><b>${oddsTxt(m.odds)}</b></button>`;
 }
-const lockTs = (g) => kickoffTs({ ...g, time: pk.lockTime(g) });
+const lockTs = (g) => pk.lockAt(g, TZ); // the same moment cash-outs close (pk.cashoutQuote)
 
 // ---------- pick'em: featured star bets ----------
 // Stars = captains, team reps and the 2 hottest other players per team (by tendency).
@@ -1670,6 +1689,34 @@ app.post(['/pickem/play', '/pickem/bet'], async (req, res) => {
   }
 });
 
+// Cash out an open pick before its game locks (pk.cashoutQuote). The coins back are worked out here from the ticket and the
+// clock; nothing the page sends changes them. The ticket keeps its picks and is settled at that amount (pk.betResult).
+// /pickem/bets/... works too, but the site's own forms use /pickem/picks/... (no betting words in links, like /pickem/play).
+app.post(['/pickem/picks/:id/cashout', '/pickem/bets/:id/cashout'], async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  const wantsJson = req.is('application/json') || /application\/json/.test(req.get('accept') || '');
+  const fail = (code, error) => (wantsJson ? res.json({ ok: false, error }) : res.redirect(code === 'login' ? '/pickem/login?next=/pickem/me' : `/pickem/u/${name}?cashout=${code}`));
+  if (!name) return fail('login', 'Log in first.');
+  try {
+    const user = await getDoc(userKey(name), { fresh: true });
+    if (!user) return fail('login', 'Account not found. Log in again.');
+    if (user.noPicks) return fail('suspended', CASH_MSG.suspended);
+    const bet = (user.bets || []).find((b) => b.id === String(req.params.id));
+    if (!bet) return fail('gone', CASH_MSG.gone);
+    if (bet.cashout) return fail('done', CASH_MSG.done);
+    const q = pk.cashoutQuote(db, bet, Date.now(), TZ);
+    if (!q) return fail('closed', CASH_MSG.closed);
+    bet.cashout = { at: new Date().toISOString(), amount: q.amount, pct: q.pct };
+    await putDoc(userKey(name), user);
+    if (!wantsJson) return res.redirect(`/pickem/u/${name}?cashed=${encodeURIComponent(bet.id)}`);
+    res.json({ ok: true, amount: q.amount, pct: q.pct, message: cashedMsg(bet), balance: accountOf(db, user, await survivorNow(db)).balance });
+  } catch (e) {
+    console.error(e);
+    fail('error', CASH_MSG.error);
+  }
+});
+
 app.get('/pickem/me', (req, res) => {
   const name = currentUser(req);
   res.redirect(name ? `/pickem/u/${name}` : '/pickem/login?next=/pickem/me');
@@ -1759,6 +1806,7 @@ function cardEffectsHelp() {
     <h3>Card sets</h3><div class="fx-table-wrap"><table class="fx-table"><thead><tr><th>Set</th><th>Perk (all five parallels)</th><th>Ratings by parallel</th></tr></thead><tbody>${sets}</tbody></table></div>`;
 }
 
+const cashEx = (hr) => Math.floor(1000 * pk.cashoutShare(hr * 3600e3)).toLocaleString('en-US'); // a 1,000 coin pick cashed out hr hours before the lock
 app.get('/pickem/rules', async (req, res, next) => {
   try {
     const db = load();
@@ -1772,6 +1820,7 @@ app.get('/pickem/rules', async (req, res, next) => {
       <h3>Making picks</h3><p>Tap any pick to add it to your pick slip, choose how many coins to play and hit <b>Lock it in</b>. One pick is a single. Two or more picks become a <b>combo</b>: every pick has to be right, but the rewards multiply. Combos can have up to ${pk.MAX_LEGS} picks and can mix games. Within one game you can only take one "who wins" style pick (winner, margin or shutout).</p>
       <h3>Reading the numbers</h3><p><b>+150</b> means a 100 coin pick gets 150 more if you're right. <b>−200</b> means you play 200 coins to get 100 more. Unlikely picks have bigger numbers. They come from each team's and player's real stats and update as the season goes.</p>
       <h3>When picks close and pay</h3><p>Only the next game is open for picks. Picks lock at ${time12('12:31')}, ${pk.LOCK_MINUTES} minutes before kickoff, and the following game opens right away. Rewards come in as soon as the final score is posted. If a score gets corrected, picks re-settle automatically. Postponed games are refunded (a combo just drops that pick). A tie counts as a loss for "win" picks.</p>
+      <h3>Cashing out</h3><p>Changed your mind about an open pick? Until picks lock for its game, you can cash it out on <a href="/pickem/me">My picks</a> and get part of what you played back right away. ${pk.CASHOUT_HOURS} hours or more before the lock you get ${Math.round(pk.CASHOUT_MAX * 100)}% back. After that it slides down evenly to ${Math.round(pk.CASHOUT_MIN * 100)}% right before the lock, so the closer the game, the less you get back. Example: a 1,000 coin pick gives back ${cashEx(pk.CASHOUT_HOURS)} with ${pk.CASHOUT_HOURS} hours to go, ${cashEx(pk.CASHOUT_HOURS / 2)} with ${pk.CASHOUT_HOURS / 2} hours to go and ${cashEx(0)} right before the lock. You never get back more than you played. Cash-out closes when picks lock for its game, ${pk.LOCK_MINUTES} minutes before kickoff (the button shows the time). A cashed-out pick is settled: it isn't a win or a loss, whatever happens in the game. If every pick on it is called off later (the game postponed or voided, or the player you picked ruled out), you get everything you played back instead.</p>
       <h3>Why there are no unders</h3><p>Every pick is on something <i>happening</i>: a team winning, scoring a lot, a player scoring or getting a pick. There are no picks on a team scoring less or a player not scoring, so nobody gains anything by playing badly on purpose.</p>
       <h3>Margin picks</h3><p>The favorite's margin pick is <b>win by 14 or more</b>. The other team's is <b>within 13</b>: right if they win, or lose by 13 or less. Who's the favorite is based on every past game, exhibitions included.</p>
       <h3>Player props</h3><p>Player picks count what's in the box score. If a play isn't recorded, it doesn't count.</p>
@@ -2470,7 +2519,7 @@ async function genMidweek(date) {
   const movers = prevSnap ? now.map((x) => ({ name: x.p.name, team: x.t.name, now: x.r, before: prevSnap[x.t.id + '|' + x.p.id] })).filter((x) => x.before != null && x.now !== x.before).sort((a, b) => Math.abs(b.now - b.before) - Math.abs(a.now - a.before)).slice(0, 6) : [];
   const users = await listDocs('users/');
   const board = await leaderboard(db);
-  const pickem = board.map((u) => { const bets = u.bets.filter((b) => b.status !== 'pending' && inWin(localDay(b.placed))); return { user: '@' + u.name, won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, profit: bets.reduce((s, b) => s + (b.status === 'won' ? b.payout - b.stake : b.status === 'lost' ? -b.stake : 0), 0) }; }).filter((u) => u.won + u.lost).sort((a, b) => b.profit - a.profit).slice(0, 5);
+  const pickem = board.map((u) => { const bets = u.bets.filter((b) => b.status !== 'pending' && inWin(localDay(b.placed))); return { user: '@' + u.name, won: bets.filter((b) => b.status === 'won').length, lost: bets.filter((b) => b.status === 'lost').length, profit: bets.reduce((s, b) => s + betProfit(b), 0) }; }).filter((u) => u.won + u.lost).sort((a, b) => b.profit - a.profit).slice(0, 5);
   const bigWins = board.flatMap((u) => u.bets.filter((b) => b.status === 'won' && inWin(localDay(b.placed))).map((b) => ({ user: '@' + u.name, payout: b.payout, picks: b.legs.map((l) => l.label) }))).sort((a, b) => b.payout - a.payout).slice(0, 3);
   const pulls = users.flatMap((u) => (u.packs || []).filter((p) => inWin(localDay(p.at))).flatMap((p) => p.cards.map((id) => ({ user: '@' + u.name, c: cards.cardInfo(db, id) })))).filter((x) => x.c && cards.RARITY_ORDER.indexOf(x.c.rarity) >= 2).map((x) => ({ user: x.user, card: `${x.c.p.name} ${x.c.label} (${x.c.rarityName})` })).slice(0, 8);
   const st = sv.survivorState(db, users, TZ);
@@ -2682,7 +2731,7 @@ function weekOf(ds) {
   return d.toISOString().slice(0, 10);
 }
 const localDay = (iso) => { const d = new Date(iso); return isNaN(d) ? today() : new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d); };
-const betProfit = (b) => (b.status === 'won' ? b.payout - b.stake : b.status === 'lost' ? -b.stake : 0);
+const betProfit = (b) => (b.status === 'won' || b.status === 'cashed' ? b.payout - b.stake : b.status === 'lost' ? -b.stake : 0); // a cash-out: what it gave back minus what was played
 function weekBoard(board, wk) {
   return board.map((u) => {
     const bets = u.bets.filter((b) => b.status !== 'pending' && weekOf(localDay(b.placed)) === wk);
@@ -2771,7 +2820,7 @@ app.get('/pickem/u/:name', async (req, res, next) => {
     const tile = (k, v, cls = '') => `<div class="card"><small>${k}</small><b class="${cls}">${v}</b></div>`;
     const canBail = mine && canBailout(user, acct);
     const coinSec = earnH.coinProfile ? await earnH.coinProfile(db, user, acct, mine) : '';
-    res.send(layout(req, `@${uname}`, pickHead(viewer, vAcct) + `<div class="wrap">${pickNav(mine ? '/pickem/me' : '', me)}
+    res.send(layout(req, `@${uname}`, pickHead(viewer, vAcct) + `<div class="wrap">${pickNav(mine ? '/pickem/me' : '', me)}${mine ? cashToast(req, acct) : ''}
       <div class="prof card">
         <div class="prof-av">${esc(uname.slice(0, 2).toUpperCase())}</div>
         <div><h2>@${esc(uname)}</h2><p class="muted">#${rank} of ${board.length} · joined ${esc(shortDate(localDay(user.created)))}</p>
@@ -2797,12 +2846,12 @@ app.get('/pickem/u/:name', async (req, res, next) => {
       <p class="muted sm">Pick points are just for bragging rights: every winning pick earns 10, plus 5 for each extra combo pick and more for long shots.</p>
       <div class="home-grid"><div class="col">
         <div class="card-h"><h2>Pick history</h2><span class="muted sm">${acct.bets.length} picks · ${st.staked.toLocaleString('en-US')} coins played</span></div>
-        <div class="tkts">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname })).join('') || '<div class="card"><p class="muted">No picks yet.</p></div>'}</div>
+        <div class="tkts">${[...acct.bets].reverse().map((b) => betCard(db, b, { owner: uname, cashout: mine && !user.noPicks })).join('') || '<div class="card"><p class="muted">No picks yet.</p></div>'}</div>
       </div><div class="col">
         ${st.best ? `<div class="card"><div class="card-h"><h2>${icon('fire')} Best hit</h2></div>${betCard(db, st.best, { owner: uname })}</div>` : ''}
         ${st.fav ? `<div class="card"><div class="card-h"><h2>Favorite player to pick</h2></div><a class="lead-top" href="${playerUrl(st.fav.t, st.fav.p)}" style="--a:${esc(st.fav.t.color)}">${avatar(st.fav.t, st.fav.p, 56)}<div><small>${logo(st.fav.t, 16)} ${esc(st.fav.t.name)}</small><b>${esc(st.fav.p.name)}</b></div><span>${st.fav.n}</span></a><p class="muted sm">Picks on this player</p></div>` : ''}
       </div></div>
-    </div>${shareScript}`));
+    </div>${shareScript}${mine ? cashScript : ''}`));
   } catch (e) { next(e); }
 });
 
@@ -2813,7 +2862,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
     const uname = String(req.params.name).toLowerCase();
     const user = pk.validName(uname) ? await getDoc(userKey(uname)) : null;
     const bet = user && pk.account(db, user).bets.find((b) => b.id === req.params.id);
-    if (!pick) return res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Pick not found')));
+    if (!bet) return res.status(404).send(layout(req, 'Not Found', pageHead("Pick'em", 'Pick not found')));
     const me = currentUser(req);
     const { user: viewer, acct } = await loadAccount(db, me);
     const open = bet.legs.every((l) => pk.isOpen(db, db.games.find((g) => g.id === l.game), TZ));
@@ -2822,7 +2871,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
     res.send(layout(req, `@${uname}'s ${bet.legs.length > 1 ? 'combo' : 'pick'}`, pickHead(viewer, acct) + `<div class="wrap share-tkt">
       <div class="kicker">${icon('coin')} Shared pick</div><h1>@${esc(uname)}'s ${bet.legs.length > 1 ? `${bet.legs.length}-pick combo` : 'pick'}</h1>
       ${betCard(db, bet, { owner: uname })}
-      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${legsAttr(legs)}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
+      ${canTail ? `<button type="button" class="combo btn tail" data-legs="${legsAttr(legs)}">${icon('coin')} Copy these picks (${oddsTxt(legs.reduce((x, l) => x * l.odds, 1))} now)</button>` : `<p class="muted">${bet.status === 'pending' ? 'Picks are closed for this game.' : bet.status === 'cashed' ? 'This pick was cashed out.' : 'This pick is settled.'} <a href="/pickem">See the next game →</a></p>`}
       <p><a href="/pickem/u/${esc(uname)}">See @${esc(uname)}'s profile →</a></p>
     </div>${canTail ? slip(viewer) : ''}${shareScript}`));
   } catch (e) { next(e); }
@@ -3701,7 +3750,7 @@ function integrityCard(db, docs) {
   const watch = games.map((g) => {
     const by = new Map();
     for (const u of docs) for (const b of u.bets || []) for (const l of b.legs) {
-      if (l.game !== g.id) continue;
+      if (l.game !== g.id || b.cashout) continue; // a cashed-out pick was settled before the game: nothing rides on it any more
       const t = l.key.split(':')[0];
       if (!(t.startsWith('p') || /^int|^bothint/.test(t))) continue; // player picks and interception picks
       const e = by.get(l.key) || { label: l.label, int: /int/.test(t), users: new Map(), stake: 0, bets: 0 };
@@ -3717,7 +3766,7 @@ function integrityCard(db, docs) {
       ${pk.MARKET_GROUPS.map((k) => `<label class="chk"><input type="checkbox" name="on" value="${esc(k)}" ${off.has(k) ? '' : 'checked'}> ${esc(k)}${k === 'Interceptions' ? ' <small class="muted">(player gets an INT)</small>' : k === 'Turnovers' ? ' <small class="muted">(team INTs)</small>' : ''}</label>`).join(' ')}
       <button class="btn sm">Save</button></form>
     <p class="sm"><b>Voided games:</b> ${voided.length ? voided.map((g) => `<a href="/admin/game/${g.id}">${esc(matchName(db, g))} · ${esc(shortDate(g.date))}</a>${g.voidReason ? ` <small class="muted">(${esc(g.voidReason)})</small>` : ''}`).join(', ') : 'none'}. To void a game, open it in Admin and tick <i>Void all picks on this game</i>.</p>
-    <h3>Betting watch</h3><p class="muted sm">Player and interception picks on recent games, biggest first. <span class="badge ppd">Check</span> = three or more accounts on one player pick, 2,000+ coins on it, or two or more accounts (or 500+ coins) on an interception.</p>
+    <h3>Betting watch</h3><p class="muted sm">Player and interception picks on recent games, biggest first (cashed-out picks left out). <span class="badge ppd">Check</span> = three or more accounts on one player pick, 2,000+ coins on it, or two or more accounts (or 500+ coins) on an interception.</p>
     ${watch.map(({ g, rows }) => `<h4>${esc(matchName(db, g))} · ${esc(shortDate(g.date))}${g.betsVoid ? ' · <span class="badge ppd">Voided</span>' : ''}</h4>${rows.length ? `<div class="scroll"><table class="tbl admin"><thead><tr><th class="l">Pick</th><th>Accounts</th><th>Picks</th><th>Coins</th><th class="l">Who (coins)</th></tr></thead><tbody>
       ${rows.map((e) => `<tr><td class="l">${flag(e) ? '<span class="badge ppd">Check</span> ' : ''}${esc(e.label)}</td><td>${e.users.size}</td><td>${e.bets}</td><td>${coins(e.stake)}</td><td class="l sm">${[...e.users].sort((a, b) => b[1] - a[1]).map(([n, c]) => `<a href="/pickem/u/${esc(n)}">@${esc(n)}</a> ${c.toLocaleString('en-US')}`).join(', ')}</td></tr>`).join('')}
       </tbody></table></div>` : '<p class="muted sm">No player picks.</p>'}`).join('')}

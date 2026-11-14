@@ -11,9 +11,9 @@ const MAX_LEGS = 10;
 const MIN_STAKE = 10;
 
 // ---------- time / locking ----------
-function nowLocal(tz) {
+function nowLocal(tz, ms = Date.now()) {
   const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  const p = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 // Only the next game is open. Picks lock 4 minutes before kickoff (12:31 for a
@@ -31,6 +31,14 @@ function nextGame(db, tz) {
     .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0] || null;
 }
 const isOpen = (db, g, tz) => !!g && !g.betsVoid && nextGame(db, tz)?.id === g.id; // a game the commissioner voided takes no picks
+// The moment picks on a game lock, as a timestamp: its date and lock time on the league clock. The "Picks lock in" countdown
+// and cash-outs both use this, so they always agree.
+function lockAt(g, tz) {
+  if (!g || !g.date) return null;
+  const wall = Date.parse(`${g.date}T${lockTime(g)}:00Z`); // the local clock reading, as if it were UTC
+  const off = (ms) => Date.parse(nowLocal(tz, ms).replace(' ', 'T') + ':00Z') - Math.floor(ms / 60000) * 60000; // local minus UTC then
+  return wall - off(wall - off(wall)); // the offset on the game's own day, so a daylight-saving change in between can't move it
+}
 
 // ---------- odds model ----------
 function rng(seed) {
@@ -363,6 +371,10 @@ function payFor(db, bet, live) {
 const potential = (db, bet) => payFor(db, bet, bet.legs).payout;
 function betResult(db, bet) {
   const res = bet.legs.map((l) => legResult(db, l));
+  // Cashed out (cashoutQuote): settled at the coins it gave back, whatever its picks do later. Only a game that never counted
+  // (every pick postponed or voided by the commissioner) still refunds the whole stake instead.
+  if (bet.cashout) return res.every((r) => r === 'void') ? { status: 'void', payout: bet.stake, res }
+    : { status: 'cashed', payout: Math.max(0, Math.min(bet.stake, Math.floor(Number(bet.cashout.amount) || 0))), res };
   if (res.includes('lost')) return { status: 'lost', payout: 0, res };
   if (res.includes('pending')) return { status: 'pending', payout: 0, res };
   const live = bet.legs.filter((_, i) => res[i] === 'won');
@@ -372,20 +384,41 @@ function betResult(db, bet) {
   const { payout, early, overlap } = payFor(db, bet, live);
   return { status: 'won', payout, res, early, overlap };
 }
+// Cash-out: an open pick can be cashed out until picks on its game lock, for part of its stake back right away. A day or more
+// (CASHOUT_HOURS) before the lock it gives CASHOUT_MAX back, then slides down evenly to CASHOUT_MIN right before the lock: the
+// closer the game, the more you already know, so the less it gives. Never more than the stake, and never anything after the lock.
+const CASHOUT_MAX = 0.9, CASHOUT_MIN = 0.5, CASHOUT_HOURS = 24;
+const LEAGUE_TZ = process.env.TZ_LEAGUE || 'America/Chicago'; // the same default as server.js
+// the share of the stake a cash-out gives back with msLeft until the lock
+const cashoutShare = (msLeft) => CASHOUT_MIN + (CASHOUT_MAX - CASHOUT_MIN) * clamp(msLeft / 3600e3 / CASHOUT_HOURS, 0, 1);
+// null if the ticket can't be cashed out now, else { amount, pct, closesAt } (closesAt: the earliest lock among its picks, ms)
+function cashoutQuote(db, bet, nowMs = Date.now(), tz = LEAGUE_TZ) {
+  if (!bet || bet.cashout || !(bet.stake > 0) || betResult(db, bet).status !== 'pending') return null;
+  let closesAt = Infinity;
+  for (const l of bet.legs) {
+    const g = db.games.find((x) => x.id === l.game);
+    // the same test picks use to close (nextGame): a scheduled, not voided game whose lock hasn't come on the league clock
+    if (!g || !g.date || g.status !== 'scheduled' || g.betsVoid || !(nowLocal(tz, nowMs) < `${g.date} ${lockTime(g)}`)) return null;
+    closesAt = Math.min(closesAt, lockAt(g, tz));
+  }
+  const f = cashoutShare(closesAt - nowMs);
+  return { amount: Math.min(bet.stake, Math.floor(bet.stake * f)), pct: Math.floor(f * 100), closesAt };
+}
 // `extra`: coins from outside Pick'em (Lineup, Survivor, card sales, minus packs).
 function account(db, user, extra = 0) {
   let bal = START_COINS + extra + (user.bonuses || []).reduce((s, b) => s + b.amount, 0);
-  let won = 0, lost = 0, pending = 0, profit = 0;
+  let won = 0, lost = 0, pending = 0, cashed = 0, profit = 0;
   const bets = (user.bets || []).map((b) => {
     const r = betResult(db, b);
     bal -= b.stake;
     if (r.status !== 'pending') bal += r.payout;
     if (r.status === 'won') { won++; profit += r.payout - b.stake; }
     if (r.status === 'lost') { lost++; profit -= b.stake; }
+    if (r.status === 'cashed') { cashed++; profit += r.payout - b.stake; } // coins back before the game: not a win, not a loss
     if (r.status === 'pending') pending++;
     return { ...b, ...r };
   });
-  return { balance: bal, won, lost, pending, profit, bets };
+  return { balance: bal, won, lost, pending, cashed, profit, bets };
 }
 
 // ---------- bet validation ----------
@@ -433,4 +466,4 @@ function mult(dec) {
   return '-' + Math.round(100 / (dec - 1));
 }
 
-module.exports = { isEarly, EARLY_K, COMBO_MAX, potential, follows, offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
+module.exports = { CASHOUT_MAX, CASHOUT_MIN, CASHOUT_HOURS, cashoutShare, cashoutQuote, lockAt, isEarly, EARLY_K, COMBO_MAX, potential, follows, offGroups, DEFAULT_OFF, MARKET_GROUPS, isOut, SPREAD, tendDrift, effTend, fmtLine, marginLabel, LOCK_MINUTES, lockTime, nextGame, START_COINS, BAILOUT_COINS, BAILOUT_BELOW, MIN_STAKE, MAX_LEGS, isOpen, markets, legResult, betResult, account, buildBet, validName, hashPin, checkPin, mult, nowLocal };
