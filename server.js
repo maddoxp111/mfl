@@ -478,7 +478,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&family=Bungee&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=92">
+<link rel="stylesheet" href="/static/style.css?v=93">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -3431,7 +3431,7 @@ app.get('/admin/gta', requireAdmin, (req, res) => {
       <p class="muted">Upload your own GTA logo as a <b>PNG with a transparent background</b>. It shows in the middle of every Cover card, at the top of every Vice City card, in the GTA section of the shop and on the GTA packs. Empty edges are trimmed and big images are shrunk to 1024px.</p>
       <div class="gta-admin-prev">${cur ? `<img src="${esc(cur)}" alt="Current GTA logo">` : '<span class="muted">No logo yet: those spots show the GTA lettering.</span>'}</div>
       <label class="wide">Logo (PNG)<input type="file" accept="image/png" onchange="mflGtaLogo(this)"></label>
-      <input type="hidden" name="logo" value=""><p class="muted sm" id="gtaLogoNote"></p>
+      <input type="hidden" name="logo" value=""><input type="hidden" name="split" value=""><input type="hidden" name="ar" value=""><p class="muted sm" id="gtaLogoNote"></p>
       ${cur ? '<label class="chk"><input type="checkbox" name="clear"> Remove the logo</label>' : ''}
       <div class="actions"><button class="btn">Save GTA logo</button></div></form>
     <script>
@@ -3441,6 +3441,8 @@ app.get('/admin/gta', requireAdmin, (req, res) => {
       if(x1<0){x0=0;y0=0;x1=W-1;y1=H-1;}
       const cw=x1-x0+1,ch=y1-y0+1,k=Math.min(1,1024/Math.max(cw,ch)),c=document.createElement('canvas');c.width=Math.round(cw*k);c.height=Math.round(ch*k);
       c.getContext('2d').drawImage(t,x0,y0,cw,ch,0,0,c.width,c.height);inp.form.logo.value=c.toDataURL('image/png');
+      let sx=0;try{const w=c.width,h=c.height,d=c.getContext('2d').getImageData(0,0,w,h).data,full=(x)=>{let n=0;for(let y=0;y<h;y++)if(d[(y*w+x)*4+3]>128)n++;return n>=0.9*h;};let x=w-1;while(x>0&&full(x-1))x--;sx=x/w;}catch(e){}
+      inp.form.split.value=sx>0.2&&sx<0.95?sx.toFixed(4):'';inp.form.ar.value=(c.width/c.height).toFixed(4);
       document.getElementById('gtaLogoNote').textContent=see?'Ready: '+c.width+' x '+c.height+'. Press Save.':'Heads up: this image has no transparent background, so it will show as a solid box. Press Save to use it anyway.';};im.src=r.result;};r.readAsDataURL(f);}
     </script></div>`, { ticker: false }));
 });
@@ -3453,7 +3455,9 @@ app.post('/admin/gta', requireAdmin, async (req, res) => {
   if (buf.length > 4 * 1024 * 1024 || buf.slice(1, 4).toString() !== 'PNG') return res.redirect('/admin/gta?err=' + encodeURIComponent('That PNG is too big or not a PNG.'));
   const key = `gta-logo-${Date.now().toString(36)}.png`;
   await putMedia(key, buf, 'image/png');
-  db.gtaLogo = { key, at: new Date().toISOString() };
+  // split: where the last solid letter (the I) starts, so card names sit on the logo the way the real cover's title does.
+  const num = (v, lo, hi) => (+v > lo && +v < hi ? +(+v).toFixed(4) : undefined);
+  db.gtaLogo = { key, at: new Date().toISOString(), split: num(b.split, 0.2, 0.95), ar: num(b.ar, 0.2, 6) };
   await save();
   res.redirect('/admin/gta?saved=1');
 });

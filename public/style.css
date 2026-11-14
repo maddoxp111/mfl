@@ -3053,13 +3053,13 @@ html.av3d-lock,html.av3d-lock body{overflow:hidden}
 .gta-art .ga-par b{margin-left:auto;color:#ffd166}
 .gta-art .ga-par i{font-style:normal;color:#fff}
 .gta-art .mc-flip{z-index:3}
-/* the logo + name lockup: both centred on the same spot, the name in front */
-.gta-art .ga-lock{position:absolute;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;pointer-events:none;container-type:inline-size}
-.gta-art .ga-lock>*{grid-area:1/1}
-.gta-art .ga-logo{width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center}
-.gta-art .ga-name{position:relative;z-index:1;width:var(--nw);height:auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))}
-.gd-cover .ga-lock{--nw:84%;left:calc(var(--sx) - 11%);top:calc(var(--sy) + 1%);width:calc(var(--sw) + 22%);height:calc(var(--sh) - 2%)}
-.gd-vice .ga-lock{--nw:66%;left:4%;top:5%;width:92%;height:40%}
+/* the logo + name lockup: the name sits on the logo where the real cover's title sits on its VI (--lsp, share of the
+   logo's width), and the logo is sized and shifted so that spot is the middle of the lockup */
+.gta-art .ga-lock{position:absolute;pointer-events:none;container-type:inline-size}
+.gta-art .ga-logo{position:absolute;left:50%;top:50%;height:min(100%,calc(var(--lx,50cqw) / (var(--lsp) * var(--lar))));aspect-ratio:var(--lar);transform:translate(calc(var(--lsp) * -100%),-50%)}
+.gta-art .ga-name{position:absolute;z-index:1;left:calc(var(--lsp) * 100%);top:50%;width:var(--nw);height:auto;transform:translate(-50%,-50%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))}
+.gd-cover .ga-lock{--nw:72%;left:calc(var(--sx) - 11%);top:calc(var(--sy) + 1%);width:calc(var(--sw) + 22%);height:calc(var(--sh) - 2%)}
+.gd-vice .ga-lock{--nw:70%;left:4%;top:8.5%;width:92%;height:38%}
 /* the frame: a ring in the parallel's finish over the art */
 .mcard.gta-art>.mc-shine{position:absolute;inset:0;z-index:2;opacity:1;pointer-events:none;border:4px solid transparent;border-radius:inherit;background:var(--gf) border-box;animation:none;
   -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) padding-box exclude,linear-gradient(#000 0 0)}

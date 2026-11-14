@@ -927,6 +927,14 @@ const UPDATES = [
       'The first GTA cards from the five launch packs are gone for good. Every launch pack you opened was refunded, and their cards, card sales, trades and Lineup slots were undone. The GTA tab of the Card Book now shows only the Cover and Vice City cards.',
     ],
   },
+  {
+    n: 87,
+    date: '2026-11-15',
+    title: 'GTA names sit on the VI like the real cover',
+    items: [
+      "On every GTA card the player's name now sits where the title sits on the real GTA VI cover: over the V's right side, running into the I, with the VI built around it.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

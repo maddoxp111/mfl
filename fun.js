@@ -72,6 +72,15 @@ module.exports = function fun(app, h) {
   const gtaLogoUrl = (db) => (db && db.gtaLogo && db.gtaLogo.key ? `/media/gta/${db.gtaLogo.key}` : null);
   h.gtaLogoUrl = gtaLogoUrl;
   // The logo for a card or a pack: the uploaded one, else the "GTA" lettering.
+  // Where the name sits on the logo: the seam between the V and the I (share of the logo's width) and the logo's shape.
+  // The admin page measures both on upload; the defaults are the current VI logo's.
+  // Like the real cover, the name's centre sits a little left of that seam, over the V's right arm (85% of the way to it).
+  const gtaSeam = (db) => {
+    const L = (db && db.gtaLogo) || {};
+    if (!L.key) return ';--lsp:.5;--lar:1.6';
+    const sp = +L.split > 0.2 && +L.split < 0.95 ? +L.split : 0.722, ar = +L.ar > 0.2 && +L.ar < 6 ? +L.ar : 950 / 720;
+    return `;--lsp:${(sp * 0.85).toFixed(3)};--lar:${ar.toFixed(3)}`;
+  };
   const gtaMark = (db, cls) => { const u = gtaLogoUrl(db); return u ? `<img class="${cls}" src="${esc(u)}" alt="GTA" decoding="async">` : `<b class="${cls} gm-txt" aria-label="GTA"><i>G</i><i>T</i><i>A</i></b>`; };
   // A GTA cover-art card: the player's own painted art, the GTA logo laid over it and his lettered name in front.
   // The logo and the name are one lockup, like the words over the emblem on a game cover: the stacked name in front, centred over the
@@ -79,10 +88,10 @@ module.exports = function fun(app, h) {
   function gtaArtCard(db, c, rt, serial, opts) {
     const D = cards.GTA_DESIGNS[c.design], P = D.pars.find((x) => x.id === c.par) || D.pars[0], base = `/static/sets/gta/cards/${c.pid}`;
     const sl = c.design === 'cover' ? cards.gtaSlot(c.pid) || [33, 34, 34, 34] : null;
-    const slot = sl ? `;--sx:${sl[0]}%;--sy:${sl[1]}%;--sw:${sl[2]}%;--sh:${sl[3]}%` : '';
+    const slot = (sl ? `;--sx:${sl[0]}%;--sy:${sl[1]}%;--sw:${sl[2]}%;--sh:${sl[3]}%` : '') + gtaSeam(db);
     return `<div class="mcard r-${c.rarity} setc gtac gta-art gd-${c.design} par-${c.par} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}${slot}">
       <div class="ga-stage"><img class="ga-art" src="${base}-${c.design}.webp" alt="" loading="lazy" decoding="async">
-        <div class="ga-lock"><div class="ga-logo">${gtaMark(db, 'ga-mark')}</div><img class="ga-name" src="${base}-name.png" alt="${esc(c.p.name)}" loading="lazy" decoding="async"></div></div><div class="mc-shine"></div>
+        <div class="ga-lock"><div class="ga-logo">${gtaMark(db, 'ga-mark')}<img class="ga-name" src="${base}-name.png" alt="${esc(c.p.name)}" loading="lazy" decoding="async"></div></div></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt" title="Card overall: how good this card is"><b>${rt}</b><small>OVR</small></span>${logo(c.t, 20)}</div>
       <div class="ga-par"><span>${esc(D.name)} · ${esc(P.label)}</span>${serial ? `<b>${serial}</b>` : ''}${opts.count > 1 ? `<i>×${opts.count}</i>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
