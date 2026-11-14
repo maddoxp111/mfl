@@ -795,6 +795,18 @@ const UPDATES = [
       'On the new fields the lines are glowing holograms, not paint, and the crowd moves to stand around whichever field you pick. Big field still works on the regular Blacktop field.',
     ],
   },
+  {
+    n: 75,
+    date: '2026-11-14',
+    title: 'Opposite end zones and field fixes',
+    items: [
+      'At Wildcat Blacktop you and the other team now score on opposite ends, and which end is yours is random each game.',
+      'The camera no longer gets stuck behind the school when the play is near the end zone by the building.',
+      'Goal lines on the new fields are now glowing red, and the glowing end zone fill is gone.',
+      'On Sideways Blacktop nobody can run through the bushes by the school, but a diving catch that lands in them still counts.',
+      'Fixed the phone menu running off the screen (and cutting off the home page) when your coin balance is a long number. Big balances in the top bar now show short, like 32.8M.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

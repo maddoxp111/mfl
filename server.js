@@ -469,7 +469,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=86">
+<link rel="stylesheet" href="/static/style.css?v=87">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -538,7 +538,8 @@ document.querySelectorAll('.dd>button').forEach(b=>b.addEventListener('click',e=
 document.addEventListener('click',()=>document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')));
 const t=document.querySelector('.tk.now');if(t)t.parentElement.parentElement.scrollLeft=t.offsetLeft-16;
 // The header balance loads after the page so every page stays fast.
-if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=d.balance.toLocaleString('en-US'));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
+window.mflBal=(v,n)=>{const a=Math.abs(v);return n&&n.closest('.hdr')&&a>=1e6?(v<0?'-':'')+(a>=1e9?(a/1e9).toFixed(a>=1e11?0:1)+'B':(a/1e6).toFixed(a>=1e8?0:1)+'M'):v.toLocaleString('en-US')};
+if(document.querySelector('.hdr [data-balance]'))fetch('/pickem/me.json').then(r=>r.json()).then(d=>{if(d.balance!=null)document.querySelectorAll('[data-balance]').forEach(n=>n.textContent=mflBal(d.balance,n));if(d.offers>0){const t=d.offers+' trade offer'+(d.offers>1?'s':'');document.querySelectorAll('.nav-cards,.burger').forEach(n=>{const i=document.createElement('i');i.className='nbadge';i.textContent=d.offers;i.title=t;n.appendChild(i)});document.querySelectorAll('.sec-nav a[href="/pickem/trades"]').forEach(a=>a.insertAdjacentHTML('beforeend',' <i class="nbadge in">'+d.offers+'</i>'))}}).catch(()=>{});
 // Start loading a page as soon as a finger or mouse lands on its link.
 {const done=new Set();const pf=(e)=>{const a=e.target.closest&&e.target.closest('a[href^="/"]');if(!a||a.target||/^[/](admin|pickem[/]logout|calendar)/.test(a.getAttribute('href')))return;const u=a.href.split('#')[0];if(done.has(u)||u===location.href.split('#')[0])return;done.add(u);const l=document.createElement('link');l.rel='prefetch';l.href=u;document.head.appendChild(l);};
 document.addEventListener('pointerover',pf,{passive:true});document.addEventListener('touchstart',pf,{passive:true});}
@@ -1195,7 +1196,7 @@ function slip(user) {
         legs = []; store(); render();
         el('slip').hidden = false; el('slip').classList.remove('min'); el('slipMsg').className = 'slip-msg good';
         el('slipMsg').innerHTML = 'Locked in! You could get ' + d.toWin.toLocaleString() + ' coins. <a href="/pickem/me">My picks →</a><br><small>Changed your mind? Cash it out on My picks until picks lock: ${Math.round(pk.CASHOUT_MAX * 100)}% back ${pk.CASHOUT_HOURS}+ hours before, sliding to ${Math.round(pk.CASHOUT_MIN * 100)}% right before.</small>';
-        document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = d.balance.toLocaleString());
+        document.querySelectorAll('[data-balance]').forEach((n) => n.textContent = window.mflBal ? mflBal(d.balance, n) : d.balance.toLocaleString());
       } catch (err) { el('slipMsg').className = 'slip-msg bad'; el('slipMsg').textContent = err.message || 'Something went wrong.'; }
       go.disabled = false;
     });

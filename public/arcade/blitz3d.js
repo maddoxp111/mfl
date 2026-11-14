@@ -752,11 +752,11 @@ vec3 perturb(vec3 N,vec3 p,vec2 uv,vec3 nm,float k){nm=nm*2.0-1.0;nm.xy*=k;retur
 vec3 perturb(vec3 N,vec3 p,vec2 uv,vec3 nm,float k){return N;}
 #endif
 `;
-  // ---- world geometry: statics, props, ball, markers. aC.a: alpha for unlit, 'emis' material draws unlit ----
+  // ---- world geometry: statics, props, ball, markers. aC.a: alpha for unlit, 'emis' material draws unlit; uModel places the statics (the identity but at Metcalf with the ends swapped) ----
   const VS_WORLD = `attribute vec3 aP;attribute vec3 aN;attribute vec4 aC;attribute vec2 aT;
-uniform mat4 uVP;uniform HP vec3 uEye;uniform vec2 uUV;uniform HP vec3 uCamF;uniform float uFlipV;
+uniform mat4 uVP;uniform mat4 uModel;uniform HP vec3 uEye;uniform vec2 uUV;uniform HP vec3 uCamF;uniform float uFlipV;
 varying vec4 vC;varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vLit;
-void main(){vW=aP;vN=aN;vLit=dot(aN,aN)>0.01?1.0:0.0;gl_Position=uVP*vec4(aP,1.0);vC=aC;vT=vec2(aT.x,mix(aT.y,1.0-aT.y,uFlipV))+uUV;vVD=dot(aP-uEye,uCamF);}`;
+void main(){vec3 p=(uModel*vec4(aP,1.0)).xyz;vW=p;vN=mat3(uModel)*aN;vLit=dot(aN,aN)>0.01?1.0:0.0;gl_Position=uVP*vec4(p,1.0);vC=aC;vT=vec2(aT.x,mix(aT.y,1.0-aT.y,uFlipV))+uUV;vVD=dot(p-uEye,uCamF);}`;
   // uMatW: x rough, y metal, z detail/wet, w emissive. uKind: 0 plain, 1 field (turf detail + wet), 2 fabric normal map (tex alpha = roughness mod)
   const FS_WORLD = `uniform sampler2D uTex;uniform sampler2D uDetail;uniform sampler2D uNrm;uniform vec4 uMatW;uniform float uKind;uniform float uWet;
 varying vec4 vC;varying vec2 vT;varying float vLit;
@@ -869,7 +869,7 @@ if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(max(1.0-abs(dot(N,V)),0.0),2
 vec3 col=finC(shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis); // a NaN here (degenerate scan normals) would smear black through the blur
 gl_FragColor=vec4(fogIt(col),alpha);}`;
   // ---- depth-only passes (shadow cascades) ----
-  const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;void main(){gl_Position=uLVP*vec4(aP,1.0);}`;
+  const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;uniform mat4 uModel;void main(){gl_Position=uLVP*(uModel*vec4(aP,1.0));}`; // (uModel: Metcalf's half turn of the world, else the identity)
   const VS_DEPTH_S = `attribute vec3 aP;attribute vec2 aB;attribute float aW;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;uniform float uTowel;uniform float uMouth;uniform float uHead;
 void main(){int b0=int(aB.x)*3;int b1=int(aB.y)*3;vec3 lp=aP*uScale;if(uHead>0.5&&aB.x>3.5&&aB.x<4.5&&aW>0.999&&aP.y>0.8&&aS<24.5)lp=vec3(0.0);if((aS>14.5&&aS<15.5&&uVis<0.5)||(aS>19.5&&aS<20.5&&uTowel<0.5)||(aS>21.5&&aS<22.5&&uMouth<0.5))lp=vec3(0.0);vec4 p=vec4(lp,1.0);
 vec3 w=vec3(dot(uBones[b0],p),dot(uBones[b0+1],p),dot(uBones[b0+2],p))*aW+vec3(dot(uBones[b1],p),dot(uBones[b1+1],p),dot(uBones[b1+2],p))*(1.0-aW);gl_Position=uLVP*vec4(w,1.0);}`;
@@ -4673,14 +4673,26 @@ gl_FragColor=vec4(c,1.0);}`;
   // the other fields (MFG in 10-setup.js) turn and move the map round their own goal line: engine x = (p - o) . v, z = (p - o) . u
   // (the blacktop field keeps the plain formulas, so its world is built exactly as before). MROT: the map is turned.
   const MROT = MFG.u[1] !== 1, MOX = MFG.o[0], MOZ = MFG.o[1], MU = MFG.u, MV = MFG.v;
-  const metE = !MROT && MOPT.field === 'blacktop' ? (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K]
+  const metE0 = !MROT && MOPT.field === 'blacktop' ? (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K]
     : (xF, zF) => { const dx = xF - MOX, dz = zF - MOZ; return [(dx * MV[0] + dz * MV[1]) * M2Y * MET_K, (dx * MU[0] + dz * MU[1]) * M2Y * MET_K]; };
-  const metF = !MROT && MOPT.field === 'blacktop' ? (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0]
+  const metF0 = !MROT && MOPT.field === 'blacktop' ? (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0]
     : (x, z) => { const a = x / (M2Y * MET_K), b = z / (M2Y * MET_K); return [MOX + MV[0] * a + MU[0] * b, MOZ + MV[1] * a + MU[1] * b]; };
+  const metFb0 = (x, z) => (MOPT.big || MOPT.field === 'blacktop' ? [x / M2Y + MX0, z / M2Y - MZ0] : metF0(x, z));
+  const metEb0 = (xF, zF) => (MOPT.big || MOPT.field === 'blacktop' ? [(xF - MX0) * M2Y, (zF + MZ0) * M2Y] : metE0(xF, zF));
+  const metDir0 = (dx, dz) => [dx * MV[0] + dz * MV[1], dx * MU[0] + dz * MU[1]];
+  // ---- which end is whose: the engine always plays the team on offense toward +z, so at Metcalf the world is turned half round
+  // the field's centre (engine x -> -x, z -> FL - z) whenever the team attacking +z is the one that attacks the other end this game.
+  // MFL.H (picked once per game with the cosmetic dice, never the game's) is the end the home team attacks: 0 the map's +z end as
+  // built, 1 the other. The statics are built unturned and drawn through MFL.M (uModel); everything placed at run time goes through
+  // the functions below, which include the turn. metFlipFrame (13-metpeople.js) applies it when the squads swap. ----
+  const MFL = { on: false, H: 0, I: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), M: new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, FL, 1]) };
+  const mflP = (q) => (MFL.on ? [-q[0], FL - q[1]] : q);
+  const metE = (xF, zF) => mflP(metE0(xF, zF));
+  const metF = (x, z) => (MFL.on ? metF0(-x, FL - z) : metF0(x, z));
   // engine <-> the built frame (metres after the big field's zoom: the keep-out solids' frame), and a frame F direction in engine axes
-  const metFb = (x, z) => (MOPT.big || MOPT.field === 'blacktop' ? [x / M2Y + MX0, z / M2Y - MZ0] : metF(x, z));
-  const metEb = (xF, zF) => (MOPT.big || MOPT.field === 'blacktop' ? [(xF - MX0) * M2Y, (zF + MZ0) * M2Y] : metE(xF, zF));
-  const metDir = (dx, dz) => [dx * MV[0] + dz * MV[1], dx * MU[0] + dz * MU[1]];
+  const metFb = (x, z) => (MFL.on ? metFb0(-x, FL - z) : metFb0(x, z));
+  const metEb = (xF, zF) => mflP(metEb0(xF, zF));
+  const metDir = (dx, dz) => { const d = metDir0(dx, dz); return MFL.on ? [-d[0], -d[1]] : d; };
   // the field's rectangle in frame F (end line to end line, sideline to sideline) and its centre
   const MFR = (() => { if (MOPT.field === 'blacktop') return { x0: -11.2, x1: 3.42, z0: -15.68, z1: 15.68 };
     const a = metF(-MFG.hw * M2Y, -MFG.ez * M2Y), b = metF(MFG.hw * M2Y, (MFG.L + MFG.ez) * M2Y);
@@ -4729,6 +4741,25 @@ gl_FragColor=vec4(c,1.0);}`;
     y = Math.max(y, 0.6 / M2Y);
     const q = metEb(x, z); e[0] = q[0]; e[1] = y * M2Y; e[2] = q[1]; return e;
   }
+  // ---------- metClearView(e, c): keeps a building between the camera and the play out of the shot. If the line from the look-at point
+  // c to the eye e runs into a tall solid (a wall or roof of the school, the shed, a building: keep-out boxes over 2.4 m), the eye is
+  // brought in to just short of it and lifted by part of what it gave up, so near an end zone backed by the school the shot looks
+  // down over the play from in front of the wall instead of from behind it. Engine units; e is changed in place. ----------
+  function metClearView(e, c) {
+    if (!METCALF || !MET.keep.length) return e;
+    if (!MET.tall || MET.tallN !== MET.keep.length) { MET.tall = MET.keep.filter((k) => k.length === 6 && k[4] > 2.4 && k[1] < 1.5); MET.tallN = MET.keep.length; }
+    for (let pass = 0; pass < 3; pass++) {
+      const E = metFb(e[0], e[2]), C = metFb(c[0], c[2]), ey = e[1] / M2Y, cy = c[1] / M2Y, N = 28; let hit = 1;
+      for (let i = 1; i <= N && hit === 1; i++) {
+        const t = i / N, x = C[0] + (E[0] - C[0]) * t, y = cy + (ey - cy) * t, z = C[1] + (E[1] - C[1]) * t;
+        for (const k of MET.tall) if (x > k[0] - 0.4 && x < k[3] + 0.4 && z > k[2] - 0.4 && z < k[5] + 0.4 && y < k[4] + 0.3) { hit = (i - 1) / N; break; }
+      }
+      if (hit >= 1) break;
+      const k = Math.max(0.2, hit - 0.05), lost = (1 - k) * Math.hypot(e[0] - c[0], e[2] - c[2]);
+      e[0] = c[0] + (e[0] - c[0]) * k; e[2] = c[2] + (e[2] - c[2]) * k; e[1] = Math.min(c[1] + (e[1] - c[1]) * k + lost * 0.6, 14 * MET_Z);
+    }
+    return e;
+  }
   // ---- sky and light: a clear lunch hour (about 12:15 local, early October) at Normal, IL. The sun stands about 45 deg high a
   // little east of south (true azimuth 164 deg; the site frame is turned 2 deg, so 166 deg in F), so shadows fall north toward
   // the playground and nothing shades the field. That is the default (noon, clear); the other times of day and weathers are built on
@@ -4740,7 +4771,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // is about a sixth of the sun on open ground, so a shadow on the light blacktop falls to about half of the sunlit
     // pavement as it does at noon; walls facing away from the sun still get the bounce off the bright pavement (gnd)
     const day = { top: [0.16, 0.36, 0.76], hor: [0.66, 0.76, 0.89], fog: [0.68, 0.75, 0.85], fogR: [60, 420, 0.72], amb: [0.17, 0.19, 0.235], gnd: [0.36, 0.35, 0.32],
-      sun: [4.45, 4.25, 3.88], L: (() => { const h = metDir(Math.sin(az), Math.cos(az)); return [h[0] * Math.cos(el), Math.sin(el), h[1] * Math.cos(el)]; })(), night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
+      sun: [4.45, 4.25, 3.88], L: (() => { const h = metDir0(Math.sin(az), Math.cos(az)); return [h[0] * Math.cos(el), Math.sin(el), h[1] * Math.cos(el)]; })(), night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
     MET.day = day;
     if (WX === 'clear' || WX === 'night') Object.assign(SKY, day);
     else Object.assign(SKY, { gnd: [0.14, 0.14, 0.135], tower: 0, glow: 0, L: day.L });
@@ -6019,7 +6050,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // ===== done: metres -> engine units, and the per-batch materials =====
     const conv = !MOPT.big ? (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } }
       : (b) => { const f = b.f, K = M2Y * MET_Z; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * K; f[o + 1] = metY(f[o + 1]); f[o + 2] = (f[o + 2] + MZ0) * K; } }; // the big field: the uniform zoom
-    const convR = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12, q = metE(f[o], f[o + 2]), n = metDir(f[o + 3], f[o + 5]); f[o] = q[0]; f[o + 1] *= M2Y; f[o + 2] = q[1]; f[o + 3] = n[0]; f[o + 5] = n[1]; } }; // another field: the map turned and moved round it
+    const convR = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12, q = metE0(f[o], f[o + 2]), n = metDir0(f[o + 3], f[o + 5]); f[o] = q[0]; f[o + 1] *= M2Y; f[o + 2] = q[1]; f[o + 3] = n[0]; f[o + 5] = n[1]; } }; // another field: the map turned and moved round it
     const cv = MOPT.field === 'blacktop' ? conv : convR;
     cv(pb); for (const k in B) if (B[k].n) cv(B[k]);
     const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
@@ -6036,7 +6067,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
     built = true;
     if (DBG) DBG.metKeepOut = metKeepOut; // for the screenshot and camera tests
-    if (DBG) { DBG.metE = metE; DBG.metF = metF; DBG.metField = { field: MOPT.field, FL, EZ, HW, rect: MFR, obst: MOBST }; }
+    if (DBG) { DBG.metE = metE; DBG.metF = metF; DBG.metField = { field: MOPT.field, FL, EZ, HW, rect: MFR, obst: MOBST, flip: MFL }; }
     if (DBG) DBG.metStats = { sec: SEC.map((q, i) => [q[0], q[1] - (i ? SEC[i - 1][1] : 0)]), verts: nv, ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))) };
     return W;
   }
@@ -6099,32 +6130,58 @@ gl_FragColor=vec4(c,1.0);}`;
   // =====================================================================================
   // Metcalf's other fields (MFG, 10-setup.js): the playing lines are not paint but glowing, see-through "holo" lines floating just
   // over the ground (an additive layer with a soft core and halo, a travelling shimmer and a slow pulse, so they read as obviously
-  // fake), and on Sideways Blacktop the basketball goal that stands in the field as a solid obstacle (players steer round its pole
+  // fake; goal lines red), and on Sideways Blacktop the basketball goal that stands in the field as a solid obstacle (players steer round its pole
   // and can't run through it; a ball that hits the pole or the board bounces off). The blacktop field keeps its painted lines and
   // none of this runs there (MHOLO and MOBST are null).
   // =====================================================================================
   const MHOLO = METCALF && MOPT.field !== 'blacktop' ? { prog: null, buf: null, n: 0, tex: null, f: null } : null;
-  // the obstacles in engine units: a pole (x, z, r: how close a body's centre can come) and the board and arm (a box a ball bounces off)
-  const MOBST = METCALF && MFG.hoop ? (() => {
-    const p = metE(28.52, -3.59), a = metE(26.6, -4.55), b = metE(28.62, -2.63);
-    return { x: p[0], z: p[1], r: 0.3 * M2Y + 0.36, pr: 0.07 * M2Y + 0.12, py: 3.1 * M2Y,
-      bx0: Math.min(a[0], b[0]), bx1: Math.max(a[0], b[0]), bz0: Math.min(a[1], b[1]), bz1: Math.max(a[1], b[1]), by0: 2.45 * M2Y, by1: 3.97 * M2Y, cd: 0 };
-  })() : null;
-  // a body can't stand in the pole: pushed out, and his velocity into it taken away (integrate, 30-ai.js)
+  // the obstacles in engine units (rebuilt when the ends swap, metObstSet): the goal's pole (x, z, r: how close a body's centre can
+  // come), its board and arm (a box a ball bounces off), and boxes runners can't enter: the hedge along the school wall in the east
+  // end zone (a diving or leaping catcher can land in it: a catch there is in bounds, as the end zone runs to the wall)
+  const MOBST = METCALF && MFG.hoop ? { cd: 0, boxes: [] } : null;
+  function metObstSet() {
+    if (!MOBST) return;
+    const p = metE(28.52, -3.59), a = metE(26.6, -4.55), b = metE(28.62, -2.63), mm = (u, v) => [Math.min(u, v), Math.max(u, v)];
+    const bx = mm(a[0], b[0]), bz = mm(a[1], b[1]);
+    Object.assign(MOBST, { x: p[0], z: p[1], r: 0.3 * M2Y + 0.36, pr: 0.07 * M2Y + 0.12, py: 3.1 * M2Y, bx0: bx[0], bx1: bx[1], bz0: bz[0], bz1: bz[1], by0: 2.45 * M2Y, by1: 3.97 * M2Y });
+    const h0 = metE(30.85, -31.9), h1 = metE(33.1, 0.1), hx = mm(h0[0], h1[0]), hz = mm(h0[1], h1[1]);
+    MOBST.boxes = [{ x0: hx[0], x1: hx[1], z0: hz[0], z1: hz[1] }];
+  }
+  metObstSet();
+  const obstFree = (p) => p.diveT > 0 || p.jumpY > 0.25 || p.pose === 'dive'; // a dive or a leap goes into the bushes
+  // a body can't stand in the pole or walk into the hedge: pushed out, and his velocity into it taken away (integrate, 30-ai.js)
   function obstPush(p) {
     const o = MOBST, dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
-    if (d >= o.r) return; const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0;
-    p.x = o.x + nx * o.r; p.z = o.z + nz * o.r; const vn = p.vx * nx + p.vz * nz; if (vn < 0) { p.vx -= vn * nx; p.vz -= vn * nz; }
+    if (d < o.r) { const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0;
+      p.x = o.x + nx * o.r; p.z = o.z + nz * o.r; const vn = p.vx * nx + p.vz * nz; if (vn < 0) { p.vx -= vn * nx; p.vz -= vn * nz; } }
+    if (obstFree(p)) return;
+    for (const b of o.boxes) {
+      const m = 0.32; if (p.x <= b.x0 - m || p.x >= b.x1 + m || p.z <= b.z0 - m || p.z >= b.z1 + m) continue;
+      const e = [p.x - (b.x0 - m), b.x1 + m - p.x, p.z - (b.z0 - m), b.z1 + m - p.z], k = e.indexOf(Math.min(...e));
+      if (k === 0) { p.x = b.x0 - m; if (p.vx > 0) p.vx = 0; } else if (k === 1) { p.x = b.x1 + m; if (p.vx < 0) p.vx = 0; }
+      else if (k === 2) { p.z = b.z0 - m; if (p.vz > 0) p.vz = 0; } else { p.z = b.z1 + m; if (p.vz < 0) p.vz = 0; }
+    }
   }
-  // the way a body wants to go, bent round the pole when it is just ahead of him (drive, 30-ai.js)
+  // the way a body wants to go, bent round the pole when it is just ahead of him, and along the hedge instead of into it (drive, 30-ai.js)
   function obstAvoid(p, wx, wz) {
     const o = MOBST, ws = Math.hypot(wx, wz); if (ws < 0.5) return null;
-    const tx = o.x - p.x, tz = o.z - p.z, d = Math.hypot(tx, tz); if (d > 4.5 || d < 1e-3) return null;
-    const ux = wx / ws, uz = wz / ws, along = tx * ux + tz * uz; if (along <= 0) return null;
-    const lat = tx * uz - tz * ux, clr = o.r + 0.55; if (Math.abs(lat) >= clr) return null;
-    const sd = lat > 0 ? 1 : -1, k = (1 - d / 4.5) * (1 - Math.abs(lat) / clr) * 2.2; // sidestep to the side away from the pole
-    const nx = ux + uz * sd * k, nz = uz - ux * sd * k, nl = Math.hypot(nx, nz) || 1;
-    return [nx / nl * ws, nz / nl * ws];
+    let out = null;
+    const tx = o.x - p.x, tz = o.z - p.z, d = Math.hypot(tx, tz);
+    if (d < 4.5 && d > 1e-3) {
+      const ux = wx / ws, uz = wz / ws, along = tx * ux + tz * uz, lat = tx * uz - tz * ux, clr = o.r + 0.55;
+      if (along > 0 && Math.abs(lat) < clr) {
+        const sd = lat > 0 ? 1 : -1, k = (1 - d / 4.5) * (1 - Math.abs(lat) / clr) * 2.2; // sidestep to the side away from the pole
+        const nx = ux + uz * sd * k, nz = uz - ux * sd * k, nl = Math.hypot(nx, nz) || 1; out = [nx / nl * ws, nz / nl * ws];
+      }
+    }
+    if (!obstFree(p)) for (const b of o.boxes) { // near a face and heading into it: only the part along the face is kept
+      const w = out || [wx, wz], m = 1.2;
+      if (p.x > b.x0 - m && p.x < b.x0 && p.z > b.z0 && p.z < b.z1 && w[0] > 0) out = [0, w[1]];
+      else if (p.x < b.x1 + m && p.x > b.x1 && p.z > b.z0 && p.z < b.z1 && w[0] < 0) out = [0, w[1]];
+      else if (p.z > b.z0 - m && p.z < b.z0 && p.x > b.x0 && p.x < b.x1 && w[1] > 0) out = [w[0], 0];
+      else if (p.z < b.z1 + m && p.z > b.z1 && p.x > b.x0 && p.x < b.x1 && w[1] < 0) out = [w[0], 0];
+    }
+    return out;
   }
   // a ball in the air that meets the pole or the board bounces off it, tumbling (flyStep, 40-ball.js)
   function obstBall(b, dt) {
@@ -6140,7 +6197,7 @@ gl_FragColor=vec4(c,1.0);}`;
 
   // ---------- the holo lines: built once in engine units (the engine's field frame is the field: x across, z from the home goal line) ----------
   function metHoloBuild() {
-    const f = [], Y = 0.045 * M2Y, CY = [0.35, 0.95, 1.0], GD = [1.0, 0.78, 0.28], WH = [0.5, 0.88, 1.0];
+    const f = [], Y = 0.045 * M2Y, CY = [0.35, 0.95, 1.0], GD = [1.0, 0.16, 0.12], WH = [0.5, 0.88, 1.0];
     const v = (x, y, z, s, t, c, a) => f.push(x, y, z, s, t, c[0], c[1], c[2], a);
     // a line strip from (x0, z0) to (x1, z1), w wide in all (the bright core is about a third of it), intensity a (< 1)
     const seg = (x0, z0, x1, z1, w, c, a) => {
@@ -6149,9 +6206,6 @@ gl_FragColor=vec4(c,1.0);}`;
       v(x0 + nx, Y, z0 + nz, -1, 0, c, a); v(x1 + nx, Y, z1 + nz, -1, l, c, a); v(x1 - nx, Y, z1 - nz, 1, l, c, a);
       v(x0 + nx, Y, z0 + nz, -1, 0, c, a); v(x1 - nx, Y, z1 - nz, 1, l, c, a); v(x0 - nx, Y, z0 - nz, 1, 0, c, a);
     };
-    // a flat glow over an area (striped), or a curtain standing on a line (fading upward): intensity a in 1..2
-    const fill = (x0, z0, x1, z1, c, a) => { v(x0, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z1, 0, 0, c, a); v(x0, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z1, 0, 0, c, a); v(x0, Y * 0.8, z1, 0, 0, c, a); };
-    const curtain = (x0, x1, z, h, c, a) => { v(x0, Y, z, 0, 0, c, a); v(x1, Y, z, 0, 0, c, a); v(x1, h, z, 1, 0, c, a); v(x0, Y, z, 0, 0, c, a); v(x1, h, z, 1, 0, c, a); v(x0, h, z, 1, 0, c, a); };
     // glyphs: a textured quad (u0, v0, u1, v1 in the atlas), centre (x, z), w across x h along, turned by ang (0 = reads facing +z)
     const glyph = (x, z, w, h, ang, uv, c, a) => {
       const ca = Math.cos(ang), sa = Math.sin(ang), P = (px, pz) => [x + px * ca + pz * sa, z - px * sa + pz * ca];
@@ -6159,12 +6213,10 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const i of [0, 1, 2, 0, 2, 3]) v(q[i][0], Y * 1.1, q[i][1], t[i][0], t[i][1], c, a);
     };
     const LW = MFG.full ? 0.42 : 0.55, ZE = FL + EZ;
-    // sidelines and end lines (cyan), goal lines (gold) with a faint light curtain, the end zones a faint striped glow
+    // sidelines and end lines (cyan), goal lines (red)
     seg(-HW, ZBACK, -HW, ZE, LW, CY, 0.9); seg(HW, ZBACK, HW, ZE, LW, CY, 0.9);
     seg(-HW, ZBACK, HW, ZBACK, LW, CY, 0.9); seg(-HW, ZE, HW, ZE, LW, CY, 0.9);
     seg(-HW, 0, HW, 0, LW * 1.15, GD, 0.95); seg(-HW, FL, HW, FL, LW * 1.15, GD, 0.95);
-    curtain(-HW, HW, 0, 0.9 * M2Y, GD, 1.22); curtain(-HW, HW, FL, 0.9 * M2Y, GD, 1.22);
-    fill(-HW, ZBACK, HW, 0, CY, 1.07); fill(-HW, FL, HW, ZE, CY, 1.07);
     if (MFG.full) {
       // a full football field's markings, proportional to 100 yards: a line every 5, hashes and sideline ticks every yard, the
       // numbers every 10 (bottoms toward the sideline), arrows toward the nearer goal
@@ -7319,6 +7371,26 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       }
     }
     FW.bp = [b.x, b.z];
+  }
+  // ---------- the ends: turn the world half round when the team attacking +z in the engine attacks the other end this game (MFL,
+  // 12-venue.js). The statics follow through uModel; the light, the shadows' centre, the people, the walking paths, the fences, the
+  // obstacles and the camera's solids follow here (the traffic and the solids go through metE / metFb every frame). Not mid-cutscene. ----
+  if (METCALF) MFL.H = !VS && DBG && DBG.mflipH != null ? (DBG.mflipH ? 1 : 0) : VS ? (((String(opts.seed || '').split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) & 1) ^ (VS.net && VS.net.recvFirst ? 1 : 0))) : crand() < 0.5 ? 1 : 0;
+  function metFlipFrame() {
+    if (!METCALF) return;
+    const want = (MFL.H === 1) !== !!(DEFP.flipped || (VS && VS.flipped));
+    if (want === MFL.on || FETCH.on) return;
+    MFL.on = want;
+    LDIR[0] = -LDIR[0]; LDIR[2] = -LDIR[2]; SKY.L = [-SKY.L[0], SKY.L[1], -SKY.L[2]];
+    for (const p of LPOS) { p[0] = -p[0]; p[2] = FL - p[2]; }
+    for (const o of [MET.centre, MET.envEye]) { o[0] = -o[0]; o[2] = FL - o[2]; }
+    for (const q of PPL.all.concat(PPL.dogs)) {
+      if (q.x != null) { q.x = -q.x; q.z = FL - q.z; } if (q.hx != null) { q.hx = -q.hx; q.hz = FL - q.hz; } if (q.tx != null) { q.tx = -q.tx; q.tz = FL - q.tz; }
+      if (q.tx0 != null) { q.tx0 = -q.tx0; q.tz0 = FL - q.tz0; } q.h = (q.h || 0) + Math.PI; if (q.hh != null) q.hh += Math.PI;
+    }
+    for (const pth of PPL.paths) for (const p of pth.pts) { p[0] = -p[0]; p[1] = FL - p[1]; }
+    if (PPL.fd) { PPL.crowd.forEach((q, i) => { const o = i * 16; PPL.fd[o] = q.hx; PPL.fd[o + 1] = q.hz; PPL.fd[o + 2] = q.hh; }); PPL.fdirty = true; }
+    FEN = null; FW.bp = null; metObstSet();
   }
   const SAY_CALL = ['Can you get our ball?!', 'A little help!', 'Little help please!', 'Over here!', 'Can you throw it back?', 'Hey! Our ball!', 'Thank you!!'];
   // after the play (the result already stands): start the cutscene instead of going on; `cont` is what the game would have done
@@ -8554,7 +8626,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   // true + 2). The stadium is on no map: its north is put where its old noon sun stands due south, so its field runs from the south-east
   // (your end zone) to the north-west and the sun sets beyond the far end zone.
   const SKY_DEG = Math.PI / 180;
-  const SKY_N = METCALF ? metDir(0, 1) : [0.7522, -0.6582], SKY_E = METCALF ? metDir(1, 0) : [-0.6582, -0.7522]; // (frame F's north and east in engine axes: another Metcalf field turns the map)
+  const SKY_N = METCALF ? metDir0(0, 1) : [0.7522, -0.6582], SKY_E = METCALF ? metDir0(1, 0) : [-0.6582, -0.7522]; // (frame F's north and east in engine axes: another Metcalf field turns the map)
   function skyDir(az, el) {
     const a = (az + (METCALF ? 2 : 0)) * SKY_DEG, e = el * SKY_DEG, hx = Math.sin(a) * SKY_E[0] + Math.cos(a) * SKY_N[0], hz = Math.sin(a) * SKY_E[1] + Math.cos(a) * SKY_N[1];
     return [hx * Math.cos(e), Math.sin(e), hz * Math.cos(e)];
@@ -8740,7 +8812,7 @@ gl_FragColor=vec4(col,1.0);}`;
   function skyLamps(W) {
     if (!METCALF || !W.defs) return;
     const b = new Batch(600), t = new Batch(200), night = TOD === 'night',
-      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; const d = metDir((f[o] - ax) * M2Y * MET_Z, (f[o + 2] - az) * M2Y * MET_Z), n = metDir(f[o + 3], f[o + 5]); b.v(e[0] + d[0], metY(f[o + 1]), e[1] + d[1], n[0], f[o + 4], n[1], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
+      put = (ax, az) => { const e = metE0(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; const d = metDir0((f[o] - ax) * M2Y * MET_Z, (f[o + 2] - az) * M2Y * MET_Z), n = metDir0(f[o + 3], f[o + 5]); b.v(e[0] + d[0], metY(f[o + 1]), e[1] + d[1], n[0], f[o + 4], n[1], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
     for (const [x, y, z] of MET_LAMPS.wall) {
       t.wbox(x - 0.24, y - 0.15, z - 0.2, x, y + 0.17, z + 0.2, bronze);
       t.quad([x - 0.245, y - 0.12, z - 0.15], [x - 0.245, y - 0.12, z + 0.15], [x - 0.245, y + 0.05, z + 0.15], [x - 0.245, y + 0.05, z - 0.15], [0, 0, 0], lens);
@@ -16922,7 +16994,7 @@ gl_FragColor=vec4(col,1.0);}`;
       // Metcalf: somebody gets the ball back from over the fence (13-metpeople.js). Time out: nothing else in the game moves on
       if (phase === 'fetch') { metFetchStep(dt); return; }
       if (phase === 'xdance') { xdStep(dt); return; }
-      if (METCALF) metFetchWatch(); // Metcalf: has the ball gone over a fence?
+      if (METCALF) { metFlipFrame(); metFetchWatch(); } // Metcalf: which end is whose (13-metpeople.js); has the ball gone over a fence?
       voiceIdle(dt); dramaStep(dt);
       excite = Math.max(0, excite - dt * 0.09);
       for (const q of parts) { if (q.life <= 0) continue; q.life -= dt; q.vy -= 12 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y < 0.05) { q.y = 0.05; q.vy *= -0.3; q.vx *= 0.6; q.vz *= 0.6; } q.r += dt * 8; }
@@ -19520,6 +19592,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const z0 = e[2], K = MET_K; e[2] = clamp(e[2], ZBACK - 12 * K, ZEND + 6 * K); e[0] = clamp(e[0], -HW - 16 * K, HW + 18 * K);
       e[1] = clamp(e[1] + Math.abs(e[2] - z0) * 0.3, 1.1, K > 1 ? 40 : 24); // pulled in at an end: a little higher to keep the view
       if (typeof metKeepOut === 'function') { const q = metKeepOut(e); if (q && q.length === 3) { e[0] = q[0]; e[1] = q[1]; e[2] = q[2]; } }
+      if (METCALF) metClearView(e, c); // a school wall between the eye and the play: come in over the play instead (12-venue.js)
       if (e[1] < 1.1) e[1] = 1.1;
     }
     function updateCam(dt) {
@@ -19797,6 +19870,7 @@ gl_FragColor=vec4(col,1.0);}`;
       // statics
       const W = quality >= 2 && !forEnv ? G.worldHi : G.world;
       setLitUniforms(W, forEnv); gl.uniform2f(W.u.uUV, 0, 0);
+      gl.uniformMatrix4fv(W.u.uModel, false, MFL.on ? MFL.M : MFL.I); // the statics: Metcalf's world turned when the ends are swapped (12-venue.js)
       for (const s of statics) {
         gl.bindTexture(gl.TEXTURE_2D, s.k === 'board' && feedOn && G.feed && !G.feedPass ? G.feed.tex : s.tex); worldMat(W, s.mat, DBG && DBG.shadowView ? 9 : s.kind);
         const fv = s.k === 'board' && feedOn && G.feed && !G.feedPass; gl.uniform1f(W.u.uFlipV, fv ? 1 : 0); if (fv) gl.uniform4f(W.u.uMatW, 0.4, 0, 0, 1.0);
@@ -19807,6 +19881,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (s.k === 'glass') gl.disable(gl.BLEND);
         if (s.blend) { gl.disable(gl.BLEND); gl.depthMask(true); }
       }
+      gl.uniformMatrix4fv(W.u.uModel, false, MFL.I);
       disableAll(W);
       // crowd
       { const P = G.crowd; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uExcite, excite); gl.uniform1f(P.u.uWave, wave); gl.uniform1f(P.u.uMood, crowdMood); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]);
@@ -19864,6 +19939,7 @@ gl_FragColor=vec4(col,1.0);}`;
       handsFrame(Math.max(0, dt)); // anim: catches and swats are read off the ball before anyone is posed
       for (const p of everyone) animUpdate(p, Math.max(0, dt));
       extrasStep(Math.max(0, dt));
+      if (METCALF) metFlipFrame(); // (the ends: 13-metpeople.js)
       if (METCALF) metPplFrame(Math.max(0, dt), now); // Metcalf people: move, pose, pack (13-metpeople.js)
       dyn.n = 0; tr.n = 0;
       const showPlayers = phase !== 'box';
@@ -19889,8 +19965,9 @@ gl_FragColor=vec4(col,1.0);}`;
         if (!G.shadow.dt) gl.colorMask(true, true, true, true); else gl.colorMask(false, false, false, false);
         for (let ci = 0; ci < G.shadow.n; ci++) {
           gl.viewport(ci * G.shadow.size, 0, G.shadow.size, G.shadow.size);
-          const P = G.depthW; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uLVP, false, CASC[ci]);
+          const P = G.depthW; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uLVP, false, CASC[ci]); gl.uniformMatrix4fv(P.u.uModel, false, MFL.on ? MFL.M : MFL.I);
           for (const s of statics) if (s.cast && (ci > 0 || s.k === 'plain' || s.c0) && !(quality === 0 && s.k === 'seats')) { bindWorldAttribs(P, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; }
+          gl.uniformMatrix4fv(P.u.uModel, false, MFL.I);
           if (dyn.n) { bindWorldAttribs(P, G.dyn, dyn.f.subarray(0, dyn.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, dyn.n); DRAWS.n++; }
           disableAll(P);
           if (ci < 2) { const S = G.depthS; gl.useProgram(S.pr); gl.uniformMatrix4fv(S.u.uLVP, false, CASC[ci]); if (showPlayers) { drawPlayers(S, true, everyone); if (extras.length && ci === 0) drawPlayers(S, true, extras); } }

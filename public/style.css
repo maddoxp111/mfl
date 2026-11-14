@@ -2212,7 +2212,9 @@ body.arc-playing .ticker{display:none}
 @media(max-width:760px){
   .nav-main{grid-template-columns:repeat(2,1fr)}
   .nav-main .nav-cards{background:rgba(192,132,252,.1)}
-  .acct-box{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+  .acct-box{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
+  .acct-box .acct{min-width:0;overflow:hidden}.acct-box .acct b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .nav{overflow-x:hidden}
   .acct-out{display:flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid var(--line2);border-radius:999px;font-size:15px}
   .acct-box .nav-admin{grid-column:1/-1}
 }
