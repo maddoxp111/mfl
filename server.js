@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 const smallJson = express.json({ limit: '100kb' });
-const saveJson = express.json({ limit: '1mb' }); // 3D Blitz franchise saves
+const saveJson = express.json({ limit: '1.5mb' }); // 3D Blitz career saves
 app.use((req, res, next) => (req.path === '/admin/restore' ? next() : req.path.startsWith('/api/bf/save/') ? saveJson(req, res, next) : smallJson(req, res, next)));
 // Scripts and styles go out gzipped (the game scripts are megabytes; they shrink ~5x). Each file is compressed once and kept
 // until it changes. A URL with ?v= (assetUrl below) names one version of the file, so browsers keep it for a year.

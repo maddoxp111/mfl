@@ -55,7 +55,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
       const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
       const bowlDoc = name ? saves.normalize(await getDoc(key(name)), name) : null;
       const blitzDoc = name ? (await getDoc('blitzfranchise/' + name)) || { slots: {} } : null;
-      const G = GAMES(), lineup = lineupOf(db, user), range = g => `${fmt(G[g].prizes[0])} to ${fmt(G[g].prizes[3])}`;
+      const G = GAMES(), lineup = lineupOf(db, user), range = g => `${fmt(G[g].prizes[0])} to ${fmt(Math.max(...G[g].prizes.slice(0, g === 'blitz3d' ? 6 : 4)))}`;
       const rec = (w, l, t) => `${w}–${l}${t ? '–' + t : ''}`;
       const bowlSnap = bowlDoc && saves.snapshot(bowlDoc), bowlSel = bowlSnap && bowlSnap.saves.find(s => s.id === bowlSnap.selected);
       const blitzSlots = blitzDoc ? Object.values(blitzDoc.slots || {}).filter(x => x && x.meta) : [];
@@ -67,7 +67,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
         <span class="ch-foot"><span class="ch-pay">Wins pay ${range(game)} coins</span><span class="btn">Play →</span></span></a>`;
       res.set('Cache-Control', 'no-store').send(layout(req, 'Career', `<div class="wrap ch-page">
         <div class="ch-head"><div class="kicker">MFL Career</div><h1>Pick your career</h1>
-          <p class="muted">Run a program for whole seasons. Every career win pays the same coins as Play for coins at your career's difficulty: Rookie, Pro, All-Pro or Legend.${name && !career.lineupPlayers(lineup) ? ' Set a full Lineup on the <a href="/pickem/cards">Cards page</a> to unlock Dynamic Lineup careers.' : ''}</p></div>
+          <p class="muted">Run a program for whole seasons. Every career win pays the same coins as Play for coins at your career's difficulty: Rookie, Pro, All-Pro or Legend, plus Hall of Fame and GOAT in the 3D Blitz Career.${name && !career.lineupPlayers(lineup) ? ' Set a full Lineup on the <a href="/pickem/cards">Cards page</a> to unlock Dynamic Lineup careers.' : ''}</p></div>
         <div class="ch-grid">
           ${tile('bowl', '/career/bowl', 'ch-bowl', '🏈', 'Modern Bowl Career', 'Coach a Metcalf team through a McLean County season of retro football and bring home the County Cup.',
             progress('bowl', bowlSnap ? bowlSnap.saves.length : 0, saves.MAX_SAVES, bowlSel && `${esc(bowlSel.name)} · ${esc(bowlSel.team)} · ${rec(bowlSel.w, bowlSel.l, bowlSel.t)}`))}

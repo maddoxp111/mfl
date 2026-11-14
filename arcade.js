@@ -504,7 +504,7 @@ module.exports = function arcade(app, h) {
       if (!G) return json(res, { ok: false, error: 'Unknown game.' });
       const runMode = req.body.game === 'blitz3d' && RUNS[req.body.mode] ? req.body.mode : null; // a Double or Nothing / Double or Double run: Legend or GOAT
       const career = !runMode && ['bowl', 'blitz3d'].includes(req.body.game) && [true, '1', 'true'].includes(req.body.career); // career games: plain prize, no Risk, no Lineup check
-      const level = runMode ? runLevel(req.body.level) : Math.max(0, Math.min(career ? 3 : G.prizes.length - 1, Math.floor(Number(req.body.level) || 0))); // (careers have four levels: Rookie to Legend)
+      const level = runMode ? runLevel(req.body.level) : Math.max(0, Math.min(career && req.body.game === 'bowl' ? 3 : G.prizes.length - 1, Math.floor(Number(req.body.level) || 0))); // (the Modern Bowl career has four levels, Rookie to Legend; the 3D Blitz career has all six)
       const practice = !runMode && !career && req.body.mode === 'practice';
       const risk = !runMode && !practice && !career && (req.body.risk === '1' || req.body.risk === true || req.body.risk === 'on');
       const name = currentUser(req);
@@ -774,7 +774,7 @@ module.exports = function arcade(app, h) {
   // Saves live in docs "blitzfranchise/<user>": { slots: { 1: { meta, data, updated } } }. The client owns
   // the save; the server only stores it (size-capped). Coins for 3D wins go through /arcade/start + /arcade/finish
   // with the career flag, so they get the same server checks as the Arcade.
-  const BF_SLOTS = ['1', '2', '3'], BF_MAX = 600 * 1024;
+  const BF_SLOTS = ['1', '2', '3'], BF_MAX = 1400 * 1024; // (State and Nationals are 32-team brackets: a save peaks around 450 KB in a first season)
   const bfKey = (name) => 'blitzfranchise/' + name;
   const bfMeta = (m) => (m && typeof m === 'object' ? Object.fromEntries(Object.entries(m).slice(0, 12).map(([k, v]) => [String(k).slice(0, 24), typeof v === 'number' ? v : String(v).slice(0, 80)])) : {});
   // The user's card Lineup for Dynamic Lineup careers (both games). Null until the Lineup is full.
@@ -791,10 +791,10 @@ module.exports = function arcade(app, h) {
       const realOf = (nm) => { for (const t of Object.values(db.teams)) { const x = t.roster.find((r) => r.name === nm); if (x) return { id: x.id, team: t.id, photo: x.photo ? '/media/' + x.photo : null }; } return {}; };
       const mine = h.careerLineup(db, user);
       const lineup = mine ? mine.players.filter(Boolean).map((p) => ({ ...p, ...realOf(p.name) })) : null;
-      const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS, prizes: GAMES.blitz3d.prizes.slice(0, 4), lineup };
+      const boot = { user: name || null, players, teams, cpuTeams: CPU_TEAMS, slots: BF_SLOTS, prizes: GAMES.blitz3d.prizes.slice(0, 6), lineup };
       const script = gameScripts(['arcade', 'blitz3d', 'blitzfranchise']);
       res.send(layout(req, '3D Blitz Career', `<div class="wrap arc-page bf-page">
-        <div class="arc-head"><a href="/career" class="muted sm">${icon('arrow')} Career</a><h1><span>🏟️</span> 3D Blitz Career</h1><p class="muted">Build a program, play every game, win titles. Every game you win in 3D pays ${GAMES.blitz3d.prizes.slice(0, 4).map(fmt).join(' / ')} coins (Rookie / Pro / All-Pro / Legend).</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        <div class="arc-head"><a href="/career" class="muted sm">${icon('arrow')} Career</a><h1><span>🏟️</span> 3D Blitz Career</h1><p class="muted">Build a program, play every game, win titles. Every game you win in 3D pays ${[0, 1, 2, 3, 5, 4].map((i) => `${fmt(GAMES.blitz3d.prizes[i])} (${LEVELS[i]})`).join(', ')} coins.</p>${user ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
         ${name ? '' : `<p class="muted sm"><a href="/pickem/login?next=/career/blitz">Log in</a> to save your career to your account and earn coins for wins (otherwise it saves on this device only).</p>`}
         <div id="bfRoot"></div></div>
         <script>window.MFL_BLITZ_CAREER=${JSON.stringify(boot).replace(/</g, '\\u003c')}</script>${script}`, { ticker: false }));

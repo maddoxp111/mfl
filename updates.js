@@ -954,6 +954,17 @@ const UPDATES = [
       'You need a full Lineup to pick it.',
     ],
   },
+  {
+    n: 90,
+    date: '2026-11-15',
+    title: '3D Blitz Career: six difficulties, 32-team State and Nationals',
+    items: [
+      'The 3D Blitz Career now has all six Arcade difficulties: Rookie, Pro, All-Pro, Legend, Hall of Fame and GOAT. Wins pay the same as Play for coins at that level, up to 3,500 coins on GOAT.',
+      'State is now a 32-team Illinois bracket: five wins for the state title. Early rounds are at Metcalf or the other school, and the semifinals and final are at Hancock Stadium.',
+      'Nationals is now 32 state champions: five wins at The Stadium for the Blitz Bowl.',
+      'The playoffs setting at the start of a career is now clearly the county playoffs (top 4 or top 8). Win the county and you go to State, then Nationals.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

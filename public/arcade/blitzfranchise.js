@@ -136,7 +136,12 @@
     { name: 'Pro', eng: 0.33, note: 'A fair fight for most players.' },
     { name: 'All-Pro', eng: 0.66, note: 'Tight coverage and a faster pass rush.' },
     { name: 'Legend', eng: 1, note: 'Only for the best. Every throw is contested.' },
+    // the Arcade's top two levels (same index as the Arcade's levels, so wins pay the same)
+    { name: 'GOAT', eng: 1.3, off: 1.3, note: 'The hardest there is. Nothing comes easy, on either side of the ball.' },
+    { name: 'Hall of Fame', eng: 1.1, off: 1.2, note: 'Elite defenses and a CPU offense that punishes every mistake.' },
   ];
+  const DIFF_ORDER = [0, 1, 2, 3, 5, 4]; // shown easiest to hardest: Hall of Fame sits between Legend and GOAT
+  const DMAX = DIFFS.length - 1;
   // The season: a McLean County regular season (11 weeks), the county playoffs, then State for the county champion and Nationals
   // for the state champion. The national final is the Blitz Bowl; its trophy is the Golden Flag.
   const CHAMP = 'Blitz Bowl', TROPHY = 'Golden Flag';
@@ -194,6 +199,29 @@
     ['Desert Vista Junior High', 'Desert Vista', 'Arizona', 'DVJ', '#c2410c', '#fff7ed', 'Scorpions'], ['Blue Ridge Middle School', 'Blue Ridge', 'Virginia', 'BRM', '#1d4ed8', '#e0f2fe', 'Mountaineers'],
     ['Twin Lakes Middle School', 'Twin Lakes', 'Minnesota', 'TLM', '#1e3a8a', '#fde047', 'Loons'], ['Golden Valley Junior High', 'Golden Valley', 'California', 'GVJ', '#a16207', '#fefce8', 'Grizzlies'],
   ].map(([full, name, reg, abbr, color, color2, mascot], i) => ({ key: 'nt' + i, full, name, town: reg, reg, abbr, color, color2, mascot }));
+  // State and Nationals are 32-team brackets: add made-up schools until each pool has 31 visitors
+  (function growPools() {
+    const PAL = [['#0f766e', '#f0fdfa'], ['#1e40af', '#fde68a'], ['#991b1b', '#fef2f2'], ['#ca8a04', '#1c1917'], ['#4338ca', '#e0e7ff'], ['#b45309', '#fff7ed'], ['#166534', '#fefce8'], ['#7e22ce', '#faf5ff'], ['#be123c', '#fff1f2'], ['#0369a1', '#f0f9ff'], ['#374151', '#f9fafb'], ['#c2410c', '#fff7ed'], ['#065f46', '#d1fae5'], ['#1d4ed8', '#e0f2fe'], ['#a16207', '#fefce8'], ['#831843', '#fce7f3']];
+    const MASC = ['Wolves', 'Eagles', 'Panthers', 'Bulldogs', 'Cougars', 'Falcons', 'Hornets', 'Mustangs', 'Knights', 'Vikings', 'Raiders', 'Titans', 'Bobcats', 'Owls', 'Wildcats', 'Badgers', 'Comets', 'Pioneers', 'Jets', 'Spartans', 'Bears', 'Cardinals', 'Thunder', 'Storm'];
+    const ST_PLACES = ['Oak Hollow', 'Cedar Point', 'Maple Grove', 'Willow Creek', 'Pine Ridge', 'Elm Park', 'Stone Bridge', 'Clear Lake', 'North Prairie', 'West Ridge', 'Eagle Point', 'Hickory Hills', 'Birch Valley', 'Crystal Springs', 'Sugar Grove', 'Iron Bridge', 'Mill Creek', 'Spring Valley', 'Granite Falls', 'Bluff View', 'Harbor Point', 'Sycamore Bend', 'Walnut Grove'];
+    const ST_REG = ['Chicago suburbs', 'Quad Cities', 'Metro East', 'Champaign County', 'Peoria area', 'Rockford area', 'Southern Illinois', 'Fox Valley', 'Springfield area', 'Kankakee area', 'Decatur area', 'Joliet area', 'Galesburg area', 'Quincy area', 'Danville area', 'Lake County'];
+    const NT_PLACES = ['Lone Star', 'Bayou Ridge', 'Great Lakes', 'Rocky Point', 'Sun Valley', 'Magnolia Park', 'Liberty Hill', 'Ocean View', 'Canyon Creek', 'Pine Bluff', 'Evergreen', 'Tidewater', 'High Plains', 'Lakeshore', 'Smoky Ridge', 'Coral Springs', 'Harbor Town', 'Prairie Wind', 'Mesa Verde', 'Riverside', 'Bluegrass', 'Summit Peak', 'Gulf Coast'];
+    const NT_REG = ['Texas', 'Louisiana', 'Michigan', 'Colorado', 'Idaho', 'Georgia', 'Pennsylvania', 'Oregon', 'Utah', 'Arkansas', 'Washington', 'Maryland', 'Kansas', 'Wisconsin', 'Tennessee', 'Florida', 'Massachusetts', 'Nebraska', 'New Mexico', 'California', 'Kentucky', 'New York', 'Alabama'];
+    const grow = (pool, places, regs, pre) => {
+      const used = new Set(pool.map((d) => d.abbr));
+      places.forEach((name, i) => {
+        if (pool.length >= 32) return;
+        const jh = i % 2 === 1, full = name + (jh ? ' Junior High' : ' Middle School');
+        let abbr = (name.split(' ').map((w) => w[0]).join('') + (jh ? 'J' : 'M')).toUpperCase().slice(0, 3);
+        for (let k = 0; used.has(abbr) && k < 26; k++) abbr = abbr.slice(0, 2) + String.fromCharCode(65 + k);
+        used.add(abbr);
+        const [color, color2] = PAL[(i * 5 + pre.length) % PAL.length], reg = regs[i % regs.length];
+        pool.push({ key: pre + (100 + i), full, name, town: reg, reg, abbr, color, color2, mascot: MASC[(i * 7 + pre.length) % MASC.length] });
+      });
+    };
+    grow(STATE_POOL, ST_PLACES, ST_REG, 'st');
+    grow(NAT_POOL, NT_PLACES, NT_REG, 'nt');
+  })();
   const COLOR_PRESETS = [
     ['#ffc21a', '#111111'], ['#ff3344', '#ffffff'], ['#2563eb', '#f8fafc'], ['#16a34a', '#f0fdf4'], ['#7c3aed', '#fde047'], ['#f97316', '#1f2937'],
     ['#0ea5e9', '#0f172a'], ['#db2777', '#fdf2f8'], ['#14b8a6', '#042f2e'], ['#e5e7eb', '#1d4ed8'], ['#111827', '#f59e0b'], ['#84cc16', '#14532d'],
@@ -566,7 +594,7 @@
   function createLeague(cfg) {
     const seed = cfg.seed || uid();
     S = {
-      v: SAVE_VERSION, id: uid(), seed, name: cfg.name || 'My Career', created: new Date().toISOString(), coach: cfg.coach || 'Coach', diff: clamp(cfg.diff | 0, 0, 3), qmin: [2, 3, 4].includes(cfg.qmin) ? cfg.qmin : 2, poSize: cfg.po === 8 ? 8 : 4,
+      v: SAVE_VERSION, id: uid(), seed, name: cfg.name || 'My Career', created: new Date().toISOString(), coach: cfg.coach || 'Coach', diff: clamp(cfg.diff | 0, 0, DMAX), qmin: [2, 3, 4].includes(cfg.qmin) ? cfg.qmin : 2, poSize: cfg.po === 8 ? 8 : 4,
       season: 1, year: new Date().getFullYear(), phase: 'regular', week: 0, user: null, teams: {}, order: [], players: {}, nid: 1, sched: [], po: null, news: [],
       pts: 150, fac: { train: 1, film: 1, locker: 1, stadium: 1, medical: 1 }, staff: {}, hire: null, train: { f: 'passing', i: 1 },
       hist: { seasons: [], hof: [], rec: { L: { g: {}, s: {}, c: {} }, U: { g: {}, s: {}, c: {} }, T: {} }, titles: {} },
@@ -1223,13 +1251,15 @@
   // brackets (same shape as S.po, with .stage) and the visiting teams made for them (extra: not in S.order, removed next season).
   function curPo() { return S.post && S.post.stage === 'state' && S.post.state ? S.post.state : S.post && S.post.stage === 'nat' && S.post.nat ? S.post.nat : S.po; }
   const stageOf = (br) => (br && br.stage) || 'county';
-  const brRounds = (br) => (br.size === 8 ? 3 : br.size === 4 ? 2 : 1);
+  const brRounds = (br) => Math.max(1, Math.round(Math.log2(num(br.size, 2))));
   const brackets = () => [S.po, S.post && S.post.state, S.post && S.post.nat].filter(Boolean);
+  function seedOrder(n) { let a = [1]; while (a.length < n) { const m = a.length * 2 + 1; a = a.flatMap((x) => [x, m - x]); } return a; }
   function brOfGame(g) { for (const br of brackets()) for (const rd of br.rounds) if (rd.includes(g)) return br; return null; }
   function poRoundName(r, br) {
     br = br || curPo(); const st = stageOf(br), total = br ? brRounds(br) : (S.poSize === 8 ? 3 : 2);
-    if (st === 'nat') return r === total - 1 ? CHAMP : 'National Semifinal';
-    if (st === 'state') return r === total - 1 ? 'State Championship' : r === total - 2 ? 'State Semifinal' : 'State Quarterfinal';
+    const left = total - r, rn = left === 2 ? 'Semifinal' : left === 3 ? 'Quarterfinal' : 'Round of ' + Math.pow(2, left);
+    if (st === 'nat') return left === 1 ? CHAMP : 'National ' + rn;
+    if (st === 'state') return left === 1 ? 'State Championship' : 'State ' + rn;
     if (r === total - 1) return 'County Championship';
     return total === 3 ? ['County Quarterfinals', 'County Semifinals'][r] || 'County Playoffs' : 'County Semifinals';
   }
@@ -1238,8 +1268,9 @@
   const surfaceOf = (t) => (hashStr('surface:' + (t.sk || t.id)) % 100 < 50 ? 'blacktop' : 'grass');
   function venueFor(g) {
     const br = brOfGame(g), st = br ? stageOf(br) : 'reg', r = br ? br.rounds.findIndex((rd) => rd.includes(g)) : -1;
-    if (st === 'nat') return { v: 'stadium', name: 'The Stadium', tod: 'night', big: 1, line: r === 1 ? 'The Blitz Bowl · The Stadium, under the lights' : 'The Stadium, under the lights' };
-    if (st === 'state' && r >= 1) return { v: 'hancock', name: 'Hancock Stadium', tod: r === 2 ? 'night' : 'sunset', big: 1, line: 'Hancock Stadium · Normal, Illinois' };
+    const total = br ? brRounds(br) : 0;
+    if (st === 'nat') return { v: 'stadium', name: 'The Stadium', tod: 'night', big: 1, line: r === total - 1 ? 'The Blitz Bowl · The Stadium, under the lights' : 'The Stadium, under the lights' };
+    if (st === 'state' && r >= total - 2) return { v: 'hancock', name: 'Hancock Stadium', tod: r === total - 1 ? 'night' : 'sunset', big: 1, line: 'Hancock Stadium · Normal, Illinois' };
     const host = TM(g.h);
     if (g.h === S.user) return { v: 'metcalf', name: 'Metcalf', home: 1, line: `Metcalf · ${(MFIELDS.find((m) => m[0] === (S.mfield || 'blacktop')) || MFIELDS[0])[1]}` };
     const surf = surfaceOf(host);
@@ -1263,26 +1294,35 @@
   // a visiting team for State or Nationals (with a made-up roster)
   function makeGuest(d, stage, i, rng) {
     const id = `${stage}-${S.season}-${d.key}`;
-    const base = stage === 'nat' ? 74 : 68, tier = clamp(Math.round(base + gauss(rng) * 3 + rng() * 4), 60, 86);
+    // 31 visitors: a few powerhouses, plenty of decent teams (the early rounds are winnable, the late ones are not easy)
+    const base = stage === 'nat' ? 72 : 65, tier = clamp(Math.round(base - 4 + Math.pow(rng(), 1.6) * 16 + gauss(rng) * 2), 56, 88);
     const t = mkTeam({ id, name: d.name, full: d.full, town: d.reg, abbr: d.abbr, color: d.color, color2: d.color2, div: 0, kind: stage, tier, nick: 'the ' + d.mascot, field: d.full, sk: id, mascot: d.mascot });
     t.coach = 'Coach ' + pick(rng, LAST); t.reg = d.reg;
     S.teams[id] = t; invalidate();
-    fillRoster(t, rng, tier, usedNames()); fixDepth(t, true);
+    fillRoster(t, rng, tier, usedNames(), true); fixDepth(t, true); // a game-day roster (keeps saves small)
     t.chem = rint(rng, 60, 78); t.prest = clamp(Math.round((tier - 50) * 2.2), 20, 90);
     S.post.extra.push(id);
     return id;
   }
   function startStage(stage) {
-    const rng = rngFrom(S.seed + ':' + stage + ':' + S.season), n = stage === 'state' ? 7 : 3;
+    const rng = rngFrom(S.seed + ':' + stage + ':' + S.season), n = 31;
     const ids = shuffle(rng, stage === 'state' ? STATE_POOL : NAT_POOL).slice(0, n).map((d, i) => makeGuest(d, stage, i, rng));
     const score = (id) => teamRatings(TM(id)).ovr + (id === S.user ? tPct(userTeam()) * 6 : rng() * 4);
     const seeds = [S.user].concat(ids).sort((a, b) => score(b) - score(a));
-    const pairs = seeds.length === 8 ? [[0, 7], [3, 4], [1, 6], [2, 5]] : [[0, 3], [1, 2]];
+    const ord = seedOrder(seeds.length), pairs = [];
+    for (let i = 0; i < ord.length; i += 2) pairs.push([ord[i] - 1, ord[i + 1] - 1]);
     const r0 = pairs.map(([a, b], i) => ({ id: `s${S.season}${stage}0g${i}`, h: seeds[a], a: seeds[b], sh: a + 1, sa: b + 1, done: false, neu: stage === 'nat' }));
     S.post[stage] = { size: seeds.length, seeds, rounds: [r0], r: 0, champ: null, ru: null, stage };
     S.post.stage = stage;
-    if (stage === 'state') { S.cr.st = (S.cr.st || 0) + 1; news(`${userTeam().name} are going to State! The #${seeds.indexOf(S.user) + 1} seed in an eight-team bracket. The semifinals and the final are at Hancock Stadium.`, 'po', S.user); }
-    else news(`${userTeam().name} are going to Nationals! Four teams, two games, one ${CHAMP} at The Stadium.`, 'po', S.user);
+    if (stage === 'state') { S.cr.st = (S.cr.st || 0) + 1; news(`${userTeam().name} are going to State! The #${seeds.indexOf(S.user) + 1} seed in a 32-team bracket: five wins for the state title. The semifinals and the final are at Hancock Stadium.`, 'po', S.user); }
+    else news(`${userTeam().name} are going to Nationals! The #${seeds.indexOf(S.user) + 1} seed among 32 state champions: five wins at The Stadium for the ${CHAMP}.`, 'po', S.user);
+  }
+  function sendHome(ids) {
+    const gone = new Set((ids || []).filter((id) => id && id !== S.user && S.post && S.post.extra.includes(id)));
+    if (!gone.size) return;
+    for (const pid in S.players) if (gone.has(S.players[pid].t)) delete S.players[pid];
+    for (const id of gone) { const t = TM(id); if (t) t.depth = {}; }
+    invalidate();
   }
   function playRound(userRes) {
     const rep = newReport();
@@ -1305,6 +1345,7 @@
         const bonus = st === 'nat' ? 400 : st === 'state' ? 250 : 150;
         rep.pts.push([STAGE[st].title, bonus]); S.pts += bonus;
       }
+      if (st !== 'county') sendHome([po.ru]);
       if (po.champ === S.user && st !== 'nat') { startStage(st === 'county' ? 'state' : 'nat'); rep.next = S.post.stage; }
       else seasonEnd(rep);
     } else {
@@ -1315,8 +1356,10 @@
         let [a, b] = [winners[i], winners[i + 1]];
         if (seedOf(b) < seedOf(a)) [a, b] = [b, a];
         const r1 = po.r + 1;
-        next.push({ id: `s${S.season}${st === 'county' ? 'p' : st}${r1}g${i / 2}`, h: a, a: b, sh: seedOf(a), sa: seedOf(b), done: false, neu: st === 'nat' || (st === 'state' && r1 >= 1) });
+        next.push({ id: `s${S.season}${st === 'county' ? 'p' : st}${r1}g${i / 2}`, h: a, a: b, sh: seedOf(a), sa: seedOf(b), done: false, neu: st === 'nat' || (st === 'state' && r1 >= brRounds(po) - 2) });
       }
+      // knocked-out visiting teams go home: their players leave (the team stays on the bracket)
+      if (st !== 'county') sendHome(games.map((g) => (gameWinner(g) === g.h ? g.a : g.h)));
       po.rounds.push(next);
       po.r++;
     }
@@ -1684,7 +1727,7 @@
     if (!d.teams[d.user]) throw new Error('This save is missing your team.');
     if (!d.players || typeof d.players !== 'object') throw new Error('This save is missing its players.');
     d.seed = String(d.seed || uid()); d.id = d.id || uid(); d.name = String(d.name || 'My Career').slice(0, 40); d.coach = String(d.coach || 'Coach').slice(0, 30);
-    d.diff = clamp(num(d.diff, 1) | 0, 0, 3); d.qmin = [2, 3, 4].includes(d.qmin) ? d.qmin : 2; d.poSize = d.poSize === 8 ? 8 : 4;
+    d.diff = clamp(num(d.diff, 1) | 0, 0, DMAX); d.qmin = [2, 3, 4].includes(d.qmin) ? d.qmin : 2; d.poSize = d.poSize === 8 ? 8 : 4;
     d.season = Math.max(1, num(d.season, 1) | 0); d.year = num(d.year, new Date().getFullYear()) | 0; d.week = Math.max(0, num(d.week, 0) | 0);
     if (!['regular', 'playoffs', 'offseason'].includes(d.phase)) d.phase = 'regular';
     d.nid = Math.max(num(d.nid, 1), 1); d.pts = Math.max(0, Math.round(num(d.pts, 0)));
@@ -1735,7 +1778,7 @@
     const fixBr = (br, size, stage) => { br.rounds = (Array.isArray(br.rounds) ? br.rounds : []).map((rd) => (Array.isArray(rd) ? rd.filter((g) => g && d.teams[g.h] && d.teams[g.a]) : [])); if (!br.rounds.length) br.rounds = [[]]; br.seeds = Array.isArray(br.seeds) ? br.seeds.filter((id) => d.teams[id]) : []; br.r = clamp(num(br.r, 0) | 0, 0, br.rounds.length - 1); br.size = size(br.size); br.stage = stage; return br; };
     if (d.po) fixBr(d.po, (n) => (n === 8 ? 8 : 4), 'county');
     if (d.post && typeof d.post === 'object' && d.po) {
-      for (const k of ['state', 'nat']) d.post[k] = d.post[k] && typeof d.post[k] === 'object' ? fixBr(d.post[k], (n) => (k === 'state' ? 8 : 4), k) : null;
+      for (const k of ['state', 'nat']) d.post[k] = d.post[k] && typeof d.post[k] === 'object' ? fixBr(d.post[k], (n) => (n === 32 ? 32 : k === 'state' ? 8 : 4), k) : null;
       d.post.extra = Array.isArray(d.post.extra) ? d.post.extra.filter((id) => d.teams[id]) : [];
       if (!['county', 'state', 'nat'].includes(d.post.stage) || (d.post.stage !== 'county' && !d.post[d.post.stage])) d.post.stage = d.post.nat ? 'nat' : d.post.state ? 'state' : 'county';
       for (const id of d.post.extra) { const t = d.teams[id]; t.id = id; t.depth = t.depth && typeof t.depth === 'object' ? t.depth : {}; t.at = Object.assign({ w: 0, l: 0, t: 0, titles: 0, po: 0, fin: 0 }, t.at || {}); t.ts = t.ts || {}; for (const k of ['w', 'l', 't', 'pf', 'pa', 'chem', 'prest', 'tier']) t[k] = num(t[k], k === 'chem' ? 60 : k === 'tier' ? 70 : 0); }
@@ -2550,7 +2593,7 @@
     }
     const champ = br.champ ? TM(br.champ) : null;
     const tabs = all.length > 1 ? seg('br', all.map((b) => [stageOf(b), STAGE[stageOf(b)].short]), cur) : '';
-    const head = `<div class="bf-brhead${stageCls(st)}"><div><div class="bf-k">${st === 'county' ? 'McLean County' : st === 'state' ? 'Illinois · eight teams' : 'Four teams · one champion'}</div><h3 class="bf-h">${esc(STAGE[st].n)}</h3></div><span class="bf-brcup">${st === 'nat' ? cupSVG(40) : st === 'state' ? '🏛️' : '🏈'}</span></div>`;
+    const head = `<div class="bf-brhead${stageCls(st)}"><div><div class="bf-k">${st === 'county' ? 'McLean County' : st === 'state' ? `Illinois · ${br.size} teams` : `${br.size} state champions · one Blitz Bowl`}</div><h3 class="bf-h">${esc(STAGE[st].n)}</h3></div><span class="bf-brcup">${st === 'nat' ? cupSVG(40) : st === 'state' ? '🏛️' : '🏈'}</span></div>`;
     return `${tabs}${head}${champ ? `<div class="bf-note bf-warn">${ic('hist')}<div><b>${esc(champ.name)}</b> ${st === 'nat' ? `won the ${CHAMP}: national champions!` : st === 'state' ? 'are the Illinois state champions!' : 'won the McLean County title.'}</div></div>` : ''}<div class="bf-card${stageCls(st)}"><div class="bf-bracket">${rounds.join('')}</div></div>`;
   }
 
@@ -2673,7 +2716,7 @@
   // Starters in the order the engine reads them: QB, receivers (WR, TE), RB, then the rest, then the bench.
   // the opponent plays over its head at the higher levels (the levels pay more; an average county team at a level is about the
   // Arcade's CPU team at that level), and under it at Rookie
-  const OPP_BOOST = [-5, 0, 6, 12];
+  const OPP_BOOST = [-5, 0, 6, 12, 18, 15];
   function engineTeam(t, boost) {
     const L = lineup(t), R = teamRatings(t, L), fill = L._fill || {};
     const order = [];
@@ -2693,7 +2736,7 @@
     const att = (UI.attempt[ctx.g.id] = (UI.attempt[ctx.g.id] || 0) + 1);
     const vn = ctx.vn, wx = ctx.wx === 'night' ? 'clear' : ctx.wx, tod = vn.tod || (hashStr(ctx.g.id + ':tod') % 3 === 0 ? 'morning' : 'noon');
     const o = {
-      home: engineTeam(userTeam()), away: engineTeam(TM(ctx.oppId), OPP_BOOST[S.diff] || 0), difficulty: DIFFS[S.diff].eng, seed: `${S.seed}:${ctx.g.id}:${att}`,
+      home: engineTeam(userTeam()), away: engineTeam(TM(ctx.oppId), OPP_BOOST[S.diff] || 0), difficulty: DIFFS[S.diff].eng, ...(DIFFS[S.diff].off != null ? { offense: DIFFS[S.diff].off } : {}), seed: `${S.seed}:${ctx.g.id}:${att}`,
       quarterSecs: S.qmin * 60, timeouts: 3, label: `${ctx.label} · ${vn.name}`, playoff: ctx.po, noTies: !!BOOT.user, weather: vn.v === 'stadium' && wx === 'clear' && tod === 'night' ? 'night' : wx, tod, venue: vn.v,
     };
     if (vn.v === 'metcalf') { o.mfield = S.mfield || 'blacktop'; o.crowd = !!ctx.po; } // a home playoff game: the whole school comes out
@@ -2884,7 +2927,7 @@
         <div class="bf-final"><div class="bf-side">${sh(ut, 'l')}<div class="bf-nm">${esc(ut.name)}</div></div><div><span class="bf-big ${r === 'L' ? 'bf-lose' : ''}">${us}</span><span class="bf-big bf-mu2" style="font-size:32px;margin:0 6px">–</span><span class="bf-big ${r === 'W' ? 'bf-lose' : ''}">${them}</span></div><div class="bf-side">${sh(opp, 'l')}<div class="bf-nm">${esc(opp.name)}</div></div></div>
         <span class="bf-result bf-${r}">${r === 'W' ? (champ === S.user ? esc(STAGE[rep.stage || 'county'].title) + '!' : 'Victory') : r === 'L' ? (rep.stage && rep.stage !== 'county' ? 'Season over' : 'Defeat') : 'Tie'}</span>${coinRes && coinRes.net > 0 ? `<span class="bf-coinwin">+${fmt(coinRes.net)} coins</span>` : ''}<div class="bf-xs bf-mu" style="margin-top:8px">${esc(modeNote)}${coinRes && !(coinRes.net > 0) && (coinRes.msg || coinRes.err) ? ' · ' + esc(coinRes.msg || coinRes.err) : ''}</div></section>
       ${champ === S.user ? `<button class="bf-btn bf-pri bf-big bf-block" data-a="trophy">${ic('hist')} Lift the ${esc(STAGE[rep.stage || 'county'].cup)} again</button>` : ''}
-      ${rep.next ? `<div class="bf-nextstage${stageCls(rep.next)}"><div class="bf-k">Next</div><b>${rep.next === 'state' ? '🏛️ On to State!' : '⭐ On to Nationals!'}</b><span class="bf-sm">${rep.next === 'state' ? 'Eight of the best teams in Illinois. Win the quarterfinal and the semifinal and the final are at Hancock Stadium.' : `Four teams from across the country. Two wins at The Stadium for the ${CHAMP} and the ${TROPHY}.`}</span></div>` : ''}
+      ${rep.next ? `<div class="bf-nextstage${stageCls(rep.next)}"><div class="bf-k">Next</div><b>${rep.next === 'state' ? '🏛️ On to State!' : '⭐ On to Nationals!'}</b><span class="bf-sm">${rep.next === 'state' ? '32 of the best teams in Illinois. Win three and the semifinal and the final are at Hancock Stadium.' : `32 state champions from across the country. Five wins at The Stadium for the ${CHAMP} and the ${TROPHY}.`}</span></div>` : ''}
       ${pog ? `<div class="bf-pog">${av(pog, 'l')}<div style="min-width:0"><div class="bf-k" style="color:var(--gold)">Player of the game</div><div style="font:800 22px/1.05 var(--disp);text-transform:uppercase">${pLink(pog)}</div><div class="bf-sm bf-mu">${esc(pog.pos)} · ${esc(TM(pog.t).name)} · ${esc(statSummary(res.lines[pog.id], pog))}</div></div></div>` : ''}
       <div class="bf-two">${res.hl && res.hl.length ? card('Highlights', `<ul class="bf-hl">${res.hl.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>`) : ''}
         ${card('Team stats', teamStatsCmp(myTb, opTb, ut, opp))}</div>
@@ -3089,14 +3132,14 @@
   }
   function sheetSettings() {
     return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">Game settings</h3><span class="bf-sp"></span>${closeBtn()}</div>
-      <div class="bf-k" style="margin-bottom:6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFFS.map((d, i) => `<button class="bf-pick ${S.diff === i ? 'bf-on' : ''}" data-a="setDiff" data-v="${i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}</small></button>`).join('')}</div>
+      <div class="bf-k" style="margin-bottom:6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFF_ORDER.map((i) => [DIFFS[i], i]).map(([d, i]) => `<button class="bf-pick ${S.diff === i ? 'bf-on' : ''}" data-a="setDiff" data-v="${i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}</small></button>`).join('')}</div>
       <div class="bf-k" style="margin-bottom:6px">Quarter length</div><div class="bf-opts bf-three">${[2, 3, 4].map((q) => `<button class="bf-pick ${S.qmin === q ? 'bf-on' : ''}" data-a="setQ" data-v="${q}"><span class="bf-ck">${ic('check')}</span><b>${q} min</b><small>${q === 2 ? 'Quick games' : q === 3 ? 'A bit longer' : 'Full length'}</small></button>`).join('')}</div>`;
   }
   function sheetHelp() {
     const li = (t, d) => `<li style="margin-bottom:8px"><b>${t}</b><br><span class="bf-mu">${d}</span></li>`;
     return `<div class="bf-grab"></div><div class="bf-sheet-h"><h3 class="bf-h">How Career works</h3><span class="bf-sp"></span>${closeBtn()}</div><ul class="bf-sm" style="padding-left:18px;margin:0">
       ${li('Play or sim every game', 'Play your games in 3D Blitz, or sim them. Every other game in the league is simulated from team ratings. Your players\' ratings are the players you control in 3D; the other team\'s ratings set how tough its defense and offense are.')}
-      ${li('McLean County, then State, then Nationals', `11 weeks against the McLean County schools: every team plays every other team once. The top ${S.poSize} make the county playoffs. Win the county title and you go to State (eight Illinois teams; the semifinal and final at Hancock Stadium). Win State and you go to Nationals at The Stadium, where the final is the ${CHAMP}.`)}
+      ${li('McLean County, then State, then Nationals', `11 weeks against the McLean County schools: every team plays every other team once. The top ${S.poSize} make the county playoffs. Win the county title and you go to State (a 32-team Illinois bracket; the semifinals and final at Hancock Stadium). Win State and you go to Nationals (32 state champions, every game at The Stadium), where the final is the ${CHAMP}.`)}
       ${li('Where you play', 'Home games are at Metcalf, on the field you pick before kickoff: Blacktop, Sideways Blacktop, Field Regular or Full Field. Away games are at the other school, on its own blacktop or grass field. Schoolyard rules there: 7 on 7, throw-offs, a touchdown is 7. The stadiums play by stadium rules.')}
       ${li('Grow your players', 'Stats and practice give XP. Every 100 XP is a chance at a rating boost. Potential decides how high a kid can climb.')}
       ${li('Keep the team happy', 'Wins, playing time and Team Bonding lift morale. Chemistry grows every week. Both help in close games.')}
@@ -3255,9 +3298,10 @@
           <button class="bf-pick ${!W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="0" aria-pressed="${!W.dyn}"><span class="bf-ck">${ic('check')}</span><b>Program roster</b><small>Your school's own players. Recruit them, develop them, watch them graduate.</small></button>
           <button class="bf-pick ${W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="1" aria-pressed="${!!W.dyn}" ${BOOT.lineup ? '' : 'disabled'}><span class="bf-ck">${ic('check')}</span><b>Dynamic Lineup</b><small>${BOOT.lineup ? 'Your team is your card Lineup: change your Lineup and your team changes with it, before every 3D game.' : 'Set a full Lineup on the Cards page first, then your team is your card Lineup.'}</small></button></div>
         <p class="bf-xs bf-mu" style="margin:0 0 14px">${BOOT.lineup ? 'Dynamic Lineup follows your Lineup on the Cards page all career long.' : BOOT.user ? 'Set a full Lineup on the <a href="/pickem/cards" style="text-decoration:underline">Cards page</a> to use Dynamic Lineup.' : 'Log in and set a Lineup on the Cards page to use Dynamic Lineup.'}</p>
-        <div class="bf-k" style="margin:4px 0 6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFFS.map((d, i) => `<button class="bf-pick ${W.diff === i ? 'bf-on' : ''}" data-a="wzSet" data-k="diff" data-v="${i}" aria-pressed="${W.diff === i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}${BOOT.prizes[i] ? ` Wins pay ${fmt(BOOT.prizes[i])} coins.` : ''}</small></button>`).join('')}</div>
+        <div class="bf-k" style="margin:4px 0 6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFF_ORDER.map((i) => [DIFFS[i], i]).map(([d, i]) => `<button class="bf-pick ${W.diff === i ? 'bf-on' : ''}" data-a="wzSet" data-k="diff" data-v="${i}" aria-pressed="${W.diff === i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}${BOOT.prizes[i] ? ` Wins pay ${fmt(BOOT.prizes[i])} coins.` : ''}</small></button>`).join('')}</div>
         <div class="bf-k" style="margin-bottom:6px">Quarter length</div><div class="bf-opts bf-three" style="margin-bottom:14px">${[2, 3, 4].map((q) => `<button class="bf-pick ${W.qmin === q ? 'bf-on' : ''}" data-a="wzSet" data-k="qmin" data-v="${q}" aria-pressed="${W.qmin === q}"><span class="bf-ck">${ic('check')}</span><b>${q} min</b><small>${q === 2 ? 'Quick' : q === 3 ? 'Longer' : 'Full'}</small></button>`).join('')}</div>
-        <div class="bf-k" style="margin-bottom:6px">Playoffs</div><div class="bf-opts">${[4, 8].map((n) => `<button class="bf-pick ${W.po === n ? 'bf-on' : ''}" data-a="wzSet" data-k="po" data-v="${n}" aria-pressed="${W.po === n}"><span class="bf-ck">${ic('check')}</span><b>Top ${n}</b><small>${n === 4 ? 'Semifinals, then the ' + CHAMP : 'Quarterfinals, semis and the ' + CHAMP}</small></button>`).join('')}</div>`;
+        <div class="bf-k" style="margin-bottom:6px">County playoffs</div><div class="bf-opts">${[4, 8].map((n) => `<button class="bf-pick ${W.po === n ? 'bf-on' : ''}" data-a="wzSet" data-k="po" data-v="${n}" aria-pressed="${W.po === n}"><span class="bf-ck">${ic('check')}</span><b>Top ${n} in the county</b><small>${n === 4 ? 'County semifinals and final' : 'County quarterfinals, semis and final'}</small></button>`).join('')}</div>
+        <p class="bf-sm bf-mu" style="margin:8px 0 0">Then the road keeps going: win the county and you go to <b>State</b> (32 Illinois teams), win State and you go to <b>Nationals</b> (32 state champions) for the ${CHAMP}.</p>`;
       can = true;
     } else {
       const t = wzTeam();
@@ -3420,7 +3464,7 @@
       Saver.mark(); render(); toast(`${rc.n} joined the team!`);
     },
     settings: () => openSheet('settings'),
-    setDiff(b) { S.diff = clamp(+b.dataset.v | 0, 0, 3); Saver.mark(); rerender(); },
+    setDiff(b) { S.diff = clamp(+b.dataset.v | 0, 0, DMAX); Saver.mark(); rerender(); },
     setQ(b) { const q = +b.dataset.v; if ([2, 3, 4].includes(q)) S.qmin = q; Saver.mark(); rerender(); },
     rename() { UI.renameSlot = null; openSheet('rename', { name: S.name }); },
     async renameSave() {
@@ -3469,7 +3513,7 @@
     wzCustom() { W.mode = 'custom'; render(); },
     wzPreset(b) { const p = COLOR_PRESETS[+b.dataset.i]; if (!p) return; W.custom.color = p[0]; W.custom.color2 = p[1]; render(); },
     wzPick(b) { const id = b.dataset.id, i = W.picks.indexOf(id); if (i >= 0) W.picks.splice(i, 1); else if (W.picks.length < 3) W.picks.push(id); else return toast('You can bring up to 3 MFL players.'); render(); },
-    wzSet(b) { const k = b.dataset.k, v = +b.dataset.v; if (k === 'diff') W.diff = clamp(v, 0, 3); if (k === 'qmin' && [2, 3, 4].includes(v)) W.qmin = v; if (k === 'po') W.po = v === 8 ? 8 : 4; if (k === 'dyn') W.dyn = v === 1 && !!BOOT.lineup; render(); },
+    wzSet(b) { const k = b.dataset.k, v = +b.dataset.v; if (k === 'diff') W.diff = clamp(v, 0, DMAX); if (k === 'qmin' && [2, 3, 4].includes(v)) W.qmin = v; if (k === 'po') W.po = v === 8 ? 8 : 4; if (k === 'dyn') W.dyn = v === 1 && !!BOOT.lineup; render(); },
     wzCreate() {
       if (!W) return;
       const t = wzTeam();
