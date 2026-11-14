@@ -807,6 +807,18 @@ const UPDATES = [
       'Fixed the phone menu running off the screen (and cutting off the home page) when your coin balance is a long number. Big balances in the top bar now show short, like 32.8M.',
     ],
   },
+  {
+    n: 76,
+    date: '2026-11-14',
+    title: 'A smarter CPU offense on key plays',
+    items: [
+      'On key plays, when you play defense, the CPU quarterback reads your defense: he throws where his receiver can get the ball before your defenders can, and puts it away from the defender.',
+      'Far fewer free interceptions. You have to jump the route or break on the ball to get one.',
+      'Under pressure the CPU checks the ball down or throws it away instead of forcing it.',
+      'CPU runners follow their blocks, find the open lane and cut instead of running into the pile, and receivers keep working to open space while the quarterback holds the ball.',
+      'At Wildcat Blacktop the CPU wins with smarter play instead of extra speed.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

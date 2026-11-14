@@ -10656,9 +10656,9 @@ gl_FragColor=vec4(col,1.0);}`;
       // plays: its receivers and backs a step quicker than the defenders and harder to bring down, more the better the CPU (M7CPU)
       // Metcalf, the CPU defending you: sure tacklers who rally to the ball, a step quicker the better the defense (31-mdef.js)
       if (mDef()) { MDS.pl++; const k = mdK(); for (const d of def) { d.tackle *= lerp(1.12, 1.25, k); d.v *= lerp(1.0, 1.02, k); } }
-      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), cl = clamp(1 - (as - hs) / 14, 0.15, 1.4), sp = 1 + (lerp(+(DBG && DBG.m7v0) || 1.12, +(DBG && DBG.m7v1) || 1.17, k) - 1) * cl, tk = 1 - (1 - lerp(0.72, 0.62, k)) * cl; // (cl: the CPU's edge shrinks when it leads, grows when it trails)
+      if (M7 && DEFP.on) { const k = clamp(DIFF_OFF, 0, 1), cl = clamp(1 - (as - hs) / 14, 0.15, 1.4), sp = 1 + (lerp(+(DBG && DBG.m7v0) || 1.07, +(DBG && DBG.m7v1) || 1.11, k) - 1) * cl, tk = 1 - (1 - lerp(0.72, 0.62, k)) * cl; // (cl: the CPU's edge shrinks when it leads, grows when it trails)
         for (const p of off) if (p.role !== 'OL') p.v *= sp;
-        for (const d of def) { d.tackle *= tk; d.v *= 1 - (1 - lerp(0.93, 0.9, k)) * cl; } }
+        for (const d of def) { d.tackle *= tk; d.v *= 1 - (1 - lerp(0.96, 0.94, k)) * cl; } } // (a smaller edge since its runners find their own lanes and its quarterback reads the windows, 33-defplay.js)
       // Metcalf's comeback logic on a live snap (mLean, 71-drama.js: + helps whoever has the ball): the trailing side's offense
       // a touch quicker and harder to bring down, the leading side's defense a step slower to react, more as the game gets late
       if (METCALF && !kick) { const ln = clamp(mLean(), -1.5, 1.5);
@@ -11444,7 +11444,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const g = carrier || (ball && ball.holder) || OK.QB; if (g && g !== b) { const gx = g.x - d.x, gz = g.z - d.z, bx = b.x - d.x, bz = b.z - d.z, gl = Math.hypot(gx, gz) || 1, bl = Math.hypot(bx, bz) || 1; if ((gx * bx + gz * bz) / (gl * bl) < 0.25) return false; }
       b.eng = d; d.eng = b; b.engT = d.engT = 0; d.shc = 0;
       const ratio = clamp(b.str / Math.max(25, d.str) * Math.pow((b.mass || 1) / (d.mass || 1), 0.35), 0.55, 1.7);
-      d.shed = (run ? DP.shedRun : DP.shedPass) * ratio * (0.65 + rng() * 0.7) * (d.dbl ? 1.3 : 1) * (d.ko ? 0.55 : 1);
+      d.shed = (run ? DP.shedRun : DP.shedPass) * ratio * (0.65 + rng() * 0.7) * (d.dbl ? 1.3 : 1) * (d.ko ? 0.55 : 1) * (DEFP.on && b.side === 0 ? cpuBlockK(run) : 1); // (a key play: their blocking, 33-defplay.js)
       d.shedSide = rng() < 0.5 ? -1 : 1;
       d.rm = null; d.cor = 0;
       const qb = OK.QB;
@@ -11579,6 +11579,9 @@ gl_FragColor=vec4(col,1.0);}`;
       const rt = routeClock(p), q = posAt(p.R, Math.min(rt + 0.18, tPlay - (p.jam || 0) + 0.18)); // a step ahead on his own route (a jammed receiver is late into it)
       let tx = q.x, tz = q.z;
       const [nd, dd] = nearest(def, p.x, p.z, (d) => !d.rag);
+      // a key play, the route run and the quarterback still holding it: he doesn't stand there, he works to open grass (33-defplay.js);
+      // done by the clock too (a man knocked off his route can be stuck on its first point)
+      if (DEFP.on && !thrown && mode === 'aim' && ball && ball.holder === qb && (q.end || posAt(p.R, tPlay - (p.jam || 0) - 0.3).end)) { const W = cpuWorkOpen(p, qb); if (W) { steer(p, W[0], W[1], p.R.v * 0.75, dt, 9); p.look = [qb.x, 1.6, qb.z]; if (Math.hypot(W[0] - p.x, W[1] - p.z) < 0.8) p.face2 = Math.atan2(qb.x - p.x, qb.z - p.z); return; } }
       if (q.end && p.R.sit) {
         if (nd && dd < 3.2) { // find the soft spot away from the nearest defender
           const ax = p.x - nd.x, az = p.z - nd.z, al = Math.hypot(ax, az) || 1;
@@ -12449,7 +12452,8 @@ gl_FragColor=vec4(col,1.0);}`;
     const DEF_ORDER = M7 ? ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBS', 'DT1'] : ['FS', 'SS', 'CB1', 'CB2', 'LBM', 'LBW', 'LBS', 'DE1', 'DT1', 'DT2', 'DE2']; // (Metcalf: the seven)
     // the CPU quarterback: how long he holds it, how far off his throws are, how often his runners try a move
     // rd: how long his eyes stay on each read; smart: he throws it away rather than eat a sack
-    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF && !MOPT.big ? 1.5 : 0), err: lerp(2.0, 0.85, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? m7Brain(k) : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
+    // see: how wide open a man off his read has to be before he spots him (lower is sharper)
+    const defpBrain = () => { const k = clamp(DIFF_OFF, 0, 1); return { hold: lerp(3.0, 2.3, k) + (METCALF && !MOPT.big ? 1.5 : 0), err: lerp(1.5, 0.6, k), see: lerp(0.2, 0.08, k), terr: lerp(0.35, 0.1, k), scramble: 0.35, mvT: 0, aim: null, rd: lerp(0.85, 0.5, k), smart: rng() < 0.45 + 0.5 * k, prog: null, look: null, ...(M7 ? m7Brain(k) : {}) }; }; // (Metcalf 7 on 7: a sharper passer)
 
     // Metcalf's CPU quarterback: sharper reads at every level (a quicker eye down the progression, more of them the smart kind who
     // throws it away instead of taking the sack), and late in a game he is behind in he lets it rip: a smaller cushion is open
@@ -12727,19 +12731,29 @@ gl_FragColor=vec4(col,1.0);}`;
         if (t >= B.next && B.ri < B.prog.length - 1) { B.ri++; B.next = t + B.rd; }
         const cur = B.prog[B.ri]; B.look = cur || null;
         if (t < B.t0) return;
-        const pz = pressure(), hot = pz > 0.45, last = B.ri === B.prog.length - 1;
+        // the rush: how close the nearest free rusher is (and how soon he gets there): he feels it before it hits him
+        const pz = pressure(), rt = cpuRushT(qb), hot = pz > 0.45 || rt < 0.55, last = B.ri === B.prog.length - 1;
         const e = cur ? cpuEval(cur, qb) : null;
-        if (e && e.s > QSEP(last ? 1.7 : B.ri === 0 ? 2.3 : 2.05) * (B.agg || 1)) { cpuThrow(B, e); return; }
+        // open enough: the odds he catches it (cpuEval) against a bar that comes down as the play goes on (early he wants a clean
+        // window, late he takes what is there); a smaller cushion will do when he is behind late (agg)
+        const pg = clamp((t - B.t0) / Math.max(0.6, B.hold - B.t0), 0, 1), bar = (lerp(0.56, 0.44, pg) - (last ? 0.04 : 0)) * (B.agg || 1);
+        if (e && e.pc >= bar && e.ev > 0) { cpuThrow(B, e); return; }
+        // the whole field in front of him: his eyes are on one man, but a receiver running free elsewhere is hard to miss (the
+        // sooner the sharper he is), and he takes him when he is worth more than his read
+        if (t > B.t0 + 0.15) { let wide = null; for (const r of B.prog) { if (r === cur) continue; const q = cpuEval(r, qb); if (q && q.pc >= bar + B.see && (!wide || q.ev > wide.ev)) wide = q; }
+          if (wide && wide.ev > Math.max(DZ(5), (e ? e.ev : 0) + DZ(2))) { cpuThrow(B, wide); return; } }
         if (hot || t > B.hold) {
-          // flushed or out of time: the best he can see now (a man in his face: something quick), else throw it away or run
-          let best = null; for (const r of B.prog) { const q = cpuEval(r, qb); if (q && (!best || q.s > best.s) && (!hot || q.d < 15 || q.s > 3)) best = q; }
-          if (best && best.s > QSEP(hot ? 1.5 : 1.25)) { cpuThrow(B, best); return; }
-          if (hot && rng() < B.scramble * dt * 6 && Math.abs(qb.x) < HW - (SMALL ? 2.5 : 4) && cpuLane(qb) > 3.5) { scramble(); return; }
-          if (B.smart && (hot ? pz > 0.7 : t > B.hold + 0.5)) { throwBall({ x: qb.x < 0 ? -HW - 4 : HW + 4, z: qb.z + 6 }, 0); return; } // throw it away
+          // flushed or out of time: the best throw he has now (with a man in his face: something quick, the check-down), else he
+          // throws it away or runs; a ball a defender can get to he only throws when he isn't the kind who knows better
+          let best = null; for (const r of B.prog) { const q = cpuEval(r, qb); if (q && (!best || q.ev > best.ev) && (!hot || q.d < 15 || q.pc > 0.8)) best = q; }
+          const late = t > B.hold + 0.4; // well past his clock: take what is there rather than stand in the pocket
+          if (best && best.ev > (hot || late ? -DZ(1.5) : 0) && (best.pc >= (hot || late ? 0.33 : 0.4) || !B.smart)) { cpuThrow(B, best); return; }
+          if ((hot || late) && rng() < B.scramble * dt * 6 && Math.abs(qb.x) < HW - (SMALL ? 2.5 : 4) && cpuLane(qb) > (SMALL ? 3.5 : 5)) { scramble(); return; }
+          if (B.smart ? (hot ? pz > 0.6 || rt < 0.35 : t > B.hold + 0.5) : t > B.hold + 1.2) { throwBall({ x: qb.x < 0 ? -HW - 4 : HW + 4, z: qb.z + 6 }, 0); return; } // throw it away
           return; // he hangs on (and may go down with it)
         }
         // nobody open yet but a lane up the middle and the coverage running away from him: he takes off
-        if (t > 1.8 && cpuLane(qb) > 6.5 && rng() < B.scramble * dt * 2.5) scramble();
+        if (t > Math.max(1.8, B.hold - 1) && cpuLane(qb) > 6.5 && rng() < B.scramble * dt * 2.5) scramble(); // (not while he still has time to find someone: at Metcalf the rush waits for 7 banana)
         return;
       }
       if (mode === 'catch' && ctrl && ctrl.side === 0 && ball.st === 'air' && ball.cp) {
@@ -12764,8 +12778,6 @@ gl_FragColor=vec4(col,1.0);}`;
       }
     }
 
-    // the CPU quarterback's "open" bar: on the small field everybody is closer, so open is a smaller cushion
-    const QSEP = (v) => (SMALL ? v * VPL.qbSep : v);
     function cpuProg(B) {
       const L = off.filter((r) => isRec(r) && !r.rag && r.R && r.blk !== 'block');
       const dep = (r) => Math.min(DZ(25), r.R.pts[r.R.pts.length - 1][1] - los), yd = DZ(play.yd || 8);
@@ -12778,8 +12790,8 @@ gl_FragColor=vec4(col,1.0);}`;
       B.t0 = play.type === 'screen' ? 0.75 : (play.type === 'pa' || play.type === 'boot' ? 1.45 : under ? 1.05 : 0.8) * (blitz ? 0.75 : 1);
       B.ri = 0; B.next = B.t0 + B.rd;
     }
-    // how open a receiver is where the ball would meet him: separation now and at the catch point, defenders sitting in the
-    // throwing lane, the yards it gets and the sticks
+    // how open a receiver is where the ball would meet him: the window at the catch point, defenders sitting in the throwing
+    // lane, the yards it gets and the sticks
     function cpuEval(r, qb) {
       if (r.rag || (r.blk === 'chip' && tPlay < (r.R ? r.R.blk : 9))) return null;
       const D0 = Math.hypot(r.x - qb.x, r.z - qb.z), arcT = D0 > 24 ? 2 : D0 > 12 ? 1 : 0;
@@ -12787,7 +12799,8 @@ gl_FragColor=vec4(col,1.0);}`;
       for (let i = 0; i < 2; i++) { T = flightOf(Math.hypot(lp.x - qb.x, lp.z - qb.z), arcT); lp = leadPt(r, T); }
       const lx = lp.x - qb.x, lz = lp.z - qb.z, L2 = lx * lx + lz * lz;
       if (L2 > maxDist() * maxDist() || Math.abs(lp.x) > HW - 0.8 || lp.z > ZEND - emg(1)) return null;
-      let near = 99, atLp = 99, lane = 0, hum = 99;
+      let near = 99, atLp = 99, lane = 0, hum = 99, win = 99, wd = null;
+      const Tr = T + THROW_REL; // the ball is out of his hand after the throwing motion
       for (const d of def) {
         if (d.rag) continue;
         near = Math.min(near, Math.hypot(d.x - r.x, d.z - r.z));
@@ -12796,6 +12809,12 @@ gl_FragColor=vec4(col,1.0);}`;
         // distance to the catch point after he runs at it for the ball's flight)
         if (M7 && d === DEFP.ctl) hum = Math.min(hum, Math.hypot(d.x - lp.x, d.z - lp.z) - (d.v || 7) * 0.8 * T);
         if (d.eng) continue;
+        // the window: how far short of the catch point each defender still is when the ball gets there. He keeps playing his
+        // man or his zone until he sees it thrown (a beat to react, longer for one with his back to it, none for a man who is
+        // already going for it), then breaks on it at full speed. Negative: he gets there with it (a breakup, or a pick)
+        { const st = d.stun > 0 ? d.stun : 0, back = d.vz > 2 && d.z > lp.z ? 0.12 : 0, rc = Math.min(Tr, (d.hunt ? 0.05 : 0.3 + back) + st);
+          const w = Math.hypot(d.x + d.vx * rc - lp.x, d.z + d.vz * rc - lp.z) - d.v * (1.2 + ((d.spd || 60) - 50) * 0.0012) * 1.08 * Math.max(0, Tr - rc) + (SMALL ? 0.45 : -0.05); // (calibrated on the key-play harness: below 0 the throw is mostly broken up or picked)
+          if (w < win) { win = w; wd = d; } }
         // a man under the throw (a lob goes over the short ones)
         const u = clamp(((d.x - qb.x) * lx + (d.z - qb.z) * lz) / (L2 || 1), 0, 1);
         if (u < (arcT === 2 ? 0.7 : arcT === 1 ? 0.45 : 0.15) || u > 0.92) continue;
@@ -12804,9 +12823,81 @@ gl_FragColor=vec4(col,1.0);}`;
       const gain = lp.z - los, need = fdz - los;
       // deep, he wants a man who has a step: a ball thrown deep into a tight window is the hardest catch there is (and a pick risk)
       const tightDeep = gain >= DZ(18) ? clamp(2.6 - Math.min(near, atLp), 0, 2) * 0.9 : 0;
-      return { r, lp, arcT, d: Math.sqrt(L2), s: Math.min(near * 0.8, atLp) - lane + clamp(gain / 12, -0.6, 1.1) + (gain >= need ? 0.7 : 0) - tightDeep - (hum < 1.6 ? (1.6 - hum) * 1.4 : 0) };
+      // The odds, from the window (measured on live key plays: a window a defender can close is not open, however much room the
+      // receiver has right now; that is where most of the picks came from, the corner sitting under a comeback or the safety
+      // driving on a dig): a catch (pc), a pick (pi), and what the throw is worth in yards (ev): the gain, the run after the
+      // catch a clean window leaves him, the sticks, less what a pick costs
+      const pc = clamp(0.6 + 0.16 * win - lane * 0.22 - tightDeep * 0.12 - (hum < 1.6 ? (1.6 - hum) * 0.15 : 0), 0.03, 0.93);
+      const pi = clamp(0.07 - 0.085 * win + lane * 0.08, 0, 0.45);
+      const ev = pc * (gain + clamp(win, 0, 6) * DZ(0.7) + (gain >= need ? DZ(4) : 0)) - pi * DZ(20);
+      return { r, lp, arcT, d: Math.sqrt(L2), win, wd, gain, pc, pi, ev };
     }
-    function cpuThrow(B, e) { B.look = e.r; throwBall({ x: e.lp.x + gauss() * B.err, z: e.lp.z + gauss() * B.err * 1.2 }, e.arcT); }
+    // the throw: on the receiver, and put away from the defender closest to the window (the back shoulder, out in front, the
+    // receiver's side of the pair), by his accuracy
+    function cpuThrow(B, e) {
+      B.look = e.r; let ax = e.lp.x, az = e.lp.z;
+      const d = e.wd; if (d && e.win < 3.5) { const ox = e.lp.x - d.x, oz = e.lp.z - d.z, ol = Math.hypot(ox, oz) || 1, k = clamp(0.85 - e.win * 0.15, 0.3, 0.85) * (SMALL ? 0.7 : 1); ax += ox / ol * k; az += oz / ol * k; }
+      ax = clamp(ax, -HW + 0.7, HW - 0.7); az = Math.min(az, ZEND - emg(0.8));
+      throwBall({ x: ax + gauss() * B.err, z: az + gauss() * B.err * 1.2 }, e.arcT);
+    }
+    // Their ball carrier's eyes (a back through the line, a receiver after the catch, a scrambling quarterback): every few degrees
+    // from straight upfield out to either side he asks how far he gets before a free defender can be there to meet him (each man
+    // runs at the spot at his own speed; a man on a block, on the ground or still stumbling is out of it or late), and takes the
+    // lane that gains the most, staying on it unless another is clearly better (no wobbling), away from the sideline and the hoop.
+    // The sharper the CPU, the farther ahead he sees. Moves (juke, spin, stiff arm) are still cpuBrain's.
+    function cpuRunDir(c) {
+      const k = clamp(DIFF_OFF, 0, 1), v = Math.max(4.5, effV(c)), H = lerp(1.0, 1.5, k), R = c.rad + 0.75, edge = HW - 0.6, goal = FL + 0.5;
+      const thr = [];
+      const bod = []; // the bodies in the way: a man on a block can't tackle him, but he can't run through the pair either
+      for (const d of def) { if (d.rag) continue; if (d.eng) { bod.push(d.x, d.z); continue; } thr.push(d.x, d.z, effV(d) * (d.sprint ? 1 : 1.15), Math.max(d.stun > 0 ? d.stun * 0.8 : 0, d.rising > 0 ? d.rising : 0, d.stumbleT > 0 ? d.stumbleT * 0.4 : 0)); }
+      // a designed run still behind the line keeps to its hole unless another is clearly better (holeRead, 30-ai.js)
+      const hx = c.hole != null && c.z < los + 0.5 && (play.type === 'run' || play.type === 'draw') && c.key === (play.carrier || 'RB') ? c.hole : null;
+      const h0 = c.rdir != null && tPlay - c.rdirT < 0.25 ? c.rdir : Math.atan2(c.vx, Math.max(0.5, c.vz));
+      let best = 0, bs = -1e9;
+      for (let i = -11; i <= 11; i++) {
+        const a = i * 0.13, ux = Math.sin(a), uz = Math.cos(a);
+        let tau = H, wall = 0;
+        for (let t = 0.1; t <= H + 1e-6; t += 0.1) {
+          const px = c.x + ux * v * t, pz = c.z + uz * v * t;
+          if (Math.abs(px) > edge) { tau = t - 0.1; wall = 1; break; }
+          if (MOBST && Math.hypot(px - MOBST.x, pz - MOBST.z) < MOBST.r + 0.4) { tau = t - 0.1; wall = 1; break; }
+          let jam = false; for (let j = 0; j < bod.length; j += 2) if (Math.hypot(bod[j] - px, bod[j + 1] - pz) < 1.0) { jam = true; break; }
+          if (jam) { tau = Math.max(0, t - 0.1); wall = 1; break; }
+          let hit = false;
+          for (let j = 0; j < thr.length; j += 4) { const dd = Math.hypot(thr[j] - px, thr[j + 1] - pz) - R; if (dd <= Math.max(0, t - thr[j + 3]) * thr[j + 2]) { hit = true; break; } }
+          if (hit) { tau = t; break; }
+          if (pz >= goal) { tau = t; break; }
+        }
+        const gz = uz * v * tau, endZ = c.z + gz;
+        const sc = gz + 0.12 * v * tau + (endZ >= goal ? 8 : 0) - Math.abs(a - h0) * 0.9 - wall * 0.6 - a * a * 0.5 - (hx != null ? Math.abs(c.x + ux / Math.max(0.2, uz) * Math.max(0, los + 0.7 - c.z) - hx) * 0.35 : 0); // (yards first: no drifting sideways for open grass that gains nothing)
+        if (sc > bs) { bs = sc; best = a; }
+      }
+      c.rdir = best; c.rdirT = tPlay;
+      return [Math.sin(best), Math.cos(best)];
+    }
+    // A receiver at the end of his route with the quarterback still holding the ball (Metcalf's rush waits for 7 banana, so that
+    // can be a while): after a beat he slides to the softest grass near him, away from the defenders, in front of the quarterback
+    // and inside the lines, and sits there facing him; a new spot every half second at most, so he settles instead of jittering
+    function cpuWorkOpen(p, qb) {
+      if (p.wkT == null || p.wkT > tPlay) { p.wkT = tPlay; p.wk = null; }
+      if (tPlay - p.wkT < 0.45) return null;
+      if (p.wk && tPlay - p.wk[2] < 0.5) return p.wk;
+      const zMax = Math.min(ZEND - emg(1), SMALL ? RZMAX : 1e9), zMin = los + DZ(1.5);
+      let best = null, bs = -1e9;
+      for (let i = -1; i < 8; i++) {
+        const a = i * Math.PI / 4, x = clamp(i < 0 ? p.x : p.x + Math.sin(a) * KXS(3), -HW + 1.2, HW - 1.2), z = clamp(i < 0 ? p.z : p.z + Math.cos(a) * DZ(3), zMin, zMax);
+        let m = 9; for (const d of def) { if (d.rag || (d.ass && d.ass.t === 'rush')) continue; m = Math.min(m, Math.hypot(d.x - x, d.z - z)); }
+        const sc = Math.min(m, 6) - Math.hypot(x - p.x, z - p.z) * 0.12 + (z - los) * 0.03 + (i < 0 ? 0.3 : 0);
+        if (sc > bs) { bs = sc; best = [x, z, tPlay]; }
+      }
+      p.wk = best; return best;
+    }
+    // their blocking on a key play: the line and the backs sustain their blocks longer the better the CPU (a man takes this much
+    // longer to shed one of theirs), the run game most
+    const cpuBlockK = (run) => lerp(run ? 1.15 : 1.05, run ? 1.5 : 1.2, clamp(DIFF_OFF, 0, 1));
+    // how soon the nearest free rusher can be on the quarterback (seconds; Metcalf: nobody comes before 7 banana)
+    // (a man still on a block counts too, a beat later: the pocket closing in on him is pressure before anyone is free)
+    function cpuRushT(qb) { if (METCALF && banHeld()) return 9; let m = 9; for (const d of def) { if (d.rag || d.z < qb.z - 1.5) continue; const dd = dist(d, qb); if (d.eng && dd > 3.2) continue; m = Math.min(m, Math.max(0, dd - 1.1) / Math.max(4, d.v * 1.2) + (d.eng ? 0.45 : 0) + (d.stun > 0 ? d.stun : 0)); } return m; }
     // room to run straight ahead of him: the nearest free defender in front
     function cpuLane(qb) { let m = 99; for (const d of def) { if (d.eng || d.rag || d.z < qb.z) continue; if (Math.abs(d.x - qb.x) < 4.5) m = Math.min(m, Math.hypot(d.x - qb.x, d.z - qb.z)); } return m; }
 
@@ -13332,8 +13423,8 @@ gl_FragColor=vec4(col,1.0);}`;
     }
     // where a receiver will be after t seconds: on his route if he is running one, else carried by his velocity
     function leadPt(r, t) {
-      // (scr: off his route in the scramble drill, 30-ai.js)
-      if (r.R && !r.scr && !(r.blk === 'chip' && tPlay < r.R.blk) && !(r.R.sit && Math.hypot(r.vx, r.vz) < 1.5)) { const q = posAt(r.R, routeClock(r) + t); return { x: q.x, z: q.z }; }
+      // (scr: off his route in the scramble drill, 30-ai.js; wk: working open with the route run, a key play, 33-defplay.js)
+      if (r.R && !r.scr && !r.wk && !(r.blk === 'chip' && tPlay < r.R.blk) && !(r.R.sit && Math.hypot(r.vx, r.vz) < 1.5)) { const q = posAt(r.R, routeClock(r) + t); return { x: q.x, z: q.z }; }
       return { x: clamp(r.x + r.vx * t, -HW + 0.5, HW - 0.5), z: Math.min(ZEND - emg(0.5), r.z + r.vz * t) };
     }
     // the receiver a throw at `spot` is meant for, and his spot when the ball gets there
@@ -13912,6 +14003,9 @@ gl_FragColor=vec4(col,1.0);}`;
     const AUTO = lerp(3.2, 0.9, DIFF);
     function autoDir(c) {
       const fx = flip ? -1 : 1;
+      // a key defensive play: their ball carrier finds his own lane (cpuRunDir, 33-defplay.js); a designed run takes its first steps
+      // at the hole it is drawn up for, then reads it (holeRead keeps the hole he is pressing) and cuts where it is open (a sneak just goes)
+      if (DEFP.on && c.side === 0 && !kick && !(c.z < los - 0.3 && (play.type === 'sneak' || (c.key === (play.carrier || 'RB') && (play.type === 'run' || play.type === 'draw')) && tPlay - runSeen < 0.35))) { if (c.key === (play.carrier || 'RB') && (play.type === 'run' || play.type === 'draw') && c.z < los + 1) holeRead(c, LX(play.lane || 0) * fx); return cpuRunDir(c); }
       let ux = 0, uz = 1;
       if (c.side === 0 && c.key === (play.carrier || 'RB') && (play.type === 'run' || play.type === 'draw') && c.z < los + 1 && !kick) { const h = holeRead(c, LX(play.lane || 0) * fx); ux = h[0]; uz = h[1]; } // the back reads his blocks (30-ai.js)
       if (c.role === 'QB' && c.z < los + 1 && play.type === 'sneak' && play.lane && !kick) { const lx = LX(play.lane) * fx; ux = (lx - c.x) * 0.5; uz = 1; }
