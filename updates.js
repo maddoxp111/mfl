@@ -895,6 +895,18 @@ const UPDATES = [
       'Sold-out packs now say Sold out instead of a broken label.',
     ],
   },
+  {
+    n: 84,
+    date: '2026-11-15',
+    title: 'GTA Launch Set: Gridiron Takeover All-Stars',
+    items: [
+      'A brand-new card set, painted like a sunset-coast poster: every player in his own comic panel at the beach, the marina, the swamp, the helipad and more.',
+      'Six versions of every player: Base, Silver, Gold, Prism, Black and the super-rare Box Art 1/1. Each one beats every older card of the same rarity.',
+      'New set perk, Neon Takeover: he lights up in neon and the quarterback looks his way first when he is open.',
+      'Five new packs in their own shop section: Sunset Strip (300,000), Marina Run (1,000,000), Helipad Drop (3,000,000), Supercar Lot (8,000,000) and the Box Art Chase (15,000,000, two guaranteed Box Art 1/1s while they last).',
+      'GTA cards only come from GTA packs. See them all in the new GTA Launch Set tab of the Card Book.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

@@ -2911,3 +2911,121 @@ html.av3d-lock,html.av3d-lock body{overflow:hidden}
 .mcard.v-w1-trash{--rc:#f87171}.mcard.v-w1-grudge{--rc:#fb923c}.mcard.v-w1-bragging{--rc:#facc15}.mcard.v-w1-rivalry{--rc:#e879f9}
 .mc-wktag{background:linear-gradient(90deg,#fca5a5,#fff 50%,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
 .cb-wknote{margin:-6px 0 14px}
+
+/* ===== GTA Launch Set (Gridiron Takeover All-Stars): sunset poster panels ===== */
+/* the set logo: our own stacked lettering on a slanted sunset block, over the painted backdrop */
+.gta-logo{--ink:#0a0510;position:relative;container-type:inline-size;flex:none;width:300px;max-width:100%;aspect-ratio:3/2;overflow:hidden;border:4px solid var(--ink);border-radius:6px;
+  background:url(/static/sets/gta/logo.webp) center/cover,#2a0b3d;box-shadow:6px 6px 0 var(--ink),0 18px 40px -14px rgba(255,79,163,.55)}
+.gl-slab{position:absolute;left:13%;right:13%;top:13%;bottom:27%;background:linear-gradient(120deg,#ffb347 0%,#ff6a3d 28%,#ff3d8b 62%,#8b3dff 100%);clip-path:polygon(9% 0,100% 0,91% 100%,0 100%);filter:drop-shadow(0 0 0 var(--ink))}
+.gl-slab::after{content:'';position:absolute;inset:0;background:radial-gradient(rgba(10,5,16,.22) 1px,transparent 1.5px) 0 0/6px 6px,linear-gradient(180deg,rgba(255,255,255,.28),transparent 45%)}
+.gl-word{position:absolute;left:0;right:0;top:12%;display:flex;justify-content:center;gap:0;font:400 31cqw/1 'Bungee','Archivo',sans-serif;color:#fff;letter-spacing:-.04em;transform:rotate(-6deg)}
+.gl-word i{font-style:normal;display:block;-webkit-text-stroke:1.4cqw var(--ink);paint-order:stroke fill;text-shadow:1.6cqw 1.6cqw 0 var(--ink),2.6cqw 2.6cqw 0 #22d3ee}
+.gl-word i:nth-child(1){transform:translateY(-3cqw)}
+.gl-word i:nth-child(2){transform:translateY(2cqw);color:#fff4c2}
+.gl-word i:nth-child(3){transform:translateY(-1cqw)}
+.gl-sub{position:absolute;left:8%;right:8%;bottom:10%;padding:1.6cqw 2cqw 1.3cqw;background:var(--ink);color:#fff;text-align:center;font:900 italic 6.3cqw/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase;transform:rotate(-3deg);box-shadow:1.4cqw 1.4cqw 0 #ff3d8b;white-space:nowrap}
+.gl-tag{position:absolute;right:4%;top:4%;padding:1cqw 2.4cqw;background:#22d3ee;color:var(--ink);border:.9cqw solid var(--ink);font:400 4.6cqw/1 'Bungee',sans-serif;transform:rotate(5deg)}
+
+/* shop section */
+.psec-gta{position:relative;padding:14px;border-radius:20px;border:3px solid #0a0510;
+  background:linear-gradient(180deg,rgba(18,6,28,.35),rgba(18,6,28,.92) 340px,#12061c),url(/static/sets/gta/banner.webp) center top/100% auto no-repeat,#12061c;box-shadow:0 0 0 2px #ff4fa3,0 24px 60px -24px rgba(255,79,163,.6)}
+.gta-hero{display:grid;grid-template-columns:auto 1fr;grid-template-areas:'logo new' 'logo text' 'logo book';align-items:end;gap:6px 22px;margin:4px 4px 18px}
+.gta-hero .gta-logo{grid-area:logo}
+.gta-new{grid-area:new;justify-self:start;padding:4px 10px;background:#22c55e;color:#052e16;border:2px solid #0a0510;font:400 13px/1 'Bungee',sans-serif;transform:rotate(-2deg);box-shadow:3px 3px 0 #0a0510}
+.gta-hero p{grid-area:text;margin:0;max-width:62ch;color:#fde7f3;font:600 14px/1.45 Inter;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.gta-book{grid-area:book;justify-self:start;color:#ffd166;font:800 13px Inter;text-shadow:0 1px 3px #000}
+@media(max-width:760px){
+  .psec-gta{padding:10px;margin-left:-4px;margin-right:-4px;background-size:auto 260px,auto}
+  .gta-hero{grid-template-columns:1fr;grid-template-areas:'logo' 'new' 'text' 'book';justify-items:center;text-align:center;margin:4px 0 14px}
+  .gta-hero .gta-logo{width:min(300px,86vw)}
+  .gta-new,.gta-book{justify-self:center}
+  .gta-hero p{font-size:13px}
+}
+/* GTA packs: the painted wrapper with a slanted title band */
+.pk-img .pk-body{background:linear-gradient(180deg,rgba(10,5,16,.15),transparent 30%,transparent 70%,rgba(10,5,16,.35)),var(--pimg) center/cover,var(--p2)}
+.pk-gta .pk-pat{background:linear-gradient(180deg,color-mix(in srgb,var(--p1) 26%,transparent),transparent 40%,color-mix(in srgb,var(--p1) 22%,transparent));mix-blend-mode:screen}
+.pk-gta .pk-brand{order:-1;margin-bottom:2cqw;padding:1.5cqw 3cqw;background:#0a0510;color:#fff;font:400 6.2cqw/1 'Bungee',sans-serif;letter-spacing:.04em;transform:rotate(-4deg)}
+.pk-gta .pk-emo{display:none}
+.pk-gta .pk-nm{margin-top:2cqw;padding:2.4cqw 4cqw 1.8cqw;max-width:96%;background:var(--p1);color:#0a0510;border:1.4cqw solid #0a0510;font:400 10cqw/.95 'Bungee',sans-serif;letter-spacing:-.01em;text-shadow:none;transform:rotate(-6deg);box-shadow:2cqw 2cqw 0 #0a0510}
+.pk-gta .pk-n{background:rgba(10,5,16,.8)}
+.pk-gta.foil-black .pk-body,.pk-gta.foil-gold .pk-body,.pk-gta.foil-silver .pk-body{background:linear-gradient(180deg,rgba(10,5,16,.15),transparent 30%,transparent 70%,rgba(10,5,16,.35)),var(--pimg) center/cover,var(--p2)}
+.pk-gta.foil-black .pk-body{filter:saturate(1.2) brightness(.82)}
+
+/* GTA cards: a black panel border, the painted scene, the player in a tilted comic panel, caption boxes */
+.mcard.setc.gtac{--ink:#0a0510;--gl:#fff8e7;--gl2:#ff4fa3;--rc:#ffd166;border-radius:12px;background:var(--ink);box-shadow:0 14px 30px -12px rgba(0,0,0,.8)}
+.gtac .gt-bg{position:absolute;inset:4px;z-index:-3;border-radius:8px;background:linear-gradient(180deg,rgba(10,5,16,.55) 0%,transparent 17%,transparent 50%,rgba(26,8,40,.86) 74%,rgba(14,4,22,.97) 100%),var(--gbg) center 45%/cover,#2a0b3d;box-shadow:0 0 0 2px var(--gl)}
+.gtac .gt-bg::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(rgba(10,5,16,.5) .8px,transparent 1.3px) 0 0/4px 4px;opacity:.35;mix-blend-mode:multiply}
+.mcard.gtac .mc-pat{display:none}
+.mcard.gtac .mc-glow{opacity:.35}
+.gtac .mc-top{position:relative;z-index:1}
+.gtac .mc-rt{display:inline-flex;align-items:baseline;gap:2px;padding:3px 6px 2px;background:var(--gl2);color:#fff;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);transform:skew(-8deg);font-size:20px;text-shadow:1px 1px 0 var(--ink)}
+.gtac .mc-rt small{font-size:8px}
+.gt-mark{margin:0 auto;font:400 13px/1 'Bungee',sans-serif;color:#fff;letter-spacing:-.02em;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:2px 2px 0 var(--ink),3px 3px 0 #22d3ee;transform:rotate(-6deg)}
+.gtac .mc-top .logo{margin-left:0}
+.mcard.gtac .mc-photo{position:relative;z-index:1;filter:none;margin:4px 0 2px}
+.gt-frame{position:relative;width:90px;height:98px;overflow:hidden;background:var(--c);border:3px solid var(--ink);box-shadow:0 0 0 2px #fff,5px 5px 0 2px var(--ink);transform:rotate(-4deg)}
+.mcard.gtac .gt-frame .av{display:flex;align-items:center;justify-content:center;width:100%!important;height:100%!important;max-width:none;max-height:none;margin:0;border-radius:0!important;clip-path:none!important;box-shadow:none!important;transform:none!important;object-fit:cover;object-position:50% 25%;filter:contrast(1.18) saturate(1.35)}
+.mcard.gtac .gt-frame .av:not(.photo){background:radial-gradient(circle at 30% 25%,color-mix(in srgb,var(--c) 60%,#fff),var(--c) 55%,color-mix(in srgb,var(--c) 55%,#2a0b3d))!important;color:#fff!important;font:400 34px/1 'Bungee',sans-serif!important;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink)}
+.mcard.setc.gtac .mc-photo .gt-frame .av.photo{filter:contrast(1.18) saturate(1.35)}
+.mcard.setc.gtac.par-black .mc-photo .gt-frame .av.photo{filter:contrast(1.25) saturate(1.2) brightness(.95)}
+.gtac .mc-foot{white-space:nowrap}.gtac .mc-rar{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.gt-frame::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(170deg,rgba(255,170,60,.35),rgba(255,79,163,.18) 45%,rgba(34,211,238,.3));mix-blend-mode:soft-light}
+.gt-frame::after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(rgba(10,5,16,.75) .9px,transparent 1.4px) 0 0/4px 4px;opacity:.16;mix-blend-mode:multiply}
+.mcard.gtac .mc-name{position:relative;z-index:1;display:block;overflow:visible;margin-top:7px;max-width:100%;text-align:center}
+.gtac .mc-name span{display:inline-block;max-width:100%;padding:3px 7px 2px;background:#fff8e7;color:var(--ink);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);transform:rotate(-2deg);font:900 italic 17px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;text-transform:uppercase;overflow-wrap:anywhere}
+.mcard.gtac .mc-var{position:relative;z-index:1;overflow:visible;display:block;margin-top:3px}
+.gtac .mc-var span{display:inline-block;padding:2px 6px 1px;background:var(--gl2);color:#fff;border:2px solid var(--ink);font:400 9px/1.1 'Bungee',sans-serif;letter-spacing:.02em;text-transform:uppercase;transform:rotate(-2deg);text-shadow:1px 1px 0 var(--ink)}
+.gtac .mc-perk{position:relative;z-index:1;background:rgba(10,5,16,.78);box-shadow:0 0 0 1px var(--gl2) inset}
+.gtac .mc-foot{position:relative;z-index:1;border-top-color:rgba(255,255,255,.2);color:#fbd3e9}
+.gtac .mc-rar{color:var(--rc)}
+/* parallels */
+.mcard.gtac.par-silver{--gl:#e5e7eb;--gl2:#475569;--rc:#e5e7eb}
+.mcard.gtac.par-silver .mc-shine{opacity:1;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.3) 48%,transparent 60%);background-size:260% 100%}
+.mcard.gtac.par-gold{--gl:#facc15;--gl2:#c2410c;--rc:#fde047;box-shadow:0 0 22px -6px rgba(250,204,21,.7),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.gtac.par-gold .gt-bg{box-shadow:0 0 0 2px #facc15,0 0 0 3px #a16207}
+.mcard.gtac.par-gold .mc-name span{background:#fde68a}
+.mcard.gtac.par-prism{--gl:#0a0510;--gl2:#7c3aed;--rc:#f0abfc;background:conic-gradient(from var(--pa,0deg),#ff4fa3,#ffb347,#fde047,#4ade80,#22d3ee,#8b5cf6,#ff4fa3);animation:gtprism 6s linear infinite}
+.mcard.gtac.par-prism .mc-shine{opacity:.9;background:linear-gradient(115deg,rgba(255,0,128,.22),rgba(255,230,0,.2),rgba(0,255,170,.2),rgba(0,170,255,.22),rgba(190,0,255,.22));background-size:300% 100%;mix-blend-mode:color-dodge}
+@property --pa{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes gtprism{to{--pa:360deg}}
+.mcard.gtac.par-black{--gl:#ff2bd6;--gl2:#0a0510;--rc:#ff7ae6;box-shadow:0 0 30px -4px rgba(255,43,214,.65),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.gtac.par-black .gt-bg{filter:saturate(1.25) brightness(.78) hue-rotate(-12deg);box-shadow:0 0 0 2px #ff2bd6,0 0 14px #ff2bd6}
+.mcard.gtac.par-black .mc-var span{color:#ff7ae6;border-color:#ff2bd6}
+.mcard.gtac.par-black .mc-name span{background:#0a0510;color:#fff;border-color:#ff2bd6;box-shadow:3px 3px 0 #ff2bd6}
+.mcard.gtac.par-one{--gl:#fff;--gl2:#ff3d8b;--rc:#ffd166;background:linear-gradient(var(--pa,0deg),#ffb347,#ff3d8b,#8b3dff,#22d3ee,#ffb347);animation:gtprism 5s linear infinite;box-shadow:0 0 40px -2px rgba(255,61,139,.75),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.gtac.par-one .gt-frame{box-shadow:0 0 0 2px #ffd166,5px 5px 0 2px var(--ink),0 0 18px 4px rgba(255,209,102,.6)}
+.mcard.gtac.par-one .mc-var span{background:linear-gradient(90deg,#ffb347,#ff3d8b,#8b3dff);font-size:10px}
+.mcard.gtac.par-one .mc-ser{color:#ffd166;text-shadow:0 0 8px #ff3d8b}
+.mcard.gtac.r-mythic::before,.mcard.gtac.r-dark::before{border-radius:12px}
+@media(prefers-reduced-motion:reduce){.mcard.gtac.par-prism,.mcard.gtac.par-one{animation:none}}
+@media(max-width:760px){
+  .gt-frame{width:80px;height:86px}
+  .gtac .mc-name span{font-size:15px;padding:2px 6px 1px}
+  .gtac .mc-rt{font-size:17px}
+  .gt-mark{font-size:11px}
+  .mcard.gtac .gt-frame .av:not(.photo){font-size:28px!important}
+}
+/* Lineup slots and other small spots */
+.slot .gtac .gt-frame{width:68px;height:74px;border-width:2px;box-shadow:0 0 0 1px #fff,3px 3px 0 1px var(--ink)}
+.slot .mcard.gtac .gt-frame .av:not(.photo){font-size:18px!important}
+.slot .gtac .mc-name span{font-size:13px;padding:1px 4px;box-shadow:2px 2px 0 var(--ink)}
+.slot .gt-mark{display:none}
+@media(max-width:760px){
+  .slot .gtac .gt-frame{width:36px;height:40px}
+  .slot .mcard.gtac .gt-frame .av:not(.photo){font-size:13px!important;-webkit-text-stroke:1px var(--ink);text-shadow:1px 1px 0 var(--ink)}
+  .slot .gtac .mc-name span{font-size:9.5px;padding:1px 3px;border-width:1px;box-shadow:1px 1px 0 var(--ink)}
+  .slot .gtac .mc-rt{font-size:12px;padding:1px 3px;border-width:1px;box-shadow:1px 1px 0 var(--ink)}
+  .slot .gtac .mc-rt small{display:none}
+  .slot .gtac .gt-bg{inset:2px}
+  .slot .mcard.gtac .mc-var{display:none}
+}
+.rv-head .pk-gta .pk-nm{font-size:9cqw}
+/* Card Book: the GTA tab and header */
+.cb-tab-gta em{margin-left:4px;padding:1px 5px;border-radius:999px;background:#22c55e;color:#052e16;font:800 9px/1.3 Inter;font-style:normal;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px}
+.cb-gtahead{display:flex;gap:20px;align-items:center;border:3px solid #0a0510;background:linear-gradient(90deg,rgba(18,6,28,.75),rgba(18,6,28,.95) 60%),url(/static/sets/gta/banner.webp) center/cover,#12061c;box-shadow:0 0 0 2px #ff4fa3}
+.cb-gtahead .gta-logo{width:280px}
+.cb-gt-in{min-width:0}
+.cb-gt-in>p:first-child{margin:0 0 8px;color:#fde7f3}
+@media(max-width:760px){.cb-gtahead{flex-direction:column;align-items:stretch}.cb-gtahead .gta-logo{width:100%;max-width:340px;align-self:center}}
+.cb-tabs .cb-tab-gta:not(.on){color:#ff9fd0}
+@media(max-width:760px){.cb-tabs{flex-wrap:wrap;border-radius:18px;width:auto}}

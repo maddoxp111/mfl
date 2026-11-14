@@ -48,6 +48,9 @@ module.exports = function fun(app, h) {
     const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
     const st = c.set && cards.SET_MAP.get(c.set), si = st ? cards.SETS.indexOf(st) : 0;
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
+    // GTA Launch Set: the player in a comic panel over one of the set's painted scenes (one scene per player)
+    const gta = st && st.panels ? st.panels[[...c.pid].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 9973, 7) % st.panels.length] : '';
+    if (gta) return gtaCard(db, c, st, gta, rt, serial, opts);
     const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '') + (c.week ? ` wkc w${c.week}c` : '');
     const photo = COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
     return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
@@ -64,6 +67,21 @@ module.exports = function fun(app, h) {
     </div>`;
   }
   h.cardArt = cardArt;
+  // A GTA Launch Set card: painted scene, the player's avatar in a tilted comic panel, a caption box and a parallel finish.
+  function gtaCard(db, c, st, scene, rt, serial, opts) {
+    const P = st.pars.find((x) => x.id === c.par) || st.pars[0];
+    const photo = avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
+    return `<div class="mcard r-${c.rarity} setc gtac par-${c.par} gsc-${scene} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--s1:${st.c1};--s2:${st.c2};--gbg:url(/static/sets/gta/${scene}.webp)">
+      <div class="gt-bg" aria-hidden="true"></div><div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
+      <div class="mc-top"><span class="mc-rt" title="Card overall: how good this card is"><b>${rt}</b><small>OVR</small></span><span class="gt-mark" title="${esc(st.name)}: ${esc(st.full)}">GTA</span>${logo(c.t, 22)}</div>
+      <div class="mc-photo"><div class="gt-frame">${photo}</div></div>
+      <div class="mc-name"><span>${esc(c.p.name)}</span></div>
+      <div class="mc-var"><span>${esc(P.label || 'Launch Set')}</span></div>
+      ${cardPerkFront(c)}
+      <div class="mc-foot"><span class="mc-rar" title="${esc(tierWords(c))}">${esc(c.rarityName)}${c.rarity === 'common' ? '' : ` · ${esc(tierOfCard(c).name)}`}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
+      <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
+    </div>`;
+  }
   // Every card does something: its perk (an on-field quirk), its rating changes and its rarity tier.
   // The front shows the card's overall and its perk name; the back and the Card Book say it all.
   const perkOfCard = (c) => (cards.perkOf ? attempt(() => cards.perkOf(c)) : null);
@@ -139,7 +157,7 @@ module.exports = function fun(app, h) {
     return esc(bits.join('. ') + '.');
   }
   function cardBack(db, c) {
-    const st = c.set && cards.SET_MAP.get(c.set), par = c.par && cards.PARALLELS.find((x) => x.id === c.par);
+    const st = c.set && cards.SET_MAP.get(c.set), par = c.par && ((st && st.pars) || cards.PARALLELS).find((x) => x.id === c.par);
     const fx = cards.cardEffects ? attempt(() => cards.cardEffects(c)) : null;
     // The card plays at its overall (arcade cardAttrs): the Card column is the move to the card's overall plus its own changes.
     const arc = attempt(() => require('./arcade'));
@@ -521,6 +539,7 @@ module.exports = function fun(app, h) {
   }
   const GROUPS = [
     ['free', 'Free', 'Claim these. They refill.'],
+    ['gta', 'GTA Launch Set', 'Gridiron Takeover All-Stars: a brand-new set painted like a sunset-coast poster. Base, Silver, Gold, Prism, Black and a Box Art 1/1 of every player, stronger than any older card of the same rarity. GTA cards only come from these packs.'],
     ['weekly', 'Weekly Packs', 'New packs every Saturday, on sale for one week only.'],
     ['season', `Season ${S1.n}: ${S1.name}`, `The newest cards and the best ones in the game, up to the new Zenith rarity. Season ${S1.n} cards only come from these packs.`],
     ['core', 'Core', 'Any card in the league can drop. Bigger packs, better guarantees.'],
@@ -532,6 +551,9 @@ module.exports = function fun(app, h) {
     ['bundle', 'Bundles', 'Several packs in one, for less than buying them one at a time.'],
     ['limited', 'Limited', 'Only on sale some days, plus a Flash Sale that gets cheaper all day.'],
   ];
+  // The GTA Launch Set logo: our own lettering (stacked chunky GTA on a slanted sunset block) over the painted backdrop.
+  const gtaLogo = (cls = '') => `<div class="gta-logo ${cls}" role="img" aria-label="GTA Launch Set: Gridiron Takeover All-Stars"><span class="gl-slab" aria-hidden="true"></span><b class="gl-word" aria-hidden="true"><i>G</i><i>T</i><i>A</i></b><span class="gl-sub" aria-hidden="true">Gridiron Takeover All-Stars</span><span class="gl-tag" aria-hidden="true">Launch Set</span></div>`;
+  h.gtaLogo = gtaLogo;
   const weekEnd = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'short', day: 'numeric' });
   const groupOf = (P) => (P.group === 'team' ? 'theme' : P.group);
   const packCtx = (user) => ({ now: pk.nowLocal(TZ), own: user ? cards.collection(user) : {}, lineup: (user?.lineups || []).at(-1)?.cards || [] });
@@ -543,7 +565,7 @@ module.exports = function fun(app, h) {
     const t = P.team && db.teams[P.team], a = P.art || {};
     const [c1, c2] = t ? [t.color, t.color2] : a.c || P.colors || ['#2a3242', '#141821'];
     const title = o.title || P.name.replace(/^Flash Sale: .*/, 'Flash Sale').replace(/ Pack$/, '');
-    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''}${P.season || P.allSeasons ? ` pk-season${P.season ? ` pk-s${P.season}` : ''}` : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}">
+    return `<div class="pkart pat-${PATS.has(a.pat) ? a.pat : 'stripes'}${a.foil ? ' foil-' + a.foil : ''}${P.season || P.allSeasons ? ` pk-season${P.season ? ` pk-s${P.season}` : ''}` : ''}${a.img ? ' pk-img' : ''}${P.launch ? ` pk-${esc(P.launch)}` : ''} ${o.cls || ''}" style="--p1:${esc(c1)};--p2:${esc(c2)}${a.img ? `;--pimg:url(${esc(a.img)})` : ''}">
       <div class="pk-body" aria-hidden="true"><span class="pk-pat"></span><span class="pk-brand">${esc(P.brand || (P.season ? `Season ${P.season}` : 'MFL Cards'))}</span><span class="pk-emo">${t ? logo(t, 44) : esc(a.e || '🏈')}</span><b class="pk-nm">${esc(title)}</b><i class="pk-n">${esc(cardCount(P))}</i><span class="pk-shine"></span></div>${o.badges || ''}</div>`;
   }
   const pct = (x) => (x >= 10 ? Math.round(x) : x >= 1 ? x.toFixed(1) : x >= 0.01 ? x.toFixed(2) : '<0.01') + '%';
@@ -658,6 +680,7 @@ module.exports = function fun(app, h) {
         }
         const W = g === 'weekly' ? cards.weeklyNow(ctx.now) : null;
         if (W) { title = `Weekly Packs · Week ${W.n}: ${W.theme}`; sub = `New packs every Saturday. These leave the shop ${weekEnd(W.to)} at midnight, and a new pack joins Season ${S1.n} each week.`; }
+        if (g === 'gta' && items.length) return `<section class="psec psec-gta" data-g="${g}" id="g-${g}"><header class="psec-h gta-hero">${gtaLogo()}<span class="gta-new">New set</span><p>${esc(sub)}</p><a class="gta-book" href="/pickem/cards/book?tab=gta">See every GTA card →</a></header><div class="psi-grid">${items.join('')}</div></section>`;
         return items.length ? `<section class="psec" data-g="${g}" id="g-${g}"><header class="psec-h"><h2>${esc(title)}</h2><p>${esc(sub)}</p></header><div class="psi-grid">${items.join('')}</div></section>` : '';
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));

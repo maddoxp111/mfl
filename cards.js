@@ -211,6 +211,22 @@ const WEEK_VARIANTS = [
   { id: 'w1-rivalry', rarity: 'mythic', label: 'Rivalry Week 1/1', mult: 5.5, one: true, quote: 'One week. One winner. One card.', perkAs: 'goat' },
 ].map((v) => ({ ...v, week: 1 }));
 VARIANTS.push(...WEEK_VARIANTS);
+// GTA Launch Set (Nov 14): "GTA" = Gridiron Takeover All-Stars, a set painted like a sunset-coast poster. One set with its own
+// five parallels plus a 1/1 (the Box Art 1/1, a Dark Matter card), each one stronger than any older card of its rarity. Its cards
+// only drop from its own packs (`launch: 'gta'`), never from the other set packs. Added last so every older card keeps its artwork.
+const GTA = { id: 'gta', name: 'GTA Launch Set', full: 'Gridiron Takeover All-Stars', emoji: '🌴', c1: '#ff4fa3', c2: '#2a0b3d', pat: 0, photo: 'gta', quote: 'Take over the whole map.', series: 'gta', seriesName: 'Gridiron Takeover All-Stars', launch: 'gta', added: '2026-11-14',
+  // the painted scenes behind the players (public/sets/gta), one per player
+  panels: ['beach', 'marina', 'swamp', 'helipad', 'carlot', 'rooftop', 'bridge', 'stadium', 'lagoon', 'coast'],
+  pars: [
+    { id: 'base', label: '', rarity: 'common', mult: 1.6 },
+    { id: 'silver', label: 'Silver', rarity: 'rare', mult: 2.1 },
+    { id: 'gold', label: 'Gold', rarity: 'epic', mult: 2.7 },
+    { id: 'prism', label: 'Prism', rarity: 'legendary', mult: 3.5 },
+    { id: 'black', label: 'Black', rarity: 'mythic', mult: 4.6 },
+    { id: 'one', label: 'Box Art 1/1', rarity: 'dark', mult: 5.8, one: true },
+  ] };
+SET_MAP.set(GTA.id, GTA);
+for (const par of GTA.pars) VARIANTS.push({ id: `set-gta-${par.id}`, rarity: par.rarity, label: par.one ? `GTA ${par.label}` : par.label ? `${GTA.name} ${par.label}` : GTA.name, mult: par.mult, ...(par.one ? { one: true } : {}), quote: GTA.quote, set: GTA.id, par: par.id, launch: GTA.launch });
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
 
 // ---------- card effects ----------
@@ -305,6 +321,7 @@ const RARITY_FX = {
 // Card sets: one small table per set (Base parallel numbers). The parallel scales them:
 // [upside ×, downside ×, height/weight ×]. Rarer parallels get much more upside and less downside.
 const PARALLEL_FX = { base: [1, 1, 1], silver: [1.6, 0.9, 1.25], gold: [2.2, 0.75, 1.5], prism: [2.9, 0.6, 1.75], black: [3.6, 0.45, 2] };
+// a set's own table for one parallel (the GTA Box Art 1/1, all upside) wins over the scaled one
 const SET_FX = {
   // School Days
   'picture-day': { a: { acc: 3, cat: 1, agi: -2 } }, // held still for the photo
@@ -369,6 +386,8 @@ const SET_FX = {
   captains: { a: { sta: 3, def: 1, kick: -2 } },
   'all-mfl': { a: { thr: 1, acc: 1, spd: 1, cat: 1, def: 1, kick: -2 } },
   'hall-of-fame': { a: { thr: 2, acc: 2, cat: 1, spd: -2, wgt: 5 } },
+  // GTA Launch Set: fast and slippery in the open, a step behind on defense
+  gta: { a: { spd: 3, agi: 2, cat: 1, def: -2 }, one: { a: { spd: 12, agi: 12, cat: 11, acc: 10, thr: 9, sta: 9, str: 8, def: 8, kick: 6 } } },
 };
 
 // ---------- perks ----------
@@ -484,7 +503,11 @@ const PERK_ROWS = [
   ['s1-fullext', 'Full Extension', 'Passes thrown near him bend toward his hands, and defenders right next to him move in slow motion', 'any pass within 5 yards, and always within 2 yards'],
   ['s1-cover', 'Camera Ready', 'He gets a big speed boost while nobody is near him', 'when no defender is within 5 yards of him'],
   ['s1-bigboy', `${S1.nick} Aura`, 'Everyone feeds off the big boy: every teammate within 5 yards gets +2 in all skills', 'always, while he is on the field'],
+  // GTA Launch Set (in the games it plays out like an older perk: SET_PERK_AS)
+  ['gta', 'Neon Takeover', 'He lights up in sunset neon and the quarterback looks his way first', 'when he is open on a pass play'],
 ];
+// set perks that play out in the games as an older perk (its effect, under the set's own name)
+const SET_PERK_AS = { gta: 'neon' };
 // weekly cards' perk names (the effect is the `perkAs` perk's)
 const WEEK_PERKS = {
   'w1-trash': { name: 'Trash Talk', text: 'He gets in their ears: the whole team gets a burst of energy' },
@@ -552,7 +575,8 @@ function perkOf(card) {
   const v = VARIANT_MAP.get(card.variant || card.id || '') || {};
   const set = card.set || v.set || null, rarity = card.rarity || v.rarity || 'common';
   const W = !set && v.perkAs ? WEEK_PERKS[v.id] : null;
-  const P = W ? { ...PERKS[v.perkAs], ...W, id: v.perkAs } : PERKS[set || card.variant || v.id];
+  const A = set && SET_PERK_AS[set];
+  const P = A ? { ...PERKS[A], ...PERKS[set], id: A } : W ? { ...PERKS[v.perkAs], ...W, id: v.perkAs } : PERKS[set || card.variant || v.id];
   return P ? { ...P, lv: (TIERS[rarity] || TIERS.common).lv } : null;
 }
 const isBodyAttr = (k) => k === 'hgt' || k === 'wgt';
@@ -579,7 +603,7 @@ function cardEffects(card) {
   let a, build = null;
   if (set && SET_FX[set]) {
     const [up, down, body] = PARALLEL_FX[par] || PARALLEL_FX.base;
-    a = scaleFx(SET_FX[set].a, up, down, body);
+    a = SET_FX[set][par] ? SET_FX[set][par].a : scaleFx(SET_FX[set].a, up, down, body);
     build = SET_FX[set].build || null;
   } else if (VARIANT_FX[variant]) {
     const T = VARIANT_FX[variant];
@@ -818,7 +842,7 @@ const weeklyLive = (db, ctx, P) => {
 const zenithLeft = (db, taken) => catalog(db).some((c) => c.season === 1 && c.rarity === 'zenith' && c.one && !taken.has(c.id));
 const s1MythicOneLeft = (db, taken) => catalog(db).some((c) => c.season === 1 && c.rarity === 'mythic' && c.one && !taken.has(c.id));
 const plusOk = (db, P, taken) => !(P.plus || []).includes('s1x-zenith') || zenithLeft(db, taken) || s1MythicOneLeft(db, taken);
-const onesLeft = (db, P, taken) => catalog(db).filter((c) => c.one && (P.week || 0) === (c.week || 0) && (P.season || 0) === (c.season || 0) && !c.set && !taken.has(c.id)).length;
+const onesLeft = (db, P, taken) => catalog(db).filter((c) => c.one && (P.launch ? c.launch === P.launch : (P.week || 0) === (c.week || 0) && (P.season || 0) === (c.season || 0) && !c.set) && !taken.has(c.id)).length;
 const wk = (n, o) => ({ group: 'weekly', week: n, added: WEEKLY.find((w) => w.n === n).from, ...o, live: (db, ctx, P) => ({ ...(o.live ? o.live(db, ctx, P) : {}), ...weeklyLive(db, ctx, P) }) });
 Object.assign(PACKS, {
   // Week 1 (Nov 14-20): Rivalry Week. Only Week 1 cards (Trash Talk, Grudge Match, Bragging Rights, the Rivalry Week 1/1).
@@ -840,6 +864,19 @@ Object.assign(PACKS, {
   'w1-vault': { name: 'Friday Night Vault', cards: 3, cost: 320000, group: 'weekly', retired: true, off: true, art: { c: ['#a855f7', '#030712'], e: '🔐', pat: 'stars' }, desc: 'Retired.' },
   // Week 1's new Season 1 pack (stays in the shop)
   's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 4, hits: 2, fillFloor: 'legendary', floor: 'mythic', boost: { zenith: 12 }, cost: 3500000, fixed: true, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: 'The best pack in Season 1: 4 Season 1 cards, all Legend or better, and the last TWO are Mythic or better with the biggest Zenith chance in the game. Added in Week 1.' }),
+});
+
+// ---------- GTA Launch Set packs ----------
+// Only GTA cards (`launch: 'gta'`), set prices (`fixed`). A ladder from 300,000 to 8,000,000 plus the Box Art Chase, which
+// guarantees two Box Art 1/1s (`oneHits`: it shows Sold out once fewer than two are left). Every pack's art is the painted wrapper.
+const gtaLive = (db, ctx, P) => (P.oneHits && ctx && ctx.taken && onesLeft(db, P, ctx.taken) < P.hits ? { off: true, soldOut: true } : {});
+const gtaPack = (o) => ({ group: 'gta', launch: 'gta', sets: true, fixed: true, added: GTA.added, brand: 'GTA Launch Set', live: gtaLive, inside: 'Only GTA Launch Set cards: Base, Silver, Gold, Prism, Black and the Box Art 1/1 of every player.', ...o, art: { img: '/static/sets/gta/pack.webp', ...o.art } });
+Object.assign(PACKS, {
+  'gta-strip': gtaPack({ name: 'Sunset Strip', cards: 5, cost: 300000, min: 'epic', art: { c: ['#ff7a3d', '#3b0a45'], e: '🌴', pat: 'rays' }, desc: 'The cheapest way into the GTA Launch Set (and the only pack with GTA Base cards): 5 GTA cards with a Gold or better guaranteed.' }),
+  'gta-marina': gtaPack({ name: 'Marina Run', cards: 5, cost: 1000000, floor: 'epic', min: 'legendary', art: { c: ['#22d3ee', '#2a0b3d'], e: '🚤', pat: 'waves', foil: 'silver' }, desc: '5 GTA cards, every one Gold or better, with a Prism or better guaranteed.' }),
+  'gta-helipad': gtaPack({ name: 'Helipad Drop', cards: 4, cost: 3000000, floor: 'legendary', boost: { mythic: 3 }, art: { c: ['#a855f7', '#160726'], e: '🚁', pat: 'grid', foil: 'gold' }, desc: '4 GTA cards, every one Prism or better, with triple the Black odds.' }),
+  'gta-supercar': gtaPack({ name: 'Supercar Lot', cards: 4, hits: 2, fillFloor: 'legendary', floor: 'mythic', boost: { dark: 4 }, cost: 8000000, art: { c: ['#facc15', '#2a0b3d'], e: '🏎️', pat: 'stars', foil: 'holo' }, desc: '4 GTA cards, all Prism or better. The last TWO are Black or better, each a coin flip for a Box Art 1/1.' }),
+  'gta-boxart': gtaPack({ name: 'Box Art Chase', cards: 3, hits: 2, oneHits: true, fillFloor: 'legendary', floor: 'dark', cost: 15000000, art: { c: ['#ff4fa3', '#0b0214'], e: '🖼️', pat: 'diamond', foil: 'black' }, desc: 'The chase pack: a Prism or better, then TWO guaranteed GTA Box Art 1/1s.' }),
 });
 
 // Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
@@ -985,7 +1022,7 @@ function rolePos(db, t, p) {
 // The cards a pack draws from. `ok` is false when its own pool is empty right now
 // (openPack then falls back to every card, and the shop shows the pack as restocking).
 function packPool(db, P, taken = new Set()) {
-  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season) && (P.week || 0) === (c.week || 0));
+  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season) && (P.week || 0) === (c.week || 0) && (P.launch || '') === c.launch);
   if (!P.pool) return { pool: base, base, ok: true };
   const f = base.filter(P.pool);
   return f.length ? { pool: f, base, ok: true } : { pool: base, base, ok: false };
@@ -1028,7 +1065,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (P.bundle) return P.bundle.some(([t]) => packCanDrop(db, t, c));
   if (type === 'starter') return c.variant === 'base';
   if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
-  if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; if ((P.week || 0) !== (c.week || 0)) return false; // weekly cards only come from that week's packs // season cards only come from season packs
+  if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; if ((P.week || 0) !== (c.week || 0) || (P.launch || '') !== c.launch) return false; // launch-set cards only come from their own packs // weekly cards only come from that week's packs // season cards only come from season packs
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
   const floor = P.hits && P.fillFloor ? P.fillFloor : P.floor;
@@ -1064,7 +1101,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
