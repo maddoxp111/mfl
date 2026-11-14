@@ -3029,3 +3029,56 @@ html.av3d-lock,html.av3d-lock body{overflow:hidden}
 @media(max-width:760px){.cb-gtahead{flex-direction:column;align-items:stretch}.cb-gtahead .gta-logo{width:100%;max-width:340px;align-self:center}}
 .cb-tabs .cb-tab-gta:not(.on){color:#ff9fd0}
 @media(max-width:760px){.cb-tabs{flex-wrap:wrap;border-radius:18px;width:auto}}
+
+/* ===== GTA cover-art cards (Cover and Vice City): the player's painted art, the owner's logo and his lettered name ===== */
+.mcard.setc.gtac.gta-art{--gf:#fff8e7;padding:0;background:#0a0510;border-radius:12px;box-shadow:0 14px 30px -12px rgba(0,0,0,.8)}
+.gta-art .ga-stage{position:absolute;top:0;left:50%;height:100%;aspect-ratio:2/3;transform:translateX(-50%);z-index:0;overflow:hidden}
+.gta-art .ga-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+.gta-art .ga-mark{display:block;max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.55))}
+.gta-art .gm-txt{display:flex;font:400 clamp(20px,24cqw,60px)/1 'Bungee',sans-serif;color:#fff;letter-spacing:-.04em;transform:rotate(-6deg)}
+.gta-art .gm-txt i{font-style:normal;-webkit-text-stroke:3px #0a0510;paint-order:stroke fill;text-shadow:3px 3px 0 #0a0510,5px 5px 0 #ff3d8b}
+.gta-art .gm-txt i:nth-child(2){color:#fff4c2;transform:translateY(8%)}
+
+
+
+
+
+.gta-art .mc-top{position:absolute;top:7px;left:7px;right:7px;z-index:2;width:auto}
+.gta-art .mc-rt{display:inline-flex;align-items:baseline;gap:2px;padding:2px 5px 1px;background:#0a0510;color:#fff;border:2px solid var(--gf0,#fff);font-size:16px;transform:skew(-8deg)}
+.gta-art .mc-rt small{font-size:7px}
+.gta-art .mc-top .logo{margin-left:auto}
+.gta-art .ga-par{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;gap:6px;padding:4px 30px 5px 9px;background:linear-gradient(0deg,rgba(10,5,16,.92),rgba(10,5,16,.6));font:800 9px/1.2 Inter;letter-spacing:.08em;text-transform:uppercase;color:#fff;white-space:nowrap}
+.gta-art .ga-par span{overflow:hidden;text-overflow:ellipsis}
+.gta-art .ga-par b{margin-left:auto;color:#ffd166}
+.gta-art .ga-par i{font-style:normal;color:#fff}
+.gta-art .mc-flip{z-index:3}
+/* the logo + name lockup: both centred on the same spot, the name in front */
+.gta-art .ga-lock{position:absolute;display:grid;place-items:center;pointer-events:none;container-type:inline-size}
+.gta-art .ga-lock>*{grid-area:1/1}
+.gta-art .ga-logo{width:100%;height:100%;display:grid;place-items:center}
+.gta-art .ga-name{position:relative;z-index:1;width:var(--nw);height:auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))}
+.gd-cover .ga-lock{--nw:84%;left:calc(var(--sx) - 11%);top:calc(var(--sy) + 1%);width:calc(var(--sw) + 22%);height:calc(var(--sh) - 2%)}
+.gd-vice .ga-lock{--nw:74%;left:10%;top:6%;width:80%;height:30%}
+/* the frame: a ring in the parallel's finish over the art */
+.mcard.gta-art>.mc-shine{position:absolute;inset:0;z-index:2;opacity:1;pointer-events:none;border:4px solid transparent;border-radius:inherit;background:var(--gf) border-box;animation:none;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) padding-box exclude,linear-gradient(#000 0 0)}
+.mcard.setc.gtac.gta-art.par-silver{--gf:linear-gradient(135deg,#f8fafc,#94a3b8 40%,#f1f5f9 60%,#64748b)}
+.mcard.setc.gtac.gta-art.par-gold{--gf:linear-gradient(135deg,#fff4c7,#f5c542 35%,#a16207 60%,#fde68a);box-shadow:0 0 22px -6px rgba(250,204,21,.7),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.setc.gtac.gta-art.par-prism{--gf:conic-gradient(from var(--pa,0deg),#ff4fa3,#ffb347,#fde047,#4ade80,#22d3ee,#8b5cf6,#ff4fa3);animation:gtprism 6s linear infinite;background:#0a0510}
+.mcard.gta-art.par-prism>.mc-shine{animation:gtprism 6s linear infinite}
+.mcard.setc.gtac.gta-art.par-black{--gf:linear-gradient(135deg,#ff2bd6,#0a0510 40%,#0a0510 60%,#ff2bd6);box-shadow:0 0 30px -4px rgba(255,43,214,.65),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.setc.gtac.gta-art.par-one{--gf:linear-gradient(var(--pa,0deg),#ffb347,#ff3d8b,#8b3dff,#22d3ee,#ffb347);background:#0a0510;animation:none;box-shadow:0 0 40px -2px rgba(255,61,139,.75),0 14px 30px -12px rgba(0,0,0,.8)}
+.mcard.gta-art.par-one>.mc-shine{animation:gtprism 5s linear infinite;border-width:5px}
+.mcard.gta-art.r-mythic::before,.mcard.gta-art.r-dark::before{display:none}
+@media(max-width:760px){.gta-art .mc-rt{font-size:14px}.gta-art .ga-par{font-size:8px}}
+.slot .gta-art .ga-par{display:none}
+.slot .gta-art .mc-top .logo{display:none}
+@media(max-width:760px){.slot .gta-art .mc-rt{font-size:11px;padding:0 3px;border-width:1px}.slot .gta-art .mc-rt small{display:none}.mcard.gta-art.slot,.slot .mcard.gta-art>.mc-shine{border-width:2px}}
+/* uploaded logo in the shop header, the Card Book and on the packs */
+.gta-logo.gl-up{display:grid;place-items:center;padding:6%;box-sizing:border-box}
+.gta-logo .gl-img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.pk-gtalogo{position:absolute;z-index:1;top:7%;left:15%;width:70%;height:24%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.6))}
+.pk-gta .pk-body:has(.pk-gtalogo) .pk-brand{display:none}
+.gta-admin-prev{display:grid;place-items:center;min-height:160px;margin:10px 0;border-radius:12px;background:url(/static/sets/gta/logo.webp) center/cover}
+.gta-admin-prev img{max-width:80%;max-height:220px}

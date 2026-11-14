@@ -120,6 +120,15 @@ app.get('/media/logo/:file', (req, res) => {
   if (!L) return res.status(404).end();
   res.set({ 'Content-Type': L.type, 'Cache-Control': `public, max-age=${L.hash === m[2] ? 31536000 : 300}, immutable` }).send(L.buf);
 });
+// The owner's GTA logo (Admin > GTA logo): a transparent PNG in storage. Each upload has its own key, so cache hard.
+app.get('/media/gta/:key', async (req, res, next) => {
+  try {
+    if (!/^gta-logo-[a-z0-9]+\.png$/.test(req.params.key)) return res.status(404).end();
+    const buf = await getMedia(req.params.key);
+    if (!buf) return res.status(404).end();
+    res.set({ 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' }).send(buf);
+  } catch (e) { next(e); }
+});
 app.get('/media/:key', async (req, res, next) => {
   try {
     if (!/^[a-z0-9-]+\.jpg$/.test(req.params.key)) return res.status(404).end();
@@ -469,7 +478,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&family=Bungee&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=89">
+<link rel="stylesheet" href="/static/style.css?v=91">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -2879,7 +2888,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/gta', 'GTA logo'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3410,6 +3419,43 @@ app.post('/admin/game/:id/delete', requireAdmin, async (req, res) => {
   db.games = db.games.filter((x) => x.id !== req.params.id);
   await save();
   res.redirect('/admin?saved=1');
+});
+
+// ---------- admin: the GTA logo ----------
+// The owner's own GTA logo: a PNG with a transparent background. It goes in the middle of every Cover card, on top of Vice City
+// cards, in the GTA shop section and on the GTA pack wrappers. Without one, those spots show the "GTA" lettering.
+app.get('/admin/gta', requireAdmin, (req, res) => {
+  const db = load(), cur = db.gtaLogo && db.gtaLogo.key ? `/media/gta/${db.gtaLogo.key}` : null;
+  res.send(layout(req, 'GTA logo', pageHead('Admin', 'GTA logo') + `<div class="wrap">${adminNav('/admin/gta')}${savedMsg(req)}${req.query.err ? `<div class="toast bad">${esc(req.query.err)}</div>` : ''}
+    <form method="post" action="/admin/gta" class="card form gta-admin">
+      <p class="muted">Upload your own GTA logo as a <b>PNG with a transparent background</b>. It shows in the middle of every Cover card, at the top of every Vice City card, in the GTA section of the shop and on the GTA packs. Empty edges are trimmed and big images are shrunk to 1024px.</p>
+      <div class="gta-admin-prev">${cur ? `<img src="${esc(cur)}" alt="Current GTA logo">` : '<span class="muted">No logo yet: those spots show the GTA lettering.</span>'}</div>
+      <label class="wide">Logo (PNG)<input type="file" accept="image/png" onchange="mflGtaLogo(this)"></label>
+      <input type="hidden" name="logo" value=""><p class="muted sm" id="gtaLogoNote"></p>
+      ${cur ? '<label class="chk"><input type="checkbox" name="clear"> Remove the logo</label>' : ''}
+      <div class="actions"><button class="btn">Save GTA logo</button></div></form>
+    <script>
+    function mflGtaLogo(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+      const W=im.width,H=im.height,t=document.createElement('canvas');t.width=W;t.height=H;const g=t.getContext('2d');g.drawImage(im,0,0);
+      let x0=W,y0=H,x1=-1,y1=-1,see=false;try{const d=g.getImageData(0,0,W,H).data;for(let y=0;y<H;y++)for(let x=0;x<W;x++){const a=d[(y*W+x)*4+3];if(a<250)see=true;if(a>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}}catch(e){}
+      if(x1<0){x0=0;y0=0;x1=W-1;y1=H-1;}
+      const cw=x1-x0+1,ch=y1-y0+1,k=Math.min(1,1024/Math.max(cw,ch)),c=document.createElement('canvas');c.width=Math.round(cw*k);c.height=Math.round(ch*k);
+      c.getContext('2d').drawImage(t,x0,y0,cw,ch,0,0,c.width,c.height);inp.form.logo.value=c.toDataURL('image/png');
+      document.getElementById('gtaLogoNote').textContent=see?'Ready: '+c.width+' x '+c.height+'. Press Save.':'Heads up: this image has no transparent background, so it will show as a solid box. Press Save to use it anyway.';};im.src=r.result;};r.readAsDataURL(f);}
+    </script></div>`, { ticker: false }));
+});
+app.post('/admin/gta', requireAdmin, async (req, res) => {
+  const db = load(), b = req.body;
+  if (b.clear) { db.gtaLogo = null; await save(); return res.redirect('/admin/gta?saved=1'); }
+  const m = /^data:image\/png;base64,(.+)$/.exec(b.logo || '');
+  if (!m) return res.redirect('/admin/gta?err=' + encodeURIComponent('Pick a PNG file first.'));
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length > 4 * 1024 * 1024 || buf.slice(1, 4).toString() !== 'PNG') return res.redirect('/admin/gta?err=' + encodeURIComponent('That PNG is too big or not a PNG.'));
+  const key = `gta-logo-${Date.now().toString(36)}.png`;
+  await putMedia(key, buf, 'image/png');
+  db.gtaLogo = { key, at: new Date().toISOString() };
+  await save();
+  res.redirect('/admin/gta?saved=1');
 });
 
 app.get('/admin/teams', requireAdmin, (req, res) => {

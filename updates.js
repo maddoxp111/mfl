@@ -907,6 +907,17 @@ const UPDATES = [
       'GTA cards only come from GTA packs. See them all in the new GTA Launch Set tab of the Card Book.',
     ],
   },
+  {
+    n: 85,
+    date: '2026-11-15',
+    title: 'GTA: the Cover Pack and the Vice City Pack',
+    items: [
+      'GTA cards are now painted for real: every Cover card is a poster of that player in panels all around (the beach, the marina, a sports car, a jet ski, a helipad and more), with his name stacked over the GTA logo in the middle.',
+      'Vice City cards show the player cruising in a convertible with the neon city skyline behind him.',
+      'Two packs: the Vice City Pack (1,000,000: 4 Vice City cards, all Silver or better, a Prism or better guaranteed) and the Cover Pack (6,000,000: 4 Cover cards, all Gold or better, the last one Black or the Cover 1/1).',
+      'Players get their GTA cards once their art is made; more players are coming. The five launch packs are retired, and every GTA card you already pulled stays yours.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

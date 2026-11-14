@@ -227,6 +227,45 @@ const GTA = { id: 'gta', name: 'GTA Launch Set', full: 'Gridiron Takeover All-St
   ] };
 SET_MAP.set(GTA.id, GTA);
 for (const par of GTA.pars) VARIANTS.push({ id: `set-gta-${par.id}`, rarity: par.rarity, label: par.one ? `GTA ${par.label}` : par.label ? `${GTA.name} ${par.label}` : GTA.name, mult: par.mult, ...(par.one ? { one: true } : {}), quote: GTA.quote, set: GTA.id, par: par.id, launch: GTA.launch });
+// GTA cover-art cards (Nov 14, sample): each player's own painted cover art (public/sets/gta/cards/<player>-<design>.webp, plus
+// <player>-name.png, his name already lettered). Two designs, one per pack: Vice City (the player in a convertible in front of the
+// skyline) and Cover (a grid of painted panels around the uploaded GTA logo). A player only has these cards once his art exists.
+const GTA_DESIGNS = {
+  vice: { name: 'Vice City', pars: [
+    { id: 'silver', label: 'Silver', rarity: 'rare', mult: 2.1 },
+    { id: 'gold', label: 'Gold', rarity: 'epic', mult: 2.7 },
+    { id: 'prism', label: 'Prism', rarity: 'legendary', mult: 3.5 },
+    { id: 'black', label: 'Black', rarity: 'mythic', mult: 4.6 },
+  ] },
+  cover: { name: 'Cover', pars: [
+    { id: 'gold', label: 'Gold', rarity: 'epic', mult: 2.9 },
+    { id: 'prism', label: 'Prism', rarity: 'legendary', mult: 3.8 },
+    { id: 'black', label: 'Black', rarity: 'mythic', mult: 5.0 },
+    { id: 'one', label: '1/1', rarity: 'dark', mult: 6.0, one: true },
+  ] },
+};
+const GTA_ART_DIR = require('path').join(__dirname, 'public', 'sets', 'gta', 'cards');
+const gtaArtMemo = new Map();
+// does this player have his art for this design? (checked once a minute, so new art shows up without a restart)
+function gtaArt(pid, design) {
+  const k = pid + '|' + design, m = gtaArtMemo.get(k);
+  if (m && Date.now() - m.at < 60000) return m.ok;
+  const fs = require('fs'), ok = fs.existsSync(require('path').join(GTA_ART_DIR, `${pid}-${design}.webp`)) && fs.existsSync(require('path').join(GTA_ART_DIR, `${pid}-name.png`));
+  gtaArtMemo.set(k, { ok, at: Date.now() });
+  return ok;
+}
+// where the Cover art left its empty logo spot: [left, top, width, height] in % of the card (from <player>-cover.json)
+function gtaSlot(pid) {
+  const k = pid + '|slot', m = gtaArtMemo.get(k);
+  if (m && Date.now() - m.at < 60000) return m.ok;
+  let ok = null;
+  try { ok = JSON.parse(require('fs').readFileSync(require('path').join(GTA_ART_DIR, `${pid}-cover.json`), 'utf8')).slot; } catch (e) { ok = null; }
+  gtaArtMemo.set(k, { ok, at: Date.now() });
+  return ok;
+}
+for (const [design, D] of Object.entries(GTA_DESIGNS)) for (const par of D.pars) {
+  VARIANTS.push({ id: `set-gta-${design}-${par.id}`, rarity: par.rarity, label: `${D.name} ${par.label}`, mult: par.mult, ...(par.one ? { one: true } : {}), quote: GTA.quote, set: GTA.id, par: par.id, design, art: design, launch: GTA.launch });
+}
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
 
 // ---------- card effects ----------
@@ -872,11 +911,15 @@ Object.assign(PACKS, {
 const gtaLive = (db, ctx, P) => (P.oneHits && ctx && ctx.taken && onesLeft(db, P, ctx.taken) < P.hits ? { off: true, soldOut: true } : {});
 const gtaPack = (o) => ({ group: 'gta', launch: 'gta', sets: true, fixed: true, added: GTA.added, brand: 'GTA Launch Set', live: gtaLive, inside: 'Only GTA Launch Set cards: Base, Silver, Gold, Prism, Black and the Box Art 1/1 of every player.', ...o, art: { img: '/static/sets/gta/pack.webp', ...o.art } });
 Object.assign(PACKS, {
-  'gta-strip': gtaPack({ name: 'Sunset Strip', cards: 5, cost: 300000, min: 'epic', art: { c: ['#ff7a3d', '#3b0a45'], e: '🌴', pat: 'rays' }, desc: 'The cheapest way into the GTA Launch Set (and the only pack with GTA Base cards): 5 GTA cards with a Gold or better guaranteed.' }),
-  'gta-marina': gtaPack({ name: 'Marina Run', cards: 5, cost: 1000000, floor: 'epic', min: 'legendary', art: { c: ['#22d3ee', '#2a0b3d'], e: '🚤', pat: 'waves', foil: 'silver' }, desc: '5 GTA cards, every one Gold or better, with a Prism or better guaranteed.' }),
-  'gta-helipad': gtaPack({ name: 'Helipad Drop', cards: 4, cost: 3000000, floor: 'legendary', boost: { mythic: 3 }, art: { c: ['#a855f7', '#160726'], e: '🚁', pat: 'grid', foil: 'gold' }, desc: '4 GTA cards, every one Prism or better, with triple the Black odds.' }),
-  'gta-supercar': gtaPack({ name: 'Supercar Lot', cards: 4, hits: 2, fillFloor: 'legendary', floor: 'mythic', boost: { dark: 4 }, cost: 8000000, art: { c: ['#facc15', '#2a0b3d'], e: '🏎️', pat: 'stars', foil: 'holo' }, desc: '4 GTA cards, all Prism or better. The last TWO are Black or better, each a coin flip for a Box Art 1/1.' }),
-  'gta-boxart': gtaPack({ name: 'Box Art Chase', cards: 3, hits: 2, oneHits: true, fillFloor: 'legendary', floor: 'dark', cost: 15000000, art: { c: ['#ff4fa3', '#0b0214'], e: '🖼️', pat: 'diamond', foil: 'black' }, desc: 'The chase pack: a Prism or better, then TWO guaranteed GTA Box Art 1/1s.' }),
+  'gta-strip': gtaPack({ retired: true, off: true, name: 'Sunset Strip', cards: 5, cost: 300000, min: 'epic', art: { c: ['#ff7a3d', '#3b0a45'], e: '🌴', pat: 'rays' }, desc: 'The cheapest way into the GTA Launch Set (and the only pack with GTA Base cards): 5 GTA cards with a Gold or better guaranteed.' }),
+  'gta-marina': gtaPack({ retired: true, off: true, name: 'Marina Run', cards: 5, cost: 1000000, floor: 'epic', min: 'legendary', art: { c: ['#22d3ee', '#2a0b3d'], e: '🚤', pat: 'waves', foil: 'silver' }, desc: '5 GTA cards, every one Gold or better, with a Prism or better guaranteed.' }),
+  'gta-helipad': gtaPack({ retired: true, off: true, name: 'Helipad Drop', cards: 4, cost: 3000000, floor: 'legendary', boost: { mythic: 3 }, art: { c: ['#a855f7', '#160726'], e: '🚁', pat: 'grid', foil: 'gold' }, desc: '4 GTA cards, every one Prism or better, with triple the Black odds.' }),
+  'gta-supercar': gtaPack({ retired: true, off: true, name: 'Supercar Lot', cards: 4, hits: 2, fillFloor: 'legendary', floor: 'mythic', boost: { dark: 4 }, cost: 8000000, art: { c: ['#facc15', '#2a0b3d'], e: '🏎️', pat: 'stars', foil: 'holo' }, desc: '4 GTA cards, all Prism or better. The last TWO are Black or better, each a coin flip for a Box Art 1/1.' }),
+  // Nov 14 (sample): the five launch packs above are retired (kept so packs already opened keep their names); the GTA packs are now
+  // these two, each with its own cover-art design. Only players with their art in can drop.
+  'gta-vice': gtaPack({ name: 'Vice City Pack', cards: 4, cost: 1000000, floor: 'rare', min: 'legendary', pool: (c) => c.design === 'vice', inside: 'Vice City cards: every player in a convertible in front of the city skyline, in Silver, Gold, Prism and Black.', art: { c: ['#22d3ee', '#2a0b3d'], e: '🚗', pat: 'waves', foil: 'silver' }, desc: '4 Vice City cards, every one Silver or better, with a Prism or better guaranteed.' }),
+  'gta-cover': gtaPack({ name: 'Cover Pack', cards: 4, hits: 1, fillFloor: 'epic', floor: 'mythic', boost: { dark: 6 }, cost: 6000000, pool: (c) => c.design === 'cover', inside: 'Cover cards: every player on his own painted cover, in Gold, Prism, Black and the Cover 1/1.', art: { c: ['#ff4fa3', '#0b0214'], e: '🖼️', pat: 'diamond', foil: 'black' }, desc: '4 Cover cards, every one Gold or better. The last is Black or the Cover 1/1, with better than a 1 in 2 shot at the 1/1.' }),
+  'gta-boxart': gtaPack({ retired: true, off: true, name: 'Box Art Chase', cards: 3, hits: 2, oneHits: true, fillFloor: 'legendary', floor: 'dark', cost: 15000000, art: { c: ['#ff4fa3', '#0b0214'], e: '🖼️', pat: 'diamond', foil: 'black' }, desc: 'The chase pack: a Prism or better, then TWO guaranteed GTA Box Art 1/1s.' }),
 });
 
 // Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
@@ -1101,17 +1144,18 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', design: v.design || '', t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
 function catalog(db) {
   const key = JSON.stringify([Object.values(db.teams).map((t) => [t.id, t.tend, t.roster.map((p) => [p.id, p.name, p.tend, p.position, p.grade, p.tag])]), db.games.map((g) => [g.status, g.homeScore, g.awayScore, (g.events || []).length])]);
-  if (key !== catKey) {
+  const artKey = Object.keys(GTA_DESIGNS).map((d) => Object.values(db.teams).flatMap((t) => t.roster.filter((p) => gtaArt(p.id, d)).map((p) => p.id)).join(',')).join('|');
+  if (key + artKey !== catKey) {
     const et = pk.effTend(db);
-    catVal = Object.values(db.teams).flatMap((t) => t.roster.flatMap((p) => VARIANTS.filter((v) => !v.only || v.only === p.id).map((v) => makeCard(et, t, p, v))));
+    catVal = Object.values(db.teams).flatMap((t) => t.roster.flatMap((p) => VARIANTS.filter((v) => (!v.only || v.only === p.id) && (!v.art || gtaArt(p.id, v.art))).map((v) => makeCard(et, t, p, v))));
     catMap = new Map(catVal.map((c) => [c.id, c]));
-    catKey = key;
+    catKey = key + artKey;
   }
   return catVal;
 }
@@ -1271,5 +1315,5 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf };
