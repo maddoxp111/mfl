@@ -226,7 +226,8 @@ const GTA = { id: 'gta', name: 'GTA Launch Set', full: 'Gridiron Takeover All-St
     { id: 'one', label: 'Box Art 1/1', rarity: 'dark', mult: 5.8, one: true },
   ] };
 SET_MAP.set(GTA.id, GTA);
-for (const par of GTA.pars) VARIANTS.push({ id: `set-gta-${par.id}`, rarity: par.rarity, label: par.one ? `GTA ${par.label}` : par.label ? `${GTA.name} ${par.label}` : GTA.name, mult: par.mult, ...(par.one ? { one: true } : {}), quote: GTA.quote, set: GTA.id, par: par.id, launch: GTA.launch });
+// the first GTA cards (Nov 15 launch packs) were taken out the same day: hidden from the Card Book and every pool
+for (const par of GTA.pars) VARIANTS.push({ id: `set-gta-${par.id}`, hidden: true, gone: true, rarity: par.rarity, label: par.one ? `GTA ${par.label}` : par.label ? `${GTA.name} ${par.label}` : GTA.name, mult: par.mult, ...(par.one ? { one: true } : {}), quote: GTA.quote, set: GTA.id, par: par.id, launch: GTA.launch });
 // GTA cover-art cards (Nov 14, sample): each player's own painted cover art (public/sets/gta/cards/<player>-<design>.webp, plus
 // <player>-name.png, his name already lettered). Two designs, one per pack: Vice City (the player in a convertible in front of the
 // skyline) and Cover (a grid of painted panels around the uploaded GTA logo). A player only has these cards once his art exists.

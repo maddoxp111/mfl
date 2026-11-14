@@ -478,7 +478,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&family=Bungee&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=91">
+<link rel="stylesheet" href="/static/style.css?v=92">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -4189,6 +4189,42 @@ async function undoWeek1bOnce(db) {
   } catch (e) { console.error('undoWeek1bOnce', e); }
   await save();
 }
+// Nov 15, 2026: the first GTA cards (the five launch packs) were replaced by the Cover and Vice City cards and taken out for good:
+// every launch pack opened is refunded and its cards come off, with their sales, trades, open trade offers and Lineup slots.
+// Kept in reverts/gta1/<name>. Runs once: the marker is saved before anything changes.
+const GTA1_UNDO = { types: new Set(['gta-strip', 'gta-marina', 'gta-helipad', 'gta-supercar', 'gta-boxart']), since: '2026-11-15T00:00:00.000Z', card: /:set-gta-(base|silver|gold|prism|black|one)$/ };
+async function undoGta1Once(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.undoGta1) return;
+  db.fixes.undoGta1 = { at: new Date().toISOString(), started: true };
+  await save();
+  const old = (id) => GTA1_UNDO.card.test(String(id || '')), report = { accounts: {} };
+  try {
+    for (const u0 of await listDocs('users/')) {
+      const user = await getDoc(userKey(u0.name), { fresh: true }); if (!user) continue;
+      const packs = (user.packs || []).filter((p) => GTA1_UNDO.types.has(p.type));
+      const sales = (user.pointBonuses || []).filter((b) => { const m = /^Sold (.+)$/.exec(b.reason || ''); return m && old(m[1]); });
+      const touched = packs.length || sales.length || [...(user.tradeIn || []), ...(user.tradeOut || []), ...(user.sold || [])].some(old);
+      if (!touched) continue;
+      await putDoc(`reverts/gta1/${user.name}`, { name: user.name, at: new Date().toISOString(), packs, sales, tradeIn: (user.tradeIn || []).filter(old), tradeOut: (user.tradeOut || []).filter(old) });
+      user.packs = (user.packs || []).filter((p) => !packs.includes(p));
+      user.pointBonuses = (user.pointBonuses || []).filter((b) => !sales.includes(b));
+      user.sold = (user.sold || []).filter((id) => !old(id));
+      user.tradeIn = (user.tradeIn || []).filter((id) => !old(id));
+      user.tradeOut = (user.tradeOut || []).filter((id) => !old(id));
+      const own = cards.collection(user);
+      let lineups = 0;
+      for (const l of user.lineups || []) if ((l.at || '') >= GTA1_UNDO.since && (l.cards || []).some((id) => id && !own[id])) { l.cards = l.cards.map((id) => (id && own[id] ? id : '')); lineups++; }
+      await putDoc(userKey(user.name), user);
+      report.accounts[user.name] = { packs: packs.length, refund: packs.reduce((t, p) => t + (p.currency === 'coins' ? Number(p.cost) || 0 : 0), 0), sales: sales.length, lineups };
+    }
+    for (const t of await listDocs('cardtrades/')) if (t && t.status === 'open' && [...(t.give || []), ...(t.get || [])].some(old)) { t.status = 'cancelled'; t.note = (t.note ? t.note + ' · ' : '') + 'Cancelled: the first GTA cards were taken out'; await putDoc('cardtrades/' + t.id, t); }
+    db.fixes.undoGta1 = { at: new Date().toISOString(), done: true, accounts: Object.keys(report.accounts).length };
+    await putDoc('reverts/gta1/_report', report);
+    console.log('GTA launch packs reversed:', JSON.stringify(report.accounts));
+  } catch (e) { console.error('undoGta1Once', e); }
+  await save();
+}
 const REVERT_FROM = '2026-11-06T16:55:28.000Z'; // just before the first admin gift (finnhop, 16:55:28.998)
 async function revertGiftsOnce(db) {
   db.fixes = db.fixes || {};
@@ -4357,7 +4393,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); await undoPacksOnce(db); await undoWeek1Once(db); await undoWeek1bOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); await undoPacksOnce(db); await undoWeek1Once(db); await undoWeek1bOnce(db); await undoGta1Once(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours

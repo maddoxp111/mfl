@@ -918,6 +918,15 @@ const UPDATES = [
       'Players get their GTA cards once their art is made; more players are coming. The five launch packs are retired, and every GTA card you already pulled stays yours.',
     ],
   },
+  {
+    n: 86,
+    date: '2026-11-15',
+    title: 'GTA logo fixes, first GTA cards removed',
+    items: [
+      'The GTA logo now sits centered and fits everywhere: on every card, in the shop and in the Card Book.',
+      'The first GTA cards from the five launch packs are gone for good. Every launch pack you opened was refunded, and their cards, card sales, trades and Lineup slots were undone. The GTA tab of the Card Book now shows only the Cover and Vice City cards.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
