@@ -397,7 +397,7 @@
   const LU_RAW = {}; // career player id -> the server's roster entry from the last sync (look, card fx, ratings)
   // Put the current Lineup on the user's team: lineup kids join (from another team if needed),
   // start at their Lineup spot, and their ratings never drop below their card. Kids who left the
-  // Lineup stay on the bench. Returns false when there is nothing to apply.
+  // Lineup leave the team. Returns false when there is nothing to apply.
   function syncLineup(list) {
     if (!S || !S.cfg || !S.cfg.dyn) return false;
     const raw = (Array.isArray(list) ? list : []).filter((e) => e && e.name);
@@ -416,10 +416,12 @@
         const base = bp || { id: id.slice(3), name: String(e.name).slice(0, 40), photo: typeof e.photo === 'string' ? e.photo : null, look: e.look || null, tag: '', ovr: target, spd: target, str: target, thr: target, acc: target, cat: target, def: target, kick: 50 };
         pl = realPlayer(Object.assign({}, base, { ovr: target }), x.pos, ut.id, rng, card ? Object.assign({}, card) : null);
         pl.id = id; pl.num = bp && bp.num && !roster(ut.id).some((q) => q.num === bp.num) ? bp.num : pickNum(rng, ut.id, x.pos);
+        pl.luNew = 1; // joined only because of the Lineup
         addPlayer(pl);
         if (S.season > 1 || S.week > 0) moved.push(pl.n);
       } else if (pl.t !== ut.id) {
         const from = TM(pl.t);
+        if (!pl.luFrom) pl.luFrom = pl.t; // where he goes back to when he leaves the Lineup
         pl.t = ut.id; pl.num = roster(ut.id).some((q) => q !== pl && q.num === pl.num) ? pickNum(rng, ut.id, x.pos) : pl.num; invalidate();
         if (from) { fixDepth(from); fillRoster(from, rng, num(from.tier, 62), usedNames(), true); fixDepth(from, from.auto !== false); }
         moved.push(pl.n);
@@ -430,7 +432,19 @@
       if (!pl.lk && e.look) pl.lk = cleanLook(e.look);
       keep.add(pl.id); LU_RAW[pl.id] = e;
     });
-    for (const q of roster(ut.id)) if (q.lu && !keep.has(q.id)) { delete q.lu; delete q.luk; }
+    // Your team is your Lineup: a kid taken out of it leaves the team (back to his old school, or off the team if he
+    // only joined for the Lineup). Your own program kids who were in it just go back to the bench.
+    const gone = [];
+    for (const q of roster(ut.id).slice()) {
+      if (!q.lu || keep.has(q.id)) continue;
+      delete q.lu; delete q.luk;
+      const back = q.luFrom && TM(q.luFrom);
+      if (back) { q.t = back.id; delete q.luFrom; if (roster(back.id).some((o) => o !== q && o.num === q.num)) q.num = pickNum(rng, back.id, q.pos); gone.push(q.n); }
+      else if (q.luNew) { delete S.players[q.id]; delete LU_RAW[q.id]; gone.push(q.n); }
+      invalidate();
+      if (back) fixDepth(back, back.auto !== false);
+    }
+    if (gone.length) { fillRoster(ut, rng, num(ut.tier, 62), usedNames(), true); news(`Left your card Lineup: ${gone.slice(0, 4).join(', ')}${gone.length > 4 ? ' and more' : ''} left ${ut.name}.`, 'off', ut.id); }
     // Keep the roster a normal size: release the lowest-rated generated kids first.
     for (let guard = 0; roster(ut.id).length > ROSTER_MAX && guard < 20; guard++) {
       const cut = roster(ut.id).filter((q) => !q.lu && !q.mfl).sort((a, b) => ovr(a) - ovr(b))[0];
@@ -3089,7 +3103,7 @@
       ${li('Spend program points', 'Earn points from games, playoff runs and awards. Spend them on facilities, staff, recruiting and new players.')}
       ${li('Offseason', '8th graders graduate, everyone else grows, and you recruit a new class of 6th graders. Then a new season starts, and your history keeps adding up.')}
       ${li('Coins', ACCOUNT ? `Every game you win in 3D pays ${fmt(prizeFor(S.diff))} coins at ${esc(DIFFS[S.diff].name)} (${BOOT.prizes.map(fmt).join(' / ')} from Rookie to Legend), the same as Play for coins. Simulated games and quits don't pay.` : 'Log in to earn coins for every game you win in 3D.')}
-      ${S.cfg && S.cfg.dyn ? li('Dynamic Lineup', 'Your card Lineup is always your offense. Every 3D game pulls the players in your Lineup at kickoff; swap cards on the Cards page and they join your team.') : ''}
+      ${S.cfg && S.cfg.dyn ? li('Dynamic Lineup', 'Your team is your card Lineup. Every 3D game pulls the players in your Lineup at kickoff; swap cards on the Cards page and they join your team, and the kids you took out leave it.') : ''}
       ${li('Saving', ACCOUNT ? 'Everything saves to your account automatically.' : 'Everything saves on this device automatically. Log in to save to your account instead.')}</ul>`;
   }
   function sheetConfirm(d) {
@@ -3239,7 +3253,7 @@
         <div class="bf-in-f"><label for="bf-wz-fname">Career name</label><input id="bf-wz-fname" class="bf-inp" maxlength="32" value="${esc(W.name)}" autocomplete="off"></div>
         <div class="bf-k" style="margin:4px 0 6px">Your offense</div><div class="bf-opts" style="margin-bottom:6px">
           <button class="bf-pick ${!W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="0" aria-pressed="${!W.dyn}"><span class="bf-ck">${ic('check')}</span><b>Program roster</b><small>Your school's own players. Recruit them, develop them, watch them graduate.</small></button>
-          <button class="bf-pick ${W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="1" aria-pressed="${!!W.dyn}" ${BOOT.lineup ? '' : 'disabled'}><span class="bf-ck">${ic('check')}</span><b>Dynamic Lineup</b><small>Your offense is always your current card Lineup: every 3D game pulls its players at kickoff.</small></button></div>
+          <button class="bf-pick ${W.dyn ? 'bf-on' : ''}" data-a="wzSet" data-k="dyn" data-v="1" aria-pressed="${!!W.dyn}" ${BOOT.lineup ? '' : 'disabled'}><span class="bf-ck">${ic('check')}</span><b>Dynamic Lineup</b><small>${BOOT.lineup ? 'Your team is your card Lineup: change your Lineup and your team changes with it, before every 3D game.' : 'Set a full Lineup on the Cards page first, then your team is your card Lineup.'}</small></button></div>
         <p class="bf-xs bf-mu" style="margin:0 0 14px">${BOOT.lineup ? 'Dynamic Lineup follows your Lineup on the Cards page all career long.' : BOOT.user ? 'Set a full Lineup on the <a href="/pickem/cards" style="text-decoration:underline">Cards page</a> to use Dynamic Lineup.' : 'Log in and set a Lineup on the Cards page to use Dynamic Lineup.'}</p>
         <div class="bf-k" style="margin:4px 0 6px">Difficulty (3D games)</div><div class="bf-opts" style="margin-bottom:14px">${DIFFS.map((d, i) => `<button class="bf-pick ${W.diff === i ? 'bf-on' : ''}" data-a="wzSet" data-k="diff" data-v="${i}" aria-pressed="${W.diff === i}"><span class="bf-ck">${ic('check')}</span><b>${d.name}</b><small>${esc(d.note)}${BOOT.prizes[i] ? ` Wins pay ${fmt(BOOT.prizes[i])} coins.` : ''}</small></button>`).join('')}</div>
         <div class="bf-k" style="margin-bottom:6px">Quarter length</div><div class="bf-opts bf-three" style="margin-bottom:14px">${[2, 3, 4].map((q) => `<button class="bf-pick ${W.qmin === q ? 'bf-on' : ''}" data-a="wzSet" data-k="qmin" data-v="${q}" aria-pressed="${W.qmin === q}"><span class="bf-ck">${ic('check')}</span><b>${q} min</b><small>${q === 2 ? 'Quick' : q === 3 ? 'Longer' : 'Full'}</small></button>`).join('')}</div>

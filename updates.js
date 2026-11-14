@@ -944,6 +944,16 @@ const UPDATES = [
       "This counts for GTA cards you already own too: nothing to do, they're stronger in every game starting now.",
     ],
   },
+  {
+    n: 89,
+    date: '2026-11-15',
+    title: '3D Blitz Career: your team is your card Lineup',
+    items: [
+      'When you start a 3D Blitz Career, pick Dynamic Lineup (under Offense) and your team is your card Lineup.',
+      'Change your Lineup on the Cards page and your career team changes with it: new Lineup players join and start in their Lineup spots, and players you took out of your Lineup leave the team. It updates when you open your career and again at every 3D kickoff.',
+      'You need a full Lineup to pick it.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
