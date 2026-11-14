@@ -862,6 +862,17 @@ const UPDATES = [
       'Every pack in the shop was checked against what it actually gives, and no pack is beaten by a cheaper one any more. Price drops include Standard 13,500, Premium 28,000, Elite 190,000, Prism Chase 190,000, Gold Rush 140,000 and Dark Matter 945,000. Season 1: Carson Tabaka is now 45,000, T-Time 110,000 and Carson Charles Tabaka 1,400,000.',
     ],
   },
+  {
+    n: 81,
+    date: '2026-11-14',
+    title: 'Bragging Rights and Trophy Case: cheaper, with a Season 1 bonus',
+    items: [
+      'Bragging Rights is now 7,000,000: 2 Bragging Rights cards, a guaranteed Rivalry Week 1/1, plus a Season 1 Mythic or better on top (often a Zenith).',
+      'Rivalry Trophy Case is now 12,000,000: 2 Bragging Rights cards, TWO guaranteed Rivalry Week 1/1s, plus a guaranteed Season 1 Zenith 1/1. It sells out when either kind of 1/1 runs out.',
+      'Every Bragging Rights and Trophy Case opened before this was undone and refunded (with its cards\' sales, trades and Lineup slots).',
+      'A few more prices settled by the value check: Coin Flip 9,000, Pick Three 33,500, Gold Rush 105,000, Elite 140,000.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

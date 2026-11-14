@@ -604,7 +604,7 @@ module.exports = function fun(app, h) {
     </article>` };
   }
   const packMsg = (req) => {
-    const m = { soldout: 'Sold out: there are not enough Rivalry Week 1/1s left for that pack.', nobox: "That pack doesn't come in boxes.", closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
+    const m = { soldout: 'Sold out: the 1/1s that pack promises are all taken.', nobox: "That pack doesn't come in boxes.", closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
     return m ? `<div class="toast ${/isn't|restocking|One a day|Someone|right number|doesn't come/.test(m) ? 'bad' : ''}">${m}</div>` : flash(req);
   };
   // Where a user's coins came from: picks and the card game are one currency.
@@ -749,7 +749,7 @@ module.exports = function fun(app, h) {
       return res.redirect(`/pickem/packs/${made[0].id}`);
     }
     const taken1 = await takenOnes(db);
-    if (P.oneHits && cards.onesLeft(db, P, taken1) < P.hits) return res.redirect('/pickem/packs?m=soldout');
+    if (P.oneHits && (cards.onesLeft(db, P, taken1) < P.hits || !cards.plusOk(db, P, taken1))) return res.redirect('/pickem/packs?m=soldout');
     const ids = cards.openPack(db, type, taken1, ctx);
     // Choose packs keep the options in `choices` until the user picks (POST .../pick).
     const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, currency: 'coins', at: new Date().toISOString(), local: ctx.now, cards: P.choose ? [] : ids,
