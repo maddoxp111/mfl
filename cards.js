@@ -809,11 +809,15 @@ const weeklyLive = (db, ctx, P) => {
   if (!w || d > w.to) return { off: true, gone: true };
   if (d < w.from) return { off: true, soon: w.from };
   if (P.oneHits && ctx && ctx.taken && (onesLeft(db, P, ctx.taken) < P.hits || !plusOk(db, P, ctx.taken))) return { off: true, soldOut: true, until: w.to };
+  if ((P.plus || []).includes('s1x-zenith') && ctx && ctx.taken && !zenithLeft(db, ctx.taken)) return { off: false, until: w.to, desc: 'Week 1 only. 2 Bragging Rights cards, TWO guaranteed Rivalry Week 1/1s, plus a Season 1 Mythic 1/1 (every Season 1 Zenith 1/1 has been pulled).' };
   return { off: false, until: w.to };
 };
 // 1/1s a oneHits pack can still drop (the week's 1/1s nobody owns yet)
 // can this pack still give everything it promises? (enough Rivalry 1/1s, and a Season 1 Zenith for the Trophy Case)
-const plusOk = (db, P, taken) => !(P.plus || []).includes('s1x-zenith') || catalog(db).some((c) => c.season === 1 && c.rarity === 'zenith' && c.one && !taken.has(c.id));
+// once every Season 1 Zenith 1/1 is pulled, the Trophy Case's Season 1 card is a Season 1 Mythic 1/1 instead
+const zenithLeft = (db, taken) => catalog(db).some((c) => c.season === 1 && c.rarity === 'zenith' && c.one && !taken.has(c.id));
+const s1MythicOneLeft = (db, taken) => catalog(db).some((c) => c.season === 1 && c.rarity === 'mythic' && c.one && !taken.has(c.id));
+const plusOk = (db, P, taken) => !(P.plus || []).includes('s1x-zenith') || zenithLeft(db, taken) || s1MythicOneLeft(db, taken);
 const onesLeft = (db, P, taken) => catalog(db).filter((c) => c.one && (P.week || 0) === (c.week || 0) && (P.season || 0) === (c.season || 0) && !c.set && !taken.has(c.id)).length;
 const wk = (n, o) => ({ group: 'weekly', week: n, added: WEEKLY.find((w) => w.n === n).from, ...o, live: (db, ctx, P) => ({ ...(o.live ? o.live(db, ctx, P) : {}), ...weeklyLive(db, ctx, P) }) });
 Object.assign(PACKS, {
@@ -827,6 +831,7 @@ Object.assign(PACKS, {
   'w1-trophy': wk(1, { name: 'Rivalry Trophy Case', cards: 4, hits: 2, oneHits: true, fillBoost: { mythic: 0 }, fillFloor: 'legendary', floor: 'mythic', plus: ['s1x-zenith'], cost: 12000000, fixed: true, art: { c: ['#e879f9', '#020617'], e: '🏟️', pat: 'rays', foil: 'black' }, desc: 'Week 1 only. 2 Bragging Rights cards, TWO guaranteed Rivalry Week 1/1s, plus a guaranteed Season 1 Zenith 1/1. The best pack in the shop.' }),
   // helpers for `plus` (never sold on their own): one Season 1 card of at least that rarity
   's1x-mythic': s1Pack({ name: 'Season 1 Mythic', cards: 1, floor: 'mythic', boost: { zenith: 2 }, cost: 0, retired: true, off: true, art: { c: ['#7dd3fc', '#020617'], e: '⭐', pat: 'rays' }, desc: 'Part of another pack.' }),
+  's1x-mythic1': s1Pack({ name: 'Season 1 Mythic 1/1', cards: 1, floor: 'mythic', pool: (c) => !!c.one, cost: 0, retired: true, off: true, art: { c: ['#7dd3fc', '#020617'], e: '⭐', pat: 'rays' }, desc: 'Part of another pack.' }),
   's1x-zenith': s1Pack({ name: 'Season 1 Zenith', cards: 1, floor: 'zenith', cost: 0, retired: true, off: true, art: { c: ['#7dd3fc', '#020617'], e: '⭐', pat: 'rays' }, desc: 'Part of another pack.' }),
   // The first Week 1 packs (on sale about an hour on Nov 14, before Week 1 got its own cards): retired, kept for their names.
   'w1-rivalry': { name: 'Rivalry Week (first version)', cards: 7, cost: 22000, group: 'weekly', retired: true, off: true, art: { c: ['#ef4444', '#1e3a8a'], e: '⚔️', pat: 'diamond' }, desc: 'Retired.' },
@@ -1149,7 +1154,7 @@ function openPack(db, type, taken = new Set(), ctx = {}) {
     for (let k = out.filter(ok).length; k < need && low.length; k++) out[low.splice(rint(low.length), 1)[0]] = pickNew(P.min);
   }
   // `plus`: extra cards from other (helper) packs, e.g. a Season 1 card on top of a weekly pack
-  if (P.plus) { const seen = new Set(taken); for (const id of out) if (cardInfo(db, id)?.one) seen.add(id); for (const t of P.plus) for (const id of openPack(db, t, seen, ctx)) { out.push(id); if (cardInfo(db, id)?.one) seen.add(id); } }
+  if (P.plus) { const seen = new Set(taken); for (const id of out) if (cardInfo(db, id)?.one) seen.add(id); for (const t0 of P.plus) for (const id of openPack(db, t0 === 's1x-zenith' && !zenithLeft(db, seen) ? 's1x-mythic1' : t0, seen, ctx)) { out.push(id); if (cardInfo(db, id)?.one) seen.add(id); } }
   return out;
 }
 

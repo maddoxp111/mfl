@@ -590,8 +590,8 @@ module.exports = function fun(app, h) {
     const can = !soon && !off && (free || cost <= o.bal);
     const isNew = !!P.added && Date.now() - Date.parse(P.added) < 45 * 864e5;
     const sale = !free && P.list > P.cost;
-    const badges = [free && ['free', 'Free'], isNew && ['new', 'New'], o.hot && ['hot', 'Hot'], sale && ['sale', `Sale −${Math.round((1 - P.cost / P.list) * 100)}%`], off && ['back', `Back ${P.back}`], soon && ['soon', 'Restocking']].filter(Boolean);
-    const btn = free ? 'Open free' : off ? `Back ${esc(P.back)}` : soon ? 'Restocking' : can ? `Open · ${icon('coin')}${fmtN(cost)}` : `Need ${fmtN(cost - o.bal)} more`;
+    const badges = [free && ['free', 'Free'], isNew && ['new', 'New'], o.hot && ['hot', 'Hot'], sale && ['sale', `Sale −${Math.round((1 - P.cost / P.list) * 100)}%`], off && (P.soldOut ? ['back', 'Sold out'] : P.gone ? ['back', 'Gone'] : P.back ? ['back', `Back ${P.back}`] : ['back', 'Not on sale']), soon && ['soon', 'Restocking']].filter(Boolean);
+    const btn = free ? 'Open free' : off ? (P.soldOut ? 'Sold out' : P.back ? `Back ${esc(P.back)}` : 'Not on sale') : soon ? 'Restocking' : can ? `Open · ${icon('coin')}${fmtN(cost)}` : `Need ${fmtN(cost - o.bal)} more`;
     // Boxes: 5, 10 or 20 of this pack for less, opened back to back.
     const BX = cards.packInfo.BOXES, boxes = !free && !soon && !off && cards.packInfo.boxOk(P) ? `<div class="psi-boxes"><small>Box of 5, 10 or 20 · coins</small>${Object.keys(BX).map(Number).map((n) => { const tot = cards.packInfo.boxPrice(cost, n) * n, ok = tot <= o.bal; return `<button name="box" value="${n}" class="pbx${ok ? '' : ' poor'}"${ok ? '' : ' disabled'} title="${n} ${esc(P.name)} packs, ${Math.round(BX[n] * 100)}% off"><b>×${n}</b><span>${fmtN(tot)}</span><i>−${Math.round(BX[n] * 100)}%</i></button>`; }).join('')}</div>` : '';
     return { can, html: `<article class="psi${can ? ' can' : ''}${off || soon ? ' off' : ''}" id="pk-${esc(type)}" data-g="${esc(o.g)}" data-cost="${cost}" data-n="${P.choose ? P.cards : P.mystery ? Math.round((P.mystery[0] + P.mystery[1]) / 2) : P.cards}" data-new="${isNew ? 1 : 0}" data-i="${o.i}">

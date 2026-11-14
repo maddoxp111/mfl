@@ -886,6 +886,15 @@ const UPDATES = [
       'Career games now play at the difficulty you picked (Rookie to Legend), simulated games score like schoolyard games, and the page works better on computers and phones. Your old careers carry over.',
     ],
   },
+  {
+    n: 83,
+    date: '2026-11-15',
+    title: 'Rivalry Trophy Case back on sale',
+    items: [
+      'Every Season 1 Zenith 1/1 has now been pulled, so the Rivalry Trophy Case had sold out. It is back: its Season 1 card is now a Season 1 Mythic 1/1 (the Carson Tabaka 1/1) while those last, still with two guaranteed Rivalry Week 1/1s.',
+      'Sold-out packs now say Sold out instead of a broken label.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
