@@ -829,6 +829,18 @@ const UPDATES = [
       'New in Season 1: CT Film Session (360,000, 6 Season 1 cards with two Legend or better guaranteed).',
     ],
   },
+  {
+    n: 78,
+    date: '2026-11-14',
+    title: 'Week 1 cards: Rivalry Week',
+    items: [
+      'Weekly Packs now come with their own cards. Week 1 is Rivalry Week: four new cards for every player, Trash Talk (Silver), Grudge Match (Gold), Bragging Rights (Legend) and a Rivalry Week 1/1 (Mythic), each with its own look and its own perk in the games.',
+      'Week 1 cards only come from the Week 1 packs, and they are never made again after Friday, Nov 20. See them all under Weekly cards in the Card Book.',
+      'The Week 1 packs: Trash Talk (1,850,000, 4 cards, Gold or better guaranteed), Grudge Match (5,400,000, 4 cards all Gold or better, a Legend or better guaranteed) and Bragging Rights (12,200,000, 3 Legend-or-better cards with a big boost on the Rivalry Week 1/1).',
+      'The new Season 1 pack, CT Film Session, is now 1,300,000: 6 Season 1 cards, two Legend or better guaranteed, triple the Mythic chance.',
+      'The first three Week 1 packs from earlier today are gone from the shop. Packs already opened keep their cards.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

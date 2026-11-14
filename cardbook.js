@@ -24,17 +24,17 @@ module.exports = function cardbook(app, h) {
       const types = cards.packTypes(db).map((t) => ({ t, P: cards.packInfo(db, t) }));
       const teams = Object.values(db.teams);
       const q = req.query, show = ['owned', 'missing'].includes(q.show) ? q.show : 'all', team = db.teams[q.team] ? q.team : '';
-      const tab = q.tab === 'sets' ? 'sets' : 'classic', set = cards.SET_MAP.get(String(q.set || '')) || null;
+      const tab = q.tab === 'sets' ? 'sets' : q.tab === 'weekly' ? 'weekly' : 'classic', set = cards.SET_MAP.get(String(q.set || '')) || null;
       const taken = new Set((await h.listDocs('users/')).flatMap((u) => Object.keys(cards.collection(u))).filter((id) => cards.cardInfo(db, id)?.one));
 
       // Group cards by card type, in the game's variant order.
       // Classic tab: the original card types. Sets tab: one set at a time (its 5 parallels).
       const byVariant = new Map();
       for (const c of all) (byVariant.get(c.variant) || byVariant.set(c.variant, []).get(c.variant)).push(c);
-      const groups = cards.VARIANTS.filter((v) => (tab === 'classic' ? !v.set : set && v.set === set.id)).map((v) => ({ v, list: byVariant.get(v.id) || [] })).filter((g) => g.list.length);
+      const groups = cards.VARIANTS.filter((v) => (tab === 'weekly' ? !!v.week : tab === 'classic' ? !v.set && !v.week : set && v.set === set.id)).map((v) => ({ v, list: byVariant.get(v.id) || [] })).filter((g) => g.list.length);
       const totalOwned = all.filter((c) => own[c.id]).length;
       const packName = ({ t, P }) => (P.free ? `${P.name} (free)` : P.name);
-      const qs = (o) => '?' + new URLSearchParams(Object.entries({ tab: tab === 'sets' ? 'sets' : '', set: set?.id || '', show, team, ...o }).filter(([, x]) => x && x !== 'all')).toString();
+      const qs = (o) => '?' + new URLSearchParams(Object.entries({ tab: tab === 'classic' ? '' : tab, set: set?.id || '', show, team, ...o }).filter(([, x]) => x && x !== 'all')).toString();
       // Set picker: every series with its sets and your progress in each.
       const setPicker = () => cards.SERIES.map(([sid, sname, list]) => `<section class="cb-series"><h3>${esc(sname)}</h3><div class="cb-sets">${list.map(([id]) => {
         const st = cards.SET_MAP.get(id), cs = all.filter((c) => c.set === id), got = cs.filter((c) => own[c.id]).length;
@@ -71,7 +71,7 @@ module.exports = function cardbook(app, h) {
         <div class="card cb-head"><div><div class="kicker">${icon('star')} Card Book</div><h2>Every card in the MFL</h2>
           <p class="muted">${all.length.toLocaleString('en-US')} cards: ${all.filter((c) => !c.set).length} classic cards and ${all.filter((c) => c.set).length.toLocaleString('en-US')} in ${cards.SETS.length} card sets. ${user ? `You have <b>${totalOwned.toLocaleString('en-US')}</b> of them.` : '<a href="/pickem/login?next=/pickem/cards/book">Log in</a> to see which ones you have.'} Each section lists the packs that can drop it.</p>
           ${user ? `<div class="cb-prog big"><i style="width:${((totalOwned / all.length) * 100).toFixed(1)}%"></i></div>` : ''}</div></div>
-        <div class="seg cb-tabs"><a class="${tab === 'classic' ? 'on' : ''}" href="?">Classic cards</a><a class="${tab === 'sets' ? 'on' : ''}" href="?tab=sets">Card sets (${cards.SETS.length})</a></div>
+        <div class="seg cb-tabs"><a class="${tab === 'classic' ? 'on' : ''}" href="?">Classic cards</a><a class="${tab === 'sets' ? 'on' : ''}" href="?tab=sets">Card sets (${cards.SETS.length})</a><a class="${tab === 'weekly' ? 'on' : ''}" href="?tab=weekly">Weekly cards</a></div>${tab === 'weekly' ? `<p class="muted sm cb-wknote">Each week's cards only come from that week's Weekly Packs. When the week ends they're never made again.</p>` : ''}
         ${set ? `<div class="card cb-sethead" style="--s1:${set.c1};--s2:${set.c2}"><a class="muted sm" href="?tab=sets">${icon('arrow')} All sets</a><h2>${set.emoji} ${esc(set.name)}</h2><p class="muted">${esc(set.seriesName)} series · “${esc(set.quote)}” · 5 versions of every player: Base, Silver, Gold, Prism and Black.</p>
           ${cards.PERKS && cards.PERKS[set.id] ? `<p class="cb-perk"><b>⚡ ${esc(cards.PERKS[set.id].name)}</b>: ${esc(cards.PERKS[set.id].text)} <span class="muted">(${esc(cards.PERKS[set.id].when)})</span>. Rarer parallels make it stronger.</p>` : ''}
           ${cards.effectText ? `<ul class="perk-list">${cards.PARALLELS.map((x) => { const v = `set-${set.id}-${x.id}`; const T = cards.tierOf ? cards.tierOf(x.rarity) : null; return `<li><b>${esc(x.label || 'Base')}</b> <span class="muted sm">${[cards.RARITIES[x.rarity].name !== (x.label || 'Base') ? esc(cards.RARITIES[x.rarity].name) : '', T ? esc(T.name) + ' tier' : ''].filter(Boolean).join(' · ')}</span><small>${esc(cards.effectText(v))}</small></li>`; }).join('')}</ul>` : ''}</div>` : ''}

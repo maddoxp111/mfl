@@ -469,7 +469,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=87">
+<link rel="stylesheet" href="/static/style.css?v=88">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>

@@ -201,6 +201,16 @@ const S1_VARIANTS = [
   { id: 's1-bigboy', rarity: 'zenith', label: `${S1.nick} 1/1`, mult: 6, one: true, only: S1.cover, quote: 'Big boy. Bigger hands.' },
 ].map((v) => ({ ...v, season: 1 }));
 VARIANTS.push(...S1_VARIANTS);
+// Weekly cards: each Saturday's weekly drop has its own themed cards (`week: n`) that only drop from that week's packs, so they
+// stop being made when the week ends. In the games each one plays out like an older perk (`perkAs`), under its own name.
+// Week 1: Rivalry Week (12:35s vs No Fly Zone every school day).
+const WEEK_VARIANTS = [
+  { id: 'w1-trash', rarity: 'rare', label: 'Trash Talk', mult: 1.5, quote: 'Said it all week. Now prove it.', perkAs: 'pep-rally' },
+  { id: 'w1-grudge', rarity: 'epic', label: 'Grudge Match', mult: 1.95, quote: 'He remembers last time.', perkAs: 'built' },
+  { id: 'w1-bragging', rarity: 'legendary', label: 'Bragging Rights', mult: 2.7, quote: 'Winner talks all weekend.', perkAs: 'clutch' },
+  { id: 'w1-rivalry', rarity: 'mythic', label: 'Rivalry Week 1/1', mult: 3.9, one: true, quote: 'One week. One winner. One card.', perkAs: 'goat' },
+].map((v) => ({ ...v, week: 1 }));
+VARIANTS.push(...WEEK_VARIANTS);
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
 
 // ---------- card effects ----------
@@ -224,6 +234,11 @@ const SPEC_FX = {
 };
 // One entry per classic card type. `spec` = use SPEC_FX for the card's specialty, scaled [up, down].
 const VARIANT_FX = {
+  // Week 1: Rivalry Week
+  'w1-trash': { a: { spd: 4, agi: 3, sta: 2, def: -1 } },
+  'w1-grudge': { a: { str: 7, def: 5, sta: 3, kick: -2, wgt: 5 } },
+  'w1-bragging': { a: { cat: 7, acc: 6, spd: 5, agi: 4 } },
+  'w1-rivalry': { a: { spd: 9, agi: 8, cat: 8, str: 6, def: 5, sta: 5 } },
   // Common: small swings both ways.
   base: { a: { sta: 2, cat: 1, kick: -2 } }, // fundamentals, no flash
   team: { a: { def: 3, sta: 2, kick: -1, acc: -1 } }, // plays for the crest
@@ -470,6 +485,13 @@ const PERK_ROWS = [
   ['s1-cover', 'Camera Ready', 'He gets a big speed boost while nobody is near him', 'when no defender is within 5 yards of him'],
   ['s1-bigboy', `${S1.nick} Aura`, 'Everyone feeds off the big boy: every teammate within 5 yards gets +2 in all skills', 'always, while he is on the field'],
 ];
+// weekly cards' perk names (the effect is the `perkAs` perk's)
+const WEEK_PERKS = {
+  'w1-trash': { name: 'Trash Talk', text: 'He gets in their ears: the whole team gets a burst of energy' },
+  'w1-grudge': { name: 'Grudge Match', text: 'He plays with a grudge and runs through contact like a bulldozer' },
+  'w1-bragging': { name: 'Bragging Rights', text: 'Ice in his veins when the game is on the line' },
+  'w1-rivalry': { name: 'Rival Aura', text: 'The whole field bends around him: the rivalry card' },
+};
 const PERKS = Object.fromEntries(PERK_ROWS.map(([id, name, text, when]) => [id, { id, name, text, when }]));
 
 // ---------- rarity tiers ----------
@@ -529,7 +551,8 @@ function perkOf(card) {
   if (!card) return null;
   const v = VARIANT_MAP.get(card.variant || card.id || '') || {};
   const set = card.set || v.set || null, rarity = card.rarity || v.rarity || 'common';
-  const P = PERKS[set || card.variant || v.id];
+  const W = !set && v.perkAs ? WEEK_PERKS[v.id] : null;
+  const P = W ? { ...PERKS[v.perkAs], ...W, id: v.perkAs } : PERKS[set || card.variant || v.id];
   return P ? { ...P, lv: (TIERS[rarity] || TIERS.common).lv } : null;
 }
 const isBodyAttr = (k) => k === 'hgt' || k === 'wgt';
@@ -787,27 +810,18 @@ const weeklyLive = (db, ctx, P) => {
   if (d < w.from) return { off: true, soon: w.from };
   return { off: false, until: w.to };
 };
-// the top player of the latest final game: most touchdowns scored plus TD passes thrown
-function topPlayerPack(db) {
-  const g = db.games.filter(isFinal).sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))[0];
-  if (!g) return {};
-  const n = new Map();
-  for (const e of g.events || []) if (e.type === 'TD') for (const who of [e.player, e.passer]) {
-    const p = db.teams[e.team]?.roster.find((x) => x.name.toLowerCase() === String(who || '').toLowerCase());
-    if (p) n.set(p.id, { p, k: ((n.get(p.id) || {}).k || 0) + 1 });
-  }
-  const top = [...n.values()].sort((a, b) => b.k - a.k)[0];
-  if (!top) return {};
-  return { pool: (c) => c.pid === top.p.id, inside: `Every card is ${top.p.name}, the top player of the ${g.date} game (${top.k} touchdown${top.k === 1 ? '' : 's'} scored or thrown).` };
-}
 const wk = (n, o) => ({ group: 'weekly', week: n, added: WEEKLY.find((w) => w.n === n).from, ...o, live: (db, ctx, P) => ({ ...(o.live ? o.live(db, ctx, P) : {}), ...weeklyLive(db, ctx, P) }) });
 Object.assign(PACKS, {
-  // Week 1 (Nov 14-20): Rivalry Week, 12:35s vs No Fly Zone every day
-  'w1-rivalry': wk(1, { name: 'Rivalry Week', cards: 7, cost: 22000, mixed: true, min: 'epic', mins: 2, art: { c: ['#ef4444', '#1e3a8a'], e: '⚔️', pat: 'diamond', foil: 'silver' }, desc: 'Week 1 only. 7 cards, classic or set, with two Gold or better guaranteed.' }),
-  'w1-potw': wk(1, { name: 'Player of the Week', cards: 4, cost: 60000, floor: 'rare', min: 'legendary', live: (db) => topPlayerPack(db), art: { c: ['#facc15', '#111827'], e: '🏅', pat: 'rays', foil: 'gold' }, desc: 'Week 1 only. 4 cards of the top player from the last game, all Silver or better, with a Legend or better guaranteed.' }),
-  'w1-vault': wk(1, { name: 'Friday Night Vault', cards: 3, hits: 1, fillFloor: 'legendary', floor: 'mythic', boost: { dark: 2 }, cost: 320000, art: { c: ['#a855f7', '#030712'], e: '🔐', pat: 'stars', foil: 'black' }, desc: 'Week 1 only. Three Legend-or-better cards. The last is Mythic or better, with double the Dark Matter chance.' }),
+  // Week 1 (Nov 14-20): Rivalry Week. Only Week 1 cards (Trash Talk, Grudge Match, Bragging Rights, the Rivalry Week 1/1).
+  'w1-trash': wk(1, { name: 'Trash Talk', cards: 4, cost: 600000, min: 'epic', art: { c: ['#ef4444', '#1e3a8a'], e: '🗣️', pat: 'zig', foil: 'silver' }, desc: 'Week 1 only. 4 Rivalry Week cards with a Grudge Match or better guaranteed.' }),
+  'w1-grudge': wk(1, { name: 'Grudge Match', cards: 4, cost: 1500000, floor: 'epic', min: 'legendary', art: { c: ['#f97316', '#111827'], e: '😤', pat: 'diamond', foil: 'gold' }, desc: 'Week 1 only. 4 Rivalry Week cards, every one Grudge Match or better, with a Bragging Rights or better guaranteed.' }),
+  'w1-bragging': wk(1, { name: 'Bragging Rights', cards: 3, hits: 1, fillFloor: 'legendary', floor: 'legendary', boost: { mythic: 6 }, cost: 3000000, art: { c: ['#facc15', '#030712'], e: '🏆', pat: 'stars', foil: 'black' }, desc: 'Week 1 only. 3 Bragging Rights or better cards, with a big boost on the one Rivalry Week 1/1 of each player.' }),
+  // The first Week 1 packs (on sale about an hour on Nov 14, before Week 1 got its own cards): retired, kept for their names.
+  'w1-rivalry': { name: 'Rivalry Week (first version)', cards: 7, cost: 22000, group: 'weekly', retired: true, off: true, art: { c: ['#ef4444', '#1e3a8a'], e: '⚔️', pat: 'diamond' }, desc: 'Retired.' },
+  'w1-potw': { name: 'Player of the Week', cards: 4, cost: 60000, group: 'weekly', retired: true, off: true, art: { c: ['#facc15', '#111827'], e: '🏅', pat: 'rays' }, desc: 'Retired.' },
+  'w1-vault': { name: 'Friday Night Vault', cards: 3, cost: 320000, group: 'weekly', retired: true, off: true, art: { c: ['#a855f7', '#030712'], e: '🔐', pat: 'stars' }, desc: 'Retired.' },
   // Week 1's new Season 1 pack (stays in the shop)
-  's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 6, cost: 150000, min: 'legendary', mins: 2, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: '6 Season 1 cards with two Legend or better guaranteed. Added in Week 1.' }),
+  's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 6, cost: 450000, min: 'legendary', mins: 2, boost: { mythic: 3 }, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: '6 Season 1 cards with two Legend or better guaranteed and triple the Mythic chance. Added in Week 1.' }),
 });
 
 // Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
@@ -949,7 +963,7 @@ function rolePos(db, t, p) {
 // The cards a pack draws from. `ok` is false when its own pool is empty right now
 // (openPack then falls back to every card, and the shop shows the pack as restocking).
 function packPool(db, P, taken = new Set()) {
-  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season));
+  const base = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season) && (P.week || 0) === (c.week || 0));
   if (!P.pool) return { pool: base, base, ok: true };
   const f = base.filter(P.pool);
   return f.length ? { pool: f, base, ok: true } : { pool: base, base, ok: false };
@@ -992,7 +1006,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (P.bundle) return P.bundle.some(([t]) => packCanDrop(db, t, c));
   if (type === 'starter') return c.variant === 'base';
   if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
-  if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; // season cards only come from season packs
+  if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; if ((P.week || 0) !== (c.week || 0)) return false; // weekly cards only come from that week's packs // season cards only come from season packs
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
   const floor = P.hits && P.fillFloor ? P.fillFloor : P.floor;
@@ -1028,7 +1042,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();

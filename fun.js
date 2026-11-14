@@ -34,6 +34,8 @@ module.exports = function fun(app, h) {
     // Season 1
     's1-ttime': 'banner', 's1-23': 'fade', 's1-cars': 'banner', 's1-chem': 'polaroid', 's1-onehand': 'full', 's1-tabaka': 'cut',
     's1-bbmode': 'full', 's1-shoot': 'full', 's1-fullext': 'full', 's1-cover': 'cover', 's1-bigboy': 'cover',
+    // Week 1: Rivalry Week
+    'w1-trash': 'banner', 'w1-grudge': 'duo', 'w1-bragging': 'cut', 'w1-rivalry': 'full',
   };
   // The cover athlete's two cover cards use the real cover photo (a cutout) instead of his avatar.
   const S1 = require('./seasons').S1;
@@ -46,7 +48,7 @@ module.exports = function fun(app, h) {
     const vi = Math.max(0, cards.VARIANTS.findIndex((v) => v.id === c.variant));
     const st = c.set && cards.SET_MAP.get(c.set), si = st ? cards.SETS.indexOf(st) : 0;
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
-    const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '');
+    const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '') + (c.week ? ` wkc w${c.week}c` : '');
     const photo = COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
     return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
@@ -56,6 +58,7 @@ module.exports = function fun(app, h) {
       <div class="mc-var">${spec ? esc((c.variant === 'spec' ? '★ Signature ' : '') + spec.name) : st ? `${st.emoji} ${esc(c.label)}` : esc(c.label)}</div>
       ${cardPerkFront(c)}
       ${c.season ? `<div class="mc-s1tag">Season ${c.season}</div>` : ''}
+      ${c.week ? `<div class="mc-s1tag mc-wktag">Week ${c.week}</div>` : ''}
       <div class="mc-foot"><span class="mc-rar" title="${esc(tierWords(c))}">${esc(c.rarityName)}${c.rarity === 'common' ? '' : ` · ${esc(tierOfCard(c).name)}`}</span><span class="mc-ser">${serial}</span>${opts.count > 1 ? `<span class="mc-count">×${opts.count}</span>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
     </div>`;
