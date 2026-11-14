@@ -850,6 +850,18 @@ const UPDATES = [
       'The bigger Week 1 packs got better to match: Trash Talk (1,850,000) is now every card Grudge Match or better, and Grudge Match (5,400,000) now guarantees two Bragging Rights or better.',
     ],
   },
+  {
+    n: 80,
+    date: '2026-11-14',
+    title: 'Week 1 reset, a 20M pack, and every pack priced to what it gives',
+    items: [
+      'Every Week 1 pack opened so far (and the CT Film Session) was undone: the coins came back, the cards came off, and card sales, Lineup slots and trade offers with those cards were reset. Your coin history shows it.',
+      'Week 1 cards are now the strongest cards of their rarity: Trash Talk 2.0x, Grudge Match 2.6x, Bragging Rights 3.4x, Rivalry Week 1/1 5.5x, with bigger in-game boosts.',
+      'Week 1 packs: Bus Ride Beef 650,000 (3 cards, all Grudge Match or better, a Bragging Rights guaranteed), Trash Talk 1,850,000 (4 Bragging Rights or better), Grudge Match 5,400,000 (5 Bragging Rights or better, about a 1 in 2 shot at a 1/1), Bragging Rights 12,200,000 (2 Bragging Rights and a guaranteed Rivalry Week 1/1) and the new Rivalry Trophy Case 20,000,000 (2 Bragging Rights and TWO guaranteed 1/1s). Pregame Chirp is gone. There is one Rivalry Week 1/1 per player: the 1/1 packs sell out when they run out.',
+      'CT Film Session is now the best and most expensive Season 1 pack: 3,500,000 for 4 Season 1 cards, all Legend or better, the last two Mythic or better with the biggest Zenith chance in the game.',
+      'Every pack in the shop was checked against what it actually gives, and no pack is beaten by a cheaper one any more. Price drops include Standard 13,500, Premium 28,000, Elite 190,000, Prism Chase 190,000, Gold Rush 140,000 and Dark Matter 945,000. Season 1: Carson Tabaka is now 45,000, T-Time 110,000 and Carson Charles Tabaka 1,400,000.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

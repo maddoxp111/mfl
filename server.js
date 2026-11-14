@@ -4048,6 +4048,51 @@ async function undoPacksOnce(db) {
   } catch (e) { console.error('undoPacksOnce', e); }
   await save();
 }
+// Nov 14, 2026: the Week 1 packs were reworked (their own cards, new contents and prices), so every Week 1 pack opened so far
+// is reversed: the pack and its cards come off (paid packs are refunded by that), and so do sales of those cards made since
+// the packs went on sale, any Week 1 card in a trade or a Lineup, and open trade offers that hold cards no longer owned.
+// The CT Film Session (added to Season 1 with Week 1, also reworked) is included. What came off is kept in reverts/week1/<name>.
+// Runs once: the marker is saved before anything changes.
+const WEEK1_UNDO = { types: new Set(['w1-rivalry', 'w1-potw', 'w1-vault', 'w1-chirp', 'w1-beef', 'w1-trash', 'w1-grudge', 'w1-bragging', 'w1-trophy', 's1p-film']), since: '2026-11-14T06:00:00.000Z' };
+async function undoWeek1Once(db) {
+  db.fixes = db.fixes || {};
+  if (db.fixes.undoWeek1) return;
+  db.fixes.undoWeek1 = { at: new Date().toISOString(), started: true };
+  await save();
+  const isW1Card = (id) => /:w1-/.test(String(id || '')), report = { accounts: {} };
+  try {
+    const users = await listDocs('users/');
+    for (const u0 of users) {
+      const user = await getDoc(userKey(u0.name), { fresh: true }); if (!user) continue;
+      const packs = (user.packs || []).filter((p) => WEEK1_UNDO.types.has(p.type));
+      const hasW1 = [...(user.tradeIn || []), ...(user.tradeOut || []), ...(user.sold || [])].some(isW1Card);
+      if (!packs.length && !hasW1) continue;
+      const gone = {};
+      for (const p of packs) for (const id of p.cards || []) gone[id] = (gone[id] || 0) + 1;
+      const left = { ...gone };
+      const sales = (user.pointBonuses || []).filter((b) => { const m = /^Sold (.+)$/.exec(b.reason || ''); if (!m || (b.at || '') < WEEK1_UNDO.since || !(left[m[1]] > 0 || isW1Card(m[1]))) return false; if (left[m[1]] > 0) left[m[1]]--; return true; });
+      await putDoc(`reverts/week1/${user.name}`, { name: user.name, at: new Date().toISOString(), packs, sales, tradeIn: (user.tradeIn || []).filter(isW1Card), tradeOut: (user.tradeOut || []).filter(isW1Card) });
+      user.packs = (user.packs || []).filter((p) => !packs.includes(p));
+      user.pointBonuses = (user.pointBonuses || []).filter((b) => !sales.includes(b));
+      const soldIds = sales.map((b) => String(b.reason).slice(5));
+      user.sold = (() => { const a = [...(user.sold || [])]; for (const id of soldIds) { const i = a.lastIndexOf(id); if (i >= 0) a.splice(i, 1); } return a.filter((id) => !isW1Card(id)); })();
+      user.tradeIn = (user.tradeIn || []).filter((id) => !isW1Card(id));
+      user.tradeOut = (user.tradeOut || []).filter((id) => !isW1Card(id));
+      const own = cards.collection(user);
+      user.tradeOut = (() => { const have = {}; for (const p of user.packs) for (const id of p.cards || []) have[id] = (have[id] || 0) + 1; for (const id of user.tradeIn) have[id] = (have[id] || 0) + 1; return user.tradeOut.filter((id) => { if (have[id] > 0) { have[id]--; return true; } return false; }); })();
+      let lineups = 0;
+      for (const l of user.lineups || []) if ((l.at || '') >= WEEK1_UNDO.since && (l.cards || []).some((id) => id && !own[id])) { l.cards = l.cards.map((id) => (id && own[id] ? id : '')); lineups++; }
+      await putDoc(userKey(user.name), user);
+      report.accounts[user.name] = { packs: packs.length, refund: packs.reduce((t, p) => t + (p.currency === 'coins' ? Number(p.cost) || 0 : 0), 0), types: packs.map((p) => p.type), sales: sales.length, lineups };
+    }
+    // open trade offers that hold a Week 1 card can't go through any more
+    for (const t of await listDocs('cardtrades/')) if (t && t.status === 'open' && [...(t.give || []), ...(t.get || [])].some(isW1Card)) { t.status = 'cancelled'; t.note = (t.note ? t.note + ' · ' : '') + 'Cancelled: Week 1 cards were reset'; await putDoc('cardtrades/' + t.id, t); }
+    db.fixes.undoWeek1 = { at: new Date().toISOString(), done: true, accounts: Object.keys(report.accounts).length };
+    await putDoc('reverts/week1/_report', report);
+    console.log('Week 1 packs reversed:', JSON.stringify(report.accounts));
+  } catch (e) { console.error('undoWeek1Once', e); }
+  await save();
+}
 const REVERT_FROM = '2026-11-06T16:55:28.000Z'; // just before the first admin gift (finnhop, 16:55:28.998)
 async function revertGiftsOnce(db) {
   db.fixes = db.fixes || {};
@@ -4216,7 +4261,7 @@ function shrinkLogos(db) {
 }
 
 if (require.main === module) {
-  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); await undoPacksOnce(db); }).catch((e) => console.error(e));
+  refresh().then(async (db) => { const sq = squarePedonLogo(db), a = shrinkLogos(db) || sq, b = degambleAI(db), c = fixNames(db), d = voidNov6(db), e = schoolDays(db); if (a || b || c || d || e) await save(); await revertGiftsOnce(db); await revertArcadeOnce(db); await revertLateOnce(db); await undoPacksOnce(db); await undoWeek1Once(db); }).catch((e) => console.error(e));
   versusApi.attach(app.listen(PORT, () => console.log(`MFL running on :${PORT}`)));
   scheduleAI(15000); // catch up on anything that changed while the server was down
   tts.startAuto(load); // make any missing voice clips now and every 6 hours

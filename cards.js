@@ -202,13 +202,13 @@ const S1_VARIANTS = [
 ].map((v) => ({ ...v, season: 1 }));
 VARIANTS.push(...S1_VARIANTS);
 // Weekly cards: each Saturday's weekly drop has its own themed cards (`week: n`) that only drop from that week's packs, so they
-// stop being made when the week ends. In the games each one plays out like an older perk (`perkAs`), under its own name.
+// stop being made when the week ends. Each one beats every other card of its rarity (they're limited and cost the most). In the games each one plays out like an older perk (`perkAs`), under its own name.
 // Week 1: Rivalry Week (12:35s vs No Fly Zone every school day).
 const WEEK_VARIANTS = [
-  { id: 'w1-trash', rarity: 'rare', label: 'Trash Talk', mult: 1.5, quote: 'Said it all week. Now prove it.', perkAs: 'pep-rally' },
-  { id: 'w1-grudge', rarity: 'epic', label: 'Grudge Match', mult: 1.95, quote: 'He remembers last time.', perkAs: 'built' },
-  { id: 'w1-bragging', rarity: 'legendary', label: 'Bragging Rights', mult: 2.7, quote: 'Winner talks all weekend.', perkAs: 'clutch' },
-  { id: 'w1-rivalry', rarity: 'mythic', label: 'Rivalry Week 1/1', mult: 3.9, one: true, quote: 'One week. One winner. One card.', perkAs: 'goat' },
+  { id: 'w1-trash', rarity: 'rare', label: 'Trash Talk', mult: 2.0, quote: 'Said it all week. Now prove it.', perkAs: 'pep-rally' },
+  { id: 'w1-grudge', rarity: 'epic', label: 'Grudge Match', mult: 2.6, quote: 'He remembers last time.', perkAs: 'built' },
+  { id: 'w1-bragging', rarity: 'legendary', label: 'Bragging Rights', mult: 3.4, quote: 'Winner talks all weekend.', perkAs: 'clutch' },
+  { id: 'w1-rivalry', rarity: 'mythic', label: 'Rivalry Week 1/1', mult: 5.5, one: true, quote: 'One week. One winner. One card.', perkAs: 'goat' },
 ].map((v) => ({ ...v, week: 1 }));
 VARIANTS.push(...WEEK_VARIANTS);
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
@@ -235,10 +235,10 @@ const SPEC_FX = {
 // One entry per classic card type. `spec` = use SPEC_FX for the card's specialty, scaled [up, down].
 const VARIANT_FX = {
   // Week 1: Rivalry Week
-  'w1-trash': { a: { spd: 4, agi: 3, sta: 2, def: -1 } },
-  'w1-grudge': { a: { str: 7, def: 5, sta: 3, kick: -2, wgt: 5 } },
-  'w1-bragging': { a: { cat: 7, acc: 6, spd: 5, agi: 4 } },
-  'w1-rivalry': { a: { spd: 9, agi: 8, cat: 8, str: 6, def: 5, sta: 5 } },
+  'w1-trash': { a: { spd: 7, agi: 6, sta: 4, cat: 3 } },
+  'w1-grudge': { a: { str: 10, def: 8, sta: 6, spd: 4, wgt: 5 } },
+  'w1-bragging': { a: { cat: 11, acc: 9, spd: 8, agi: 7, sta: 5 } },
+  'w1-rivalry': { a: { spd: 13, agi: 12, cat: 12, str: 10, def: 9, acc: 9, sta: 8 } },
   // Common: small swings both ways.
   base: { a: { sta: 2, cat: 1, kick: -2 } }, // fundamentals, no flash
   team: { a: { def: 3, sta: 2, kick: -1, acc: -1 } }, // plays for the crest
@@ -808,22 +808,28 @@ const weeklyLive = (db, ctx, P) => {
   const w = weekOf(P), d = nowOf(ctx).slice(0, 10);
   if (!w || d > w.to) return { off: true, gone: true };
   if (d < w.from) return { off: true, soon: w.from };
+  if (P.oneHits && ctx && ctx.taken && onesLeft(db, P, ctx.taken) < P.hits) return { off: true, soldOut: true, until: w.to };
   return { off: false, until: w.to };
 };
+// 1/1s a oneHits pack can still drop (the week's 1/1s nobody owns yet)
+const onesLeft = (db, P, taken) => catalog(db).filter((c) => c.one && (P.week || 0) === (c.week || 0) && (P.season || 0) === (c.season || 0) && !c.set && !taken.has(c.id)).length;
 const wk = (n, o) => ({ group: 'weekly', week: n, added: WEEKLY.find((w) => w.n === n).from, ...o, live: (db, ctx, P) => ({ ...(o.live ? o.live(db, ctx, P) : {}), ...weeklyLive(db, ctx, P) }) });
 Object.assign(PACKS, {
   // Week 1 (Nov 14-20): Rivalry Week. Only Week 1 cards (Trash Talk, Grudge Match, Bragging Rights, the Rivalry Week 1/1).
-  'w1-chirp': wk(1, { name: 'Pregame Chirp', cards: 2, cost: 90000, art: { c: ['#fb7185', '#172554'], e: '💬', pat: 'dots' }, desc: 'Week 1 only. 2 Rivalry Week cards. The cheapest way into Week 1.' }),
-  'w1-beef': wk(1, { name: 'Bus Ride Beef', cards: 3, cost: 248000, min: 'epic', art: { c: ['#f59e0b', '#1e1b4b'], e: '🚌', pat: 'stripes', foil: 'silver' }, desc: 'Week 1 only. 3 Rivalry Week cards with a Grudge Match or better guaranteed.' }),
-  'w1-trash': wk(1, { name: 'Trash Talk', cards: 4, cost: 600000, floor: 'epic', art: { c: ['#ef4444', '#1e3a8a'], e: '🗣️', pat: 'zig', foil: 'silver' }, desc: 'Week 1 only. 4 Rivalry Week cards, every one Grudge Match or better.' }),
-  'w1-grudge': wk(1, { name: 'Grudge Match', cards: 4, cost: 1500000, floor: 'epic', min: 'legendary', mins: 2, art: { c: ['#f97316', '#111827'], e: '😤', pat: 'diamond', foil: 'gold' }, desc: 'Week 1 only. 4 Rivalry Week cards, every one Grudge Match or better, with two Bragging Rights or better guaranteed.' }),
-  'w1-bragging': wk(1, { name: 'Bragging Rights', cards: 3, hits: 1, fillFloor: 'legendary', floor: 'legendary', boost: { mythic: 6 }, cost: 3000000, art: { c: ['#facc15', '#030712'], e: '🏆', pat: 'stars', foil: 'black' }, desc: 'Week 1 only. 3 Bragging Rights or better cards, with a big boost on the one Rivalry Week 1/1 of each player.' }),
+  // Weekly packs have set prices (`fixed`), not the price curve. The two top packs guarantee Rivalry Week 1/1s (`oneHits`: the
+  // last cards are 1/1s, and the pack closes once there aren't enough of them left).
+  'w1-beef': wk(1, { name: 'Bus Ride Beef', cards: 3, cost: 650000, fixed: true, floor: 'epic', min: 'legendary', art: { c: ['#f59e0b', '#1e1b4b'], e: '🚌', pat: 'stripes', foil: 'silver' }, desc: 'Week 1 only. 3 Rivalry Week cards, every one Grudge Match or better, with a Bragging Rights or better guaranteed. The cheapest way into Week 1.' }),
+  'w1-trash': wk(1, { name: 'Trash Talk', cards: 4, cost: 1850000, fixed: true, floor: 'legendary', boost: { legendary: 2 }, art: { c: ['#ef4444', '#1e3a8a'], e: '🗣️', pat: 'zig', foil: 'silver' }, desc: 'Week 1 only. 4 Rivalry Week cards, every one Bragging Rights or better, and a small Rivalry Week 1/1 chance.' }),
+  'w1-grudge': wk(1, { name: 'Grudge Match', cards: 5, cost: 5400000, fixed: true, floor: 'legendary', boost: { mythic: 2 }, art: { c: ['#f97316', '#111827'], e: '😤', pat: 'diamond', foil: 'gold' }, desc: 'Week 1 only. 5 Rivalry Week cards, every one Bragging Rights or better, with about a 1 in 2 shot at a Rivalry Week 1/1.' }),
+  'w1-bragging': wk(1, { name: 'Bragging Rights', cards: 3, hits: 1, oneHits: true, fillBoost: { mythic: 0 }, fillFloor: 'legendary', floor: 'mythic', cost: 12200000, fixed: true, art: { c: ['#facc15', '#030712'], e: '🏆', pat: 'stars', foil: 'black' }, desc: 'Week 1 only. 2 Bragging Rights cards and a guaranteed Rivalry Week 1/1. There is one 1/1 per player, never made again.' }),
+  'w1-trophy': wk(1, { name: 'Rivalry Trophy Case', cards: 4, hits: 2, oneHits: true, fillBoost: { mythic: 0 }, fillFloor: 'legendary', floor: 'mythic', cost: 20000000, fixed: true, art: { c: ['#e879f9', '#020617'], e: '🏟️', pat: 'rays', foil: 'black' }, desc: 'Week 1 only. 2 Bragging Rights cards and TWO guaranteed Rivalry Week 1/1s. The best pack in the shop.' }),
   // The first Week 1 packs (on sale about an hour on Nov 14, before Week 1 got its own cards): retired, kept for their names.
   'w1-rivalry': { name: 'Rivalry Week (first version)', cards: 7, cost: 22000, group: 'weekly', retired: true, off: true, art: { c: ['#ef4444', '#1e3a8a'], e: '⚔️', pat: 'diamond' }, desc: 'Retired.' },
+  'w1-chirp': { name: 'Pregame Chirp', cards: 2, cost: 200000, fixed: true, group: 'weekly', retired: true, off: true, art: { c: ['#fb7185', '#172554'], e: '💬', pat: 'dots' }, desc: 'Retired.' },
   'w1-potw': { name: 'Player of the Week', cards: 4, cost: 60000, group: 'weekly', retired: true, off: true, art: { c: ['#facc15', '#111827'], e: '🏅', pat: 'rays' }, desc: 'Retired.' },
   'w1-vault': { name: 'Friday Night Vault', cards: 3, cost: 320000, group: 'weekly', retired: true, off: true, art: { c: ['#a855f7', '#030712'], e: '🔐', pat: 'stars' }, desc: 'Retired.' },
   // Week 1's new Season 1 pack (stays in the shop)
-  's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 6, cost: 450000, min: 'legendary', mins: 2, boost: { mythic: 3 }, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: '6 Season 1 cards with two Legend or better guaranteed and triple the Mythic chance. Added in Week 1.' }),
+  's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 4, hits: 2, fillFloor: 'legendary', floor: 'mythic', boost: { zenith: 12 }, cost: 3500000, fixed: true, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: 'The best pack in Season 1: 4 Season 1 cards, all Legend or better, and the last TWO are Mythic or better with the biggest Zenith chance in the game. Added in Week 1.' }),
 });
 
 // Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
@@ -836,7 +842,11 @@ Object.assign(PACKS, {
 // about 12% under their packs. Packs already bought keep the price they were bought at.
 const PRICE_CURVE = (c) => c * (c / 1000) ** 0.175;
 const ladder = (c) => { const st = c < 10000 ? 250 : c < 100000 ? 500 : c < 1000000 ? 5000 : 50000; return Math.max(st, Math.round(c / st) * st); };
-for (const P of Object.values(PACKS)) if (P.cost > 0 && !P.bundle) P.cost = ladder(PRICE_CURVE(P.cost));
+for (const P of Object.values(PACKS)) if (P.cost > 0 && !P.bundle && !P.fixed) P.cost = ladder(PRICE_CURVE(P.cost));
+// Value check (Nov 14): every pack's price set against what it gives (simulated openings: total card strength, best card,
+// 1/1s). No pack may be clearly beaten on all three by a cheaper pack, so these prices move packs into their place.
+const PRICE_SET = { 's1p-ttime': 45000, 's1p-23': 110000, 's1p-pick': 1400000, 'leaders': 13500, 'pos-qb': 13500, 'standard': 13500, 'draft': 13500, 'pos-wr': 13500, 'pos-line': 13500, 'rival': 13500, 'hot-hand': 13500, 'pos-rb': 13500, 'sleeper': 19500, 'offense': 13500, 'defense': 13500, 'bodyshop': 17500, 'body-skinny': 17500, 'body-short': 17500, 'body-tall': 17500, 'body-big': 17500, 'body-beanpole': 18500, 'spooky': 34500, 'draft-day': 35000, 'specialist': 28000, 'set-gold': 43500, 'body-mega': 66000, 'gold-rush': 140000, 'set-prism': 190000, 'set-black': 605000, 'void': 945000, 'double-feature': 18500, 'snowday': 18500, 'bitpack': 28000, 'premium': 28000, 'silver-stack': 85000, 'mystery-mega': 65000, 'elite': 190000 };
+for (const [k, v] of Object.entries(PRICE_SET)) if (PACKS[k]) PACKS[k].cost = v;
 for (const P of Object.values(PACKS)) if (P.bundle) {
   P.cards = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cards * n, 0);
   P.list = P.bundle.reduce((s, [t, n]) => s + PACKS[t].cost * n, 0);
@@ -859,7 +869,7 @@ for (const [k, [c, e, pat, foil]] of Object.entries(PACK_ART)) if (PACKS[k] && !
 for (const [series, , sets] of SERIES) if (PACKS['series-' + series] && !PACKS['series-' + series].art) PACKS['series-' + series].art = { c: SET_COLORS[series], e: sets[0][2], pat: 'diamond' };
 
 // One pack per team: only that team's cards.
-const TEAM_PACK = { cards: 5, cost: 15000, group: 'team' }; // (10,000 before Nov 13; 15,000 = the price curve above, like Standard)
+const TEAM_PACK = { cards: 5, cost: 13500, group: 'team' }; // (the same as Standard after the Nov 14 value check)
 const COLLECTOR_STEPS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
 // `ctx` (optional): { now: 'YYYY-MM-DD HH:MM' league time, own: collection, lineup: card ids }.
 // Packs with `live` get their per-request fields (price, pool, on-sale state) merged in.
@@ -1018,7 +1028,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
 // Boxes: the same pack 5, 10 or 20 times for less (the discount), opened one after another. Each pack in a box is its
 // own pack (cost = the box price per pack), tagged with the box. Not for free, choose, bundle or once-a-day packs.
 const BOXES = { 5: 0.05, 10: 0.1, 20: 0.15 };
-const boxOk = (P) => !!P && !P.free && !P.choose && !P.bundle && !P.flash && P.limit !== 'day' && !P.off && !P.retired;
+const boxOk = (P) => !!P && !P.oneHits && !P.free && !P.choose && !P.bundle && !P.flash && P.limit !== 'day' && !P.off && !P.retired;
 const boxPrice = (cost, n) => Math.round((cost * (1 - (BOXES[n] || 0))) / 5) * 5;
 // Shop helpers ride on packInfo so the export list stays as it is.
 Object.assign(packInfo, { odds: packOdds, canDrop: packCanDrop, role: rolePos, rotation, NEW: NEW_PACK, BOXES, boxOk, boxPrice });
@@ -1111,7 +1121,7 @@ function openPack(db, type, taken = new Set(), ctx = {}) {
   // Hit packs (P.hits): only the last `hits` cards get the pack's boosted odds. The others are regular cards from the same
   // pool: the boosts' exclusions (a boost of 0) still apply, the multipliers don't, and P.fillFloor can lower their floor.
   const hits = P.hits ? Math.min(P.hits, n) : n;
-  const fillP = P.hits ? { ...P, boost: P.boost ? Object.fromEntries(Object.entries(P.boost).filter(([, v]) => v === 0)) : undefined } : P;
+  const fillP = P.hits ? { ...P, boost: P.fillBoost || (P.boost ? Object.fromEntries(Object.entries(P.boost).filter(([, v]) => v === 0)) : undefined) } : P; // fillBoost: the other cards' own boosts
   const fillMin = P.hits ? P.fillFloor || P.floor : P.floor;
   if (P.pairs) {
     // Each pair: a card, then another version of the same player (from the pack's pool if it has one).
@@ -1212,5 +1222,5 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { WEEKLY, weeklyNow, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { WEEKLY, weeklyNow, onesLeft, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf };

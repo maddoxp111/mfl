@@ -558,7 +558,7 @@ module.exports = function fun(app, h) {
     else if (P.floor) L.push(`Every card is ${R[P.floor].name} or better.`);
     if (P.min) L.push(`${(P.mins || 1) > 1 ? P.mins : 'At least one'} ${R[P.min].name} or better guaranteed${P.choose ? ' to choose from' : ''}.`);
     if (P.boost && !P.floor) { const z = cards.RARITY_ORDER.filter((r) => P.boost[r] === 0).map((r) => R[r].name); if (z.length) L.push(`No ${z.join(' or ')} cards.`); }
-    if (P.week) L.push(P.off ? 'No longer on sale.' : `Week ${P.week} only: leaves the shop ${esc(weekEnd(P.until))} at midnight.`);
+    if (P.week) L.push(P.soldOut ? 'Sold out: every 1/1 it can give is taken.' : P.off ? 'No longer on sale.' : `Week ${P.week} only: leaves the shop ${esc(weekEnd(P.until))} at midnight.`);
     if (P.rotate) L.push(P.off ? `Not on sale today. Back ${esc(P.back)}.` : `On sale until ${P.until === 'tonight' ? 'tonight' : esc(P.until)}.`);
     if (P.flash) L.push(`${Math.round(P.discount * 100)}% off the ${fmtN(P.list)} coin price right now. ${P.nextDrop != null ? `Drops another 10% at ${h.time12(String(P.nextDrop).padStart(2, '0') + ':00')}.` : "That's as low as it goes today."} One per day, and a new pack tomorrow.`);
     if (P.free) L.push('Free. It refills on its own schedule.');
@@ -604,7 +604,7 @@ module.exports = function fun(app, h) {
     </article>` };
   }
   const packMsg = (req) => {
-    const m = { nobox: "That pack doesn't come in boxes.", closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
+    const m = { soldout: 'Sold out: there are not enough Rivalry Week 1/1s left for that pack.', nobox: "That pack doesn't come in boxes.", closed: "That pack isn't on sale today.", soon: 'That pack is restocking. Check back soon.', limit: 'One a day. A new deal tomorrow.', kept: 'Kept ✓ It\'s in your collection.', gone: 'Someone just pulled that 1 of 1. Pick another one.', pick: 'Pick the right number of cards to keep.' }[req.query.m];
     return m ? `<div class="toast ${/isn't|restocking|One a day|Someone|right number|doesn't come/.test(m) ? 'bad' : ''}">${m}</div>` : flash(req);
   };
   // Where a user's coins came from: picks and the card game are one currency.
@@ -644,7 +644,7 @@ module.exports = function fun(app, h) {
       const pulls = await bigPulls(db, users);
       const taken = await takenOnes(db, users);
       const hot = hotPacks(users);
-      const bal = acct.balance, ctx = packCtx(user);
+      const bal = acct.balance, ctx = { ...packCtx(user), taken };
       const dailyDone = !free.some((f) => f.type === 'daily');
       let i = 0, nAll = 0, nCan = 0;
       const sections = GROUPS.map(([g, title, sub]) => {
@@ -748,7 +748,9 @@ module.exports = function fun(app, h) {
       await h.putDoc(h.userKey(name), user);
       return res.redirect(`/pickem/packs/${made[0].id}`);
     }
-    const ids = cards.openPack(db, type, await takenOnes(db), ctx);
+    const taken1 = await takenOnes(db);
+    if (P.oneHits && cards.onesLeft(db, P, taken1) < P.hits) return res.redirect('/pickem/packs?m=soldout');
+    const ids = cards.openPack(db, type, taken1, ctx);
     // Choose packs keep the options in `choices` until the user picks (POST .../pick).
     const pack = { id: crypto.randomBytes(6).toString('hex'), type, cost: P.cost || 0, currency: 'coins', at: new Date().toISOString(), local: ctx.now, cards: P.choose ? [] : ids,
       ...(P.choose ? { choices: ids, keep: P.cards } : {}), ...(cards.PACKS[type] && P.name !== cards.PACKS[type].name ? { name: P.name } : {}), ...(P.base ? { base: P.base } : {}),
