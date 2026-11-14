@@ -935,6 +935,15 @@ const UPDATES = [
       "On every GTA card the player's name now sits where the title sits on the real GTA VI cover: over the V's right side, running into the I, with the VI built around it.",
     ],
   },
+  {
+    n: 88,
+    date: '2026-11-15',
+    title: 'GTA cards are really strong now',
+    items: [
+      'Every GTA card now gives a big strength boost: +7 on Silver, +10 on Gold and the max +12 on Prism, Black and the Cover 1/1. Strength is now their biggest boost, with speed, agility and catching still up.',
+      "This counts for GTA cards you already own too: nothing to do, they're stronger in every game starting now.",
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

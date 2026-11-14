@@ -426,8 +426,8 @@ const SET_FX = {
   captains: { a: { sta: 3, def: 1, kick: -2 } },
   'all-mfl': { a: { thr: 1, acc: 1, spd: 1, cat: 1, def: 1, kick: -2 } },
   'hall-of-fame': { a: { thr: 2, acc: 2, cat: 1, spd: -2, wgt: 5 } },
-  // GTA Launch Set: fast and slippery in the open, a step behind on defense
-  gta: { a: { spd: 3, agi: 2, cat: 1, def: -2 }, one: { a: { spd: 12, agi: 12, cat: 11, acc: 10, thr: 9, sta: 9, str: 8, def: 8, kick: 6 } } },
+  // GTA Launch Set: fast, slippery and really strong, a step behind on defense
+  gta: { a: { spd: 3, str: 3.5, agi: 2, cat: 1, def: -2 }, one: { a: { spd: 12, str: 12, agi: 12, cat: 11, acc: 10, thr: 9, sta: 9, def: 8, kick: 6 } } },
 };
 
 // ---------- perks ----------
