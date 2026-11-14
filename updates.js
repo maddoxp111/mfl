@@ -841,6 +841,15 @@ const UPDATES = [
       'The first three Week 1 packs from earlier today are gone from the shop. Packs already opened keep their cards.',
     ],
   },
+  {
+    n: 79,
+    date: '2026-11-14',
+    title: 'Two more Week 1 packs',
+    items: [
+      'New Week 1 packs: Pregame Chirp (200,000, 2 Rivalry Week cards) and Bus Ride Beef (650,000, 3 Rivalry Week cards with a Grudge Match or better guaranteed).',
+      'The bigger Week 1 packs got better to match: Trash Talk (1,850,000) is now every card Grudge Match or better, and Grudge Match (5,400,000) now guarantees two Bragging Rights or better.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

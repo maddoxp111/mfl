@@ -521,7 +521,7 @@ module.exports = function fun(app, h) {
   }
   const GROUPS = [
     ['free', 'Free', 'Claim these. They refill.'],
-    ['weekly', 'Weekly Packs', 'Three new packs every Saturday, on sale for one week only.'],
+    ['weekly', 'Weekly Packs', 'New packs every Saturday, on sale for one week only.'],
     ['season', `Season ${S1.n}: ${S1.name}`, `The newest cards and the best ones in the game, up to the new Zenith rarity. Season ${S1.n} cards only come from these packs.`],
     ['core', 'Core', 'Any card in the league can drop. Bigger packs, better guarantees.'],
     ['theme', 'Themes', 'Positions, teams, hot streaks and specialists.'],
@@ -657,7 +657,7 @@ module.exports = function fun(app, h) {
             .map(([t, P]) => { const s = shopItem(db, t, P, { ctx, bal, hot: hot.has(t), g, i: i++ }); nAll++; if (s.can) nCan++; return s.html; });
         }
         const W = g === 'weekly' ? cards.weeklyNow(ctx.now) : null;
-        if (W) { title = `Weekly Packs · Week ${W.n}: ${W.theme}`; sub = `Three new packs every Saturday. These leave the shop ${weekEnd(W.to)} at midnight, and a new pack joins Season ${S1.n} each week.`; }
+        if (W) { title = `Weekly Packs · Week ${W.n}: ${W.theme}`; sub = `New packs every Saturday. These leave the shop ${weekEnd(W.to)} at midnight, and a new pack joins Season ${S1.n} each week.`; }
         return items.length ? `<section class="psec" data-g="${g}" id="g-${g}"><header class="psec-h"><h2>${esc(title)}</h2><p>${esc(sub)}</p></header><div class="psi-grid">${items.join('')}</div></section>` : '';
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));
