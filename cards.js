@@ -772,6 +772,44 @@ Object.assign(PACKS, {
   // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
   's1p-bundle': s1Pack({ name: 'CT Season Pass', cost: 105000, retired: true, off: true, bundle: [['s1p-ttime', 1], ['s1p-23', 1], ['s1p-chem', 1]], art: { c: ['#38bdf8', '#020617'], e: '🎟️', pat: 'diamond', foil: 'silver' }, desc: 'Retired.' }),
 });
+
+// ---------- Weekly packs: every Saturday three new packs go on sale for one week (Saturday 00:00 to Friday 23:59 league time),
+// then leave the shop for good (they stay in PACKS so packs already opened keep their name). Each weekly drop also adds one new
+// pack to the current season, which stays. Prices are written as base prices and go through the same price curve as every pack.
+const WEEKLY = [
+  { n: 1, from: '2026-11-14', to: '2026-11-20', theme: 'Rivalry Week' },
+];
+const weekOf = (P) => WEEKLY.find((w) => w.n === P.week);
+const weeklyNow = (now) => WEEKLY.find((w) => now.slice(0, 10) >= w.from && now.slice(0, 10) <= w.to) || null;
+const weeklyLive = (db, ctx, P) => {
+  const w = weekOf(P), d = nowOf(ctx).slice(0, 10);
+  if (!w || d > w.to) return { off: true, gone: true };
+  if (d < w.from) return { off: true, soon: w.from };
+  return { off: false, until: w.to };
+};
+// the top player of the latest final game: most touchdowns scored plus TD passes thrown
+function topPlayerPack(db) {
+  const g = db.games.filter(isFinal).sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))[0];
+  if (!g) return {};
+  const n = new Map();
+  for (const e of g.events || []) if (e.type === 'TD') for (const who of [e.player, e.passer]) {
+    const p = db.teams[e.team]?.roster.find((x) => x.name.toLowerCase() === String(who || '').toLowerCase());
+    if (p) n.set(p.id, { p, k: ((n.get(p.id) || {}).k || 0) + 1 });
+  }
+  const top = [...n.values()].sort((a, b) => b.k - a.k)[0];
+  if (!top) return {};
+  return { pool: (c) => c.pid === top.p.id, inside: `Every card is ${top.p.name}, the top player of the ${g.date} game (${top.k} touchdown${top.k === 1 ? '' : 's'} scored or thrown).` };
+}
+const wk = (n, o) => ({ group: 'weekly', week: n, added: WEEKLY.find((w) => w.n === n).from, ...o, live: (db, ctx, P) => ({ ...(o.live ? o.live(db, ctx, P) : {}), ...weeklyLive(db, ctx, P) }) });
+Object.assign(PACKS, {
+  // Week 1 (Nov 14-20): Rivalry Week, 12:35s vs No Fly Zone every day
+  'w1-rivalry': wk(1, { name: 'Rivalry Week', cards: 7, cost: 22000, mixed: true, min: 'epic', mins: 2, art: { c: ['#ef4444', '#1e3a8a'], e: '⚔️', pat: 'diamond', foil: 'silver' }, desc: 'Week 1 only. 7 cards, classic or set, with two Gold or better guaranteed.' }),
+  'w1-potw': wk(1, { name: 'Player of the Week', cards: 4, cost: 60000, floor: 'rare', min: 'legendary', live: (db) => topPlayerPack(db), art: { c: ['#facc15', '#111827'], e: '🏅', pat: 'rays', foil: 'gold' }, desc: 'Week 1 only. 4 cards of the top player from the last game, all Silver or better, with a Legend or better guaranteed.' }),
+  'w1-vault': wk(1, { name: 'Friday Night Vault', cards: 3, hits: 1, fillFloor: 'legendary', floor: 'mythic', boost: { dark: 2 }, cost: 320000, art: { c: ['#a855f7', '#030712'], e: '🔐', pat: 'stars', foil: 'black' }, desc: 'Week 1 only. Three Legend-or-better cards. The last is Mythic or better, with double the Dark Matter chance.' }),
+  // Week 1's new Season 1 pack (stays in the shop)
+  's1p-film': s1Pack({ name: 'CT Film Session - CT', cards: 6, cost: 150000, min: 'legendary', mins: 2, added: '2026-11-14', art: { c: ['#f43f5e', S1_NAVY], e: '🎬', pat: 'grid', foil: 'holo' }, desc: '6 Season 1 cards with two Legend or better guaranteed. Added in Week 1.' }),
+});
+
 // Pack prices (Nov 13, Update 72). The costs written above are the old prices. Update 70 multiplied them in bands (x2.5, x4,
 // x8), and the owner found that way too high (5,200,000 for the top pack) and uneven (a 29,500 pack went to 74,000 while a
 // 35,000 pack went to 140,000). Now one smooth curve: a pack that cost c costs c x (c / 1,000) to the power 0.175, rounded onto
@@ -817,7 +855,8 @@ function packInfo(db, type, ctx = {}) {
   return t ? { ...TEAM_PACK, name: `${`${t.city} ${t.name}`.trim()} Pack`, team: t.id, pool: (c) => c.t.id === t.id, desc: `5 cards, all ${t.name} players.` } : null;
 }
 function packTypes(db) {
-  return [...Object.keys(PACKS).filter((k) => !PACKS[k].retired), ...Object.keys(db.teams).map((id) => 'team-' + id)];
+  const d = nowOf().slice(0, 10), shown = (P) => !P.week || (d >= weekOf(P).from && d <= weekOf(P).to);
+  return [...Object.keys(PACKS).filter((k) => !PACKS[k].retired && shown(PACKS[k])), ...Object.keys(db.teams).map((id) => 'team-' + id)];
 }
 const nowOf = (ctx) => (ctx && ctx.now) || pk.nowLocal(process.env.TZ_LEAGUE || 'America/Chicago');
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1157,5 +1196,5 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { WEEKLY, weeklyNow, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf };

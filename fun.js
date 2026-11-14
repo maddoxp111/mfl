@@ -518,6 +518,7 @@ module.exports = function fun(app, h) {
   }
   const GROUPS = [
     ['free', 'Free', 'Claim these. They refill.'],
+    ['weekly', 'Weekly Packs', 'Three new packs every Saturday, on sale for one week only.'],
     ['season', `Season ${S1.n}: ${S1.name}`, `The newest cards and the best ones in the game, up to the new Zenith rarity. Season ${S1.n} cards only come from these packs.`],
     ['core', 'Core', 'Any card in the league can drop. Bigger packs, better guarantees.'],
     ['theme', 'Themes', 'Positions, teams, hot streaks and specialists.'],
@@ -528,6 +529,7 @@ module.exports = function fun(app, h) {
     ['bundle', 'Bundles', 'Several packs in one, for less than buying them one at a time.'],
     ['limited', 'Limited', 'Only on sale some days, plus a Flash Sale that gets cheaper all day.'],
   ];
+  const weekEnd = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'short', day: 'numeric' });
   const groupOf = (P) => (P.group === 'team' ? 'theme' : P.group);
   const packCtx = (user) => ({ now: pk.nowLocal(TZ), own: user ? cards.collection(user) : {}, lineup: (user?.lineups || []).at(-1)?.cards || [] });
   const fmtN = (n) => Number(n).toLocaleString('en-US');
@@ -553,6 +555,7 @@ module.exports = function fun(app, h) {
     else if (P.floor) L.push(`Every card is ${R[P.floor].name} or better.`);
     if (P.min) L.push(`${(P.mins || 1) > 1 ? P.mins : 'At least one'} ${R[P.min].name} or better guaranteed${P.choose ? ' to choose from' : ''}.`);
     if (P.boost && !P.floor) { const z = cards.RARITY_ORDER.filter((r) => P.boost[r] === 0).map((r) => R[r].name); if (z.length) L.push(`No ${z.join(' or ')} cards.`); }
+    if (P.week) L.push(P.off ? 'No longer on sale.' : `Week ${P.week} only: leaves the shop ${esc(weekEnd(P.until))} at midnight.`);
     if (P.rotate) L.push(P.off ? `Not on sale today. Back ${esc(P.back)}.` : `On sale until ${P.until === 'tonight' ? 'tonight' : esc(P.until)}.`);
     if (P.flash) L.push(`${Math.round(P.discount * 100)}% off the ${fmtN(P.list)} coin price right now. ${P.nextDrop != null ? `Drops another 10% at ${h.time12(String(P.nextDrop).padStart(2, '0') + ':00')}.` : "That's as low as it goes today."} One per day, and a new pack tomorrow.`);
     if (P.free) L.push('Free. It refills on its own schedule.');
@@ -650,6 +653,8 @@ module.exports = function fun(app, h) {
           items = cards.packTypes(db).map((t) => [t, cards.packInfo(db, t, ctx)]).filter(([, P]) => !P.free && groupOf(P) === g)
             .map(([t, P]) => { const s = shopItem(db, t, P, { ctx, bal, hot: hot.has(t), g, i: i++ }); nAll++; if (s.can) nCan++; return s.html; });
         }
+        const W = g === 'weekly' ? cards.weeklyNow(ctx.now) : null;
+        if (W) { title = `Weekly Packs · Week ${W.n}: ${W.theme}`; sub = `Three new packs every Saturday. These leave the shop ${weekEnd(W.to)} at midnight, and a new pack joins Season ${S1.n} each week.`; }
         return items.length ? `<section class="psec" data-g="${g}" id="g-${g}"><header class="psec-h"><h2>${esc(title)}</h2><p>${esc(sub)}</p></header><div class="psi-grid">${items.join('')}</div></section>` : '';
       }).join('');
       const shown = GROUPS.filter(([g]) => sections.includes(`id="g-${g}"`));

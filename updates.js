@@ -819,6 +819,16 @@ const UPDATES = [
       'At Wildcat Blacktop the CPU wins with smarter play instead of extra speed.',
     ],
   },
+  {
+    n: 77,
+    date: '2026-11-14',
+    title: 'Weekly Packs, Week 1: Rivalry Week',
+    items: [
+      'New: Weekly Packs. Every Saturday three new packs go on sale for one week only, then they leave the shop for good. Each week one new pack also joins the current season and stays.',
+      'Week 1 (until Friday, Nov 20 at midnight): Rivalry Week (38,000, 7 cards, classic or set, two Gold or better guaranteed), Player of the Week (125,000, 4 cards of the top player from the last game, a Legend or better guaranteed) and Friday Night Vault (880,000, three Legend-or-better cards, the last one Mythic or better with double the Dark Matter chance).',
+      'New in Season 1: CT Film Session (360,000, 6 Season 1 cards with two Legend or better guaranteed).',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
