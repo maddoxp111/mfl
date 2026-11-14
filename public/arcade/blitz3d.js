@@ -3661,6 +3661,9 @@ gl_FragColor=vec4(c,1.0);}`;
     // Hancock Stadium (Illinois State's home field in Normal): the stadium's rules exactly (100 yards, kickoffs, punts, field goals,
     // always tackle), its own world (buildHancock, 14-hancock*.js) and field markings (hancockGroundCanvas)
     VENUES.hancock = Object.assign({}, VENUES.stadium, { id: 'hancock', name: 'Hancock Stadium', look: 'hancock' });
+    // a middle school's own field (3D Blitz Career away games, 14-school.js): Wildcat Blacktop's rules and field exactly (the small 7 on 7
+    // field, throw-offs, a touchdown is 7), its own generated world (opts.school: seed, name, colours, town); never Head to Head
+    VENUES.school = Object.assign({}, VENUES.metcalf, { id: 'school', name: 'School field', look: 'school' });
     const VN0 = VENUES[opts.versus ? (opts.venue === 'hancock' || opts.venue === 'metcalf' ? opts.venue : 'stadium') : (DBG && DBG.venue) || opts.venue] || VENUES.stadium;
     // Metcalf settings from the setup screen (false at the stadium): crowd = spectators around the blacktop who act like a stadium
     // crowd; big = the whole map scaled up by MET_K so the field is about the size of a real one; touch = two-hand touch instead of
@@ -3672,8 +3675,9 @@ gl_FragColor=vec4(c,1.0);}`;
     // grass field north of the playground, east-west) or 'full' (the long lawn west of the school, north-south, marked as a full
     // football field). Big field applies to the blacktop field only; Head to Head takes the field from the challenge.
     const MFIELD_IDS = ['blacktop', 'sideways', 'regular', 'full'];
-    const MOPT = (() => { const on = VN0.world === 'metcalf', d = (!opts.versus && DBG) || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]);
-      const fr = !on ? 'blacktop' : !opts.versus && d.mfield !== undefined ? d.mfield : opts.mfield, field = MFIELD_IDS.indexOf(fr) >= 0 ? fr : 'blacktop';
+    const SCHOOL = VN0.look === 'school'; // (the venue's world is a generated school: 14-school.js; the rules are Metcalf's blacktop field)
+    const MOPT = (() => { const on = VN0.world === 'metcalf', d = (!opts.versus && DBG) || {}, b = (k) => on && !(SCHOOL && k !== 'touch') && (d[k] !== undefined ? !!d[k] : !!opts[k]);
+      const fr = !on || SCHOOL ? 'blacktop' : !opts.versus && d.mfield !== undefined ? d.mfield : opts.mfield, field = MFIELD_IDS.indexOf(fr) >= 0 ? fr : 'blacktop';
       return { crowd: opts.versus ? on : b('crowd'), big: b('big') && field === 'blacktop', touch: b('touch'), field }; })();
     // the fields in the venue's frame F (metres, +x east, +z north): u = the direction the home offense attacks (engine +z), v = engine
     // +x (u turned a quarter right, so the map is only ever turned, never mirrored), o = the centre of the home team's goal line, L =
@@ -4118,7 +4122,7 @@ gl_FragColor=vec4(c,1.0);}`;
         S.mat = k === 'field' ? [0.85, 0, 1, 0] : k === 'plain' ? [0.7, 0, 0, 0] : k === 'seats' ? [0.75, 0, 0, 0] : k === 'glow' ? [0.5, 0, 0, 6.0 * (0.25 + 0.75 * SKY.glow)] : k === 'board' ? [0.4, 0, 0, 1.6] : k === 'ribbon' ? [0.4, 0, 0, 2.2] : [0.08, 0.6, 0, 0];
         statics.push(S);
       }
-      if (W.defs) { skyLamps(W); metStatics(W); }
+      if (W.defs) { if (SCHOOL) schoolStatics(W); else { skyLamps(W); metStatics(W); } }
       G.crowdB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.crowdB); gl.bufferData(gl.ARRAY_BUFFER, W.crowd.f.subarray(0, W.crowd.n * 12), gl.STATIC_DRAW); G.crowdN = W.crowd.n; G.bufs.push(G.crowdB);
       // grass blade mesh + instance ids
       if (G.grass) {
@@ -4345,7 +4349,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- stadium ----------
     function buildWorld() {
-      if (METCALF) return buildMetcalf(); // the Metcalf blacktop (12-venue.js)
+      if (METCALF) return SCHOOL ? buildSchool() : buildMetcalf(); // the Metcalf blacktop (12-venue.js), or a school's own field (14-school.js)
       if (HANCOCK && typeof buildHancock === 'function') return buildHancock(); // Hancock Stadium (14-hancock*.js)
       cs = 777;
       const W = { plain: new Batch(14000), seats: new Batch(3000), field: new Batch(12), glow: new Batch(1200), board: new Batch(12), ribbon: new Batch(60), glass: new Batch(60), crowd: null };
@@ -6333,7 +6337,7 @@ gl_FragColor=vec4(vC.rgb*k*(sh+band*0.9)*fl*pu*5.0/(1.0+d*0.006),1.0);}`;
     out.university = Object.assign({}, out.university || {}, { y: 0, x0: 109.6, x1: 118.0, z0: 17.15, lanes: MN_ROADS[3].lanePts });
     MET.roads = out;
   }
-  if (METCALF) metNorthRoads();
+  if (METCALF && !SCHOOL) metNorthRoads();
 
   // the sector north of the blacktop that is built from the measurements here (the far horizon ring leaves it out: College Avenue,
   // the health building, the lot and the campus buildings stand there)
@@ -6707,7 +6711,7 @@ gl_FragColor=vec4(vC.rgb*k*(sh+band*0.9)*fl*pu*5.0/(1.0+d*0.006),1.0);}`;
   // (one instanced draw, a far LOD and the dogs), lit like the rest of the world, with instanced blob shadows (no shadow-map cost).
   // Positions are authored in frame F metres and go through metE, so the big-field option moves them with the map.
   // =====================================================================================
-  const PPL_ON = METCALF;
+  const PPL_ON = METCALF && !SCHOOL; // (a school's field: its people are part of the world, 14-school.js)
   // joint angles per person (radians): torso bend forward, twist, side roll, head nod down, head turn; per arm: shoulder pitch
   // (forward/up), roll (out to the side), elbow; per leg: hip pitch (forward), knee; arm yaw (both arms in toward the middle)
   const J_TB = 0, J_TY = 1, J_TR = 2, J_HP = 3, J_HY = 4, J_LP = 5, J_LR = 6, J_LE = 7, J_RP = 8, J_RR = 9, J_RE = 10, J_LH = 11, J_LK = 12, J_RH = 13, J_RK = 14, J_AY = 15;
@@ -7633,7 +7637,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   // curb. Curves are polylines. Main Street is one-way northbound, Dry Grove Street east of Main one-way westbound, west of Main
   // two-way; the school lots run one way: in from Dry Grove up the staff lot, round the drop-off loop counter-clockwise, out onto
   // Main (right turn only).
-  if (METCALF) MET.roads = [
+  if (METCALF && !SCHOOL) MET.roads = [
     { name: 'South Main Street', oneWay: true, width: 10.65, speed: 13.4, pts: [[-26.08, -320], [-26.08, 320]], lanes: [{ pts: [[-28.6, -320], [-28.6, 320]] }, { pts: [[-23.8, -320], [-23.8, 320]] }] },
     { name: 'Dry Grove Street (east of Main)', oneWay: true, width: 9.7, speed: 11.2, pts: [[118, -124.65], [-20.75, -124.65]], lanes: [{ pts: [[118, -125.3], [-20.75, -125.3]] }, { pts: [[118, -121.7], [-20.75, -121.7]] }] },
     { name: 'Dry Grove Street (west of Main)', oneWay: false, width: 10.0, speed: 13.4, pts: [[-31.4, -72.5], [-137.9, -72.6], [-145.1, -71.7], [-152.6, -69.1], [-160.2, -65.2], [-167.0, -61.1]], lanes: [{ pts: [[-31.4, -70.35], [-137.9, -70.45], [-160.2, -63.2]] }, { pts: [[-160.2, -67.2], [-137.9, -74.75], [-31.4, -74.65]] }] },
@@ -7642,12 +7646,12 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     { name: 'lot exit to Main Street', oneWay: true, width: 7.5, speed: 3.5, lot: true, pts: [[-8.3, -47.0], [-14.5, -47.6], [-20.6, -47.7], [-23.9, -49.5], [-23.9, -56]], lanes: null },
     { name: 'drop-off shortcut', oneWay: true, width: 5.0, speed: 3.5, lot: true, pts: [[-4.0, -50.7], [-8.3, -47.0]], lanes: null },
   ];
-  if (METCALF) for (const r of MET.roads) if (!r.lanes) r.lanes = [{ pts: r.pts }];
+  if (METCALF && !SCHOOL) for (const r of MET.roads) if (!r.lanes) r.lanes = [{ pts: r.pts }];
   // the traffic lane's keys for the streets this module draws ({ y }: the road surface height in metres; presence = drawn)
-  if (METCALF) { MET.roads.drygroveE = { y: 0.045 }; MET.roads.drygroveW = { y: 0.045 }; }
+  if (METCALF && !SCHOOL) { MET.roads.drygroveE = { y: 0.045 }; MET.roads.drygroveW = { y: 0.045 }; }
   // the black fence row between the blacktop and the drop-off lot (runs of freestanding panels with openings between them), for
   // anything that wants to know where a ball can cross: [{ x0, x1, z, h }] in metres
-  if (METCALF) MET.southFence = [{ x0: -12.6, x1: -6.6, z: -16.95, h: 1.5 }, { x0: -0.65, x1: 17.45, z: -16.95, h: 1.5 }, { x0: 25.25, x1: 28.35, z: -16.95, h: 1.5 }];
+  if (METCALF && !SCHOOL) MET.southFence = [{ x0: -12.6, x1: -6.6, z: -16.95, h: 1.5 }, { x0: -0.65, x1: 17.45, z: -16.95, h: 1.5 }, { x0: 25.25, x1: 28.35, z: -16.95, h: 1.5 }];
 
   // OpenStreetMap footprints south of the school (frame F metres) with heights: [h, x0, z0, x1, z1, ...]
   const MS_BLD = [[18.8,136.7,-83.8,136.8,-58.9,133.1,-58.9,133.1,-54.6,136.8,-54.6,136.8,-52.9,179.8,-53.0,179.8,-54.6,183.4,-54.6,183.4,-59.1,179.8,-59.1,179.7,-83.8,183.3,-83.8,183.3,-88.2,179.7,-88.2,179.7,-89.9,136.7,-89.9,136.7,-88.2,132.8,-88.2,132.8,-83.8],[12,183.2,-94.7,183.1,-108.6,202.5,-108.8,202.5,-113.7,188.3,-113.6,188.0,-146.1,203.2,-146.3,203.1,-151.9,180.6,-151.7,180.5,-166.2,221.1,-166.6,221.2,-152.8,216.6,-152.7,217.0,-108.0,221.8,-108.1,222.0,-95.1],[8,-211.9,-63.3,-219.4,-63.2,-219.4,-55.8,-238.5,-55.6,-238.5,-63.0,-259.8,-62.8,-259.8,-74.8,-258.6,-74.9,-258.7,-92.9,-269.3,-92.8,-269.5,-125.1,-259.5,-125.2,-259.5,-126.4,-244.9,-126.5,-244.9,-134.7,-270.9,-134.5,-271.1,-157.2,-274.4,-157.2,-274.4,-163.0,-281.3,-162.9,-281.7,-221.0,-274.8,-221.1,-274.8,-224.9,-284.7,-224.8,-285.1,-279.1,-272.0,-279.2,-272.1,-286.5,-264.6,-286.5,-264.7,-292.7,-254.3,-292.8,-254.2,-286.4,-235.1,-286.6,-235.2,-292.7,-225.0,-292.8,-224.9,-286.5,-217.7,-286.5,-217.6,-279.1,-205.1,-279.3,-204.6,-225.3,-207.7,-225.2,-208.6,-209.4,-207.5,-209.4,-207.2,-180.2,-208.4,-180.2,-208.4,-172.8,-207.3,-172.8,-207.2,-163.8,-204.7,-163.9,-204.5,-135.2,-221.6,-135.1,-221.5,-126.3,-212.3,-126.3],[6.5,-78.1,-111.4,-37.6,-111.4,-37.6,-148.2,-74.5,-148.3,-74.6,-146.3,-80.7,-146.1,-80.7,-143.0,-78.3,-143.1],[8,-134.3,-130.2,-115.9,-130.3,-115.5,-93.9,-112.5,-94.0,-112.5,-87.8,-119.9,-87.7,-119.9,-90.5,-134.1,-90.3],[12,-158.3,-115.3,-140.2,-115.5,-140.7,-141.8,-147.0,-141.7,-147.0,-143.0,-152.0,-142.9,-152.1,-141.5,-158.6,-141.6],[11,134.0,-306.1,151.5,-305.9,151.4,-266.8,134.0,-266.6,134.0,-277.1,137.6,-277.2,137.5,-282.9,135.5,-283.5,134.8,-286.6,135.8,-290.1,137.6,-290.1,137.6,-295.6,133.9,-295.7],[6,-81.7,-281.1,-37.1,-281.3,-37.4,-297.1,-44.5,-296.8,-44.7,-302.3,-49.5,-302.2,-49.4,-296.7,-61.0,-296.5,-61.0,-298.7,-66.1,-298.7,-66.0,-296.5,-82.0,-296.2],[10.5,-143.0,-186.2,-121.3,-186.4,-121.4,-216.3,-143.3,-216.3],[10.5,-46.4,-197.3,-46.5,-209.1,-58.3,-208.9,-58.3,-206.7,-97.5,-207.2,-97.3,-197.9],[10.5,-114.9,-224.1,-61.6,-223.8,-59.4,-223.2,-59.4,-221.8,-46.3,-221.8,-46.5,-239.7,-59.5,-239.5,-59.5,-237.5,-115.4,-238.2],[5,-84.0,-169.6,-84.2,-177.2,-53.7,-177.6,-53.6,-170.1],[10.5,77.2,-86.4,77.3,-101.8,84.2,-101.6,84.4,-112.7,100.0,-112.8,99.7,-98.7,102.0,-97.1,102.0,-94.2,99.9,-93.0,100.0,-71.3,84.3,-71.2,84.4,-86.5],[5,-163.7,-226.3,-153.2,-226.4,-153.5,-242.1,-163.7,-242.1],[4.5,-53.5,-184.7,-81.2,-184.5,-81.2,-197.7,-53.6,-197.4],[6,-126.1,-42.3,-126.1,-40.9,-132.3,-40.9,-132.5,-55.5,-123.9,-55.6,-124.0,-58.2,-114.9,-58.2,-114.9,-55.5,-108.1,-55.6,-107.9,-42.5],[6,317.7,-119.1,320.1,-119.1,321.0,-121.1,320.0,-123.0,317.7,-123.0,316.5,-121.1]];
@@ -8103,7 +8107,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   // the transparent batch). Randomness: Math.random only (never the game RNG). With the stadium none of this runs.
   // Hooks: metTrafficGL() at the end of metStatics (12-venue.js), metTrafficFrame(dt) in render() (80-render.js).
   // =====================================================================================
-  const MTR = METCALF ? (() => {
+  const MTR = METCALF && !SCHOOL ? (() => {
     const RND = Math.random, rr = (a, b) => a + (b - a) * RND();
     const pickW = (list) => { let t = 0; for (const e of list) t += e[1]; let x = RND() * t; for (const e of list) { x -= e[1]; if (x <= 0) return e[0]; } return list[0][0]; };
     // ---------- the road table (frame F, metres). Sources: the measured survey (wf1-final-measure: Main's curbs at x -31.4 /
@@ -8733,7 +8737,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   if (METCALF && WXK === 'snow') SKX.snow = [0.95, 0.24];
   if (METCALF && (WXK === 'rain' || WXK === 'storm')) SKX.wet = 1;
   // ---- the schoolyard's lights at night: four with highlights in the point-light slots (their lens flares too), the rest as pools ----
-  if (METCALF && TOD === 'night') {
+  if (METCALF && !SCHOOL && TOD === 'night') {
     const k2 = MET_K * MET_K;
     MET_LAMPS.key.forEach((q, i) => { const e = lampE(q[0], q[1], q[2]); LPOS[i][0] = e[0]; LPOS[i][1] = e[1]; LPOS[i][2] = e[2]; LPOS[i][3] = q[3] * k2;
       TOWERS[i][0] = e[0] + (e[0] < -3.5 ? -3.5 : 3.5); TOWERS[i][1] = e[1] + 2.5; TOWERS[i][2] = e[2]; }); // the flare code draws 3.5 in and 2.5 down from a tower
@@ -8810,7 +8814,7 @@ gl_FragColor=vec4(col,1.0);}`;
   // (dark bronze housings, a lens that glows at night) and, at night, a glowing globe on the acorn lamp. The street lights' heads are
   // in the venue already (their lenses always glow). ----
   function skyLamps(W) {
-    if (!METCALF || !W.defs) return;
+    if (!METCALF || SCHOOL || !W.defs) return;
     const b = new Batch(600), t = new Batch(200), night = TOD === 'night',
       put = (ax, az) => { const e = metE0(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; const d = metDir0((f[o] - ax) * M2Y * MET_Z, (f[o + 2] - az) * M2Y * MET_Z), n = metDir0(f[o + 3], f[o + 5]); b.v(e[0] + d[0], metY(f[o + 1]), e[1] + d[1], n[0], f[o + 4], n[1], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
     for (const [x, y, z] of MET_LAMPS.wall) {
@@ -10372,6 +10376,387 @@ gl_FragColor=vec4(col,1.0);}`;
       add('hkxtower', TT, hkxTowerCanvas(!!SKY.night), [0.85, 0, 0, SKY.night ? 1.4 : 0]);
     }
     return { signs: XT.n, tower: TT.n };
+  }
+  // =====================================================================================
+  // Venue: a middle school's own field (venue 'school', 3D Blitz Career away games). Gameplay is Wildcat Blacktop's (the small
+  // 7-on-7 field, throw-offs, no punts or kicks, a touchdown is 7): only the world is different. Every school is generated from its
+  // seed (opts.school.seed), so the same school is always the same place: blacktop or grass, the building's shape, size, colours
+  // and where it stands, portables, hoops, a playground, fences, bleachers, the parking lot, the street and houses, trees, a water
+  // tower with the town's name. Authored like Metcalf in frame F metres (12-venue.js: the field is the blacktop field's rectangle,
+  // x -11.2..3.42, z -15.68..15.68) and converted to engine units the same way, so the camera, the ends swap (MFL) and the
+  // keep-out solids all work as they do at Metcalf. Cosmetic only: its own seeded dice (mrng), never the game's rng or crand.
+  // =====================================================================================
+  const SCH = (() => {
+    const o = (opts.school && typeof opts.school === 'object') ? opts.school : {};
+    const hexOk = (c) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
+    const seedStr = String(o.seed || o.name || 'school');
+    let h = 2166136261 >>> 0; for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return { seed: h >>> 0, name: String(o.name || 'Middle School').slice(0, 40), short: String(o.short || o.abbr || '').slice(0, 5).toUpperCase(), town: String(o.town || '').slice(0, 20),
+      mascot: String(o.mascot || '').slice(0, 20), c1: hexOk(o.color) ? o.color : '#1d4ed8', c2: hexOk(o.color2) ? o.color2 : '#f8fafc',
+      surface: o.surface === 'grass' || o.surface === 'blacktop' ? o.surface : null };
+  })();
+  // the plan: every choice the seed makes, in one place (the world and the ground canvas both read it)
+  const SPLAN = SCHOOL ? (() => {
+    const R = mrng(SCH.seed ^ 0x5ca1ab1e), pick = (a) => a[(R() * a.length) | 0], U = (a, b) => a + R() * (b - a);
+    const surf = SCH.surface || (R() < 0.5 ? 'blacktop' : 'grass');
+    const side = R() < 0.5 ? 1 : -1; // the school stands east (+x) or west of the field
+    const P = {
+      surf, side,
+      lines: surf === 'grass' ? (R() < 0.55 ? 'chalk' : 'cones') : (R() < 0.75 ? 'paint' : 'cones'),
+      brick: pick(['#8a4434', '#9b5a43', '#b48a62', '#c9b48e', '#7a5a45', '#a3a29b', '#c2b9a6', '#8f6b52']),
+      trimDark: R() < 0.5,
+      storeys: R() < 0.45 ? 2 : 1,
+      shape: pick(['bar', 'L', 'L', 'T', 'two', 'U']),
+      bLen: U(46, 84), bDep: U(15, 22), bGap: U(9, 17), bOff: U(-12, 12),
+      roof: R() < 0.72 ? 'flat' : 'pitched',
+      gym: R() < 0.8, gymEnd: R() < 0.5 ? 1 : -1,
+      portables: (R() * 3.4) | 0, portCol: pick(['#e9e4d6', '#d8d2c0', '#c9d0d3', '#e3d9bf']),
+      hoops: surf === 'blacktop' ? 2 + ((R() * 3) | 0) : (R() < 0.35 ? 2 : 0),
+      play: R() < 0.85, playCol: pick([['#2563eb', '#facc15'], ['#16a34a', '#f97316'], ['#dc2626', '#facc15'], ['#7c3aed', '#22d3ee'], ['#0ea5e9', '#f43f5e']]),
+      bleach: R() < 0.7 ? 1 + (R() < 0.35 ? 1 : 0) : 0,
+      fence: R() < 0.8, fenceH: U(1.4, 2.6), backstop: surf === 'grass' && R() < 0.55,
+      lot: R() < 0.85, lotEnd: R() < 0.5 ? 1 : -1, cars: 6 + ((R() * 14) | 0),
+      houses: R() < 0.8, corn: R() < 0.65, tower: R() < 0.8, towerCol: pick(['#cfd6dc', '#9fb7c9', '#e7e7e1', '#b5c4b1']),
+      trees: 8 + ((R() * 14) | 0), treeCol: pick(['#4a5e32', '#55682f', '#62763a', '#6b6a33', '#7a6a2c']),
+      margin: surf === 'blacktop' ? [U(4, 9), U(3, 7)] : [U(10, 20), U(8, 16)],
+      mural: R() < 0.5, flag: R() < 0.85, stripes: R() < 0.7,
+      R,
+    };
+    return P;
+  })() : null;
+  // the play pad (the ground canvas's rectangle, frame F): the field plus a margin, more on the school's side
+  const SGB = SCHOOL ? (() => { const m = SPLAN.margin, w0 = 7.31 + (SPLAN.side < 0 ? m[0] + 2 : m[1]), w1 = 7.31 + (SPLAN.side > 0 ? m[0] + 2 : m[1]);
+    return { x0: MX0 - w0, x1: MX0 + w1, z0: -15.68 - m[1] - 1, z1: 15.68 + m[1] + 1 }; })() : null;
+
+  // ---------- the ground canvas: the pad (asphalt or a mown lawn) and the field's lines ----------
+  function schoolGroundCanvas(N) {
+    const c = mkCv(N, N); if (!realCv()) return c;
+    const g = c.getContext('2d'), GBx = SGB, SX = N / (GBx.x1 - GBx.x0), SZ = N / (GBx.z1 - GBx.z0), P = SPLAN;
+    const Wt = () => g.setTransform(SX, 0, 0, SZ, -GBx.x0 * SX, -GBx.z0 * SZ), It = () => g.setTransform(1, 0, 0, 1, 0, 0);
+    const nz = vnoise((SCH.seed & 0xffff) + 3);
+    if (P.surf === 'blacktop') {
+      g.fillStyle = mrng(SCH.seed)() < 0.5 ? '#3d3e3f' : '#56575a'; g.fillRect(0, 0, N, N); // fresh dark sealcoat or a tired grey lot
+      const tile = grainTile(vimg('asphalt.jpg'), 512, 1.3, 77);
+      Wt(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.8;
+      for (let x = GBx.x0; x < GBx.x1; x += 2.2) for (let z = GBx.z0; z < GBx.z1; z += 2.2) g.drawImage(tile, x, z, 2.2, 2.2);
+      It(); g.globalCompositeOperation = 'source-over';
+      const mot = noiseCanvas(256, 256, (x, y) => 0.5 + (nz(x / 7, y / 7) - 0.5) * 0.8);
+      g.globalAlpha = 0.16; g.drawImage(mot, 0, 0, N, N); g.globalAlpha = 1;
+      // crack-seal squiggles
+      const cr = mrng(SCH.seed + 9); Wt(); g.strokeStyle = 'rgba(12,12,12,0.55)'; g.lineWidth = 0.06;
+      for (let i = 0; i < 26; i++) { let x = GBx.x0 + cr() * (GBx.x1 - GBx.x0), z = GBx.z0 + cr() * (GBx.z1 - GBx.z0), a = cr() * 6.28; g.beginPath(); g.moveTo(x, z); for (let k = 0; k < 9; k++) { a += (cr() - 0.5) * 1.2; x += Math.cos(a) * 0.7; z += Math.sin(a) * 0.7; g.lineTo(x, z); } g.stroke(); }
+      It();
+    } else {
+      g.fillStyle = '#4f6a33'; g.fillRect(0, 0, N, N);
+      const tile = grainTile(vimg('grass.jpg'), 512, 1.1, 61);
+      Wt(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.7;
+      for (let x = GBx.x0; x < GBx.x1; x += 2.5) for (let z = GBx.z0; z < GBx.z1; z += 2.5) g.drawImage(tile, x, z, 2.5, 2.5);
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      if (P.stripes) for (let z = GBx.z0, i = 0; z < GBx.z1; z += 3.2, i++) { g.fillStyle = i & 1 ? 'rgba(255,255,240,0.07)' : 'rgba(0,20,0,0.07)'; g.fillRect(GBx.x0, z, GBx.x1 - GBx.x0, 3.2); }
+      It();
+      const mot = noiseCanvas(256, 256, (x, y) => 0.5 + (nz(x / 9, y / 9) - 0.5) * 0.9);
+      g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.35; g.drawImage(mot, 0, 0, N, N);
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      // worn dirt in the middle and at the goal lines (kids play here every recess)
+      Wt(); for (const [z, r] of [[0, 3.2], [-13.77, 2.2], [13.77, 2.2]]) { const gr = g.createRadialGradient(MX0, z, 0, MX0, z, r); gr.addColorStop(0, 'rgba(120,96,62,0.55)'); gr.addColorStop(1, 'rgba(120,96,62,0)'); g.fillStyle = gr; g.fillRect(MX0 - r, z - r, r * 2, r * 2); } It();
+    }
+    // the field: painted lines on the blacktop, chalk on grass, or just the cones (a few worn chalk marks)
+    Wt();
+    const x0 = -11.2, x1 = 3.42, gl0 = -13.77, gl1 = 13.77, e0 = -15.68, e1 = 15.68;
+    const W = P.lines === 'cones' ? 0.06 : 0.1, white = P.lines === 'chalk' ? 'rgba(250,250,245,0.9)' : P.lines === 'cones' ? 'rgba(240,240,235,0.28)' : 'rgba(246,246,240,0.92)';
+    const ln = (ax, az, bx, bz, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(ax, az); g.lineTo(bx, bz); g.stroke(); };
+    g.lineCap = 'butt';
+    for (const x of [x0, x1]) ln(x, e0, x, e1, W, white);
+    for (const z of [e0, e1]) ln(x0, z, x1, z, W, white);
+    const gc = P.lines === 'paint' ? SCH.c1 : white;
+    for (const z of [gl0, gl1]) ln(x0, z, x1, z, P.lines === 'paint' ? 0.14 : W, gc);
+    if (P.lines !== 'cones') {
+      // 5-yard ticks (the voice calls a dash 5 yards on this field) and a midfield circle with the school's letter
+      for (let k = 1; k < 6; k++) { const z = gl0 + (gl1 - gl0) * k / 6; ln(x0, z, x0 + 0.9, z, W, white); ln(x1 - 0.9, z, x1, z, W, white); }
+      if (P.lines === 'paint') {
+        g.fillStyle = SCH.c1; g.globalAlpha = 0.85; g.beginPath(); g.arc(MX0, 0, 2.2, 0, 6.2832); g.fill();
+        g.globalAlpha = 1; g.strokeStyle = SCH.c2; g.lineWidth = 0.12; g.stroke();
+        g.save(); g.translate(MX0, 0); g.rotate(SPLAN.side > 0 ? -Math.PI / 2 : Math.PI / 2); g.fillStyle = SCH.c2; g.font = 'bold 2.6px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText((SCH.short || SCH.name).slice(0, 3), 0, 0.1); g.restore();
+        // the end zones: the school's colour, faint
+        g.fillStyle = SCH.c1; g.globalAlpha = 0.22; g.fillRect(x0, e0, x1 - x0, gl0 - e0); g.fillRect(x0, gl1, x1 - x0, e1 - gl1); g.globalAlpha = 1;
+      }
+    }
+    if (P.surf === 'blacktop') { // four-square courts and a hopscotch off the field, a recess blacktop
+      const s = SPLAN.side, cx = MX0 + s * (7.31 + SPLAN.margin[0] * 0.55), Wc = 'rgba(250,214,60,0.75)';
+      if (SPLAN.margin[0] > 5.5) { for (const z of [-9, 4]) { const a = 2.6; g.strokeStyle = Wc; g.lineWidth = 0.08; g.strokeRect(cx - a, z, a * 2, a * 2); ln(cx, z, cx, z + a * 2, 0.08, Wc); ln(cx - a, z + a, cx + a, z + a, 0.08, Wc); } }
+      g.strokeStyle = 'rgba(255,255,255,0.65)'; g.lineWidth = 0.07; const hz = e1 + 1.2, hx = MX0 - 2; for (let i = 0; i < 6; i++) g.strokeRect(hx, hz + i * 0.55, 0.55, 0.55);
+    }
+    It();
+    return c;
+  }
+
+  // ---------- the signs atlas: the school's name on its sign, the town on the water tower, a banner ----------
+  const SIGN_R = { sign: [0, 0, 1, 0.25], tower: [0, 0.25, 1, 0.5], banner: [0, 0.5, 1, 0.75], mural: [0, 0.75, 1, 1] };
+  function schoolSignCanvas() {
+    const c = mkCv(1024, 512); if (!realCv()) return c; const g = c.getContext('2d');
+    const fit = (txt, x, y, w, size, col, weight) => { let s = size; g.font = `${weight || 'bold'} ${s}px Arial, Helvetica, sans-serif`; while (g.measureText(txt).width > w && s > 14) { s -= 2; g.font = `${weight || 'bold'} ${s}px Arial, Helvetica, sans-serif`; } g.fillStyle = col; g.fillText(txt, x, y); };
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    // the building sign: school colour plate, light border, the name, the town under it
+    g.fillStyle = SCH.c1; g.fillRect(0, 0, 1024, 128); g.strokeStyle = SCH.c2; g.lineWidth = 8; g.strokeRect(6, 6, 1012, 116);
+    fit(SCH.name.toUpperCase(), 512, SCH.town ? 52 : 64, 960, 64, SCH.c2); if (SCH.town) fit(SCH.town.toUpperCase(), 512, 102, 600, 26, SCH.c2, '600');
+    // the water tower's band: the town's name in big letters on the tank's colour
+    g.fillStyle = SPLAN ? SPLAN.towerCol : '#cfd6dc'; g.fillRect(0, 128, 1024, 128); fit((SCH.town || SCH.name).toUpperCase(), 512, 192, 980, 96, '#1f3b6b');
+    // the fence banner: HOME OF THE <mascot>
+    g.fillStyle = SCH.c2; g.fillRect(0, 256, 1024, 128); g.fillStyle = SCH.c1; g.fillRect(0, 256, 1024, 14); g.fillRect(0, 370, 1024, 14);
+    fit(SCH.mascot ? `HOME OF THE ${SCH.mascot.toUpperCase()}` : `GO ${(SCH.short || SCH.name).toUpperCase()}!`, 512, 320, 960, 70, SCH.c1);
+    // a painted wall mural: stripes in the school's colours and the short name
+    const gr = g.createLinearGradient(0, 384, 1024, 512); gr.addColorStop(0, SCH.c1); gr.addColorStop(1, SCH.c2); g.fillStyle = gr; g.fillRect(0, 384, 1024, 128);
+    g.fillStyle = 'rgba(255,255,255,0.18)'; for (let i = -4; i < 20; i++) { g.beginPath(); g.moveTo(i * 64, 512); g.lineTo(i * 64 + 40, 512); g.lineTo(i * 64 + 168, 384); g.lineTo(i * 64 + 128, 384); g.fill(); }
+    fit((SCH.short || SCH.name).toUpperCase(), 512, 448, 900, 92, '#ffffff');
+    return c;
+  }
+  // a chain-link fence tile (alpha only: diamonds of wire), drawn see-through like Metcalf's pickets
+  function chainTex() {
+    const t = gl.createTexture(); G.texs.push(t); gl.bindTexture(gl.TEXTURE_2D, t);
+    const c = mkCv(64, 64); if (realCv()) { const g = c.getContext('2d'); g.clearRect(0, 0, 64, 64); g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 32); g.lineTo(32, 0); g.lineTo(64, 32); g.lineTo(32, 64); g.closePath(); g.stroke(); }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.generateMipmap(gl.TEXTURE_2D);
+    return t;
+  }
+
+  // ---------- the world ----------
+  function buildSchool() {
+    const t0 = performance.now(), P = SPLAN, R = mrng(SCH.seed ^ 0x77aa11), U = (a, b) => a + R() * (b - a), pick = (a) => a[(R() * a.length) | 0];
+    MET.keep = []; MET.fences = []; MET.southFence = [];
+    const W = { plain: new Batch(30000), seats: new Batch(6), field: new Batch(6), glow: new Batch(6), board: new Batch(6), ribbon: new Batch(6), glass: new Batch(6), crowd: { f: new Float32Array(0), n: 0 } };
+    const B = {}, nb = (k, cap) => (B[k] = new Batch(cap || 2000));
+    const pb = W.plain, gnd = nb('sground', 12), grass = nb('sgrass', 8000), asph = nb('sasph', 2000), conc = nb('sconc', 2000), brick = nb('sbrick', 4000), panel = nb('spanel', 3000),
+      roof = nb('sroof', 3000), bark = nb('sbark', 6000), leaf = nb('sleaf', 30000), chips = nb('schips', 300), sign = nb('ssign', 60), fence = nb('sfence', 600), glassB = nb('sglass', 4000), flat = nb('sflat', 20000);
+    const up = [0, 1, 0], X = (lx) => MX0 + lx, s = P.side, HW = 7.31, HL = 15.68;
+    const col = (h, k) => tc(h, k), raw = (h, k) => hx3(h, k == null ? 1 : k);
+    const keepBox = (x0, y0, z0, x1, y1, z1) => MET.keep.push([Math.min(x0, x1), y0, Math.min(z0, z1), Math.max(x0, x1), y1, Math.max(z0, z1)]);
+    const signQ = (k, a, b, y0, y1, n) => { const r = SIGN_R[k]; sign.quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], n, [1, 1, 1, 1], [r[0], r[3], r[2], r[3], r[2], r[1], r[0], r[1]]); };
+    // ===== ground: the pad, grass round it, a sidewalk to the building =====
+    gnd.quad([SGB.x0, 0, SGB.z0], [SGB.x1, 0, SGB.z0], [SGB.x1, 0, SGB.z1], [SGB.x0, 0, SGB.z1], up, [1, 1, 1, 1], [0, 0, 1, 0, 1, 1, 0, 1]);
+    if (P.surf === 'blacktop') { // a concrete curb round the blacktop
+      for (const [a, b] of [[[SGB.x0, SGB.z0], [SGB.x1, SGB.z0]], [[SGB.x1, SGB.z0], [SGB.x1, SGB.z1]], [[SGB.x1, SGB.z1], [SGB.x0, SGB.z1]], [[SGB.x0, SGB.z1], [SGB.x0, SGB.z0]]]) {
+        const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = -dz / l * 0.25, nz = dx / l * 0.25;
+        conc.extrude([[a[0], a[1]], [b[0], b[1]], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], -0.02, 0.08, col('#b9b6ad'), 0.4);
+      }
+    }
+    {
+      const nz = vnoise((SCH.seed >>> 8) & 0xffff), base = P.corn ? '#4c5a30' : '#46552e';
+      const gcol = (x, z) => { const n = nz(x / 11, z / 11) * 0.6 + nz(x / 3.5 + 20, z / 3.5) * 0.4, d = nz(x / 30 + 5, z / 30); return mixC(mixC(col('#3c4a2a'), col(base), n), col('#6a6440'), Math.max(0, d - 0.55) * 1.5); };
+      const xs = [], zs = []; for (let x = -260; x <= 260; x += x > -60 && x < 60 ? 10 : 40) xs.push(x); for (let z = -260; z <= 260; z += z > -70 && z < 70 ? 10 : 40) zs.push(z);
+      for (let j = 0; j < zs.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
+        const x0 = xs[i], x1 = xs[i + 1], z0 = zs[j], z1 = zs[j + 1];
+        if (x0 >= SGB.x0 - 0.01 && x1 <= SGB.x1 + 0.01 && z0 >= SGB.z0 - 0.01 && z1 <= SGB.z1 + 0.01) continue;
+        grass.grow(6); for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z0], [x1, z1], [x0, z1]]) grass.v(x, -0.03, z, 0, 1, 0, gcol(x, z), x * 0.4, z * 0.4);
+      }
+    }
+    // ===== the school building =====
+    const face = X(s * (HW + (P.surf === 'blacktop' ? P.margin[0] + 2 : 0) + P.bGap)), fd = s; // the wall facing the field, and which way the building runs away from it
+    const bz0 = P.bOff - P.bLen / 2, bz1 = P.bOff + P.bLen / 2, H1 = P.storeys * 4.1 + 0.9, wallC = col(P.brick), trim = raw(P.trimDark ? '#2b2d31' : SCH.c1);
+    const parts = []; // footprints [x0, z0, x1, z1, height]
+    const xb = (d0, d1) => [face + fd * d0, face + fd * d1];
+    { const [a, b] = xb(0, P.bDep); parts.push([a, bz0, b, bz1, H1]); }
+    if (P.shape === 'L' || P.shape === 'U') { const [a, b] = xb(P.bDep, P.bDep + U(18, 34)); parts.push([a, bz1 - U(12, 16), b, bz1, H1]); if (P.shape === 'U') parts.push([a, bz0, b, bz0 + U(12, 16), H1]); }
+    if (P.shape === 'T') { const [a, b] = xb(P.bDep, P.bDep + U(16, 28)), zc = P.bOff + U(-8, 8); parts.push([a, zc - 7, b, zc + 7, H1]); }
+    if (P.gym) { const gz = P.gymEnd > 0 ? bz1 : bz0, gl = U(24, 34), [a, b] = xb(U(-2, 3), P.bDep + U(4, 12)); parts.push([a, P.gymEnd > 0 ? gz : gz - gl, b, P.gymEnd > 0 ? gz + gl : gz, U(8.5, 10.5)]); }
+    if (P.shape === 'two') { const [a, b] = xb(P.bDep + 10, P.bDep + 10 + U(14, 20)); parts.push([a, P.bOff - 18, b, P.bOff + 18, 4.6]); }
+    for (const [ax, az, bx, bz, h] of parts) {
+      const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx), z0 = Math.min(az, bz), z1 = Math.max(az, bz);
+      if (P.roof === 'flat' || h > 7) {
+        brick.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, h, wallC, 0.5, false);
+        flat.poly([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h, raw('#4a4c50'), true);
+        flat.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h, h + 0.5, trim, 0, raw('#3a3c40')); // parapet / coping in the trim colour
+        for (let k = 0; k < Math.max(1, ((z1 - z0) / 22) | 0); k++) { const hx = (x0 + x1) / 2 + U(-2, 2), hz = z0 + (k + 0.5) * (z1 - z0) / Math.max(1, ((z1 - z0) / 22) | 0); flat.wbox(hx - 1.2, h, hz - 0.9, hx + 1.2, h + 1.3, hz + 0.9, raw('#9ea3a8')); }
+      } else gableHouse(brick, roof, flat, (x0 + x1) / 2, (z0 + z1) / 2, z1 - z0, x1 - x0, Math.PI / 2, h, h + Math.min(4, (x1 - x0) * 0.22), wallC, col(pick(['#5a5650', '#3f4a5a', '#6b3b30', '#4a4f45'])), trim, 0.5, 0.5, 0.5);
+      keepBox(x0, 0, z0, x1, h + 0.8, z1);
+    }
+    // windows: strips along the field-facing wall, each storey; a big entry with a canopy, double doors, the sign over it
+    {
+      const fx = face - fd * 0.03, n = [-fd, 0, 0], zStep = 3.4;
+      for (let st = 0; st < P.storeys; st++) {
+        const y0 = 1.0 + st * 4.1, y1 = y0 + 2.0;
+        for (let z = bz0 + 2.5; z < bz1 - 3.5; z += zStep) {
+          if (Math.abs(z - P.bOff) < 4.5 && st === 0) continue; // the entrance
+          glassB.quad([fx, y0, z], [fx, y0, z + 2.4], [fx, y1, z + 2.4], [fx, y1, z], n, raw('#1a2430'));
+          flat.wbox(fx - fd * 0.06, y0 - 0.12, z - 0.08, fx + fd * 0.02, y0, z + 2.48, raw('#d7d5cf'));
+          flat.wbox(fx - fd * 0.05, y0, z + 1.17, fx + fd * 0.01, y1, z + 1.23, raw('#cfcdc6'));
+        }
+      }
+      const ez = P.bOff;
+      flat.wbox(fx - fd * 0.02, 0, ez - 1.6, fx + fd * 0.02, 2.4, ez + 1.6, raw('#2a3440')); // doors
+      flat.wbox(fx - fd * 0.03, 1.15, ez - 0.03, fx + fd * 0.03, 1.25, ez + 0.03, raw('#c0c4c8'));
+      flat.wbox(fx - fd * 2.4, 2.9, ez - 3.4, fx, 3.25, ez + 3.4, trim); // canopy
+      for (const zz of [ez - 3.2, ez + 3.2]) flat.cyl(fx - fd * 2.2, zz, 0, 2.9, 0.08, 0.08, raw('#d0d2d4'), 8);
+      const sy = Math.min(H1 - 0.6, 4.6);
+      signQ('sign', [fx - fd * 0.05, ez + fd * 5.2], [fx - fd * 0.05, ez - fd * 5.2], sy - 1.3, sy, n);
+      if (P.mural) { const mz = P.gym ? (P.gymEnd > 0 ? bz1 - 9 : bz0 + 1) : bz0 + 1; signQ('mural', [fx - fd * 0.05, mz + fd * 8], [fx - fd * 0.05, mz], 0.6, 2.6, n); }
+      conc.poly([[fx, ez - 4], [fx - fd * 4.5, ez - 4], [fx - fd * 4.5, ez + 4], [fx, ez + 4]], 0.02, col('#c3c1ba'), true, 0.33);
+      // a sidewalk from the entrance to the pad
+      const px = P.surf === 'blacktop' ? SGB[s > 0 ? 'x1' : 'x0'] : X(s * (HW + 3));
+      conc.poly([[px, ez - 1.2], [fx - fd * 4.5, ez - 1.2], [fx - fd * 4.5, ez + 1.2], [px, ez + 1.2]].map((p) => [p[0], p[1]]), 0.015, col('#c7c5be'), true, 0.33);
+    }
+    // a flagpole by the entrance
+    if (P.flag) { const fx = face - fd * 7, fz = P.bOff + 7; pb.cyl(fx, fz, 0, 9.5, 0.07, 0.045, raw('#d6d8da'), 8); const fl = [[0.7, 0.13, 0.15, 1], [0.95, 0.95, 0.95, 1]];
+      for (let i = 0; i < 7; i++) pb.quad([fx, 9.3 - i * 0.16, fz], [fx, 9.3 - i * 0.16, fz + 1.9], [fx, 9.14 - i * 0.16, fz + 1.9], [fx, 9.14 - i * 0.16, fz], [1, 0, 0], fl[i & 1]);
+      pb.quad([fx + 0.01, 9.3, fz], [fx + 0.01, 9.3, fz + 0.8], [fx + 0.01, 8.48, fz + 0.8], [fx + 0.01, 8.48, fz], [1, 0, 0], [0.12, 0.2, 0.45, 1]); MET.keep.push([fx, fz, 0.3, 0, 10]); }
+    // ===== portables: modular classrooms on blocks, behind the far end or beside the school =====
+    for (let i = 0; i < P.portables; i++) {
+      const pz = (R() < 0.5 ? -1 : 1) * (HL + P.margin[1] + 6 + i * 2.5), px = X(s * (HW + 2 + i * 11)), L = 11, D = 7.2, h = 3.1, x0 = px - L / 2, x1 = px + L / 2, z0 = pz - D / 2, z1 = pz + D / 2;
+      if (Math.abs(pz) < HL + 3) continue;
+      panel.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0.45, h, col(P.portCol), 0.6, raw('#9a9c9f'));
+      flat.extrude([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], 0, 0.45, raw('#5b5d60'), 0, false);
+      const fz = pz > 0 ? z0 - 0.02 : z1 + 0.02, nz = pz > 0 ? -1 : 1;
+      for (const wx of [x0 + 1.4, x1 - 3.2]) glassB.quad([wx, 1.4, fz], [wx + 1.8, 1.4, fz], [wx + 1.8, 2.5, fz], [wx, 2.5, fz], [0, 0, nz], raw('#1f2832'));
+      flat.wbox(px - 0.5, 0.45, fz, px + 0.5, 2.6, fz + nz * 0.02, raw('#7a5c3a'));
+      flat.wbox(px - 1.2, 0, fz + nz * 0.02, px + 1.2, 0.45, fz + nz * 1.6, raw('#8d8f92')); // the deck and steps
+      flat.wbox(px - 1.2, 0.95, fz + nz * 1.55, px + 1.2, 1.0, fz + nz * 1.6, raw('#c9cbcd'));
+      keepBox(x0, 0, z0, x1, h + 0.3, z1);
+    }
+    // ===== basketball hoops: on the blacktop's margin, facing in =====
+    {
+      const hx = X(s * (HW + Math.max(2.5, P.margin[0] - 1))), n = P.hoops;
+      for (let i = 0; i < n; i++) {
+        const hz = (i - (n - 1) / 2) * 11, bx = hx + s * 0.9;
+        flat.cyl(hx + s * 1.5, hz, 0, 3.1, 0.07, 0.07, raw('#2c3e50'), 8);
+        flat.tube([hx + s * 1.5, 3.05, hz], [bx, 3.25, hz], 0.055, raw('#2c3e50'), 6);
+        flat.wbox(bx - 0.02, 2.75, hz - 0.9, bx + 0.02, 3.8, hz + 0.9, raw('#f2f2f0'));
+        flat.wbox(bx - s * 0.03, 3.0, hz - 0.3, bx - s * 0.025, 3.45, hz + 0.3, raw('#d9531e'));
+        const rx = bx - s * 0.3; for (let k = 0; k < 10; k++) { const a0 = k / 10 * 6.2832, a1 = (k + 1) / 10 * 6.2832; flat.tube([rx + Math.cos(a0) * 0.23, 3.05, hz + Math.sin(a0) * 0.23], [rx + Math.cos(a1) * 0.23, 3.05, hz + Math.sin(a1) * 0.23], 0.012, raw('#e0561b'), 4); }
+        MET.keep.push([bx, hz, 0.25, 0, 3.9]);
+      }
+    }
+    // ===== the playground =====
+    if (P.play) {
+      const cx = face - fd * 9, cz = (P.gymEnd > 0 ? -1 : 1) * (P.bLen / 2 + 4) + P.bOff, r = 7;
+      const pts = []; for (let i = 0; i < 14; i++) { const a = i / 14 * 6.2832; pts.push([cx + Math.cos(a) * r * (0.9 + R() * 0.15), cz + Math.sin(a) * r * 0.85]); }
+      chips.poly(pts, 0.01, col('#c49a68'), true, 0.45);
+      const [c1, c2] = P.playCol.map((h) => raw(h)), post = raw('#202226');
+      for (const [dx, dz] of [[-1.2, -1.2], [1.2, -1.2], [1.2, 1.2], [-1.2, 1.2]]) flat.cyl(cx + dx, cz + dz, 0, 3.4, 0.08, 0.08, post, 7);
+      flat.wbox(cx - 1.3, 1.5, cz - 1.3, cx + 1.3, 1.62, cz + 1.3, c2);
+      flat.extrude([[cx - 1.5, cz - 1.5], [cx + 1.5, cz - 1.5], [cx + 1.5, cz + 1.5], [cx - 1.5, cz + 1.5]], 3.3, 3.45, c1, 0, c1);
+      for (let k = 0; k < 4; k++) { const y = 3.45 + k * 0.22, w = 1.5 - k * 0.37; flat.wbox(cx - w, y, cz - w, cx + w, y + 0.22, cz + w, c1); }
+      flat.wbox(cx + 1.3, 1.5, cz - 0.4, cx + 4.2, 1.56, cz + 0.4, c2); // a slide (straight run down)
+      flat.quad([cx + 1.3, 1.6, cz - 0.4], [cx + 4.4, 0.25, cz - 0.4], [cx + 4.4, 0.25, cz + 0.4], [cx + 1.3, 1.6, cz + 0.4], [0.4, 0.9, 0], c2);
+      // swings: an A-frame, two seats on chains
+      const sx = cx - 4.2, sz = cz + 1.5;
+      for (const dz of [-2.2, 2.2]) { flat.tube([sx - 1.1, 0, sz + dz], [sx, 2.6, sz + dz], 0.05, post, 6); flat.tube([sx + 1.1, 0, sz + dz], [sx, 2.6, sz + dz], 0.05, post, 6); }
+      flat.tube([sx, 2.6, sz - 2.3], [sx, 2.6, sz + 2.3], 0.06, post, 6);
+      for (const dz of [-0.9, 0.9]) { for (const e of [-0.22, 0.22]) flat.tube([sx, 2.6, sz + dz + e], [sx, 0.55, sz + dz + e], 0.012, raw('#9aa0a6'), 3); flat.wbox(sx - 0.15, 0.5, sz + dz - 0.25, sx + 0.15, 0.56, sz + dz + 0.25, raw('#111214')); }
+      MET.keep.push([cx, cz, 2.2, 0, 4.4]);
+    }
+    // ===== the far side: a chain-link fence (a banner on it), bleachers with a few people, a backstop on a grass field =====
+    const far = X(-s * (HW + (P.surf === 'blacktop' ? P.margin[1] + 1.5 : Math.max(5, P.margin[1] * 0.6)))), fn = [s, 0, 0];
+    if (P.fence) {
+      const fh = P.fenceH, z0 = SGB.z0 - 4, z1 = SGB.z1 + 4, pc = raw('#8d9196');
+      fence.quad([far, 0, z0], [far, 0, z1], [far, fh, z1], [far, fh, z0], fn, [0.55, 0.57, 0.6, 1], [0, fh / 0.06, (z1 - z0) / 0.06, fh / 0.06, (z1 - z0) / 0.06, 0, 0, 0]);
+      for (let z = z0; z <= z1 + 0.01; z += 3) flat.cyl(far, z, 0, fh + 0.05, 0.04, 0.04, pc, 6);
+      flat.tube([far, fh, z0], [far, fh, z1], 0.025, pc, 5);
+      const bc = U(-6, 6); signQ('banner', [far + s * 0.04, bc - s * 6], [far + s * 0.04, bc + s * 6], Math.max(0.2, fh - 1.4), Math.max(1.0, fh - 0.2), fn);
+    }
+    const bodies = (x, y, z, n, fx, stand) => { // seated or standing people: a box torso, legs and a head, in everyday colours
+      const tees = ['#f2f2ef', '#1d1f24', '#2c4f8a', '#b22a2a', '#2f7a43', '#e2c13a', '#6a3d8f', '#e77f2a', '#9aa0a8', SCH.c1, SCH.c1, SCH.c2], skins = ['#f3cfae', '#d4a27a', '#b07a52', '#7f5034', '#4f311e'];
+      for (let i = 0; i < n; i++) { const zz = z + (i - n / 2) * (stand ? 0.9 : 0.62) + U(-0.12, 0.12), sh = raw(pick(tees)), sk = raw(pick(skins)), kid = R() < 0.7, hk = (kid ? 0.82 : 1) * (stand ? 1.3 : 1);
+        flat.wbox(x - 0.14, y + 0.42 * hk, zz - 0.17, x + 0.14, y + 0.95 * hk, zz + 0.17, sh);
+        const pants = raw(pick(['#2b3446', '#3b3b3b', '#5a4a3a', '#1f2a44']));
+        if (stand) { flat.wbox(x - 0.14, y, zz - 0.17, x + 0.14, y + 0.43 * hk, zz - 0.02, pants); flat.wbox(x - 0.14, y, zz + 0.02, x + 0.14, y + 0.43 * hk, zz + 0.17, pants); }
+        else flat.wbox(x + fx * 0.05, y, zz - 0.16, x + fx * 0.42, y + 0.45 * hk, zz + 0.16, pants);
+        const hy = y + 1.08 * hk, hr = 0.11 * Math.min(1.15, hk), sphere = (r0, a0, a1) => { const pr = []; for (let k = 0; k <= 4; k++) { const a = a0 + (a1 - a0) * k / 4; pr.push([Math.max(0.001, Math.sin(a) * r0), hy - Math.cos(a) * r0]); } return pr; };
+        flat.cyl(x, zz, y + 0.93 * hk, hy - hr * 0.6, 0.045, 0.045, sk, 5); // neck
+        flat.lathe(x, zz, sphere(hr, 0.05, Math.PI - 0.05), sk, 7); // head
+        if (R() < 0.75) flat.lathe(x, zz, sphere(hr * 1.06, Math.PI * 0.42, Math.PI - 0.02).map(([r, yy]) => [r, yy + 0.01]), raw(pick(['#17110d', '#3d2a1b', '#83603a', '#c9a66b', '#2e2015'])), 7); // hair
+        for (const sd of [-1, 1]) flat.tube([x, y + 0.9 * hk, zz + sd * 0.2], [x + fx * (stand ? 0.02 : 0.16), y + (stand ? 0.5 : 0.62) * hk, zz + sd * 0.23], 0.05, sh, 5); // arms
+      }
+    };
+    for (let i = 0; i < P.bleach; i++) {
+      const bz = (i - (P.bleach - 1) / 2) * 11 + U(-2, 2), bx = far + s * 1.4, L = U(6, 9), rows = 4, al = raw('#b9bec4');
+      for (let r = 0; r < rows; r++) { const x = bx - s * r * 0.75, y = 0.45 + r * 0.42; flat.wbox(Math.min(x, x - s * 0.32), y, bz - L / 2, Math.max(x, x - s * 0.32), y + 0.06, bz + L / 2, al); flat.wbox(Math.min(x - s * 0.36, x - s * 0.7), y - 0.18, bz - L / 2, Math.max(x - s * 0.36, x - s * 0.7), y - 0.13, bz + L / 2, al);
+        if (r < 3) bodies(x - s * 0.15, y + 0.06, bz, Math.round(L / 1.6 * U(0.4, 0.9)), s); }
+      for (const z of [bz - L / 2, bz + L / 2]) flat.tube([bx, 0, z], [bx - s * rows * 0.75, 0.45 + rows * 0.42, z], 0.04, al, 5);
+      keepBox(bx, 0, bz - L / 2, bx - s * (rows * 0.75 + 0.6), 2.4, bz + L / 2);
+    }
+    // a few kids and teachers standing at the far sideline and by the school
+    bodies(X(-s * (HW + 2.6)), 0, U(-6, 6), 3 + ((R() * 4) | 0), -s, true);
+    bodies(face - fd * 5, 0, P.bOff - 5, 2, fd, true);
+    if (P.backstop) { const bx = far - s * 14, bz = U(-10, 10), pc = raw('#8d9196'); for (let k = 0; k < 7; k++) { const a0 = -0.9 + k * 0.3, a1 = a0 + 0.3, r = 6; const A = [bx + Math.cos(a0) * r * s, bz + Math.sin(a0) * r], Bq = [bx + Math.cos(a1) * r * s, bz + Math.sin(a1) * r];
+        fence.quad([A[0], 0, A[1]], [Bq[0], 0, Bq[1]], [Bq[0], 4.2, Bq[1]], [A[0], 4.2, A[1]], [-Math.cos((a0 + a1) / 2) * s, 0, -Math.sin((a0 + a1) / 2)], [0.55, 0.57, 0.6, 1], [0, 70, 30, 70, 30, 0, 0, 0]); flat.cyl(A[0], A[1], 0, 4.3, 0.05, 0.05, pc, 6); } }
+    // ===== the parking lot and the street beyond it, houses across the street =====
+    if (P.lot) {
+      const lz = P.lotEnd * (Math.max(HL + P.margin[1] + 16, P.bLen / 2 + 8) + 8), lx0 = face - fd * 4, lx1 = face + fd * U(40, 60), z0 = lz - 14 * 1, z1 = lz + 14, xa = Math.min(lx0, lx1), xb2 = Math.max(lx0, lx1);
+      asph.poly([[xa, z0], [xb2, z0], [xb2, z1], [xa, z1]], 0.012, col('#5a5b5d'), true, 0.3);
+      for (let x = xa + 1.5; x < xb2 - 2; x += 2.7) for (const zz of [z0 + 0.3, z1 - 5.3]) flat.wbox(x, 0.014, zz, x + 0.1, 0.02, zz + 5, raw('#e8e6df'));
+      for (let i = 0; i < P.cars; i++) { const x = xa + 2.85 + ((R() * ((xb2 - xa - 5) / 2.7)) | 0) * 2.7, top = R() < 0.5, zz = top ? z0 + 2.8 : z1 - 2.8;
+        car(pb, glassB, x, zz, Math.PI / 2 + (top ? 0 : Math.PI) + U(-0.05, 0.05), raw(pick(['#e9eaec', '#1c1d20', '#8b9096', '#6b1f24', '#2a3f66', '#c9c3b2', '#3a4a3a', '#b7b9bb', '#7d2a17']))); }
+      for (const x of [xa + 8, xb2 - 8]) { flat.cyl(x, lz, 0, 8, 0.11, 0.08, raw('#8b8e92'), 7); flat.wbox(x - 0.25, 7.9, lz - 0.8, x + 0.25, 8.1, lz + 0.8, raw('#55585c')); }
+      const rz = lz + P.lotEnd * 22; // the street
+      asph.poly([[-260, rz - 4], [260, rz - 4], [260, rz + 4], [-260, rz + 4]], 0.01, col('#47484a'), true, 0.25);
+      for (let x = -255; x < 255; x += 6) flat.wbox(x, 0.012, rz - 0.06, x + 3, 0.016, rz + 0.06, raw('#d8b32a'));
+      for (const sz of [rz - 5.4, rz + 5.4]) conc.poly([[-260, sz - 1], [260, sz - 1], [260, sz + 1], [-260, sz + 1]], 0.02, col('#c0beb7'), true, 0.33);
+      if (P.houses) for (let x = -120 + U(0, 8); x < 120; x += U(14, 20)) { const hz = rz + P.lotEnd * U(16, 22), w = U(8, 11), l = U(10, 14), wc2 = col(pick(['#d8d0bd', '#b9a07c', '#8f9ea8', '#c7c2b5', '#a65b48', '#e4e1d6', '#6c7a64']));
+        if (R() < 0.5) hipHouse(panel, roof, x, hz, l, w, 0, U(2.8, 3.2), U(5.5, 6.6), wc2, col(pick(['#4a4744', '#5b4636', '#3c4652'])), 0.6);
+        else gableHouse(panel, roof, flat, x, hz, l, w, 0, U(2.8, 3.2), U(5.6, 7), wc2, col(pick(['#4a4744', '#5b4636', '#3c4652'])), raw('#eeeeea'), 0.6, 0.5);
+        if (R() < 0.6) { bark.cyl(x + U(-6, 6), hz - P.lotEnd * 8, 0, 3, 0.18, 0.14, col('#4d4036'), 6); leaf.crown(x + U(-6, 6), 5.2, hz - P.lotEnd * 8, U(2.5, 3.5), 2.6, col(P.treeCol), R, 1, 0.34, 0.3); } }
+    }
+    // ===== trees: shade trees round the edges (never on the pad or between the camera and the field's ends) =====
+    {
+      const tree = (x, z, h, d) => { const th = h * 0.32; bark.cyl(x, z, 0, th + 0.4, 0.12 + d * 0.02, 0.09 + d * 0.012, col('#4d4036'), 7, false, 1, 3);
+        leaf.crown(x, th + (h - th) * 0.5, z, d / 2, (h - th) * 0.55, col(P.treeCol, 0.9 + R() * 0.2), R, 1, 0.34, 0.3); MET.keep.push([x, z, d * 0.45, 0, h]); };
+      let made = 0;
+      for (let t = 0; t < 400 && made < P.trees; t++) {
+        const a = R() * 6.2832, r = U(26, 70), x = MX0 + Math.cos(a) * r * 0.8, z = Math.sin(a) * r * 1.2;
+        if (x > SGB.x0 - 4 && x < SGB.x1 + 4 && z > SGB.z0 - 4 && z < SGB.z1 + 4) continue;
+        if (Math.abs(x - MX0) < 22 && Math.abs(z) > HL && Math.abs(z) < 60) continue; // the end-zone camera lines stay open
+        if ((x - face) * fd > -6 && (x - face) * fd < 45 && z > bz0 - 8 && z < bz1 + 40) continue; // not in the school
+        tree(x, z, U(8, 13), U(5, 8)); made++;
+      }
+      for (let i = 0; i < 18; i++) { const z = -150 + i * 17 + U(-4, 4), x = MX0 - s * U(110, 140); tree(x, z, U(9, 14), U(6, 9)); } // a windbreak on the horizon
+    }
+    // ===== far away: fields of corn stubble and soybeans, a water tower with the town's name =====
+    if (P.corn) for (const [a, b, c] of [[[-260, -260], [-150, 260], '#a08a52'], [[160, -260], [260, 260], '#8a7a46']]) grass.poly([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]], 0.005, col(c), true, 0.4);
+    if (P.tower) {
+      const tx = MX0 - s * U(90, 130), tz = U(-60, 60), tcol = raw(P.towerCol);
+      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.2832 + 0.4; flat.tube([tx + Math.cos(a) * 4.5, 0, tz + Math.sin(a) * 4.5], [tx + Math.cos(a) * 2.6, 22, tz + Math.sin(a) * 2.6], 0.25, tcol, 6); }
+      flat.cyl(tx, tz, 0, 24, 0.7, 0.7, tcol, 8);
+      flat.lathe(tx, tz, [[0.7, 21], [5.2, 24], [6.2, 26.5], [6.2, 29], [4.5, 31], [0.4, 32]], tcol, 20);
+      // the town's name on two sides (the band faces the field and the far side)
+      for (const sd of [1, -1]) { const nx = s * sd, x = tx + nx * 6.25; signQ('tower', [x, tz - nx * 5.4], [x, tz + nx * 5.4], 26.6, 28.9, [nx, 0, 0]); }
+    }
+    // ===== cones along the lines (a field without paint) =====
+    if (P.lines === 'cones') {
+      const cone = (x, z) => { flat.wbox(x - 0.16, 0, z - 0.16, x + 0.16, 0.03, z + 0.16, raw('#e65a12')); flat.lathe(x, z, [[0.12, 0.03], [0.02, 0.42], [0, 0.44]], raw('#f2661a'), 8); flat.lathe(x, z, [[0.075, 0.2], [0.05, 0.28]], raw('#f3f3f0'), 8); };
+      for (const z of [-15.68, -13.77, 0, 13.77, 15.68]) for (const x of [-11.2 - 0.3, 3.42 + 0.3]) cone(x, z);
+    }
+    // ===== done: metres -> engine units (as Metcalf's blacktop field), the materials =====
+    const conv = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } };
+    conv(pb); for (const k in B) if (B[k].n) conv(B[k]);
+    const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
+    W.defs = {
+      sground: T1('sground', P.surf === 'blacktop' ? 0.88 : 0.95, 1, false, false, 'ground'), sgrass: T1('sgrass', 0.95, 0, false, false, 'grass.jpg'), sasph: T1('sasph', 0.88, 0, false, false, 'asphalt.jpg'),
+      sconc: T1('sconc', 0.82, 0, false, false, 'concrete.jpg'), schips: T1('schips', 0.95, 0, false, false, 'woodchips.jpg'), sbrick: T1('sbrick', 0.85, 0, true, true, 'brick.jpg'),
+      spanel: T1('spanel', 0.85, 0, true, true, 'panel_blue.jpg'), sroof: T1('sroof', 0.85, 0, true, true, 'shingle.jpg'), sbark: T1('sbark', 0.9, 0, true, true, 'bark.jpg'),
+      sleaf: T1('sleaf', 0.88, 0, true, true, 'leaves.jpg'), sflat: T1('sflat', 0.7, 0, true, true, null), ssign: T1('ssign', 0.6, 0, false, false, 'signs'),
+      sglass: { b: B.sglass, tex: null, mat: [0.08, 0, 0, 0], kind: 0, cast: false, c0: false },
+      sfence: Object.assign(T1('sfence', 0.6, 8, false, false, 'chain'), { blend: true }),
+    };
+    let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
+    if (DBG) { DBG.metKeepOut = metKeepOut; DBG.metE = metE; DBG.metF = metF; DBG.school = { plan: Object.assign({}, P, { R: undefined }), verts: nv, tris: Math.round(nv / 3), ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))), name: SCH.name }; }
+    return W;
+  }
+  // ---------- statics for the school's batches (setupGL, in place of metStatics) ----------
+  function schoolStatics(W) {
+    const T = {};
+    const N = quality >= 2 ? 2048 : 1024;
+    T.ground = ctex(schoolGroundCanvas(N), false, 16);
+    const redo = () => { if (!G || glLost) return; try { reupload(T.ground, schoolGroundCanvas(N), false, 16); } catch (e) {} };
+    { const r = vimg(SPLAN.surf === 'blacktop' ? 'asphalt.jpg' : 'grass.jpg'); if (!r.ok) r.cbs.push(() => setTimeout(redo, 0)); }
+    T.signs = ctex(schoolSignCanvas(), false, 8);
+    T.chain = chainTex();
+    for (const k in W.defs) {
+      const d = W.defs[k]; if (!d.b || !d.b.n) continue;
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d.b.f.subarray(0, d.b.n * 12), gl.STATIC_DRAW); G.bufs.push(b);
+      const tex = !d.tex ? G.white : T[d.tex] ? T[d.tex] : vtex(d.tex);
+      statics.push({ k, b, n: d.b.n, tex, cast: d.cast, c0: d.c0, kind: d.kind, mat: d.mat, blend: !!d.blend });
+    }
   }
 
     // ---------- game state ----------
@@ -18741,7 +19126,7 @@ gl_FragColor=vec4(col,1.0);}`;
       return out;
     }
     const bcClockTxt = (secs) => { secs = Math.max(0, Math.round(secs)); return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); };
-    const bcWhere = () => (HANCOCK ? 'Hancock Stadium' : METCALF ? 'Wildcat Blacktop' : 'The Stadium');
+    const bcWhere = () => (HANCOCK ? 'Hancock Stadium' : SCHOOL ? SCH.name : METCALF ? 'Wildcat Blacktop' : 'The Stadium');
     const bcWhen = () => { try { return skyName(); } catch (e) { return ''; } };
     // the game's own label (level, run, game number) without the venue parts the graphic already shows
     const bcLabel = () => String(opts.label || '').split(' · ').filter((s) => !/Stadium|Blacktop|Big field|Crowd|Two-hand touch/i.test(s)).join(' · ');

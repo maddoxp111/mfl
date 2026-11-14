@@ -71,7 +71,7 @@ module.exports = function registerCareer(app, h, siteTeams) {
         <div class="ch-grid">
           ${tile('bowl', '/career/bowl', 'ch-bowl', '🏈', 'Modern Bowl Career', 'Coach a Metcalf team through a McLean County season of retro football and bring home the County Cup.',
             progress('bowl', bowlSnap ? bowlSnap.saves.length : 0, saves.MAX_SAVES, bowlSel && `${esc(bowlSel.name)} · ${esc(bowlSel.team)} · ${rec(bowlSel.w, bowlSel.l, bowlSel.t)}`))}
-          ${tile('blitz3d', '/career/blitz', 'ch-blitz', '🏟️', '3D Blitz Career', 'Build a 3D Blitz program in a 12-team league: play every game in 3D, recruit, upgrade and win the Blitz Bowl.',
+          ${tile('blitz3d', '/career/blitz', 'ch-blitz', '🏟️', '3D Blitz Career', 'Coach your Metcalf team against the McLean County schools in 3D, then go to State and Nationals for the Blitz Bowl.',
             progress('blitz3d', blitzSlots.length, 3, blitzLast && `${esc(blitzLast.meta.name || blitzLast.meta.team || 'Career')} · Season ${esc(blitzLast.meta.season || 1)} · ${esc(blitzLast.meta.record || '0-0')}`))}
         </div></div><style>${inline('career-hub.css')}</style>`));
     } catch (err) { next(err); }

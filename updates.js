@@ -873,6 +873,19 @@ const UPDATES = [
       'A few more prices settled by the value check: Coin Flip 9,000, Pick Three 33,500, Gold Rush 105,000, Elite 140,000.',
     ],
   },
+  {
+    n: 82,
+    date: '2026-11-14',
+    title: '3D Blitz Career: the road to State and Nationals',
+    items: [
+      'Your Metcalf team now plays the McLean County schools: Kingsley, Parkside, Chiddix, Evans, Bloomington, Tri-Valley, Lexington, LeRoy, Heyworth, Ridgeview and Olympia.',
+      'Win the county title to go to State. Win State to go to Nationals and play for the Blitz Bowl. Each title has its own trophy, and a road tracker on your Hub shows where you are.',
+      'Home games are always at Metcalf, and you pick the field each game: Blacktop, Sideways Blacktop, Field Regular or Full Field.',
+      'Away games are at the other school\'s own blacktop or grass field, and every school looks different: its own building, colors, sign, playground, bleachers and neighborhood.',
+      'Stadiums only for the big games: the State semifinal and final at Hancock Stadium, and Nationals at The Stadium under the lights.',
+      'Career games now play at the difficulty you picked (Rookie to Legend), simulated games score like schoolyard games, and the page works better on computers and phones. Your old careers carry over.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
