@@ -9,7 +9,7 @@
 // records with no live match (after a restart) are voided.
 //
 // Messages are JSON text frames { t, ... }; binary frames from a player go to the other player as they are.
-//   client -> server: challenge { to, wager, qs, venue, big, touch } · decline { id } · cancel { id } · accept { id }
+//   client -> server: challenge { to, wager, qs, venue, big, touch, mfield } · decline { id } · cancel { id } · accept { id }
 //                     join { id } · ready { id } · ev { type, data } · quit { id }
 //   server -> client: me · online · challenges · challenge · challenge-sent · challenge-gone · error
 //                     match · go · ev · opp-gone · opp-back · over · detached
@@ -30,7 +30,9 @@ module.exports = function versus(app, h) {
   // Where a match is played: The Stadium and Hancock Stadium (the stadium's rules), or Wildcat Blacktop ('metcalf': its house rules,
   // one game clock of 4 quarters' length, and the challenger's field size and two-hand touch settings, carried with the match).
   const VENUES = ['stadium', 'hancock', 'metcalf'];
-  const metOpts = (venue, o) => (venue === 'metcalf' ? { big: !!(o && o.big), touch: !!(o && o.touch) } : {});
+  // (Wildcat Blacktop's fields: the blacktop field, the only one with a big option, Sideways Blacktop, Field Regular, Full Field)
+  const MFIELDS = ['blacktop', 'sideways', 'regular', 'full'];
+  const metOpts = (venue, o) => { if (venue !== 'metcalf') return {}; const mfield = o && MFIELDS.includes(o.mfield) ? o.mfield : 'blacktop'; return { big: !!(o && o.big) && mfield === 'blacktop', touch: !!(o && o.touch), mfield }; };
   const MAX_TEXT = 64 * 1024, MAX_FRAME = 256 * 1024, MAX_BUFFERED = 256 * 1024, RATE = { text: 40, bin: 60 };
   const WS_PATH = '/ws/versus', PAGE = '/arcade/blitz3d/versus';
   // Score guards (the game is played on the players' screens, so their reports are checked): only the side with the ball moves
@@ -136,7 +138,7 @@ module.exports = function versus(app, h) {
       if (check()) return err(ws, check());
     }
     for (const old of [...challenges.values()]) if (old.from === name) dropChallenge(old, 'replaced');
-    const c = { id: hex(6), from: name, to, wager, qs, venue, ...metOpts(venue, { big: msg.big === true, touch: msg.touch === true }), exp: Date.now() + CHALLENGE_MS, fromWs: ws };
+    const c = { id: hex(6), from: name, to, wager, qs, venue, ...metOpts(venue, { big: msg.big === true, touch: msg.touch === true, mfield: msg.mfield }), exp: Date.now() + CHALLENGE_MS, fromWs: ws };
     c.timer = setTimeout(() => dropChallenge(c, 'expired'), CHALLENGE_MS);
     challenges.set(c.id, c);
     toUser(to, { t: 'challenge', c: pub(c) });
@@ -248,7 +250,7 @@ module.exports = function versus(app, h) {
     send(ws.readyState === OPEN ? ws : [...(socks.get(c.to) || [])].pop(), matchMsg(M, c.to));
     const gone = { t: 'challenge-gone', id: c.id, why: 'accepted' };
     for (const n of pair) { toUser(n, gone); dropChallengesOf(n, 'busy'); }
-    console.log(`versus: match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters${M.venue !== 'stadium' ? ', at ' + M.venue + (M.big ? ' (big field)' : '') + (M.touch ? ' (touch)' : '') : ''}`);
+    console.log(`versus: match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters${M.venue !== 'stadium' ? ', at ' + M.venue + (M.big ? ' (big field)' : '') + (M.mfield && M.mfield !== 'blacktop' ? ' (' + M.mfield + ')' : '') + (M.touch ? ' (touch)' : '') : ''}`);
     broadcastOnline();
   }
 

@@ -128,33 +128,36 @@
     // weather). It starts from the last game's (run.opts); a run at Metcalf always has the crowd. Picks are remembered like the setup screen's.
     const NX_TOD = [['morning', '🌄', 'Morning'], ['noon', '☀️', 'Noon'], ['sunset', '🌇', 'Sunset'], ['night', '🌙', 'Night']];
     const NX_WX = [['clear', '☀️', 'Sunny'], ['cloudy', '⛅', 'Partly cloudy'], ['overcast', '☁️', 'Overcast'], ['rain', '🌧️', 'Rain'], ['storm', '⛈️', 'Thunder&shy;storm'], ['snow', '❄️', 'Snow'], ['fog', '🌫️', 'Fog']];
+    const NX_MF = [['blacktop', '🏫', 'Blacktop'], ['sideways', '↔️', 'Sideways Blacktop'], ['regular', '🌱', 'Field Regular'], ['full', '🏈', 'Full Field']]; // Metcalf's fields
     const nxPut = (k, v) => { try { localStorage.setItem('mfl-blitz-' + k, v); } catch (e) {} };
     function runOptsHtml(o) {
       const chip = (n, v, e, t, on) => `<label><input type="radio" name="nx-${n}" value="${v}" ${on ? 'checked' : ''}><span><i>${e}</i><b ${n === 'weather' && v === 'clear' ? 'data-nx-sunny' : ''}>${t}</b></span></label>`;
       const tog = (k, e, t, on, lk) => `<label class="bz-tog ${lk ? 'locked' : ''}"><input type="checkbox" name="nx-${k}" value="1" ${on ? 'checked' : ''} ${lk ? 'disabled' : ''}><span><i>${e}</i><b>${t}</b></span></label>`;
       return `<details class="run-opts" id="runOpts"><summary><span>Next game</span><b data-nx-sum></b><em data-nx-tg>Change</em></summary><div class="run-opts-in">
         <fieldset class="bz-defmode"><legend>Where</legend><div class="bz-chips run-vn">${chip('venue', 'stadium', '🏟️', 'The Stadium', o.venue !== 'metcalf' && o.venue !== 'hancock')}${chip('venue', 'metcalf', '🏫', 'Wildcat Blacktop', o.venue === 'metcalf')}${chip('venue', 'hancock', '🔴', 'Hancock Stadium', o.venue === 'hancock')}</div></fieldset>
-        <fieldset class="bz-defmode" data-nx-met><legend>Wildcat Blacktop settings</legend><div class="bz-togs">${tog('crowd', '👥', 'Crowd', true, true)}${tog('big', '📏', 'Big field', o.big)}${tog('touch', '✋', 'Two-hand touch', o.touch)}</div><p class="bz-lock">🔒 A run always has the crowd on.</p></fieldset>
+        <fieldset class="bz-defmode" data-nx-met><legend>Wildcat Blacktop settings</legend><div class="bz-chips run-mf">${NX_MF.map(([v, e, t]) => chip('mfield', v, e, t, (o.mfield || 'blacktop') === v)).join('')}</div><div class="bz-togs">${tog('crowd', '👥', 'Crowd', true, true)}${tog('big', '📏', 'Big field', o.big)}${tog('touch', '✋', 'Two-hand touch', o.touch)}</div><p class="bz-lock">🔒 A run always has the crowd on.</p></fieldset>
         <fieldset class="bz-defmode"><legend>Time of day</legend><div class="bz-chips run-tod">${NX_TOD.map(([v, e, t]) => chip('tod', v, e, t, o.tod === v)).join('')}</div></fieldset>
         <fieldset class="bz-defmode"><legend>Weather</legend><div class="bz-chips run-wx">${NX_WX.map(([v, e, t]) => chip('weather', v, e, t, o.weather === v)).join('')}</div></fieldset></div></details>`;
     }
     function runOptsRead(o) {
       const val = (n, d) => { const i = o.querySelector(`input[name=nx-${n}]:checked`); return i ? i.value : d; }, on = (k) => { const i = o.querySelector(`input[name=nx-${k}]`); return !!(i && i.checked); };
       const venue = val('venue', 'stadium'), met = venue === 'metcalf';
-      return { venue, crowd: met, big: met && on('big'), touch: met && on('touch'), tod: val('tod', met ? 'noon' : 'night'), weather: val('weather', 'clear') };
+      const mfield = met ? val('mfield', 'blacktop') : 'blacktop';
+      return { venue, crowd: met, big: met && on('big') && mfield === 'blacktop', touch: met && on('touch'), mfield, tod: val('tod', met ? 'noon' : 'night'), weather: val('weather', 'clear') };
     }
     function runOptsWire(o) {
       const d = o.querySelector('#runOpts'); if (!d) return;
       const sync = () => {
         const x = runOptsRead(o), clr = x.tod === 'night' ? 'Clear' : 'Sunny', nm = (L, v) => (L.find((r) => r[0] === v) || [])[2] || '';
         o.querySelectorAll('[data-nx-met]').forEach((e) => { e.hidden = x.venue !== 'metcalf'; });
+        { const bg = o.querySelector('input[name=nx-big]'); if (bg) { bg.disabled = x.mfield !== 'blacktop'; bg.closest('label').classList.toggle('locked', bg.disabled); if (bg.disabled) bg.checked = false; } } // big field: the blacktop field only
         o.querySelectorAll('[data-nx-sunny]').forEach((e) => { e.textContent = clr; });
-        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Wildcat Blacktop' : x.venue === 'hancock' ? 'Hancock Stadium' : 'The Stadium', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
+        o.querySelector('[data-nx-sum]').textContent = [x.venue === 'metcalf' ? 'Wildcat Blacktop' : x.venue === 'hancock' ? 'Hancock Stadium' : 'The Stadium', x.mfield && x.mfield !== 'blacktop' ? nm(NX_MF, x.mfield) : '', x.big ? 'Big field' : '', x.touch ? 'Two-hand touch' : '', nm(NX_TOD, x.tod), x.weather === 'clear' ? clr : nm(NX_WX, x.weather).replace(/\u00ad|&shy;/g, '')].filter(Boolean).join(' · ');
       };
       d.addEventListener('toggle', () => { d.querySelector('[data-nx-tg]').textContent = d.open ? 'Done' : 'Change'; });
       d.addEventListener('change', (e) => {
         const n = e.target && e.target.name ? e.target.name.replace(/^nx-/, '') : '';
-        if (n === 'venue' || n === 'tod' || n === 'weather') nxPut(n, e.target.value);
+        if (n === 'venue' || n === 'tod' || n === 'weather' || n === 'mfield') nxPut(n, e.target.value);
         if (n === 'big' || n === 'touch') { let m = {}; try { m = JSON.parse(localStorage.getItem('mfl-blitz-met') || '{}') || {}; } catch (x) {} m[n] = e.target.checked; nxPut('met', JSON.stringify(m)); }
         sync();
       });

@@ -16,7 +16,8 @@
   const QLABEL = { 60: '1-min', 120: '2-min', 180: '3-min' };
   const VNAME = { stadium: 'The Stadium', hancock: 'Hancock Stadium', metcalf: 'Wildcat Blacktop' };
   // where, as the terms read it (Wildcat Blacktop: its field size and tackle or touch); c is a challenge or a match
-  const where = (c) => (!c || !c.venue || c.venue === 'stadium' ? '' : (VNAME[c.venue] || c.venue) + (c.venue === 'metcalf' ? ` (${c.big ? 'big field' : 'small field'}, ${c.touch ? 'two-hand touch' : 'tackle'})` : ''));
+  const MFN = { sideways: 'Sideways Blacktop', regular: 'Field Regular', full: 'Full Field' }; // the other fields at Wildcat Blacktop
+  const where = (c) => (!c || !c.venue || c.venue === 'stadium' ? '' : (VNAME[c.venue] || c.venue) + (c.venue === 'metcalf' ? ` (${MFN[c.mfield] ? MFN[c.mfield] : c.big ? 'big field' : 'small field'}, ${c.touch ? 'two-hand touch' : 'tackle'})` : ''));
   const terms = (c) => [c.wager ? fmt(c.wager) + ' coins' : 'Friendly', c.venue === 'metcalf' ? `${QLABEL[c.qs] || Math.round(c.qs / 60) + '-min'} x 4 on one clock` : `${QLABEL[c.qs] || Math.round(c.qs / 60) + '-min'} quarters`, where(c)].filter(Boolean).join(' · ');
   const kickWord = (c) => (c && c.venue === 'metcalf' ? 'throw-off' : 'kickoff');
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -258,7 +259,8 @@
       <div class="lbl">Where</div>
       <div class="arc-modes">${(cfg.venues || ['stadium']).map((v) => `<label class="mode"><input type="radio" name="venue" value="${v}" ${v === 'stadium' ? 'checked' : ''}><span>${esc(VNAME[v] || v)}</span></label>`).join('')}</div>
       <div id="vsMet" hidden><div class="lbl">Wildcat Blacktop: field</div>
-      <div class="arc-modes vs-two"><label class="mode"><input type="radio" name="big" value="0" checked><span>Small (7 on 7)</span></label><label class="mode"><input type="radio" name="big" value="1"><span>Big (11 on 11)</span></label></div>
+      <div class="arc-modes"><label class="mode"><input type="radio" name="mfield" value="blacktop" checked><span>Blacktop</span></label><label class="mode"><input type="radio" name="mfield" value="sideways"><span>Sideways Blacktop</span></label><label class="mode"><input type="radio" name="mfield" value="regular"><span>Field Regular</span></label><label class="mode"><input type="radio" name="mfield" value="full"><span>Full Field</span></label></div>
+      <div class="arc-modes vs-two" id="vsBig"><label class="mode"><input type="radio" name="big" value="0" checked><span>Small (7 on 7)</span></label><label class="mode"><input type="radio" name="big" value="1"><span>Big (11 on 11)</span></label></div>
       <div class="arc-modes vs-two"><label class="mode"><input type="radio" name="touch" value="0" checked><span>Tackle</span></label><label class="mode"><input type="radio" name="touch" value="1"><span>Two-hand touch</span></label></div>
       <small class="hint">House rules: throw-offs, a touchdown is 7, one game clock then a last play; on the small field nobody rushes before 7 banana.</small></div>
       <p class="err" id="vsFormErr"></p>
@@ -266,14 +268,14 @@
     o.hidden = false;
     const f = $('vsForm');
     f.wager.addEventListener('input', syncForm);
-    f.querySelectorAll('input[name=venue]').forEach((r) => r.addEventListener('change', syncForm));
+    f.querySelectorAll('input[name=venue],input[name=mfield]').forEach((r) => r.addEventListener('change', syncForm));
     f.addEventListener('submit', (e) => {
       e.preventDefault();
       const wager = Math.floor(+f.wager.value || 0);
       if (wager < 0 || wager > cfg.maxWager) { $('vsFormErr').textContent = `Pick 0 to ${fmt(cfg.maxWager)} coins.`; return; }
       if (wager > balance) { $('vsFormErr').textContent = `You have ${fmt(balance)} coins.`; return; }
       const venue = f.venue ? f.venue.value : 'stadium', met = venue === 'metcalf';
-      if (!sendRaw({ t: 'challenge', to: name, wager, qs: +f.qs.value, venue, ...(met ? { big: f.big.value === '1', touch: f.touch.value === '1' } : {}) })) { $('vsFormErr').textContent = 'Not connected. Trying again…'; kick(); return; }
+      if (!sendRaw({ t: 'challenge', to: name, wager, qs: +f.qs.value, venue, ...(met ? { big: f.big.value === '1' && f.mfield.value === 'blacktop', touch: f.touch.value === '1', mfield: f.mfield.value } : {}) })) { $('vsFormErr').textContent = 'Not connected. Trying again…'; kick(); return; }
       sending = true; $('vsFormErr').textContent = ''; syncForm();
     });
     o.querySelector('[data-close]').addEventListener('click', closeForm);
@@ -287,6 +289,7 @@
     const p = online.find((x) => x.name === formFor), w = Math.floor(+f.wager.value || 0);
     $('vsWagerHint').textContent = (w ? `Winner takes ${fmt(w * 2)}.` : '0 = a friendly, no coins.') + ` You have ${fmt(balance)}.`;
     $('vsMet').hidden = !(f.venue && f.venue.value === 'metcalf');
+    if ($('vsBig')) $('vsBig').hidden = !!(f.mfield && f.mfield.value !== 'blacktop'); // big field: the blacktop field only
     const gone = !p ? `@${formFor} left the lobby.` : p.status !== 'idle' ? `@${formFor} is in a match now.` : '';
     if (gone && !sending) $('vsFormErr').textContent = gone;
     $('vsSend').disabled = !!gone || sending;
@@ -308,7 +311,7 @@
   function makeNet(m) {
     let onMessage = null, onFrame = null;
     const net = {
-      matchId: m.id, me: { name: m.me.name }, opp: { name: m.opp.name }, recvFirst: !!m.recvFirst, wager: m.wager, qs: m.qs, venue: m.venue || 'stadium', big: !!m.big, touch: !!m.touch, seed: m.seed, resume: null,
+      matchId: m.id, me: { name: m.me.name }, opp: { name: m.opp.name }, recvFirst: !!m.recvFirst, wager: m.wager, qs: m.qs, venue: m.venue || 'stadium', big: !!m.big, touch: !!m.touch, mfield: m.mfield || 'blacktop', seed: m.seed, resume: null,
       send(type, data) { if (live && live.net === net && !live.over) out({ t: 'ev', type, data }); },
       sendFrame(buf) { if (sock && sock.readyState === OPEN && live && live.net === net && !live.over) { try { sock.send(buf); } catch (e) {} } },
       get lag() { return sock && sock.http ? 420 : 140; }, // how far behind to play the other side's stream back (ordinary requests arrive in batches)
@@ -389,7 +392,7 @@
     let p;
     try {
       if (!window.MFLBlitz || !window.MFLBlitz.play) throw new Error('The game did not load. Refresh and try again.');
-      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, venue: M.venue || 'stadium', ...(M.venue === 'metcalf' ? { big: !!M.big, touch: !!M.touch, crowd: true } : {}), seed: M.seed, quarterSecs: M.qs, timeouts: 3, noTies: true, difficulty: 1, offense: 1, weather: 'night',
+      p = window.MFLBlitz.play(root, { home: M.me.team, away: M.opp.team, versus: live.net, venue: M.venue || 'stadium', ...(M.venue === 'metcalf' ? { big: !!M.big, touch: !!M.touch, mfield: M.mfield || 'blacktop', crowd: true } : {}), seed: M.seed, quarterSecs: M.qs, timeouts: 3, noTies: true, difficulty: 1, offense: 1, weather: 'night',
         label: [`Head to Head · ${M.wager ? fmt(M.wager) + ' coins' : 'Friendly'}`, where(M)].filter(Boolean).join(' · ') });
     } catch (e) { console.error(e); p = Promise.resolve({ quit: true, error: String((e && e.message) || e) }); }
     Promise.resolve(p).then((r) => engineDone(mine, r), (e) => engineDone(mine, { quit: true, error: String(e) }));

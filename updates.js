@@ -783,6 +783,18 @@ const UPDATES = [
       'A cashed-out pick is settled: it is not a win or a loss, whatever happens in the game. If every pick on it is called off later (the game postponed or voided, or the player you picked ruled out), you get everything you played back instead.',
     ],
   },
+  {
+    n: 74,
+    date: '2026-11-14',
+    title: '3 new fields at Wildcat Blacktop',
+    items: [
+      'Pick a field under Field in the Wildcat Blacktop settings (also in a run\'s Next game choices and in Head to Head challenges). Blacktop stays the default.',
+      'Sideways Blacktop: play across the whole blacktop, from the fence to the school wall. Watch out for the basketball hoop by the end zone: you have to run around it, and passes can bounce off it.',
+      'Field Regular: the grass field by the playground. The end zone on the right is the sand by the swings.',
+      'Full Field: the long grass field by the school, marked like a real football field with yard lines, numbers and hash marks.',
+      'On the new fields the lines are glowing holograms, not paint, and the crowd moves to stand around whichever field you pick. Big field still works on the regular Blacktop field.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

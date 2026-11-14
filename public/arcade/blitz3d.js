@@ -3667,12 +3667,43 @@ gl_FragColor=vec4(c,1.0);}`;
     // tackle. Double or Nothing / Double or Double force crowd and big on and touch off (the site and the server enforce it).
     // Tests set __blitzDebug.crowd / .big / .touch. Head to Head at Metcalf always has the crowd, and takes big and touch from the
     // challenge only (both screens must agree, so the debug hooks don't apply there).
-    const MOPT = (() => { const on = VN0.world === 'metcalf', d = (!opts.versus && DBG) || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]); return { crowd: opts.versus ? on : b('crowd'), big: b('big'), touch: b('touch') }; })();
+    // field = which field at Metcalf (the setup screen's Field choice; tests __blitzDebug.mfield): 'blacktop' (the west field on the
+    // blacktop, the default), 'sideways' (east-west across the south half of the blacktop, round a basketball hoop), 'regular' (the
+    // grass field north of the playground, east-west) or 'full' (the long lawn west of the school, north-south, marked as a full
+    // football field). Big field applies to the blacktop field only; Head to Head takes the field from the challenge.
+    const MFIELD_IDS = ['blacktop', 'sideways', 'regular', 'full'];
+    const MOPT = (() => { const on = VN0.world === 'metcalf', d = (!opts.versus && DBG) || {}, b = (k) => on && (d[k] !== undefined ? !!d[k] : !!opts[k]);
+      const fr = !on ? 'blacktop' : !opts.versus && d.mfield !== undefined ? d.mfield : opts.mfield, field = MFIELD_IDS.indexOf(fr) >= 0 ? fr : 'blacktop';
+      return { crowd: opts.versus ? on : b('crowd'), big: b('big') && field === 'blacktop', touch: b('touch'), field }; })();
+    // the fields in the venue's frame F (metres, +x east, +z north): u = the direction the home offense attacks (engine +z), v = engine
+    // +x (u turned a quarter right, so the map is only ever turned, never mirrored), o = the centre of the home team's goal line, L =
+    // goal line to goal line, ez = end-zone depth, hw = half the width. Measured on the owner's marked aerials against the survey.
+    const MFIELDS = {
+      blacktop: { u: [0, 1], v: [1, 0], o: [-3.89, -13.77], L: 27.54, ez: 1.91, hw: 7.31 },
+      // goal lines at the white lines (x -11.20 by the fence, x 29.35 by the courts' east edge); the west end zone runs to the fence,
+      // the east one back to the school wall (x 34.0); from the south edge of the blacktop (z -16.55) to just north of mid-pad (z -0.15)
+      sideways: { u: [1, 0], v: [0, -1], o: [-11.2, -8.35], L: 40.55, ez: 4.65, hw: 8.2, hoop: true },
+      // the grass rectangle north of the playground (x 0.6 to 42.8, z 43.4 to 62.2); goal lines x 5.5 and 37.9 (the east end zone
+      // is the sand strip up to the swings)
+      regular: { u: [1, 0], v: [0, -1], o: [5.5, 52.8], L: 32.4, ez: 4.9, hw: 9.4 },
+      // the long lawn (x 9.1 to 38.0, z 43.2 to 103.4): 60.2 m end line to end line, end zones in a real field's proportion (10 of 120)
+      full: { u: [0, 1], v: [1, 0], o: [23.55, 48.22], L: 50.16, ez: 5.02, hw: 14.45, full: true },
+    };
+    const MFG = MFIELDS[MOPT.field];
     const MET_K = MOPT.big ? 3.32 : 1; // 27.54 m goal to goal x 3.32 = 100 yards; 14.62 m wide x 3.32 = 53 yards (a regulation field)
     // the big Metcalf field: every distance scaled by MET_K, first downs and the play geometry as at the stadium (house rules stay)
     // (the throw-off: a kid can't throw the length of a real field, so on the big field it comes from the thrower's own 40, KO,
     // and lands between about your 1 and your 24: a 40-55 yard lob; the yard-line calls are real on a 100-yard field)
-    const VN = !MOPT.big ? VN0 : Object.assign({}, VN0, {
+    // a new Metcalf field: the house rules and the small-field play geometry, its own length, depth and width; the throw-off comes
+    // from far enough up the field that it is no longer than on the blacktop field (a kid's throw), the restart range scaled
+    const VNF = (() => {
+      if (VN0.world !== 'metcalf' || MOPT.field === 'blacktop') return VN0;
+      const FLn = MFG.L * M2Y, kL = FLn / VN0.FL, KO = Math.max(0, Math.round(FLn - VN0.FL * 1.05));
+      return Object.assign({}, VN0, { FL: FLn, EZ: MFG.ez * M2Y, HW: MFG.hw * M2Y, KO, mfield: MOPT.field,
+        RESTART: Object.assign({}, VN0.RESTART, { toMax: Math.round(VN0.RESTART.toMax * kL) }),
+        ko: Object.assign({}, VN0.ko, { T: VN0.ko.T * 1.08 }) });
+    })();
+    const VN = !MOPT.big ? VNF : Object.assign({}, VN0, {
       FL: VN0.FL * MET_K, EZ: VN0.EZ * MET_K, HW: VN0.HW * MET_K, FD: 10, TB: 13, SAFE: 13, PAT: 10, TWO: 3, KO: 40,
       RZ: 20, GL: 10, NEAR: 15, G5: 5, G3: 3,
       RESTART: { missMin: 13, toMin: 8, toMax: 80, puntLo: 13, puntLoR: 15, puntHi: 33, puntHiR: 12, fgMissMin: 13 },
@@ -4639,12 +4670,26 @@ gl_FragColor=vec4(c,1.0);}`;
   // of a frame F height (below the ground, a sunken street, it is not scaled, so the people's ground heights stay right). Code
   // that places people at run time takes the anchor from metE and keeps their sizes and spacing in real units (metres * M2Y).
   const MET_Z = MOPT.big ? MET_K : 1; // the world's zoom (1 at true size)
-  const metE = (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K];
-  const metF = (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0];
+  // the other fields (MFG in 10-setup.js) turn and move the map round their own goal line: engine x = (p - o) . v, z = (p - o) . u
+  // (the blacktop field keeps the plain formulas, so its world is built exactly as before). MROT: the map is turned.
+  const MROT = MFG.u[1] !== 1, MOX = MFG.o[0], MOZ = MFG.o[1], MU = MFG.u, MV = MFG.v;
+  const metE = !MROT && MOPT.field === 'blacktop' ? (xF, zF) => [(xF - MX0) * M2Y * MET_K, (zF + MZ0) * M2Y * MET_K]
+    : (xF, zF) => { const dx = xF - MOX, dz = zF - MOZ; return [(dx * MV[0] + dz * MV[1]) * M2Y * MET_K, (dx * MU[0] + dz * MU[1]) * M2Y * MET_K]; };
+  const metF = !MROT && MOPT.field === 'blacktop' ? (x, z) => [x / (M2Y * MET_K) + MX0, z / (M2Y * MET_K) - MZ0]
+    : (x, z) => { const a = x / (M2Y * MET_K), b = z / (M2Y * MET_K); return [MOX + MV[0] * a + MU[0] * b, MOZ + MV[1] * a + MU[1] * b]; };
+  // engine <-> the built frame (metres after the big field's zoom: the keep-out solids' frame), and a frame F direction in engine axes
+  const metFb = (x, z) => (MOPT.big || MOPT.field === 'blacktop' ? [x / M2Y + MX0, z / M2Y - MZ0] : metF(x, z));
+  const metEb = (xF, zF) => (MOPT.big || MOPT.field === 'blacktop' ? [(xF - MX0) * M2Y, (zF + MZ0) * M2Y] : metE(xF, zF));
+  const metDir = (dx, dz) => [dx * MV[0] + dz * MV[1], dx * MU[0] + dz * MU[1]];
+  // the field's rectangle in frame F (end line to end line, sideline to sideline) and its centre
+  const MFR = (() => { if (MOPT.field === 'blacktop') return { x0: -11.2, x1: 3.42, z0: -15.68, z1: 15.68 };
+    const a = metF(-MFG.hw * M2Y, -MFG.ez * M2Y), b = metF(MFG.hw * M2Y, (MFG.L + MFG.ez) * M2Y);
+    return { x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), z0: Math.min(a[1], b[1]), z1: Math.max(a[1], b[1]) }; })();
+  const MFC = [(MFR.x0 + MFR.x1) / 2, (MFR.z0 + MFR.z1) / 2];
   const metY = (y) => (y < 0 ? y : y * MET_Z) * M2Y;
   const MET = {
-    envEye: MOPT.big ? [metE(0, 0)[0], 2.0, metE(0, 0)[1]] : [-MX0 * M2Y, 2.0, MZ0 * M2Y], // reflections are baked from midfield at head height
-    centre: MOPT.big ? [metE(10, 2)[0], 0, metE(10, 2)[1]] : [(10 - MX0) * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
+    envEye: MOPT.field !== 'blacktop' ? [metE(MFC[0], MFC[1])[0], 2.0, metE(MFC[0], MFC[1])[1]] : MOPT.big ? [metE(0, 0)[0], 2.0, metE(0, 0)[1]] : [-MX0 * M2Y, 2.0, MZ0 * M2Y], // reflections are baked from midfield at head height
+    centre: MOPT.field !== 'blacktop' ? [metE(MFC[0], MFC[1])[0], 0, metE(MFC[0], MFC[1])[1]] : MOPT.big ? [metE(10, 2)[0], 0, metE(10, 2)[1]] : [(10 - MX0) * M2Y, 0, (2 + MZ0) * M2Y], // the middle of the site the shadow map has to hold (blacktop, school wall, playground edge)
     texBase: '/static/arcade/venue/metcalf/',
     verts: 0,
     keep: [], // camera keep-out volumes in metres (frame F): [x0,y0,z0,x1,y1,z1] boxes, [x,z,r,y0,y1] cylinders, [x,y,z,r] spheres
@@ -4658,7 +4703,7 @@ gl_FragColor=vec4(c,1.0);}`;
   // conversion below is the right one at both sizes; going through metF here would scale the big field twice. ----------
   function metKeepOut(e) {
     if (!METCALF || !e || !MET.keep.length) return e;
-    let x = e[0] / M2Y + MX0, y = e[1] / M2Y, z = e[2] / M2Y - MZ0; const m = 0.35;
+    let [x, z] = metFb(e[0], e[2]), y = e[1] / M2Y; const m = 0.35;
     for (let pass = 0; pass < 3; pass++) {
       let moved = false;
       for (const k of MET.keep) {
@@ -4682,7 +4727,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!moved) break;
     }
     y = Math.max(y, 0.6 / M2Y);
-    e[0] = (x - MX0) * M2Y; e[1] = y * M2Y; e[2] = (z + MZ0) * M2Y; return e;
+    const q = metEb(x, z); e[0] = q[0]; e[1] = y * M2Y; e[2] = q[1]; return e;
   }
   // ---- sky and light: a clear lunch hour (about 12:15 local, early October) at Normal, IL. The sun stands about 45 deg high a
   // little east of south (true azimuth 164 deg; the site frame is turned 2 deg, so 166 deg in F), so shadows fall north toward
@@ -4695,7 +4740,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // is about a sixth of the sun on open ground, so a shadow on the light blacktop falls to about half of the sunlit
     // pavement as it does at noon; walls facing away from the sun still get the bounce off the bright pavement (gnd)
     const day = { top: [0.16, 0.36, 0.76], hor: [0.66, 0.76, 0.89], fog: [0.68, 0.75, 0.85], fogR: [60, 420, 0.72], amb: [0.17, 0.19, 0.235], gnd: [0.36, 0.35, 0.32],
-      sun: [4.45, 4.25, 3.88], L: [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)], night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
+      sun: [4.45, 4.25, 3.88], L: (() => { const h = metDir(Math.sin(az), Math.cos(az)); return [h[0] * Math.cos(el), Math.sin(el), h[1] * Math.cos(el)]; })(), night: 0, cloud: 0.28, glow: 0, tower: 0, exp: 0.78, soft: 0.7, env: 1.0 };
     MET.day = day;
     if (WX === 'clear' || WX === 'night') Object.assign(SKY, day);
     else Object.assign(SKY, { gnd: [0.14, 0.14, 0.135], tower: 0, glow: 0, L: day.L });
@@ -5959,13 +6004,24 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let z = -95; z < 17; z += metPitch(21 + R() * 6)) { if ((z > -8 && z < 12) || (z > -80 && z < -64)) continue; decid(-37.6 - R(), z, 7 + R() * 3, 9 + R() * 3, R() < 0.5 ? 'maple' : 'locust', 1); }
       mark('north of the blacktop');
       buildMetNorth({ pb, B, nb, up, slab, cc, cK, atlW, decid, spruce }); // 13-metnorth.js
+      if (MOPT.field !== 'blacktop') { // the other fields: the sand strip east of the open lawn and its swing set (the owner's aerials)
+        chips.poly([[37.6, 42.9], [44.5, 42.9], [47.6, 44.0], [47.9, 52.0], [47.4, 61.5], [44.0, 62.7], [37.6, 62.6]], 0.004, tc('#c49a68'), true, 0.45);
+        const st = hx3('#4a5560'), sx = 43.4, top = 2.45, z0 = 45.2, z1 = 60.8;
+        pb.tube([sx, top, z0], [sx, top, z1], 0.05, st, 8);
+        for (const z of [z0, (z0 + z1) / 2, z1]) { for (const s2 of [-1, 1]) for (const dz of [-0.45, 0.45]) pb.tube([sx, top, z], [sx + s2 * 1.1, 0, z + dz], 0.04, st, 6); MET.keep.push([sx, z, 1.3, 0, top + 0.1]); }
+        for (let k = 0; k < 8; k++) { const z = z0 + 0.9 + k * ((z1 - z0 - 1.8) / 7), sc = hx3('#1c1d20');
+          for (const dz of [-0.22, 0.22]) pb.tube([sx, top, z + dz], [sx, 0.52, z + dz], 0.008, hx3('#9aa0a4'), 4);
+          pb.wbox(sx - 0.09, 0.47, z - 0.25, sx + 0.09, 0.52, z + 0.25, sc); }
+      }
     }
       // (the skyline all round is built in 13-metsouth.js)
     mark('done: metres');
     // ===== done: metres -> engine units, and the per-batch materials =====
     const conv = !MOPT.big ? (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * M2Y; f[o + 1] *= M2Y; f[o + 2] = (f[o + 2] + MZ0) * M2Y; } }
       : (b) => { const f = b.f, K = M2Y * MET_Z; for (let i = 0; i < b.n; i++) { const o = i * 12; f[o] = (f[o] - MX0) * K; f[o + 1] = metY(f[o + 1]); f[o + 2] = (f[o + 2] + MZ0) * K; } }; // the big field: the uniform zoom
-    conv(pb); for (const k in B) if (B[k].n) conv(B[k]);
+    const convR = (b) => { const f = b.f; for (let i = 0; i < b.n; i++) { const o = i * 12, q = metE(f[o], f[o + 2]), n = metDir(f[o + 3], f[o + 5]); f[o] = q[0]; f[o + 1] *= M2Y; f[o + 2] = q[1]; f[o + 3] = n[0]; f[o + 5] = n[1]; } }; // another field: the map turned and moved round it
+    const cv = MOPT.field === 'blacktop' ? conv : convR;
+    cv(pb); for (const k in B) if (B[k].n) cv(B[k]);
     const T1 = (n, rough, kind, cast, c0, tex) => ({ b: B[n], tex, mat: [rough, 0, 1, 0], kind: kind || 0, cast: !!cast, c0: !!c0 });
     W.defs = {
       mground: T1('mground', 0.88, 1, false, false, 'ground'), mlot: T1('mlot', 0.85, 1, false, false, 'lot'), masph: T1('masph', 0.88, 1, false, false, 'asphalt.jpg'),
@@ -5980,6 +6036,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let nv = pb.n; for (const k in B) nv += B[k].n; MET.verts = nv; MET.buildMs = performance.now() - t0;
     built = true;
     if (DBG) DBG.metKeepOut = metKeepOut; // for the screenshot and camera tests
+    if (DBG) { DBG.metE = metE; DBG.metF = metF; DBG.metField = { field: MOPT.field, FL, EZ, HW, rect: MFR, obst: MOBST }; }
     if (DBG) DBG.metStats = { sec: SEC.map((q, i) => [q[0], q[1] - (i ? SEC[i - 1][1] : 0)]), verts: nv, ms: Math.round(MET.buildMs), per: Object.fromEntries([['plain', pb.n]].concat(Object.keys(B).map((k) => [k, B[k].n]))) };
     return W;
   }
@@ -6038,6 +6095,137 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     if (NCASC() >= 3) return [[cam.c, nearR], [mid, 30], [MET.centre, 64]];
     return [[cam.c, nearR], [MET.centre, 50], [MET.centre, 64]];
+  }
+  // =====================================================================================
+  // Metcalf's other fields (MFG, 10-setup.js): the playing lines are not paint but glowing, see-through "holo" lines floating just
+  // over the ground (an additive layer with a soft core and halo, a travelling shimmer and a slow pulse, so they read as obviously
+  // fake), and on Sideways Blacktop the basketball goal that stands in the field as a solid obstacle (players steer round its pole
+  // and can't run through it; a ball that hits the pole or the board bounces off). The blacktop field keeps its painted lines and
+  // none of this runs there (MHOLO and MOBST are null).
+  // =====================================================================================
+  const MHOLO = METCALF && MOPT.field !== 'blacktop' ? { prog: null, buf: null, n: 0, tex: null, f: null } : null;
+  // the obstacles in engine units: a pole (x, z, r: how close a body's centre can come) and the board and arm (a box a ball bounces off)
+  const MOBST = METCALF && MFG.hoop ? (() => {
+    const p = metE(28.52, -3.59), a = metE(26.6, -4.55), b = metE(28.62, -2.63);
+    return { x: p[0], z: p[1], r: 0.3 * M2Y + 0.36, pr: 0.07 * M2Y + 0.12, py: 3.1 * M2Y,
+      bx0: Math.min(a[0], b[0]), bx1: Math.max(a[0], b[0]), bz0: Math.min(a[1], b[1]), bz1: Math.max(a[1], b[1]), by0: 2.45 * M2Y, by1: 3.97 * M2Y, cd: 0 };
+  })() : null;
+  // a body can't stand in the pole: pushed out, and his velocity into it taken away (integrate, 30-ai.js)
+  function obstPush(p) {
+    const o = MOBST, dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
+    if (d >= o.r) return; const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0;
+    p.x = o.x + nx * o.r; p.z = o.z + nz * o.r; const vn = p.vx * nx + p.vz * nz; if (vn < 0) { p.vx -= vn * nx; p.vz -= vn * nz; }
+  }
+  // the way a body wants to go, bent round the pole when it is just ahead of him (drive, 30-ai.js)
+  function obstAvoid(p, wx, wz) {
+    const o = MOBST, ws = Math.hypot(wx, wz); if (ws < 0.5) return null;
+    const tx = o.x - p.x, tz = o.z - p.z, d = Math.hypot(tx, tz); if (d > 4.5 || d < 1e-3) return null;
+    const ux = wx / ws, uz = wz / ws, along = tx * ux + tz * uz; if (along <= 0) return null;
+    const lat = tx * uz - tz * ux, clr = o.r + 0.55; if (Math.abs(lat) >= clr) return null;
+    const sd = lat > 0 ? 1 : -1, k = (1 - d / 4.5) * (1 - Math.abs(lat) / clr) * 2.2; // sidestep to the side away from the pole
+    const nx = ux + uz * sd * k, nz = uz - ux * sd * k, nl = Math.hypot(nx, nz) || 1;
+    return [nx / nl * ws, nz / nl * ws];
+  }
+  // a ball in the air that meets the pole or the board bounces off it, tumbling (flyStep, 40-ball.js)
+  function obstBall(b, dt) {
+    const o = MOBST; if (o.cd > 0) { o.cd -= dt; return; }
+    let hit = false;
+    if (b.y < o.py) { const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < o.pr) { const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0, vn = b.vx * nx + b.vz * nz; if (vn < 0) { b.vx -= 1.5 * vn * nx; b.vz -= 1.5 * vn * nz; } hit = true; } }
+    if (!hit && b.y > o.by0 && b.y < o.by1 && b.x > o.bx0 && b.x < o.bx1 && b.z > o.bz0 && b.z < o.bz1) {
+      const ex = Math.min(b.x - o.bx0, o.bx1 - b.x), ez = Math.min(b.z - o.bz0, o.bz1 - b.z), ey = Math.min(b.y - o.by0, o.by1 - b.y);
+      if (ey < ex && ey < ez) b.vy = -b.vy * 0.5; else if (ex < ez) b.vx = -b.vx * 0.5; else b.vz = -b.vz * 0.5; hit = true;
+    }
+    if (hit) { b.vx *= 0.55; b.vz *= 0.55; b.tipped = true; o.cd = 0.25; sfx.play('clang'); }
+  }
+
+  // ---------- the holo lines: built once in engine units (the engine's field frame is the field: x across, z from the home goal line) ----------
+  function metHoloBuild() {
+    const f = [], Y = 0.045 * M2Y, CY = [0.35, 0.95, 1.0], GD = [1.0, 0.78, 0.28], WH = [0.5, 0.88, 1.0];
+    const v = (x, y, z, s, t, c, a) => f.push(x, y, z, s, t, c[0], c[1], c[2], a);
+    // a line strip from (x0, z0) to (x1, z1), w wide in all (the bright core is about a third of it), intensity a (< 1)
+    const seg = (x0, z0, x1, z1, w, c, a) => {
+      const l = Math.hypot(x1 - x0, z1 - z0) || 1, ux = (x1 - x0) / l, uz = (z1 - z0) / l, h = w / 2, nx = -uz * h, nz = ux * h;
+      x0 -= ux * h * 0.35; z0 -= uz * h * 0.35; x1 += ux * h * 0.35; z1 += uz * h * 0.35;
+      v(x0 + nx, Y, z0 + nz, -1, 0, c, a); v(x1 + nx, Y, z1 + nz, -1, l, c, a); v(x1 - nx, Y, z1 - nz, 1, l, c, a);
+      v(x0 + nx, Y, z0 + nz, -1, 0, c, a); v(x1 - nx, Y, z1 - nz, 1, l, c, a); v(x0 - nx, Y, z0 - nz, 1, 0, c, a);
+    };
+    // a flat glow over an area (striped), or a curtain standing on a line (fading upward): intensity a in 1..2
+    const fill = (x0, z0, x1, z1, c, a) => { v(x0, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z1, 0, 0, c, a); v(x0, Y * 0.8, z0, 0, 0, c, a); v(x1, Y * 0.8, z1, 0, 0, c, a); v(x0, Y * 0.8, z1, 0, 0, c, a); };
+    const curtain = (x0, x1, z, h, c, a) => { v(x0, Y, z, 0, 0, c, a); v(x1, Y, z, 0, 0, c, a); v(x1, h, z, 1, 0, c, a); v(x0, Y, z, 0, 0, c, a); v(x1, h, z, 1, 0, c, a); v(x0, h, z, 1, 0, c, a); };
+    // glyphs: a textured quad (u0, v0, u1, v1 in the atlas), centre (x, z), w across x h along, turned by ang (0 = reads facing +z)
+    const glyph = (x, z, w, h, ang, uv, c, a) => {
+      const ca = Math.cos(ang), sa = Math.sin(ang), P = (px, pz) => [x + px * ca + pz * sa, z - px * sa + pz * ca];
+      const q = [P(-w / 2, -h / 2), P(w / 2, -h / 2), P(w / 2, h / 2), P(-w / 2, h / 2)], t = [[uv[0], uv[3]], [uv[2], uv[3]], [uv[2], uv[1]], [uv[0], uv[1]]];
+      for (const i of [0, 1, 2, 0, 2, 3]) v(q[i][0], Y * 1.1, q[i][1], t[i][0], t[i][1], c, a);
+    };
+    const LW = MFG.full ? 0.42 : 0.55, ZE = FL + EZ;
+    // sidelines and end lines (cyan), goal lines (gold) with a faint light curtain, the end zones a faint striped glow
+    seg(-HW, ZBACK, -HW, ZE, LW, CY, 0.9); seg(HW, ZBACK, HW, ZE, LW, CY, 0.9);
+    seg(-HW, ZBACK, HW, ZBACK, LW, CY, 0.9); seg(-HW, ZE, HW, ZE, LW, CY, 0.9);
+    seg(-HW, 0, HW, 0, LW * 1.15, GD, 0.95); seg(-HW, FL, HW, FL, LW * 1.15, GD, 0.95);
+    curtain(-HW, HW, 0, 0.9 * M2Y, GD, 1.22); curtain(-HW, HW, FL, 0.9 * M2Y, GD, 1.22);
+    fill(-HW, ZBACK, HW, 0, CY, 1.07); fill(-HW, FL, HW, ZE, CY, 1.07);
+    if (MFG.full) {
+      // a full football field's markings, proportional to 100 yards: a line every 5, hashes and sideline ticks every yard, the
+      // numbers every 10 (bottoms toward the sideline), arrows toward the nearer goal
+      const yd = FL / 100, hx = HW * 0.333, nx = HW - 0.19 * 2 * HW;
+      for (let k = 1; k < 100; k++) {
+        const z = k * yd;
+        if (k % 5 === 0) seg(-HW, z, HW, z, k === 50 ? LW * 1.1 : LW * 0.9, WH, k === 50 ? 0.7 : 0.5);
+        else for (const sx of [-1, 1]) { seg(sx * (HW - 0.55), z, sx * HW, z, 0.18, WH, 0.6); seg(sx * hx - 0.3, z, sx * hx + 0.3, z, 0.18, WH, 0.6); }
+      }
+      for (let k = 10; k <= 90; k += 10) {
+        const z = k * yd, n = Math.min(k, 100 - k) / 10 - 1, w = 3.0 * yd * 1.7, h = 1.25;
+        for (const sx of [-1, 1]) {
+          glyph(sx * nx, z, w, h, sx * Math.PI / 2, [n * 0.2, 0, n * 0.2 + 0.2, 0.5], WH, 2.8);
+          if (k !== 50) glyph(sx * nx, z + (k < 50 ? -1 : 1) * (w / 2 + 0.55), 0.5, 0.5, sx * Math.PI / 2 + (k < 50 ? (sx > 0 ? 0 : Math.PI) : (sx > 0 ? Math.PI : 0)), [0, 0.5, 0.2, 1], WH, 2.75);
+        }
+      }
+    }
+    return new Float32Array(f);
+  }
+  function metHoloTex() { // the atlas: "10" .. "50" across the top half, an arrow (pointing +v) bottom left
+    const c = document.createElement('canvas'); c.width = 1280; c.height = 256; const g = c.getContext('2d');
+    if (g) {
+      g.fillStyle = '#fff'; g.font = '700 118px Arial, Helvetica, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (let i = 0; i < 5; i++) g.fillText(String((i + 1) * 10), i * 256 + 128, 70);
+      g.beginPath(); g.moveTo(128, 140); g.lineTo(200, 236); g.lineTo(56, 236); g.closePath(); g.fill();
+    }
+    return mkTex(c, false);
+  }
+  const VS_HOLO = `attribute vec3 aP;attribute vec2 aT;attribute vec4 aC;uniform mat4 uVP;varying vec2 vT;varying vec4 vC;varying vec3 vW;
+void main(){vT=aT;vC=aC;vW=aP;gl_Position=uVP*vec4(aP,1.0);}`;
+  const FS_HOLO = `precision mediump float;
+//OUT
+uniform sampler2D uTex;uniform float uTime;uniform vec3 uEye;varying vec2 vT;varying vec4 vC;varying vec3 vW;
+void main(){float a=vC.a,k;
+float sh=0.78+0.22*sin(vW.x*2.3+vW.z*1.7-uTime*4.0);
+float band=smoothstep(0.88,1.0,fract((vW.x*0.5+vW.z)*0.035-uTime*0.3));
+if(a<1.0){float s=abs(vT.x);k=a*((1.0-smoothstep(0.2,0.34,s))*1.25+exp(-s*s*7.0)*0.5);}
+else if(a<2.0){float st=step(0.55,fract((vW.x-vW.z)*0.6+uTime*0.25));k=(a-1.0)*(0.45+0.55*st)*(1.0-vT.x)*(1.0-vT.x);}
+else{k=(a-2.0)*texture2D(uTex,vT).a;}
+float fl=0.93+0.07*step(0.5,fract(uTime*6.7+vW.z*0.07));
+float pu=0.86+0.14*sin(uTime*2.1);
+float d=distance(vW,uEye);
+gl_FragColor=vec4(vC.rgb*k*(sh+band*0.9)*fl*pu*5.0/(1.0+d*0.006),1.0);}`;
+  // drawn after the scene's opaque and dynamic geometry (80-render.js): depth-tested (players stand in front of it), no depth write,
+  // added on top so it glows (and the bloom picks it up)
+  function metHoloDraw(now) {
+    const H = MHOLO; if (!H || glLost) return;
+    try {
+      if (!H.prog) { H.prog = mkProg(VS_HOLO, FS_HOLO, ''); H.f = metHoloBuild(); H.n = H.f.length / 9; H.buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, H.buf); gl.bufferData(gl.ARRAY_BUFFER, H.f, gl.STATIC_DRAW); G.bufs.push(H.buf); H.tex = metHoloTex(); G.texs.push(H.tex); }
+    } catch (e) { try { console.error('holo lines', e); } catch (e2) {} H.prog = null; MHOLO.off = true; return; }
+    if (H.off) return;
+    const P = H.prog; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now % 1000); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, H.tex); gl.uniform1i(P.u.uTex, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, H.buf);
+    gl.enableVertexAttribArray(P.a.aP); gl.vertexAttribPointer(P.a.aP, 3, gl.FLOAT, false, 36, 0);
+    gl.enableVertexAttribArray(P.a.aT); gl.vertexAttribPointer(P.a.aT, 2, gl.FLOAT, false, 36, 12);
+    gl.enableVertexAttribArray(P.a.aC); gl.vertexAttribPointer(P.a.aC, 4, gl.FLOAT, false, 36, 20);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES, 0, H.n); DRAWS.n++;
+    gl.depthMask(true); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.disable(gl.BLEND);
+    gl.disableVertexAttribArray(P.a.aP); gl.disableVertexAttribArray(P.a.aT); gl.disableVertexAttribArray(P.a.aC);
   }
   // =====================================================================================
   // Metcalf, north of the blacktop (frame F, metres; built through the Batch primitives and moved to engine units with the rest of
@@ -6183,6 +6371,9 @@ gl_FragColor=vec4(c,1.0);}`;
 
   // ---------- measured layout ----------
   // trees: [x, z, crown diameter, height, evergreen?, kind, lod, colour]. kind: maple / oak / locust (deciduous), spruce, pine (a broad dark cone)
+  // the sand strip with the swings east of the open lawn (on the owner's aerials; built with the other fields, whose views and Field
+  // Regular's east end zone take it in, 12-venue.js): the three trees by it then stand 4 m further east, clear of the swings
+  const MNX = (x) => (MOPT.field !== 'blacktop' ? x + 4 : x);
   const MN_TREES = [
     // the west strip between Main Street and the walk: big maples and an oak, a locust, then the evergreens at the walk's north bend
     [-12.6, 25.0, 10, 12, 0, 'maple', 0, '#4d6234'], [-12.4, 39.5, 12, 13, 0, 'maple', 0], [-12.0, 61.0, 13, 14, 0, 'oak', 1], [-11.5, 76.0, 10, 12, 0, 'maple', 1, '#4e6335'],
@@ -6198,8 +6389,8 @@ gl_FragColor=vec4(c,1.0);}`;
     [-4.0, 131.8, 7, 9, 0, 'locust', 1], [3.5, 132.0, 7, 9, 0, 'locust', 1], [32.4, 124.8, 11, 12, 0, 'oak', 1], [52.5, 125.5, 8, 10, 0, 'locust', 1],
     [80.5, 122.0, 8, 10, 0, 'maple', 1], [86.0, 112.5, 7, 9, 0, 'locust', 1], [96.0, 121.0, 8, 10, 0, 'maple', 1], [100.5, 109.5, 9, 11, 0, 'maple', 1],
     // the belt of big shade trees in the mulch between the play area and the school's main block
-    [45.5, 27.0, 12, 14, 0, 'maple', 0], [54.0, 31.0, 12, 14, 0, 'oak', 1], [48.0, 40.5, 11, 14, 0, 'maple', 0], [55.5, 46.0, 12, 15, 0, 'locust', 1],
-    [46.0, 52.5, 11, 14, 0, 'oak', 1], [53.5, 58.5, 12, 14, 0, 'maple', 1], [47.5, 65.0, 11, 13, 0, 'locust', 1], [55.0, 69.5, 10, 13, 0, 'maple', 1],
+    [45.5, 27.0, 12, 14, 0, 'maple', 0], [54.0, 31.0, 12, 14, 0, 'oak', 1], [MNX(48.0), 40.5, 11, 14, 0, 'maple', 0], [55.5, 46.0, 12, 15, 0, 'locust', 1],
+    [MNX(46.0), 52.5, 11, 14, 0, 'oak', 1], [53.5, 58.5, 12, 14, 0, 'maple', 1], [MNX(47.5), 65.0, 11, 13, 0, 'locust', 1], [55.0, 69.5, 10, 13, 0, 'maple', 1],
     // west of Main Street on the church's lawn by Kingsley Street
     [-37.0, 81.0, 11, 12, 0, 'maple', 1], [-53.0, 83.0, 10, 12, 0, 'oak', 1], [-47.0, 60.0, 7, 9, 0, 'locust', 1],
     // across College Avenue: the lot's south edge and the College Avenue walk, the North Main Street strips, by the health building
@@ -6721,7 +6912,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   const PM_S = MOPT.big ? 3.0 / MET_K : 2.4, PM_S0 = MOPT.big ? 2.5 / MET_K : 1.6, PM_N = MOPT.big ? 2.5 / MET_K : 1.8;
   function pplFree(xF, zF, mF) {
     if (xF > -31.6 && xF < -20.6) return false; // Main Street
-    if (xF > -11.2 - PM_S && xF < 3.42 + PM_S && zF > -15.68 - PM_S0 && zF < 15.68 + PM_N) return false; // the field and its margin
+    if (MOPT.field !== 'blacktop' ? xF > MFR.x0 - 1.7 && xF < MFR.x1 + 1.7 && zF > MFR.z0 - 1.7 && zF < MFR.z1 + 1.7 : xF > -11.2 - PM_S && xF < 3.42 + PM_S && zF > -15.68 - PM_S0 && zF < 15.68 + PM_N) return false; // the field and its margin
     // the solids are stored in the built (spread) frame: with the big field the spot is tested where the plan spread puts it
     if (MOPT.big) { const s = sprP(sprPlan(), xF, zF); xF = s[0]; zF = s[1]; }
     for (const k of MET.keep) {
@@ -6756,7 +6947,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const c = grid.get(gk(i, j)); if (c) for (const q of c) if (Math.hypot(q.x - x, q.z - z) < m) return true; } return false; };
     const ageOf = (r) => (r < 0.62 ? 'kid' : r < 0.74 ? 'teen' : r < 0.9 ? 'adult' : r < 0.95 ? 'teacher' : 'little');
     // the field's nearest point (frame F), for facing it
-    const facing = (xF, zF, jit) => { const fx = clamp(xF, -11.2, 3.42), fz = clamp(zF, -15.68, 15.68), e = metE(xF, zF), f = metE(fx, fz); return Math.atan2(f[0] - e[0], f[1] - e[1]) + (R() - 0.5) * jit; };
+    const facing = (xF, zF, jit) => { const fx = clamp(xF, MFR.x0, MFR.x1), fz = clamp(zF, MFR.z0, MFR.z1), e = metE(xF, zF), f = metE(fx, fz); return Math.atan2(f[0] - e[0], f[1] - e[1]) + (R() - 0.5) * jit; };
     const add = (n, gen, opt) => {
       let made = 0;
       for (let t = 0; t < n * 30 && made < n; t++) {
@@ -6765,7 +6956,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
         const fan = R() < 0.24 ? 1 : R() < 0.08 ? -1 : 0, age = opt.little && R() < 0.3 ? 'little' : ageOf(R());
         const h = opt.face === 'any' ? R() * 6.28 : facing(xF, zF, opt.jit || 0.5);
         const q = pplNew(R, age, fan, xF, zF, h, 'crowd'); q.rank = opt.rank != null ? opt.rank + R() * (1 - opt.rank) : R() * 0.92;
-        const dl = Math.min(Math.abs(xF + 11.2), Math.abs(xF - 3.42), Math.abs(zF + 15.68), Math.abs(zF - 15.68)); q.front = !!opt.row && dl < (MOPT.big ? 1.45 : 4.2);
+        const dl = Math.min(Math.abs(xF - MFR.x0), Math.abs(xF - MFR.x1), Math.abs(zF - MFR.z0), Math.abs(zF - MFR.z1)); q.front = !!opt.row && dl < (MOPT.big ? 1.45 : 4.2);
         const m = R(), young = q.age === 'kid' || q.age === 'little'; // front rows: some kids down on one knee or sitting
         q.mode = opt.sit != null && m < opt.sit ? 'sit' : q.front && young && m < 0.14 ? 'kneel' : q.front && young && m < 0.22 ? 'sit' : 'stand';
         q.arms = R() < 0.18 ? 1 : R() < 0.22 ? 2 : R() < 0.1 ? 3 : 0; // crossed, pockets, phone
@@ -6777,7 +6968,19 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       // how many: the true-size yard gets half as many again as it used to; the big field (an area MET_K^2 times larger) gets the
       // packed rows below plus several times the scattered groups, so it looks as full (about 1500-1900 at the top quality)
       const KB = MOPT.big ? 2.2 : 1.5, KS = MOPT.big ? 4.5 : 1.5, N = (n, k) => Math.round(n * k);
-      if (MOPT.big) {
+      if (MOPT.field !== 'blacktop') {
+        // another field: rows round its lines (frame F; 3 deep at the sides, 2 at the ends, from 2 m out) wherever there is room
+        // (the solids, the street and the school keep them out), then little groups scattered further back
+        const C = [], sp = 0.84, gap = (u, s0) => Math.sin(u * 0.37 + s0) + Math.sin(u * 0.13 + s0 * 2.3) < -1.1, F = MFR, longX = F.x1 - F.x0 > F.z1 - F.z0;
+        for (const sd of [-1, 1]) for (let r = 0; r < 3; r++) for (let u = F.x0 - 2 + (r % 2) * sp * 0.5; u < F.x1 + 2; u += sp + U(-0.1, 0.2)) {
+          if (gap(u, sd * 3.1 + r) || R() < r * 0.15 + (longX ? 0 : 0.3)) continue; const d = 2.0 + r * 0.8 + U(-0.12, 0.12); C.push([u, sd < 0 ? F.z0 - d : F.z1 + d]); }
+        for (const sd of [-1, 1]) for (let r = 0; r < 3; r++) for (let u = F.z0 - 2 + (r % 2) * sp * 0.5; u < F.z1 + 2; u += sp + U(-0.1, 0.2)) {
+          if (gap(u, sd * 5.7 + r) || R() < r * 0.15 + (longX ? 0.3 : 0)) continue; const d = 2.0 + r * 0.8 + U(-0.12, 0.12); C.push([sd < 0 ? F.x0 - d : F.x1 + d, u]); }
+        for (let i = C.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0, t = C[i]; C[i] = C[j]; C[j] = t; }
+        let ci = 0; add(Math.min(C.length, 210), () => (ci < C.length ? C[ci++] : null), { row: true, jit: 0.35, sp: 0.6 });
+        add(40, () => { const a = R() * 6.2832, d = 5 + R() * 10; return [MFC[0] + Math.cos(a) * ((F.x1 - F.x0) / 2 + d), MFC[1] + Math.sin(a) * ((F.z1 - F.z0) / 2 + d)]; }, { face: 'field', jit: 1.2, sit: 0.3, rank: 0.3 });
+        PPL.crowd.sort((a, b) => a.rank - b.rank);
+      } else if (MOPT.big) {
         // packed rows all the way round, several deep, in engine units (yards): the sidelines 4 rows from 3 m out, the end lines
         // 3 rows from 2.5 m out, the side rows running on past the corners; gaps here and there as in a real crowd
         const a = metE(-11.2, -15.68), b = metE(3.42, 15.68), sp = 0.84, rw = 0.8, C = [];
@@ -6793,6 +6996,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
         for (let i = C.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0, t = C[i]; C[i] = C[j]; C[j] = t; }
         let ci = 0; add(C.length, () => (ci < C.length ? C[ci++] : null), { row: true, jit: 0.35, sp: 0.6 });
       }
+      if (MOPT.field === 'blacktop') {
       // rows along the lines: west on the lawn, east on the painted strip, north at the playground edge, south behind the fence
       add(N(48, KB), () => [U(-15.45, -13.65), U(-15.2, 15.6)], { row: true, jit: 0.4 });
       add(N(74, KB), () => [U(5.85, 9.8), U(-15.2, 15.6)], { row: true, jit: 0.4 });
@@ -6810,6 +7014,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
       add(N(10, KS), grp(() => [U(-10.5, 28.0), U(-45.0, -22.5)], G0), { face: 'field', jit: 1.2, rank: 0.35 });
       add(N(8, KS), () => [U(-17.9, -16.7), U(-22, 24)], { face: 'field', jit: 0.6, rank: 0.2 }); // on the sidewalk outside the fence, watching
       PPL.crowd.sort((a, b) => a.rank - b.rank);
+      }
     }
     // walkers: Main Street (both sides) and the school walk, a few at once all the time
     const NW = [7, 3, 2];
@@ -7097,7 +7302,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   const fetchOurs = () => (DEFP && DEFP.on ? 1 : 0); // our team's side in the cutscene (on a key defensive play the CPU has the ball)
   function fences() {
     if (FEN) return FEN;
-    FEN = fenceList().map((f) => { const a = metE(f.a[0], f.a[1]), b = metE(f.b[0], f.b[1]), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { a, b, d: [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: f.n.slice(), L, fp: f.fp }; });
+    FEN = fenceList().map((f) => { const a = metE(f.a[0], f.a[1]), b = metE(f.b[0], f.b[1]), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { a, b, d: [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: metDir(f.n[0], f.n[1]), L, fp: f.fp }; });
     return FEN;
   }
   // every step: a ball that is not in anyone's hands crossing a fence line from the field side (live, or still bouncing when dead)
@@ -7175,7 +7380,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   // sides, nearer, farther, lower and higher, and keep the one whose lines of sight to the ball, the fence and the line of players
   // pass through the fewest solids (MET.keep, the built frame in metres, like metKeepOut); the eye inside a solid counts most
   function fetchSolid(x, y, z) { // engine units in, inside a solid (0.15 m padding)?
-    x = x / M2Y + MX0; y = y / M2Y; z = z / M2Y - MZ0; const m = 0.15;
+    [x, z] = metFb(x, z); y = y / M2Y; const m = 0.15;
     for (const k of MET.keep || []) {
       if (k.length === 6) { if (x > k[0] - m && x < k[3] + m && z > k[2] - m && z < k[5] + m && y < k[4] + m && y > k[1] - m) return true; }
       else if (k.length === 5) { if (y > k[3] - m && y < k[4] + m && Math.hypot(x - k[0], z - k[1]) < k[2] + m) return true; }
@@ -7339,7 +7544,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
     DBG.metPeople = () => ({ crowd: PPL.crowd.length, walk: PPL.walk.length, dogs: PPL.dogs.length, drawn: PPL.R.n, near: PPL.R.nn, far: PPL.nfar, farD: PPL.farD, tris: PPL.tris, ms: +PPL.ms.toFixed(3), gl: !!(G && G.ppl), fetch: FETCH.on ? FETCH.stage : null, hit: FW.hit ? 1 : 0, rx: PPL.crowd.filter((q) => q.rx).length, front: PPL.crowd.filter((q) => q.front).length, rush: PPL.crowd.filter((q) => q.rushT).length, hs0: PPL.hs0, moving: PPL.crowd.filter((q) => (q.mv || 0) > 0.1).length });
     DBG.setQuality = (q) => setQuality(q);
     // tests: crowd members standing inside a venue solid (built frame, the crowd's own posts left out)
-    DBG.metCrowdHits = () => { const n0 = MET.keep.length - PPL.crowd.length; let n = 0; for (const q of PPL.crowd) { const x = q.x / M2Y + MX0, z = q.z / M2Y - MZ0; for (let i = 0; i < n0; i++) { const k = MET.keep[i]; if (k.length === 6 ? k[1] < 1.9 && k[4] > 0.15 && x > k[0] && x < k[3] && z > k[2] && z < k[5] : k.length === 5 ? k[3] < 1.9 && Math.hypot(x - k[0], z - k[1]) < k[2] : false) { n++; break; } } } return n; };
+    DBG.metCrowdHits = () => { const n0 = MET.keep.length - PPL.crowd.length; let n = 0; for (const q of PPL.crowd) { const [x, z] = metFb(q.x, q.z); for (let i = 0; i < n0; i++) { const k = MET.keep[i]; if (k.length === 6 ? k[1] < 1.9 && k[4] > 0.15 && x > k[0] && x < k[3] && z > k[2] && z < k[5] : k.length === 5 ? k[3] < 1.9 && Math.hypot(x - k[0], z - k[1]) < k[2] : false) { n++; break; } } } return n; };
     // tests: every spectator drawn by the near path this frame: [index, x, z, hips L/R, knees L/R, speed, reaction, end-line row]
     DBG.metLegs = () => { const o = []; PPL.crowd.forEach((q, i) => { if (q.bb) return; const f = metF(q.hx, q.hz); o.push([i, q.x, q.z, q.A[J_LH], q.A[J_RH], q.A[J_LK], q.A[J_RK], q.mv || 0, q.rx ? q.rx.k : '', Math.abs(f[1]) > 15.68 && f[0] > -11.2 - 1 && f[0] < 3.42 + 1 ? 1 : 0]); }); return o; };
     DBG.metReact = (n) => { sfx.play(n); if (n === 'td') { hs += 7; boardDirty = true; } }; // tests: the crowd hears a cheer / boo / ooh; 'td' fakes a home score for the rush
@@ -8349,7 +8554,7 @@ if(hid>0.5||length(dc)<uFarD)gl_Position=vec4(2.0,2.0,2.0,1.0);else gl_Position=
   // true + 2). The stadium is on no map: its north is put where its old noon sun stands due south, so its field runs from the south-east
   // (your end zone) to the north-west and the sun sets beyond the far end zone.
   const SKY_DEG = Math.PI / 180;
-  const SKY_N = METCALF ? [0, 1] : [0.7522, -0.6582], SKY_E = METCALF ? [1, 0] : [-0.6582, -0.7522];
+  const SKY_N = METCALF ? metDir(0, 1) : [0.7522, -0.6582], SKY_E = METCALF ? metDir(1, 0) : [-0.6582, -0.7522]; // (frame F's north and east in engine axes: another Metcalf field turns the map)
   function skyDir(az, el) {
     const a = (az + (METCALF ? 2 : 0)) * SKY_DEG, e = el * SKY_DEG, hx = Math.sin(a) * SKY_E[0] + Math.cos(a) * SKY_N[0], hz = Math.sin(a) * SKY_E[1] + Math.cos(a) * SKY_N[1];
     return [hx * Math.cos(e), Math.sin(e), hz * Math.cos(e)];
@@ -8535,7 +8740,7 @@ gl_FragColor=vec4(col,1.0);}`;
   function skyLamps(W) {
     if (!METCALF || !W.defs) return;
     const b = new Batch(600), t = new Batch(200), night = TOD === 'night',
-      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; b.v(e[0] + (f[o] - ax) * M2Y * MET_Z, metY(f[o + 1]), e[1] + (f[o + 2] - az) * M2Y * MET_Z, f[o + 3], f[o + 4], f[o + 5], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
+      put = (ax, az) => { const e = metE(ax, az), f = t.f; b.grow(t.n); for (let i = 0; i < t.n; i++) { const o = i * 12; const d = metDir((f[o] - ax) * M2Y * MET_Z, (f[o + 2] - az) * M2Y * MET_Z), n = metDir(f[o + 3], f[o + 5]); b.v(e[0] + d[0], metY(f[o + 1]), e[1] + d[1], n[0], f[o + 4], n[1], [f[o + 6], f[o + 7], f[o + 8], f[o + 9]], f[o + 10], f[o + 11]); } t.n = 0; }, lens = night ? [2.3, 2.0, 1.6, 1] : [0.66, 0.66, 0.63, 1], bronze = [0.15, 0.13, 0.11, 1];
     for (const [x, y, z] of MET_LAMPS.wall) {
       t.wbox(x - 0.24, y - 0.15, z - 0.2, x, y + 0.17, z + 0.2, bronze);
       t.quad([x - 0.245, y - 0.12, z - 0.15], [x - 0.245, y - 0.12, z + 0.15], [x - 0.245, y + 0.05, z + 0.15], [x - 0.245, y + 0.05, z - 0.15], [0, 0, 0], lens);
@@ -11044,6 +11249,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function steerDir(p, ux, uz, spd, dt, acc) { drive(p, ux * spd, uz * spd, acc || p.acc || 9, dt); }
     const agN = (p) => clamp(((p.agi || 60) - 30) / 69, 0, 1);
     function drive(p, wx, wz, gain, dt) {
+      if (MOBST && !p.rag) { const q = obstAvoid(p, wx, wz); if (q) { wx = q[0]; wz = q[1]; } } // Sideways Blacktop: round the hoop (13-metholo.js)
       let ws = Math.hypot(wx, wz);
       const vx = p.vx, vz = p.vz, s = Math.hypot(vx, vz), ag = agN(p), m = p.mass || 1, air = p.jumpY > 0.05 ? 0.15 : 1;
       if (ws > 0.5 && !p.rag) {
@@ -11089,6 +11295,7 @@ gl_FragColor=vec4(col,1.0);}`;
       const sp = Math.hypot(p.vx, p.vz), psp = Math.hypot(p.pvx, p.pvz);
       if (sp > 3.5 && psp > 3.5 && p.plant <= 0) { const dot = (p.vx * p.pvx + p.vz * p.pvz) / (sp * psp); if (dot < 0.55) p.plant = 0.22; }
       p.x += p.vx * dt; p.z += p.vz * dt;
+      if (MOBST) obstPush(p); // nobody runs through the hoop's pole
       if (p.hipT > 0) { p.hipT -= dt; if (sp > 0.6 && !p.hold) { const a = angDiff(Math.atan2(p.vx, p.vz), p.h); p.h += clamp(a, -dt * 11, dt * 11) + a * Math.min(1, dt * 4); } } // opening the hips to run
       else if (p.face2 != null) p.h += angDiff(p.face2, p.h) * Math.min(1, dt * 9);
       else if (sp > 0.6 && !p.hold) { const back = (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; if (!back) p.h += angDiff(Math.atan2(p.vx, p.vz), p.h) * Math.min(1, dt * (p === ctrl ? 13 : 9)); }
@@ -13192,6 +13399,7 @@ gl_FragColor=vec4(col,1.0);}`;
       b.vx *= dr; b.vz *= dr; b.vy = (b.vy - GRAV * dt) * (1 - AIRDRAG * 0.4 * dt);
       b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.t = (b.t || 0) + dt;
       b.spin = (b.spin || 0) + dt * (b.tipped ? 9 : b.spinV || 14); // a spiral; a tipped ball tumbles
+      if (MOBST) obstBall(b, dt); // off the hoop's pole or board
     }
     // a football bounce: energy loss, a random end-over-end kick and side hop
     function bounce(b) {
@@ -17382,7 +17590,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const RS_MAX = 90000; // the server takes up to 96 KB a save
     if (RSO && RSO.resume && typeof RSO.resume === 'object' && RSO.resume.v === 1 && RSO.resume.go) RS.res = RSO.resume;
     // the venue a save belongs to: a save is only ever resumed into the same field and rules
-    const rsmV = () => ({ venue: VN0.id, big: !!MOPT.big, touch: !!MOPT.touch, crowd: !!MOPT.crowd });
+    const rsmV = () => ({ venue: VN0.id, big: !!MOPT.big, touch: !!MOPT.touch, crowd: !!MOPT.crowd, field: MOPT.field });
     const rsmIsP = (x) => !!(x && typeof x === 'object' && x.an && x.role && x.side != null);
     // a plain copy (players, page elements, typed arrays and functions left out); omit: top-level keys to leave out
     function rsmPl(v, omit) {
@@ -17588,7 +17796,7 @@ gl_FragColor=vec4(col,1.0);}`;
         if (!RS.res) return _begin();
         if (phase !== 'splash' || finished) return;
         const s = RS.res; RS.res = null;
-        const V = rsmV(), ok = s.V && s.V.venue === V.venue && !!s.V.big === V.big && !!s.V.touch === V.touch;
+        const V = rsmV(), ok = s.V && s.V.venue === V.venue && !!s.V.big === V.big && !!s.V.touch === V.touch && (s.V.field || 'blacktop') === V.field;
         if (!ok) return _begin(); // (never happens: the server hands back the same setup) a save from another field starts fresh
         sfx.init(); sfx.play('whistle');
         splash.remove(); fit(); scrollIn(); voice.start(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
@@ -17711,7 +17919,7 @@ gl_FragColor=vec4(col,1.0);}`;
     const bcAhead = (a) => (phase === 'dead' ? (1 - Math.pow(0.04, a)) / 3.2189 : a);
     // inside one of the venue's solids (Metcalf: MET.keep, frame F metres, like metKeepOut): engine units in; ks = a short list
     function bcSolid(x, y, z, ks) {
-      x = x / M2Y + MX0; y = y / M2Y; z = z / M2Y - MZ0;
+      [x, z] = metFb(x, z); y = y / M2Y;
       for (const k of ks) {
         if (k.length === 6) { if (x > k[0] - 0.1 && x < k[3] + 0.1 && z > k[2] - 0.1 && z < k[5] + 0.1 && y < k[4] + 0.1 && y > k[1] - 0.1) return true; }
         else if (k.length === 5) { if (y > k[3] - 0.1 && y < k[4] + 0.1 && Math.hypot(x - k[0], z - k[1]) < k[2] + 0.1) return true; }
@@ -17723,7 +17931,7 @@ gl_FragColor=vec4(col,1.0);}`;
     function bcSolidsNear(pts, pad) {
       if (!METCALF || !MET.keep || !MET.keep.length) return null;
       let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
-      for (const p of pts) { const x = p[0] / M2Y + MX0, z = p[2] / M2Y - MZ0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+      for (const p of pts) { const [x, z] = metFb(p[0], p[2]); x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
       x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
       return MET.keep.filter((k) => k.length === 6 ? !(k[3] < x0 || k[0] > x1 || k[5] < z0 || k[2] > z1) : k.length === 5 ? !(k[0] + k[2] < x0 || k[0] - k[2] > x1 || k[1] + k[2] < z0 || k[1] - k[2] > z1) : !(k[0] + k[3] < x0 || k[0] - k[3] > x1 || k[2] + k[3] < z0 || k[2] - k[3] > z1));
     }
@@ -19619,6 +19827,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (tr.n) { gl.depthMask(false); worldMat(W, [0.5, 0, 0, 0], 0); bindWorldAttribs(W, G.tr, tr.f.subarray(0, tr.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, tr.n); gl.depthMask(true); DRAWS.n++; }
       if (showPlayers) drawFxParts(W);
       disableAll(W);
+      if (MHOLO) metHoloDraw(now); // another Metcalf field: its glowing lines (13-metholo.js)
     }
     function drawGrass(now) {
       const P = G.grass; gl.useProgram(P.pr);
@@ -21282,7 +21491,7 @@ gl_FragColor=vec4(col,1.0);}`;
   // =====================================================================================
   window.MFLBlitz = {
     version: 2,
-    venues: ['stadium', 'metcalf', 'hancock'], // opts.venue (Head to Head too: opts.versus with opts.venue, big and touch)
+    venues: ['stadium', 'metcalf', 'hancock'], // opts.venue (Head to Head too: opts.versus with opts.venue, big, touch and mfield, the Metcalf field)
     tods: ['morning', 'noon', 'sunset', 'night'], // opts.tod (default: the venue's usual, the stadium at night, Metcalf at noon)
     weathers: ['clear', 'cloudy', 'overcast', 'rain', 'storm', 'snow', 'fog'], // opts.weather ('night' = the stadium's usual clear night)
     avatar: avatarMount, // one player's 3D avatar looping his emote (09-avatar.js; the player pages load the light build, blitz-avatar.js)
@@ -21311,11 +21520,11 @@ gl_FragColor=vec4(col,1.0);}`;
         // to the engine as the legacy weather 'night'.
         const api = window.MFLBlitz, venue = data.venue === 'metcalf' || data.venue === 'hancock' ? data.venue : 'stadium', met = venue === 'metcalf', runMet = met && !!ctx.run;
         const tod = api.tods.indexOf(data.tod) >= 0 ? data.tod : met ? 'noon' : 'night', wx = api.weathers.indexOf(data.weather) >= 0 ? data.weather : 'clear';
-        const crowd = met && (runMet || !!data.crowd), big = met && !!data.big, touch = met && !!data.touch;
-        const where = venue === 'hancock' ? 'Hancock Stadium' : met ? ['Wildcat Blacktop', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
+        const mfield = met && ['sideways', 'regular', 'full'].indexOf(data.mfield) >= 0 ? data.mfield : 'blacktop', crowd = met && (runMet || !!data.crowd), big = met && !!data.big && mfield === 'blacktop', touch = met && !!data.touch;
+        const where = venue === 'hancock' ? 'Hancock Stadium' : met ? ['Wildcat Blacktop', { sideways: 'Sideways Blacktop', regular: 'Field Regular', full: 'Full Field' }[mfield] || '', big ? 'Big field' : '', crowd ? 'Crowd' : '', touch ? 'Two-hand touch' : ''].filter(Boolean).join(' · ') : '';
         const lvlN = ctx.levelName || ['Rookie', 'Pro', 'All-Pro', 'Legend', 'GOAT', 'Hall of Fame'][lvl];
         window.MFLBlitz.play(ctx.root, { home, away, difficulty: [0, 0.33, 0.66, 1, 1.3, 1.1][lvl], offense: [0, 0.33, 0.66, 1, 1.3, 1.2][lvl], noTies: !ctx.exhibition, seed: ctx.seed, quarterSecs: 120, timeouts: 3,
-          weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch,
+          weather: !met && tod === 'night' && wx === 'clear' ? 'night' : wx, tod, venue, crowd, big, touch, mfield,
           rsm: ctx.run && ctx.rsm && typeof ctx.rsm.save === 'function' ? { save: ctx.rsm.save, seq: ctx.rsm.seq | 0, resume: ctx.rsm.snap || null } : null, // a run game: saves, and picking it up again (78-resume.js)
           label: (ctx.run ? `${ctx.run.name} · ${lvlN} · Game ${ctx.run.step}${ctx.rsm && ctx.rsm.snap ? ' · Continued' : ''}` : lvlN + ' · Arcade') + (where ? ' · ' + where : '') }).then((r) => {
           const won = !r.quit && r.homeScore > r.awayScore, tie = !r.quit && r.homeScore === r.awayScore;
