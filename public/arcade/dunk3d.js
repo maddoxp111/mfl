@@ -252,10 +252,12 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-pc{display:flex;align-items:center;justify-content:center;min-width:30px;padding:0 6px;font:400 11px 'Press Start 2P',monospace;color:#ff3b2f;background:#0b0c10}.dk-pc.low{animation:dk-pulse .5s infinite}
 .dk-ptag{position:absolute;transform:translate(-50%,-100%);padding:2px 7px;border-radius:7px;background:rgba(10,12,17,.78);border:1px solid rgba(77,210,255,.7);font:800 12px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;pointer-events:none;z-index:2}
 .dk-ptag b{color:#4dd2ff;margin-right:4px}.dk-ptag::after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-5px;border:5px solid transparent;border-top-color:rgba(77,210,255,.85);border-bottom:0}.dk-ptag.hide{display:none}
-.dk-smeter{position:absolute;width:16px;height:96px;transform:translate(0,-50%);border-radius:8px;background:rgba(10,12,17,.82);border:2px solid rgba(255,255,255,.75);overflow:hidden;pointer-events:none;z-index:4}
+.dk-ctl.dk-keys{background:none;justify-content:flex-end}.dk-msg.dk-hint{flex:0 1 auto;margin:0 auto;font-size:11px;min-height:26px;padding:5px 12px;background:rgba(15,17,23,.6);animation:dk-hintout .5s 4.5s ease-in forwards}@keyframes dk-hintout{to{opacity:0;visibility:hidden}}
+.dk-dip{position:absolute;inset:0;background:#07080b;opacity:0;pointer-events:none;z-index:1}
+.dk-smeter{position:absolute;width:24px;height:150px;transform:translate(0,-50%);border-radius:8px;background:rgba(10,12,17,.82);border:2px solid rgba(255,255,255,.75);overflow:hidden;pointer-events:none;z-index:4}
 .dk-smeter.hide{display:none}.dk-smeter u{position:absolute;left:0;right:0;background:#2bd46b;box-shadow:0 0 8px #2bd46b;text-decoration:none}
 .dk-smeter i{position:absolute;left:2px;right:2px;bottom:0;background:linear-gradient(#fff,#ffc21a);border-radius:5px;opacity:.92}
-.dk-smeter em{position:absolute;left:22px;top:50%;transform:translateY(-50%);font:400 10px 'Press Start 2P',monospace;font-style:normal;white-space:nowrap;text-shadow:2px 2px 0 #000}
+.dk-smeter em{position:absolute;left:32px;top:50%;transform:translateY(-50%);font:400 17px 'Press Start 2P',monospace;font-style:normal;white-space:nowrap;text-shadow:2px 2px 0 #000}
 .dk-smeter.g{border-color:#2bd46b;overflow:visible}.dk-smeter.g em{color:#2bd46b}.dk-smeter.r{border-color:#ff5a5a;overflow:visible}.dk-smeter.r em{color:#ff7a6a}
 .dk-pad{display:grid;grid-template-columns:64px 64px 88px;grid-template-rows:64px 64px;gap:8px;margin-left:auto;flex:0 0 auto;align-items:end}
 .dk-pad .dk-btn{width:64px;height:64px;min-height:64px;border-radius:50%;padding:0;font-size:14px}
@@ -637,12 +639,58 @@ uniform mat4 uVP;uniform mat4 uModel;uniform HP vec3 uEye;uniform vec2 uUV;unifo
 varying vec4 vC;varying vec2 vT;varying vec3 vW;varying vec3 vN;varying float vVD;varying float vLit;
 void main(){vec3 p=(uModel*vec4(aP,1.0)).xyz;vW=p;vN=mat3(uModel)*aN;vLit=dot(aN,aN)>0.01?1.0:0.0;gl_Position=uVP*vec4(p,1.0);vC=aC;vT=vec2(aT.x,mix(aT.y,1.0-aT.y,uFlipV))+uUV;vVD=dot(p-uEye,uCamF);}`;
   // uMatW: x rough, y metal, z detail/wet, w emissive. uKind: 0 plain, 1 field (turf detail + wet), 2 fabric normal map (tex alpha = roughness mod)
-  const FS_WORLD = `uniform sampler2D uTex;uniform sampler2D uDetail;uniform sampler2D uNrm;uniform vec4 uMatW;uniform float uKind;uniform float uWet;
+  // uKind 3: the gym floor. Maple strips are procedural (2.25 in boards along x, staggered butt joints, a tone per board, the grain
+  // tile on uDetail), the court's paint is uTex (premultiplied alpha), a satin clear coat (clearcoat lobe + the room's cubemap) and
+  // the dome lamps mirrored in it: each pixel's reflected ray meets the lamp plane (uLampN.z) and picks up the nearest four lamps of
+  // the grid uLampG (x0, dx, z0, dz; uLampN: nx, nz, y, gain) as soft glossy spots stretched toward the eye.
+  const FS_WORLD = `uniform vec3 uCut;uniform sampler2D uTex;uniform sampler2D uDetail;uniform sampler2D uNrm;uniform vec4 uMatW;uniform float uKind;uniform float uWet;uniform vec4 uLampG;uniform vec4 uLampN;
 varying vec4 vC;varying vec2 vT;varying float vLit;
 #LIB#
-void main(){vec4 t=texture2D(uTex,vT);vec3 base=toLin(vC.rgb*t.rgb);
+float flH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float flCov(float d,float w,float fw){fw=max(fw,1e-5);return min(clamp((w+0.5*fw-d)/fw,0.0,1.0),2.0*w/fw);}
+void main(){if(uCut.z>0.0){float cx=vW.x*uCut.x;if((cx<uCut.y||(cx<uCut.y+2.6&&vW.y>4.5&&abs(vW.z)<1.3))&&flH(floor(gl_FragCoord.xy))<uCut.z)discard;}
+vec4 t=texture2D(uTex,vT);vec3 base=toLin(vC.rgb*t.rgb);
 if(uKind>8.5){gl_FragColor=vec4(vec3(shadowAt(normalize(vN),1.0)),1.0);return;}
 if(vLit<0.5){float ta=uKind>7.5?t.a:1.0;gl_FragColor=vec4(uMatW.w>0.5?base*uMatW.w*(vC.a):fogIt(base),uMatW.w>0.5?1.0:vC.a*ta);return;}
+if(uKind>2.5&&uKind<3.5){
+  vec2 wp=vW.xz;const float BW=0.0625;
+  float zb=wp.y/BW,row=floor(zb),hr=flH(vec2(row,7.31));
+  float L=1.05+1.6*fract(hr*13.7),sx=(wp.x+hr*9.0)/L,sg=floor(sx);
+  float h1=flH(vec2(row,sg)),h2=flH(vec2(sg*1.7+3.1,row*0.37));
+  vec4 gr=texture2D(uDetail,vec2(wp.x*0.5+hr*17.0,wp.y*2.0));float g=gr.r-0.5;
+#ifdef DERIV
+  float fz=fwidth(zb)*BW,fx=fwidth(sx)*L;
+#else
+  float fz=0.006,fx=0.006;
+#endif
+  float vk=1.0-0.75*smoothstep(0.25,0.9,fz/BW); // boards under a pixel tall: calm the per-board tones (no shimmer far away)
+  vec3 wood=vec3(0.88,0.675,0.44)*(1.0+(h1-0.5)*0.13*vk);
+  wood=mix(wood,vec3(0.8,0.56,0.33),step(0.9,h2)*0.45*vk);
+  wood=mix(wood,vec3(0.93,0.77,0.54),step(h2,0.09)*0.45*vk);
+  wood*=1.0+g*0.2;
+  float dz=min(fract(zb),1.0-fract(zb))*BW,dx=min(fract(sx),1.0-fract(sx))*L;
+  float seam=max(flCov(dz,0.0011,fz),flCov(dx,0.0016,fx));
+  vec3 alb=wood*(1.0-t.a)+t.rgb*(1.0+g*0.1);
+  alb*=1.0-seam*(0.32-0.16*t.a);
+  vec3 b2=toLin(alb);
+  float tk=1.0-0.8*t.a;vec3 Nf=normalize(vec3((h1-0.5)*0.01*tk,1.0,(hr-0.5)*0.022*tk)); // painted areas: one smooth coat over the boards (no per-board glints)
+  float rough=uMatW.x*(0.85+0.4*gr.g);
+  vec3 col=shadePBR(b2,Nf,rough,0.0,1.0,1.0,2,1.0);
+  vec3 V=normalize(uEye-vW);vec3 R=reflect(-V,Nf);
+  if(R.y>0.03&&uLampN.w>0.0){
+    float tt=(uLampN.z-vW.y)/R.y;vec2 q=wp+R.xz*tt;
+    vec2 cell=vec2((q.x-uLampG.x)/uLampG.y,(q.y-uLampG.z)/uLampG.w);vec2 i0=floor(cell);
+    vec2 vd=normalize(R.xz+vec2(1e-4,0.0));vec2 vp=vec2(-vd.y,vd.x);
+    float sp=0.3+tt*(0.012+0.09*rough),st=clamp(0.7/R.y,1.0,7.0);float acc=0.0;
+    for(int a=0;a<2;a++)for(int b=0;b<2;b++){vec2 ij=i0+vec2(float(a),float(b));
+      if(ij.x<-0.5||ij.y<-0.5||ij.x>uLampN.x-0.5||ij.y>uLampN.y-0.5)continue;
+      vec2 d=q-vec2(uLampG.x+ij.x*uLampG.y,uLampG.z+ij.y*uLampG.w);float dp=dot(d,vp),dl=dot(d,vd);
+      acc+=exp(-(dp*dp)/(sp*sp)-(dl*dl)/(sp*sp*st*st));}
+    float NV=max(dot(Nf,V),0.0),Fr=0.04+0.96*pow(1.0-NV,5.0);
+    col+=vec3(1.0,0.96,0.88)*acc*Fr*uLampN.w*5.0*(0.16/(sp*sp+0.02));
+  }
+  gl_FragColor=vec4(fogIt(col),1.0);return;
+}
 vec3 N=normalize(vN);float rough=uMatW.x,metal=uMatW.y,ao=1.0,cav=1.0,specOcc=1.0;
 if(uKind>0.5&&uKind<1.5){
   // turf: blade-scale detail (colour + normal) fades with distance, mow-stripe sheen, wet puddles in rain
@@ -676,7 +724,7 @@ vec3 w=skinP(b0,p)*w0+skinP(b1,p)*w1;vec3 nn=skinN(b0,aN)*w0+skinN(b1,aN)*w1;vec
 bool num=(s==8||s==16);
 vT=num?uNumUV.xy+aT*uNumUV.zw:(s==11?uNameUV.xy+aT*uNameUV.zw:(s==9?uFaceUV.xy+aT*uFaceUV.zw:aT));
 vS=aS;vA=aA;vP=aP;vW=w;vN=n;gl_Position=uVP*vec4(w,1.0);vVD=dot(w-uEye,uCamF);}`;
-  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[26];uniform float uAlpha;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
+  const FS_SKIN = `uniform sampler2D uTex;uniform sampler2D uKit;uniform sampler2D uNrm;uniform HP vec4 uFaceUV;uniform vec3 uCol[26];uniform float uAlpha;uniform float uRefl;uniform float uWet;uniform float uDirt;uniform vec3 uDirtC;uniform vec3 uGaze;uniform float uSweat;uniform float uSeed;uniform vec4 uFx;uniform vec3 uFxC;
 varying vec2 vT;varying float vS;varying float vA;varying vec3 vP;
 #LIB#
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -746,7 +794,7 @@ if(fm>0.5){vec3 V=normalize(uEye-vW);float fres=pow(max(1.0-abs(dot(N,V)),0.0),2
  else{float sp=step(0.985,hash(floor(vT*120.0)+floor(ft*6.0)));emis+=uFxC*sp*2.0*fk;}
 }
 vec3 col=finC(shadePBR(base,N,rough,metal,ao,1.0,mode,specOcc)+emis); // a NaN here (degenerate scan normals) would smear black through the blur
-gl_FragColor=vec4(fogIt(col),alpha);}`;
+gl_FragColor=vec4(fogIt(col),uRefl>0.0?uRefl*exp(-max(vW.y,0.0)*1.4):alpha);} // uRefl: the mirrored draw under the glossy floor (80-render), fading with height`;
   // ---- depth-only passes (shadow cascades) ----
   const VS_DEPTH_W = `attribute vec3 aP;uniform mat4 uLVP;uniform mat4 uModel;void main(){gl_Position=uLVP*(uModel*vec4(aP,1.0));}`; // (uModel: Metcalf's half turn of the world, else the identity)
   const VS_DEPTH_S = `attribute vec3 aP;attribute vec2 aB;attribute float aW;attribute float aS;uniform vec4 uBones[51];uniform vec3 uScale;uniform mat4 uLVP;uniform float uVis;uniform float uTowel;uniform float uMouth;uniform float uHead;
@@ -1004,13 +1052,13 @@ gl_FragColor=vec4(c,1.0);}`;
     // pelvis: forward tilt (more with effort, the burst and a low backpedal), turned with the stepping leg, a slight bob
     const A = 0.035 * clamp((g.v - 2.2) / 4, 0, 1) - 0.014 * clamp((2.5 - g.v) / 1.5, 0, 1);
     const bob = -A * Math.cos(2 * TAU * (uL - g.D / 2));
-    const rootY = -0.02 - 0.035 * kR - 0.17 * lo - 0.2 * wS - 0.1 * g.line - 0.14 * g.sink - 0.05 * g.drive - 0.04 * g.brake + bob;
-    const pitch = 0.05 + 0.13 * kR + 0.2 * lo + 0.14 * wS + g.leanF + 0.18 * g.drive + 0.12 * g.sink - 0.08 * g.brake;
+    const rootY = -0.02 - 0.035 * kR - 0.17 * lo - 0.2 * wS - 0.1 * g.line - 0.14 * g.sink - 0.05 * g.drive - 0.04 * g.brake + bob - (g.drop || 0); // drop / tilt: a stance's own crouch (basketball stances, 25-animrt.js)
+    const pitch = 0.05 + 0.13 * kR + 0.2 * lo + 0.14 * wS + g.leanF + 0.18 * g.drive + 0.12 * g.sink - 0.08 * g.brake + (g.tilt || 0);
     const pyaw = 0.13 * kR * wF * Math.cos(TAU * uL) + clamp(g.twist * 0.05, -0.3, 0.3);
     const yaw = pyaw + (g.yaw || 0), roll = clamp(g.bank + (g.bankX || 0), -0.42, 0.42);
     q[PN] = rootY; q[PN + 1] = pitch; q[PN + 2] = roll; q[PN + 3] = yaw;
     // feet in the ground frame under the hips (x = right, z = forward), then into the pelvis frame for the IK
-    const H = HIP_H + rootY, W = 0.115 - 0.04 * kR + 0.16 * wS + 0.05 * wB + 0.07 * g.line + 0.08 * g.sink, bx = H * Math.sin(roll) * 0.9;
+    const H = HIP_H + rootY, W = 0.115 - 0.04 * kR + 0.16 * wS + 0.05 * wB + 0.07 * g.line + 0.08 * g.sink + (g.base || 0), bx = H * Math.sin(roll) * 0.9;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
     for (let i = 0; i < 2; i++) {
       // stride along the move direction (the ground frame ignores the body's extra turn, so a spinning runner's feet stay on his
@@ -1448,6 +1496,625 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     return out;
   };
+  // =====================================================================================
+  // Basketball clip library (module scope): keyframed bodies for every offensive move, the ball's path through the hands for
+  // each one (in the player's frame: forward, right, up, in body heights), which hands grip it and how (palm normals), the
+  // dribble moves' ball paths and their push off the floor, and palm IK (the palm laid on the ball's surface, fingers spread
+  // the right way, the elbow placed like a basketball player's). 25-animrt.js dispatches them; 40-ball.js and 50-game.js read
+  // the ball paths and the move table so the ball the game simulates and the hands the player is drawn with always agree.
+  // Everything is authored right-handed; a left-handed player gets the mirror (poses mirrored, the right axis negated).
+  // =====================================================================================
+  const K = (t, o, rY, pi, ro, ya) => [t, pb(o, rY, pi, ro, ya)];
+  const KG = (t, o, rY, pi, ro, ya) => [t, gfit(pb(o, rY, pi, ro, ya))];
+  // a ball path: [[t, fwd, right, up], ...] smoothstep between keys (body heights; the game scales by his size)
+  function bbPath(t, P) {
+    if (t <= P[0][0]) return [P[0][1], P[0][2], P[0][3]];
+    for (let i = 1; i < P.length; i++) if (t <= P[i][0]) { const a = P[i - 1], b = P[i], u = (t - a[0]) / (b[0] - a[0]), s = u * u * (3 - 2 * u); return [a[1] + (b[1] - a[1]) * s, a[2] + (b[2] - a[2]) * s, a[3] + (b[3] - a[3]) * s]; }
+    const z = P[P.length - 1]; return [z[1], z[2], z[3]];
+  }
+  // ---------- legs and trunk shared by the clips ----------
+  const L_CROUCH = { hipL: [0.75, 0, -0.08], hipR: [0.7, 0, 0.1], knL: [-1.1], knR: [-1.05], ftL: [0.25], ftR: [0.25], spine: [0.32, 0, 0], neck: [-0.35, 0, 0] };
+  const L_RISE = { hipL: [0.25, 0, -0.06], hipR: [0.2, 0, 0.08], knL: [-0.35], knR: [-0.3], ftL: [0.45], ftR: [0.45], spine: [0.05, 0, 0], neck: [-0.4, 0, 0] };
+  const L_AIR = { hipL: [0.16, 0, -0.06], hipR: [0.1, 0, 0.08], knL: [-0.34], knR: [-0.28], ftL: [0.55], ftR: [0.55], spine: [0.05, 0, 0], neck: [-0.38, 0, 0] }; // straight up and down, toes pointed (never sitting back in the air)
+  const L_LAND = { hipL: [0.5, 0, -0.1], hipR: [0.45, 0, 0.12], knL: [-0.75], knR: [-0.7], spine: [0.2, 0, 0], neck: [-0.3, 0, 0] };
+  const A_GUARD = { shL: [1.5, 0, -0.3], elL: [1.5] }; // the guide hand stays up after a jumper
+  const A_FOLLOW = { shR: [2.45, 0, 0.06], elR: [0.1], haR: [1.3] }; // shooting arm: elbow locked, wrist in the cookie jar
+  const mix = (...o) => Object.assign({}, ...o);
+  // ---------- jump shots (keys at the shot meter's times: the release is at 0.62 = SHOT_REL; the clip runs 1.15 s) ----------
+  const JUMPER = {
+    // the textbook form: deep knee bend, ball up the midline, set above the forehead, straight-up jump
+    set: [KG(0, mix(L_CROUCH, { shR: [1.1, 0, 0.25], elR: [2.0], shL: [1.05, 0, -0.3], elL: [1.9] }), -0.3, 0.1, 0), K(0.24, mix(L_RISE, { shR: [2.0, 0, 0.3], elR: [1.95], shL: [1.9, 0, -0.45], elL: [1.6] }), -0.06, 0.04, 0),
+      K(0.48, mix(L_AIR, { shR: [2.3, 0, 0.22], elR: [1.6], shL: [2.1, 0, -0.5], elL: [1.3] }), -0.04, 0.04, 0), K(0.62, mix(L_AIR, A_FOLLOW, A_GUARD), -0.04, 0.05, 0),
+      K(0.86, mix(L_AIR, { hipL: [0.3, 0, -0.07], knL: [-0.45], knR: [-0.4] }, A_FOLLOW, { shR: [2.3, 0, 0.06], haR: [1.35], shL: [0.8, 0, -0.3], elL: [1.1] }), -0.05, 0.05, 0), KG(1.15, mix(L_LAND, { shR: [0.9, 0, 0.15], elR: [0.7], haR: [0.4], shL: [0.45, 0, -0.25], elL: [0.8] }), -0.15, 0.08, 0)],
+    // a high release: tall and upright, the ball set well above the head
+    high: [KG(0, mix(L_CROUCH, { spine: [0.24, 0, 0], shR: [1.2, 0, 0.2], elR: [2.0], shL: [1.1, 0, -0.3], elL: [1.9] }), -0.26, 0.06, 0), K(0.24, mix(L_RISE, { spine: [0.0, 0, 0], neck: [-0.45, 0, 0] }), -0.04, 0.02, 0),
+      K(0.48, mix(L_AIR, { spine: [0.0, 0, 0], neck: [-0.45, 0, 0] }), -0.02, 0.02, 0), K(0.62, mix(L_AIR, { spine: [0.0, 0, 0], neck: [-0.45, 0, 0] }, A_FOLLOW, { shR: [2.62, 0, 0.06] }, A_GUARD), -0.02, 0.03, 0),
+      K(0.86, mix(L_AIR, A_FOLLOW, { shR: [2.5, 0, 0.06], haR: [1.35], shL: [0.85, 0, -0.35], elL: [1.1] }), -0.03, 0.04, 0), KG(1.15, mix(L_LAND, { shR: [0.9, 0, 0.2], elR: [0.7], shL: [0.5, 0, -0.3], elL: [0.8] }), -0.14, 0.07, 0)],
+    // a quick one-motion flick: less dip, the ball comes up on the right side of the face and goes on the way up
+    quick: [KG(0, mix(L_CROUCH, { hipL: [0.55, 0, -0.08], hipR: [0.5, 0, 0.1], knL: [-0.8], knR: [-0.75], ftL: [0.2], ftR: [0.2], spine: [0.22, 0, 0] }), -0.2, 0.06, 0), K(0.24, mix(L_RISE, { spine: [0.04, 0, 0.05] }), -0.05, 0.02, 0),
+      K(0.48, mix(L_AIR, { spine: [0, 0, 0.06] }), -0.04, 0, 0), K(0.62, mix(L_AIR, { spine: [0, 0, 0.06] }, A_FOLLOW, { shR: [2.5, 0, 0.2], haR: [1.3] }, { shL: [1.5, 0, -0.45], elL: [1.3] }), -0.04, 0.04, 0),
+      K(0.86, mix(L_AIR, A_FOLLOW, { shR: [2.35, 0, 0.12], shL: [0.8, 0, -0.35], elL: [1.1] }), -0.05, 0.05, 0), KG(1.15, mix(L_LAND, { shR: [0.9, 0, 0.2], elR: [0.7], shL: [0.5, 0, -0.3], elL: [0.9] }), -0.14, 0.07, 0)],
+    // a kid's two-motion push shot: deep dip, both hands behind the ball, pushed out from in front of the face
+    push: [KG(0, mix(L_CROUCH, { hipL: [0.88, 0, -0.1], hipR: [0.84, 0, 0.12], knL: [-1.25], knR: [-1.2], ftL: [0.3], ftR: [0.3], spine: [0.36, 0, 0] }), -0.34, 0.12, 0), K(0.24, mix(L_RISE, { spine: [0.1, 0, 0] }), -0.08, 0.04, 0),
+      K(0.48, mix(L_AIR, { spine: [0.05, 0, 0] }), -0.04, 0.02, 0), K(0.62, mix(L_AIR, { shR: [2.25, 0, 0.12], elR: [0.1], haR: [0.9], shL: [2.2, 0, -0.12], elL: [0.1], haL: [0.9] }), -0.04, 0.02, 0),
+      K(0.86, mix(L_AIR, { shR: [2.1, 0, 0.15], elR: [0.15], haR: [1.0], shL: [2.0, 0, -0.15], elL: [0.15], haL: [1.0] }), -0.05, 0.03, 0), KG(1.15, mix(L_LAND, { shR: [0.7, 0, 0.25], elR: [0.8], shL: [0.7, 0, -0.25], elL: [0.8] }), -0.16, 0.08, 0)],
+    // fadeaway: leaning back off the defender, the left knee kicked up in front for space (the trunk carries the fade)
+    fade: [KG(0, mix(L_CROUCH, { shR: [1.1, 0, 0.25], elR: [2.0], shL: [1.05, 0, -0.3], elL: [1.9] }), -0.28, 0.08, 0), K(0.24, mix(L_RISE, { hipL: [0.6, 0, -0.06], knL: [-0.7], spine: [0.0, 0, 0] }), -0.06, -0.03, 0),
+      K(0.48, mix(L_AIR, { hipL: [0.8, 0, -0.06], knL: [-0.8], hipR: [0.0, 0, 0.08], knR: [-0.25], spine: [-0.04, 0, 0], neck: [-0.25, 0, 0] }), -0.04, -0.09, 0),
+      K(0.62, mix(L_AIR, { hipL: [0.85, 0, -0.06], knL: [-0.75], hipR: [0.0, 0, 0.08], knR: [-0.2], spine: [-0.05, 0, 0], neck: [-0.22, 0, 0] }, A_FOLLOW, { shR: [2.6, 0, 0.1] }, A_GUARD), -0.04, -0.11, 0),
+      K(0.86, mix(L_AIR, { hipL: [0.55, 0, -0.06], knL: [-0.6], hipR: [0.1, 0, 0.08], knR: [-0.35], spine: [0.0, 0, 0], neck: [-0.3, 0, 0] }, A_FOLLOW, { shL: [0.85, 0, -0.35], elL: [1.1] }), -0.05, -0.06, 0),
+      KG(1.15, mix(L_LAND, { shR: [0.9, 0, 0.2], elR: [0.7], shL: [0.5, 0, -0.35], elL: [0.9] }), -0.14, 0.04, 0)],
+  };
+  // the free throw: a knee dip, up on the toes (no jump), the follow-through held while the ball is in the air
+  const FTSHOT_K = [KG(0, mix(L_IDLE(), { shR: [1.0, 0, 0.25], elR: [2.0], shL: [1.0, 0, -0.3], elL: [1.9] })), KG(0.24, { hipL: [0.5, 0, -0.07], hipR: [0.46, 0, 0.09], knL: [-0.8], knR: [-0.76], ftL: [0.28], ftR: [0.28], spine: [0.26, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.06, 0),
+    KG(0.48, { hipL: [0.12, 0, -0.06], hipR: [0.1, 0, 0.08], knL: [-0.2], knR: [-0.18], ftL: [0.15], ftR: [0.15], spine: [0.05, 0, 0], neck: [-0.45, 0, 0] }, 0, 0.02, 0),
+    KG(0.62, mix({ hipL: [0.05, 0, -0.06], hipR: [0.04, 0, 0.08], knL: [-0.08], knR: [-0.08], ftL: [0.4], ftR: [0.4], spine: [0, 0, 0], neck: [-0.5, 0, 0] }, A_FOLLOW, A_GUARD), 0, -0.02, 0),
+    KG(0.95, mix({ hipL: [0.05, 0, -0.06], hipR: [0.04, 0, 0.08], knL: [-0.1], knR: [-0.1], ftL: [0.2], ftR: [0.2], spine: [0.02, 0, 0], neck: [-0.45, 0, 0] }, A_FOLLOW, { haR: [1.25], shL: [1.9, 0, -0.4], elL: [0.7] }), 0, 0, 0),
+    KG(1.15, mix(L_IDLE(), { shR: [2.6, 0, 0.15], elR: [0.3], haR: [1.0], shL: [0.6, 0, -0.3], elL: [0.8] }))];
+  function L_IDLE() { return { hipL: [0.06, 0, -0.07], hipR: [0.06, 0, 0.07], knL: [-0.14], knR: [-0.14], spine: [0.08, 0, 0], neck: [-0.1, 0, 0] }; }
+  // the jump shot's ball: chest, up the midline past the forehead, the set point, then where it would go on the follow-through
+  const SHOTP = {
+    set: [[0, 0.3, 0, 1.3], [0.24, 0.16, 0.05, 2.0], [0.62, 0.12, 0.06, 2.28], [0.8, 0.3, 0.06, 2.5]],
+    high: [[0, 0.3, 0.02, 1.32], [0.24, 0.14, 0.07, 2.08], [0.62, 0.08, 0.09, 2.42], [0.8, 0.26, 0.09, 2.62]],
+    quick: [[0, 0.32, 0.08, 1.38], [0.24, 0.2, 0.13, 1.92], [0.62, 0.17, 0.15, 2.16], [0.8, 0.35, 0.15, 2.36]],
+    push: [[0, 0.32, 0, 1.2], [0.24, 0.3, 0.02, 1.55], [0.62, 0.34, 0.03, 1.98], [0.8, 0.6, 0.03, 2.2]],
+    fade: [[0, 0.3, 0, 1.3], [0.24, 0.12, 0.05, 2.0], [0.62, 0.0, 0.06, 2.3], [0.8, 0.15, 0.06, 2.5]],
+    pullup: [[0, 0.3, 0.16, 1.05], [0.14, 0.28, 0.06, 1.35], [0.3, 0.16, 0.05, 2.02], [0.62, 0.12, 0.06, 2.28], [0.8, 0.3, 0.06, 2.5]],
+    catchshoot: [[0, 0.36, 0.02, 1.42], [0.2, 0.18, 0.05, 2.0], [0.62, 0.12, 0.06, 2.28], [0.8, 0.3, 0.06, 2.5]],
+    ft: [[0, 0.3, 0, 1.15], [0.24, 0.26, 0.03, 1.4], [0.48, 0.14, 0.05, 2.05], [0.62, 0.12, 0.06, 2.25], [0.8, 0.3, 0.06, 2.45]],
+  };
+  // ---------- layups (0.95 s: gather to 0.18, the jump, the release at 0.42 = the game's fin.rel) ----------
+  const LAY_GATHER = KG(0, { hipL: [0.65, 0, -0.06], knL: [-0.9], ftL: [0.1], hipR: [-0.3, 0, 0.1], knR: [-0.7], ftR: [0.5], spine: [0.35, 0, 0], neck: [-0.3, 0, 0], shR: [0.9, 0, 0.3], elR: [1.7], shL: [0.9, 0, -0.3], elL: [1.7] }, -0.2, 0.15, 0);
+  const LAY_TAKE = K(0.18, { hipL: [0.2, 0, -0.06], knL: [-0.35], ftL: [0.35], hipR: [1.2, 0, 0.08], knR: [-1.55], ftR: [0.3], spine: [0.15, 0, 0], neck: [-0.4, 0, 0] }, -0.04, 0.05, 0);
+  const LAY_UP = { hipR: [1.6, 0, 0.08], knR: [-1.8], ftR: [0.35], hipL: [-0.05, 0, -0.06], knL: [-0.3], ftL: [0.55], spine: [0.0, 0, 0], neck: [-0.5, 0, 0] };
+  const LAY_DOWN = K(0.62, { hipR: [0.8, 0, 0.08], knR: [-1.0], hipL: [0.45, 0, -0.06], knL: [-0.75], spine: [0.08, 0, 0], neck: [-0.4, 0, 0], shR: [2.4, 0, 0.15], elR: [0.4], haR: [0.8], shL: [1.1, 0, -0.5], elL: [0.9] }, 0, 0.02, 0);
+  const LAY_LAND = KG(0.95, mix(L_LAND, { hipL: [0.62, 0, -0.1], hipR: [0.55, 0, 0.12], knL: [-0.9], knR: [-0.82], spine: [0.28, 0, 0], shR: [1.0, 0, 0.3], elR: [0.7], shL: [0.7, 0, -0.4], elL: [0.9] }), -0.2, 0.1, 0);
+  const LAYUP = {
+    // strong hand off the glass: off the left foot, the right knee drives, the ball laid up high
+    strong: [LAY_GATHER, LAY_TAKE, K(0.3, mix(LAY_UP, { shR: [2.6, 0, 0.15], elR: [0.8] })), K(0.42, mix(LAY_UP, { spine: [-0.05, 0, 0], neck: [-0.6, 0, 0], shR: [3.0, 0, 0.1], elR: [0.15], haR: [0.6], shL: [1.5, 0, -0.5], elL: [0.9] }), 0, -0.04, 0), LAY_DOWN, LAY_LAND],
+    // finger roll: the arm reaching out to the rim, palm up, the ball rolled off the fingertips
+    finger: [LAY_GATHER, LAY_TAKE, K(0.3, mix(LAY_UP, { shR: [2.2, 0, 0.1], elR: [0.6] })), K(0.42, mix(LAY_UP, { spine: [-0.02, 0, 0], neck: [-0.55, 0, 0], shR: [2.55, -0.6, 0.05], elR: [0.05], haR: [-0.5], shL: [1.4, 0, -0.55], elL: [0.8] }), 0, 0.02, 0), LAY_DOWN, LAY_LAND],
+    // reverse: under the rim, his back turning to the baseline, the ball flipped up on the far side
+    reverse: [LAY_GATHER, LAY_TAKE, K(0.3, mix(LAY_UP, { spine: [0, 0.25, 0], shR: [2.6, 0, 0.2], elR: [0.8] }), 0, 0, 0, 0.7), K(0.42, mix(LAY_UP, { spine: [-0.12, 0.3, 0], neck: [-0.7, -0.3, 0], shR: [3.0, 0, 0.25], elR: [0.3], haR: [0.4], shL: [1.3, 0, -0.6], elL: [1.0] }), 0, -0.08, 0, 1.25),
+      K(0.62, { hipR: [0.8, 0, 0.08], knR: [-1.0], hipL: [0.45, 0, -0.06], knL: [-0.75], spine: [0.0, 0.2, 0], neck: [-0.5, -0.2, 0], shR: [2.4, 0, 0.3], elR: [0.5], haR: [0.6], shL: [1.0, 0, -0.5], elL: [0.9] }, 0, 0, 0, 1.3), KG(0.95, mix(L_LAND, { spine: [0.25, 0, 0], shR: [1.0, 0, 0.3], elR: [0.7], shL: [0.7, 0, -0.4], elL: [0.9] }), -0.2, 0.1, 0, 0.9)],
+    // euro step: a long step right, then left across the defender, the ball swung low across the body, up off the left foot
+    euro: [KG(0, { hipL: [0.7, 0, -0.06], knL: [-0.9], ftL: [0.1], hipR: [-0.35, 0, 0.1], knR: [-0.8], ftR: [0.5], spine: [0.38, 0, 0], neck: [-0.3, 0, 0] }, -0.24, 0.18, 0.12, 0.35),
+      KG(0.1, { hipR: [0.6, 0, 0.25], knR: [-0.95], ftR: [0.1], hipL: [-0.3, 0, -0.15], knL: [-0.8], ftL: [0.5], spine: [0.42, -0.2, 0], neck: [-0.3, 0.2, 0] }, -0.26, 0.2, -0.15, -0.4),
+      K(0.18, { hipL: [0.2, 0, -0.2], knL: [-0.35], ftL: [0.35], hipR: [1.25, 0, 0.0], knR: [-1.55], ftR: [0.3], spine: [0.2, -0.1, 0], neck: [-0.4, 0.1, 0] }, -0.04, 0.06, -0.1, -0.2),
+      K(0.3, mix(LAY_UP, { shR: [2.6, 0, 0.15], elR: [0.8] }), 0, 0, -0.05, -0.1), K(0.42, mix(LAY_UP, { spine: [-0.05, 0, 0], neck: [-0.6, 0, 0], shR: [3.0, 0, 0.1], elR: [0.15], haR: [0.6], shL: [1.5, 0, -0.6], elL: [0.9] }), 0, -0.04, 0, 0), LAY_DOWN, LAY_LAND],
+    // floater: an early one-hand push from the lane over the big man, a small jump, the arm high and soft
+    floater: [LAY_GATHER, K(0.18, { hipL: [0.3, 0, -0.06], knL: [-0.5], ftL: [0.3], hipR: [0.9, 0, 0.08], knR: [-1.2], ftR: [0.3], spine: [0.12, 0, 0], neck: [-0.45, 0, 0] }, -0.05, 0.04, 0),
+      K(0.3, { hipL: [0.15, 0, -0.06], knL: [-0.3], ftL: [0.5], hipR: [1.1, 0, 0.08], knR: [-1.3], ftR: [0.35], spine: [0.02, 0, 0], neck: [-0.55, 0, 0], shR: [2.5, 0, 0.15], elR: [1.0] }),
+      K(0.42, { hipL: [0.15, 0, -0.06], knL: [-0.3], ftL: [0.5], hipR: [1.0, 0, 0.08], knR: [-1.2], ftR: [0.35], spine: [-0.04, 0, 0], neck: [-0.6, 0, 0], shR: [2.7, 0, 0.12], elR: [0.25], haR: [1.0], shL: [1.6, 0, -0.6], elL: [0.8] }), LAY_DOWN, LAY_LAND],
+  };
+  const LAYP = {
+    strong: [[0, 0.26, 0.14, 1.05], [0.18, 0.3, 0.05, 1.6], [0.3, 0.3, 0.08, 2.15], [0.42, 0.32, 0.12, 2.5], [0.55, 0.42, 0.12, 2.62]],
+    finger: [[0, 0.26, 0.14, 1.05], [0.18, 0.32, 0.05, 1.6], [0.3, 0.42, 0.1, 2.05], [0.42, 0.55, 0.12, 2.3], [0.55, 0.7, 0.12, 2.45]],
+    reverse: [[0, 0.26, 0.14, 1.05], [0.18, 0.3, 0.05, 1.6], [0.3, 0.22, -0.02, 2.1], [0.42, 0.18, -0.1, 2.48], [0.55, 0.24, -0.16, 2.6]],
+    euro: [[0, 0.26, 0.2, 1.05], [0.1, 0.22, -0.24, 1.0], [0.18, 0.3, -0.05, 1.5], [0.3, 0.3, 0.08, 2.15], [0.42, 0.32, 0.12, 2.5], [0.55, 0.42, 0.12, 2.62]],
+    floater: [[0, 0.26, 0.14, 1.05], [0.18, 0.3, 0.06, 1.75], [0.3, 0.26, 0.1, 2.2], [0.42, 0.34, 0.12, 2.38], [0.55, 0.55, 0.12, 2.5]],
+  };
+  // ---------- dunks (1.3 s: up from 0, the slam at 0.55 = the game's fin.rel, hanging on the rim to about 1.0) ----------
+  const DK_LOAD2 = KG(0, { hipL: [0.95, 0, -0.08], hipR: [0.9, 0, 0.1], knL: [-1.35], knR: [-1.3], ftL: [0.3], ftR: [0.3], shR: [0.9, 0, 0.3], elR: [1.6], shL: [0.9, 0, -0.3], elL: [1.6], spine: [0.5, 0, 0], neck: [-0.4, 0, 0] }, -0.4, 0.2, 0);
+  const DK_LOAD1 = KG(0, { hipL: [0.85, 0, -0.08], knL: [-1.25], ftL: [0.2], hipR: [-0.2, 0, 0.1], knR: [-0.7], ftR: [0.5], shR: [0.9, 0, 0.3], elR: [1.6], shL: [0.9, 0, -0.3], elL: [1.6], spine: [0.45, 0, 0], neck: [-0.35, 0, 0] }, -0.3, 0.2, 0);
+  const DK_HANG = K(0.92, { hipL: [0.6, 0, -0.1], knL: [-1.3], hipR: [0.5, 0, 0.12], knR: [-1.4], ftR: [0.4], ftL: [0.4], shR: [2.9, 0, 0.15], elR: [0.2], shL: [2.9, 0, -0.15], elL: [0.2], spine: [0.1, 0, 0], neck: [-0.35, 0, 0] }, 0, 0.05, 0);
+  const DK_HANG1 = K(0.92, { hipL: [0.6, 0, -0.1], knL: [-1.3], hipR: [0.5, 0, 0.12], knR: [-1.4], ftR: [0.4], ftL: [0.4], shR: [2.9, 0, 0.15], elR: [0.2], shL: [1.4, 0, -0.9], elL: [0.6], spine: [0.1, 0, 0.08], neck: [-0.35, 0, 0] }, 0, 0.05, 0.06);
+  const DK_LAND = KG(1.3, { hipL: [0.75, 0, -0.1], hipR: [0.7, 0, 0.12], knL: [-1.1], knR: [-1.05], shR: [1.2, 0, 0.6], elR: [0.7], shL: [1.2, 0, -0.6], elL: [0.7], spine: [0.3, 0, 0], neck: [-0.25, 0, 0] }, -0.3, 0.12, 0);
+  const DUNK = {
+    // two hands, up off both feet, the ball cocked behind the head, thrown down through the rim
+    two: [DK_LOAD2, K(0.2, { hipL: [1.2, 0, -0.08], knL: [-1.4], hipR: [0.1, 0, 0.1], knR: [-0.3], ftR: [0.6], ftL: [0.4], spine: [0.0, 0, 0], neck: [-0.5, 0, 0] }, 0, -0.05, 0),
+      K(0.42, { hipL: [0.8, 0, -0.08], knL: [-1.5], hipR: [0.4, 0, 0.1], knR: [-1.2], ftR: [0.5], ftL: [0.5], spine: [-0.25, 0, 0], neck: [-0.55, 0, 0] }, 0, -0.18, 0),
+      K(0.56, { hipL: [0.9, 0, -0.08], knL: [-1.3], hipR: [0.7, 0, 0.1], knR: [-1.1], ftR: [0.5], ftL: [0.5], shR: [2.25, 0, 0.2], elR: [0.15], haR: [0.8], shL: [2.2, 0, -0.2], elL: [0.2], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.25, 0), DK_HANG, DK_LAND],
+    // one hand off one foot: the right arm reaching up and over, the left arm out for balance
+    one: [DK_LOAD1, K(0.2, { hipL: [0.15, 0, -0.08], knL: [-0.3], ftL: [0.55], hipR: [1.45, 0, 0.1], knR: [-1.6], ftR: [0.35], spine: [0.0, 0, 0], neck: [-0.5, 0, 0], shL: [1.6, 0, -0.6], elL: [0.6] }, 0, -0.05, 0),
+      K(0.42, { hipL: [0.3, 0, -0.08], knL: [-0.6], ftL: [0.5], hipR: [1.3, 0, 0.1], knR: [-1.7], ftR: [0.4], spine: [-0.15, 0, 0], neck: [-0.6, 0, 0], shL: [1.4, 0, -0.9], elL: [0.5] }, 0, -0.1, 0.05),
+      K(0.56, { hipL: [0.6, 0, -0.08], knL: [-1.0], hipR: [1.0, 0, 0.1], knR: [-1.4], ftR: [0.4], ftL: [0.4], shR: [2.4, 0, 0.15], elR: [0.15], haR: [0.9], shL: [1.3, 0, -1.0], elL: [0.5], spine: [0.3, 0, 0.06], neck: [-0.3, 0, 0] }, 0, 0.2, 0.06), DK_HANG1, DK_LAND],
+    // tomahawk: the ball cocked way back behind the head in one hand, the back arched, then the whole arm whips down
+    tomahawk: [DK_LOAD2, K(0.2, { hipL: [0.9, 0, -0.08], knL: [-1.5], hipR: [0.3, 0, 0.1], knR: [-1.0], ftR: [0.6], ftL: [0.5], spine: [-0.1, 0, 0], neck: [-0.5, 0, 0], shL: [1.8, 0, -0.5], elL: [0.5] }, 0, -0.1, 0),
+      K(0.42, { hipL: [0.4, 0, -0.08], knL: [-1.7], hipR: [0.1, 0, 0.1], knR: [-1.6], ftR: [0.5], ftL: [0.5], spine: [-0.4, 0, 0], neck: [-0.4, 0, 0], shL: [1.6, 0, -0.7], elL: [0.4] }, 0, -0.3, 0),
+      K(0.56, { hipL: [1.0, 0, -0.08], knL: [-1.2], hipR: [0.8, 0, 0.1], knR: [-1.1], ftR: [0.5], ftL: [0.5], shR: [2.1, 0, 0.15], elR: [0.15], haR: [1.0], shL: [1.2, 0, -0.7], elL: [0.6], spine: [0.45, 0, 0], neck: [-0.25, 0, 0] }, 0, 0.3, 0), DK_HANG1, DK_LAND],
+    // windmill: the ball swept down past the hip, behind, up and over in a full circle of the arm, for the high flyers
+    windmill: [DK_LOAD2, K(0.18, { hipL: [1.1, 0, -0.08], knL: [-1.5], hipR: [0.3, 0, 0.1], knR: [-0.8], ftR: [0.6], ftL: [0.4], spine: [0.1, -0.2, 0], neck: [-0.5, 0.15, 0], shL: [2.0, 0, -0.4], elL: [0.4] }, 0, 0, 0, -0.15),
+      K(0.36, { hipL: [0.9, 0, -0.08], knL: [-1.6], hipR: [0.6, 0, 0.1], knR: [-1.4], ftR: [0.5], ftL: [0.5], spine: [-0.15, 0.3, 0], neck: [-0.55, -0.2, 0], shL: [2.2, 0, -0.5], elL: [0.4] }, 0, -0.12, 0, 0.2),
+      K(0.56, { hipL: [0.9, 0, -0.08], knL: [-1.3], hipR: [0.7, 0, 0.1], knR: [-1.1], ftR: [0.5], ftL: [0.5], shR: [2.25, 0, 0.2], elR: [0.15], haR: [0.8], shL: [1.6, 0, -0.8], elL: [0.5], spine: [0.4, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.25, 0), DK_HANG1, DK_LAND],
+    // putback: off the rebound straight back up, two hands, knees tucked, no wind-up
+    putback: [KG(0, { hipL: [0.85, 0, -0.08], hipR: [0.8, 0, 0.1], knL: [-1.2], knR: [-1.15], ftL: [0.3], ftR: [0.3], spine: [0.3, 0, 0], neck: [-0.55, 0, 0] }, -0.3, 0.1, 0),
+      K(0.25, { hipL: [0.5, 0, -0.08], knL: [-1.1], hipR: [0.6, 0, 0.1], knR: [-1.2], ftR: [0.5], ftL: [0.5], spine: [-0.1, 0, 0], neck: [-0.6, 0, 0] }, 0, -0.08, 0),
+      K(0.56, { hipL: [1.0, 0, -0.08], knL: [-1.6], hipR: [0.9, 0, 0.1], knR: [-1.6], ftR: [0.5], ftL: [0.5], shR: [2.3, 0, 0.2], elR: [0.15], haR: [0.8], shL: [2.25, 0, -0.2], elL: [0.2], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.25, 0), DK_HANG, DK_LAND],
+    // alley-oop finish: hands up to catch it at the top, then down through in one motion
+    oop: [DK_LOAD2, K(0.2, { hipL: [0.6, 0, -0.08], knL: [-0.9], hipR: [0.3, 0, 0.1], knR: [-0.6], ftR: [0.6], ftL: [0.5], spine: [-0.15, 0, 0], neck: [-0.7, 0, 0] }, 0, -0.1, 0),
+      K(0.4, { hipL: [0.7, 0, -0.08], knL: [-1.4], hipR: [0.5, 0, 0.1], knR: [-1.3], ftR: [0.5], ftL: [0.5], spine: [-0.2, 0, 0], neck: [-0.6, 0, 0] }, 0, -0.15, 0),
+      K(0.56, { hipL: [0.95, 0, -0.08], knL: [-1.3], hipR: [0.75, 0, 0.1], knR: [-1.15], ftR: [0.5], ftL: [0.5], shR: [2.25, 0, 0.2], elR: [0.15], haR: [0.8], shL: [2.2, 0, -0.2], elL: [0.2], spine: [0.4, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.28, 0), DK_HANG, DK_LAND],
+  };
+  // windmill ball: a vertical circle on the right side (front low, back, up, over), as a dense path
+  const WIND_P = (() => { const P = [[0, 0.3, 0.05, 1.3], [0.08, 0.38, 0.22, 1.05]]; for (let i = 0; i <= 8; i++) { const a = i / 8, an = Math.PI * 0.5 + a * Math.PI * 1.55; P.push([0.1 + a * 0.4, 0.05 + Math.cos(an) * 0.42, 0.34, 1.95 - Math.sin(an) * 0.6]); } P.push([0.56, 0.5, 0.12, 2.3]); return P; })();
+  const DUNKP = {
+    two: [[0, 0.3, 0, 1.3], [0.2, 0.15, 0, 2.5], [0.42, -0.08, 0, 2.48], [0.56, 0.5, 0, 2.3]],
+    one: [[0, 0.3, 0.05, 1.3], [0.2, 0.22, 0.18, 2.25], [0.42, 0.3, 0.18, 2.48], [0.56, 0.55, 0.14, 2.3]],
+    tomahawk: [[0, 0.3, 0.05, 1.3], [0.2, 0.1, 0.2, 2.25], [0.42, -0.28, 0.18, 2.42], [0.56, 0.55, 0.1, 2.28]],
+    windmill: WIND_P,
+    putback: [[0, 0.22, 0, 2.2], [0.25, 0.12, 0, 2.5], [0.42, 0.05, 0, 2.55], [0.56, 0.5, 0, 2.3]],
+    oop: [[0, 0.42, 0, 2.15], [0.2, 0.3, 0, 2.45], [0.4, 0.1, 0, 2.5], [0.56, 0.5, 0, 2.3]],
+  };
+  // ---------- passes (0.34 s; the ball leaves at 0.1 = the game's passT) — upper body over the gait ----------
+  const PASS = {
+    chest: [K(0, { shR: [1.0, 0, 0.35], elR: [2.0], haR: [-0.4], shL: [1.0, 0, -0.35], elL: [2.0], haL: [-0.4], spine: [0.12, 0, 0] }), K(0.12, { shR: [1.5, -0.3, 0.12], elR: [0.25], haR: [0.8], shL: [1.5, 0.3, -0.12], elL: [0.25], haL: [0.8], spine: [0.24, 0, 0] }), K(0.34, { shR: [0.6, 0, 0.25], elR: [1.0], shL: [0.6, 0, -0.25], elL: [1.0], spine: [0.12, 0, 0] })],
+    bounce: [K(0, { shR: [0.8, 0, 0.35], elR: [1.9], haR: [-0.4], shL: [0.8, 0, -0.35], elL: [1.9], haL: [-0.4], spine: [0.2, 0, 0] }), K(0.12, { shR: [0.9, -0.3, 0.12], elR: [0.15], haR: [0.9], shL: [0.9, 0.3, -0.12], elL: [0.15], haL: [0.9], spine: [0.42, 0, 0] }), K(0.34, { shR: [0.5, 0, 0.25], elR: [0.9], shL: [0.5, 0, -0.25], elL: [0.9], spine: [0.2, 0, 0] })],
+    overhead: [K(0, { shR: [2.8, 0, 0.3], elR: [1.7], shL: [2.8, 0, -0.3], elL: [1.7], spine: [-0.1, 0, 0], neck: [-0.15, 0, 0] }), K(0.12, { shR: [2.2, 0, 0.2], elR: [0.25], haR: [0.9], shL: [2.2, 0, -0.2], elL: [0.25], haL: [0.9], spine: [0.25, 0, 0] }), K(0.34, { shR: [1.0, 0, 0.3], elR: [0.8], shL: [1.0, 0, -0.3], elL: [0.8], spine: [0.15, 0, 0] })],
+    push: [K(0, { shR: [0.9, 0, 0.5], elR: [2.0], haR: [-0.6], shL: [1.0, 0, -0.1], elL: [1.9], spine: [0.1, 0.25, 0], chest: [0, 0.2, 0] }), K(0.12, { shR: [1.45, -0.2, 0.15], elR: [0.1], haR: [0.9], shL: [0.6, 0, -0.4], elL: [1.2], spine: [0.2, -0.15, 0], chest: [0, -0.2, 0] }), K(0.34, { shR: [0.7, 0, 0.3], elR: [0.9], shL: [0.4, 0, -0.35], elL: [1.1], spine: [0.12, 0, 0] })],
+    nolook: [K(0, { shR: [0.9, 0, 0.5], elR: [2.0], haR: [-0.6], shL: [1.0, 0, -0.1], elL: [1.9], spine: [0.1, 0.25, 0], chest: [0, 0.2, 0] }), K(0.12, { shR: [1.45, -0.2, 0.15], elR: [0.1], haR: [0.9], shL: [0.6, 0, -0.4], elL: [1.2], spine: [0.2, -0.15, 0], chest: [0, -0.2, 0] }), K(0.34, { shR: [0.7, 0, 0.3], elR: [0.9], shL: [0.4, 0, -0.35], elL: [1.1], spine: [0.12, 0, 0] })],
+    lob: [K(0, { shR: [2.2, 0, 0.3], elR: [1.5], shL: [2.2, 0, -0.3], elL: [1.5], spine: [0.0, 0, 0], neck: [-0.3, 0, 0] }), K(0.12, { shR: [2.85, 0, 0.15], elR: [0.25], haR: [1.0], shL: [2.85, 0, -0.15], elL: [0.25], haL: [1.0], spine: [-0.08, 0, 0], neck: [-0.4, 0, 0] }), K(0.34, { shR: [1.4, 0, 0.3], elR: [0.7], shL: [1.4, 0, -0.3], elL: [0.7], spine: [0.1, 0, 0] })],
+  };
+  const PASSP = {
+    chest: [[0, 0.24, 0, 1.28], [0.1, 0.5, 0, 1.3], [0.22, 0.62, 0, 1.3]],
+    bounce: [[0, 0.24, 0, 1.12], [0.1, 0.48, 0, 1.02], [0.22, 0.62, 0, 0.92]],
+    overhead: [[0, 0.02, 0, 2.3], [0.1, 0.3, 0, 2.28], [0.22, 0.5, 0, 2.15]],
+    push: [[0, 0.22, 0.24, 1.4], [0.1, 0.5, 0.12, 1.35], [0.22, 0.66, 0.1, 1.3]],
+    nolook: [[0, 0.22, 0.24, 1.4], [0.1, 0.5, 0.12, 1.35], [0.22, 0.66, 0.1, 1.3]],
+    lob: [[0, 0.16, 0, 1.95], [0.1, 0.3, 0, 2.4], [0.22, 0.45, 0, 2.6]],
+  };
+  // ---------- catches (0.24 s; the ball snaps to his hands at the catch and is cushioned in to the chest) ----------
+  const CATCH = {
+    two: [K(0, { shR: [1.55, 0, 0.2], elR: [0.4], shL: [1.55, 0, -0.2], elL: [0.4], spine: [0.1, 0, 0] }), K(0.24, { shR: [0.9, 0, 0.35], elR: [1.8], shL: [0.9, 0, -0.35], elL: [1.8], spine: [0.15, 0, 0] })],
+    high: [K(0, { shR: [2.7, 0, 0.2], elR: [0.4], shL: [2.7, 0, -0.2], elL: [0.4], spine: [-0.05, 0, 0], neck: [-0.4, 0, 0] }), K(0.24, { shR: [1.0, 0, 0.6], elR: [1.9], shL: [1.0, 0, -0.6], elL: [1.9], spine: [0.3, 0, 0] })],
+    low: [K(0, { shR: [0.7, 0, 0.2], elR: [0.3], shL: [0.7, 0, -0.2], elL: [0.3], spine: [0.4, 0, 0] }), K(0.24, { shR: [0.9, 0, 0.35], elR: [1.8], shL: [0.9, 0, -0.35], elL: [1.8], spine: [0.18, 0, 0] })],
+  };
+  const CATCHP = {
+    two: [[0, 0.5, 0, 1.38], [0.24, 0.3, 0, 1.3], [0.6, 0.24, 0.2, 1.08]],
+    move: [[0, 0.5, 0.05, 1.36], [0.24, 0.3, 0.05, 1.28], [0.6, 0.24, 0.2, 1.08]],
+    high: [[0, 0.32, 0, 2.35], [0.1, 0.36, 0, 2.0], [0.3, 0.32, 0, 1.4], [0.6, 0.24, 0.2, 1.08]],
+    low: [[0, 0.5, 0, 0.9], [0.24, 0.3, 0, 1.26], [0.6, 0.24, 0.2, 1.08]],
+  };
+  // ---------- the triple-threat hold and the jab step ----------
+  const TRIPLE_P = [[0, 0.24, 0.2, 1.08]];
+  // ---------- grips: which hands are on the ball and how (palm normal from the ball's centre, finger direction), body frame ----------
+  //   side: both palms on the sides; shot: the right hand under and behind, the left on the side; one: the right hand only, under;
+  //   push2: both hands behind it (thumbs in); top2: both up and behind, over the head
+  const GRIPS = { // per hand: [palm normal, finger direction, elbow pole]
+    side: { R: [[0, -0.15, 1], [0.35, 0, 1], [-0.15, 0.75, -0.6]], L: [[0, -0.15, -1], [0.35, 0, -1], [-0.15, -0.75, -0.6]] },
+    shot: { R: [[-0.55, -0.75, 0.1], [-0.25, 0.9, 0]], L: [[0, 0, -1], [0.3, 1, 0]] },
+    one: { R: [[-0.4, -0.85, 0.15], [-0.3, 0.9, 0], [0.45, 0.45, -0.6]], L: null },
+    push2: { R: [[-1, -0.1, 0.45], [0, 1, 0.2], [-0.2, 0.8, -0.5]], L: [[-1, -0.1, -0.45], [0, 1, -0.2], [-0.2, -0.8, -0.5]] },
+    top2: { R: [[-0.8, 0.2, 0.55], [0, 1, 0.1], [0.4, 0.75, 0.1]], L: [[-0.8, 0.2, -0.55], [0, 1, -0.1], [0.4, -0.75, 0.1]] },
+    hip: { R: [[-0.35, 0.15, 0.9], [1, 0.25, -0.25], [-0.3, 0.8, -0.3]], L: [[0, -1, -0.15], [1, 0, 0.35], [-0.2, -0.7, -0.6]] }, // the triple threat: the strong hand over the top, the other under the inside
+    under2: { R: [[-0.3, -0.8, 0.5], [0.6, 0.2, 0.2], [0, 0.6, -0.7]], L: [[-0.3, -0.8, -0.5], [0.6, 0.2, -0.2], [0, -0.6, -0.7]] },
+  };
+  GRIPS.shot.R.push([0.7, 0.15, -0.6]); GRIPS.shot.L.push([-0.1, -0.8, -0.4]);
+  // ---------- the clip table: every move gameplay can ask for, by name ----------
+  //   base: the game's pose (its timing: the release, the duration); kind: 'key' (keyframed body) or 'floor' (the gait's legs with
+  //   an upper-body layer); keys / path / grip: [[t, gripName], ...] (the grip blends to the next over GRIP_BL s); blend: s
+  const GRIP_BL = 0.08;
+  const BBCLIPS = {
+    jumper_set: { base: 'shoot', kind: 'key', keys: JUMPER.set, path: SHOTP.set, grip: [[0, 'side'], [0.16, 'shot']] },
+    jumper_high: { base: 'shoot', kind: 'key', keys: JUMPER.high, path: SHOTP.high, grip: [[0, 'side'], [0.16, 'shot']] },
+    jumper_quick: { base: 'shoot', kind: 'key', keys: JUMPER.quick, path: SHOTP.quick, grip: [[0, 'side'], [0.1, 'shot']] },
+    jumper_push: { base: 'shoot', kind: 'key', keys: JUMPER.push, path: SHOTP.push, grip: [[0, 'side'], [0.12, 'push2']] },
+    fadeaway: { base: 'shoot', kind: 'key', keys: JUMPER.fade, path: SHOTP.fade, grip: [[0, 'side'], [0.16, 'shot']] },
+    pullup: { base: 'shoot', kind: 'key', keys: JUMPER.set, path: SHOTP.pullup, grip: [[0, 'side'], [0.2, 'shot']] },
+    catch_shoot: { base: 'shoot', kind: 'key', keys: JUMPER.quick, path: SHOTP.catchshoot, grip: [[0, 'side'], [0.12, 'shot']] },
+    ftshot: { base: 'ftshot', kind: 'key', keys: FTSHOT_K, path: SHOTP.ft, grip: [[0, 'side'], [0.3, 'shot']] },
+    layup: { base: 'layup', kind: 'key', keys: LAYUP.strong, path: LAYP.strong, grip: [[0, 'side'], [0.26, 'one']] },
+    layup_finger: { base: 'layup', kind: 'key', keys: LAYUP.finger, path: LAYP.finger, grip: [[0, 'side'], [0.24, 'one']] },
+    layup_reverse: { base: 'layup', kind: 'key', keys: LAYUP.reverse, path: LAYP.reverse, grip: [[0, 'side'], [0.28, 'one']] },
+    euro_step: { base: 'layup', kind: 'key', keys: LAYUP.euro, path: LAYP.euro, grip: [[0, 'side'], [0.28, 'one']] },
+    floater: { base: 'layup', kind: 'key', keys: LAYUP.floater, path: LAYP.floater, grip: [[0, 'side'], [0.22, 'one']] },
+    dunk_two: { base: 'dunk', kind: 'key', keys: DUNK.two, path: DUNKP.two, grip: [[0, 'side'], [0.15, 'top2']] },
+    dunk_one: { base: 'dunk', kind: 'key', keys: DUNK.one, path: DUNKP.one, grip: [[0, 'side'], [0.16, 'one']] },
+    tomahawk: { base: 'dunk', kind: 'key', keys: DUNK.tomahawk, path: DUNKP.tomahawk, grip: [[0, 'side'], [0.14, 'one']] },
+    windmill: { base: 'dunk', kind: 'key', keys: DUNK.windmill, path: DUNKP.windmill, grip: [[0, 'side'], [0.06, 'one']] },
+    putback: { base: 'dunk', kind: 'key', keys: DUNK.putback, path: DUNKP.putback, grip: [[0, 'top2']] },
+    oop_dunk: { base: 'dunk', kind: 'key', keys: DUNK.oop, path: DUNKP.oop, grip: [[0, 'top2']] },
+    pass_chest: { base: 'pass', kind: 'floor', keys: PASS.chest, path: PASSP.chest, grip: [[0, 'push2']] },
+    pass_bounce: { base: 'pass', kind: 'floor', keys: PASS.bounce, path: PASSP.bounce, grip: [[0, 'push2']] },
+    pass_overhead: { base: 'pass', kind: 'floor', keys: PASS.overhead, path: PASSP.overhead, grip: [[0, 'top2']] },
+    pass_push: { base: 'pass', kind: 'floor', keys: PASS.push, path: PASSP.push, grip: [[0, 'side'], [0.02, 'one']] },
+    pass_nolook: { base: 'pass', kind: 'floor', keys: PASS.nolook, path: PASSP.nolook, grip: [[0, 'side'], [0.02, 'one']], noLook: true },
+    pass_lob: { base: 'pass', kind: 'floor', keys: PASS.lob, path: PASSP.lob, grip: [[0, 'top2']] },
+    catch: { base: 'catch', kind: 'floor', keys: CATCH.two, path: CATCHP.two, grip: [[0, 'push2'], [0.14, 'side']] },
+    catch_move: { base: 'catch', kind: 'floor', keys: CATCH.two, path: CATCHP.move, grip: [[0, 'push2'], [0.14, 'side']] },
+    catch_high: { base: 'catch', kind: 'floor', keys: CATCH.high, path: CATCHP.high, grip: [[0, 'top2'], [0.2, 'side']] },
+    catch_low: { base: 'catch', kind: 'floor', keys: CATCH.low, path: CATCHP.low, grip: [[0, 'under2'], [0.16, 'side']] },
+    triple: { base: 'triple', kind: 'floor', path: TRIPLE_P, grip: [[0, 'hip']] },
+    jab: { base: 'jab', kind: 'floor', path: TRIPLE_P, grip: [[0, 'hip']] },
+    // the dribble moves (their ball paths are in BBMOVES); the legs from the gait, planted by foot locking
+    cross: { base: 'cross', kind: 'floor', move: 1 }, btl: { base: 'btl', kind: 'floor', move: 1 }, btb: { base: 'btb', kind: 'floor', move: 1 },
+    spin: { base: 'spin', kind: 'floor', move: 1 }, hesi: { base: 'hesi', kind: 'floor', move: 1 }, inout: { base: 'inout', kind: 'floor', move: 1 },
+    dbl_cross: { base: 'dbl', kind: 'floor', move: 1 }, stepback: { base: 'stepback', kind: 'floor', move: 1 },
+  };
+  // the variants of each base pose (what a request by base name can turn into)
+  const BB_VARIANTS = {};
+  for (const n in BBCLIPS) { const b = BBCLIPS[n].base; (BB_VARIANTS[b] = BB_VARIANTS[b] || []).push(n); }
+  const BBMIR = {}; // mirrored key sets for left-handers, built on first use
+  function bbKeys(name, lefty) {
+    const c = BBCLIPS[name]; if (!c || !c.keys) return null;
+    if (!lefty) return c.keys;
+    return BBMIR[name] || (BBMIR[name] = c.keys.map(([t, q]) => [t, mirrorPose(q)]));
+  }
+  // grip at clip time t: the blended palm normals and finger directions (body frame [fwd, right, up]), the off hand's weight
+  function bbGrip(name, t) {
+    const c = BBCLIPS[name], G = c && c.grip; if (!G) return null;
+    let i = 0; while (i + 1 < G.length && t >= G[i + 1][0]) i++;
+    const a = GRIPS[G[i][1]];
+    if (i + 1 < G.length && t > G[i + 1][0] - GRIP_BL) {
+      const b = GRIPS[G[i + 1][1]], u = smo(clamp((t - (G[i + 1][0] - GRIP_BL)) / GRIP_BL, 0, 1));
+      const L = (x, y) => (x && y ? x.map((v, j) => [v[0] + (y[j][0] - v[0]) * u, v[1] + (y[j][1] - v[1]) * u, v[2] + (y[j][2] - v[2]) * u]) : (x || y));
+      return { R: L(a.R, b.R), L: L(a.L, b.L), wL: (a.L ? 1 - u : 0) + (b.L ? u : 0) };
+    }
+    return { R: a.R, L: a.L, wL: a.L ? 1 : 0 };
+  }
+  // ---------- dribble moves: the ball's path across, under or behind, and the push each gives him ----------
+  //   dur: s (the handle shortens it); swap: ends in the other hand; bounces: floor touches in the move; path(k, from, to) ->
+  //   [side (x 0.3 body widths: +1 = his right), fwd, bounce phase u (0 = hand, 0.5 = floor)]; yaw(k): his body turn (a spin)
+  const spinYaw = (k, s) => s * TAU * smo(clamp(k * 1.08, 0, 1));
+  const BBMOVES = {
+    cross: { dur: 0.3, swap: 1, path: (k, f, t) => [lerp(f, t, smo(k)), 0.34 - 0.06 * bump(k, 0, 1), k] },
+    btl: { dur: 0.36, swap: 1, path: (k, f, t) => [lerp(f, t, smo(k)), lerp(0.34, 0.02, bump(k, 0, 1)), k] },
+    btb: { dur: 0.4, swap: 1, path: (k, f, t) => [lerp(f, t, smo(k)) * (1 + 0.25 * bump(k, 0, 1)), lerp(0.34, -0.3, bump(k, 0, 1)), k] },
+    hesi: { dur: 0.36, swap: 0, path: (k, f) => [f * (1 + 0.15 * bump(k, 0, 1)), 0.34 + 0.12 * bump(k, 0, 1), k] },
+    spin: { dur: 0.5, swap: 0, yaw: (k, s) => spinYaw(k, s), path: (k, f) => [f, 0.25, k] },
+    inout: { dur: 0.34, swap: 0, path: (k, f) => [f * (1 - 1.1 * bump(k, 0, 0.62) + 0.15 * bump(k, 0.62, 1)), 0.36, k] },
+    dbl: { dur: 0.56, swap: 0, bounces: 2, path: (k, f) => [k < 0.5 ? lerp(f, -f, smo(k * 2)) : lerp(-f, f, smo(k * 2 - 1)), 0.32, (k * 2) % 1] },
+    stepback: { dur: 0.42, swap: 0, path: (k, f) => [f * (1 - 0.3 * bump(k, 0, 1)), lerp(0.34, 0.1, bump(k, 0, 0.7)), k] },
+  };
+  const BB_CHAIN = ['cross', 'btl', 'btb', 'hesi', 'inout', 'spin', 'dbl', 'stepback'];
+  const BB_MOVE_D = {}; for (const k in BBMOVES) BB_MOVE_D[k] = BBMOVES[k].dur;
+  const BB_MOVECLIP = { cross: 'cross', btl: 'btl', btb: 'btb', hesi: 'hesi', inout: 'inout', spin: 'spin', dbl: 'dbl_cross', stepback: 'stepback' };
+  // where the ball is in a move at k (0..1): [side, fwd, u] (side already in the 0.3 body-width units the dribble uses)
+  function bbMovePath(mv, k) {
+    const M = BBMOVES[mv.k]; if (!M) return [lerp(mv.from, mv.to, smo(k)) * 0.3, 0.34, k];
+    const r = M.path(k, mv.from, mv.to);
+    if (mv.k === 'spin') { // the ball rides round with him: his hand keeps it on his strong side as he turns
+      const a = M.yaw(k, mv.from), sx = mv.from * 0.3, fz = 0.25; return [sx * Math.cos(a) + fz * Math.sin(a), -sx * Math.sin(a) + fz * Math.cos(a), r[2]];
+    }
+    return [r[0] * 0.3, r[1], r[2]];
+  }
+  // the push a move gives him (velocities in yards/s; his right = [cos h, -sin h], forward = [sin h, cos h])
+  function bbMoveKick(p, k, to, push) {
+    const fx = Math.sin(p.h), fz = Math.cos(p.h), rx = Math.cos(p.h), rz = -Math.sin(p.h);
+    if (k === 'hesi') { p.vx *= 0.3; p.vz *= 0.3; p.hesiGo = 0.3; }
+    else if (k === 'spin') { p.vx += fx * 1.5; p.vz += fz * 1.5; }
+    else if (k === 'inout') { p.vx = p.vx * 0.5 + rx * to * push * 0.35; p.vz = p.vz * 0.5 + rz * to * push * 0.35; p.hesiGo = 0.18; }
+    else if (k === 'dbl') { p.vx = p.vx * 0.6 + rx * to * push * 0.55; p.vz = p.vz * 0.6 + rz * to * push * 0.55; }
+    else if (k === 'stepback') { p.vx = p.vx * 0.2 - fx * (push * 0.9); p.vz = p.vz * 0.2 - fz * (push * 0.9); p.hesiGo = 0.25; p.stepBackT = 0.9; }
+    else { p.vx += rx * to * push; p.vz += rz * to * push; }
+  }
+  // ---------- palm IK ----------
+  // the arm reaches so the palm lies on the ball: n = unit normal from the ball's centre to the palm, fd = the finger direction
+  // (kept square to n); pole = where the elbow points (world); w = weight against the arm's pose (0..1)
+  function palmIK(bones, side, C, n, fd, hs, pole, w, ballR) {
+    const sh = side < 0 ? B.shL : B.shR, el = side < 0 ? B.elL : B.elR, ha = side < 0 ? B.haL : B.haR;
+    const o0 = w < 0.999 ? [bones[sh], bones[el], bones[ha]] : null;
+    const dn = v3d(fd, n); let f = v3n([fd[0] - n[0] * dn, fd[1] - n[1] * dn, fd[2] - n[2] * dn]);
+    const R = ballR + 0.018 * hs, P = [C[0] + n[0] * R, C[1] + n[1] * R, C[2] + n[2] * R]; // the palm's centre on the ball
+    let W = [P[0] + n[0] * 0.02 * hs - f[0] * 0.088 * hs, P[1] + n[1] * 0.02 * hs - f[1] * 0.088 * hs, P[2] + n[2] * 0.02 * hs - f[2] * 0.088 * hs]; // the wrist
+    const S = [bones[sh][3], bones[sh][7], bones[sh][11]], L1 = 0.36 * hs, L2 = 0.32 * hs;
+    let d = v3s(W, S), dl = Math.hypot(d[0], d[1], d[2]);
+    const maxR = L1 + L2 - 0.006; if (dl > maxR) { d = [d[0] / dl * maxR, d[1] / dl * maxR, d[2] / dl * maxR]; dl = maxR; }
+    if (dl < 0.05) return 0;
+    const T = v3a(S, d), dir = [d[0] / dl, d[1] / dl, d[2] / dl];
+    const cosA = clamp((L1 * L1 + dl * dl - L2 * L2) / (2 * L1 * dl), -1, 1), a = Math.acos(cosA);
+    let pp = v3s(pole, [dir[0] * v3d(pole, dir), dir[1] * v3d(pole, dir), dir[2] * v3d(pole, dir)]);
+    if (Math.hypot(pp[0], pp[1], pp[2]) < 1e-3) pp = [0, -1, 0];
+    pp = v3n(pp);
+    const E = v3a(v3a(S, dir, L1 * Math.cos(a)), pp, L1 * Math.sin(a));
+    // the wrist can only bend so far: keep the fingers within ~85 degrees of the forearm
+    const fa = v3n(v3s(T, E)), cf = v3d(f, fa);
+    if (cf < 0.08) { const k = (0.08 - cf) / (1.08 - cf); f = v3n([f[0] + (fa[0] - f[0]) * k, f[1] + (fa[1] - f[1]) * k, f[2] + (fa[2] - f[2]) * k]); }
+    const ch = bones[B.chest], fh = [ch[2], ch[6], ch[10]];
+    bones[sh] = mFromDown(S, v3s(E, S), fh);
+    bones[el] = mFromDown(E, v3s(T, E), fh);
+    bones[ha] = mFromDown(T, f, [-n[0], -n[1], -n[2]]); // fingers along -Y, the palm (+Z) toward the ball
+    if (o0) { bones[sh] = mLerp(o0[0], bones[sh], w); bones[el] = mLerp(o0[1], bones[el], w); bones[ha] = mLerp(o0[2], bones[ha], w); }
+    return Math.hypot(T[0] - W[0], T[1] - W[1], T[2] - W[2]); // how far short of the ball the hand ended (0 = on it)
+  }
+  // =====================================================================================
+  // Defensive and life clips (basketball): pure pose builders, no game state. 26-bbdefrt.js decides who plays what and when and
+  // registers them with the animation runtime (ANIMX). Keys are in seconds unless a builder says it takes a 0..1 fraction.
+  // Conventions (pb): arm X raises the arm forward, arm Z abducts (right +, left -), elbow X flexes; thigh X lifts the thigh,
+  // knee X is negative when bent; spine X bends forward; neck X negative tips the head back; root = rootY, pitch, roll, yaw.
+  // Floor clips only author the upper body: their legs come from the procedural gait (feet planted, foot locking on).
+  // =====================================================================================
+  const DF_UP = ['spine', 'chest', 'neck', 'head', 'shL', 'elL', 'haL', 'shR', 'elR', 'haR'];
+  // copy the upper body of src into q (the spine adds to the gait's own forward lean, the rest replaces)
+  function dfUpper(q, src, w) {
+    w = w == null ? 1 : w;
+    for (const b of DF_UP) {
+      const i = B[b] * 3;
+      if (b === 'spine') { q[i] += src[i] * w; q[i + 1] += src[i + 1] * w; q[i + 2] += src[i + 2] * w; }
+      else for (let k = 0; k < 3; k++) q[i + k] += (src[i + k] - q[i + k]) * w;
+    }
+  }
+  // one arm by authored angles (sd -1 left, 1 right): raise, abduct, elbow flex, twist
+  function dfArm(q, sd, sx, sz, el, sy, w) {
+    const s3 = (sd < 0 ? B.shL : B.shR) * 3, e3 = (sd < 0 ? B.elL : B.elR) * 3; w = w == null ? 1 : w;
+    q[s3] += (-sx - q[s3]) * w; q[s3 + 1] += ((sy || 0) * sd - q[s3 + 1]) * w; q[s3 + 2] += (sd * sz - q[s3 + 2]) * w; q[e3] += (-el - q[e3]) * w;
+  }
+  const dfWave = (t, f, a) => Math.sin(t * f) * a;
+  // ---------- defensive stance (on the ball): wide arms that mirror the ball, the lead hand low at the ball, the trail hand up in the lane ----------
+  // lead: -1/1 the ball side; act 0..1 how hard he is working (sliding); t: running time
+  function dfStanceTop(q, t, lead, act, seed) {
+    const tr = -lead, w = 0.07 * Math.sin(t * 5.2 + seed), w2 = 0.06 * Math.sin(t * 4.1 + seed * 1.7);
+    dfArm(q, lead, 0.8 + w, 0.32, 0.6 + w2, 0.15);     // lead hand low and out at the ball, palm up
+    dfArm(q, tr, 0.85 - w * 0.5, 0.55, 0.95, -0.1);    // trail hand up by his shoulder, elbow bent, in the passing lane
+    q[B.spine * 3] += 0.16 + 0.06 * act; q[B.neck * 3] -= 0.22; q[B.chest * 3 + 2] += lead * 0.05;
+   
+  }
+  // ---------- deny: one pass away, the near arm out in the lane, the chest half turned to the ball, the off hand on his man ----------
+  function dfDenyTop(q, t, ballSd, seed) {
+    const w = 0.05 * Math.sin(t * 4.4 + seed);
+    dfArm(q, ballSd, 0.95 + w, 0.7, 0.55, 0.0);  // the arm in the passing lane: out toward the ball, elbow soft, hand at chest height
+    dfArm(q, -ballSd, 0.45, 0.25, 1.0, 0);       // the off arm low on his man (26 puts the hand on him)
+    q[B.spine * 3] += 0.16; q[B.chest * 3 + 1] += ballSd * 0.35; q[B.neck * 3 + 1] += ballSd * 0.25; q[B.neck * 3] -= 0.2;
+  }
+  // ---------- closeout: running at a shooter, choppy steps, both hands high, chest back so he doesn't fly by ----------
+  function dfCloseTop(q, t, k) {
+    const w = 0.08 * Math.sin(t * 9);
+    dfArm(q, 1, 2.55 + w, 0.35, 0.3, 0, k); dfArm(q, -1, 2.35 - w, 0.45, 0.35, 0, k);
+    q[B.spine * 3] -= 0.12 * k; q[B.neck * 3] -= 0.15 * k;
+  }
+  // ---------- hands up: a contest on the ground, one hand straight up at the ball, the other wide ----------
+  function dfHandsUpTop(q, t, sd) {
+    const w = 0.04 * Math.sin(t * 7);
+    dfArm(q, sd, 3.05, 0.12, 0.08 + w, 0); dfArm(q, -sd, 1.6, 1.1, 0.35, 0);
+    q[B.spine * 3] -= 0.06; q[B.neck * 3] -= 0.3;
+  }
+  // ---------- box out: sit into him, wide base, arms out and back like a wing, eyes on the rim ----------
+  function dfBoxTop(q, t, k) {
+    const w = 0.05 * Math.sin(t * 6);
+    dfArm(q, 1, 0.75 + w, 1.35, 1.35, -0.2, k); dfArm(q, -1, 0.75 - w, 1.35, 1.35, -0.2, k);
+    q[B.spine * 3] += 0.32 * k; q[B.chest * 3] -= 0.12 * k; q[B.neck * 3] -= 0.55 * k;
+  }
+  // the man being boxed out: leaning in, a forearm in the boxer's back (26 places the hand), the other arm up for the ball
+  function dfBoxedTop(q, t, k) {
+    dfArm(q, -1, 1.05, 0.3, 1.5, 0, k); dfArm(q, 1, 2.6, 0.3, 0.35, 0, k);
+    q[B.spine * 3] += 0.22 * k; q[B.neck * 3] -= 0.45 * k;
+  }
+  // ---------- steals: a swipe at the dribble, a poke from the side or behind, a lunge into the passing lane ----------
+  // all upper-body keys over the gait (the legs lunge through locoMoveB's sink); sd = the reaching hand
+  const DF_SWIPE = [
+    [0, pb({ shR: [1.1, 0, 0.55], elR: [0.9], shL: [0.7, 0, -0.7], elL: [1.0], spine: [0.22, 0, 0], neck: [-0.25, 0, 0] })],
+    [0.1, pb({ shR: [1.55, 0.2, 0.75], elR: [0.25], haR: [-0.3], shL: [0.55, 0, -0.85], elL: [0.9], spine: [0.42, -0.25, 0], chest: [0.08, -0.2, 0], neck: [-0.35, 0.2, 0] }, -0.05, 0.12, 0)],
+    [0.2, pb({ shR: [0.85, -0.2, -0.35], elR: [0.15], haR: [0.4], shL: [0.45, 0, -0.95], elL: [0.9], spine: [0.58, 0.3, 0], chest: [0.1, 0.25, 0], neck: [-0.4, -0.25, 0] }, -0.1, 0.22, 0)],
+    [0.32, pb({ shR: [0.65, 0, 0.1], elR: [0.6], shL: [0.55, 0, -0.75], elL: [1.0], spine: [0.42, 0.1, 0], neck: [-0.3, 0, 0] }, -0.06, 0.12, 0)],
+    [0.42, pb({ shR: [0.9, 0, 0.55], elR: [0.9], shL: [0.7, 0, -0.7], elL: [1.0], spine: [0.22, 0, 0], neck: [-0.25, 0, 0] })],
+  ];
+  const DF_POKE = [
+    [0, pb({ shR: [0.9, 0, 0.4], elR: [1.5], shL: [0.6, 0, -0.6], elL: [1.1], spine: [0.25, 0, 0], neck: [-0.25, 0, 0] })],
+    [0.08, pb({ shR: [1.0, 0, 0.3], elR: [1.9], haR: [-0.2], shL: [0.5, 0, -0.7], elL: [1.1], spine: [0.3, -0.15, 0], neck: [-0.3, 0.1, 0] })],
+    [0.15, pb({ shR: [1.15, 0.1, 0.1], elR: [0.05], haR: [0.2], shL: [0.35, 0, -0.9], elL: [0.9], spine: [0.5, 0.2, 0.05], chest: [0.1, 0.25, 0], neck: [-0.4, -0.2, 0] }, -0.08, 0.2, 0)],
+    [0.26, pb({ shR: [0.95, 0, 0.3], elR: [1.2], shL: [0.5, 0, -0.7], elL: [1.1], spine: [0.32, 0, 0], neck: [-0.3, 0, 0] }, -0.03, 0.08, 0)],
+    [0.36, pb({ shR: [0.9, 0, 0.4], elR: [1.4], shL: [0.6, 0, -0.6], elL: [1.1], spine: [0.25, 0, 0], neck: [-0.25, 0, 0] })],
+  ];
+  const DF_LUNGE = [
+    [0, pb({ shR: [1.0, 0, 0.6], elR: [0.8], shL: [1.0, 0, -0.6], elL: [0.8], spine: [0.2, 0, 0], neck: [-0.25, 0, 0] })],
+    [0.14, pb({ shR: [1.9, 0, 0.45], elR: [0.1], haR: [0.2], shL: [1.3, 0, -0.9], elL: [0.35], spine: [0.55, 0, 0.1], chest: [0.1, 0.2, 0], neck: [-0.6, -0.1, 0] }, -0.12, 0.38, 0.08)],
+    [0.3, pb({ shR: [1.75, 0, 0.35], elR: [0.15], haR: [0.3], shL: [1.0, 0, -1.0], elL: [0.5], spine: [0.6, 0, 0.12], chest: [0.1, 0.25, 0], neck: [-0.6, -0.1, 0] }, -0.2, 0.45, 0.1)],
+    [0.5, pb({ shR: [1.0, 0, 0.5], elR: [0.8], shL: [0.8, 0, -0.6], elL: [0.9], spine: [0.3, 0, 0], neck: [-0.3, 0, 0] }, -0.05, 0.12, 0)],
+  ];
+  // ---------- blocks (airborne: the jump itself is p.jumpY; these are the body in the air) ----------
+  // the chase-down: one-foot take-off from behind, the arm wound back then swung over the top to pin it on the glass
+  const DF_BLK_CHASE = [
+    [0, gfit(pb({ hipL: [1.0, 0, -0.08], knL: [-1.2], hipR: [-0.15, 0, 0.1], knR: [-0.5], ftR: [0.5], shR: [-0.5, 0, 0.3], elR: [0.4], shL: [1.0, 0, -0.3], elL: [1.2], spine: [0.45, 0, 0], neck: [-0.5, 0, 0] }, -0.25, 0.25, 0))],
+    [0.16, pb({ hipL: [1.6, 0, -0.08], knL: [-1.8], ftL: [0.4], hipR: [-0.1, 0, 0.1], knR: [-0.3], ftR: [0.7], shR: [1.6, 0, 0.35], elR: [0.6], shL: [1.4, 0, -0.5], elL: [0.9], spine: [0.15, 0, 0], neck: [-0.6, 0, 0] }, 0, 0.05, 0)],
+    [0.34, pb({ hipL: [1.3, 0, -0.08], knL: [-1.6], ftL: [0.4], hipR: [0.3, 0, 0.1], knR: [-0.8], ftR: [0.6], shR: [3.25, 0, 0.2], elR: [0.25], haR: [-0.5], shL: [1.0, 0, -0.7], elL: [0.8], spine: [-0.15, 0, 0], chest: [-0.1, 0, 0], neck: [-0.75, 0, 0] }, 0, -0.12, 0)],
+    [0.48, pb({ hipL: [1.1, 0, -0.08], knL: [-1.3], hipR: [0.6, 0, 0.1], knR: [-1.1], shR: [2.35, 0, 0.15], elR: [0.05], haR: [0.9], shL: [0.9, 0, -0.8], elL: [0.7], spine: [0.25, 0, 0], neck: [-0.45, 0, 0] }, 0, 0.18, 0)],
+    [0.72, pb({ hipL: [0.7, 0, -0.1], knL: [-0.9], hipR: [0.6, 0, 0.1], knR: [-0.8], shR: [1.6, 0, 0.3], elR: [0.4], shL: [0.9, 0, -0.6], elL: [0.8], spine: [0.25, 0, 0], neck: [-0.35, 0, 0] }, 0, 0.1, 0)],
+    [0.95, gfit(pb({ hipL: [0.75, 0, -0.1], hipR: [0.7, 0, 0.12], knL: [-1.05], knR: [-1.0], shR: [0.7, 0, 0.45], elR: [0.8], shL: [0.6, 0, -0.45], elL: [0.9], spine: [0.38, 0, 0], neck: [-0.3, 0, 0] }, -0.25, 0.12, 0))],
+  ];
+  // the weak-side rotation: two-foot leap across the lane, body tilted, the far arm reaching over the top, legs split
+  const DF_BLK_WEAK = [
+    [0, gfit(pb({ hipL: [0.9, 0, -0.18], hipR: [0.85, 0, 0.18], knL: [-1.3], knR: [-1.25], ftL: [0.3], ftR: [0.3], shR: [-0.6, 0, 0.4], elR: [0.6], shL: [-0.5, 0, -0.4], elL: [0.6], spine: [0.5, 0, 0], neck: [-0.45, 0, 0] }, -0.38, 0.12, 0))],
+    [0.18, pb({ hipL: [0.35, 0, -0.25], hipR: [0.2, 0, 0.1], knL: [-0.6], knR: [-0.4], ftL: [0.5], ftR: [0.5], shR: [2.2, 0, 0.6], elR: [0.4], shL: [1.4, 0, -0.6], elL: [0.6], spine: [0.0, 0, -0.1], neck: [-0.6, 0, 0] }, 0, -0.02, -0.12)],
+    [0.38, pb({ hipL: [0.6, 0, -0.35], hipR: [-0.1, 0, 0.25], knL: [-1.1], knR: [-0.45], ftL: [0.5], ftR: [0.5], shR: [3.1, 0.2, -0.15], elR: [0.1], haR: [0.4], shL: [1.2, 0, -1.2], elL: [0.4], spine: [-0.08, 0.2, -0.25], chest: [0, 0.2, -0.1], neck: [-0.7, -0.2, 0] }, 0.02, -0.06, -0.3)],
+    [0.55, pb({ hipL: [0.7, 0, -0.3], hipR: [0.2, 0, 0.2], knL: [-1.0], knR: [-0.7], shR: [2.4, 0, 0.1], elR: [0.2], haR: [0.8], shL: [1.0, 0, -1.0], elL: [0.5], spine: [0.15, 0.1, -0.15], neck: [-0.5, 0, 0] }, 0, 0.05, -0.2)],
+    [0.78, pb({ hipL: [0.5, 0, -0.2], hipR: [0.5, 0, 0.15], knL: [-0.8], knR: [-0.8], shR: [1.5, 0, 0.4], elR: [0.5], shL: [0.9, 0, -0.6], elL: [0.7], spine: [0.2, 0, -0.05], neck: [-0.35, 0, 0] }, 0, 0.06, -0.08)],
+    [0.95, gfit(pb({ hipL: [0.75, 0, -0.14], hipR: [0.7, 0, 0.14], knL: [-1.05], knR: [-1.0], shR: [0.6, 0, 0.45], elR: [0.9], shL: [0.6, 0, -0.45], elL: [0.9], spine: [0.38, 0, 0], neck: [-0.3, 0, 0] }, -0.25, 0.12, 0))],
+  ];
+  // the swat at the rim: both arms climb, the block hand comes down hard on it at the top (a volleyball spike), tucked legs
+  const DF_BLK_SWAT = [
+    [0, gfit(pb({ hipL: [0.95, 0, -0.1], hipR: [0.95, 0, 0.1], knL: [-1.4], knR: [-1.4], ftL: [0.3], ftR: [0.3], shR: [-0.7, 0, 0.3], elR: [0.6], shL: [-0.7, 0, -0.3], elL: [0.6], spine: [0.55, 0, 0], neck: [-0.4, 0, 0] }, -0.42, 0.15, 0))],
+    [0.16, pb({ hipL: [0.25, 0, -0.1], hipR: [0.25, 0, 0.1], knL: [-0.4], knR: [-0.4], ftL: [0.5], ftR: [0.5], shR: [2.2, 0, 0.3], elR: [0.5], shL: [1.9, 0, -0.3], elL: [0.6], spine: [0.0, 0, 0], neck: [-0.6, 0, 0] }, 0, -0.04, 0)],
+    [0.32, pb({ hipL: [0.6, 0, -0.12], hipR: [0.75, 0, 0.12], knL: [-1.1], knR: [-1.3], ftL: [0.5], ftR: [0.5], shR: [3.35, 0, 0.15], elR: [0.9], haR: [-0.6], shL: [2.7, 0, -0.35], elL: [0.3], spine: [-0.22, 0, 0], chest: [-0.12, 0, 0], neck: [-0.75, 0, 0] }, 0, -0.16, 0)],
+    [0.42, pb({ hipL: [0.9, 0, -0.12], hipR: [1.0, 0, 0.12], knL: [-1.5], knR: [-1.6], ftL: [0.5], ftR: [0.5], shR: [2.2, 0, 0.1], elR: [0.05], haR: [1.0], shL: [2.0, 0, -0.5], elL: [0.4], spine: [0.38, 0, 0], chest: [0.1, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.28, 0)],
+    [0.62, pb({ hipL: [0.7, 0, -0.1], hipR: [0.7, 0, 0.1], knL: [-1.0], knR: [-1.0], shR: [1.3, 0, 0.35], elR: [0.4], haR: [0.3], shL: [1.3, 0, -0.5], elL: [0.6], spine: [0.3, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.14, 0)],
+    [0.95, gfit(pb({ hipL: [0.85, 0, -0.14], hipR: [0.8, 0, 0.14], knL: [-1.15], knR: [-1.1], shR: [0.5, 0, 0.7], elR: [0.9], shL: [0.5, 0, -0.7], elL: [0.9], spine: [0.42, 0, 0], neck: [-0.45, 0, 0] }, -0.3, 0.14, 0))],
+  ];
+  // verticality: straight up with both arms, no swing at it (the smart contest at the rim)
+  const DF_CNT_VERT = [
+    [0, gfit(pb({ hipL: [0.75, 0, -0.1], hipR: [0.75, 0, 0.1], knL: [-1.1], knR: [-1.1], ftL: [0.3], ftR: [0.3], shR: [1.4, 0, 0.2], elR: [0.9], shL: [1.4, 0, -0.2], elL: [0.9], spine: [0.35, 0, 0], neck: [-0.4, 0, 0] }, -0.3, 0.08, 0))],
+    [0.2, pb({ hipL: [0.1, 0, -0.08], hipR: [0.1, 0, 0.08], knL: [-0.25], knR: [-0.25], ftL: [0.55], ftR: [0.55], shR: [3.05, 0, 0.12], elR: [0.1], shL: [3.05, 0, -0.12], elL: [0.1], spine: [-0.05, 0, 0], neck: [-0.55, 0, 0] }, 0, -0.04, 0)],
+    [0.55, pb({ hipL: [0.2, 0, -0.08], hipR: [0.2, 0, 0.08], knL: [-0.4], knR: [-0.4], ftL: [0.5], ftR: [0.5], shR: [3.1, 0, 0.1], elR: [0.08], shL: [3.1, 0, -0.1], elL: [0.08], spine: [-0.05, 0, 0], neck: [-0.6, 0, 0] }, 0, -0.04, 0)],
+    [0.85, gfit(pb({ hipL: [0.65, 0, -0.1], hipR: [0.65, 0, 0.1], knL: [-0.95], knR: [-0.95], shR: [2.2, 0, 0.25], elR: [0.4], shL: [2.2, 0, -0.25], elL: [0.4], spine: [0.3, 0, 0], neck: [-0.4, 0, 0] }, -0.24, 0.08, 0))],
+  ];
+  // ---------- rebounds (airborne) ----------
+  // two hands: up together, both palms on it at the top, pulled down hard to the chin, elbows out, landing wide
+  const DF_REB2 = [
+    [0, gfit(pb({ hipL: [0.9, 0, -0.14], hipR: [0.9, 0, 0.14], knL: [-1.3], knR: [-1.3], ftL: [0.3], ftR: [0.3], shR: [0.6, 0, 0.5], elR: [1.2], shL: [0.6, 0, -0.5], elL: [1.2], spine: [0.5, 0, 0], neck: [-0.45, 0, 0] }, -0.38, 0.12, 0))],
+    [0.2, pb({ hipL: [0.2, 0, -0.1], hipR: [0.2, 0, 0.1], knL: [-0.4], knR: [-0.4], ftL: [0.5], ftR: [0.5], shR: [2.7, 0, 0.2], elR: [0.4], shL: [2.7, 0, -0.2], elL: [0.4], spine: [-0.05, 0, 0], neck: [-0.65, 0, 0] }, 0, -0.04, 0)],
+    [0.42, pb({ hipL: [0.45, 0, -0.12], hipR: [0.45, 0, 0.12], knL: [-0.9], knR: [-0.9], ftL: [0.45], ftR: [0.45], shR: [3.0, 0, -0.05], elR: [0.45], shL: [3.0, 0, 0.05], elL: [0.45], spine: [-0.05, 0, 0], neck: [-0.7, 0, 0] }, 0, -0.04, 0)],
+    [0.66, pb({ hipL: [0.6, 0, -0.16], hipR: [0.6, 0, 0.16], knL: [-0.9], knR: [-0.9], shR: [1.2, 0, 0.9], elR: [2.0], shL: [1.2, 0, -0.9], elL: [2.0], spine: [0.3, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.1, 0)],
+    [0.95, gfit(pb({ hipL: [0.95, 0, -0.22], hipR: [0.9, 0, 0.22], knL: [-1.35], knR: [-1.3], shR: [1.1, 0, 1.0], elR: [2.1], shL: [1.1, 0, -1.0], elL: [2.1], spine: [0.5, 0, 0], neck: [-0.35, 0, 0] }, -0.4, 0.2, 0))],
+  ];
+  // one hand: reaching out wide for a long one, the body leaning after it, the other hand comes to secure it as he lands
+  const DF_REB1 = [
+    [0, gfit(pb({ hipL: [0.85, 0, -0.12], hipR: [0.85, 0, 0.12], knL: [-1.25], knR: [-1.25], ftL: [0.3], ftR: [0.3], shR: [0.4, 0, 0.5], elR: [1.0], shL: [0.6, 0, -0.4], elL: [1.1], spine: [0.5, 0, 0], neck: [-0.45, 0, 0] }, -0.36, 0.12, 0))],
+    [0.2, pb({ hipL: [0.2, 0, -0.1], hipR: [0.4, 0, 0.2], knL: [-0.35], knR: [-0.7], ftL: [0.5], ftR: [0.5], shR: [2.6, 0, 0.6], elR: [0.15], shL: [1.0, 0, -0.5], elL: [0.9], spine: [0.0, 0, 0.12], chest: [0, 0, 0.1], neck: [-0.6, 0, 0] }, 0, -0.02, 0.12)],
+    [0.42, pb({ hipL: [0.1, 0, -0.1], hipR: [0.7, 0, 0.3], knL: [-0.4], knR: [-1.1], ftL: [0.5], ftR: [0.5], shR: [2.75, 0, 0.75], elR: [0.05], haR: [0.4], shL: [1.4, 0, -0.3], elL: [0.7], spine: [0.0, 0, 0.2], chest: [0, 0, 0.12], neck: [-0.6, 0, 0.1] }, 0, -0.02, 0.2)],
+    [0.66, pb({ hipL: [0.5, 0, -0.1], hipR: [0.6, 0, 0.2], knL: [-0.8], knR: [-0.9], shR: [1.6, 0, 0.5], elR: [1.3], shL: [1.4, 0, -0.4], elL: [1.4], spine: [0.3, 0, 0.05], neck: [-0.35, 0, 0] }, 0, 0.08, 0.06)],
+    [0.95, gfit(pb({ hipL: [0.85, 0, -0.18], hipR: [0.8, 0, 0.18], knL: [-1.2], knR: [-1.15], shR: [1.1, 0, 0.6], elR: [1.9], shL: [1.1, 0, -0.6], elL: [1.9], spine: [0.45, 0, 0], neck: [-0.35, 0, 0] }, -0.34, 0.16, 0))],
+  ];
+  // the tip: straight up off two feet, one arm at full stretch, fingertips flick it at the very top
+  const DF_RTIP = [
+    [0, gfit(pb({ hipL: [0.85, 0, -0.1], hipR: [0.85, 0, 0.1], knL: [-1.25], knR: [-1.25], ftL: [0.3], ftR: [0.3], shR: [-0.5, 0, 0.3], elR: [0.6], shL: [-0.4, 0, -0.3], elL: [0.6], spine: [0.5, 0, 0], neck: [-0.45, 0, 0] }, -0.38, 0.12, 0))],
+    [0.2, pb({ hipL: [0.05, 0, -0.08], hipR: [0.3, 0, 0.08], knL: [-0.2], knR: [-0.7], ftL: [0.6], ftR: [0.55], shR: [3.0, 0, 0.15], elR: [0.25], haR: [-0.3], shL: [1.4, 0, -0.5], elL: [0.6], spine: [-0.08, 0, 0], neck: [-0.7, 0, 0] }, 0.02, -0.06, 0)],
+    [0.4, pb({ hipL: [0.1, 0, -0.08], hipR: [0.4, 0, 0.08], knL: [-0.25], knR: [-0.85], ftL: [0.6], ftR: [0.55], shR: [3.15, 0, 0.08], elR: [0.03], haR: [0.6], shL: [1.2, 0, -0.6], elL: [0.6], spine: [-0.1, 0, 0], neck: [-0.75, 0, 0] }, 0.02, -0.06, 0)],
+    [0.65, pb({ hipL: [0.45, 0, -0.1], hipR: [0.5, 0, 0.1], knL: [-0.7], knR: [-0.8], shR: [2.2, 0, 0.3], elR: [0.4], shL: [1.0, 0, -0.5], elL: [0.8], spine: [0.15, 0, 0], neck: [-0.45, 0, 0] }, 0, 0.04, 0)],
+    [0.95, gfit(pb({ hipL: [0.75, 0, -0.1], hipR: [0.7, 0, 0.12], knL: [-1.05], knR: [-1.0], shR: [0.8, 0, 0.4], elR: [0.9], shL: [0.6, 0, -0.4], elL: [0.9], spine: [0.38, 0, 0], neck: [-0.35, 0, 0] }, -0.26, 0.12, 0))],
+  ];
+  // ---------- the loose-ball dive: lay out after it, slide on the belly (ends face down, where clipGetup starts) ----------
+  const DF_DIVE = [
+    [0, gfit(pb({ hipL: [0.9, 0, -0.1], hipR: [-0.1, 0, 0.1], knL: [-1.2], knR: [-0.5], ftR: [0.5], shL: [1.2, 0, -0.4], shR: [1.2, 0, 0.4], elL: [0.6], elR: [0.6], spine: [0.55, 0, 0], neck: [-0.5, 0, 0] }, -0.25, 0.4, 0))],
+    [0.16, pb({ hipL: [-0.2, 0, -0.12], hipR: [-0.35, 0, 0.12], knL: [-0.35], knR: [-0.25], ftL: [0.5], ftR: [0.6], shL: [2.9, 0, -0.3], shR: [2.9, 0, 0.3], elL: [0.1], elR: [0.1], spine: [-0.08, 0, 0], neck: [-0.85, 0, 0], head: [-0.3, 0, 0] }, -0.3, 1.1, 0)],
+    [0.36, pb({ hipL: [-0.25, 0, -0.14], hipR: [-0.2, 0, 0.14], knL: [-0.5], knR: [-0.3], ftL: [0.6], ftR: [0.6], shL: [3.0, 0, -0.35], shR: [3.0, 0, 0.3], elL: [0.1], elR: [0.15], spine: [-0.12, 0, 0], neck: [-0.9, 0, 0], head: [-0.3, 0, 0] }, -0.66, 1.42, 0)],
+    [0.6, pb({ hipL: [-0.1, 0, -0.18], hipR: [0.05, 0, 0.2], knL: [-0.7], knR: [-0.45], ftL: [0.6], ftR: [0.6], shL: [2.7, 0, -0.45], shR: [2.9, 0, 0.35], elL: [0.4], elR: [0.2], spine: [0.0, 0, 0], neck: [-0.75, 0, 0], head: [-0.3, 0, 0] }, -0.74, 1.5, 0)],
+    [0.8, pb({ hipL: [0.15, 0, -0.2], hipR: [0.2, 0, 0.2], knL: [-0.5], knR: [-0.4], shL: [1.9, 0, -0.6], shR: [1.9, 0, 0.6], elL: [1.2], elR: [1.2], spine: [0.0, 0, 0], neck: [-0.6, 0, 0] }, -0.74, 1.5, 0)],
+  ];
+  // ---------- on his back (a charge taken, a hard fall): sit up, a hand behind, roll to a knee, up ----------
+  function dfRiseBack(t) { // t 0..1
+    return kf(t, [
+      [0, pb({ hipL: [0.5, 0, -0.2], hipR: [0.35, 0, 0.2], knL: [-0.9], knR: [-0.6], shL: [0.4, 0, -0.9], shR: [0.4, 0, 0.9], elL: [0.4], elR: [0.4], spine: [0.0, 0, 0], neck: [0.25, 0, 0] }, -0.88, -1.45, 0)],
+      [0.3, pb({ hipL: [1.4, 0, -0.25], hipR: [1.1, 0, 0.25], knL: [-1.6], knR: [-1.1], shL: [-0.6, 0, -0.3], shR: [0.9, 0, 0.3], elL: [0.2], elR: [0.8], spine: [0.55, 0, 0], neck: [-0.2, 0, 0] }, -0.82, -0.55, 0)],
+      [0.55, pb({ hipL: [1.6, 0, -0.2], hipR: [1.0, 0.3, 0.3], knL: [-2.1], knR: [-1.9], ftL: [0.5], ftR: [0.6], shL: [-0.2, 0, -0.45], shR: [0.9, 0, 0.3], elL: [0.3], elR: [0.9], spine: [0.6, 0, 0], neck: [-0.35, 0, 0] }, -0.62, 0.1, 0.05)],
+      [0.78, gfit(pb({ hipL: [1.3, 0, -0.12], knL: [-2.0], ftL: [0.5], hipR: [0.55, 0, 0.2], knR: [-1.3], shL: [0.9, 0, -0.3], shR: [0.6, 0, 0.3], elL: [0.9], elR: [0.9], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.2, 0))],
+      [1, POSE_IDLE],
+    ]);
+  }
+  // the keyframed fall onto his back (when no ragdoll is running): knocked back a step, hips go, lands on his seat and then his back
+  const DF_FALLBACK = [
+    [0, gfit(pb({ hipL: [0.3, 0, -0.1], hipR: [0.3, 0, 0.1], knL: [-0.5], knR: [-0.5], shL: [0.8, 0, -0.3], shR: [0.8, 0, 0.3], elL: [1.2], elR: [1.2], spine: [0.15, 0, 0], neck: [-0.2, 0, 0] }, -0.12, 0, 0))],
+    [0.12, gfit(pb({ hipL: [0.5, 0, -0.15], hipR: [-0.1, 0, 0.15], knL: [-0.4], knR: [-0.2], shL: [1.4, 0, -0.8], shR: [1.4, 0, 0.8], elL: [0.4], elR: [0.4], spine: [-0.25, 0, 0], neck: [0.15, 0, 0] }, 0, -0.35, 0))],
+    [0.3, pb({ hipL: [1.3, 0, -0.2], hipR: [1.0, 0, 0.2], knL: [-1.0], knR: [-0.7], shL: [1.0, 0, -1.1], shR: [1.0, 0, 1.1], elL: [0.3], elR: [0.3], spine: [-0.1, 0, 0], neck: [0.2, 0, 0] }, -0.7, -0.7, 0)],
+    [0.5, pb({ hipL: [0.6, 0, -0.2], hipR: [0.45, 0, 0.2], knL: [-0.9], knR: [-0.6], shL: [0.4, 0, -1.0], shR: [0.4, 0, 1.0], elL: [0.3], elR: [0.3], spine: [0.0, 0, 0], neck: [0.25, 0, 0] }, -0.88, -1.45, 0)],
+  ];
+  // ---------- crossed up (broken ankles): weight thrown the wrong way, legs tangle, a hand down to catch himself ----------
+  // sd: the side he bit to; fall: ends on his seat (the full ankle-breaker)
+  function dfAnkles(t, fall) {
+    const K = fall ? DF_ANK_FALL : DF_ANK;
+    return kf(t, K);
+  }
+  const DF_ANK = [
+    [0, gfit(pb({ hipL: [0.45, 0, -0.2], hipR: [0.45, 0, 0.2], knL: [-0.7], knR: [-0.7], shL: [0.7, 0, -0.7], shR: [0.7, 0, 0.7], elL: [0.7], elR: [0.7], spine: [0.25, 0, 0], neck: [-0.25, 0, 0] }, 0, 0.1, 0))],
+    [0.12, gfit(pb({ hipL: [0.3, 0, 0.12], hipR: [0.75, 0, 0.45], knL: [-0.4], knR: [-1.2], ftR: [0.3], shL: [1.2, 0, -1.3], shR: [0.4, 0, 0.6], elL: [0.4], elR: [0.9], spine: [0.15, 0.2, 0.2], chest: [0, 0.2, 0.1], neck: [-0.15, -0.3, 0] }, 0, 0.05, 0.3))],
+    [0.28, gfit(pb({ hipL: [0.1, 0, 0.3], hipR: [1.2, 0, 0.25], knL: [-0.3], knR: [-1.9], ftR: [0.5], shL: [1.6, 0, -1.4], shR: [0.2, 0, 0.3], elL: [0.3], elR: [0.4], spine: [0.45, 0.25, 0.3], chest: [0.05, 0.2, 0.1], neck: [-0.4, -0.3, 0] }, 0, 0.25, 0.42))],
+    [0.45, gfit(pb({ hipL: [0.6, 0, -0.1], hipR: [1.3, 0, 0.35], knL: [-1.0], knR: [-2.0], ftR: [0.5], shL: [1.1, 0, -1.0], shR: [0.1, 0, 0.5], elL: [0.4], elR: [0.3], spine: [0.55, 0.15, 0.2], neck: [-0.5, -0.2, 0] }, 0, 0.3, 0.3))],
+    [0.7, gfit(pb({ hipL: [0.7, 0, -0.18], hipR: [0.75, 0, 0.18], knL: [-1.1], knR: [-1.1], shL: [0.8, 0, -0.6], shR: [0.6, 0, 0.6], elL: [0.8], elR: [0.8], spine: [0.4, 0, 0.05], neck: [-0.35, 0, 0] }, 0, 0.18, 0.05))],
+    [0.9, gfit(pb({ hipL: [0.45, 0, -0.2], hipR: [0.45, 0, 0.2], knL: [-0.7], knR: [-0.7], shL: [0.7, 0, -0.7], shR: [0.7, 0, 0.7], elL: [0.7], elR: [0.7], spine: [0.25, 0, 0], neck: [-0.25, 0, 0] }, 0, 0.1, 0))],
+  ];
+  const DF_ANK_FALL = [
+    DF_ANK[0], DF_ANK[1], DF_ANK[2],
+    [0.48, pb({ hipL: [1.2, 0, -0.1], hipR: [1.5, 0, 0.35], knL: [-1.3], knR: [-1.9], ftR: [0.4], shL: [0.4, 0, -0.9], shR: [-0.5, 0, 0.5], elL: [0.4], elR: [0.2], spine: [0.15, 0, 0.15], neck: [-0.2, -0.3, 0] }, -0.72, -0.25, 0.15)],
+    [0.75, pb({ hipL: [1.4, 0, -0.2], hipR: [1.3, 0, 0.3], knL: [-1.6], knR: [-1.6], shL: [-0.5, 0, -0.4], shR: [-0.5, 0, 0.4], elL: [0.2], elR: [0.2], spine: [0.2, 0, 0], neck: [-0.15, 0.3, 0] }, -0.78, -0.3, 0)],
+    [1.05, pb({ hipL: [1.6, 0, -0.2], hipR: [1.0, 0.3, 0.3], knL: [-2.1], knR: [-1.9], ftL: [0.5], ftR: [0.6], shL: [-0.2, 0, -0.45], shR: [0.9, 0, 0.3], elL: [0.3], elR: [0.9], spine: [0.6, 0, 0], neck: [-0.35, 0, 0] }, -0.62, 0.1, 0.05)],
+    [1.3, gfit(pb({ hipL: [1.3, 0, -0.12], knL: [-2.0], ftL: [0.5], hipR: [0.55, 0, 0.2], knR: [-1.3], shL: [0.9, 0, -0.3], shR: [0.6, 0, 0.3], elL: [0.9], elR: [0.9], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.2, 0))],
+    [1.55, POSE_IDLE],
+  ];
+  // ---------- a bump in traffic: an additive jolt on whatever he is doing (k 1 at the hit, fading to 0) ----------
+  function dfJolt(q, k, sd) {
+    const e = k * k;
+    q[B.spine * 3] -= 0.28 * e; q[B.chest * 3 + 2] += sd * 0.18 * e; q[B.neck * 3] += 0.3 * e; q[B.neck * 3 + 2] -= sd * 0.2 * e;
+    for (const s of [-1, 1]) { const s3 = (s < 0 ? B.shL : B.shR) * 3, e3 = (s < 0 ? B.elL : B.elR) * 3; q[s3 + 2] += s * 0.5 * e; q[s3] -= 0.35 * e; q[e3] += 0.4 * e; }
+  }
+  // ---------- celebrations and frustration: upper-body loops that work standing or jogging back (t in seconds) ----------
+  function dfLife(q, kind, t, sd) {
+    const u = Math.min(1, t / 0.25); // ease in
+    const R = (sx, sz, el, sy) => dfArm(q, sd, sx, sz, el, sy, u), L = (sx, sz, el, sy) => dfArm(q, -sd, sx, sz, el, sy, u);
+    switch (kind) {
+      case 'flex': { // double-bicep roar, a shake on it
+        const sh = dfWave(t, 22, 0.05);
+        R(0.35, 1.55 + sh, 2.35); L(0.35, 1.55 - sh, 2.35);
+        q[B.spine * 3] -= 0.18 * u; q[B.chest * 3] -= 0.1 * u; q[B.neck * 3] -= 0.35 * u; break;
+      }
+      case 'roar': { // arms flung down and back, chest out, screaming at the floor
+        R(-0.5, 0.75, 0.6); L(-0.5, 0.75, 0.6);
+        q[B.spine * 3] += 0.25 * u; q[B.chest * 3] -= 0.25 * u; q[B.neck * 3] -= 0.2 * u; break;
+      }
+      case 'sky': { // point to the sky: one arm straight up, the other relaxed, eyes up
+        R(3.0, 0.2, 0.05); L(0.25, 0.25, 0.5);
+        q[B.neck * 3] -= 0.5 * u; q[B.head * 3] -= 0.2 * u; q[B.spine * 3] -= 0.08 * u; break;
+      }
+      case 'pump': { // fist pump: the fist cocked high and yanked down twice
+        const c = Math.max(0, Math.sin(Math.min(t, 0.9) * 7));
+        R(1.0 + 0.9 * c, 0.4, 2.2 - 0.4 * c); L(0.25, 0.3, 0.7);
+        q[B.spine * 3] += 0.12 * u; q[B.neck * 3] -= 0.1 * u; break;
+      }
+      case 'raise': { // a three: the arm held up high, the hand open, walking it back
+        R(2.85, 0.45, 0.25); L(0.2, 0.25, 0.6); q[B.neck * 3] -= 0.15 * u; break;
+      }
+      case 'clap': { // clapping (teammates, the bench): hands meet in front of the chest
+        const c = 0.5 + 0.5 * Math.sin(t * 13);
+        R(1.15, 0.55 - 0.4 * c, 1.55); L(1.15, 0.55 - 0.4 * c, 1.55); q[B.spine * 3] += 0.05 * u; break;
+      }
+      case 'head': { // hands on his head (missed it, beaten): fingers laced on top, elbows out
+        R(2.0, 1.05, 2.45); L(2.0, 1.05, 2.45); q[B.neck * 3] += 0.18 * u; q[B.spine * 3] -= 0.05 * u; break;
+      }
+      case 'protest': { // "what? that's clean": both arms out, palms up, a head shake
+        const c = Math.min(1, t / 0.3);
+        R(0.75 * c + 0.2, 0.95, 0.55); L(0.75 * c + 0.2, 0.95, 0.55);
+        q[B.neck * 3 + 1] += Math.sin(t * 9) * 0.25 * Math.max(0, 1 - t / 1.4); q[B.spine * 3] -= 0.1 * u; q[B.neck * 3] -= 0.1 * u; break;
+      }
+      case 'innocent': { // both hands up, palms out: "I didn't touch him"
+        R(2.2, 0.75, 1.2); L(2.2, 0.75, 1.2); q[B.spine * 3] -= 0.12 * u; q[B.neck * 3] += 0.05 * u; break;
+      }
+      case 'chin': { // the rebound pulled to the chin, elbows out wide
+        q[B.spine * 3] += 0.28 * u; q[B.neck * 3] -= 0.2 * u; break;
+      }
+      case 'hips': { // hands on the hips (waiting at the line, catching a breath)
+        R(-0.1, 0.7, 1.9, 0.6); L(-0.1, 0.7, 1.9, 0.6); q[B.spine * 3] -= 0.04 * u; break;
+      }
+      case 'point': { // pointing at the passer: arm straight out in front
+        R(1.55, 0.25, 0.05); L(0.3, 0.3, 0.6); break;
+      }
+      case 'wave': { // towel / arm waving over the head (the bench on a big play)
+        const a = t * 9;
+        R(2.75 + Math.sin(a) * 0.25, 0.5 + Math.cos(a) * 0.35, 0.6 + Math.sin(a + 1) * 0.3); L(0.4, 0.3, 0.8);
+        q[B.spine * 3] -= 0.05 * u; break;
+      }
+    }
+  }
+  // ---------- the chest bump: a two-foot hop into each other, chests forward, arms flung back (t 0..0.9 s; lift = the hop) ----------
+  const DF_BUMP = [
+    [0, gfit(pb({ hipL: [0.7, 0, -0.1], hipR: [0.7, 0, 0.1], knL: [-1.1], knR: [-1.1], ftL: [0.3], ftR: [0.3], shL: [-0.6, 0, -0.4], shR: [-0.6, 0, 0.4], elL: [0.4], elR: [0.4], spine: [0.45, 0, 0], neck: [-0.35, 0, 0] }, 0))],
+    [0.2, gfit(pb({ hipL: [0.05, 0, -0.08], hipR: [0.05, 0, 0.08], knL: [-0.25], knR: [-0.25], ftL: [0.6], ftR: [0.6], shL: [-0.9, 0, -0.8], shR: [-0.9, 0, 0.8], elL: [0.2], elR: [0.2], spine: [-0.3, 0, 0], chest: [-0.2, 0, 0], neck: [0.2, 0, 0] }, 0.26), 0.26)],
+    [0.34, gfit(pb({ hipL: [0.3, 0, -0.08], hipR: [0.3, 0, 0.08], knL: [-0.6], knR: [-0.6], ftL: [0.5], ftR: [0.5], shL: [-0.7, 0, -1.0], shR: [-0.7, 0, 1.0], elL: [0.3], elR: [0.3], spine: [-0.32, 0, 0], chest: [-0.2, 0, 0], neck: [0.1, 0, 0] }, 0.3), 0.3)],
+    [0.52, gfit(pb({ hipL: [0.75, 0, -0.12], hipR: [0.75, 0, 0.12], knL: [-1.15], knR: [-1.15], shL: [0.6, 0, -0.6], shR: [0.6, 0, 0.6], elL: [0.9], elR: [0.9], spine: [0.3, 0, 0], neck: [-0.3, 0, 0] }, 0))],
+    [0.9, POSE_IDLE],
+  ];
+  // ---------- the bench ----------
+  // seated: k 0 elbows on knees leaning in, 1 sitting up clapping; t running time
+  function dfBenchSit(kind, t) {
+    const q = lerpPose(POSE_SIT, POSE_SIT, 0);
+    if (kind === 'lean') { // elbows on his knees, hands together, leaning in to watch
+      q[B.spine * 3] += 0.35; q[B.neck * 3] -= 0.55;
+      for (const sd of [-1, 1]) dfArm(q, sd, 0.95, 0.05, 1.75, 0.3);
+    } else if (kind === 'clap') {
+      const c = 0.5 + 0.5 * Math.sin(t * 12);
+      q[B.spine * 3] -= 0.05; q[B.neck * 3] -= 0.15;
+      for (const sd of [-1, 1]) dfArm(q, sd, 1.1, 0.5 - 0.38 * c, 1.5);
+    } else { // back against the chair, hands on the thighs (the dispatcher's own sit), a slow look about
+      q[B.neck * 3] -= 0.25; q[B.neck * 3 + 1] += Math.sin(t * 0.4) * 0.35;
+      for (const sd of [-1, 1]) dfArm(q, sd, 0.45, 0.12, 0.7);
+    }
+    return q;
+  }
+  // standing at the chair: clapping, arm waving, hands on head (the other bench), jumping on the big one
+  function dfBenchStand(kind, t) {
+    const hop = kind === 'jump' ? Math.max(0, Math.sin(t * 8)) : 0;
+    const q = gfit(pb({ hipL: [0.05 + 0.4 * hop, 0, -0.08], hipR: [0.05 + 0.4 * hop, 0, 0.08], knL: [-0.12 - 0.6 * hop], knR: [-0.12 - 0.6 * hop], ftL: [0.3 * hop], ftR: [0.3 * hop], spine: [0.04, 0, 0], neck: [-0.12, 0, 0] }, -0.02, 0.02, 0), 0.12 * hop);
+    dfLife(q, kind === 'jump' ? 'wave' : kind, t + 1, 1);
+    if (kind === 'jump') dfArm(q, -1, 2.7 + Math.sin(t * 8) * 0.2, 0.4, 0.4);
+    return q;
+  }
+  // ---------- free throws ----------
+  // on the lane: low, hands on the knees until the shot goes up (k 0), then ready to crash, hands up (k 1)
+  function dfLane(t, k, seed) {
+    const q = lerpPose(POSE_HK, POSE_HK, 0), r = gfit(pb({ hipL: [0.6, 0, -0.2], hipR: [0.6, 0, 0.2], knL: [-0.95], knR: [-0.95], ftL: [0.25], ftR: [0.25], spine: [0.35, 0, 0], neck: [-0.45, 0, 0] }, 0, 0.12, 0));
+    dfArm(r, -1, 1.5, 0.75, 0.9); dfArm(r, 1, 1.5, 0.75, 0.9);
+    const o = lerpPose(q, r, smo(clamp(k, 0, 1)));
+    o[B.spine * 3] += Math.sin(t * 2 + seed) * 0.015;
+    return o;
+  }
+  // ---------- huddles (timeout, the win): leaning in, arms over the neighbours' shoulders ----------
+  function dfHuddle(t, seed, jump) {
+    const hop = jump ? Math.max(0, Math.sin(t * 7 + seed * 0.5)) : 0;
+    const q = gfit(pb({ hipL: [0.45 + 0.3 * hop, 0, -0.16], hipR: [0.45 + 0.3 * hop, 0, 0.16], knL: [-0.6 - 0.5 * hop], knR: [-0.6 - 0.5 * hop], ftL: [0.15], ftR: [0.15], spine: [0.45, 0, 0], chest: [0.1, 0, 0], neck: [-0.35, 0, 0] }, 0, 0.18, 0), 0.1 * hop);
+    for (const sd of [-1, 1]) dfArm(q, sd, 1.15, 1.25, 0.35 + 0.05 * Math.sin(t * 2 + seed + sd));
+    q[B.neck * 3 + 1] += Math.sin(t * 0.7 + seed) * 0.25;
+    return q;
+  }
+  // mirrored (left-handed / other-side) copies of the one-sided clips
+  const dfMirK = (K) => K.map((k) => [k[0], mirrorPose(k[1])]);
+  const DF_SWIPE_M = dfMirK(DF_SWIPE), DF_POKE_M = dfMirK(DF_POKE), DF_LUNGE_M = dfMirK(DF_LUNGE), DF_BLK_CHASE_M = dfMirK(DF_BLK_CHASE), DF_BLK_WEAK_M = dfMirK(DF_BLK_WEAK), DF_BLK_SWAT_M = dfMirK(DF_BLK_SWAT);
+  const DF_REB1_M = dfMirK(DF_REB1), DF_RTIP_M = dfMirK(DF_RTIP), DF_ANK_M = dfMirK(DF_ANK), DF_ANK_FALL_M = dfMirK(DF_ANK_FALL);
 
   // =====================================================================================
   // Athlete mesh: one smooth skinned surface per body type (two bone weights per vertex), lofted from anatomical
@@ -1460,6 +2127,9 @@ gl_FragColor=vec4(c,1.0);}`;
   const HELM_TH = 2.62; // polar extent of the helmet shell (radians) -> v = theta / HELM_TH in the helmet region
   const VSTRIDE = 13;
   // bind-pose joint positions in body space for a shoulder width factor
+  // ballplayer proportions: legs a little longer than the football body's, the head smaller (applied to the head bone when
+  // the pose is built, 25-animrt.js), so a player stands about 7.5 heads tall
+  const LEG_K = 1.07, HEAD_K = 0.86;
   function bindFor(sw, ll) { const q = new Float32Array(PLEN); const m = fk(q, 0, 0, 0, 0, 1, sw, ll), y0 = m[0][7]; return m.map((b) => [b[3], b[7] - y0, b[11]]); }
   // body specs by position: height scale, girth, belly, shoulder width, leg/arm girth
   const BODY = {
@@ -1499,8 +2169,8 @@ gl_FragColor=vec4(c,1.0);}`;
   const q20 = (v) => Math.round(v * 20) / 20;
   function bodySpec(base, lk, wgt) {
     const b = (lk && lk.build && BUILDS6[lk.build]) || null;
-    if (!b && !(wgt > 0)) return base;
-    const s = Object.assign({}, base);
+    const s = Object.assign({}, base); s.ll = (s.ll || 1) * LEG_K;
+    if (!b && !(wgt > 0)) return s;
     if (wgt > 0) { // heavier for his height -> thicker; the position spec already makes linemen big, so this only shades it
       const hsr = (lk && lk.hs) || 1, k = clamp(wgt / (135 * hsr * hsr * (base.bulk || 1)), 0.75, 1.5) - 1;
       s.bulk *= 1 + k * 0.45; s.arms *= 1 + k * 0.35; s.legs *= 1 + k * 0.35; s.neck *= 1 + k * 0.3; s.belly = Math.max(s.belly, s.belly + Math.max(0, k - 0.15) * 1.3);
@@ -1508,7 +2178,7 @@ gl_FragColor=vec4(c,1.0);}`;
     if (b) {
       for (const k of ['bulk', 'arms', 'legs', 'neck', 'sw']) if (b[k]) s[k] *= b[k];
       if (b.belly === -1) s.belly = Math.min(s.belly, 0.02); if (b.bellyAdd) s.belly += b.bellyAdd;
-      if (b.ll) s.ll = b.ll;
+      if (b.ll) s.ll = b.ll * LEG_K;
     }
     for (const k of ['bulk', 'arms', 'legs', 'neck', 'sw', 'belly']) s[k] = q20(s[k]);
     return s;
@@ -2464,9 +3134,13 @@ gl_FragColor=vec4(c,1.0);}`;
       l = l && typeof l === 'object' ? l : {};
       const sk = Number.isInteger(l.skin) ? clamp(l.skin, 0, 4) : dflt;
       const b = BUILDS[l.build] ? l.build : null;
-      const hin0 = r ? +r.hgt : NaN, hin = isFinite(hin0) && hin0 > 40 ? clamp(hin0, 54, 80) : NaN;
+      // game size: the card's height (a kid, about 4'10" to 6'2") mapped onto athletic teen ballplayers, 5'8" to 6'6", so the
+      // rim, the arc and the lane relate to the players the way they do in a real game; HEAD_K shrinks the head to about 7.5
+      // heads tall and LEG_K (06-body.js) lengthens the legs, and the scale allows for both so he stands at the mapped height
+      const hin0 = r ? +r.hgt : NaN, card = isFinite(hin0) && hin0 > 40 ? clamp(hin0, 54, 80) : 65;
       const o = { skin: sk, hs: 1, cleat: CLEATS[l.cleats] || CLEATS.white, visor: false, sleeves: !!l.sleeves, build: b, ll: b ? BUILDS[b].ll || 1 : 1 };
-      if (isFinite(hin)) o.hin = hin;
+      o.hin = (68 + clamp((card - 58) / 14, 0, 1) * 10) * STAND_H / (STAND_H + (LEG_K - 1) * 0.97 - (1 - HEAD_K) * 0.3);
+      o.hk = HEAD_K;
       return o;
     };
     const numOf = (q) => { const s = String(q.num != null ? q.num : q.number != null ? q.number : '').trim(); return /^\d{1,2}$/.test(s) ? +s : null; };
@@ -2502,6 +3176,10 @@ gl_FragColor=vec4(c,1.0);}`;
     const stage = el('div', 'dk-stage');
     const cv = el('canvas', 'dk-cv'); cv.tabIndex = 0; cv.setAttribute('aria-label', 'Basketball court');
     const tagL = el('div', 'dk-tags'), fx = el('div', 'dk-fx');
+    // the dip that covers a camera cut (81-cam.js): a dark veil over the floor, gone in a quarter of a second
+    const dipEl = el('div', 'dk-dip', ''); fx.appendChild(dipEl);
+    let dipLast = 0;
+    function camDip(k) { if (k === dipLast) return; dipLast = k; dipEl.style.opacity = (k * 0.92).toFixed(2); }
     stage.append(cv, tagL, fx);
     const bug = el('div', 'dk-bug'), tick = el('div', 'dk-tick'), ctl = el('div', 'dk-ctl');
     wrap.append(stage, bug, tick, ctl);
@@ -2988,6 +3666,17 @@ gl_FragColor=vec4(c,1.0);}`;
       three: (19 * 12 + 9) * IN2Y,          // 3-point arc radius from the rim centre (6.583)
       boxX: 28 * F2Y,                       // coaching box line, 28 ft from the baseline
       oobBand: 1.0,                         // the black out-of-bounds band (gym paint), yards past the lines
+      // the painted markings (NFHS court diagram): every line 2 in wide; lane-space marks 2 in x 6 in off the lane line, the
+      // neutral-zone block 12 in x 8 in at 7 ft from the end line, then three 36 in spaces; the 3-point line runs straight from the
+      // end line, parallel to the sideline, out to the rim's x (5 ft 3 in) and then arcs at 19 ft 9 in (to the line's outside edge)
+      laneMarks: [[7, 8, 8 * IN2Y], [11, 11 + 2 / 12, 6 * IN2Y], [14 + 2 / 12, 14 + 4 / 12, 6 * IN2Y], [17 + 4 / 12, 17 + 6 / 12, 6 * IN2Y]], // [from ft, to ft, depth yd] from the end line
+      ftDash: [16 * IN2Y, 14 * IN2Y],       // the free-throw circle's inside half: 16 in dashes, 14 in spaces
+      teamBox: 14 * F2Y,                    // team box / coaching box lines: 14 ft from the division line (28 ft from the end line), outside the sideline
+      teamBoxL: 3 * F2Y,                    // 3 ft long
+      endHash: [3 * F2Y, 6 * IN2Y],         // end-line marks 3 ft outside each lane line, 6 in onto the court
+      ccIn: 2 * F2Y,                        // the inner restraining circle (2 ft radius)
+      ccRing: 6 * F2Y + 7 * IN2Y,           // the thin outer ring around the painted centre circle
+      bandEdge: 4 * IN2Y,                   // the red edge line round the black band
     };
     const RIM_Y = 10 * F2Y;                   // top of the ring (3.333)
     const RIM_R = 9 * IN2Y;                   // inner radius (18 in ring)
@@ -3006,8 +3695,9 @@ gl_FragColor=vec4(c,1.0);}`;
     const isThree = (x, z, h) => rimDist(x, z, h) > COURT.three + 0.05 && Math.abs(x) < COURT.HL + 0.5;
     // =====================================================================================
     // Wildcat Gym (Metcalf's gym), first version. Everything about the room lives in this file behind buildGym() / gymStatics(),
-    // with its placements as GYM constants (the bleachers along +z behind the benches and the scorer's table; the scoreboard, flag
-    // and banners on the far -z wall, as in the photos). Engine units are yards; the court's own measures come from 11-court.js.
+    // with its placements as GYM constants (the bleachers along +z with the big WILDCATS lettering on the floor in front of them; the
+    // team benches and the scorer's table along the opposite sideline, -z, in front of the far wall with the scoreboard, flag and
+    // banners, as in the photos). Engine units are yards; the court's own measures come from 11-court.js.
     // Cosmetic randomness only (fixed seeds): the gym is identical on every load.
     // =====================================================================================
     // the football engine's venue flags (other files test them): none of those venues here
@@ -3215,21 +3905,32 @@ gl_FragColor=vec4(c,1.0);}`;
     };
 
     // ---------- the room (yards) ----------
+    // BS: the sideline of the team benches and the scorer's table (-1 = -z, the far wall's side); the bleachers take the other one
+    const BS = -1;
     const GYM = {
-      x0: -17.2, x1: 17.2, z0: -11.2, z1: 20.2,           // inside faces of the walls (-z far wall, +z wall behind the bleachers)
+      x0: -17.2, x1: 17.2, z0: -12.75, z1: 20.65,         // inside faces of the walls (-z far wall, +z wall behind the bleachers): benches + table + a walkway on -z
       truss: 8.4, deck: 10.2,                             // bottom chord of the trusses, roof deck
-      band: [2.65, 3.3], pin: 0.06,                        // the wide red band high on the block walls, and its dark pinstripes
-      bl: { z: COURT.HW + 4.2, rows: 10, rise: 10 * IN2Y, tread: 24 * IN2Y, banks: [[-16.2, -0.9], [0.9, 16.2]], aisleW: 1.1 }, // bleachers
-      div: { x: 0.9 },                                    // the folded divider wall between the banks
-      bench: { z: COURT.HW + 2.15, home: [-11.6, -3.1], away: [3.1, 11.6], n: 9 }, // folding chairs, facing the court (-z)
-      table: { x: 0, z: COURT.HW + 1.7, len: 5.4, dep: 0.85, h: 0.83 },          // the scorer's table (front faces -z)
-      board: { x: -6.5, y: 5.6, w: 5.4, h: 2.0 },          // the scoreboard on the far wall (upper left from the stands)
-      flag: { x: 6.2, y: 5.4, w: 4.0, h: 2.1 },            // the flag on the far wall (upper right)
+      band: [2.56, 2.86], pin: [2.44, 2.475],             // the ONE red band round the room at door-top height (~2.35-2.6 m) and the thin red pinstripe under it; cream block floor to roof
+      base: 0.2,                                           // the short dark base along the walls by the stands
+      bs: BS,
+      bl: { z: COURT.HW + 4.6, rows: 10, rise: 10 * IN2Y, tread: 24 * IN2Y, banks: [[-14.3, -0.9], [0.9, 14.3]], aisleW: 1.1, alu: 3 }, // bleachers (alu: front rows with aluminium seat planks)
+      div: { x: 0.85, pleat: 0.3, depth: 0.2, face: '#a2a5a9', side: '#7d8085' }, // the folded divider: a grey pleated stack between the banks, front row to the back wall
+      doors: { stands: COURT.HW + 4.6 + 1.5, standsW: 2.0, wood: { end: -1, z: -6.4, w: 2.3 }, endSteel: { end: 1, z: -8.6 } }, // steel doors to the left and right of the stands (in both end walls, beside each end of the bleachers; stands: their z); a wood double door on a baseline wall near the bench-side corner; a steel door on the other baseline wall
+      rec: { end: -1, z: 3.2, y: 4.3, w: 5.0, h: 2.7, flag: { z: -2.7, y: 4.6, w: 3.4, h: 1.8 } }, // the red-and-white record board and a flag high on that baseline wall (end -1 = the -x wall, which shows on the right from the stands: the renderer mirrors x)
+      prac: [{ wall: 'z1', x: -8.5, y: 4.9 }, { wall: 'z1', x: 8.5, y: 4.9 }, { wall: 'end', end: -1, z: 9.7, y: 4.1 }], // small white side-court practice backboards
+      deckC: '#d9ccae', speakers: [[-10, -3.2], [10, -3.2], [-10, 6.2], [10, 6.2], [0, -8.4], [0, 13.5]], hvac: [[-12.5, 0], [-2.5, -5], [7.5, 0], [-7.5, 9.6], [2.5, 4.6], [12.5, -7.5], [12.5, 13]], // ceiling: tan deck, hanging black speakers, round grey diffusers
+      bench: { z: BS * (COURT.HW + 2.15), face: -BS, home: [-8.82, -3.3], away: [3.3, 8.82], n: 12 }, // folding chairs side by side, frames all but touching (0.46 yd centre to centre, ~1 cm gap), facing the court (face: +1 = toward +z)
+      near: { xs: [[10.3, 16.0], [-16.0, -10.3]], z: BS * (COURT.HW + 1.75), rows: 2, tread: 0.62, rise: 0.3, open: [10.2, 13.6] }, // (open: an empty stretch of the front row) // low aluminium plank seating for fans at the corners of the bench sideline (the owner's third photo is taken from it)
+      table: { x: 0, z: BS * (COURT.HW + 1.7), len: 5.4, dep: 0.85, h: 0.83 },   // the scorer's table (its screen faces the court)
+      board: { x: 6.5, y: 5.6, w: 5.4, h: 2.0 },           // the scoreboard on the far wall (upper left from the stands: the renderer mirrors x)
+      flag: { x: -6.2, y: 5.4, w: 4.0, h: 2.1 },           // the flag on the far wall (upper right)
       lineC: '#16110d', red: '#b3121f', redD: '#7e0b15', cream: '#ebe4d2', maple: '#d6a565',
     };
     const MAPLE = hx3('#ffffff'), CREAM = hx3(GYM.cream), REDC = hx3(GYM.red), REDD = hx3(GYM.redD), BLK = hx3('#121315'), STEELW = hx3('#e4e4df'), GREY = hx3('#55585e'), DGREY = hx3('#2f3135');
     // the gym's light: eight of the dome high-bays as diffuse pools in every lit shader (no shadows), the rest visual only
     const LAMPC = [1.0, 0.95, 0.86];
+    // the round dome high-bays hang on this grid (the floor shader mirrors them in the clear coat); k = their brightness in the floor
+    const LAMPG = { x0: -12.5, dx: 5, nx: 6, z0: -7.5, dz: 4.6, nz: 5, y: 7.4, k: 1.0 };
     const SKX = { on: false, pools: new Float32Array(32), poolK: 6, snow: null, wet: 0 };
     { let i = 0; for (const x of [-10.5, -3.5, 3.5, 10.5]) for (const z of [-4.5, 4.5]) { SKX.pools.set([x, 7.6, z, 22], i * 4); i++; } }
     function skyShader(src) {
@@ -3253,74 +3954,143 @@ gl_FragColor=vec4(c,1.0);}`;
     function gymKeepOut(e) {
       e[0] = clamp(e[0], GYM.x0 + 0.6, GYM.x1 - 0.6); e[2] = clamp(e[2], GYM.z0 + 0.6, GYM.bl.z - 0.35); // never behind the front of the bleachers (the divider stack stands there) e[1] = clamp(e[1], 1.0, GYM.truss - 0.4);
       const b = GYM.bl, dz = e[2] - b.z; if (dz > 0) { const top = Math.min(b.rows, Math.floor(dz / b.tread) + 1) * b.rise + 1.6; if (e[1] < top) e[1] = top; }
+      // never inside the folded divider stack (it stands from the front row to the back wall, floor to the trusses)
+      const dw = GYM.div.x + 0.7; if (e[2] > b.z - 0.7 && Math.abs(e[0]) < dw) e[0] = (e[0] < 0 ? -1 : 1) * dw;
+      // over the benches and the scorer's table: never down among the chairs, the people on them or the table
+      if (e[2] * GYM.bs > COURT.HW + COURT.oobBand + 0.2 && e[1] < 1.7) e[1] = 1.7;
       return e;
     }
 
-    // ---------- the court floor canvas: maple strips, the paint, the lines, the paw and the lettering ----------
-    const FLR = { x0: -16.6, x1: 16.6, z0: -10.9, z1: 12.3 };
-    function gymFloorCanvas(q) {
-      const K = q >= 2 ? 72 : q === 1 ? 56 : 36, W = Math.round((FLR.x1 - FLR.x0) * K), H = Math.round((FLR.z1 - FLR.z0) * K);
-      const c = mkCv(W, H), g = c.getContext('2d'), r = mrng(0x6d79);
-      const X = (x) => (x - FLR.x0) * K, Z = (z) => (z - FLR.z0) * K;
-      // maple: strips 2.25 in wide along x, butt joints at random lengths, honey tints, grain streaks, soft dark edges
-      g.fillStyle = GYM.maple; g.fillRect(0, 0, W, H);
-      const sw = 2.25 * IN2Y;
-      const tints = ['#d9a96a', '#d3a061', '#cd9958', '#dcae70', '#c99456', '#d6a666', '#bf8a4c'];
-      for (let z = FLR.z0; z < FLR.z1; z += sw) {
-        let x = FLR.x0 - r() * 2;
-        while (x < FLR.x1) { const l = 0.7 + r() * 2.0; g.fillStyle = tints[(r() * tints.length) | 0]; g.fillRect(X(x), Z(z), l * K + 1, sw * K + 0.6); g.fillStyle = 'rgba(70,40,15,0.35)'; g.fillRect(X(x), Z(z), 1, sw * K); x += l; }
-        g.fillStyle = 'rgba(70,40,15,0.18)'; g.fillRect(0, Z(z), W, 1);
-      }
-      g.globalAlpha = 0.07; for (let i = 0; i < 9000 * (K / 56); i++) { const x = r() * W, y = r() * H; g.fillStyle = r() < 0.5 ? '#6b3e17' : '#f3d29a'; g.fillRect(x, y, 4 + r() * 22, 1); } g.globalAlpha = 1;
-      // sheen variation
-      for (let i = 0; i < 60; i++) { const x = r() * W, y = r() * H, rr = (40 + r() * 160) * K / 56, gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, r() < 0.5 ? 'rgba(255,235,190,0.06)' : 'rgba(90,50,15,0.05)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
-      const HL = COURT.HL, HW = COURT.HW, lw = Math.max(1.5, COURT.line * K), band = COURT.oobBand;
-      // the black out-of-bounds band with its red edge
-      g.fillStyle = '#121212';
-      g.fillRect(X(-HL - band), Z(-HW - band), (2 * HL + 2 * band) * K, band * K); g.fillRect(X(-HL - band), Z(HW), (2 * HL + 2 * band) * K, band * K);
-      g.fillRect(X(-HL - band), Z(-HW), band * K, 2 * HW * K); g.fillRect(X(HL), Z(-HW), band * K, 2 * HW * K);
-      g.strokeStyle = GYM.red; g.lineWidth = lw * 1.6; g.strokeRect(X(-HL - band), Z(-HW - band), (2 * HL + 2 * band) * K, (2 * HW + 2 * band) * K);
-      // the red keys and the red centre circle
-      g.fillStyle = GYM.red;
-      for (const d of [-1, 1]) { const x0 = d > 0 ? COURT.ftX : -HL, x1 = d > 0 ? HL : -COURT.ftX; g.fillRect(X(x0), Z(-COURT.keyW / 2), (x1 - x0) * K, COURT.keyW * K); }
-      g.beginPath(); g.arc(X(0), Z(0), COURT.ccR * K, 0, 6.2832); g.fill();
-      // the paw in the circle (white with a thin black rim), toes toward +x
-      g.save(); g.translate(X(0), Z(0)); g.scale(-1, 1); const ps = 1.25 * K; g.lineWidth = 3 / ps * 1.2;
-      g.scale(ps, ps); g.fillStyle = '#f6f3ea'; g.strokeStyle = '#111'; pawPath(g); g.fill(); g.stroke(); g.restore();
-      // lines (dark, as in the photos)
-      g.strokeStyle = GYM.lineC; g.lineWidth = lw;
-      g.strokeRect(X(-HL), Z(-HW), 2 * HL * K, 2 * HW * K);
-      g.beginPath(); g.moveTo(X(0), Z(-HW)); g.lineTo(X(0), Z(HW)); g.stroke();
-      g.beginPath(); g.arc(X(0), Z(0), COURT.ccR * K, 0, 6.2832); g.stroke();
-      g.beginPath(); g.arc(X(0), Z(0), 2 * F2Y * K, 0, 6.2832); g.stroke();
+    // ---------- the court floor ----------
+    // The maple itself is drawn in the floor shader (02-shaders.js, uKind 3): 2.25 in strips along the length, staggered butt joints,
+    // a tone per board and a grain texture, so it stays sharp at any distance with no tiling. This canvas holds only the paint
+    // (premultiplied alpha over the maple): the black out-of-bounds band and its red edge, the red lanes and centre circle, the paw,
+    // every 2 in line of the high school court and the lettering. It is drawn in yards (one transform), 4096 x 2048 where the
+    // device allows it. The renderer mirrors x on screen (see updateCam), so text and the paw are drawn flipped in x.
+    const MK = { x0: -16.4, x1: 16.4, z0: -10.25, z1: 12.85 }; // (the lettering's run-off is on the bleachers' side)
+    const MIRX = -1;
+    // athletic block letters, drawn as thick square-capped strokes on a 10-unit cap height (canvas y down), chamfered corners
+    const BLK_A = 1.3, BLK_C = 1.7, BLK_W = 2.6;
+    const BLOCKF = (() => {
+      const a = BLK_A, c = BLK_C, t = a, b = 10 - a, m = 5;
+      const box = (w) => ({ w, s: [] });
+      const F = {};
+      const def = (ch, w, strokes) => { F[ch] = { w, s: strokes }; };
+      def('I', 2.6, [[[a, t], [a, b]]]);
+      def('L', 6, [[[a, t], [a, b], [6 - a, b]]]);
+      def('T', 7, [[[a, t], [7 - a, t]], [[3.5, t], [3.5, b]]]);
+      def('H', 7, [[[a, t], [a, b]], [[7 - a, t], [7 - a, b]], [[a, m], [7 - a, m]]]);
+      def('E', 6, [[[6 - a, t], [a, t], [a, b], [6 - a, b]], [[a, m], [5.2 - a, m]]]);
+      def('F', 6, [[[6 - a, t], [a, t], [a, b]], [[a, m], [5.2 - a, m]]]);
+      def('D', 7, [[[a, t], [7 - a - c, t], [7 - a, t + c], [7 - a, b - c], [7 - a - c, b], [a, b], [a, t]]]);
+      def('O', 7, [[[a + c, t], [7 - a - c, t], [7 - a, t + c], [7 - a, b - c], [7 - a - c, b], [a + c, b], [a, b - c], [a, t + c], [a + c, t]]]);
+      def('C', 6.6, [[[6.6 - a, t + 0.15], [6.6 - a, t], [a + c, t], [a, t + c], [a, b - c], [a + c, b], [6.6 - a, b], [6.6 - a, b - 0.15]]]);
+      def('S', 6.6, [[[6.6 - a, t], [a + c, t], [a, t + c], [a, m - 0.75], [a + 0.75, m], [6.6 - a - 0.75, m], [6.6 - a, m + 0.75], [6.6 - a, b - c], [6.6 - a - c, b], [a, b]]]);
+      def('A', 7.4, [[[a, b], [a, t + c], [a + c, t], [7.4 - a - c, t], [7.4 - a, t + c], [7.4 - a, b]], [[a, 5.7], [7.4 - a, 5.7]]]);
+      def('W', 9.4, [[[a, t], [a, b], [9.4 - a, b], [9.4 - a, t]], [[4.7, 4.3], [4.7, b]]]);
+      def('M', 9.4, [[[a, b], [a, t], [9.4 - a, t], [9.4 - a, b]], [[4.7, t], [4.7, 5.7]]]);
+      def(' ', 3.2, []);
+      void box; return F;
+    })();
+    // draw a word of block letters centred at the current origin, cap height 1 (caller scales); passes: outline, fill, highlight
+    function blockWord(g, s, fill, outline, olw, track, slant) {
+      const tr = track == null ? 1.0 : track; let W = -tr; for (const ch of s) W += (BLOCKF[ch] || BLOCKF[' ']).w + tr;
+      g.save(); g.scale(0.1, 0.1); g.transform(1, 0, -(slant || 0), 1, 0, 0); g.translate(-W / 2 + (slant || 0) * 5, -5);
+      g.lineJoin = 'miter'; g.miterLimit = 6; g.lineCap = 'square';
+      const path = () => { g.beginPath(); let x = 0; for (const ch of s) { const G2 = BLOCKF[ch] || BLOCKF[' ']; for (const st of G2.s) { g.moveTo(x + st[0][0], st[0][1]); for (let i = 1; i < st.length; i++) g.lineTo(x + st[i][0], st[i][1]); } x += G2.w + tr; } };
+      path();
+      if (outline) { g.strokeStyle = outline; g.lineWidth = BLK_W + 2 * olw; g.stroke(); }
+      g.strokeStyle = fill; g.lineWidth = BLK_W; g.stroke();
+      g.restore(); return W / 10;
+    }
+    function gymFloorCanvas(big) {
+      const W = big ? 4096 : 2048, H = big ? 2048 : 1024, c = mkCv(W, H), g = c.getContext('2d');
+      const kx = W / (MK.x1 - MK.x0), kz = H / (MK.z1 - MK.z0);
+      const world = () => g.setTransform(kx, 0, 0, kz, -MK.x0 * kx, -MK.z0 * kz);
+      world();
+      const C = COURT, HL = C.HL, HW = C.HW, lw = C.line, band = C.oobBand, RED = '#b8141f', LINE = '#141110', WHITE = '#f4f1e8';
+      const rect = (x0, z0, x1, z1, col) => { g.fillStyle = col; g.fillRect(Math.min(x0, x1), Math.min(z0, z1), Math.abs(x1 - x0), Math.abs(z1 - z0)); };
+      const ring = (x0, z0, x1, z1, w, col) => { g.fillStyle = col; g.beginPath(); g.rect(x0 - w, z0 - w, x1 - x0 + 2 * w, z1 - z0 + 2 * w); g.rect(x1, z0, x0 - x1, z1 - z0); g.fill('evenodd'); };
+      const arc = (x, z, r, a0, a1, w, col, dash) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.setLineDash(dash || []); g.beginPath(); g.arc(x, z, r, a0, a1); g.stroke(); g.setLineDash([]); };
+      const seg = (x0, z0, x1, z1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, z0); g.lineTo(x1, z1); g.stroke(); };
+      // a word / paw in world yards: centre (x, z), the letters' tops toward (ux, uz), cap height h
+      const place = (x, z, ux, uz, h, fn) => { g.save(); g.translate(x, z); g.rotate(Math.atan2(ux, -uz)); g.scale(MIRX * h, h); fn(); g.restore(); };
+      const word = (s, x, z, ux, uz, h, fill, outline, olw, slant, track) => place(x, z, ux, uz, h, () => blockWord(g, s, fill, outline, olw, track, slant));
+      const paw = (x, z, ux, uz, s, col, edge, ew) => { g.save(); g.translate(x, z); g.rotate(Math.atan2(uz, ux)); g.scale(s, s); g.translate(-0.157, 0); // (the paw is symmetric: no mirror needed)
+        if (edge) { g.strokeStyle = edge; g.lineWidth = ew / s; g.lineJoin = 'round'; pawPath(g); g.stroke(); } g.fillStyle = col; pawPath(g); g.fill(); g.restore(); };
+      // ---- the black out-of-bounds band (its inner edge is the boundary line) and its red edge ----
+      ring(-HL, -HW, HL, HW, band, '#0f0f10');
+      ring(-HL - band, -HW - band, HL + band, HW + band, C.bandEdge, RED);
+      // ---- red paint: the lanes and the centre circle ----
+      const ftE = 19 * F2Y;                           // the free-throw line's far edge, from the end line (15 ft from the board face)
+      for (const d of [-1, 1]) rect(d * HL, -C.keyW / 2, d * (HL - ftE), C.keyW / 2, RED);
+      g.fillStyle = RED; g.beginPath(); g.arc(0, 0, C.ccR, 0, 6.2832); g.fill();
+      // ---- the paw (white, crisp), toes toward the far wall ----
+      paw(0, 0, 0, -1, 1.48, WHITE);
+      // ---- white pinstripes inside the red ----
+      const pin = 1 * IN2Y, pinIn = 4 * IN2Y;
+      arc(0, 0, C.ccR - pinIn, 0, 6.2832, pin, WHITE);
+      for (const d of [-1, 1]) { const xb = d * (HL - pinIn), xf = d * (HL - ftE + pinIn), zz = C.keyW / 2 - pinIn; g.strokeStyle = WHITE; g.lineWidth = pin; g.lineJoin = 'miter'; g.beginPath(); g.moveTo(xb, -zz); g.lineTo(xf, -zz); g.lineTo(xf, zz); g.lineTo(xb, zz); g.stroke(); }
+      // ---- the lines (2 in, black) ----
+      rect(-lw / 2, -HW, lw / 2, HW, LINE);                                   // division line
+      arc(0, 0, C.ccR - lw / 2, 0, 6.2832, lw, LINE);                          // centre circle (outside edge at 6 ft)
+      arc(0, 0, C.ccRing, 0, 6.2832, pin, LINE);                               // thin outer ring
       for (const h of HOOP) {
-        const d = h.dir, xb = d * HL, xf = d * COURT.ftX;
-        g.strokeStyle = '#f2efe6'; g.lineWidth = lw; g.strokeRect(X(Math.min(xb, xf)), Z(-COURT.keyW / 2), Math.abs(xb - xf) * K, COURT.keyW * K); // key outline (white on red)
-        g.strokeStyle = GYM.lineC;
-        // the free-throw circle: solid outside the lane, dashed inside
-        g.beginPath(); g.arc(X(xf), Z(0), COURT.ftR * K, d > 0 ? Math.PI / 2 : -Math.PI / 2, d > 0 ? Math.PI * 1.5 : Math.PI / 2); g.stroke();
-        g.setLineDash([0.45 * K, 0.35 * K]); g.beginPath(); g.arc(X(xf), Z(0), COURT.ftR * K, d > 0 ? -Math.PI / 2 : Math.PI / 2, d > 0 ? Math.PI / 2 : Math.PI * 1.5); g.stroke(); g.setLineDash([]);
-        // the 3-point arc, to the baseline
-        const R = COURT.three, dz0 = Math.sqrt(Math.max(0, R * R - Math.pow(HL - RIM_X, 2))), a0 = Math.atan2(dz0, xb - h.x);
-        g.beginPath(); if (d > 0) g.arc(X(h.x), Z(0), R * K, Math.PI - (Math.PI - a0), Math.PI + (Math.PI - a0), true); else g.arc(X(h.x), Z(0), R * K, -a0, a0, true);
-        g.stroke();
-        // lane hashes
-        for (const s of [-1, 1]) for (const f of [7, 8, 11, 14]) { const x = d * (HL - f * F2Y); g.beginPath(); g.moveTo(X(x), Z(s * COURT.keyW / 2)); g.lineTo(X(x), Z(s * (COURT.keyW / 2 + 0.22))); g.stroke(); }
-        // coaching box ticks on the bench sideline
-        g.beginPath(); g.moveTo(X(d * (HL - COURT.boxX)), Z(HW)); g.lineTo(X(d * (HL - COURT.boxX)), Z(HW + 1)); g.stroke();
+        const d = h.dir, xb = d * HL, xf = d * (HL - ftE + lw / 2), zl = C.keyW / 2 - lw / 2;
+        seg(xb, -zl, xf - d * lw / 2, -zl, lw, LINE); seg(xb, zl, xf - d * lw / 2, zl, lw, LINE);   // lane lines
+        rect(xf - lw / 2, -C.keyW / 2, xf + lw / 2, C.keyW / 2, LINE);                             // free-throw line
+        // free-throw circle: solid half outside the lane, dashed half inside (16 in dashes)
+        const rft = C.ftR - lw / 2, half = Math.PI * rft, n = Math.round((half + C.ftDash[1]) / (C.ftDash[0] + C.ftDash[1])), k = half / (n * C.ftDash[0] + (n - 1) * C.ftDash[1]);
+        arc(xf, 0, rft, d > 0 ? Math.PI / 2 : -Math.PI / 2, d > 0 ? Math.PI * 1.5 : Math.PI / 2, lw, LINE);
+        arc(xf, 0, rft, d > 0 ? -Math.PI / 2 : Math.PI / 2, d > 0 ? Math.PI / 2 : Math.PI * 1.5, lw, LINE, [C.ftDash[0] * k, C.ftDash[1] * k]);
+        // lane-space marks and the neutral-zone blocks (outside the lane lines)
+        for (const s of [-1, 1]) for (const [f0, f1, dep] of C.laneMarks) rect(d * (HL - f0 * F2Y), s * C.keyW / 2, d * (HL - f1 * F2Y), s * (C.keyW / 2 + dep), LINE);
+        // end-line marks 3 ft outside each lane line, 6 in onto the court
+        for (const s of [-1, 1]) { const z = s * (C.keyW / 2 + C.endHash[0]); rect(xb, z - lw / 2, xb - d * C.endHash[1], z + lw / 2, LINE); }
+        // the 3-point line: straight from the end line to the rim's x, then the 19 ft 9 in arc
+        const R = C.three - lw / 2;
+        seg(xb, -R, h.x, -R, lw, LINE); seg(xb, R, h.x, R, lw, LINE);
+        arc(h.x, 0, R, d > 0 ? Math.PI / 2 : -Math.PI / 2, d > 0 ? Math.PI * 1.5 : Math.PI / 2, lw, LINE);
       }
-      // lettering
-      const txt = (s, x, z, rot, hYd, col, outline, maxW) => {
-        g.save(); g.translate(X(x), Z(z)); g.scale(-1, 1); g.rotate(rot);
-        g.font = `900 ${Math.round(hYd * K * 1.25)}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (maxW) { const w = g.measureText(s).width; if (w > maxW * K) g.scale((maxW * K) / w, 1); }
-        if (outline) { g.lineWidth = hYd * K * 0.09; g.strokeStyle = outline; g.lineJoin = 'round'; g.strokeText(s, 0, 0); }
-        g.fillStyle = col; g.fillText(s, 0, 0); g.restore();
-      };
-      txt('WILDCATS', 0, -HW - band - 1.25, 0, 1.25, GYM.red, '#1b1b1b', 18);
-      for (const d of [-1, 1]) txt('WILDCATS', d * (HL + band + 0.95), 0, -d * Math.PI / 2, 1.0, GYM.red, '#1b1b1b', 12);
-      txt('METCALF', 0, HW + band + 0.55, Math.PI, 0.55, '#f2efe6', '#1b1b1b', 7);
+      // team box / coaching box lines on the bench side and the throw-in lines opposite, white across the black band
+      for (const s of [-1, 1]) for (const zs of [-1, 1]) { const x = s * C.teamBox; rect(x - lw / 2, zs * HW, x + lw / 2, zs * (HW + C.teamBoxL), WHITE); }
+      // ---- lettering and logos ----
+      // WILDCATS in the run-off in front of the bleachers (between the band's red edge and the bleachers' kick plate), reading from
+      // the stands; METCALF in the band in front of the scorer's table; everything's tops toward the far wall
+      const ls = -GYM.bs, zr = ls * (HW + band + C.bandEdge), runoff = Math.min(GYM.bl.z - 0.05, MK.z1 - 0.1) - Math.abs(zr);
+      const hW = Math.min(1.9, runoff - 0.7);
+      word('WILDCATS', 0, zr + ls * (0.28 + hW / 2), 0, -1, hW, RED, LINE, 0.5, 0.16, 0.95);
+      for (const s of [-1, 1]) paw(s * 9.4, zr - 0.14 - hW / 2, 0, -1, 0.8, RED, LINE, 0.08);
+      word('METCALF', 0, GYM.bs * (HW + band / 2), 0, -1, 0.56, WHITE, null, 0, 0.12, 1.3);
+      for (const s of [-1, 1]) paw(s * 10.5, ls * (HW + band / 2), 0, -1, 0.36, WHITE);
+      for (const d of [-1, 1]) {
+        const xr = d * (HL + band + C.bandEdge), w = (MK.x1 - Math.abs(xr)) - 0.2;
+        word('HOME OF THE WILDCATS', xr + d * (0.12 + w / 2), 0, d, 0, Math.min(0.9, w), RED, LINE, 0.5, 0.12, 0.95);
+        for (const s of [-1, 1]) paw(d * (HL + band / 2), s * 5.4, d, 0, 0.36, WHITE);
+      }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, W, 2); g.clearRect(0, H - 2, W, 2); g.clearRect(0, 0, 2, H); g.clearRect(W - 2, 0, 2, H); // a clear border (clamped edges show maple)
       return c;
+    }
+    // the maple grain tile (512 x 512, tiles in both axes): fine streaks along the boards (u) and slow figure; R = grain, G = finish wear
+    function gymGrainCanvas() {
+      const N = 512, c = mkCv(N, N), g = c.getContext('2d'); g.fillStyle = '#808080'; g.fillRect(0, 0, N, N);
+      if (!realCv()) return c;
+      // periodic value noise: a lattice of px x py cells spans the tile exactly
+      const r = mrng(0x9a1e), lat = (px, py) => { const t = new Float32Array(px * py); for (let i = 0; i < t.length; i++) t[i] = r(); t.px = px; t.py = py; return t; };
+      const per = (t, x, y) => { const P = t.px, Q = t.py, xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), a = ((xi % P) + P) % P, b = ((yi % Q) + Q) % Q, a1 = (a + 1) % P, b1 = (b + 1) % Q;
+        const v00 = t[b * P + a], v10 = t[b * P + a1], v01 = t[b1 * P + a], v11 = t[b1 * P + a1]; return v00 + (v10 - v00) * sx + (v01 - v00) * sy + (v00 - v10 - v01 + v11) * sx * sy; };
+      const L1 = lat(4, 128), L2 = lat(8, 256), L3 = lat(16, 16), L4 = lat(32, 32);
+      const im = g.createImageData(N, N), d = im.data;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        // streaks: noise stretched 32:1 along u; a slow wavy figure bends them
+        const wob = per(L3, x / 32, y / 32) * 6;
+        const s1 = per(L1, x / 128, (y + wob) / 4), s2 = per(L2, x / 64, (y + wob * 0.6) / 2);
+        const fig = per(L4, x / 16, y / 16);
+        const v = 0.5 + (s1 - 0.5) * 0.55 + (s2 - 0.5) * 0.35 + (fig - 0.5) * 0.25;
+        const o = (y * N + x) * 4; d[o] = Math.max(0, Math.min(255, v * 255)); d[o + 1] = Math.max(0, Math.min(255, fig * 255)); d[o + 2] = 128; d[o + 3] = 255;
+      }
+      g.putImageData(im, 0, 0); return c;
     }
     // the block wall tile (painted near white, tinted per vertex): running bond 16 x 8 in blocks
     function gymBlockCanvas() {
@@ -3333,7 +4103,7 @@ gl_FragColor=vec4(c,1.0);}`;
       return c;
     }
     // the atlas: banners, the flag, the pads' lettering, the doors, the exit sign (named rectangles in a 2048 x 1024 canvas)
-    const GATL = { banner: [0, 0, 256, 512], banner2: [256, 0, 256, 512], banner3: [512, 0, 256, 512], flag: [768, 0, 760, 400], pad: [768, 400, 1024, 128], exit: [1792, 400, 256, 96], door: [1536, 0, 256, 400], hoopPad: [768, 528, 1024, 96], clock: [1792, 528, 256, 256], header: [0, 512, 768, 128] };
+    const GATL = { banner: [0, 0, 256, 512], banner2: [256, 0, 256, 512], banner3: [512, 0, 256, 512], flag: [768, 0, 760, 400], pad: [768, 400, 1024, 128], exit: [1792, 400, 256, 96], door: [1536, 0, 256, 400], hoopPad: [768, 528, 1024, 96], clock: [1792, 528, 256, 256], header: [0, 512, 768, 128], rec: [0, 640, 768, 384], door2: [768, 624, 384, 400] };
     const guv = (k) => { const a = GATL[k]; return [a[0] / 2048, a[1] / 1024, (a[0] + a[2]) / 2048, (a[1] + a[3]) / 1024]; };
     function gymAtlasCanvas() {
       const c = mkCv(2048, 1024), g = c.getContext('2d');
@@ -3364,6 +4134,22 @@ gl_FragColor=vec4(c,1.0);}`;
         g.lineWidth = 8; g.beginPath(); g.moveTo(x + w / 2, y + h / 2); g.lineTo(x + w / 2 + 40, y + h / 2 - 50); g.moveTo(x + w / 2, y + h / 2); g.lineTo(x + w / 2 - 70, y + h / 2 + 10); g.stroke(); }
       { const [x, y, w, h] = GATL.header; g.fillStyle = GYM.red; g.fillRect(x, y, w, h); g.fillStyle = '#f4f1e8'; g.font = font(92); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('METCALF WILDCATS', x + w / 2 + 40, y + h / 2 + 4, w - 160);
         g.save(); g.translate(x + 70, y + h / 2); g.rotate(-Math.PI / 2); g.scale(46, 46); pawPath(g); g.fill(); g.restore(); }
+      { // the record board: a red frame, WILDCATS RECORDS, two white-lined panels of names and marks
+        const [x, y, w, h] = GATL.rec; g.fillStyle = '#a80f1c'; g.fillRect(x, y, w, h); g.fillStyle = '#f4f1e8'; g.font = font(54); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('WILDCATS RECORDS', x + w / 2, y + 36, w - 40);
+        const rr = mrng(0x7ec0);
+        for (const k of [0, 1]) { const px = x + 18 + k * (w / 2 - 9), pw = w / 2 - 27, py = y + 70, ph = h - 88; g.fillStyle = '#b8141f'; g.fillRect(px, py, pw, ph); g.strokeStyle = '#f4f1e8'; g.lineWidth = 3; g.strokeRect(px + 3, py + 3, pw - 6, ph - 6);
+          g.font = font(22, 800); g.fillStyle = '#f4f1e8'; g.textAlign = 'left';
+          for (let i = 0; i < 12; i++) { const ly = py + 18 + i * 24; g.fillRect(px + 10, ly + 10, pw - 20, 1.5);
+            g.fillText((k ? ['3PT', 'REB', 'AST', 'STL', 'BLK', 'FT%'] : ['PTS', 'GAME', 'SEASON', 'CAREER', 'WINS', 'MILE'])[i % 6] + '  ' + 'ABCDEFGHJKLMNPRSTW'[(rr() * 18) | 0] + '. ' + ['SMITH', 'JONES', 'LEE', 'BROWN', 'DAVIS', 'MILLER', 'GARCIA', 'WILSON', 'TAYLOR', 'MOORE'][(rr() * 10) | 0], px + 12, ly, pw * 0.7);
+            g.textAlign = 'right'; g.fillText(String(2000 + ((rr() * 25) | 0)), px + pw - 12, ly); g.textAlign = 'left'; } }
+      }
+      { // the wood double door: a dark frame, two light wood leaves with grain, a narrow window strip each, push bars
+        const [x, y, w, h] = GATL.door2; g.fillStyle = '#2a2522'; g.fillRect(x, y, w, h);
+        for (const k of [0, 1]) { const lx = x + 12 + k * (w / 2 - 6), lw2 = w / 2 - 18, ly = y + 12, lh = h - 12; const gr = g.createLinearGradient(lx, 0, lx + lw2, 0); gr.addColorStop(0, '#c99a62'); gr.addColorStop(0.5, '#d6aa72'); gr.addColorStop(1, '#bf8f58'); g.fillStyle = gr; g.fillRect(lx, ly, lw2, lh);
+          g.strokeStyle = 'rgba(110,70,30,0.25)'; g.lineWidth = 1.5; for (let i = 0; i < 14; i++) { const gx = lx + 6 + i * (lw2 - 12) / 13; g.beginPath(); g.moveTo(gx, ly); g.bezierCurveTo(gx + 4, ly + lh * 0.3, gx - 4, ly + lh * 0.6, gx + 2, ly + lh); g.stroke(); }
+          const wx = k ? lx + 18 : lx + lw2 - 42; g.fillStyle = '#1c1d20'; g.fillRect(wx - 3, ly + 34, 30, 150); g.fillStyle = 'rgba(170,200,215,0.9)'; g.fillRect(wx, ly + 37, 24, 144);
+          g.fillStyle = '#b9bcc0'; g.fillRect(lx + 14, ly + lh * 0.5, lw2 - 28, 10); }
+      }
       return c;
     }
     // the scoreboard face (live): red 7-segment digits in a black cabinet; HOME / GUEST / PERIOD / FOULS; two shot clock cells
@@ -3418,26 +4204,34 @@ gl_FragColor=vec4(c,1.0);}`;
       const block = nb('block', 2000), floor = nb('floor', 12), boardB = nb('board', 60), tableB = nb('table', 12), glass = nb('glass', 200);
       const up = [0, 1, 0];
       // the floor (court + run-off, the same canvas), and plain boards under the bleachers / outside the canvas
-      floor.quad([FLR.x0, 0, FLR.z0], [FLR.x1, 0, FLR.z0], [FLR.x1, 0, FLR.z1], [FLR.x0, 0, FLR.z1], up, [1, 1, 1, 1], [0, 0, 1, 0, 1, 1, 0, 1]);
-      const surround = hx3('#b98a52');
-      flat.quad([GYM.x0, -0.005, GYM.z0], [GYM.x1, -0.005, GYM.z0], [GYM.x1, -0.005, GYM.z1], [GYM.x0, -0.005, GYM.z1], up, surround);
+      // one quad wall to wall: the maple is procedural (floor shader), the paint canvas covers MK and clamps to clear beyond it
+      const mu = (x) => (x - MK.x0) / (MK.x1 - MK.x0), mv = (z) => (z - MK.z0) / (MK.z1 - MK.z0);
+      floor.quad([GYM.x0, 0, GYM.z0], [GYM.x1, 0, GYM.z0], [GYM.x1, 0, GYM.z1], [GYM.x0, 0, GYM.z1], up, [1, 1, 1, 1], [mu(GYM.x0), mv(GYM.z0), mu(GYM.x1), mv(GYM.z0), mu(GYM.x1), mv(GYM.z1), mu(GYM.x0), mv(GYM.z1)]);
       // ---- walls: cream block, the wide red band high up with dark pinstripes, cream above to the steel, a grey band to the deck ----
       const wallSeg = (x0, z0, x1, z1, n) => {
-        const bands = [[0, GYM.band[0] - GYM.pin, CREAM], [GYM.band[0] - GYM.pin, GYM.band[0], BLK], [GYM.band[0], GYM.band[1], REDC], [GYM.band[1], GYM.band[1] + GYM.pin, BLK], [GYM.band[1] + GYM.pin, GYM.truss + 0.4, CREAM], [GYM.truss + 0.4, GYM.deck, hx3('#c9c7c0')]];
+        const bands = [[0, GYM.pin[0], CREAM], [GYM.pin[0], GYM.pin[1], REDC], [GYM.pin[1], GYM.band[0], CREAM], [GYM.band[0], GYM.band[1], REDC], [GYM.band[1], GYM.deck, CREAM]];
         for (const [y0, y1, col] of bands) block.wall(x0, z0, x1, z1, y0, y1, col, n, 1.15);
       };
       wallSeg(GYM.x1, GYM.z0, GYM.x0, GYM.z0, [0, 0, 1]);     // far wall (-z)
       wallSeg(GYM.x0, GYM.z1, GYM.x1, GYM.z1, [0, 0, -1]);    // wall behind the bleachers (+z)
       wallSeg(GYM.x0, GYM.z0, GYM.x0, GYM.z1, [1, 0, 0]);     // end walls
       wallSeg(GYM.x1, GYM.z1, GYM.x1, GYM.z0, [-1, 0, 0]);
-      // end-wall pads behind the baskets
-      for (const d of [-1, 1]) { const x = d * (GYM.x1 - 0.06); flat.wbox(x - 0.05, 0.05, -5.5, x + 0.05, 2.2, 5.5, hx3('#a80f1c')); const xf = x - d * 0.056, uv = guv('pad'); atl.quad([xf, 0.9, d * 3.2], [xf, 0.9, -d * 3.2], [xf, 1.9, -d * 3.2], [xf, 1.9, d * 3.2], [-d, 0, 0], [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]); }
+      // the short dark base along the walls by the stands (end walls beside the bleachers, and the wall behind them)
+      for (const d of [-1, 1]) { const x = d * (GYM.x1 - 0.015); flat.wbox(x - 0.015, 0, GYM.bl.z - 0.6, x + 0.015, GYM.base, GYM.z1, DGREY); }
+      flat.wbox(GYM.x0, 0, GYM.z1 - 0.03, GYM.x1, GYM.base, GYM.z1, DGREY);
       // doors with exit signs (far wall right end, and one in each end wall)
       const door = (x0, z0, x1, z1, n) => { const uv = guv('door'); const o = 0.03; atl.quad([x0 + n[0] * o, 0, z0 + n[2] * o], [x1 + n[0] * o, 0, z1 + n[2] * o], [x1 + n[0] * o, 2.4, z1 + n[2] * o], [x0 + n[0] * o, 2.4, z0 + n[2] * o], n, [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]);
         const ex = guv('exit'), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, tx = (x1 - x0) / Math.hypot(x1 - x0, z1 - z0) * 0.45, tz = (z1 - z0) / Math.hypot(x1 - x0, z1 - z0) * 0.45; glow.quad([cx - tx + n[0] * 0.08, 2.55, cz - tz + n[2] * 0.08], [cx + tx + n[0] * 0.08, 2.55, cz + tz + n[2] * 0.08], [cx + tx + n[0] * 0.08, 2.85, cz + tz + n[2] * 0.08], [cx - tx + n[0] * 0.08, 2.85, cz - tz + n[2] * 0.08], [0, 0, 0], [1, 0.25, 0.2, 1]);
         flat.wbox(cx - tx * 1.1 + n[0] * 0.02, 2.5, cz - tz * 1.1 + n[2] * 0.02, cx + tx * 1.1 + n[0] * 0.07, 2.9, cz + tz * 1.1 + n[2] * 0.07, BLK); void ex; };
       door(14.6, GYM.z0, 12.6, GYM.z0, [0, 0, 1]); door(-12.6, GYM.z0, -14.6, GYM.z0, [0, 0, 1]);
-      door(GYM.x0, -9.6, GYM.x0, -7.6, [1, 0, 0]); door(GYM.x1, -7.6, GYM.x1, -9.6, [-1, 0, 0]);
+      const DR = GYM.doors, endX = (e) => (e > 0 ? GYM.x1 : GYM.x0), endN = (e) => [-e, 0, 0];
+      // the doors to the left and right of the stands: in the wall behind them, just past each end of the bleachers
+      for (const e of [-1, 1]) door(endX(e), DR.stands + e * DR.standsW / 2, endX(e), DR.stands - e * DR.standsW / 2, endN(e));
+      { const e = DR.endSteel.end, x = endX(e); door(x, DR.endSteel.z + e, x, DR.endSteel.z - e, endN(e)); }
+      // the wood double door on a baseline wall near the bench-side corner: a dark frame, light wood leaves, narrow window strips
+      { const W2 = DR.wood, e = W2.end, x = endX(e), uv = guv('door2'), za = W2.z + e * W2.w / 2, zb = W2.z - e * W2.w / 2, o = -e * 0.03;
+        flat.wbox(x - 0.04, 0, Math.min(za, zb) - 0.1, x + 0.04, 2.5, Math.max(za, zb) + 0.1, hx3('#2a2522'));
+        atl.quad([x + o * 2, 0, za], [x + o * 2, 0, zb], [x + o * 2, 2.4, zb], [x + o * 2, 2.4, za], endN(e), [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]); }
       // a clock high on an end wall
       { const uv = guv('clock'), x = GYM.x0 + 0.05; atl.quad([x, 5.6, 0.5], [x, 5.6, -0.5], [x, 6.6, -0.5], [x, 6.6, 0.5], [1, 0, 0], [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]); }
       // ---- the roof: white steel trusses across the room, purlins, the deck; round dome high-bays on rods ----
@@ -3447,9 +4241,12 @@ gl_FragColor=vec4(c,1.0);}`;
         let up2 = true; for (let z = zA; z < zB - 0.1; z += 1.3) { const z2 = Math.min(zB, z + 1.3); steel.tube([x, up2 ? GYM.truss + 0.15 : GYM.truss + 1.6, z], [x, up2 ? GYM.truss + 1.6 : GYM.truss + 0.15, z2], 0.04, STEELW, 5); up2 = !up2; }
       }
       for (let z = zA + 1; z < zB; z += 1.7) steel.wbox(GYM.x0, GYM.truss + 1.75, z - 0.06, GYM.x1, GYM.truss + 1.95, z + 0.06, STEELW);
-      flat.quad([GYM.x0, GYM.deck, GYM.z1], [GYM.x1, GYM.deck, GYM.z1], [GYM.x1, GYM.deck, GYM.z0], [GYM.x0, GYM.deck, GYM.z0], [0, -1, 0], hx3('#e9e8e2'));
-      for (let ix = 0; ix < 6; ix++) for (let iz = 0; iz < 5; iz++) {
-        const x = -12.5 + ix * 5, z = -7.5 + iz * 4.6, y = 7.4;
+      flat.quad([GYM.x0, GYM.deck, GYM.z1], [GYM.x1, GYM.deck, GYM.z1], [GYM.x1, GYM.deck, GYM.z0], [GYM.x0, GYM.deck, GYM.z0], [0, -1, 0], hx3(GYM.deckC));
+      // hanging black box speakers and the round grey HVAC diffusers on the deck
+      for (const [x, z] of GYM.speakers) { steel.tube([x, GYM.truss - 0.5, z], [x, GYM.deck, z], 0.012, DGREY, 4); flat.wbox(x - 0.24, GYM.truss - 1.3, z - 0.2, x + 0.24, GYM.truss - 0.5, z + 0.2, hx3('#141517')); flat.wbox(x - 0.2, GYM.truss - 1.25, z - 0.205, x + 0.2, GYM.truss - 0.55, z - 0.2, hx3('#26282b')); flat.wbox(x - 0.2, GYM.truss - 1.25, z + 0.2, x + 0.2, GYM.truss - 0.55, z + 0.205, hx3('#26282b')); }
+      for (const [x, z] of GYM.hvac) { flat.cyl(x, z, GYM.deck - 0.5, GYM.deck, 0.28, 0.28, hx3('#8a8d91'), 14, false); flat.cyl(x, z, GYM.deck - 0.62, GYM.deck - 0.5, 0.75, 0.75, hx3('#a3a6aa'), 18, true); flat.cyl(x, z, GYM.deck - 0.66, GYM.deck - 0.62, 0.45, 0.45, hx3('#7d8085'), 16, true); }
+      for (let ix = 0; ix < LAMPG.nx; ix++) for (let iz = 0; iz < LAMPG.nz; iz++) {
+        const x = LAMPG.x0 + ix * LAMPG.dx, z = LAMPG.z0 + iz * LAMPG.dz, y = LAMPG.y;
         steel.tube([x, y + 0.35, z], [x, GYM.truss + 0.1, z], 0.012, DGREY, 4);
         steel.lathe(x, z, [[0.06, y + 0.45], [0.16, y + 0.42], [0.36, y + 0.12], [0.42, y]], hx3('#d6d6d0'), 14);
         glow.disc(x, z, 0.38, [2.6, 2.5, 2.3, 1], y - 0.005, 14);
@@ -3464,13 +4261,30 @@ gl_FragColor=vec4(c,1.0);}`;
       { const F = GYM.flag, uv = guv('flag'), n = 6; steel.tube([F.x + F.w / 2 + 0.1, F.y + F.h + 0.05, fz + 0.06], [F.x - F.w / 2 - 0.1, F.y + F.h + 0.05, fz + 0.06], 0.02, GREY, 6);
         for (let i = 0; i < n; i++) { const a = i / n, b = (i + 1) / n, xa = F.x + F.w / 2 - a * F.w, xb = F.x + F.w / 2 - b * F.w, za = fz + 0.04 + 0.05 * Math.sin(a * 9), zb2 = fz + 0.04 + 0.05 * Math.sin(b * 9), u0 = uv[0] + (uv[2] - uv[0]) * a, u1 = uv[0] + (uv[2] - uv[0]) * b;
           atl.quad([xa, F.y + 0.04 * Math.sin(a * 3.1), za], [xb, F.y + 0.04 * Math.sin(b * 3.1), zb2], [xb, F.y + F.h, zb2], [xa, F.y + F.h, za], [0, 0, 1], [0.95, 0.95, 0.95, 1], [u0, uv[3], u1, uv[3], u1, uv[1], u0, uv[1]]); } }
-      const bannerAt = (x, z, n, k, y) => { const uv = guv(k), w = 1.25, h = 2.5, tx = n[2] ? -n[2] : n[0], tz = n[2] ? 0 : -n[0]; void tz;
+      const bannerAt = (x, z, n, k, y, w0, h0) => { const uv = guv(k), w = w0 || 1.25, h = h0 || 2.5, tx = n[2] ? -n[2] : n[0], tz = n[2] ? 0 : -n[0]; void tz;
         const p = (s, yy) => (n[2] ? [x + s * w / 2 * (n[2] > 0 ? -1 : 1), yy, z + n[2] * 0.06] : [x + n[0] * 0.06, yy, z + s * w / 2 * (n[0] > 0 ? 1 : -1)]); void tx;
         atl.quad(p(-1, y), p(1, y), p(1, y + h), p(-1, y + h), n, [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]); };
-      [0.5, 2.1, 3.7].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner', 'banner2', 'banner3'][i], 5.2));
-      [10, 11.6, 13.2, 14.8].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner3', 'banner', 'banner2', 'banner'][i], 5.6));
-      for (let i = 0; i < 6; i++) bannerAt(GYM.x1, -7 + i * 2.4, [-1, 0, 0], ['banner', 'banner2', 'banner3'][i % 3], 5.4);
-      for (let i = 0; i < 6; i++) bannerAt(GYM.x0, -7 + i * 2.4, [1, 0, 0], ['banner2', 'banner3', 'banner'][i % 3], 5.4);
+      [-0.5, -2.1, -3.7].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner', 'banner2', 'banner3'][i], 5.2));
+      [-10, -11.6, -13.2, -14.8].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner3', 'banner', 'banner2', 'banner'][i], 5.6));
+      // the baselines: the record board and a flag high on one (a pair of banners past them), banners on the other
+      { const R = GYM.rec, e = R.end, x = endX(e), n = endN(e), F = R.flag;
+        bannerAt(x, R.z, n, 'rec', R.y, R.w, R.h);
+        flat.wbox(x - 0.03, R.y - 0.08, R.z - R.w / 2 - 0.08, x + 0.03, R.y + R.h + 0.08, R.z + R.w / 2 + 0.08, hx3('#7e0b15'));
+        bannerAt(x, F.z, n, 'flag', F.y, F.w, F.h); steel.tube([x - e * 0.06, F.y + F.h + 0.04, F.z - F.w / 2 - 0.1], [x - e * 0.06, F.y + F.h + 0.04, F.z + F.w / 2 + 0.1], 0.02, GREY, 6);
+        [6.6, 8.0].forEach((z, i) => bannerAt(x, z, n, ['banner', 'banner2'][i], 5.2));
+        for (let i = 0; i < 6; i++) bannerAt(endX(-e), -7 + i * 2.4, endN(-e), ['banner2', 'banner3', 'banner'][i % 3], 5.4); }
+      // small white side-court practice backboards with orange rims, up on the walls
+      for (const P of GYM.prac) {
+        const n = P.wall === 'z1' ? [0, 0, -1] : endN(P.end), wx = P.wall === 'z1' ? P.x : endX(P.end), wz = P.wall === 'z1' ? GYM.z1 : P.z, tx = -n[2] !== 0 ? 1 : 0, tz = 1 - tx, bw = 0.85, bh = 0.55;
+        const at = (a, o) => [wx + tx * a + n[0] * o, 0, wz + tz * a + n[2] * o];
+        const p0 = at(-bw, 0.35), p1 = at(bw, 0.42);
+        flat.wbox(Math.min(p0[0], p1[0]), P.y, Math.min(p0[2], p1[2]), Math.max(p0[0], p1[0]), P.y + bh * 2, Math.max(p0[2], p1[2]), hx3('#f2f2ee'));
+        const q0 = at(-0.33, 0.43), q1 = at(0.33, 0.44); flat.wbox(Math.min(q0[0], q1[0]), P.y + 0.25, Math.min(q0[2], q1[2]), Math.max(q0[0], q1[0]), P.y + 0.75, Math.max(q0[2], q1[2]), hx3('#d43a2a'));
+        const q2 = at(-0.29, 0.435), q3 = at(0.29, 0.445); flat.wbox(Math.min(q2[0], q3[0]), P.y + 0.29, Math.min(q2[2], q3[2]), Math.max(q2[0], q3[0]), P.y + 0.71, Math.max(q2[2], q3[2]), hx3('#f2f2ee'));
+        for (const s2 of [-1, 1]) { const a = at(s2 * 0.6, 0), b = at(s2 * 0.6, 0.36); steel.tube([a[0], P.y + 0.5, a[2]], [b[0], P.y + 0.5, b[2]], 0.03, GREY, 5); }
+        const rc = at(0, 0.42 + 0.3); steel.tube([rc[0] - n[0] * 0.25, P.y + 0.25, rc[2] - n[2] * 0.25], [rc[0] - n[0] * 0.05, P.y + 0.25, rc[2] - n[2] * 0.05], 0.02, hx3('#e2571e'), 5);
+        for (let i = 0; i < 12; i++) { const a0 = i / 12 * 6.2832, a1 = (i + 1) / 12 * 6.2832; steel.tube([rc[0] + Math.cos(a0) * 0.25, P.y + 0.25, rc[2] + Math.sin(a0) * 0.25], [rc[0] + Math.cos(a1) * 0.25, P.y + 0.25, rc[2] + Math.sin(a1) * 0.25], 0.012, hx3('#e2571e'), 4); }
+      }
       for (const x of [-9, 9]) { flat.wbox(x - 1, 5.0, GYM.z0, x + 1, 5.12, GYM.z0 + 1.0, STEELW); glass.quad([x - 1, 5.13, GYM.z0 + 0.06], [x + 1, 5.13, GYM.z0 + 0.06], [x + 1, 5.13, GYM.z0 + 1.0], [x - 1, 5.13, GYM.z0 + 1.0], [0, 0, 0], [0.75, 0.85, 0.9, 0.35]); steel.tube([x, 5.1, GYM.z0 + 0.5], [x, GYM.truss, GYM.z0 + 0.5], 0.04, GREY, 6); }
       // ---- the hoops: masts from the trusses, white-framed glass, the bottom pad; ring and net are drawn per frame (80-render) ----
       for (const h of HOOP) {
@@ -3502,18 +4316,19 @@ gl_FragColor=vec4(c,1.0);}`;
         const a = [x - rx * w, y + hh, z - rz * w], b = [x + rx * w, y + hh, z + rz * w], c2 = [x + rx * w, y, z + rz * w], d = [x - rx * w, y, z - rz * w];
         for (const [v, u, t] of [[a, u0, 0], [b, u1, 0], [c2, u1, 1], [a, u0, 0], [c2, u1, 1], [d, u0, 1]]) CR.push(v[0], v[1], v[2], c[0], c[1], c[2], ph, amp, thr, 0, u, t);
       };
-      const deck = hx3('#a99a83'), riser = hx3('#3b3d42');
+      const deck = hx3('#a3141f'), riser = hx3('#b3121f'), alu = hx3('#bfc3c7'), aluD = hx3('#8d9196');
       for (const [xa, xb] of BL.banks) {
         const ax = (xa + xb) / 2;
         for (let row = 0; row < BL.rows; row++) {
           const y = row * BL.rise, z = BL.z + row * BL.tread, y1 = y + BL.rise;
-          flat.wbox(xa, y, z, xb, y1, z + BL.tread, deck);                        // tread block (top = this row's foot deck)
+          flat.wbox(xa, y, z, xb, y1, z + BL.tread, deck);                        // tread block (red front; top = this row's foot deck)
+          flat.wbox(xa, y1, z + 0.02, xb, y1 + 0.012, z + BL.tread * 0.42, aluD);  // the aluminium foot plank
           flat.quad([xa, y1, z + BL.tread], [xb, y1, z + BL.tread], [xb, y1 + BL.rise, z + BL.tread], [xa, y1 + BL.rise, z + BL.tread], [0, 0, -1], riser); // next riser
           // seat planks (red, backless) on the back half of the tread, broken at the aisle
           const sy = y1 + 0.42 * 0 + 0.44, sz0 = z + BL.tread * 0.45, sz1 = z + BL.tread * 0.92;
           for (const [s0, s1] of [[xa + 0.1, ax - BL.aisleW / 2], [ax + BL.aisleW / 2, xb - 0.1]]) {
-            seat.wbox(s0, sy - 0.05, sz0, s1, sy, sz1, REDC);
-            for (let x = s0 + 0.5; x < s1; x += 0.5) seat.wbox(x - 0.006, sy - 0.051, sz0 - 0.002, x + 0.006, sy + 0.002, sz1 + 0.002, REDD);
+            const isAlu = row < BL.alu; seat.wbox(s0, sy - 0.05, sz0, s1, sy, sz1, isAlu ? alu : REDC);
+            for (let x = s0 + 0.5; x < s1; x += 0.5) seat.wbox(x - 0.006, sy - 0.051, sz0 - 0.002, x + 0.006, sy + 0.002, sz1 + 0.002, isAlu ? aluD : REDD);
             for (let x = s0 + 0.3; x < s1; x += 1.4) flat.wbox(x - 0.04, y1, sz0 + 0.08, x + 0.04, sy - 0.05, sz1 - 0.08, DGREY);
             // spectators: front rows fuller, the home student section in red and white
             for (let x = s0 + 0.28; x < s1 - 0.2; x += 0.5) { if (r() > 0.62 - row * 0.03) continue; fan(x + (r() - 0.5) * 0.1, sy - 0.32, (sz0 + sz1) / 2, 0, -1, 0.05 + r() * 0.07, xa < 0 ? (r() < 0.7 ? (r() < 0.6 ? 0 : 2) : null) : (r() < 0.45 ? 10 : null)); }
@@ -3531,51 +4346,104 @@ gl_FragColor=vec4(c,1.0);}`;
         for (const yy of [0.5, 1.1]) steel.tube([xa, yT + yy, zT - 0.08], [xb, yT + yy, zT - 0.08], 0.022, hx3('#9aa0a4'), 6);
         flat.wbox(xa, 0, BL.z - 0.03, xb, 0.1, BL.z, BLK); // kick plate
       }
-      // the folded divider: a stack of accordion panels standing between the banks, floor to ceiling track
-      { const dx = GYM.div.x, z0 = BL.z - 0.2, z1 = GYM.z1 - 0.05, n = 18, col = hx3('#cbbfa8');
-        steel.wbox(-0.12, GYM.truss - 0.2, GYM.z0, 0.12, GYM.truss, GYM.z1, GREY);
-        for (let i = 0; i < n; i++) { const za = z0 + (z1 - z0) * i / n, zb2 = z0 + (z1 - z0) * (i + 1) / n, xo = i % 2 ? dx * 0.9 : -dx * 0.9, xo2 = i % 2 ? -dx * 0.9 : dx * 0.9;
-          flat.quad([xo, 0.05, za], [xo2, 0.05, zb2], [xo2, GYM.truss - 0.2, zb2], [xo, GYM.truss - 0.2, za], [0.8 * Math.sign(xo2 - xo), 0, -0.6], shade(col, i % 2 ? 0.92 : 1.04)); }
-        flat.wbox(-dx, 0, z0, dx, 0.06, z1, BLK); }
+      // the folded divider: an accordion partition pushed back into its stack between the banks, front row to the back wall, floor to
+      // the ceiling track. Tall vertical pleats in tan vinyl on every face you can see (the front and both sides), a dark bottom sweep,
+      // a grey header and the track along the trusses.
+      { const DV = GYM.div, x0 = -DV.x, x1 = DV.x, zf = BL.z + 0.15, zb = GYM.z1 - 0.02, yb = 0.09, yt = GYM.truss - 0.3, vin = hx3(DV.face), vinS = hx3(DV.side), crease = hx3('#55585d');
+        const strip = (ax, az, bx, bz, c) => { const ex = bx - ax, ez = bz - az, l = Math.hypot(ex, ez) || 1; let nx = ez / l, nz = -ex / l; flat.quad([ax, yb, az], [bx, yb, bz], [bx, yt, bz], [ax, yt, az], [nx, 0, nz], c); };
+        // front face (toward the court, -z): pleats across x
+        { const n = Math.max(4, Math.round((x1 - x0) / DV.pleat)), w = (x1 - x0) / n;
+          for (let i = 0; i < n; i++) { const xa = x1 - i * w, xb = xa - w / 2, xc = xa - w, ia = i % 2 === 0;
+            strip(xb, zf + DV.depth, xa, zf, shade(vin, 1.12)); strip(xc, zf, xb, zf + DV.depth, shade(vin, 0.68));
+            flat.wbox(xb - 0.01, yb, zf + DV.depth - 0.01, xb + 0.01, yt, zf + DV.depth + 0.004, crease); flat.wbox(xa - 0.008, yb, zf - 0.012, xa + 0.008, yt, zf + 0.004, shade(vin, 1.2)); void ia; } }
+        // the two sides (toward the seats): pleats along z
+        for (const sd of [-1, 1]) { const xo = sd * DV.x, n = Math.max(4, Math.round((zb - zf) / DV.pleat)), w = (zb - zf) / n;
+          for (let i = 0; i < n; i++) { const za = zf + i * w, zm = za + w / 2, zc = za + w, xi = xo - sd * DV.depth;
+            if (sd > 0) { strip(xo, za, xi, zm, shade(vinS, 1.12)); strip(xi, zm, xo, zc, shade(vinS, 0.68)); }
+            else { strip(xi, zm, xo, za, shade(vinS, 1.12)); strip(xo, zc, xi, zm, shade(vinS, 0.68)); }
+            flat.wbox(Math.min(xi, xi + sd * 0.012), yb, zm - 0.01, Math.max(xi, xi + sd * 0.012), yt, zm + 0.01, crease);
+            // the outer fold: a dark seam line (the hinge between two panels), so the pleats still read when the hollows are hidden
+            flat.wbox(Math.min(xo, xo + sd * 0.014), yb, za - 0.014, Math.max(xo, xo + sd * 0.014), yt, za + 0.014, shade(vinS, 0.56)); } }
+        flat.wbox(x0 - 0.02, 0, zf - 0.02, x1 + 0.02, yb, zb, hx3('#2b2c2f'));                         // bottom sweep
+        flat.wbox(x0 - 0.06, yt, zf - 0.06, x1 + 0.06, yt + 0.16, zb, hx3('#8d8e90'));                // header
+        steel.wbox(-0.12, GYM.truss - 0.16, GYM.z0, 0.12, GYM.truss, GYM.z1, GREY);                   // the track across the room
+        for (let z = zf + 0.3; z < zb; z += 1.6) steel.tube([0, yt + 0.16, z], [0, GYM.truss - 0.16, z], 0.03, GREY, 6); }
       // ---- the benches: folding chairs with white seat and back cushions on red frames, either side of the scorer's table ----
-      const frame = REDC, white = hx3('#f2f2ee');
-      const chair = (cx, cz) => { // faces -z (the court)
-        const fl = -1; // front is toward -z
-        for (const s of [-1, 1]) { steel.tube([cx + s * 0.21, 0, cz + fl * 0.2], [cx + s * 0.21, 0.48, cz + fl * 0.16], 0.012, frame, 5); steel.tube([cx + s * 0.2, 0, cz - fl * 0.24], [cx + s * 0.2, 0.92, cz - fl * 0.21], 0.012, frame, 5); }
-        steel.tube([cx - 0.21, 0.05, cz + fl * 0.2], [cx + 0.21, 0.05, cz + fl * 0.2], 0.011, frame, 5); steel.tube([cx - 0.2, 0.47, cz - fl * 0.2], [cx + 0.2, 0.47, cz - fl * 0.2], 0.011, frame, 5);
-        cush.wbox(cx - 0.21, 0.47, cz - 0.2, cx + 0.21, 0.54, cz + 0.2, white);
-        cush.box(mRX(mT(IDM, cx, 0.78, cz - fl * 0.23), -0.14), 0, 0, 0, 0.42, 0.24, 0.05, white);
-        flat.box(mRX(mT(IDM, cx, 0.78, cz - fl * 0.255), -0.14), 0, 0, 0, 0.44, 0.27, 0.01, frame);
+      const frame = hx3('#b0121d'), white = hx3('#f3f2ee'), pan = hx3('#7e0b15');
+      // a box with its z ends in either order (the chairs and the table are authored facing -z and mirrored in z to face +z)
+      const zbox = (bt, x0, y0, za, x1, y1, zb, c) => bt.wbox(x0, y0, Math.min(za, zb), x1, y1, Math.max(za, zb), c);
+      const chair = (cx, cz, face) => { // a padded folding chair facing (0, 0, face) (the court): red tube frame, white seat and back cushions
+        const hw = 0.217, T = 0.011, m = -face, Z = (o) => cz + m * o, fz = -0.2, bz = 0.24; // offsets authored for a chair facing -z
+        for (const s of [-1, 1]) {
+          const x = cx + s * hw;
+          steel.tube([x, 0.0, Z(fz)], [x, 0.47, Z(fz + 0.03)], T, frame, 6);                    // front leg
+          steel.tube([x, 0.0, Z(bz + 0.02)], [x, 0.93, Z(bz - 0.05)], T, frame, 6);             // rear leg and back upright
+          steel.tube([x, 0.46, Z(fz + 0.03)], [x, 0.46, Z(bz - 0.04)], T * 0.9, frame, 5);       // seat rail
+          steel.tube([x, 0.035, Z(fz)], [x, 0.035, Z(fz + 0.05)], T * 1.4, hx3('#222'), 5);      // foot caps
+          steel.tube([x, 0.035, Z(bz - 0.03)], [x, 0.035, Z(bz + 0.02)], T * 1.4, hx3('#222'), 5);
+        }
+        steel.tube([cx - hw, 0.07, Z(fz + 0.005)], [cx + hw, 0.07, Z(fz + 0.005)], T * 0.9, frame, 5);     // braces
+        steel.tube([cx - hw, 0.07, Z(bz + 0.015)], [cx + hw, 0.07, Z(bz + 0.015)], T * 0.9, frame, 5);
+        steel.tube([cx - hw, 0.9, Z(bz - 0.045)], [cx + hw, 0.9, Z(bz - 0.045)], T * 0.9, frame, 5);
+        zbox(flat, cx - hw, 0.452, Z(fz + 0.01), cx + hw, 0.468, Z(bz - 0.05), pan);                         // seat pan
+        zbox(cush, cx - hw + 0.008, 0.468, Z(fz + 0.005), cx + hw - 0.008, 0.525, Z(bz - 0.055), white);      // seat cushion
+        zbox(cush, cx - hw + 0.03, 0.525, Z(fz + 0.03), cx + hw - 0.03, 0.535, Z(bz - 0.08), white);          // its crown
+        const bm = mRX(mRY(mT(IDM, cx, 0.75, Z(bz - 0.035)), face > 0 ? Math.PI : 0), -0.1);
+        cush.box(mT(bm, 0, 0, -0.012), 0, 0, 0, hw * 2 - 0.012, 0.23, 0.045, white);                  // back cushion
+        flat.box(mT(bm, 0, 0, 0.016), 0, 0, 0, hw * 2, 0.25, 0.012, frame);                   // back panel
       };
-      const B = GYM.bench, chairs = [];
-      for (const [xa, xb] of [B.home, B.away]) for (let i = 0; i < B.n; i++) { const x = xa + (xb - xa) * (i + 0.5) / B.n; chair(x, B.z); chairs.push({ x, z: B.z, home: xa < 0 }); }
+      const B = GYM.bench, chairs = [], bf = B.face;
+      for (const [xa, xb] of [B.home, B.away]) for (let i = 0; i < B.n; i++) { const x = xa + (xb - xa) * (i + 0.5) / B.n; chair(x, B.z, bf); chairs.push({ x, z: B.z, home: xa < 0 }); }
+      // the coolers / water stands at the bench ends
       for (const xc of [B.home[0] - 0.8, B.away[1] + 0.8]) { flat.wbox(xc - 0.25, 0, B.z - 0.25, xc + 0.25, 0.6, B.z + 0.25, DGREY); flat.wbox(xc - 0.22, 0.6, B.z - 0.22, xc + 0.22, 1.05, B.z + 0.22, REDC); flat.wbox(xc - 0.24, 1.05, B.z - 0.24, xc + 0.24, 1.1, B.z + 0.24, white); }
-      // ---- the scorer's table: a black cabinet with red padding and the HOME OF THE WILDCATS screen ----
-      { const T = GYM.table, x0 = T.x - T.len / 2, x1 = T.x + T.len / 2, zf = T.z - T.dep / 2, zb2 = T.z + T.dep / 2, red = hx3('#a80f1c');
-        flat.wbox(x0, 0.03, zf, x1, T.h - 0.06, zb2, hx3('#0d0e10'));
-        cush.wbox(x0 - 0.05, T.h - 0.07, zf - 0.06, x1 + 0.05, T.h, zb2 + 0.04, red);              // padded top
-        cush.tube([x0 - 0.04, T.h - 0.05, zf - 0.06], [x1 + 0.04, T.h - 0.05, zf - 0.06], 0.055, red, 10); // front roll
-        cush.wbox(x0 - 0.05, 0, zf - 0.07, x1 + 0.05, 0.09, zf + 0.02, red);                       // kick rail
-        for (const x of [x0, x1]) cush.wbox(x - 0.07, 0, zf - 0.08, x + 0.07, T.h - 0.05, zf + 0.08, red); // corner posts
-        for (let x = x0 + 0.65; x < x1 - 0.3; x += 0.65) cush.wbox(x - 0.01, T.h - 0.072, zf - 0.065, x + 0.01, T.h + 0.002, zb2 + 0.041, hx3('#7e0b15'));
-        tableB.quad([x0 + 0.1, 0.12, zf - 0.006], [x1 - 0.1, 0.12, zf - 0.006], [x1 - 0.1, T.h - 0.13, zf - 0.006], [x0 + 0.1, T.h - 0.13, zf - 0.006], [0, 0, 0], [1, 1, 1, 1], [0, 1, 1, 1, 1, 0, 0, 0]);
-        // on the table: a laptop and the possession arrow box; two scorers behind it on chairs
-        flat.wbox(-0.9, T.h, T.z - 0.1, -0.5, T.h + 0.02, T.z + 0.2, BLK); glow.quad([-0.9, T.h + 0.02, T.z + 0.2], [-0.5, T.h + 0.02, T.z + 0.2], [-0.5, T.h + 0.28, T.z + 0.26], [-0.9, T.h + 0.28, T.z + 0.26], [0, 0, 0], [0.35, 0.55, 0.9, 1]);
-        flat.wbox(0.3, T.h, T.z - 0.05, 0.7, T.h + 0.12, T.z + 0.1, BLK);
-        for (const x of [-1.6, 1.4]) { chair(x, T.z + 0.85); fan(x, 0.5, T.z + 0.6, 0, -1, 0.03, 3); }
+      // ---- the scorer's table: a black cabinet with red padding and the HOME OF THE WILDCATS screen toward the court ----
+      { const T = GYM.table, f = B.face, x0 = T.x - T.len / 2, x1 = T.x + T.len / 2, zf = T.z + f * T.dep / 2, zb2 = T.z - f * T.dep / 2, red = hx3('#a80f1c');
+        const Zf = (o) => zf + f * o, Zb = (o) => zb2 - f * o;     // o > 0: out of the front (toward the court) / out of the back
+        zbox(flat, x0, 0.03, zf, x1, T.h - 0.06, zb2, hx3('#0d0e10'));
+        zbox(cush, x0 - 0.05, T.h - 0.07, Zf(0.06), x1 + 0.05, T.h, Zb(0.04), red);              // padded top
+        cush.tube([x0 - 0.04, T.h - 0.05, Zf(0.06)], [x1 + 0.04, T.h - 0.05, Zf(0.06)], 0.055, red, 10); // front roll
+        zbox(cush, x0 - 0.05, 0, Zf(0.07), x1 + 0.05, 0.09, Zf(-0.02), red);                       // kick rail
+        for (const x of [x0, x1]) zbox(cush, x - 0.07, 0, Zf(0.08), x + 0.07, T.h - 0.05, Zf(-0.08), red); // corner posts
+        for (let x = x0 + 0.65; x < x1 - 0.3; x += 0.65) zbox(cush, x - 0.01, T.h - 0.072, Zf(0.065), x + 0.01, T.h + 0.002, Zb(0.041), hx3('#7e0b15'));
+        // the screen: u runs left to right as seen from the court (the renderer mirrors x)
+        const zs = Zf(0.006), xl = f < 0 ? x0 + 0.1 : x1 - 0.1, xr = f < 0 ? x1 - 0.1 : x0 + 0.1;
+        tableB.quad([xl, 0.12, zs], [xr, 0.12, zs], [xr, T.h - 0.13, zs], [xl, T.h - 0.13, zs], [0, 0, 0], [1, 1, 1, 1], [0, 1, 1, 1, 1, 0, 0, 0]);
+        // on the table: a laptop (screen toward the scorers) and the possession arrow box; two scorers behind it on chairs
+        const tz = (o) => T.z - f * o;
+        zbox(flat, -0.9, T.h, tz(-0.1), -0.5, T.h + 0.02, tz(0.2), BLK); glow.quad([-0.9, T.h + 0.02, tz(0.2)], [-0.5, T.h + 0.02, tz(0.2)], [-0.5, T.h + 0.28, tz(0.26)], [-0.9, T.h + 0.28, tz(0.26)], [0, 0, 0], [0.35, 0.55, 0.9, 1]);
+        zbox(flat, 0.3, T.h, tz(-0.05), 0.7, T.h + 0.12, tz(0.1), BLK);
+        for (const x of [-1.6, 1.4]) { chair(x, tz(0.85), f); fan(x, 0.5, tz(0.6), 0, f, 0.03, 3); }
       }
+      // ---- low aluminium plank seats at the corners of the bench sideline: red frames, two rows, a few parents ----
+      { const N = GYM.near, f = -GYM.bs, alu = hx3('#c3c7cb'), aluD = hx3('#8f9398'), fr = hx3('#a80f1c');
+        for (const [xa, xb] of N.xs) for (let row = 0; row < N.rows; row++) {
+          const zc = N.z - f * row * N.tread, y0 = row * N.rise, sy = y0 + 0.45;
+          if (row) zbox(flat, xa, 0, zc + f * N.tread * 0.5, xb, y0, zc - f * N.tread * 0.5, fr);                // the riser block (red)
+          zbox(seat, xa, sy - 0.035, zc - f * 0.02, xb, sy, zc - f * 0.3, alu);                                   // the seat plank
+          if (row) zbox(seat, xa, y0, zc + f * 0.28, xb, y0 + 0.012, zc + f * 0.05, aluD);                        // the foot plank
+          for (let x = xa + 0.25; x < xb; x += 1.5) { zbox(flat, x - 0.03, y0, zc - f * 0.05, x + 0.03, sy - 0.035, zc - f * 0.27, fr); }
+          for (let x = xa + 0.4; x < xb - 0.2; x += 0.55) { if (r() > 0.35 || (row === 0 && Math.abs(x) > N.open[0] && Math.abs(x) < N.open[1])) continue; fan(x, sy - 0.32, zc - f * 0.16, 0, f, 0.04, null); }
+        } }
       // ---- a few kids sitting on the floor at the corners, an adult or two by the doors ----
-      for (const [x, z] of [[-15.6, -9.6], [-15.2, -9.9], [15.4, -9.7], [15.8, 10.8], [-15.9, 10.6]]) fan(x, 0.0, z, -x / Math.hypot(x, z) * 0.3, -z / Math.hypot(x, z), 0.05, null);
+      for (const [x, z] of [[15.8, 10.8], [-15.9, 10.6], [-16.3, 11.6]]) fan(x, 0.0, z, -x / Math.hypot(x, z) * 0.3, -z / Math.hypot(x, z), 0.05, null);
       const W = { defs: [], crowd: { f: new Float32Array(CR.length ? CR : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), n: CR.length / 12 }, chairs, D };
       return W;
     }
     // upload the gym's batches as statics: [key, texture, material (rough, metal, detail, emissive), kind, casts]
     function gymStatics(W) {
       const D = W.D, q = quality;
-      const tex = { floor: mkTex(gymFloorCanvas(q), false, false, 16), block: mkTex(gymBlockCanvas(), true, false, 8), atl: mkTex(gymAtlasCanvas(), false, false, 8) };
-      G.texs.push(tex.floor, tex.block, tex.atl); G.floorTex = tex.floor;
+      // the paint: 4096 x 2048 where the device takes it, premultiplied (clean edges in the mip chain), 16x anisotropic
+      const big = X.maxTex >= 4096 && q >= 1, fc = gymFloorCanvas(big);
+      const ft = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, ft);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fc); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.generateMipmap(gl.TEXTURE_2D);
+      if (X.aniso) gl.texParameterf(gl.TEXTURE_2D, X.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(16, X.maxAniso));
+      const tex = { floor: ft, block: mkTex(gymBlockCanvas(), true, false, 8), atl: mkTex(gymAtlasCanvas(), false, false, 8) };
+      G.grain = mkTex(gymGrainCanvas(), true, false, 16);
+      G.texs.push(tex.floor, tex.block, tex.atl, G.grain); G.floorTex = tex.floor;
       const spec = [
-        ['floor', tex.floor, [0.3, 0, 0, 0], 0, false], ['block', tex.block, [0.85, 0, 0, 0], 0, true], ['flat', G.white, [0.62, 0, 0, 0], 0, true],
+        ['floor', tex.floor, [0.2, 0, 0, 0], 3, false], ['block', tex.block, [0.85, 0, 0, 0], 0, true], ['flat', G.white, [0.62, 0, 0, 0], 0, true],
         ['seat', G.white, [0.42, 0, 0, 0], 0, true], ['steel', G.white, [0.42, 0.55, 0, 0], 0, true], ['cush', G.white, [0.5, 0, 0, 0], 0, true],
         ['atl', tex.atl, [0.75, 0, 0, 0], 0, false], ['glow', G.white, [0.5, 0, 0, 3.0], 0, false], ['board', G.board, [0.4, 0, 0, 1.8], 0, false],
         ['table', G.table, [0.4, 0, 0, 1.5], 0, false], ['glass', G.white, [0.08, 0, 0, 0], 0, false],
@@ -3585,9 +4453,13 @@ gl_FragColor=vec4(c,1.0);}`;
         const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, b.f.subarray(0, b.n * 12), gl.STATIC_DRAW); G.bufs.push(buf);
         statics.push({ k, b: buf, n: b.n, tex: t, cast, kind, mat, blend: k === 'glass', c0: k === 'flat' || k === 'steel' });
       }
-      // the floor at full size a moment later (the first frames use the quick one)
-      if (q >= 1) setTimeout(() => { if (!G || glLost || finished) return; try { const c = gymFloorCanvas(2); gl.bindTexture(gl.TEXTURE_2D, tex.floor); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c); gl.generateMipmap(gl.TEXTURE_2D); } catch (e) {} }, 1200);
     }
+    // the floor material's extras (80-render calls this before the floor draw): the grain tile on unit 5, the dome lamp grid
+    function floorUniforms(P) {
+      gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, G.grain || G.white); gl.activeTexture(gl.TEXTURE0);
+      if (P.u.uLampG) { gl.uniform4f(P.u.uLampG, LAMPG.x0, LAMPG.dx, LAMPG.z0, LAMPG.dz); gl.uniform4f(P.u.uLampN, LAMPG.nx, LAMPG.nz, LAMPG.y, quality >= 1 ? LAMPG.k : 0); } // low quality: no lamp streaks (the shader skips the loop)
+    }
+    function floorUniformsDone() { gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, G.detail); gl.activeTexture(gl.TEXTURE0); }
     // =====================================================================================
     // Game state: the clock, the score, the ten on the floor, the benches, the ball, the camera and the input.
     // Phases: splash, tip (jump ball), live, dead (whistle; then an inbound or free throws), inb (inbound), ft (free throws),
@@ -3661,17 +4533,18 @@ gl_FragColor=vec4(c,1.0);}`;
     function placeBench() {
       for (const t of teams) {
         const B = t.side === 0 ? GYM.bench.home : GYM.bench.away, n = GYM.bench.n;
-        t.bench.forEach((p, i) => { const k = t.side === 0 ? n - 2 - i : 1 + i, x = B[0] + (B[1] - B[0]) * (k + 0.5) / n; p.x = x; p.z = GYM.bench.z + 0.06; p.vx = p.vz = 0; p.h = Math.PI; p.jumpY = 0; p.benched = true; setPose(p, 'sit'); });
+        t.bench.forEach((p, i) => { const k = t.side === 0 ? n - 2 - i : 1 + i, x = B[0] + (B[1] - B[0]) * (k + 0.5) / n; p.x = x; p.z = GYM.bench.z - GYM.bench.face * 0.06; p.vx = p.vz = 0; p.h = GYM.bench.face > 0 ? 0 : Math.PI; p.jumpY = 0; p.benched = true; setPose(p, 'sit'); });
         t.on.forEach((p) => { p.benched = false; if (p.pose === 'sit') setPose(p, 'idle'); });
       }
     }
     // the jump ball: the two centres in the circle, everyone else around it
     function placeTip() {
-      const spots = [[-0.55, 0], [-2.6, 2.9], [-2.6, -2.9], [-4.6, 0.6], [-1.8, -6.2]];
+      // the centre in the circle, the point guard deep behind him for the tap, the forwards on the circle (one from each team on
+      // each side), the other guard wide and ahead, ready to run
       for (const t of teams) {
         const d = dirOf(t.side); // a side's own half is behind it
-        const order = [4, 0, 1, 2, 3]; // the centre jumps
-        t.on.forEach((p, i) => { const s = spots[order.indexOf(i) >= 0 ? order.indexOf(i) : i]; p.x = s[0] * d; p.z = s[1] * (t.side ? -1 : 1); p.vx = p.vz = 0; p.h = d > 0 ? Math.PI / 2 : -Math.PI / 2; p.jumpY = 0; p.jumpV = 0; setPose(p, 'idle'); });
+        const spots = [[-5.2, 0], [1.9, -5.4], [-1.5, 3.3], [-1.5, -3.3], [-0.55, 0]]; // by lineup spot: PG, SG, SF, PF, C
+        t.on.forEach((p, i) => { const s = spots[i] || spots[0]; p.x = s[0] * d; p.z = s[1] * (t.side ? -1 : 1); p.vx = p.vz = 0; p.h = d > 0 ? Math.PI / 2 : -Math.PI / 2; p.jumpY = 0; p.jumpV = 0; setPose(p, 'idle'); });
       }
       Object.assign(ball, { st: 'dead', holder: null, x: 0, y: 1.2, z: 0, vx: 0, vy: 0, vz: 0, shot: null, pass: null });
     }
@@ -3818,48 +4691,137 @@ gl_FragColor=vec4(c,1.0);}`;
       DRAWS.n++;
     }
     // =====================================================================================
-    // Animation runtime (basketball): gameplay sets a semantic pose (setPose); this picks the clip, builds the pose (the procedural
-    // gait for every move on the floor, keyframes for the jumps), blends clip changes in matrix space, locks planted feet and puts
-    // the hands on the ball with arm IK. The gameplay ball is authoritative: the hands follow it, never the other way round.
+    // Animation runtime (basketball): gameplay sets a semantic pose (setPose); this picks the clip from the library in
+    // 05b-bbclips.js (by name, or the variant that fits the player and the play), builds the pose (the procedural gait for every
+    // move on the floor, keyframes for the jumps), blends clip changes in matrix space, locks planted feet and lays the palms on
+    // the ball with palm IK. The gameplay ball is authoritative: the hands follow it, never the other way round. The ball's path
+    // through the hands for each clip (bbHold) and the dribble's height (bbDribH) are read by the ball code, so both agree.
+    //
+    // Requesting a move by name: setPose(p, base, keep, name), e.g. setPose(p, 'dunk', false, 'windmill'), or set p.nextClip =
+    // 'windmill' before the game starts the dunk. Names: see BBCLIPS (jumper_set, jumper_high, jumper_quick, jumper_push, fadeaway,
+    // pullup, catch_shoot, ftshot, layup, layup_finger, layup_reverse, euro_step, floater, dunk_two, dunk_one, tomahawk, windmill,
+    // putback, oop_dunk, pass_chest, pass_bounce, pass_overhead, pass_push, pass_nolook, pass_lob, catch, catch_move, catch_high,
+    // catch_low, triple, jab, cross, btl, btb, spin, hesi, inout, dbl_cross, stepback). The bare base names still work and pick
+    // a variant (setPose(p, 'shoot') gives the player's own jumper, a pull-up off the dribble, a fadeaway when crowded...).
     // =====================================================================================
-    const ONE_SHOT = { cross: 0.3, btl: 0.36, btb: 0.4, spin: 0.5, hesi: 0.36, pass: 0.34, catch: 0.24, shoot: 1.15, ftshot: 1.15, layup: 0.95, dunk: 1.3, block: 0.95, contest: 0.85, steal: 0.42, rebound: 0.95, fumble: 0.55, tip: 1.0, celebrate: 1.8, getup: 0.9 };
-    const BLEND = { idle: 0.2, ready: 0.18, triple: 0.15, dstance: 0.16, run: 0.12, cross: 0.06, btl: 0.06, btb: 0.06, spin: 0.07, hesi: 0.06, pass: 0.06, catch: 0.06, shoot: 0.08, ftshot: 0.1, layup: 0.07, dunk: 0.07, block: 0.06, contest: 0.06, steal: 0.05, rebound: 0.06, fumble: 0.07, tip: 0.08, celebrate: 0.15, sit: 0.3, inbound: 0.2, rag: 0.1, getup: 0.3, hk: 0.4 };
+    const ONE_SHOT = { cross: 0.3, btl: 0.36, btb: 0.4, spin: 0.5, hesi: 0.36, inout: 0.34, dbl: 0.56, stepback: 0.42, jab: 0.5, pass: 0.34, catch: 0.24, shoot: 1.15, ftshot: 1.15, layup: 0.95, dunk: 1.3, block: 0.95, contest: 0.85, steal: 0.42, rebound: 0.95, fumble: 0.55, tip: 1.0, celebrate: 1.8, getup: 0.9 };
+    const BLEND = { idle: 0.2, ready: 0.18, triple: 0.15, drib_idle: 0.14, ftset: 0.2, dstance: 0.16, run: 0.12, cross: 0.06, btl: 0.06, btb: 0.06, spin: 0.07, hesi: 0.06, inout: 0.06, dbl_cross: 0.06, stepback: 0.07, jab: 0.08,
+      pass: 0.06, catch: 0.06, shoot: 0.08, ftshot: 0.1, layup: 0.07, dunk: 0.07, block: 0.06, contest: 0.06, steal: 0.05, rebound: 0.06, fumble: 0.07, tip: 0.08, celebrate: 0.15, sit: 0.3, inbound: 0.2, rag: 0.1, getup: 0.3, hk: 0.4,
+      catch_shoot: 0.05, pullup: 0.06, putback: 0.05, oop_dunk: 0.05, catch_high: 0.05 };
     const DIRT = {};
-    function setPose(p, pose, keep) {
+    // stances: [hip drop, forward tilt, + drop when guarded, + tilt when guarded, wider base] (skeleton units, radians)
+    const STANCE = { drib_idle: [0.12, 0.2, 0.09, 0.12, 0.09], dribrun: [0.02, 0.05, 0.05, 0.1, 0], ready: [0.07, 0.1, 0, 0, 0.06], triple: [0.11, 0.2, 0, 0, 0.07], jab: [0.11, 0.2, 0, 0, 0.07], idle: [0, 0, 0, 0, 0.03] };
+    const DRIB_YAW = 0.55; // how far a guarded dribbler turns his body to put a shoulder between the defender and the ball
+    const SHOT_REL = 0.62; // the jump shot's release key (the meter's release maps here)
+    // a player's fixed traits for the clip choice (from his name and ratings, never the game's dice)
+    function bbTraits(p) {
+      if (p.bbT) return p.bbT;
+      const nm = String((p.sq && p.sq.name) || p.key || ''); let hsh = 7; for (let i = 0; i < nm.length; i++) hsh = (hsh * 31 + nm.charCodeAt(i)) >>> 0;
+      const r = (k) => (p.bb && p.bb[k]) || 50, three = r('three'), hand = r('hand'), spd = r('spd'), ath = (r('dunk') + r('vert')) / 2;
+      const form = three < 52 ? 'jumper_push' : three >= 80 ? (hsh % 2 ? 'jumper_high' : 'jumper_set') : hand >= 74 && spd >= 72 ? 'jumper_quick' : ['jumper_set', 'jumper_quick', 'jumper_set', 'jumper_high'][hsh % 4];
+      p.bbT = { hsh, lefty: hsh % 9 === 4, form, ath, pass: r('pass'), fin: r('fin'), hand, n: 0 };
+      p.lefty = p.bbT.lefty;
+      return p.bbT;
+    }
+    const nearFoe = (p) => { let best = null, bd = 9; try { for (const d of foes(p)) { const dd = D(d, p); if (dd < bd) { bd = dd; best = d; } } } catch (e) {} return [best, bd]; };
+    const inFront = (p, d) => d && ((d.x - p.x) * Math.sin(p.h) + (d.z - p.z) * Math.cos(p.h)) / (D(d, p) || 1) > 0.35;
+    // how long he has had the ball (kept here every frame for everyone: the game's own hold timer only runs for the CPU)
+    const heldFor = (p) => (p.an && p.an.hold != null ? p.an.hold : p.holdT || 0);
+    // the variant of a base pose for this player in this play (deterministic: state and traits only)
+    function bbChoose(p, pose) {
+      const T = bbTraits(p), want = p.nextClip; p.nextClip = null;
+      if (want && BBCLIPS[want] && BBCLIPS[want].base === pose) return want;
+      const sp = Math.hypot(p.vx, p.vz), prev = p.clipV, n = T.n++;
+      const [f, fd] = nearFoe(p);
+      switch (pose) {
+        case 'shoot': {
+          if ((prev === 'catch' || prev === 'catch_move' || prev === 'catch_low') && heldFor(p) < 0.6) return 'catch_shoot';
+          if (f && fd < 1.25 && inFront(p, f) && (p.bb.mid + p.bb.three) / 2 >= 62) return 'fadeaway';
+          if (p.dribbling && sp > 1.6) return 'pullup';
+          return T.form;
+        }
+        case 'ftshot': return 'ftshot';
+        case 'layup': {
+          const h = typeof hoopOf === 'function' ? hoopOf(p.side) : null;
+          if (h && f) {
+            const tx = h.x - p.x, tz = h.z - p.z, tl = Math.hypot(tx, tz) || 1, along = ((f.x - p.x) * tx + (f.z - p.z) * tz) / tl, off = Math.abs(((f.x - p.x) * tz - (f.z - p.z) * tx) / tl);
+            if (along > 0.2 && along < tl + 0.3 && off < 0.9) { if (f.lk.hs > p.lk.hs * 1.04 && T.fin >= 55) return 'floater'; if (T.hand >= 66) return 'euro_step'; }
+            // coming in along the baseline or past the rim: the reverse
+            if (Math.abs(p.x - h.x) < 1.0 && Math.abs(p.z - h.z) > 0.6 && Math.abs(p.vz) > Math.abs(p.vx)) return 'layup_reverse';
+          }
+          if (T.fin >= 78 && sp > 2.5 && n % 2) return 'layup_finger';
+          return 'layup';
+        }
+        case 'dunk': {
+          if ((prev === 'catch_high' || p.jumpY > 0.25) && heldFor(p) < 0.7) return p.jumpY > 0.25 && prev !== 'catch_high' ? 'oop_dunk' : 'putback';
+          if (T.ath >= 86 && n % 3 !== 2) return n % 2 ? 'windmill' : 'tomahawk';
+          if (T.ath >= 74 && n % 2) return 'tomahawk';
+          return sp > 3.4 || n % 2 ? 'dunk_one' : 'dunk_two';
+        }
+        case 'pass': return 'pass';
+        case 'catch': return p.jumpY > 0.15 || prev === 'rebound' || p.pose === 'rebound' || p.an.clip === 'rebound' || p.an.clip === 'block' || p.an.clip === 'tip' ? 'catch_high' : sp > 2 ? 'catch_move' : 'catch';
+      }
+      return BB_MOVECLIP[pose] || pose;
+    }
+    function setPose(p, pose, keep, name) {
       if (p.pose === pose && keep) return;
       p.pose = pose; p.poseT = 0;
+      p.clipV = name && BBCLIPS[name] && BBCLIPS[name].base === pose ? name : bbChoose(p, pose);
+      if (pose === 'pass') bbTraits(p).np = (bbTraits(p).np || 0) + 1;
     }
-    // ---------- clips (keys in seconds; the airborne ones keep their own root height: the jump is p.jumpY) ----------
-    const SHOT_REL = 0.62; // the jump shot's release key (the meter's release maps here)
-    const SHOT_K = [
-      [0, gfit(pb({ hipL: [0.75, 0, -0.08], hipR: [0.7, 0, 0.1], knL: [-1.1], knR: [-1.05], ftL: [0.25], ftR: [0.25], shR: [1.1, 0, 0.25], elR: [2.0], haR: [-0.3], shL: [1.05, 0, -0.3], elL: [1.9], spine: [0.32, 0, 0], neck: [-0.35, 0, 0] }, -0.3, 0.1, 0))],
-      [0.24, pb({ hipL: [0.25, 0, -0.06], hipR: [0.2, 0, 0.08], knL: [-0.35], knR: [-0.3], ftL: [0.45], ftR: [0.45], shR: [2.2, 0, 0.3], elR: [1.95], haR: [-0.6], shL: [2.0, 0, -0.45], elL: [1.6], spine: [0.05, 0, 0], neck: [-0.4, 0, 0] }, -0.06, 0.02, 0)],
-      [0.48, pb({ hipL: [0.32, 0, -0.06], hipR: [0.26, 0, 0.08], knL: [-0.42], knR: [-0.38], ftL: [0.5], ftR: [0.5], shR: [2.55, 0, 0.22], elR: [1.55], haR: [-0.85], shL: [2.3, 0, -0.5], elL: [1.25], spine: [0.0, 0, 0], neck: [-0.45, 0, 0] }, -0.04, 0.0, 0)],
-      [SHOT_REL, pb({ hipL: [0.3, 0, -0.06], hipR: [0.24, 0, 0.08], knL: [-0.38], knR: [-0.34], ftL: [0.5], ftR: [0.5], shR: [2.95, 0, 0.12], elR: [0.15], haR: [0.95], shL: [2.4, 0, -0.35], elL: [0.55], spine: [-0.02, 0, 0], neck: [-0.5, 0, 0] }, -0.04, -0.02, 0)],
-      [0.86, pb({ hipL: [0.35, 0, -0.07], hipR: [0.3, 0, 0.08], knL: [-0.45], knR: [-0.4], ftL: [0.4], ftR: [0.4], shR: [2.9, 0, 0.12], elR: [0.2], haR: [1.2], shL: [2.0, 0, -0.4], elL: [0.7], spine: [0.0, 0, 0], neck: [-0.45, 0, 0] }, -0.05, 0.0, 0)],
-      [1.15, gfit(pb({ hipL: [0.5, 0, -0.1], hipR: [0.45, 0, 0.12], knL: [-0.75], knR: [-0.7], shR: [1.5, 0, 0.3], elR: [0.6], haR: [0.6], shL: [0.8, 0, -0.4], elL: [0.9], spine: [0.2, 0, 0], neck: [-0.3, 0, 0] }, -0.15, 0.06, 0))],
-    ];
-    const LAYUP_K = [
-      [0, gfit(pb({ hipL: [0.9, 0, -0.06], knL: [-1.1], hipR: [-0.2, 0, 0.1], knR: [-0.5], ftR: [0.4], shR: [1.3, 0, 0.3], elR: [1.7], shL: [1.2, 0, -0.3], elL: [1.7], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, -0.2, 0.15, 0))],
-      [0.22, pb({ hipL: [1.55, 0, -0.06], knL: [-1.7], ftL: [0.3], hipR: [0.05, 0, 0.08], knR: [-0.2], ftR: [0.6], shR: [2.3, 0, 0.2], elR: [1.3], haR: [-0.4], shL: [1.9, 0, -0.35], elL: [1.2], spine: [0.08, 0, 0], neck: [-0.45, 0, 0] }, 0, -0.02, 0)],
-      [0.45, pb({ hipL: [1.35, 0, -0.06], knL: [-1.6], ftL: [0.3], hipR: [0.15, 0, 0.08], knR: [-0.35], ftR: [0.6], shR: [2.95, 0, 0.12], elR: [0.25], haR: [0.5], shL: [1.6, 0, -0.5], elL: [0.9], spine: [-0.05, 0, 0], neck: [-0.6, 0, 0] }, 0, -0.04, 0)],
-      [0.65, pb({ hipL: [0.7, 0, -0.06], knL: [-1.0], hipR: [0.3, 0, 0.08], knR: [-0.6], shR: [2.7, 0, 0.12], elR: [0.3], haR: [0.9], shL: [1.2, 0, -0.5], elL: [0.9], spine: [0.0, 0, 0], neck: [-0.5, 0, 0] }, 0, 0.0, 0)],
-      [0.95, gfit(pb({ hipL: [0.6, 0, -0.1], hipR: [0.55, 0, 0.12], knL: [-0.85], knR: [-0.8], shR: [1.0, 0, 0.3], elR: [0.7], shL: [0.7, 0, -0.4], elL: [0.9], spine: [0.3, 0, 0], neck: [-0.3, 0, 0] }, -0.2, 0.1, 0))],
-    ];
-    const DUNK_K = [
-      [0, gfit(pb({ hipL: [0.95, 0, -0.08], hipR: [0.9, 0, 0.1], knL: [-1.35], knR: [-1.3], ftL: [0.3], ftR: [0.3], shR: [0.9, 0, 0.3], elR: [1.6], shL: [0.9, 0, -0.3], elL: [1.6], spine: [0.5, 0, 0], neck: [-0.4, 0, 0] }, -0.4, 0.2, 0))],
-      [0.2, pb({ hipL: [1.2, 0, -0.08], knL: [-1.4], hipR: [0.1, 0, 0.1], knR: [-0.3], ftR: [0.6], ftL: [0.4], shR: [2.7, 0, 0.25], elR: [0.8], shL: [2.6, 0, -0.25], elL: [0.8], spine: [0.0, 0, 0], neck: [-0.5, 0, 0] }, 0, -0.05, 0)],
-      [0.42, pb({ hipL: [0.8, 0, -0.08], knL: [-1.5], hipR: [0.4, 0, 0.1], knR: [-1.2], ftR: [0.5], ftL: [0.5], shR: [3.35, 0, 0.3], elR: [1.4], haR: [-0.4], shL: [3.0, 0, -0.3], elL: [1.2], spine: [-0.25, 0, 0], neck: [-0.55, 0, 0] }, 0, -0.18, 0)],
-      [0.56, pb({ hipL: [0.9, 0, -0.08], knL: [-1.3], hipR: [0.7, 0, 0.1], knR: [-1.1], ftR: [0.5], ftL: [0.5], shR: [2.25, 0, 0.2], elR: [0.15], haR: [0.8], shL: [2.2, 0, -0.2], elL: [0.2], spine: [0.35, 0, 0], neck: [-0.3, 0, 0] }, 0, 0.25, 0)],
-      [0.92, pb({ hipL: [0.6, 0, -0.1], knL: [-1.3], hipR: [0.5, 0, 0.12], knR: [-1.4], ftR: [0.4], ftL: [0.4], shR: [2.9, 0, 0.15], elR: [0.2], shL: [2.9, 0, -0.15], elL: [0.2], spine: [0.1, 0, 0], neck: [-0.35, 0, 0] }, 0, 0.05, 0)],
-      [1.3, gfit(pb({ hipL: [0.75, 0, -0.1], hipR: [0.7, 0, 0.12], knL: [-1.1], knR: [-1.05], shR: [1.2, 0, 0.6], elR: [0.7], shL: [1.2, 0, -0.6], elL: [0.7], spine: [0.3, 0, 0], neck: [-0.25, 0, 0] }, -0.3, 0.12, 0))],
-    ];
-    const PASS_K = [
-      [0, pb({ shR: [1.0, 0, 0.35], elR: [2.0], haR: [-0.4], shL: [1.0, 0, -0.35], elL: [2.0], haL: [-0.4], spine: [0.12, 0, 0] })],
-      [0.12, pb({ shR: [1.55, 0, 0.12], elR: [0.25], haR: [0.7], shL: [1.55, 0, -0.12], elL: [0.25], haL: [0.7], spine: [0.22, 0, 0] })],
-      [0.34, pb({ shR: [0.5, 0, 0.25], elR: [0.9], shL: [0.5, 0, -0.25], elL: [0.9], spine: [0.12, 0, 0] })],
-    ];
-    const CATCH_K = [[0, pb({ shR: [1.55, 0, 0.2], elR: [0.4], shL: [1.55, 0, -0.2], elL: [0.4], spine: [0.1, 0, 0] })], [0.24, pb({ shR: [0.9, 0, 0.35], elR: [1.8], shL: [0.9, 0, -0.35], elL: [1.8], spine: [0.15, 0, 0] })]];
+    // ask for a move by its clip name (the base pose follows from the table)
+    function playMove(p, name) { const c = BBCLIPS[name]; if (c) setPose(p, c.base, false, name); else setPose(p, name); }
+    // a pass's clip: the kind the game asked for, else by distance and the passer
+    function passClip(p) {
+      const k = p.passKind, T = bbTraits(p);
+      if (k && BBCLIPS['pass_' + k]) { if (k !== 'chest') return 'pass_' + k; }
+      const to = p.passTo, d = to ? Math.hypot(to.x - p.x, to.z - p.z) : 5, np = T.np || 0;
+      if (d > 9.5) return 'pass_overhead';
+      if (T.pass >= 84 && np % 3 === 1 && d > 3) return 'pass_nolook';
+      if (T.pass >= 66 && np % 2 === 1 && d < 7) return 'pass_push';
+      return 'pass_chest';
+    }
+    // the clip name the current pose plays (the variant resolved)
+    function clipOf(p) {
+      if (p.pose === 'pass') return passClip(p);
+      const v = p.clipV;
+      return v && BBCLIPS[v] && BBCLIPS[v].base === p.pose ? v : (BB_MOVECLIP[p.pose] || p.pose);
+    }
+    // ---------- the ball in his hands (read by 40-ball.js holdPoint; sim side: only the game's own state) ----------
+    // at(fwd, right, up) is holdPoint's body-frame point in body heights; returns a world point or null (holdPoint's own default)
+    function bbHold(p, at) {
+      const s = p.lefty ? -1 : 1;
+      // the free-throw routine: two bounces, a spin in the hands, set (more bounces while he waits)
+      if (ftS && ftS.sh === p && ftS.state === 'set' && (p.pose === 'idle' || p.pose === 'ready')) {
+        const t = p.poseT, cyc = t < 2.2 ? t : 2.2 + ((t - 2.2) % 2.6), u0 = cyc - 0.1;
+        if (u0 > 0 && u0 < 0.6) { const u = (u0 / 0.3) % 1, top = 1.0, y = BALL_R / p.lk.hs + (top - BALL_R / p.lk.hs) * Math.abs(Math.cos(Math.PI * u)); p.ftBounce = u; return at(0.3, 0.13 * s, y); }
+        p.ftBounce = -1; return at(0.28, 0.02 * s, 1.12);
+      }
+      p.ftBounce = -1;
+      const P = p.pose;
+      if (P === 'idle' || P === 'ready' || P === 'triple' || P === 'jab') return at(TRIPLE_P[0][1], TRIPLE_P[0][2] * s, TRIPLE_P[0][3]);
+      if (P !== 'shoot' && P !== 'ftshot' && P !== 'layup' && P !== 'dunk' && P !== 'pass' && P !== 'catch') return null;
+      const c = BBCLIPS[clipOf(p)]; if (!c || !c.path) return null;
+      const v = bbPath(P === 'shoot' || P === 'ftshot' ? (p.shotA || 0) : p.poseT, c.path);
+      return at(v[0], v[1] * s, v[2]);
+    }
+    // the same path as a world point for a time past the release (where his hands would have taken it: the follow-through)
+    function bbVirtual(p, clip, t) {
+      const c = BBCLIPS[clip]; if (!c || !c.path) return null;
+      const hs = p.lk.hs, f = [Math.sin(p.h), Math.cos(p.h)], r = [Math.cos(p.h), -Math.sin(p.h)], v = bbPath(t, c.path), s = p.lefty ? -1 : 1;
+      return [p.x + f[0] * v[0] * hs + r[0] * v[1] * s * hs, v[2] * hs + p.jumpY, p.z + f[1] * v[0] * hs + r[1] * v[1] * s * hs];
+    }
+    // the dribble's height in body units (sim side): at the waist standing in the open, lower and tighter with a defender up
+    // on him (dPr: how guarded he is, 0..1), a little higher on the run and at a sprint
+    function bbDribH(h, sp, dt) {
+      const [f, fd] = nearFoe(h), guarded = f && fd < 2.0 && sp < 3.4;
+      h.dPr = (h.dPr || 0) + ((guarded ? clamp((2.0 - fd) / 0.7, 0.4, 1) : 0) - (h.dPr || 0)) * Math.min(1, dt * 5);
+      const tgt = lerp(sp > 5.6 ? 1.2 : sp > 1.5 ? 1.13 : 1.08, 0.9, h.dPr);
+      if (h.dribH == null) h.dribH = tgt;
+      if (!ball.mv) h.dribH += (tgt - h.dribH) * Math.min(1, dt * 4);
+      return h.dribH;
+    }
+    if (DBG) DBG.anim = { clips: BBCLIPS, variants: BB_VARIANTS, chain: BB_CHAIN, moves: BBMOVES, setPose: (p, pose, name) => setPose(p, pose, false, name), playMove, choose: bbChoose, clipOf };
     const STEAL_K = [
       [0, pb({ shR: [0.8, 0, 0.4], elR: [1.0], shL: [0.6, 0, -0.5], elL: [1.2], spine: [0.2, 0, 0] })],
       [0.16, pb({ shR: [1.25, 0, 0.35], elR: [0.15], haR: [0.2], shL: [0.4, 0, -0.9], elL: [0.8], spine: [0.55, -0.2, 0], neck: [-0.3, 0.2, 0] })],
@@ -3869,144 +4831,262 @@ gl_FragColor=vec4(c,1.0);}`;
     const POSE_INB = pb({ shR: [2.6, 0, 0.25], elR: [1.1], shL: [2.6, 0, -0.25], elL: [1.1], spine: [-0.05, 0, 0], neck: [-0.2, 0, 0] });
     // ---------- clip choice ----------
     // the floor clips: legs from the procedural gait (feet planted at ground speed, foot locking on), the upper body overlaid
-    const FLOOR = { idle: 1, ready: 1, triple: 1, dstance: 1, run: 1, cross: 1, btl: 1, btb: 1, spin: 1, hesi: 1, pass: 1, catch: 1, steal: 1, fumble: 1, inbound: 1, hk: 1 };
+    const FLOOR = { idle: 1, ready: 1, triple: 1, drib_idle: 1, ftset: 1, dstance: 1, run: 1, steal: 1, fumble: 1, inbound: 1, hk: 1 };
+    for (const n in BBCLIPS) if (BBCLIPS[n].kind === 'floor') FLOOR[n] = 1;
+    const AIRP = { shoot: 1, layup: 1, dunk: 1, block: 1, contest: 1, rebound: 1, tip: 1 };
     function pickClip(p) {
       if (p.rag) return 'rag';
       if (p.pose === 'sit') return 'sit';
       if (DBG && DBG.forcePose) return DBG.forcePose;
       if (p.rising > 0) return 'getup';
-      const one = ONE_SHOT[p.pose];
-      if (one && (p.poseT < one || ((p.pose === 'shoot' || p.pose === 'ftshot') && p.shotA < SHOT_REL))) return p.pose;
+      const one = ONE_SHOT[p.pose], shot = p.pose === 'shoot' || p.pose === 'ftshot', sp0 = Math.hypot(p.vx, p.vz);
+      // back on the floor after a jump (a shot let go, a layup, a block): the move is over a beat after he lands, so nobody runs
+      // back with an arm still up or stands with his arms overhead
+      if (p.blkdT > 0 && p.an.grT > 0.06) { p.blkdT = 0; p.pose = 'idle'; p.poseT = 0; }
+      const down = AIRP[p.pose] && p.an.grT > (sp0 > 1.5 ? 0.12 : 0.24) && (shot ? p.shotRel && p.an.srT > 0.3 : p.poseT > 0.45) && !(ball && ball.holder === p);
+      if (down && !shot) { p.pose = 'idle'; p.poseT = 0; } // (the move is over: no stale label carried through the next possession)
+      if (one && !down && (shot ? !p.shotRel || (p.an.sa || 0) < one : p.poseT < one)) return clipOf(p);
       if (p.pose === 'celebrate' || p.pose === 'inbound') return p.pose;
       const sp = Math.hypot(p.vx, p.vz), holder = ball && ball.holder === p;
+      if (holder && ftS && ftS.sh === p && ftS.state === 'set') return 'ftset';
       if (sp > 0.8 && !p.dstance) return 'run';
-      if (holder) return 'triple';
+      if (holder) return ball.st === 'drib' ? 'drib_idle' : 'triple';
       if (p.dstance) return 'dstance';
       if ((phase === 'dead' || phase === 'ft' || phase === 'timeout' || phase === 'break') && p.an.idleT > 1.5 && (p.sta < 0.5 || p.num % 3 === 1)) return 'hk';
       if (phase === 'live' || phase === 'inb' || phase === 'tip') return 'ready';
       return 'idle';
     }
+    // the clip's own clock: a dribble move runs on the ball's move (so the hands and the ball stay in step), a shot on the meter
+    function clipTime(p, clip, base) {
+      const b = ball, one = ONE_SHOT[base];
+      if (BBCLIPS[clip] && BBCLIPS[clip].move && b && b.holder === p && b.mv && b.mv.k === base) return clamp(b.mv.t / b.mv.dur, 0, 1);
+      if (base === 'shoot' || base === 'ftshot') return p.an.sa || 0;
+      return one ? clamp(p.poseT / one, 0, 1) : 0;
+    }
     function animUpdate(p, dt) {
       const an = p.an, hs = p.lk.hs;
+      if (p.headM && p.bones) { p.bones[B.head] = p.headM; p.headM = null; } // last frame's head at full size again (blends, gaze)
       p.poseT += dt;
-      if (p.shotA != null && (p.pose === 'shoot' || p.pose === 'ftshot') && p.shotRel) p.shotA += dt;
+      an.hold = ball && ball.holder === p ? (an.hold || 0) + dt : 0;
+      an.grT = p.jumpY > 0.02 ? 0 : (an.grT || 0) + dt; an.srT = p.shotRel ? (an.srT || 0) + dt : 0;
+      // a catch is over once the ball is secured: without this the pose lingers and he can never put the ball on the floor
+      // (the dribble starts only out of a pose that is not 'catch'), so he would run with it on his hip
+      if (p.pose === 'catch' && p.poseT >= ONE_SHOT.catch) { p.pose = 'idle'; p.poseT = 0; }
+      if (p.pose === 'shoot' || p.pose === 'ftshot') { if (!p.shotRel) an.sa = p.shotA || 0; else an.sa = (an.sa || 0) + dt * (p.jumpY > 0.02 ? 1.1 : 1.7); } // the follow-through is held to the landing, then the arms come down at once
       if (!p.rag) locoIn(p, dt);
-      const clip = pickClip(p);
-      if (clip !== an.clip) { an.from = p.bones; an.blendDur = an.blendT = BLEND[clip] || 0.12; an.clip = clip; an.t = 0; }
+      bbTraits(p);
+      const clip = ANIMX.remap(p, pickClip(p), dt), spec = BBCLIPS[clip], base = spec ? spec.base : clip;
+      if (clip !== an.clip) { an.from = p.bones; an.blendDur = an.blendT = BLEND[clip] || BLEND[base] || ANIMX.blend(clip) || 0.12; an.clip = clip; an.t = 0; }
       an.t += dt;
       let bones;
+      const tt = clipTime(p, clip, base), ct = base === 'shoot' || base === 'ftshot' ? tt : p.poseT;
       if (clip === 'rag' && p.rag) bones = p.rag.bones();
       else {
-        const one = ONE_SHOT[clip], tt = one ? clamp(p.poseT / one, 0, 1) : 0, g = an.g;
+        const g = an.g;
         let q;
-        if (FLOOR[clip]) {
-          locoMoveB(p, clip, tt); gaitOf(g); p.ph += dt * TAU / g.T; g.ph = p.ph;
+        const xf = ANIMX.floor(clip);
+        if (FLOOR[clip] || xf) {
+          locoMoveB(p, clip, base, tt); gaitOf(g); p.ph += dt * TAU / g.T;
+          // a running dribble is in step with the stride: the ball meets the floor as the far foot lands, the hand as the near one does
+          if (clip === 'run' && ball && ball.holder === p && ball.st === 'drib' && !ball.mv && !ball.sw && ball.dT && Math.abs(ball.dT - g.T) < 0.03) p.ph += angDiff(TAU * ((ball.u || 0) + ((an.dh || p.dh || 1) > 0 ? 0.5 : 0)), p.ph) * Math.min(1, dt * 7);
+          g.ph = p.ph;
           q = clipLoco(an.q || (an.q = newPose()), g);
-          topLayer(p, clip, q, tt);
+          topLayer(p, clip, base, q, tt); ANIMX.top(p, clip, q);
+        } else if (spec && spec.keys) {
+          q = kf(ct, bbKeys(clip, p.lefty));
+          if (base === 'shoot' && clip !== 'fadeaway') q[PN + 1] += 0.1 * smo(clamp((ct - 0.15) / 0.2, 0, 1)) * (1 - smo(clamp((ct - 0.9) / 0.25, 0, 1))); // a jumper goes up over his toes: shoulders in front of his hips, never falling back
         } else {
           switch (clip) {
-            case 'shoot': case 'ftshot': q = kf(p.shotA != null ? p.shotA : p.poseT, SHOT_K); if (clip === 'ftshot') { for (const b of ['hipL', 'hipR', 'knL', 'knR', 'ftL', 'ftR']) { const i = B[b] * 3; q[i] *= 0.6; } } break;
-            case 'layup': q = kf(p.poseT, LAYUP_K); break;
-            case 'dunk': q = kf(p.poseT, DUNK_K); break;
             case 'block': case 'rebound': case 'tip': q = clipJump(tt); if (clip === 'block') { q[B.shL * 3] *= 0.85; q[B.shL * 3 + 2] -= 0.4; } break;
             case 'contest': q = clipJump(tt); q[B.shL * 3] = -1.0; q[B.elL * 3] = -0.6; break;
             case 'celebrate': q = clipCeleb(p.celType || 0, p.poseT); break;
             case 'getup': q = clipGetup(clamp(1 - p.rising / 0.9, 0, 1)); break;
             case 'sit': q = lerpPose(POSE_SIT, POSE_SIT, 0); q[B.neck * 3] -= 0.25; for (const sd of [-1, 1]) { const s3 = (sd < 0 ? B.shL : B.shR) * 3; q[s3] = -0.45; q[s3 + 1] = 0; q[s3 + 2] = sd * 0.12; q[s3 + 3] = -0.7; } break; // hands resting on his thighs
-            default: q = lerpPose(POSE_IDLE, POSE_IDLE, 0);
+            default: q = ANIMX.pose(p, clip) || lerpPose(POSE_IDLE, POSE_IDLE, 0);
           }
         }
         // breathing, a look around, the head toward what he watches
-        if (clip === 'idle' || clip === 'ready' || clip === 'sit' || clip === 'hk' || clip === 'dstance' || clip === 'triple') { const br = Math.sin(an.t * 2.2 + p.ph) * (clip === 'hk' ? 0.03 : 0.012); q[B.spine * 3] += br; }
-        if (p.look && clip !== 'rag' && clip !== 'dunk') {
+        if (clip === 'idle' || clip === 'ready' || clip === 'sit' || clip === 'hk' || clip === 'dstance' || clip === 'triple' || clip === 'ftset' || clip === 'drib_idle') { const br = Math.sin(an.t * 2.2 + p.ph) * (clip === 'hk' ? 0.03 : 0.012); q[B.spine * 3] += br; }
+        if (p.look && clip !== 'rag' && base !== 'dunk') {
           const dx = p.look[0] - p.x, dz = p.look[2] - p.z, yaw = angDiff(Math.atan2(dx, dz), p.h + q[PN + 3]), dh = Math.hypot(dx, dz) || 1, pitch = -Math.atan2(p.look[1] - 1.9 * hs, dh);
           const y1 = clamp(yaw, -1.2, 1.2), p1 = clamp(pitch, -0.7, 0.5);
           q[B.neck * 3 + 1] += y1 * 0.55; q[B.head * 3 + 1] += y1 * 0.35; q[B.neck * 3] += p1 * 0.5; q[B.head * 3] += p1 * 0.4; q[B.chest * 3 + 1] += y1 * 0.1;
         }
+        if (spec && spec.noLook) { const k = bump(clamp(p.poseT / 0.34, 0, 1), 0, 1) * (p.lefty ? 1 : -1); q[B.neck * 3 + 1] += 0.75 * k; q[B.head * 3 + 1] += 0.35 * k; } // eyes away from where it goes
+        if (base === 'triple' || base === 'jab' || clip === 'drib_idle') { q[B.neck * 3] -= 0.12; } // eyes up the floor
         bones = fk(q, p.x, p.y + p.jumpY, p.z, p.h, hs, p.lk.sw, p.lk.ll);
         if (p.look) { const hm = bones[B.head], gz = v3s(p.look, [hm[3], hm[7] + 0.18 * hs, hm[11]]); p.gaze = v3n(gz); } else p.gaze = [Math.sin(p.h), -0.05, Math.cos(p.h)];
         p.sway = 0;
-        if (FLOOR[clip] && p.jumpY < 0.02) footLock(p, bones, dt, an.g ? an.g.yaw : 0, an.g);
+        // the clip change blends in matrix space here, before the feet are planted and the palms put on the ball (so neither drifts)
+        if (an.blendT > 0 && an.from && an.from.length === NB) {
+          an.blendT -= dt; const u = clamp(1 - an.blendT / an.blendDur, 0, 1), s = u * u * (3 - 2 * u);
+          for (let i = 0; i < NB; i++) bones[i] = mLerp(an.from[i], bones[i], s);
+        }
+        // planted feet: the gait clips always; a keyframed clip while he's still on the floor (a shot's dip, the free throw)
+        if (p.jumpY < 0.02 && (FLOOR[clip] || xf || (spec && spec.keys && (base === 'ftshot' || ct < 0.36)))) footLock(p, bones, dt, (FLOOR[clip] || xf) && an.g ? an.g.yaw : 0, FLOOR[clip] || xf ? an.g : null);
+        else if (p.fl) { p.fl[0].on = 0; p.fl[1].on = 0; }
+        if (base === 'triple' || base === 'jab') jabStep(p, bones, base === 'jab' ? clamp(p.poseT / ONE_SHOT.jab, 0, 1) : -1);
+        else if (base === 'pass' && p.jumpY < 0.02 && Math.hypot(p.vx, p.vz) < 1.6) jabStep(p, bones, clamp(p.poseT / ONE_SHOT.pass, 0, 1) * 0.72); // a pass is stepped into: the lead foot goes out toward the catcher
         if (clip === 'hk') for (const sd of [-1, 1]) { const km = bones[sd < 0 ? B.knL : B.knR]; armIK(bones, sd, [km[3] + km[2] * 0.06 * hs, km[7] + 0.1 * hs, km[11] + km[10] * 0.06 * hs], hs); }
-        handsOnBall(p, bones, clip, hs, dt);
+        handsOnBall(p, bones, clip, base, hs, dt, ct);
+        ANIMX.post(p, bones, clip, hs, dt);
       }
-      if (an.blendT > 0 && an.from && an.from.length === NB) {
+      if (clip === 'rag' && an.blendT > 0 && an.from && an.from.length === NB) { // the ragdoll's own blend
         an.blendT -= dt; const u = clamp(1 - an.blendT / an.blendDur, 0, 1), s = u * u * (3 - 2 * u);
         for (let i = 0; i < NB; i++) bones[i] = mLerp(an.from[i], bones[i], s);
       }
       p.bones = bones;
+      // the smaller head: the head bone scaled about its joint (the skin and his scanned head follow; the neck tapers into it)
+      const hk = p.lk.hk || 1;
+      if (hk !== 1 && bones[B.head]) { const m = bones[B.head], o = m.slice(); for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) o[i] = m[i] * hk; p.headM = m; bones[B.head] = o; }
     }
     // the legs for a move: a stance sinks the hips and widens the feet; a crossover or between the legs plants wide and low; a spin turns
-    function locoMoveB(p, clip, tt) {
-      const g = p.an.g;
-      g.sink = g.cut > 0 ? Math.sin(Math.PI * (1 - g.cut / 0.3)) * 0.6 : 0; g.wide = 0.16 * g.sink; g.wideS = -g.cutS; g.yaw = 0; g.bankX = 0;
-      const base = clip === 'dstance' ? 0.42 : clip === 'triple' ? 0.32 : clip === 'ready' ? 0.24 : clip === 'inbound' ? 0.06 : clip === 'idle' ? 0.05 : 0.15;
-      g.sink = Math.max(g.sink, base * (1 - 0.6 * clamp(g.v / 6, 0, 1)));
+    function locoMoveB(p, clip, base, tt) {
+      const g = p.an.g, b = ball, mv = b && b.holder === p && b.mv && b.mv.k === base ? b.mv : null;
+      if (g.lean0 != null) g.leanF = g.lean0; // the moves below add to the gait's own lean: start from it every time, never from last call's sum
+      g.sink = g.cut > 0 ? Math.sin(Math.PI * (1 - g.cut / 0.3)) * 0.6 : 0; g.wide = 0.16 * g.sink; g.wideS = -g.cutS; g.yaw = 0; g.bankX = 0; g.drop = 0; g.tilt = 0; g.base = 0;
+      const drib = b && b.holder === p && b.st === 'drib', lowD = drib ? clamp(p.dPr || 0, 0, 1) : 0;
+      // a defender's stance: low on the ball, easier the further he is from it (help side stands taller, hands down)
+      const hb = b && b.holder, onB = clip === 'dstance' ? (hb && hb !== p ? clamp((4.2 - D(p, hb)) / 2.2, 0.3, 1) : 0.6) : 1; p.an.onB = onB;
+      const base0 = clip === 'dstance' ? 0.3 * onB : clip === 'triple' || clip === 'jab' ? 0.34 : clip === 'drib_idle' ? 0.32 + 0.24 * lowD : clip === 'ready' ? 0.12 : clip === 'ftset' ? 0.08 : clip === 'inbound' ? 0.06 : clip === 'idle' ? 0.05 : 0.15 + 0.2 * lowD;
+      g.sink = Math.max(g.sink, base0 * (1 - 0.6 * clamp(g.v / 6, 0, 1)));
+      // the basketball stances' own crouch (hips down and back, chest forward), eased off as he gets moving
+      const still = 1 - 0.7 * clamp(g.v / 5, 0, 1), ST = STANCE[clip] || (drib ? STANCE.dribrun : null);
+      if (clip === 'dstance') { g.base = 0.1 * onB; g.drop = 0.13 * onB - 0.11 * g.wS; g.tilt = 0.2 * onB; }
+      else if (ST) { g.base = ST[4] * still; g.drop = (ST[0] + (drib ? ST[2] * lowD : 0)) * still; g.tilt = (ST[1] + (drib ? ST[3] * lowD : 0)) * (0.4 + 0.6 * still); }
+      if (drib && clip === 'drib_idle') { const dh = p.an.dh || p.dh || 1; g.yaw = DRIB_YAW * dh * lowD; g.wide = Math.max(g.wide, 0.07 * lowD); g.wideS = -dh; } // shoulder to the defender, the ball on the far hip
       if (p.stumbleT > 0 || clip === 'fumble') { g.sink = Math.max(g.sink, 0.7); g.leanF += 0.2; }
-      const s = p.mvS || 1;
-      if (clip === 'cross' || clip === 'btl' || clip === 'hesi') { const b = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.55 + 0.4 * b); g.wide = 0.22 * b; g.wideS = clip === 'btl' ? 0 : s; g.bankX = s * 0.16 * b; }
-      else if (clip === 'btb') { const b = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.5 + 0.3 * b); g.bankX = -s * 0.12 * b; }
-      else if (clip === 'spin') { g.yaw = s * TAU * smo(clamp(tt * 1.08, 0, 1)); g.sink = Math.max(g.sink, 0.6 * bump(tt, 0, 1) + 0.3); }
-      else if (clip === 'steal') { const b = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.5 + 0.5 * b); g.leanF += 0.25 * b; }
+      // body contact on the ball: the handler drops a shoulder and leans in, the defender sits and takes it on his chest
+      const bk = smo(clamp(p.bumpK || 0, 0, 1));
+      if (bk > 0.01) { if (b && b.holder === p) { g.leanF += 0.2 * bk; g.sink = Math.max(g.sink, 0.5 * bk); g.tilt += 0.1 * bk; } else { g.leanF -= 0.1 * bk; g.sink = Math.max(g.sink, 0.55 * bk); g.base = Math.max(g.base, 0.09 * bk); } }
+      const s = mv ? mv.to : p.mvS || 1, f0 = mv ? mv.from : -s;
+      if (base === 'cross' || base === 'btl' || base === 'hesi') { const bb = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.55 + 0.4 * bb); g.wide = 0.22 * bb; g.wideS = base === 'btl' ? 0 : s; g.bankX = s * 0.16 * bb; }
+      else if (base === 'btb') { const bb = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.5 + 0.3 * bb); g.bankX = -s * 0.12 * bb; }
+      else if (base === 'spin') { const M = BBMOVES.spin; g.yaw = M.yaw(tt, mv ? mv.from : s); g.sink = Math.max(g.sink, 0.6 * bump(tt, 0, 1) + 0.3); }
+      else if (base === 'inout') { const a = bump(tt, 0, 0.62), o = bump(tt, 0.55, 1); g.sink = Math.max(g.sink, 0.5 + 0.35 * a); g.wide = 0.2 * a; g.wideS = -f0; g.bankX = -f0 * 0.14 * a + f0 * 0.1 * o; }
+      else if (base === 'dbl') { const a = bump(tt, 0, 0.5), o = bump(tt, 0.5, 1); g.sink = Math.max(g.sink, 0.55 + 0.35 * Math.max(a, o)); g.wide = 0.2 * Math.max(a, o); g.wideS = a > o ? -f0 : f0; g.bankX = -f0 * 0.15 * a + f0 * 0.15 * o; }
+      else if (base === 'stepback') { const bb = bump(tt, 0, 0.75); g.sink = Math.max(g.sink, 0.45 + 0.4 * bb); g.leanF -= 0.18 * bb; g.wide = 0.12 * bb; g.wideS = 0; }
+      else if (clip === 'steal') { const bb = bump(tt, 0, 1); g.sink = Math.max(g.sink, 0.5 + 0.5 * bb); g.leanF += 0.25 * bb; }
+      else if (base === 'pass') { const bb = bump(tt, 0, 0.8); g.leanF += 0.15 * bb; g.sink = Math.max(g.sink, 0.32 * bb); }
+      else if (base === 'catch') { const bb = bump(tt, 0, 1); g.sink = Math.max(g.sink, (clip === 'catch_low' ? 0.5 : 0.25) * bb); }
+      ANIMX.leg(p, clip, g, tt);
     }
     // the upper body over the gait: the ready stance's hands, the defensive slide's wide arms, the dribble's guard arm, the moves' sell
-    function topLayer(p, clip, q, tt) {
+    function topLayer(p, clip, base, q, tt) {
       const set = (sd, sx, sz, el) => { const s3 = (sd < 0 ? B.shL : B.shR) * 3, e3 = (sd < 0 ? B.elL : B.elR) * 3; q[s3] = -sx; q[s3 + 2] = sd * sz; q[e3] = -el; };
-      const holder = ball && ball.holder === p, drib = holder && ball.st === 'drib';
-      if (clip === 'dstance') { const w = Math.sin(p.an.t * 3 + p.num) * 0.06; set(-1, 0.55 + w, 0.95, 0.75); set(1, 0.85 - w, 0.7, 0.9); q[B.spine * 3] += 0.18; q[B.neck * 3] -= 0.2; }
-      else if (clip === 'ready') { set(-1, 0.45, 0.45, 1.1); set(1, 0.45, 0.45, 1.1); q[B.spine * 3] += 0.1; }
-      if (holder && !drib && (clip === 'triple' || clip === 'run' || clip === 'idle' || clip === 'ready')) { q[B.spine * 3] += 0.12; }
-      if (drib) { const dh = p.dh || 1; set(-dh, 0.75, 0.55, 1.45); q[B.spine * 3] += 0.1; q[B.chest * 3 + 1] -= dh * 0.12; } // the off arm guards the ball
-      if (clip === 'cross' || clip === 'btl' || clip === 'btb' || clip === 'hesi') {
-        const s = p.mvS || 1, f = bump(tt, 0, 0.55), w = bump(tt, 0.3, 1);
+      const holder = ball && ball.holder === p, drib = holder && ball.st === 'drib', mv = holder && ball.mv && ball.mv.k === base ? ball.mv : null;
+      if (clip === 'dstance') { // active hands in front of him near the ball; off the ball the arms come down, elbows bent, ready to help
+        const w = Math.sin(p.an.t * 3 + p.num) * 0.05, k = p.an.onB == null ? 1 : p.an.onB;
+        set(-1, lerp(0.22, 0.6, k) + w, lerp(0.2, 0.42, k), lerp(0.7, 0.95, k)); set(1, lerp(0.25, 0.7, k) - w, lerp(0.2, 0.4, k), lerp(0.75, 1.0, k)); q[B.spine * 3] += 0.14 * k; q[B.neck * 3] -= 0.18 * k;
+        const bk = smo(clamp(p.bumpK || 0, 0, 1)); if (bk > 0.01) { for (const sd of [-1, 1]) { const s3 = (sd < 0 ? B.shL : B.shR) * 3, e3 = (sd < 0 ? B.elL : B.elR) * 3; q[s3] = lerp(q[s3], -0.8, bk); q[s3 + 2] = lerp(q[s3 + 2], sd * 0.22, bk); q[e3] = lerp(q[e3], -1.55, bk); } q[B.spine * 3] -= 0.1 * bk; } // taking the bump: forearms in front of his chest, weight back
+      }
+      else if (clip === 'ready') { // off the ball on offense: tall, relaxed, hands loose by his waist ready for a pass (a slow shift of weight)
+        const w = Math.sin(p.an.t * 1.3 + p.num) * 0.04; set(-1, 0.22 + w, 0.16, 0.95); set(1, 0.28 - w, 0.16, 1.0); q[B.spine * 3] += 0.05; q[B.shL * 3 + 1] = 0.18; q[B.shR * 3 + 1] = -0.18; // forearms turned in: the hands in front of his belt, not out to the sides
+      }
+      if (holder && !drib && (clip === 'triple' || clip === 'jab' || clip === 'run' || clip === 'idle' || clip === 'ready' || clip === 'ftset')) { q[B.spine * 3] += clip === 'triple' || clip === 'jab' ? 0.2 : 0.12; q[B.chest * 3 + 1] += (p.lefty ? -1 : 1) * (clip === 'triple' || clip === 'jab' ? 0.22 : 0); }
+      if (drib) { // the off arm: loose at his side in the open (swinging on the run), an arm bar toward the defender when guarded
+        const bk = smo(clamp(p.bumpK || 0, 0, 1)), dh = p.an.dh || p.dh || 1, lo = Math.max(clamp(p.dPr || 0, 0, 1), bk), s3 = (dh > 0 ? B.shL : B.shR) * 3, e3 = (dh > 0 ? B.elL : B.elR) * 3, run = clip === 'run' ? 1 : 0;
+        const sx = lerp(run ? -q[s3] : 0.18, 0.95, lo), sz = lerp(0.22, 0.5, lo), el = lerp(run ? -q[e3] : 0.75, 1.25, lo);
+        q[s3] = -sx; q[s3 + 2] = -dh * sz; q[e3] = -el;
+        q[B.spine * 3] += 0.06 + 0.2 * lo; q[B.chest * 3 + 1] -= dh * 0.1 * (1 - lo); q[B.chest * 3 + 1] += dh * 0.42 * bk; q[B.spine * 3 + 2] -= dh * 0.1 * bk; // the bump: the off shoulder leads into him, the ball kept away
+      }
+      const s = mv ? mv.to : p.mvS || 1, f0 = mv ? mv.from : -s;
+      if (base === 'cross' || base === 'btl' || base === 'btb' || base === 'hesi') {
+        const f = bump(tt, 0, 0.55), w = bump(tt, 0.3, 1);
         q[B.chest * 3 + 1] += -s * 0.35 * f + s * 0.25 * w; q[B.neck * 3 + 1] += -s * 0.25 * f + s * 0.2 * w; q[B.spine * 3] += 0.18 * bump(tt, 0, 1); q[B.spine * 3 + 2] += s * 0.12 * f;
-        if (clip === 'hesi') { q[B.spine * 3] -= 0.25 * bump(tt, 0, 0.6); q[B.neck * 3] -= 0.2 * bump(tt, 0, 0.6); }
-      } else if (clip === 'spin') { const b = bump(tt, 0.05, 0.9); q[B.neck * 3 + 1] += (p.mvS || 1) * 0.5 * bump(tt, 0.05, 0.7); q[B.spine * 3] += 0.18 * b; }
-      else if (clip === 'pass' || clip === 'catch' || clip === 'steal') { const o = kf(p.poseT, clip === 'pass' ? PASS_K : clip === 'catch' ? CATCH_K : STEAL_K); for (const b of ['spine', 'chest', 'neck', 'shL', 'elL', 'haL', 'shR', 'elR', 'haR']) { const i = B[b] * 3; if (b === 'spine') q[i] += o[i]; else { q[i] = o[i]; q[i + 1] = o[i + 1]; q[i + 2] = o[i + 2]; } } }
-      else if (clip === 'inbound') { for (const b of ['shL', 'elL', 'shR', 'elR']) { const i = B[b] * 3; q[i] = POSE_INB[i]; q[i + 1] = POSE_INB[i + 1]; q[i + 2] = POSE_INB[i + 2]; } }
+        if (base === 'hesi') { q[B.spine * 3] -= 0.32 * bump(tt, 0, 0.6); q[B.neck * 3] -= 0.25 * bump(tt, 0, 0.6); } // the hesitation: up tall, eyes to the rim, then gone
+      } else if (base === 'inout') { const a = bump(tt, 0, 0.62), o = bump(tt, 0.55, 1); q[B.chest * 3 + 1] += f0 * 0.4 * a - f0 * 0.3 * o; q[B.neck * 3 + 1] += f0 * 0.3 * a; q[B.spine * 3] += 0.2 * a; q[B.spine * 3 + 2] -= f0 * 0.14 * a; }
+      else if (base === 'dbl') { const a = bump(tt, 0, 0.5), o = bump(tt, 0.5, 1); q[B.chest * 3 + 1] += f0 * 0.35 * a - f0 * 0.35 * o; q[B.neck * 3 + 1] += f0 * 0.25 * a - f0 * 0.25 * o; q[B.spine * 3] += 0.2 * Math.max(a, o); }
+      else if (base === 'stepback') { const a = bump(tt, 0, 0.75); q[B.spine * 3] += 0.12 * a; q[B.neck * 3] -= 0.15 * a; }
+      else if (base === 'spin') { const bb = bump(tt, 0.05, 0.9); q[B.neck * 3 + 1] += (mv ? mv.from : s) * 0.5 * bump(tt, 0.05, 0.7); q[B.spine * 3] += 0.18 * bb; }
+      else if (base === 'pass' || base === 'catch' || clip === 'steal') {
+        const keys = clip === 'steal' ? STEAL_K : bbKeys(clip, p.lefty), o = kf(p.poseT, keys);
+        for (const bn of ['spine', 'chest', 'neck', 'shL', 'elL', 'haL', 'shR', 'elR', 'haR']) { const i = B[bn] * 3; if (bn === 'spine') q[i] += o[i]; else if (bn === 'chest' || bn === 'neck') { q[i] += o[i]; q[i + 1] += o[i + 1]; q[i + 2] += o[i + 2]; } else { q[i] = o[i]; q[i + 1] = o[i + 1]; q[i + 2] = o[i + 2]; } }
+      }
+      else if (clip === 'inbound') { for (const bn of ['shL', 'elL', 'shR', 'elR']) { const i = B[bn] * 3; q[i] = POSE_INB[i]; q[i + 1] = POSE_INB[i + 1]; q[i + 2] = POSE_INB[i + 2]; } }
       else if (clip === 'fumble') { set(-1, 1.0, 0.7, 0.4); set(1, 0.9, 0.8, 0.4); q[B.spine * 3] += 0.3; }
     }
-    // hands on the ball: the dribble hand meets the ball at the top of each bounce and rides it down to the hip; a held ball sits
-    // between both palms (the shooting hand behind it on a shot); a dunker hangs on the rim; a rebounder or shot blocker reaches
-    function handsOnBall(p, bones, clip, hs, dt) {
-      const b = ball; if (!b || p.benched) return;
-      const ch = bones[B.chest], rt = [ch[0], ch[4], ch[8]], up = [ch[1], ch[5], ch[9]], fw = [ch[2], ch[6], ch[10]];
+    // the jab step from the triple threat: the strong foot stabs at the defender and comes back (the pivot foot stays down); a
+    // requested jab (u 0..1) or, holding the ball with a man up on him, one now and then on his own
+    function jabStep(p, bones, u) {
+      if (u < 0) { const [f, fd] = nearFoe(p); if (!f || fd > 2.4 || !inFront(p, f)) return; const c = (p.an.t + (bbTraits(p).hsh % 7) * 0.3) % 2.8; if (c < 1.6) return; u = (c - 1.6) / 0.55; if (u >= 1) return; }
+      const k = bump(u, 0, 1), side = p.lefty ? -1 : 1, hs = p.lk.hs, ft = bones[side < 0 ? B.ftL : B.ftR];
+      const fw = [Math.sin(p.h), 0, Math.cos(p.h)], rt = [Math.cos(p.h), 0, -Math.sin(p.h)];
+      const tgt = [ft[3] + (fw[0] * 0.34 + rt[0] * 0.06 * side) * hs * k, ft[7] + 0.05 * hs * bump(u, 0, 0.45), ft[11] + (fw[2] * 0.34 + rt[2] * 0.06 * side) * hs * k];
+      legIK(bones, side, tgt, hs, fw, ft, p.lk.ll);
+    }
+    // hands on the ball: palm IK onto the ball the game holds (the grip from the clip: which hands, palm normals, elbows); the
+    // dribble hand meets the ball at the top of each bounce and rides it; after a release the hands carry on along the clip's
+    // path and fade back to the keyframes; a dunker hangs on the rim; a rebounder or shot blocker reaches
+    function handsOnBall(p, bones, clip, base, hs, dt, ct) {
+      const b = ball, an = p.an; if (!b || p.benched) return;
+      const ch = bones[B.chest], rt = [ch[0], ch[4], ch[8]];
+      const hp = bones[B.hips], hf = v3n([hp[2], 0, hp[10]]), F = { f: hf, r: [hf[2], 0, -hf[0]], u: [0, 1, 0] }; // the body's heading (visual: spins and twists included)
+      const W = (v, s) => [F.f[0] * v[0] + F.r[0] * v[1] * s + F.u[0] * v[2], F.f[1] * v[0] + F.r[1] * v[1] * s + v[2], F.f[2] * v[0] + F.r[2] * v[1] * s + F.u[2] * v[2]];
       const ob = [bones[B.shL], bones[B.elL], bones[B.haL], bones[B.shR], bones[B.elR], bones[B.haR]];
-      let w = 0;
+      const lefty = p.lefty, sR = lefty ? -1 : 1; // the strong hand's side
+      const spec = BBCLIPS[clip];
+      const grip = (C, gname, gt, w) => { // both hands from a grip at a ball centre
+        const G = gname ? (() => { const g = GRIPS[gname]; return { R: g.R, L: g.L, wL: g.L ? 1 : 0 }; })() : bbGrip(clip, gt);
+        if (!G) return;
+        const m = lefty ? -1 : 1;
+        if (G.R) { const n = v3n(W(G.R[0], m)), fd = v3n(W(G.R[1], m)), pole = W(G.R[2], m); palmIK(bones, sR, C, n, fd, hs, pole, w, BALL_R); }
+        if (G.L && G.wL > 0.01) { const n = v3n(W(G.L[0], m)), fd = v3n(W(G.L[1], m)), pole = W(G.L[2], m); palmIK(bones, -sR, C, n, fd, hs, pole, w * G.wL, BALL_R); }
+      };
       if (b.holder === p) {
-        if (b.st === 'drib') {
-          const dh = p.dh || 1, hipY = bones[B.hips][7], ty = Math.max(b.y + BALL_R * 0.8 + 0.08 * hs, hipY - 0.12 * hs);
-          armIK(bones, dh, [b.x - fw[0] * 0.03, ty, b.z - fw[2] * 0.03], hs);
-          return;
-        }
-        // two palms on the ball: the wrists a ball's radius out to the sides (on a shot the shooting hand comes behind and under it)
-        const shot = clip === 'shoot' || clip === 'ftshot' || clip === 'layup' || clip === 'dunk';
-        const r2 = BALL_R + 0.04 * hs;
-        if (shot) {
-          armIK(bones, 1, [b.x - fw[0] * r2 + rt[0] * 0.03 - up[0] * 0.05, b.y - fw[1] * r2 - 0.06 * hs, b.z - fw[2] * r2 + rt[2] * 0.03], hs);
-          if (clip !== 'dunk' || p.poseT < 0.5) armIK(bones, -1, [b.x - rt[0] * r2, b.y + 0.02, b.z - rt[2] * r2], hs);
-        } else {
-          armIK(bones, -1, [b.x - rt[0] * r2, b.y + 0.04 * hs, b.z - rt[2] * r2], hs);
-          armIK(bones, 1, [b.x + rt[0] * r2, b.y + 0.04 * hs, b.z + rt[2] * r2], hs);
-        }
+        an.relT = 0; an.held = clip;
+        if (b.st === 'drib') { dribbleHands(p, bones, hs, F); return; }
+        if (p.ftBounce >= 0) { ftBounceHand(p, bones, hs, F); return; }
+        const C = [b.x, b.y, b.z];
+        if (spec && spec.grip) grip(C, null, ct, 1); else grip(C, 'side', 0, 1);
         return;
       }
-      // a dunk's hang: both hands on the front of the rim
-      if (clip === 'dunk' && p.dunkH && p.poseT > 0.56 && p.poseT < 1.0) {
-        const h = p.dunkH, x = h.x - h.dir * RIM_C * 0.92;
-        armIK(bones, -1, [x, RIM_Y + 0.03, h.z - 0.13], hs); armIK(bones, 1, [x, RIM_Y + 0.03, h.z + 0.13], hs);
+      // just let it go: the hands follow the path a moment longer and fade back to the clip's own arms
+      if (an.held && an.held === clip && an.relT === 0) an.relT = 0.18;
+      const hang = base === 'dunk' && p.dunkH && p.poseT > 0.54 && p.poseT < 0.8;
+      if (an.relT > 0 && !hang) {
+        an.relT -= dt; const w = smo(clamp(an.relT / 0.18, 0, 1)), C = bbVirtual(p, clip, ct);
+        if (C && w > 0.01) grip(C, null, ct, w);
+        if (an.relT <= 0) an.held = null;
+      } else if (!hang && an.relT <= 0) an.held = null;
+      // a dunk's hang: both hands on the front of the rim (one hand on a one-hander)
+      if (hang) {
+        const h = p.dunkH, x = h.x - h.dir * RIM_C * 0.92, one = clip === 'dunk_one' || clip === 'tomahawk' || clip === 'windmill';
+        const w = smo(clamp((p.poseT - 0.54) / 0.06, 0, 1)) * smo(clamp((0.8 - p.poseT) / 0.1, 0, 1));
+        const put = (sd, z) => { const o = [bones[sd < 0 ? B.shL : B.shR], bones[sd < 0 ? B.elL : B.elR], bones[sd < 0 ? B.haL : B.haR]]; armIK(bones, sd, [x, RIM_Y + 0.03, z], hs); if (w < 0.999) for (let i = 0; i < 3; i++) { const bi = (sd < 0 ? B.shL : B.shR) + i; bones[bi] = mLerp(o[i], bones[bi], w); } };
+        if (one) put(sR, h.z + sR * 0.06); else { put(-1, h.z - 0.13); put(1, h.z + 0.13); }
         return;
       }
       // reaching for a loose or flying ball near him (rebounds, blocks, deflections)
       if ((b.st === 'loose' || b.st === 'air') && (clip === 'rebound' || clip === 'block' || clip === 'contest' || clip === 'tip' || clip === 'steal')) {
         const c = [ch[3], ch[7], ch[11]], d = Math.hypot(b.x - c[0], b.y - c[1], b.z - c[2]);
-        w = smo(clamp((1.25 - d) / 0.6, 0, 1));
+        const w = smo(clamp((1.25 - d) / 0.6, 0, 1));
         if (w > 0.01) {
           if (clip === 'block' || clip === 'contest' || clip === 'steal') armIK(bones, clip === 'steal' ? 1 : -1, [b.x, b.y, b.z], hs);
           else { armIK(bones, -1, [b.x - rt[0] * 0.14, b.y, b.z - rt[2] * 0.14], hs); armIK(bones, 1, [b.x + rt[0] * 0.14, b.y, b.z + rt[2] * 0.14], hs); }
           if (w < 0.99) for (let i = 0; i < 6; i++) { const bi = (i < 3 ? B.shL : B.shR) + (i % 3); bones[bi] = mLerp(ob[i], bones[bi], w); }
         }
       }
+    }
+    // the dribble: the hand on the side the ball is on; on the ball near the top of the bounce (pushing it down, cushioning it
+    // back up), waiting over where it will come back up while it's on its way to the floor
+    function dribbleHands(p, bones, hs, F) {
+      const b = ball, an = p.an, u = b.u || 0, cu = Math.abs(Math.cos(Math.PI * u)), w = smo(clamp((cu - 0.5) / 0.32, 0, 1));
+      const lat = (b.x - p.x) * F.r[0] + (b.z - p.z) * F.r[2], fwd = (b.x - p.x) * F.f[0] + (b.z - p.z) * F.f[2];
+      let hd = an.dh || p.dh || 1; if (lat > 0.07 * hs) hd = 1; else if (lat < -0.07 * hs) hd = -1;
+      an.dh = hd;
+      const top = (p.dribH || 1.08) * hs * 0.9 + p.jumpY, y = lerp(Math.max(top, b.y), b.y, w), C = [b.x, y, b.z]; // off the ball the hand waits just under the top for it to come back
+      const behind = fwd < -0.14 * hs; // behind the back or through the legs: the hand comes from behind
+      const n = v3n([F.r[0] * hd * 0.25 - F.f[0] * 0.25, 1, F.r[2] * hd * 0.25 - F.f[2] * 0.25]);
+      const fd = behind ? v3n([F.r[0] * -hd * 0.6 + F.f[0] * 0.4, -0.2, F.r[2] * -hd * 0.6 + F.f[2] * 0.4]) : v3n([F.f[0] + F.r[0] * hd * 0.35, -0.25, F.f[2] + F.r[2] * hd * 0.35]);
+      const pole = behind ? [F.r[0] * hd * 0.6 - F.f[0] * 0.6, -0.2, F.r[2] * hd * 0.6 - F.f[2] * 0.6] : [F.r[0] * hd * 0.8 - F.f[0] * 0.35, -0.4, F.r[2] * hd * 0.8 - F.f[2] * 0.35];
+      an.dribGap = palmIK(bones, hd, C, n, fd, hs, pole, 1, BALL_R);
+    }
+    // the free-throw bounces: the strong hand over the ball, both hands back on it to catch
+    function ftBounceHand(p, bones, hs, F) {
+      const b = ball, u = p.ftBounce, cu = Math.abs(Math.cos(Math.PI * u)), w = smo(clamp((cu - 0.45) / 0.4, 0, 1)), s = p.lefty ? -1 : 1;
+      const top = 1.0 * hs + p.jumpY, C = [b.x, lerp(top, b.y, w), b.z];
+      palmIK(bones, s, C, v3n([-F.f[0] * 0.2, 1, -F.f[2] * 0.2]), v3n([F.f[0], -0.3, F.f[2]]), hs, [F.r[0] * s * 0.8 - F.f[0] * 0.3, -0.4, F.r[2] * s * 0.8 - F.f[2] * 0.3], 1, BALL_R);
     }
     // foot locking: a planted foot stays where it touched down until the gait lifts it, so feet never slide
     function footLock(p, bones, dt, yaw, g) {
@@ -4039,12 +5119,15 @@ gl_FragColor=vec4(c,1.0);}`;
       g.v = sp / sc;
       if (sp > 0.2) { g.uf = vf / sp; g.ul = vl / sp; }
       const kw = Math.min(1, dt * 9);
-      g.wB += (clamp((-g.uf - 0.25) / 0.55, 0, 1) - g.wB) * kw;
-      g.wS += (clamp((Math.abs(g.ul) - 0.45) / 0.35, 0, 1) * (1 - g.wB) * clamp(1.5 - g.v / 7, 0, 1) - g.wS) * kw;
+      // a backpedal or a shuffle only once he is really moving that way (a drift of half a step is still a stand), and only a
+      // defender in his stance sits all the way down into the slide
+      const mvK = clamp((g.v - 0.6) / 1.4, 0, 1);
+      g.wB += (clamp((-g.uf - 0.25) / 0.55, 0, 1) * mvK - g.wB) * kw;
+      g.wS += (clamp((Math.abs(g.ul) - 0.45) / 0.35, 0, 1) * (1 - g.wB) * clamp(1.5 - g.v / 7, 0, 1) * mvK * (p.dstance ? 1 : 0.55) - g.wS) * kw;
       g.kR = clamp((g.v - 1.6) / 6.4 + (p.sprint ? 0.1 : 0), 0, 1);
       g.brake += (clamp(-aF / 24, 0, 1) * clamp(sp / 3, 0, 1) - g.brake) * k8;
       g.drive += (clamp(aF / 30, 0, 1) * clamp(1 - g.v / 9, 0, 1) - g.drive) * k8;
-      g.leanF = clamp(aF * 0.003, -0.12, 0.12);
+      g.leanF = clamp(aF * 0.003, -0.12, 0.12); g.lean0 = g.leanF;
       g.bank += (clamp(-aL * 0.011, -0.3, 0.3) - g.bank) * k8;
       if (sp > 3) {
         const dl = Math.hypot(g.dx, g.dz);
@@ -4059,6 +5142,9 @@ gl_FragColor=vec4(c,1.0);}`;
       const lat = clamp(-(ax * rx + az * rz) * 0.022, -0.3, 0.3), fwd = clamp((ax * fx + az * fz) * 0.016, -0.2, 0.25), k = Math.min(1, dt * 7);
       p.lean += (lat - p.lean) * k; p.leanF += (fwd - p.leanF) * k;
       if (p.plant > 0) p.plant -= dt;
+      if (p.bumpT > 0) p.bumpT -= dt; else if (p.bumpK > 0) p.bumpK = Math.max(0, p.bumpK - dt * 5);
+      if (p.chgT > 0) p.chgT -= dt;
+      if (p.burstT > 0) p.burstT -= dt;
       if (p.stumbleT > 0) p.stumbleT -= dt;
       if (p.rising > 0) { p.rising -= dt; if (p.rising <= 0) p.rising = 0; }
     }
@@ -4066,10 +5152,349 @@ gl_FragColor=vec4(c,1.0);}`;
     const chestPos = (p) => { const m = p.bones ? p.bones[B.chest] : null; return m ? mPt(m, 0, 0.12 * p.lk.hs, 0.1) : [p.x, 1.4 * p.lk.hs, p.z]; };
     function ensureBones(p) { if (!p.bones) animUpdate(p, 0); return p.bones; }
     // =====================================================================================
-    // Movement (from 3D Blitz): a body with momentum. The stick or the AI asks for a velocity; his legs decide how fast he gets
-    // there (burst, braking, grip, the plant on a sharp cut). Speed comes from the card's SPD, the turn from SPD and HND.
+    // Defensive and life animation (runtime): reads the game (stats, phases, poses, the ball) and picks the clips of 05c-bbdef.js.
+    // It is purely visual: it never writes a gameplay field (position, velocity, heading, pose, timers), only its own p.bx state
+    // and the bones. The animation runtime (25-animrt.js) calls it through ANIMX:
+    //   remap(p, clip, dt) -> clip     the clip to play instead of the one pickClip chose (variants, triggered clips, states)
+    //   floor(clip) / blend(clip)      a registered clip's kind (gait legs + upper body, or a full pose) and its blend time
+    //   leg(p, clip, g, tt)            gait tweaks for a floor clip (sink, wide base, lunge lean)
+    //   top(p, clip, q)                upper-body layers on any floor clip (stance hands, celebrations, a bump)
+    //   pose(p, clip) -> q             a full pose for a registered non-floor clip
+    //   post(p, bones, clip, hs, dt)   hand IK on the world bones, the ragdoll, the walk to a huddle or the line (bones moved)
+    // Other lanes can register clips the same way: ANIMX.add(name, { floor, blend, pose(p, X), top(p, q, X), leg(p, g, X) }).
     // =====================================================================================
-    const effV = (p) => p.v * (p.sprint && p.sta > 0 ? 1.22 + (p.spd - 50) * 0.0012 : 1) * (p.stumbleT > 0 ? 0.6 : 1) * (p.rising > 0 ? 0 : 1) * (ball && ball.holder === p ? 0.92 : 1) * (0.88 + 0.12 * p.sta);
+    const ANIMX = (() => {
+      let rs = 9137; const rnd = () => ((rs = (rs * 1664525 + 1013904223) >>> 0) / 4294967296); // cosmetic, never the game's rng
+      const C = {}; // name -> def
+      const add = (name, def) => { C[name] = def; };
+      const sideOf = (p, x, z) => ((x - p.x) * Math.cos(p.h) - (z - p.z) * Math.sin(p.h) >= 0 ? 1 : -1); // 1: on his right
+      const spd = (p) => Math.hypot(p.vx, p.vz);
+      const VARIANT_SRC = { block: 1, contest: 1, rebound: 1, steal: 1 };
+      let lastPhase = phase, overDone = false, looseTag = null;
+      function bx(p) {
+        if (p.bx) return p.bx;
+        const s = stat(p.sq) || {};
+        return (p.bx = { k: null, t: 0, dur: 0, src: null, v: null, next: null, life: null, lifeT: 0, lifeDur: 0, lifeSd: 1, pend: null, joltT: 0, joltS: 1, ps: 0, pp: p.pose, ppt: 0, seed: rnd() * 6.28,
+          st: { pts: s.pts || 0, blk: s.blk || 0, stl: s.stl || 0, to: s.to || 0, pf: s.pf || 0, reb: s.reb || 0, ast: s.ast || 0 },
+          mode: 'free', V: null, A: null, Ah: 0, vs: 0, vh: null, wph: 0, laneK: 0, bench: null, benchT: 0, rag: null, ragPend: null, lx: p.x, lz: p.z, jump: false });
+      }
+      function play(p, k, dur, src, v, next) { const X = bx(p); X.k = k; X.t = 0; X.dur = dur; X.src = src || null; X.v = v || null; X.next = next || null; }
+      function life(p, kind, dur, delay, sd) { const X = bx(p); if (delay) { X.pend = { kind, dur, at: delay, sd }; return; } X.life = kind; X.lifeT = 0; X.lifeDur = dur; X.lifeSd = sd || (X.seed > 3.14 ? -1 : 1); }
+      const near = (list, o, maxD, skip) => { let b = null, bd = maxD; for (const q of list) { if (q === skip || q === o || q.benched) continue; const d = D(q, o); if (d < bd) { bd = d; b = q; } } return b; };
+      // ---------- variants of the game's own one-shots, chosen the moment the game sets the pose ----------
+      function variant(p, X) {
+        const b = ball, src = p.pose;
+        if (src === 'steal') {
+          if (b.st === 'air' && b.pass) { const sd = sideOf(p, b.x, b.z); play(p, sd > 0 ? 'xLunge' : 'xLungeL', 0.5, src); return; }
+          const h = b.holder; if (!h) return;
+          const dd = D(p, h) || 1, front = ((h.x - p.x) * Math.sin(p.h) + (h.z - p.z) * Math.cos(p.h)) / dd, sd = sideOf(p, b.x, b.z);
+          if (front < 0.35) play(p, sd > 0 ? 'xPoke' : 'xPokeL', 0.42, src);
+          else play(p, sd > 0 ? 'xSwipe' : 'xSwipeL', 0.42, src);
+          return;
+        }
+        if (src === 'block' || src === 'contest') {
+          const sh = onCourt.find((q) => q.side !== p.side && ((q.shotS && !q.shotRel) || q.fin)) || (b.shot && b.shot.by);
+          if (!sh) return;
+          const h = hoopOf(sh.side), tx = h.x - sh.x, tz = h.z - sh.z, tl = Math.hypot(tx, tz) || 1;
+          const along = ((p.x - sh.x) * tx + (p.z - sh.z) * tz) / tl, rimD = Math.hypot(p.x - h.x, p.z - h.z), sd = sideOf(p, sh.x, sh.z);
+          if (src === 'contest') { if (sh.fin || rimD < 2.6 || rnd() < 0.3) play(p, 'xCntVert', 0.85, src); return; }
+          if (along < -0.2) play(p, sd > 0 ? 'xBlkChase' : 'xBlkChaseL', 0.95, src);          // from behind: the chase-down
+          else if (p.man !== sh && rimD < 4) play(p, sd > 0 ? 'xBlkWeak' : 'xBlkWeakL', 0.95, src); // the help: weak side
+          else if (rimD < 3 || rnd() < 0.55) play(p, sd > 0 ? 'xBlkSwat' : 'xBlkSwatL', 0.95, src);
+          return;
+        }
+        if (src === 'rebound') {
+          const lat = (b.x - p.x) * Math.cos(p.h) - (b.z - p.z) * Math.sin(p.h), off = b.shot ? b.shot.side === p.side : b.lastSide === p.side;
+          const h = hoopOf(p.side), rimD = Math.hypot(p.x - h.x, p.z - h.z);
+          if (off && rimD < 1.8 && rnd() < 0.45) play(p, lat >= 0 ? 'xRtip' : 'xRtipL', 0.95, src);
+          else if (Math.abs(lat) > 0.4) play(p, lat > 0 ? 'xReb1' : 'xReb1L', 0.95, src);
+          else play(p, 'xReb2', 0.95, src);
+        }
+      }
+      // ---------- once a frame: what happened since the last one (stats, phases, the ball) ----------
+      function frame() {
+        const evs = [];
+        for (const p of everyone) {
+          const X = bx(p), s = stat(p.sq); if (!s) continue;
+          const d = {}; let any = false;
+          for (const k in X.st) { d[k] = (s[k] || 0) - X.st[k]; if (d[k]) any = true; X.st[k] = s[k] || 0; }
+          if (any) evs.push([p, d]);
+        }
+        for (const [p, d] of evs) {
+          if (d.to > 0 && d.pf > 0) onCharge(p);
+          else if (d.pf > 0) life(p, rnd() < 0.6 ? 'protest' : 'innocent', 1.6, 0.25);
+          else if (d.to > 0 && !(bx(p).k)) { if (rnd() < 0.6) life(p, 'head', 1.4, 0.45); }
+          if (d.pts > 0) onScore(p, d.pts, evs);
+          if (d.blk > 0) { life(p, rnd() < 0.5 ? 'roar' : 'flex', 1.3, 0.9); benchCheer(p.side, 'xStandWave', 2.4); }
+          if (d.stl > 0) { const v = near(foes(p), p, 2.5); if (v && rnd() < 0.55) life(v, 'head', 1.3, 0.5); benchCheer(p.side, 'xSitClap', 1.6); }
+          if (d.reb > 0 && ball.holder === p) life(p, 'chin', 0.7);
+        }
+        // phases: walk to the line, the timeout huddle, the final horn
+        if (phase !== lastPhase) {
+          if (phase === 'ft' && lastPhase !== 'timeout' && ftS) for (const p of onCourt) {
+            if (p === ftS.sh) continue;
+            const X = bx(p), dx = X.lx - p.x, dz = X.lz - p.z, dl = Math.hypot(dx, dz);
+            if (dl < 0.4) continue;
+            const k = Math.min(1, 4.5 / dl); X.V = [p.x + dx * k, p.z + dz * k]; X.mode = 'ret'; X.mspd = 2.3 + rnd() * 0.5;
+          }
+          if (phase === 'timeout') for (const t of teams) {
+            const BR = t.side === 0 ? GYM.bench.home : GYM.bench.away, cx = (BR[0] + BR[1]) / 2 + (t.side === 0 ? 1.2 : -1.2), cz = COURT.HW + 0.75;
+            t.on.forEach((p, i) => { const X = bx(p), a = (i / 5) * TAU + 0.6; X.A = [cx + Math.sin(a) * 0.62, cz + Math.cos(a) * 0.62]; X.Ah = a + Math.PI; X.mode = 'anch'; X.mspd = 2.4 + rnd() * 0.4; X.jump = false; if (!X.V) X.V = [p.x, p.z]; });
+          }
+          if (lastPhase === 'timeout') for (const p of everyone) { const X = bx(p); if (X.mode === 'anch') { X.mode = 'ret'; X.mspd = 9; } }
+          if (phase === 'over' && !overDone) {
+            overDone = true; const won = hs > as ? 0 : as > hs ? 1 : -1;
+            for (const t of teams) {
+              if (t.side === won) {
+                let cx = 0, cz = 0; t.on.forEach((p) => { cx += p.x / 5; cz += p.z / 5; });
+                t.on.forEach((p, i) => { const X = bx(p), a = (i / 5) * TAU; X.A = [cx + Math.sin(a) * 0.6, cz + Math.cos(a) * 0.6]; X.Ah = a + Math.PI; X.mode = 'anch'; X.mspd = 3.2; X.jump = true; if (!X.V) X.V = [p.x, p.z]; });
+                benchCheer(t.side, 'xStandJump', 99);
+              } else { t.on.forEach((p) => life(p, rnd() < 0.5 ? 'hips' : 'head', 99, rnd() * 0.6)); benchCheer(t.side, 'xSitLean', 99); }
+            }
+          }
+          if (phase !== 'over') overDone = false;
+          lastPhase = phase;
+        }
+        // a loose ball near the line: the nearest man may lay out for it
+        const b = ball;
+        if (phase === 'live' && b.st === 'loose' && !b.holder && b.y < 0.7 && (Math.abs(b.x) > COURT.HL - 3 || Math.abs(b.z) > COURT.HW - 2.2)) {
+          const tag = b.last;
+          if (looseTag !== tag) {
+            const p = near(onCourt, b, 1.8);
+            if (p && !bx(p).k && p.jumpY <= 0 && spd(p) > 3.0) {
+              const bl = Math.hypot(b.x - p.x, b.z - p.z) || 1, towards = (p.vx * (b.x - p.x) + p.vz * (b.z - p.z)) / (bl * spd(p)), away = (b.vx * (b.x - p.x) + b.vz * (b.z - p.z)) / bl;
+              if (bl > 0.6 && towards > 0.8 && away > 0.4) { looseTag = tag; if (rnd() < 0.6) play(p, 'xDive', 0.8, null, null, ['xGetFront', 0.9]); }
+            }
+          }
+        } else if (b.holder) looseTag = null;
+        for (const p of everyone) { const X = bx(p); X.lx = p.x; X.lz = p.z; }
+      }
+      function onScore(p, pts, evs) {
+        if (phase === 'ft' || pts === 1) return;
+        const kind = lastBig && lastBig.kind, big = kind === 'dunk' || kind === 'three';
+        const passer = evs.find(([q, d]) => q !== p && q.side === p.side && d.ast > 0);
+        // the chest bump: a teammate right there and both nearly still
+        const mate = big ? near(mates(p), p, 2.4) : null;
+        if (mate && spd(p) < 2.4 && spd(mate) < 2.4 && !bx(mate).k && rnd() < 0.7) {
+          const mx = (p.x + mate.x) / 2, mz = (p.z + mate.z) / 2, ax = mate.x - p.x, az = mate.z - p.z, al = Math.hypot(ax, az) || 1;
+          for (const [q, s] of [[p, -1], [mate, 1]]) { const X = bx(q); X.A = [mx + ax / al * 0.3 * s, mz + az / al * 0.3 * s]; X.Ah = Math.atan2(-ax * s, -az * s); X.mode = 'bump'; X.mspd = 4; if (!X.V) X.V = [q.x, q.z]; play(q, 'xBump', 0.9, null, null); X.bumpT = 0; }
+        } else if (passer && rnd() < 0.5) life(p, 'point', 1.2, 0.2);
+        else if (kind === 'dunk') life(p, rnd() < 0.55 ? 'flex' : 'roar', 1.6, 0.35);
+        else if (kind === 'three') life(p, rnd() < 0.5 ? 'raise' : 'sky', 1.6, 0.15);
+        else if (rnd() < 0.35) life(p, 'pump', 1.0, 0.2);
+        for (const q of mates(p)) if (q !== p && D(q, p) < 7 && rnd() < (big ? 0.6 : 0.3)) life(q, 'clap', 1.2, 0.2 + rnd() * 0.3);
+        const dfd = near(foes(p), p, 2.5); if (dfd && rnd() < (big ? 0.5 : 0.25)) life(dfd, rnd() < 0.6 ? 'head' : 'protest', 1.3, 0.35);
+        benchCheer(p.side, big ? 'xStandJump' : 'xSitClap', big ? 2.6 : 1.6);
+        benchCheer(1 - p.side, big ? 'xStandHead' : 'xSitLean', big ? 1.8 : 2.5);
+      }
+      // the charge: the defender who had his spot goes down (a ragdoll fall, then up off his back); the driver stumbles and protests
+      function onCharge(h) {
+        const d = near(foes(h), h, 2.0); if (!d) return;
+        const ax = d.x - h.x, az = d.z - h.z, al = Math.hypot(ax, az) || 1, X = bx(d);
+        X.ragPend = [ax / al * 3.2, 1.4, az / al * 3.2];
+        play(d, 'xRag', 1.15, null, null, ['xRiseBack', 1.1]);
+        const Y = bx(h); Y.joltT = 0.4; Y.joltS = sideOf(h, d.x, d.z); life(h, 'protest', 1.6, 0.55);
+      }
+      function benchCheer(side, k, dur) { for (const p of teams[side].bench) { const X = bx(p); X.bench = k; X.benchT = dur; } }
+      // ---------- the visual walk: to the line, into a huddle, a chest bump (bones moved; the gameplay body stays put) ----------
+      function walk(p, X, dt) {
+        if (X.mode === 'free' || (ball.holder === p && phase !== 'over')) { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; return null; }
+        if (!X.V) X.V = [p.x, p.z];
+        const tgt = X.mode === 'ret' ? [p.x, p.z] : X.A, dx = tgt[0] - X.V[0], dz = tgt[1] - X.V[1], dl = Math.hypot(dx, dz);
+        if (X.mode === 'ret' && X.mspd > 6 && dl > 2.5) { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; return null; } // too far to walk back: cut
+        const st = X.mspd * dt;
+        let want = null;
+        if (dl <= Math.max(st, 0.02)) { X.V[0] = tgt[0]; X.V[1] = tgt[1]; X.vs = 0; if (X.mode === 'ret') { X.mode = 'free'; X.V = null; X.vh = null; return null; } want = X.Ah; }
+        else { X.V[0] += dx / dl * st; X.V[1] += dz / dl * st; X.vs = X.mspd; want = Math.atan2(dx, dz); }
+        if (X.mode === 'ret' && dl < 0.6) want = p.h;
+        if (X.vh == null) X.vh = p.h;
+        X.vh += clamp(angDiff(want, X.vh), -6 * dt, 6 * dt);
+        if (X.vs > 0.3) { X.wph += dt * X.vs / 1.35 * TAU; return 'xWalk'; }
+        if (X.mode === 'anch') return 'xHuddle';
+        return null;
+      }
+      // ---------- remap: the clip this player really plays this frame ----------
+      function remap(p, c, dt) {
+        if (p === everyone[0]) frame();
+        const X = bx(p);
+        X.t += dt; X.lifeT += dt; if (X.joltT > 0) X.joltT -= dt;
+        if (X.pend) { X.pend.at -= dt; if (X.pend.at <= 0) { const e = X.pend; X.pend = null; life(p, e.kind, e.dur, 0, e.sd); } }
+        // the game set a new pose: a variant of it, or the end of whatever this was playing
+        const fresh = p.pose !== X.pp || p.poseT < X.ppt; X.pp = p.pose; X.ppt = p.poseT;
+        if (fresh) {
+          if (VARIANT_SRC[p.pose]) { X.k = null; variant(p, X); }
+          else if (X.k && ONE_SHOT[p.pose] && X.k !== 'xRag' && !(X.k === 'xDive' && p.pose === 'catch')) X.k = null;
+        }
+        // bumps in traffic and broken ankles (read from the game's stumble timer)
+        if (p.stumbleT > X.ps + 0.05 && !p.benched) {
+          if (p.stumbleT >= 0.5 && !X.k) {
+            const h = ball.holder, lat = h ? h.vx * Math.cos(p.h) - h.vz * Math.sin(p.h) : 1, sd = lat >= 0 ? -1 : 1;
+            const fall = (h && h === ctrl ? 0.4 : 0.15) > rnd();
+            play(p, fall ? (sd > 0 ? 'xAnkFall' : 'xAnkFallL') : (sd > 0 ? 'xAnk' : 'xAnkL'), fall ? 1.55 : 0.9);
+          } else if (p.stumbleT < 0.5) { X.joltT = 0.35; const o = near(onCourt, p, 1.5); X.joltS = o ? sideOf(p, o.x, o.z) : 1; }
+        }
+        X.ps = p.stumbleT;
+        if (c === 'rag' || p.rag) return c;
+        if (p.benched) return benchClip(p, X, dt);
+        // a playing one-shot (and what follows it)
+        if (X.k) {
+          if (X.src && p.pose !== X.src) X.k = null;
+          else if (X.k === 'xDive' && ball.holder === p && X.t > 0.3) { X.k = 'xGetFront'; X.t = 0; X.dur = 0.8; X.next = null; }
+          else if ((X.k === 'xAnkFall' || X.k === 'xAnkFallL') && X.t > 0.6 && spd(p) > 2.6) X.k = null;
+          if (X.k && X.t >= X.dur) { if (X.next) { const n = X.next; X.k = n[0]; X.t = 0; X.dur = n[1]; X.next = null; } else X.k = null; }
+          if (X.k) { if (X.mode === 'bump') walk(p, X, dt); return X.k; }
+        }
+        if (X.mode === 'bump') { X.mode = 'ret'; X.mspd = 4; }
+        const w = walk(p, X, dt);
+        if (w === 'xHuddle' && X.jump) return 'xHuddleJ';
+        if (w) return w;
+        if (phase === 'ft' && ftS && p !== ftS.sh && !p.benched) {
+          const lane = Math.abs(p.z) < COURT.keyW / 2 + 0.8 && Math.abs(p.x) > COURT.HL - 3.2;
+          const shooting = ftS.state !== 'set' && ball.st === 'air';
+          X.laneK += ((shooting ? 1 : 0) - X.laneK) * Math.min(1, dt * (shooting ? 10 : 3));
+          if (lane && spd(p) < 0.6) return 'xLane';
+          if ((!X.life || X.life === 'hips') && spd(p) < 0.6 && c !== 'hk') { if (X.life !== 'hips') { X.life = 'hips'; X.lifeT = 0; X.lifeSd = 1; } X.lifeDur = X.lifeT + 0.35; }
+        } else X.laneK = 0;
+        if (X.life && X.lifeT < X.lifeDur && c === 'hk') c = 'idle';
+        // defensive states over the gait
+        if (phase === 'live' && (c === 'dstance' || c === 'ready' || c === 'run' || c === 'idle') && ball.holder !== p) {
+          const h = ball.holder;
+          if (p.boxOut) return 'xBox';
+          const bxr = onCourt.find((f) => f.side !== p.side && f.boxOut && f.man === p && D(f, p) < 1.4);
+          if (bxr) { X.boxer = bxr; return 'xBoxed'; }
+          if (h && h.side !== p.side) {
+            const dh = D(p, h), sp = spd(p);
+            if (((h.shotS && !h.shotRel) || h.fin) && dh < 2.4 && p.jumpY <= 0) return 'xHup';
+            if (dh > 1.3 && dh < 4.5 && sp > 2.2 && (p.vx * (h.x - p.x) + p.vz * (h.z - p.z)) / (dh * sp) > 0.7 && (p.man === h || h.poseT < 1.2)) return 'xClose';
+            if (c === 'dstance' && p.man && p.man !== h && D(p.man, h) < 5.5 && D(p, p.man) < 1.7) return 'xDeny'; // only a man tight on a receiver one pass away
+          }
+        }
+        return c;
+      }
+      function benchClip(p, X, dt) {
+        if (X.benchT > 0) { X.benchT -= dt; if (X.benchT <= 0) X.bench = null; }
+        if (!X.bench) { // between plays: sitting back or leaning in, changing now and then; standing for a timeout
+          if (phase === 'timeout') return 'xStandClap';
+          X.idleT = (X.idleT || 0) - dt;
+          if (X.idleT <= 0) { X.idleT = 5 + rnd() * 6; X.sitK = rnd() < 0.5 ? 'xSitLean' : 'xSitRest'; }
+          return X.sitK || 'xSitRest';
+        }
+        return X.bench;
+      }
+      // ---------- gait tweaks for the floor clips ----------
+      function leg(p, clip, g, tt) {
+        const X = p.bx; if (!X) return;
+        const d = C[clip]; if (d && d.leg) d.leg(p, g, X);
+        if (X.joltT > 0) { const k = X.joltT / 0.35; g.sink = Math.max(g.sink, 0.45 * k); g.bankX = (g.bankX || 0) - X.joltS * 0.14 * k; }
+        if (clip === 'dstance') g.wide = Math.max(g.wide, 0.08);
+      }
+      // ---------- upper-body layers ----------
+      function top(p, clip, q) {
+        const X = p.bx; if (!X) return;
+        const d = C[clip]; if (d && d.top) d.top(p, q, X);
+        if (clip === 'dstance' && ball && ball.holder && ball.holder.side !== p.side && ball.holder === p.man) dfStanceTop(q, X.t, sideOf(p, ball.x, ball.z), clamp(spd(p) / 3, 0, 1), X.seed);
+        if (X.life && X.lifeT < X.lifeDur && !(ball.holder === p && X.life !== 'chin')) {
+          const fade = clamp((X.lifeDur - X.lifeT) / 0.3, 0, 1), tmp = lerpPose(q, q, 0);
+          dfLife(tmp, X.life, X.lifeT, X.lifeSd);
+          for (let i = 0; i < PN; i++) q[i] += (tmp[i] - q[i]) * fade;
+        } else if (X.life && X.lifeT >= X.lifeDur) X.life = null;
+        if (X.joltT > 0) dfJolt(q, X.joltT / 0.35, X.joltS);
+      }
+      function pose(p, clip) { const d = C[clip]; return d && d.pose ? d.pose(p, p.bx || bx(p)) : null; }
+      // ---------- world-space touches: hands on the ball / the man, the ragdoll, the visual walk ----------
+      function reach(p, bones, sides, hs, maxD) {
+        const b = ball; if (!b || b.holder) return;
+        const ch = bones[B.chest], c = [ch[3], ch[7], ch[11]], dd = Math.hypot(b.x - c[0], b.y - c[1], b.z - c[2]);
+        const w = smo(clamp((maxD - dd) / 0.5, 0, 1)); if (w < 0.01) return;
+        const keep = sides.map((sd) => [0, 1, 2].map((k) => bones[(sd < 0 ? B.shL : B.shR) + k]));
+        const rt = [ch[0], ch[4], ch[8]];
+        for (const sd of sides) armIK(bones, sd, sides.length > 1 ? [b.x + rt[0] * 0.13 * sd, b.y, b.z + rt[2] * 0.13 * sd] : [b.x, b.y, b.z], hs);
+        if (w < 0.99) sides.forEach((sd, j) => { for (let k = 0; k < 3; k++) { const bi = (sd < 0 ? B.shL : B.shR) + k; bones[bi] = mLerp(keep[j][k], bones[bi], w); } });
+      }
+      function post(p, bones, clip, hs, dt) {
+        const X = p.bx; if (!X) return;
+        const d = C[clip]; if (d && d.post) d.post(p, bones, hs, X, dt);
+        // the ragdoll fall: built from this frame's pose the first time, then stepped here (render time, visual only)
+        if (clip === 'xRag') {
+          if (!X.rag) { X.rag = new Rag(p, bones, X.ragPend || [0, 1, 0], 1 / 60); X.rag.impulse(X.ragPend ? X.ragPend[0] * 0.4 : 0, 2, X.ragPend ? X.ragPend[2] * 0.4 : 0, 0.3); }
+          const n = Math.max(1, Math.ceil(Math.min(dt, 0.1) / (1 / 60)));
+          for (let i = 0; i < n; i++) X.rag.step(Math.min(dt, 0.1) / n, () => 0);
+          const rb = X.rag.bones(); for (let i = 0; i < NB; i++) bones[i] = rb[i];
+          return;
+        } else if (X.rag) X.rag = null;
+        // move the whole body to where the walk has him, turned the way he faces there
+        if (X.V || X.vh != null) {
+          const ox = X.V ? X.V[0] - p.x : 0, oz = X.V ? X.V[1] - p.z : 0, dh = X.vh != null ? angDiff(X.vh, p.h) : 0;
+          if (Math.abs(ox) + Math.abs(oz) + Math.abs(dh) > 1e-4) {
+            const c = Math.cos(dh), s = Math.sin(dh);
+            for (let i = 0; i < NB; i++) {
+              const m = bones[i].slice(); m[3] -= p.x; m[11] -= p.z;
+              for (let j = 0; j < 4; j++) { const r0 = m[j], r2 = m[8 + j]; m[j] = c * r0 + s * r2; m[8 + j] = -s * r0 + c * r2; }
+              m[3] += p.x + ox; m[11] += p.z + oz; bones[i] = m;
+            }
+          }
+        }
+      }
+      const blend = (clip) => (C[clip] ? C[clip].blend : 0);
+      const floor = (clip) => !!(C[clip] && C[clip].floor);
+      // ---------- the clips ----------
+      const kfUp = (K) => (p, q, X) => { const o = kf(X.t, K), i = B.spine * 3; o[i] *= 0.4; o[i + 1] *= 0.6; dfUpper(q, o); };
+      const lunge = (k) => (p, g, X) => { const b = bump(clamp(X.t / k, 0, 1), 0, 1); g.sink = Math.max(g.sink, 0.35 + 0.3 * b); g.leanF += 0.1 * b; };
+      const stealPost = (sd) => (p, bones, hs, X) => { if (X.t > 0.06 && X.t < 0.3) reach(p, bones, [sd], hs, 1.15); };
+      for (const [n, K, sd, dur] of [['xSwipe', DF_SWIPE, 1, 0.42], ['xSwipeL', DF_SWIPE_M, -1, 0.42], ['xPoke', DF_POKE, 1, 0.36], ['xPokeL', DF_POKE_M, -1, 0.36], ['xLunge', DF_LUNGE, 1, 0.5], ['xLungeL', DF_LUNGE_M, -1, 0.5]])
+        add(n, { floor: true, blend: 0.05, top: kfUp(K), leg: lunge(dur), post: stealPost(sd) });
+      add('xDeny', { floor: true, blend: 0.2, leg: (p, g) => { g.sink = Math.max(g.sink, 0.3); g.drop = 0.08; g.tilt = 0.12; g.base = 0.06; }, top: (p, q, X) => dfDenyTop(q, X.t, sideOf(p, ball.x, ball.z), X.seed),
+        post: (p, bones, hs) => { const m = p.man; if (!m || D(p, m) > 1.1 || !m.bones) return; const sd = -sideOf(p, ball.x, ball.z), hm = m.bones[B.hips]; armIK(bones, sd, [hm[3], hm[7] + 0.05 * hs, hm[11]], hs); } });
+      add('xClose', { floor: true, blend: 0.15, leg: (p, g) => { g.sink = Math.max(g.sink, 0.3); }, top: (p, q, X) => dfCloseTop(q, X.t, 1) });
+      add('xHup', { floor: true, blend: 0.1, leg: (p, g) => { g.sink = Math.max(g.sink, 0.25); }, top: (p, q, X) => { const h = ball.holder; dfHandsUpTop(q, X.t, h ? -sideOf(p, h.x, h.z) || 1 : 1); } });
+      add('xBox', { floor: true, blend: 0.18, leg: (p, g) => { g.sink = Math.max(g.sink, 0.62); g.wide = Math.max(g.wide, 0.12); }, top: (p, q, X) => dfBoxTop(q, X.t, 1) });
+      add('xBoxed', { floor: true, blend: 0.18, leg: (p, g) => { g.sink = Math.max(g.sink, 0.35); g.leanF += 0.12; }, top: (p, q, X) => dfBoxedTop(q, X.t, 1),
+        post: (p, bones, hs, X) => { const f = X.boxer; if (!f || !f.bones || D(f, p) > 1.4) return; const hm = f.bones[B.hips], ax = p.x - f.x, az = p.z - f.z, al = Math.hypot(ax, az) || 1; armIK(bones, -1, [hm[3] + ax / al * 0.16 * hs, hm[7] + 0.2 * hs, hm[11] + az / al * 0.16 * hs], hs); } });
+      // airborne / full-body clips (keyed on the clip's own time)
+      const kfFull = (K) => (p, X) => kf(X.t, K);
+      const blkPost = (sd) => (p, bones, hs, X) => { if (X.t > 0.18 && X.t < 0.6) reach(p, bones, [sd], hs, 1.2); };
+      for (const [n, K, sd] of [['xBlkChase', DF_BLK_CHASE, 1], ['xBlkChaseL', DF_BLK_CHASE_M, -1], ['xBlkWeak', DF_BLK_WEAK, 1], ['xBlkWeakL', DF_BLK_WEAK_M, -1], ['xBlkSwat', DF_BLK_SWAT, 1], ['xBlkSwatL', DF_BLK_SWAT_M, -1]])
+        add(n, { blend: 0.06, pose: kfFull(K), post: blkPost(sd) });
+      add('xCntVert', { blend: 0.06, pose: kfFull(DF_CNT_VERT) });
+      add('xReb2', { blend: 0.06, pose: kfFull(DF_REB2), post: (p, bones, hs, X) => { if (X.t > 0.12 && X.t < 0.6) reach(p, bones, [-1, 1], hs, 1.25); } });
+      for (const [n, K, sd] of [['xReb1', DF_REB1, 1], ['xReb1L', DF_REB1_M, -1], ['xRtip', DF_RTIP, 1], ['xRtipL', DF_RTIP_M, -1]])
+        add(n, { blend: 0.06, pose: kfFull(K), post: (p, bones, hs, X) => { if (X.t > 0.12 && X.t < 0.55) reach(p, bones, [sd], hs, 1.3); } });
+      add('xDive', { blend: 0.08, pose: kfFull(DF_DIVE), post: (p, bones, hs, X) => { if (X.t < 0.45) reach(p, bones, [-1, 1], hs, 1.6); } });
+      add('xGetFront', { blend: 0.15, pose: (p, X) => clipGetup(clamp(X.t / X.dur, 0, 1)) });
+      add('xRag', { blend: 0.05, pose: () => lerpPose(POSE_IDLE, POSE_IDLE, 0) });
+      add('xRiseBack', { blend: 0.3, pose: (p, X) => dfRiseBack(clamp(X.t / X.dur, 0, 1)) });
+      add('xFallBack', { blend: 0.08, pose: kfFull(DF_FALLBACK) });
+      for (const [n, K] of [['xAnk', DF_ANK], ['xAnkL', DF_ANK_M], ['xAnkFall', DF_ANK_FALL], ['xAnkFallL', DF_ANK_FALL_M]])
+        add(n, { blend: 0.07, pose: kfFull(K), post: (p, bones, hs, X) => { // a hand down to the floor to catch himself
+          if (X.t < 0.2 || X.t > 0.75) return; const sd = n.endsWith('L') ? 1 : -1, hm = bones[B.hips], rt = [hm[0], hm[4], hm[8]], fw = [hm[2], hm[6], hm[10]];
+          const w = bump(clamp((X.t - 0.2) / 0.55, 0, 1), 0, 1), keep = [0, 1, 2].map((k) => bones[(sd < 0 ? B.shL : B.shR) + k]);
+          armIK(bones, sd, [hm[3] + rt[0] * sd * 0.45 * hs + fw[0] * 0.15, 0.03, hm[11] + rt[2] * sd * 0.45 * hs + fw[2] * 0.15], hs);
+          for (let k = 0; k < 3; k++) { const bi = (sd < 0 ? B.shL : B.shR) + k; bones[bi] = mLerp(keep[k], bones[bi], w); }
+        } });
+      add('xBump', { blend: 0.15, pose: kfFull(DF_BUMP) });
+      add('xWalk', { blend: 0.25, pose: (p, X) => { const q = clipRun(X.wph, 0.12); return gfit(q); } });
+      add('xHuddle', { blend: 0.35, pose: (p, X) => dfHuddle(X.t, X.seed, false) });
+      add('xHuddleJ', { blend: 0.3, pose: (p, X) => dfHuddle(X.t, X.seed, true) });
+      add('xLane', { blend: 0.3, pose: (p, X) => dfLane(X.t, X.laneK, X.seed) });
+      for (const k of ['Rest', 'Lean', 'Clap']) add('xSit' + k, { blend: 0.4, pose: (p, X) => dfBenchSit(k.toLowerCase(), X.t) });
+      // standing at his chair: a step forward off it (the bones move, his chair spot stays his)
+      const standPost = (p, bones) => { const fx = Math.sin(p.h) * 0.42, fz = Math.cos(p.h) * 0.42; for (let i = 0; i < NB; i++) { const m = bones[i].slice(); m[3] += fx; m[11] += fz; bones[i] = m; } };
+      for (const k of ['Clap', 'Wave', 'Jump', 'Head']) add('xStand' + k, { blend: 0.4, pose: (p, X) => dfBenchStand(k === 'Head' ? 'head' : k.toLowerCase(), X.t), post: standPost });
+      return { add, remap, floor, blend, leg, top, pose, post, clips: C, sideOf };
+    })();
+    if (DBG) DBG.animx = { ANIMX, anim: (p, dt) => animUpdate(p, dt), every: () => everyone };
+    // =====================================================================================
+    // Movement: crisp, no ice. The stick or the AI asks for a velocity and the legs close the gap at a fixed rate: a hard push to
+    // get going (run speed in about a quarter of a second), a harder plant to stop or cut (a dead stop in under a quarter). The
+    // gap is closed in a straight line in velocity space, so a change of direction is a cut, never a long arc.
+    // Speeds (yards a second): a run is 5.2 and a sprint 7.2 for an 80 SPD card, scaled by the rating.
+    // =====================================================================================
+    const RUN80 = 5.2, SPRINT80 = 7.2, MOVE_ACC = 23, MOVE_BRK = 30;
+    // (ratings past 99 are star cards: no faster on their feet than a 99; a 99 runs 5.6 and sprints 7.75, 7.2 with the ball)
+    const runV = (p) => RUN80 * (1 + (Math.min(99, p.spd || 70) - 80) * 0.004);
+    // the man with the ball in traffic: a body in front of him within a step and a half takes the edge off his pace
+    function trafficK(p) { let n = 0; const s = Math.hypot(p.vx, p.vz); if (s < 1) return 1; for (const q of onCourt) { if (q.side === p.side || q.rag || q.man === p) continue; const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz); if (d < 1.9 && (dx * p.vx + dz * p.vz) > 0.25 * d * s) n++; } return n > 1 ? 0.76 : n ? 0.86 : 1; } // (his own man is the bump's business, below)
+    const effV = (p) => runV(p) * (p.sprint && p.sta > 0 ? SPRINT80 / RUN80 : 1) * (p.stumbleT > 0 ? 0.6 : 1) * (p.rising > 0 ? 0 : 1) * (ball && ball.holder === p ? (p.sprint ? 0.93 : 0.97) * trafficK(p) : 1) * (0.9 + 0.1 * p.sta) * (p.burstT > 0 ? 1.12 : 1);
     function steer(p, tx, tz, spd, dt, acc) {
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
       let vx = 0, vz = 0;
@@ -4079,30 +5504,23 @@ gl_FragColor=vec4(c,1.0);}`;
     function steerDir(p, ux, uz, spd, dt, acc) { drive(p, ux * spd, uz * spd, acc || p.acc || 9, dt); }
     const agN = (p) => clamp(((p.agi || 60) - 30) / 69, 0, 1);
     function drive(p, wx, wz, gain, dt) {
+      if (p.rag) return;
       let ws = Math.hypot(wx, wz);
-      const vx = p.vx, vz = p.vz, s = Math.hypot(vx, vz), ag = agN(p), m = p.mass || 1, air = p.jumpY > 0.05 ? 0.1 : 1;
-      if (ws > 0.5 && !p.rag) {
-        const hx = Math.sin(p.h), hz = Math.cos(p.h), ch = (wx * hx + wz * hz) / ws, run = p.v;
-        const bp = run * (0.62 + 0.14 * ag), sh = run * (0.82 + 0.12 * ag), locked = p.face2 != null;
-        const cap = locked ? (ch < -0.5 ? bp : ch < 0.5 ? sh : 1e9) : 1e9;
+      const ag = agN(p), m = p.mass || 1, air = p.jumpY > 0.05 ? 0.12 : 1, run = runV(p);
+      // squared up (a defensive slide, a backpedal): sideways and backwards are slower than a run
+      if (ws > 0.5 && p.face2 != null) {
+        const hx = Math.sin(p.h), hz = Math.cos(p.h), ch = (wx * hx + wz * hz) / ws;
+        const cap = ch < -0.5 ? run * (0.7 + 0.12 * ag) : ch < 0.5 ? run * (0.84 + 0.12 * ag) : 1e9;
         if (ws > cap) { wx *= cap / ws; wz *= cap / ws; ws = cap; }
       }
-      const top = Math.max(p.v * 1.25, ws + 0.5, 2.5);
-      const A0 = (7.5 + (p.acc || 9) * 0.75) * Math.pow(1 / m, 0.3) * air;
-      if (s < 0.4) { let ax = (wx - vx) * gain, az = (wz - vz) * gain; const al = Math.hypot(ax, az); if (al > A0) { ax *= A0 / al; az *= A0 / al; } p.vx += ax * dt; p.vz += az * dt; return; }
-      const ux = vx / s, uz = vz / s, wa = wx * ux + wz * uz, wpx = wx - wa * ux, wpz = wz - wa * uz, wp = Math.hypot(wpx, wpz);
-      const cosT = ws > 0.2 ? wa / ws : 1;
-      let pk = s > 2.5 ? clamp((0.95 - cosT) / 0.5, 0, 1) : 0;
-      if (pk > 0.25 && p.plant <= 0) { p.plant = 0.18 + 0.1 * pk; p.cutK = pk; }
-      if (p.plant > 0) pk = Math.max(pk, p.cutK || 0); else p.cutK = 0;
-      const pkB = pk * clamp((cosT + 1) / 0.8, 0, 1);
-      const up = A0 * Math.max(0.1, 1 - s / top), brake = A0 * (1.1 + 0.4 * ag + pkB * (2 + 0.4 * ag)) * (air < 1 ? 0.3 : 1);
-      const lat = (10 + 8 * ag) * Math.pow(1 / m, 0.2) * air * (1 - 0.25 * Math.min(1, s / top)) * (1 + pk * (0.9 + 0.8 * ag));
-      let da = (wa - s) * gain, dp = wp * gain;
-      const e = Math.hypot(da / (da > 0 ? up : brake), dp / lat), k = e > 1 ? 1 / e : 1;
-      da = da * k * (1 - pkB) + clamp(da, -brake, up) * pkB; dp = dp * k * (1 - pkB) + Math.min(dp, lat) * pkB;
-      const px = wp > 1e-4 ? wpx / wp : 0, pz = wp > 1e-4 ? wpz / wp : 0;
-      p.vx += (ux * da + px * dp) * dt; p.vz += (uz * da + pz * dp) * dt;
+      const ex = wx - p.vx, ez = wz - p.vz, el = Math.hypot(ex, ez); if (el < 1e-5) return;
+      const s = Math.hypot(p.vx, p.vz);
+      // a sharp cut at speed: the plant (the body leans into it; 25-animrt.js reads p.plant)
+      if (s > 2.5 && ws > 0.5 && (wx * p.vx + wz * p.vz) / (ws * s) < 0.45 && !(p.plant > 0)) { p.plant = 0.2; p.cutK = 1; }
+      const braking = ex * p.vx + ez * p.vz < 0; // the gap opposes where he is going: stopping or cutting
+      const A = (braking ? MOVE_BRK : MOVE_ACC) * (0.86 + 0.28 * ag) * Math.pow(1 / m, 0.25) * air * (p === ctrl ? 1 : 0.85);
+      const st = Math.min(el, A * dt);
+      p.vx += (ex / el) * st; p.vz += (ez / el) * st;
     }
     // stamina: sprinting drains it, standing gets it back; a tired player is a step slower and his shot shorter (STA)
     function staminaStep(p, dt, want) {
@@ -4117,15 +5535,17 @@ gl_FragColor=vec4(c,1.0);}`;
       if (p.rising > 0) { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); }
       p.x += p.vx * dt; p.z += p.vz * dt;
       const sp = Math.hypot(p.vx, p.vz);
-      if (p.face2 != null) p.h += angDiff(p.face2, p.h) * Math.min(1, dt * (p === ctrl ? 14 : 10));
-      else if (sp > 0.6) { const back = (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; if (!back) p.h += angDiff(Math.atan2(p.vx, p.vz), p.h) * Math.min(1, dt * (p === ctrl ? 13 : 9)); }
-      if (p.jumpY > 0 || p.jumpV > 0) { p.jumpV -= (p.hang > 0 ? 4 : 17) * dt; p.jumpY = Math.max(0, p.jumpY + p.jumpV * dt); if (p.hang > 0) p.hang -= dt; if (p.jumpY <= 0) { p.jumpV = 0; p.land = 0.15; } }
+      const mine = p === ctrl;
+      if (p.face2 != null) p.h += angDiff(p.face2, p.h) * Math.min(1, dt * (mine ? 16 : 10));
+      else if (sp > 0.6) { const back = !mine && (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; if (!back) p.h += angDiff(Math.atan2(p.vx, p.vz), p.h) * Math.min(1, dt * (mine ? 16 : 9)); }
+      if (p.jumpY > 0 || p.jumpV > 0) { p.jumpV -= (p.hang > 0 ? 6 : 17) * dt; p.jumpY = Math.max(0, p.jumpY + p.jumpV * dt); if (p.hang > 0) p.hang -= dt; if (p.jumpY <= 0) { p.jumpV = 0; p.land = 0.15; } }
       if (p.land > 0) { p.land -= dt; p.vx *= Math.pow(0.05, dt); p.vz *= Math.pow(0.05, dt); }
       // walls of the room (and nobody walks through the scorer's table or the benches)
-      p.x = clamp(p.x, -COURT.HL - 2.4, COURT.HL + 2.4); p.z = clamp(p.z, -COURT.HW - 2.0, COURT.HW + 1.2);
+      p.x = clamp(p.x, -COURT.HL - 2.4, COURT.HL + 2.4); p.z = GYM.bs < 0 ? clamp(p.z, -COURT.HW - 1.2, COURT.HW + 2.0) : clamp(p.z, -COURT.HW - 2.0, COURT.HW + 1.2);
       leanStep(p, dt);
     }
     // bodies never overlap: each pair is pushed apart (the stronger, heavier, braced body gives less ground), bumps trade momentum
+    const BUMP_R = 1.14; // chest to chest: the handler and the man on him (yards between their middles)
     const brace = (p, nx, nz) => (p.mass || 1) * (0.8 + (p.str || 60) / 250) * (p.vx * nx + p.vz * nz > 1 ? 1.15 : 1);
     function collide() {
       const L = onCourt, n = L.length;
@@ -4133,15 +5553,52 @@ gl_FragColor=vec4(c,1.0);}`;
         const a = L[i]; if (a.rag) continue;
         for (let j = i + 1; j < n; j++) {
           const b = L[j]; if (b.rag) continue;
-          if (Math.abs(a.jumpY - b.jumpY) > 0.7) continue;
-          const dx = a.x - b.x, dz = a.z - b.z, rr = (a.rad + b.rad) * (a.side === b.side ? 0.8 : 0.95), d2 = dx * dx + dz * dz;
+          if (Math.abs(a.jumpY - b.jumpY) > 1.0) continue;
+          const foe = a.side !== b.side;
+          // the man with the ball and a defender on his feet keep a body's width between their chests (no legs through legs)
+          const hd = ball && ball.holder, bh = foe && phase === 'live' && (hd === a || hd === b) ? hd : null, df = bh ? (bh === a ? b : a) : null;
+          const ride = bh && df.jumpY < 0.05 && bh.jumpY < 0.05 && !(df.stumbleT > 0.2);
+          const dx = a.x - b.x, dz = a.z - b.z, rr = ride ? BUMP_R : (a.rad + b.rad) * (foe ? 1.25 : 0.95), d2 = dx * dx + dz * dz;
           if (d2 >= rr * rr || d2 < 1e-6) continue;
           const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, pen = rr - d;
-          const ma = brace(a, -nx, -nz), mb = brace(b, nx, nz), wa = mb / (ma + mb), wb = ma / (ma + mb);
-          a.x += nx * pen * wa; a.z += nz * pen * wa; b.x -= nx * pen * wb; b.z -= nz * pen * wb;
+          let ma = brace(a, -nx, -nz), mb = brace(b, nx, nz);
           const rel = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
-          if (rel < 0) { const fa = mb / (ma + mb), fb = ma / (ma + mb); a.vx -= nx * rel * fa * 0.8; a.vz -= nz * rel * fa * 0.8; b.vx += nx * rel * fb * 0.8; b.vz += nz * rel * fb * 0.8; }
-          if (a.side !== b.side && rel < -3.5 && phase === 'live') { const l = ma < mb ? a : b; l.stumbleT = Math.max(l.stumbleT, 0.1 + Math.min(0.25, -rel * 0.03)); contact(a, b, -rel); }
+          if (ride) {
+            // a bump, not a wall and not a ghost: the handler leans a shoulder into the defender's chest and the two move together
+            // at a grind (faster for the stronger handler, a little for a sprint), the defender giving ground on his heels. Only the
+            // push straight into him is held: the handler's speed across his body is his own, so he can turn the corner.
+            const sg = bh === a ? -1 : 1, ux = nx * sg, uz = nz * sg; // from the handler toward the defender
+            const vh = bh.vx * ux + bh.vz * uz, vd = df.vx * ux + df.vz * uz;
+            const sq = (Math.sin(df.h) * -ux + Math.cos(df.h) * -uz); // is the defender's chest to him (1) or his back (-1)
+            if (vh > vd) {
+              const G = clamp(1.7 + ((bh.str || 60) - (df.str || 60)) * 0.03 + (bh.sprint ? 0.9 : 0) + (bh.fin ? 1.6 : 0) + (sq > 0.3 ? 0 : 1.2), 0.9, 4.2);
+              const vc = Math.max(vd, Math.min(vh, G));
+              bh.vx += ux * (vc - vh); bh.vz += uz * (vc - vh);
+              // he does not stay on the defender's chest: what the bump takes off his run turns him onto a hip (the side he is
+              // already shaded to, else his ball hand's), so a drive works its way past with the defender riding beside him
+              { const tx = -uz, tz = ux, off = (bh.x - df.x) * tx + (bh.z - df.z) * tz, vt = bh.vx * tx + bh.vz * tz;
+                let sgn = Math.abs(vt) > 0.8 ? Math.sign(vt) : Math.abs(off) > 0.1 ? Math.sign(off) : 0;
+                if (!sgn) { const rx = Math.cos(bh.h), rz = -Math.sin(bh.h); sgn = (rx * tx + rz * tz) * (bh.dh || 1) >= 0 ? 1 : -1; }
+                const add = Math.min((vh - vc) * 0.55, Math.max(0, effV(bh) * 0.8 - Math.abs(vt))); bh.vx += tx * sgn * add; bh.vz += tz * sgn * add; }
+              if (vd < vc) { df.vx += ux * (vc - vd); df.vz += uz * (vc - vd); }
+              const k = clamp((vh - vd) / 3, 0.35, 1);
+              bh.bumpK = Math.max(bh.bumpK || 0, k); df.bumpK = Math.max(df.bumpK || 0, k);
+              bh.bumpS = ((df.x - bh.x) * Math.cos(bh.h) - (df.z - bh.z) * Math.sin(bh.h)) >= 0 ? 1 : -1; // which shoulder meets him
+              bh.bumpT = df.bumpT = 0.16;
+              if (vh - vd > 4.2 && !(bh.chgT > 0)) { bh.chgT = 0.8; contact(a, b, vh - vd); }
+            }
+            // the gap is closed softly (most of it by the defender stepping back), so nobody is thrown about
+            const kp = pen > 0.22 ? pen - 0.11 : 0.5 * pen, wh = 0.3, wd = 0.7; // (never more than a hand's depth into each other)
+            bh.x -= ux * kp * wh; bh.z -= uz * kp * wh; df.x += ux * kp * wd; df.z += uz * kp * wd;
+            continue;
+          }
+          const wa = mb / (ma + mb), wb = ma / (ma + mb);
+          a.x += nx * pen * wa; a.z += nz * pen * wa; b.x -= nx * pen * wb; b.z -= nz * pen * wb;
+          if (rel < 0) { const e = 0.8; a.vx -= nx * rel * wa * e; a.vz -= nz * rel * wa * e; b.vx += nx * rel * wb * e; b.vz += nz * rel * wb * e; }
+          if (foe && rel < -3.5 && phase === 'live') {
+            { const l = ma < mb ? a : b; l.stumbleT = Math.max(l.stumbleT, 0.1 + Math.min(0.25, -rel * 0.03)); }
+            contact(a, b, -rel);
+          }
         }
       }
     }
@@ -4157,6 +5614,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const hs = p.lk.hs, f = fwdOf(p), r = rightOf(p), J = p.jumpY;
       const at = (fw, rt, y) => [p.x + f[0] * fw * hs + r[0] * rt * hs, y * hs + J, p.z + f[1] * fw * hs + r[1] * rt * hs];
       const L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      const bh = bbHold(p, at); if (bh) return bh; // the clip library's path for this move (25-animrt.js)
       const chest = at(0.3, 0, 1.3), hip = at(0.26, 0.14 * (p.dh || 1), 1.05);
       if (p.pose === 'shoot' || p.pose === 'ftshot') { const a = p.shotA || 0, fh = at(0.16, 0.05, 2.0), set = at(0.12, 0.06, 2.28); return a < 0.24 ? L(chest, fh, smo(a / 0.24)) : L(fh, set, smo(clamp((a - 0.24) / 0.38, 0, 1))); }
       if (p.pose === 'layup') { const t = p.poseT; return t < 0.22 ? L(hip, at(0.3, 0.05, 1.7), smo(t / 0.22)) : L(at(0.3, 0.05, 1.7), at(0.32, 0.1, 2.62), smo(clamp((t - 0.22) / 0.23, 0, 1))); }
@@ -4165,29 +5623,46 @@ gl_FragColor=vec4(c,1.0);}`;
       if (p.pose === 'pass' || p.pose === 'catch') return chest;
       return hip;
     }
-    // the dribble: the ball leaves the hand at its top, bounces off the floor out in front and to the side, comes back up into it
+    // the dribble: the ball leaves the hand at its top, hits the floor beside him and comes back up into it, all the time he has
+    // a live dribble. Standing it bounces about 1.7 times a second at the waist, beside the lead foot; with a man up on him it
+    // drops lower and back by the far hip and changes hands away from the defender; on the run it goes out in front and to the
+    // side, one bounce a stride (the gait locks to it in 25-animrt.js)
     function dribbleStep(b, h, dt) {
-      const hs = h.lk.hs, sp = Math.hypot(h.vx, h.vz), f = fwdOf(h), r = rightOf(h);
-      const T = clamp(0.56 - sp * 0.022 - (h.bb.hand - 50) * 0.0012, 0.34, 0.6) * (h.dstance ? 0.85 : 1);
-      let side = (h.dh || 1) * 0.3, fw = 0.34 + Math.min(0.35, sp * 0.045), Tm = T;
+      const hs = h.lk.hs, sp = Math.hypot(h.vx, h.vz), f = fwdOf(h), r = rightOf(h), g = h.an && h.an.g;
+      const dH = bbDribH(h, sp, dt); // low and quick with a man on him, high in the open (25-animrt.js)
+      const pr = h.dPr || 0, run = clamp((sp - 1.2) / 2.2, 0, 1);
+      let T = clamp(0.6 - (h.bb.hand - 50) * 0.001, 0.52, 0.64) * (0.72 + 0.28 * dH / 1.08);
+      if (run > 0 && g && g.T > 0.3) T = lerp(T, clamp(g.T, 0.46, 0.68), run);
+      b.dT = T;
+      // where it bounces: beside the lead foot standing, back by the hip when guarded, out in front on the run
+      const sideT = lerp(lerp(0.52, 0.5, pr), 0.6, run), fwT = lerp(lerp(0.2, 0.0, pr), 0.26 + Math.min(0.1, sp * 0.015), run), kS = Math.min(1, dt * 8); // out to the side of the body: seen from behind, the ball is never hidden by the torso
+      h.dSide = h.dSide == null ? sideT : h.dSide + (sideT - h.dSide) * kS; h.dFw = h.dFw == null ? fwT : h.dFw + (fwT - h.dFw) * kS;
+      let side = (h.dh || 1) * h.dSide, fw = h.dFw, low = 1;
       if (b.mv) { // a move carries the ball across (a crossover), through the legs, behind the back, or round on a spin
-        b.mv.t += dt; const k = clamp(b.mv.t / b.mv.dur, 0, 1), s = smo(k);
-        side = lerp(b.mv.from, b.mv.to, s) * 0.3; Tm = b.mv.dur;
-        if (b.mv.k === 'btl') fw = lerp(0.34, 0.02, bump(k, 0, 1));
-        else if (b.mv.k === 'btb') fw = lerp(0.34, -0.3, bump(k, 0, 1));
-        else if (b.mv.k === 'spin') { fw = 0.25; side = (h.dh || 1) * 0.3; }
+        b.mv.t += dt; const k = clamp(b.mv.t / b.mv.dur, 0, 1);
+        const mp = bbMovePath(b.mv, k); side = mp[0] * (h.dSide / 0.3); fw = mp[1]; b.sw = null; // the move's path (05b-bbclips.js BBMOVES)
         if (k >= 1) { b.mv = null; b.u = 0; }
-        else b.u = k;
-      } else { b.u += dt / Tm; if (b.u >= 1) b.u -= 1; }
-      const handY = 0.98 * hs + h.jumpY, u = b.u, y = BALL_R + (handY - BALL_R) * Math.abs(Math.cos(Math.PI * u));
-      const nx = h.x + f[0] * fw * hs + r[0] * side * hs + h.vx * 0.06, nz = h.z + f[1] * fw * hs + r[1] * side * hs + h.vz * 0.06;
+        else b.u = mp[2];
+      } else if (b.sw) { // changing hands away from the defender: one low bounce across in front of him
+        const w = b.sw; w.t += dt; const k = clamp(w.t / w.dur, 0, 1);
+        side = lerp(w.from, w.to, smo(k)) * h.dSide; fw = Math.max(fw, 0.24); low = 1 - 0.22 * bump(k, 0, 1);
+        if (k >= 1) { b.sw = null; b.u = 0; } else b.u = k;
+      } else {
+        b.u += dt / T; if (b.u >= 1) b.u -= 1;
+        // the defender has come round to the ball's side: switch hands as it comes back up into the hand
+        const [d, dd] = nearFoe(h), lat = d ? ((d.x - h.x) * r[0] + (d.z - h.z) * r[1]) * (h.dh || 1) : 0;
+        h.dSwT = d && dd < 2.1 && lat > 0.32 ? (h.dSwT || 0) + dt : 0;
+        if (h.dSwT > 0.22 && (b.u < 0.08 || b.u > 0.94) && !h.shotS && !h.fin) { const from = h.dh || 1; b.sw = { t: 0, dur: clamp(T * 0.62, 0.28, 0.4), from, to: -from }; h.dh = -from; h.dSwT = -0.9; b.u = 0; }
+      }
+      const handY = dH * low * hs + h.jumpY, u = b.u, y = BALL_R + (handY - BALL_R) * Math.abs(Math.cos(Math.PI * u));
+      const nx = h.x + f[0] * fw * hs + r[0] * side * hs + h.vx * 0.035, nz = h.z + f[1] * fw * hs + r[1] * side * hs + h.vz * 0.035;
       if (b.prevU < 0.5 && u >= 0.5) { if (Math.hypot(h.x - cam.e[0], h.z - cam.e[2]) < 14) try { sfx.play('tap'); } catch (e) {} }
       b.prevU = u;
       b.vx = (nx - b.x) / Math.max(dt, 1e-3); b.vy = (y - b.y) / Math.max(dt, 1e-3); b.vz = (nz - b.z) / Math.max(dt, 1e-3);
       b.x = nx; b.y = y; b.z = nz;
       b.spin[0] = -b.vz * 3; b.spin[2] = b.vx * 3; b.spin[1] = 0;
     }
-    function startDribble(h) { const b = ball; b.st = 'drib'; b.holder = h; b.u = 0; b.prevU = 0; b.mv = null; h.dribbling = true; }
+    function startDribble(h) { const b = ball; b.st = 'drib'; b.holder = h; b.u = 0; b.prevU = 0; b.mv = null; b.sw = null; h.dribbling = true; h.dSide = null; h.dFw = null; h.dSwT = 0; }
     function giveBall(p, st) { // p has it now: held (catch, rebound, inbound) or dribbling
       const b = ball; b.holder = p; b.st = st || 'held'; b.shot = null; b.pass = null; b.mv = null; b.lastSide = p.side; b.last = p; b.touchRim = false; b.touchBoard = false; b.scored = false; b.thru = null;
       const hp = holdPoint(p); b.x = hp[0]; b.y = hp[1]; b.z = hp[2]; b.vx = b.vy = b.vz = 0;
@@ -4240,7 +5715,8 @@ gl_FragColor=vec4(c,1.0);}`;
       // the room's walls
       if (Math.abs(b.x) > GYM.x1 - BALL_R) { b.x = Math.sign(b.x) * (GYM.x1 - BALL_R); b.vx = -b.vx * 0.5; }
       if (b.z < GYM.z0 + BALL_R) { b.z = GYM.z0 + BALL_R; b.vz = -b.vz * 0.5; }
-      if (b.z > COURT.HW + 3) { b.z = COURT.HW + 3; b.vz = -b.vz * 0.4; }
+      if (b.z * GYM.bs > COURT.HW + 3) { b.z = GYM.bs * (COURT.HW + 3); b.vz = -b.vz * 0.4; }      // the benches and the scorer's table
+      if (GYM.bs < 0 && b.z > GYM.bl.z - BALL_R && b.y < 1.2) { b.z = GYM.bl.z - BALL_R; b.vz = -Math.abs(b.vz) * 0.4; } // the bleachers' front
       if (b.y > GYM.truss - 0.2) { b.y = GYM.truss - 0.2; b.vy = -Math.abs(b.vy) * 0.4; }
       // spin: backspin about the horizontal axis across the flight, slowly decaying
       b.spin[0] *= Math.pow(0.97, dt * 60); b.spin[2] *= Math.pow(0.97, dt * 60);
@@ -4321,7 +5797,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // dunk: an athletic finisher close to the rim, going to it (the arcade dunk assist lifts him to the rim)
       const dunkOK = d < 2.0 + sp * 0.12 && (rt(p, 'dunk') + rt(p, 'vert')) / 2 > 52 - 6 * (sp > 3 ? 1 : 0) && sp > 1.2;
       if (dunkOK && d > 0.5) return startDunk(p, h);
-      if (d < 2.4 + Math.min(1, sp * 0.15)) return startLayup(p, h);
+      if (d < layReach(sp)) return startLayup(p, h);
       b.st = 'held'; b.mv = null;
       p.shotS = shotSetup(p, false); p.meter = 0; p.shotA = 0; p.shotRel = false; p.jumped = false; p.cpuRel = cpuTiming(p);
       setPose(p, 'shoot'); p.vx *= 0.3; p.vz *= 0.3;
@@ -4335,7 +5811,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!p.shotS || p.shotRel) return;
       const S = p.shotS;
       p.meter += dt / (METER_T * (S.ft ? 1.05 : 1)); p.shotA = SHOT_REL * Math.min(1, p.meter);
-      if (!S.ft && !p.jumped && p.meter > 0.3) { p.jumped = true; p.jumpV = 3.6 + rt(p, 'vert') * 0.022; p.jumpY = 0.001; }
+      if (!S.ft && !p.jumped && p.meter > 0.45) { /* leaves the floor so the green window (the release) comes at the top of the jump */ p.jumped = true; p.jumpV = 3.6 + rt(p, 'vert') * 0.022; p.jumpY = 0.001; if (p.clipV === 'fadeaway') { const fa = 1.7; p.vx = -Math.sin(p.h) * fa; p.vz = -Math.cos(p.h) * fa; } } // (a fadeaway really goes back, off the defender)
       // the CPU (or the auto player) lets it go at its own timing
       if (!isUser(p) && p.meter >= p.cpuRel) releaseShot(p);
       else if (p.meter >= 1.12) releaseShot(p);
@@ -4371,7 +5847,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (Math.abs(early) > 0.04 || k < 0.45) { tx += ux * ldir * m; tz += uz * ldir * m; } else { const s = k < 0.72 ? 1 : -1; tx += -uz * s * m; tz += ux * s * m; }
         if (S.d > 6 && rng() < 0.18) { tx += ux * -0.6; tz += uz * -0.6; } // an air ball now and then from deep
       }
-      const d = Math.hypot(tx - hp[0], tz - hp[2]), th = (S.ft ? 52 : d < 2.5 ? 58 : d < 6 ? 52 : 49) * Math.PI / 180;
+      const d = Math.hypot(tx - hp[0], tz - hp[2]), th = (S.ft ? 52 : d < 1.1 ? 66 : d < 2.5 ? 58 : d < 6 ? 52 : 49) * Math.PI / 180;
       const v = launchAt(hp, [tx, ty, tz], th) || [ux * 4, 6, uz * 4, 1];
       b.holder = null; b.st = 'air'; b.x = hp[0]; b.y = hp[1]; b.z = hp[2]; b.vx = v[0]; b.vy = v[1]; b.vz = v[2];
       b.spin = [-uz * 14, 0, ux * 14]; b.back = 1; // backspin: about the horizontal axis across the flight
@@ -4382,20 +5858,22 @@ gl_FragColor=vec4(c,1.0);}`;
       p.dribbling = false;
     }
     // ---------- layups and dunks (no meter: the finish is decided by FIN / DNK against the rim protection) ----------
+    // a layup is a running play: the gather step from as far out as his pace carries him, up off one foot a step and a half
+    // from the rim, the ball laid in at the top with the arm reaching to the glass, landing past the rim
+    const DUNK_OFF = 1.5, DUNK_FLY = 0.42;
+    const LAY_OFF = 1.9, layReach = (sp) => LAY_OFF + clamp(sp, 2.6, 7.2) * 0.3;
     function startLayup(p, h) {
-      const b = ball; b.st = 'held'; b.mv = null;
-      setPose(p, 'layup'); p.fin = { h, t: 0, kind: 'layup', rel: 0.42 };
-      p.vx *= 0.75; p.vz *= 0.75;
+      const b = ball; b.st = 'held'; b.mv = null; p.mvB = null;
+      const d = rimDist(p.x, p.z, h), sp = Math.hypot(p.vx, p.vz), run = Math.max(0, d - LAY_OFF), gT = clamp(run / clamp(sp, 3.4, 6.6), 0.14, 0.36);
+      setPose(p, 'layup'); p.fin = { h, t: 0, kind: 'layup', gT, gv: run / gT, rel: gT + 0.24 };
       shotPressure(p);
       return true;
     }
     function startDunk(p, h) {
       const b = ball; b.st = 'held'; b.mv = null;
-      setPose(p, 'dunk'); p.fin = { h, t: 0, kind: 'dunk', rel: 0.55 }; p.dunkH = h;
-      // the arcade assist: the jump is whatever it takes for his hand to get over the rim at the slam
-      const reach = 2.62 * p.lk.hs, need = RIM_Y + 0.35 - reach, T = 0.5;
-      p.jumpV = Math.max(4.2, need / T + 0.5 * 17 * T); p.jumpY = 0.001;
-      const dx = h.x - h.dir * 0.35 - p.x, dz = h.z - p.z; p.vx = dx / 0.55; p.vz = dz / 0.55;
+      // a running play like the layup: the last steps on the floor at his own pace, then up off one foot a step and a half out
+      const d = rimDist(p.x, p.z, h), sp = Math.hypot(p.vx, p.vz), run = Math.max(0, d - DUNK_OFF), gT = run > 0.05 ? clamp(run / clamp(sp, 3.4, 6.6), 0.1, 0.4) : 0;
+      setPose(p, 'dunk'); p.fin = { h, t: 0, kind: 'dunk', gT, gv: gT ? run / gT : 0, rel: gT + DUNK_FLY }; p.dunkH = h;
       shotPressure(p);
       try { sfx.play('ooh'); } catch (e) {}
       return true;
@@ -4403,26 +5881,44 @@ gl_FragColor=vec4(c,1.0);}`;
     function finStep(p, dt) {
       const F = p.fin; if (!F) return;
       F.t += dt;
-      if (F.kind === 'layup' && F.t > 0.18 && !F.jumped) { F.jumped = true; p.jumpV = 3.8 + rt(p, 'vert') * 0.02; p.jumpY = 0.001; const h = F.h, dx = h.x - h.dir * 0.5 - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1; p.vx = dx / dl * Math.min(3.5, dl / 0.45); p.vz = dz / dl * Math.min(3.5, dl / 0.45); }
-      if (F.kind === 'dunk' && F.t < 0.55) { const h = F.h, dx = h.x - h.dir * 0.32 - p.x, dz = h.z - p.z; p.vx = dx / Math.max(0.12, 0.55 - F.t); p.vz = dz / Math.max(0.12, 0.55 - F.t); }
+      if (F.kind === 'layup') {
+        const h = F.h, dx = h.x - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1;
+        p.face2 = Math.atan2(dx, dz);
+        if (F.t < F.gT) { p.vx = dx / dl * F.gv; p.vz = dz / dl * F.gv; p.poseT = 0.18 * F.t / F.gT; } // the gather: the last step at his own pace
+        else {
+          if (!F.jumped) { F.jumped = true; p.jumpV = 3.7 + rt(p, 'vert') * 0.012; p.jumpY = 0.001; const v = clamp((dl - 0.95) / 0.24, 1.0, 5.0); p.vx = dx / dl * v; p.vz = dz / dl * v; }
+          p.poseT = 0.18 + (F.t - F.gT);
+        }
+      }
+      if (F.kind === 'dunk') {
+        const h = F.h;
+        if (F.t < F.gT) { const dx = h.x - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1; p.vx = dx / dl * F.gv; p.vz = dz / dl * F.gv; p.face2 = Math.atan2(dx, dz); p.poseT = 0.1 * F.t / F.gT; }
+        else if (F.t < F.rel) {
+          // the arcade assist: the jump is whatever it takes for his hand to get over the rim at the slam
+          if (!F.jumped) { F.jumped = true; const reach = 2.62 * p.lk.hs, need = RIM_Y + 0.35 - reach, T = DUNK_FLY; p.jumpV = Math.max(4.2, need / T + 0.5 * 17 * T); p.jumpY = 0.001; }
+          const dx = h.x - h.dir * 0.32 - p.x, dz = h.z - p.z, left = Math.max(0.1, F.rel - F.t); p.vx = dx / left; p.vz = dz / left;
+          p.poseT = 0.55 - (F.rel - F.t); // the clip's slam (0.55) lands on the game's
+        }
+      }
       if (F.t >= F.rel && ball.holder === p) {
         const h = F.h, c = contestOf(p, h), dunk = F.kind === 'dunk';
         const sk = dunk ? (rt(p, 'dunk') * 0.6 + rt(p, 'str') * 0.2 + rt(p, 'vert') * 0.2) : rt(p, 'fin');
         let P = dunk ? clamp(0.93 + (sk - 60) * 0.003 - c * 0.35, 0.45, 0.99) : clamp(0.6 + (sk - 60) * 0.008 - c * 0.42, 0.18, 0.92);
         if (p.side === 1) P *= 0.94 + 0.08 * DK; else P *= 1.02 - 0.06 * DK;
         // a rim protector right there can send it back
-        let blocker = null; for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && d.lk.hs * 2.6 + d.jumpY > RIM_Y - 0.2 && rng() < (rt(d, 'blk') - 40) / 260 * (dunk ? 0.5 : 1)) { blocker = d; break; }
+        let blocker = null; for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && rimDist(d.x, d.z, h) < rimDist(p.x, p.z, h) + 0.35 && d.lk.hs * 2.6 + d.jumpY > RIM_Y - 0.2 && rng() < (rt(d, 'blk') - 40) / 260 * (dunk ? 0.5 : 1)) { blocker = d; break; }
         if (blocker) { blockShot(blocker, p); p.fin = null; return; }
         const made = rng() < P;
         if (dunk) {
           const b = ball; b.holder = null; b.st = 'air'; b.shot = { by: p, side: p.side, pts: 2, ft: false, d: 0.5, made, h, t: 0, dunk: true, ast: b.astBy && b.astBy !== p && tLive - b.astT < 4 ? b.astBy : null }; b.astBy = null;
           b.x = h.x - h.dir * (made ? 0.05 : 0.2); b.y = h.y + 0.32; b.z = h.z + (made ? 0 : 0.15); b.vx = h.dir * (made ? 0.3 : -1.2); b.vy = made ? -7 : 2.5; b.vz = made ? 0 : 0.9;
           b.lastSide = p.side; b.last = p; b.touchRim = !made; b.thru = null; b.back = 0;
-          h.shake = 1; cam.shake = Math.max(cam.shake, 0.9); p.hang = made ? 0.35 : 0.1;
+          h.shake = 1; cam.shake = Math.max(cam.shake, 0.9); p.hang = made ? 0.16 : 0.05; p.vx *= 0.15; p.vz *= 0.15; // a beat on the rim, then straight down (no drift)
           const s = stat(p.sq); s.fga++; try { sfx.play('clang'); } catch (e) {}
         } else {
           const S = { h, d: rimDist(p.x, p.z, h), c, pts: 2, ft: false, x: p.x, z: p.z };
           launchShot(p, S, made, 0, false); ball.shot.layup = true;
+          if (DBG && DBG.shotLog) { const LG = { side: p.side, lay: 1, d: +S.d.toFixed(1), c: +c.toFixed(2), P: +P.toFixed(2), made }; DBG.shotLog.push(LG); ball.shot.lg = LG; }
           // a layup off the glass: aim at the board above the rim on an angle (the launch above goes at the rim; bank it when wide)
         }
         p.fin = null;
@@ -4466,7 +5962,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const ox = shooter.x - h.x, oz = shooter.z - h.z, ol = Math.hypot(ox, oz) || 1;
       b.vx = ox / ol * (3 + rng() * 3) + (rng() - 0.5) * 3; b.vz = oz / ol * (3 + rng() * 3) + (rng() - 0.5) * 3; b.vy = -1 + rng() * 3;
       b.lastSide = d.side; b.last = d; b.back = 0; b.spin = [rng() * 20 - 10, 0, rng() * 20 - 10];
-      shooter.shotS = null; shooter.fin = null; shooter.shotRel = true;
+      shooter.shotS = null; shooter.fin = null; shooter.shotRel = true; shooter.blkdT = 1;
       stat(d.sq).blk++;
       popAt(d, 'BLOCKED!', d.side === 0 ? '#4dd2ff' : '#ff7a6a'); tableFlash('BLOCKED!', 1.6);
       excite = Math.min(1, excite + 0.5); cam.shake = Math.max(cam.shake, 0.4);
@@ -4509,8 +6005,8 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       return false;
     }
-    const MOVES = ['cross', 'btl', 'btb', 'hesi', 'spin'];
-    const MOVE_D = { cross: 0.3, btl: 0.36, btb: 0.4, hesi: 0.36, spin: 0.5 };
+    const MOVES = BB_CHAIN; // the Q chain and its moves' timing: 05b-bbclips.js
+    const MOVE_D = BB_MOVE_D;
     // Q on offense: the next move in the chain. Too fast or too many in a row and he loses it
     function doMove(p) {
       const b = ball; if (b.holder !== p || phase !== 'live' || p.shotS || p.fin) return false;
@@ -4528,22 +6024,38 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const k = MOVES[p.cmb % MOVES.length]; p.cmb++;
       const dur = MOVE_D[k] * (1.08 - rt(p, 'hand') * 0.0015);
-      const from = p.dh || 1, to = k === 'hesi' || k === 'spin' ? from : -from;
+      const from = p.dh || 1, to = BBMOVES[k] && BBMOVES[k].swap ? -from : from;
       b.mv = { k, t: 0, dur, from, to }; p.dh = to; p.mvS = to;
       setPose(p, k);
       // the move moves him: a lateral burst (a crossover), a stop and go (hesitation), a spin round the defender
-      const r = rightOf(p), f = fwdOf(p), push = 2.2 + rt(p, 'spd') * 0.02;
-      if (k === 'hesi') { p.vx *= 0.3; p.vz *= 0.3; p.hesiGo = 0.3; }
-      else if (k === 'spin') { p.vx += f[0] * 1.5; p.vz += f[1] * 1.5; }
-      else { p.vx += r[0] * to * push; p.vz += r[1] * to * push; }
+      // the move moves him: a hard step to the side the ball goes (a crossover, between the legs, behind the back), a stop and
+      // go (hesitation), a turn round the defender (spin), a hop back (step-back). The step is the move's own: it is not braked
+      // by a stick at rest, and he comes out of it at pace (mvStep below).
+      const r = rightOf(p), f = fwdOf(p), push = 2.2 + rt(p, 'spd') * 0.02, ST = MOVE_STEP[k] || MOVE_STEP.cross, qk = 0.9 + rt(p, 'spd') * 0.002;
+      const sd = k === 'spin' ? -from : to, sp0 = Math.hypot(p.vx, p.vz), cv = Math.min(1, 3.2 / (sp0 || 1)) * 0.6;
+      if (k === 'hesi') bbMoveKick(p, k, to, push);
+      else if (k === 'stepback') { p.hesiGo = 0.25; p.stepBackT = 0.9; }
+      p.mvB = { k, t: 0, dur: dur * 1.12, h: p.h, dx: (r[0] * sd * ST[0] + f[0] * ST[1]) * qk, dz: (r[1] * sd * ST[0] + f[1] * ST[1]) * qk, cx: k === 'stepback' || k === 'hesi' ? 0 : p.vx * cv, cz: k === 'stepback' || k === 'hesi' ? 0 : p.vz * cv, sd };
       // the man guarding him may bite: a stumble (broken ankles) by the handle against his perimeter defense
       for (const d of foes(p)) {
-        if (D(d, p) > 1.8) continue;
+        if (D(d, p) > 2.5) continue;
+        // he reads it a beat late and leans the way the ball was (the fake) before he slides back in front
+        if (!isUser(d) && k !== 'hesi') { d.lagT = clamp(0.14 + (rt(p, 'hand') - rt(d, 'perD')) * 0.004 + rng() * 0.08 - (d.side === 1 ? DK * 0.04 : 0), 0.07, 0.34); d.vx -= r[0] * sd * 1.3; d.vz -= r[1] * sd * 1.3; }
         const pr = clamp(0.1 + (rt(p, 'hand') - rt(d, 'perD')) * 0.008 + (k === 'spin' || k === 'btb' ? 0.05 : 0) - (d.side === 1 ? DK * 0.06 : 0) - (p.cmbHeat > 2 ? 0 : 0.04), 0.02, 0.5);
         if (rng() < pr) { d.stumbleT = 0.55; d.vx *= 0.2; d.vz *= 0.2; if (pr > 0.25 && rng() < 0.5) { popAt(d, 'ANKLES!', p.side === 0 ? '#ffc21a' : '#ff7a6a'); excite = Math.min(1, excite + 0.35); try { sfx.play('ooh'); } catch (e) {} } }
         break;
       }
       return true;
+    }
+    const MOVE_STEP = { cross: [1.25, 0.4], btl: [1.05, 0.5], btb: [1.15, 0.35], inout: [0.95, 0.55], dbl: [1.2, 0.35], spin: [1.15, 1.0], stepback: [0, -1.5], hesi: [0, 0.12] }; // yards: [to the side, forward]
+    // the step of a dribble move: a quick push off the outside foot and a glide (the whole distance over the move's time)
+    function mvStep(p, dt) {
+      const M = p.mvB; if (!M) return;
+      if (ball.holder !== p || p.shotS || p.fin || p.passT != null || p.stumbleT > 0 || phase !== 'live') { p.mvB = null; return; }
+      M.t += dt; const u = M.t / M.dur;
+      if (u >= 1) { p.mvB = null; p.burstT = 0.55; return; }
+      const w = Math.sin(Math.PI * u) * Math.PI / 2 / M.dur;
+      p.vx = M.dx * w + M.cx; p.vz = M.dz * w + M.cz; if (M.k !== 'spin') p.face2 = M.h;
     }
     // passes: a chest pass (flat), a bounce pass in traffic, a lob over the top; accuracy from PAS; defenders in the lane can pick it
     function startPass(p, to, kind) {
@@ -4603,6 +6115,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let best = null, bs = -1;
       for (const p of onCourt) {
         if (p.rag || p.benched || p.stumbleT > 0.3 || (p.shotS && !p.shotRel)) continue;
+        if (!inBounds(p.x, p.z, -0.05)) continue; // a man standing out of bounds (carried past the baseline by his layup) leaves it alone
         const reachY = p.jumpY + p.lk.hs * (p.pose === 'rebound' || p.pose === 'block' || p.pose === 'tip' ? 2.75 : 2.3), dh = Math.hypot(b.x - p.x, b.z - p.z);
         if (dh > 0.85 || b.y > reachY + 0.12 || (b.y > RIM_Y && b.vy > 0)) continue;
         const sc = (1 - dh) * 2 + rt(p, 'reb') / 60 + (p.boxOut ? 0.4 : 0) + rng() * 0.5;
@@ -4675,7 +6188,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- whistles, dead balls, inbounds ----------
     function whistle(a, b2) { try { sfx.play('whistle'); } catch (e) {} banner(a, b2, '#ffc21a'); setTimeout(() => clearBanner(), 1600); clockRun = false; }
-    function setDead(t, next) { phase = 'dead'; deadT = t; deadNext = next; clockRun = false; for (const p of onCourt) { p.shotS = null; p.fin = null; p.passT = null; p.dstance = false; p.face2 = null; } if (meterOn) meterHide(); }
+    function setDead(t, next) { inbPlan = null; phase = 'dead'; deadT = t; deadNext = next; clockRun = false; for (const p of onCourt) { p.shotS = null; p.fin = null; p.passT = null; p.dstance = false; p.face2 = null; } if (meterOn) meterHide(); }
     function changePoss(side, holder) {
       poss = side; shotClk = SHOT;
       for (const p of onCourt) { p.dstance = false; p.boxOut = false; }
@@ -4689,20 +6202,35 @@ gl_FragColor=vec4(c,1.0);}`;
       deadNext = null;
       setTimeout(() => {}, 0);
       phase = 'dead'; deadT = 1.1; clockRun = false;
-      deadNext = () => startInbound(side, h.x + h.dir * 0.9, (rng() - 0.5) * 3, true);
+      const z0 = (rng() - 0.5) * 3;
+      // the other team's ball: its inbounder (the nearest man who is not the point guard) goes to the baseline, the point guard
+      // comes back for the ball and everyone else heads up the floor during the dead second (60-ai.js resetStep)
+      poss = side; shotClk = SHOT; inbPlan = planInbound(side, h.x + h.dir * 0.9, z0, true);
+      const far = Math.hypot(inbPlan.passer.x - inbPlan.x, inbPlan.passer.z - inbPlan.z); deadT += clamp((far - 4) * 0.15, 0, 0.6);
+      deadNext = () => startInbound(side, h.x + h.dir * 0.9, z0, true);
       for (const p of onCourt) { p.shotS = null; p.fin = null; }
     }
     // the inbound: the passer out of bounds at the spot, his teammates get open, the pass in after a moment (or E)
+    // where an inbound is taken and by whom: the spot past the baseline (after a make) or the sideline; the nearest man takes it
+    // out (after a make never the point guard: he comes back to get it, and so he does on any inbound in the backcourt)
+    let inbPlan = null;
+    function planInbound(side, x, z, base) {
+      const t = teams[side], h = hoopOf(side), d = h.dir;
+      let ix = x, iz = z, end = false;
+      if (base || Math.abs(x) > COURT.HL - 0.6) { end = true; ix = Math.sign(x || -d) * (COURT.HL + 0.55); iz = clamp(z, -COURT.keyW / 2 - 1.5, COURT.keyW / 2 + 1.5); if (Math.abs(iz) < COURT.keyW / 2 + 0.3) iz = Math.sign(iz || 1) * (COURT.keyW / 2 + 0.4); }
+      else { iz = Math.sign(z || 1) * (COURT.HW + 0.55); ix = clamp(x, -COURT.HL + 1, COURT.HL - 1); if (iz * GYM.bs > 0 && Math.abs(ix - GYM.table.x) < GYM.table.len / 2 + 0.6) ix = GYM.table.x + (ix >= GYM.table.x ? 1 : -1) * (GYM.table.len / 2 + 0.6); } // (never thrown in from on top of the scorer's table)
+      const passer = nearestTo(base ? t.on.slice(1) : t.on, { x: ix, z: iz });
+      const backc = (h.x - ix) * d > 12.6, recv = base || backc ? (t.on[0] !== passer ? t.on[0] : t.on[1]) : null;
+      const rx = end ? ix - Math.sign(ix) * 4.8 : ix + d * 0.5, rz = end ? -iz * 0.35 : iz - Math.sign(iz) * 4.6;
+      return { side, x: ix, z: iz, passer, recv, rx, rz };
+    }
     function startInbound(side, x, z, base) {
       phase = 'inb'; phaseT = 0; clockRun = false; poss = side;
-      const t = teams[side], h = hoopOf(side), d = h.dir;
-      // the spot: past the baseline (after a make) or past the sideline
-      let ix = x, iz = z;
-      if (base || Math.abs(x) > COURT.HL - 0.6) { ix = Math.sign(x || -d) * (COURT.HL + 0.55); iz = clamp(z, -COURT.keyW / 2 - 1.5, COURT.keyW / 2 + 1.5); if (Math.abs(iz) < COURT.keyW / 2 + 0.3) iz = Math.sign(iz || 1) * (COURT.keyW / 2 + 0.4); }
-      else { iz = Math.sign(z || 1) * (COURT.HW + 0.55); ix = clamp(x, -COURT.HL + 1, COURT.HL - 1); }
-      // the passer: the point guard after a make, else whoever is nearest
-      const passer = base ? t.on[0] : nearestTo(t.on, { x: ix, z: iz });
-      inb = { side, x: ix, z: iz, passer, t: 0, wait: 1.1 + rng() * 0.5 };
+      const t = teams[side];
+      const P = inbPlan && inbPlan.side === side && t.on.includes(inbPlan.passer) && (!inbPlan.recv || t.on.includes(inbPlan.recv)) ? inbPlan : planInbound(side, x, z, base);
+      inbPlan = null;
+      const ix = P.x, iz = P.z, passer = P.passer;
+      inb = { side, x: ix, z: iz, passer, t: 0, wait: 0.55 + rng() * 0.3, recv: P.recv, rx: P.rx, rz: P.rz };
       passer.x = ix; passer.z = iz; passer.vx = passer.vz = 0; passer.face2 = Math.atan2(-ix * 0.3 - ix, -iz);
       setPose(passer, 'inbound');
       giveBall(passer, 'held');
@@ -4716,10 +6244,12 @@ gl_FragColor=vec4(c,1.0);}`;
       I.t += dt;
       const p = I.passer;
       p.x = I.x; p.z = I.z; p.vx = p.vz = 0; p.face2 = Math.atan2(-I.x * 0.25 - I.x * 0.1, -I.z);
+      // room for the throw-in: nobody stands on the inbounder (a defender gives him a full step off the line)
+      for (const q of onCourt) { if (q === p) continue; const dx = q.x - p.x, dz = q.z - p.z, dl = Math.hypot(dx, dz), R = 1.7; if (dl < R) { const ux = dl > 0.05 ? dx / dl : -Math.sign(p.x || 1), uz = dl > 0.05 ? dz / dl : 0, k = Math.min(R - dl, dt * 6); q.x += ux * k; q.z += uz * k; q.x = clamp(q.x, -COURT.HL + 0.3, COURT.HL - 0.3); q.z = clamp(q.z, -COURT.HW + 0.3, COURT.HW - 0.3); } }
       if (I.t > I.wait && (I.side === 1 || (DBG && DBG.auto) || I.t > 2.6 || I.go)) {
         // the most open teammate
         let best = null, bs = -1e9;
-        for (const q of teams[I.side].on) { if (q === p) continue; let open = 9; for (const d of foes(q)) open = Math.min(open, D(d, q)); const s = open - D(q, p) * 0.15 + rng() * 0.3; if (s > bs) { bs = s; best = q; } }
+        for (const q of teams[I.side].on) { if (q === p) continue; let open = 9; for (const d of foes(q)) open = Math.min(open, D(d, q)); const s = open - D(q, p) * 0.15 + rng() * 0.3 + (q === I.recv ? 2.5 : 0); if (s > bs) { bs = s; best = q; } }
         phase = 'live'; inb = null; clockRun = true;
         setPose(p, 'idle'); p.face2 = null; p.inbT = 1.2;
         startPass(p, best, 'chest'); p.passT = 0.05;
@@ -4798,9 +6328,11 @@ gl_FragColor=vec4(c,1.0);}`;
         const sc = (c) => (c.tipJ ? c.lk.hs * 2.7 + c.jumpY + rt(c, 'vert') * 0.004 - Math.abs((c.tipT || 0) - (T.apex - 0.42)) * 0.8 : 0) + rng() * 0.25;
         const w = sc(T.c0) >= sc(T.c1) ? T.c0 : T.c1;
         T.won = w.side; poss1 = w.side;
-        const mate = teams[w.side].on[0], dx = mate.x - b.x, dz = mate.z - b.z, dl = Math.hypot(dx, dz) || 1;
-        b.vx = dx / dl * 4.5; b.vz = dz / dl * 4.5; b.vy = 1.5; b.lastSide = w.side; b.last = w;
-        phase = 'live'; tipS = null; clockRun = true; tLive = 0;
+        // the tap is a pass to his point guard: one man gets it, the other nine go straight to their jobs (no scramble)
+        const mate = teams[w.side].on[0], T2 = 0.8, ty = 1.25 * mate.lk.hs;
+        b.vx = (mate.x - b.x) / T2; b.vz = (mate.z - b.z) / T2; b.vy = (ty - b.y + 0.5 * BALL_G * T2 * T2) / T2; b.lastSide = w.side; b.last = w;
+        b.st = 'air'; b.shot = null; b.pass = { from: w, to: mate, t: 0, T: T2 };
+        phase = 'live'; tipS = null; clockRun = true; tLive = 0; changePoss(w.side, null);
         say2(`<b>${esc(w.side === 0 ? HOME.name : AWAY.name)}</b> win the tip`);
       }
     }
@@ -4876,17 +6408,47 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- control ----------
     function setCtrl(p) { if (!p || p.side !== 0 || p.benched) return; ctrl = p; }
     // =====================================================================================
-    // The CPU (both teams, everyone you don't control): offense with spacing (five out, or four out and one in with a real
-    // centre), drive and kick, passing to the open man, shot selection by ratings and level; defense man to man with help on
-    // drives, contests, steals and boxing out; the rebound scramble; walking to spots at dead balls.
+    // The CPU (both teams, everyone you don't control).
+    // Offense: five real spots (point, two wings at the free-throw line extended, two corners; a non-shooting centre plays the
+    // dunker spot and the post instead), one player per spot, re-matched as the ball moves so the spots next to the ball are always
+    // filled. From there: pass and cut, back-door cuts, a ball screen and roll, drift and lift on a drive, the kick-out, the swing.
+    // The break: the ball is pushed, the wings run the wide lanes, a numbers advantage goes to the rim.
+    // Defense: man to man, each on the line between his man and the basket; tight on the ball, a step off one pass away, sunk to
+    // the help line two passes away; one helper steps in on a beaten drive; close-outs; box-outs; back before the ball in transition.
+    // Loose balls and rebounds: only the nearest go for it, everyone else keeps his job (no scrum).
+    // Flags for the animation side: p.calling (open, wants it), p.cutting, p.screening, p.dstance (in a stance on his man).
     // =====================================================================================
     // a spot in the frame of the basket a team attacks: u = yards out from the rim toward half court, v = across
     const atRim = (h, u, v) => [h.x - h.dir * u, v];
-    const SPOTS5 = [[6.9, 0], [5.4, 4.9], [5.4, -4.9], [1.0, 6.6], [1.0, -6.6]];
-    const SPOTS41 = [[6.9, 0], [5.0, 5.0], [5.0, -5.0], [1.2, -6.6], [1.5, 1.9]];
-    function teamSpots(t) {
-      const c = t.on[4], big = c && (rt(c, 'three') < 58 || rt(c, 'intD') > 70) ? 1 : 0;
-      return big ? SPOTS41 : SPOTS5;
+    const uOf = (h, x) => (h.x - x) * h.dir;
+    const SLOT = [[8.1, 0], [6.0, 6.1], [6.0, -6.1], [0.45, 7.3], [0.45, -7.3]]; // point, wings, corners
+    const SLOT_ADJ = [[1, 2], [0, 3], [0, 4], [1], [2]];                        // one pass away
+    const SLOT_KIND = [0, 1, 1, 2, 2], POS_KIND = [0, 1, 1, 2, 2];              // guards up top and on the wings, forwards in the corners
+    function OS(t) { return t.O || (t.O = { slot: new Map(), reT: 0, scr: null, ballSlot: 0, postSide: 1, cutT: 0, fbT: -9, callT: -9, flash: 0, flashT: 2, scrT: 0 }); }
+    function bigOf(t) { const c = t.on[4]; return c && (rt(c, 'three') < 58 || rt(c, 'intD') > 70) ? c : null; }
+    // who has the ball for a team, or is about to (a pass in the air to him)
+    function lead(t) { const b = ball; if (b.holder && b.holder.side === t.side) return b.holder; if (b.st === 'air' && b.pass && b.pass.to && b.pass.to.side === t.side) return b.pass.to; return null; }
+    function guardOf(q) { const f = foes(q); for (const d of f) if (d.man === q) return d; return nearestTo(f, q); }
+    function nearestSlot(h, x, z, cur) { let bi = 0, bd = 1e9; for (let i = 0; i < 5; i++) { const s = atRim(h, SLOT[i][0], SLOT[i][1]), d = Math.hypot(x - s[0], z - s[1]) - (i === cur ? 1.3 : 0); if (d < bd) { bd = d; bi = i; } } return bi; }
+    // one player per spot: the ball takes the spot it is nearest, the others are matched to the rest by the shortest total run
+    // (a man keeps his spot unless there is a reason; an empty spot next to the ball is filled first)
+    function assignSlots(t) {
+      const O = OS(t), h = hoopOf(t.side), hd = lead(t), big = bigOf(t), free = [0, 1, 2, 3, 4];
+      if (hd) {
+        if (uOf(h, hd.x) > 10.5) O.ballSlot = 0;
+        else if (!(hd.drive > 0) && hd !== big && rimDist(hd.x, hd.z, h) > 4.4) O.ballSlot = nearestSlot(h, hd.x, hd.z, O.ballSlot);
+        free.splice(free.indexOf(O.ballSlot), 1);
+      }
+      let pl = t.on.filter((p) => p !== hd && p !== big && !p.cutS && !(O.scr && O.scr.s === p) && !(inb && inb.recv === p) && !(phase === 'dead' && inbPlan && (inbPlan.recv === p || inbPlan.passer === p)));
+      if (pl.length > free.length) pl = pl.slice(0, free.length);
+      const n = pl.length, cur = new Array(n), used = free.map(() => false); let bc = 1e9, ba = null;
+      const cost = pl.map((p) => free.map((s) => { const sp = atRim(h, SLOT[s][0], SLOT[s][1]); return Math.hypot(p.x - sp[0], p.z - sp[1]) - (O.slot.get(p) === s ? 2.4 : 0) - (SLOT_KIND[s] === POS_KIND[t.on.indexOf(p)] ? 1.2 : 0); }));
+      const rec = (k, c) => {
+        if (k === n) { let e = 0; for (let j = 0; j < free.length; j++) if (!used[j] && SLOT_ADJ[O.ballSlot].includes(free[j])) e += 5; if (c + e < bc) { bc = c + e; ba = cur.slice(); } return; }
+        for (let j = 0; j < free.length; j++) { if (used[j]) continue; used[j] = true; cur[k] = free[j]; rec(k + 1, c + cost[k][j]); used[j] = false; }
+      };
+      rec(0, 0);
+      if (ba) pl.forEach((p, k) => O.slot.set(p, ba[k]));
     }
     // how good a look this is for him, here and now (0..1-ish: points expected)
     function shotValue(p, x, z) {
@@ -4901,136 +6463,430 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const d of foes(p)) { const t = ((d.x - p.x) * ax + (d.z - p.z) * az) / (al * al); if (t < 0.05 || t > 1.05) continue; const off = Math.hypot(d.x - (p.x + ax * t), d.z - (p.z + az * t)); if (off < 0.95 - t * 0.2) return false; }
       return true;
     }
+    // how close the nearest defender is to the line of a pass from p to q (a big number = a clean lane)
+    function passGap(p, q) {
+      const ax = q.x - p.x, az = q.z - p.z, al2 = ax * ax + az * az || 1; let g = 9;
+      for (const d of foes(p)) { const t = ((d.x - p.x) * ax + (d.z - p.z) * az) / al2; if (t < 0.12 || t > 0.96) continue; g = Math.min(g, Math.hypot(d.x - (p.x + ax * t), d.z - (p.z + az * t))); }
+      return g;
+    }
     function bestPass(p, dirPref) {
       let best = null, bs = -1e9;
       for (const q of mates(p)) {
         if (q === p) continue;
-        const dd = D(q, p); if (dd < 1.5 || dd > 15) continue;
+        const dd = D(q, p); if (dd < 1.5 || dd > 16) continue;
         let s = openness(q) * 0.6 + shotValue(q, q.x, q.z) * 2 - dd * 0.05;
-        // the lane: a defender near the line between them makes it a risk
-        const ax = q.x - p.x, az = q.z - p.z, al = dd;
-        for (const d of foes(p)) { const t = ((d.x - p.x) * ax + (d.z - p.z) * az) / (al * al); if (t < 0.1 || t > 0.95) continue; const off = Math.hypot(d.x - (p.x + ax * t), d.z - (p.z + az * t)); if (off < 0.8) s -= (0.8 - off) * 3; }
-        if (dirPref) s += ((ax * dirPref[0] + az * dirPref[1]) / al) * 3;
+        const g = passGap(p, q); if (g < 0.8) s -= (0.8 - g) * 3;
+        // your own pass with no direction held: the open man close by, not a skip pass across the lane into a crowd
+        if (!dirPref && isUser(p)) { s -= dd * 0.2 + Math.max(0, dd - 5) * 0.5; if (g < 1.6) s -= (1.6 - g) * 2; if (openness(q) < 1.6) s -= 1.2; }
+        if (dirPref) s += (((q.x - p.x) * dirPref[0] + (q.z - p.z) * dirPref[1]) / dd) * 3;
         if (s > bs) { bs = s; best = q; }
       }
       return best;
     }
+    // move a CPU player: k = share of his speed, sprint drains stamina
+    function go(p, tx, tz, k, sprint, dt) { p.sprint = !!sprint; steer(p, tx, tz, effV(p) * (sprint ? Math.min(k, 1) : k), dt); } // (a sprint is a sprint: nobody runs faster than his legs)
     // ---------- the ball handler ----------
+    function aiPass(p, q) { if (shotClk < 2.7 && phase === 'live') return false; const kick = p.drive > 0; if (!startPass(p, q)) return false; q.kickT = kick ? tLive : -9; p.drive = 0; p.via = null; return true; }
     function handlerAI(p, dt) {
-      const b = ball, h = hoopOf(p.side), d = rimDist(p.x, p.z, h), sk = p.side === 1 ? DK : 0.9;
-      p.holdT += dt; p.think -= dt;
+      const b = ball, h = hoopOf(p.side), t = teams[p.side], O = OS(t), d = rimDist(p.x, p.z, h), u = uOf(h, p.x), sk = p.side === 1 ? DK : 0.9;
+      if (p.holdT < dt * 1.5) { p.think = 0.1 + rng() * 0.1; p.drive = 0; p.via = null; p.dside = 0; p.holdMax = 0.55 + rng() * 1.1 + (1 - Math.min(1, sk)) * 0.3; p.backT = 0; }
+      p.holdT += dt; p.think -= dt; p.calling = false; p.cutS = null; p.cutting = false; p.dstance = false;
+      if (O.scr && O.scr.s === p) O.scr = null;
       if (p.shotS || p.fin || p.passT != null) { p.vx *= 0.9; p.vz *= 0.9; return; }
-      if (b.st === 'held' && p.pose !== 'catch' && p.holdT > 0.25) startDribble(p);
-      const open = openness(p), sv = shotValue(p, p.x, p.z);
+      const open = openness(p), sv = shotValue(p, p.x, p.z), sp = Math.hypot(p.vx, p.vz);
       // the clock is running out: shoot it
-      if (shotClk < 1.6 + (1 - sk) * 0.4 || (clock < 1.8 && qtr >= 4 && clockRun)) { if (startShot(p)) return; }
-      // at the rim: finish
-      if (d < 1.9 && p.holdT > 0.15) { if (startShot(p)) return; }
-      if (p.think > 0) { moveHandler(p, dt, h, d); return; }
-      p.think = 0.18 + rng() * 0.15;
-      const drive = laneOpen(p, h) && d < 9 && d > 1.8 && (rt(p, 'fin') + rt(p, 'spd') + rt(p, 'dunk')) / 3 > 55 - sk * 6;
-      const shootT = (p.side === 1 ? 0.62 - sk * 0.12 : 0.6) + (shotClk > 9 ? 0.12 : 0);
-      if (open > 1.6 && sv > shootT && p.holdT > 0.45) { if (startShot(p)) return; }
-      if (drive && rng() < 0.5 + sk * 0.2) { p.drive = 1.2; }
-      // pass when he has held it a while, or a teammate has a much better look (drive and kick)
-      const hold = p.holdT > 1.3 + rng() * 1.6, collapse = d < 4.5 && open < 1.1;
-      if ((hold || collapse) && rng() < 0.75) { const q = bestPass(p); if (q && (shotValue(q, q.x, q.z) > sv * 0.95 || collapse || hold)) { startPass(p, q); return; } }
-      // a move to beat his man (never spammed): sometimes a crossover, a hesitation, a spin
-      const man = nearestTo(foes(p), p);
-      if (man && D(man, p) < 1.5 && rng() < 0.14 + (rt(p, 'hand') - 60) * 0.004 && tLive - (p.cmbLast || -9) > 0.7) doMove(p);
-      moveHandler(p, dt, h, d);
+      if (shotClk < 2.25 + (1 - Math.min(1, sk)) * 0.3 || (clock < 1.8 && clockRun)) { if (startShot(p)) return; }
+      // at the rim: finish; with a body on him and a man open, the dump-off or the kick-out instead
+      if (p.holdT > 0.15 && d < 2.6 && shotClk > 3 && p.think <= 0 && contestOf(p, h) > 0.5) {
+        let q = null, qs = 0.9; for (const m of mates(p)) { if (m === p || D(m, p) < 1.8) continue; const o = openness(m); if (o < 1.6 || passGap(p, m) < 0.8) continue; const s = shotValue(m, m.x, m.z); if (s > qs) { qs = s; q = m; } }
+        if (q && rng() < 0.7 && aiPass(p, q)) return;
+      }
+      if (p.holdT > 0.15 && (d < 1.9 || (p.drive > 0 && d < layReach(sp) - 0.25))) { if (startShot(p)) return; }
+      if (b.st === 'held' && p.pose !== 'catch' && p.holdT > 0.3) startDribble(p);
+      if (p.think > 0) { moveHandler(p, dt, h, d, u, O); return; }
+      p.think = 0.16 + rng() * 0.12;
+      const late = shotClk < 4.4, man = guardOf(p), dman = man ? D(man, p) : 9;
+      // ----- bringing it up: push it, hit the man ahead, take the numbers -----
+      if (u > 10.2) {
+        let back = 0; for (const f of foes(p)) if (uOf(h, f.x) < u - 0.6) back++;
+        let ahead = null, as2 = 0;
+        for (const q of mates(p)) { if (q === p) continue; const qu = uOf(h, q.x); if (qu > u - 4.5 || qu < 0.2) continue; const o = openness(q); if (o < 2.6 || passGap(p, q) < 1.1 || D(p, q) > 12) continue; const s = (u - qu) * 0.2 + o * 0.3; if (s > as2) { as2 = s; ahead = q; } }
+        if (ahead && p.holdT > 0.3 && rng() < 0.6) { if (aiPass(p, ahead)) return; }
+        if (back <= 1 && u < 17) { p.drive = 1.2; O.fbT = tLive; }
+        moveHandler(p, dt, h, d, u, O); return;
+      }
+      // ----- the half court -----
+      // an open look he can make (the bar drops as the clock runs down)
+      const thr = clamp(0.58 + 0.024 * shotClk, 0.4, 0.92) - (p.side === 1 ? (1 - Math.min(1, sk)) * 0.08 : 0), rhythm = tLive - (p.kickT || -9) < 1.4 && p.holdT < 0.7, needOpen = rhythm ? 1.0 : clamp(0.9 + 0.08 * shotClk, 1.1, 1.7);
+      // (a three takes a shooter: the bar is higher for a poor one)
+      const thr3 = isThree(p.x, p.z, h) ? clamp((72 - rt(p, 'three')) * 0.02, -0.04, 0.42) * (late ? 0.6 : 1) : 0;
+      if (p.holdT > 0.16 && open > needOpen && sv > (rhythm ? thr - 0.18 : thr) + thr3 && d > 2.3) { if (startShot(p)) return; }
+      // a cutter or a roller open at the rim
+      if (p.holdT > 0.2) for (const q of mates(p)) {
+        if (q === p || rimDist(q.x, q.z, h) > 3.4 || D(p, q) < 2 || D(p, q) > 11) continue;
+        if (openness(q) > 1.25 && passGap(p, q) > 0.85 && (q.cutS || shotValue(q, q.x, q.z) > 1.0) && rng() < 0.8) { if (aiPass(p, q)) return; }
+      }
+      // on a drive: the help came, find the man it left; a wall in front, pull up or get out
+      if (p.drive > 0) {
+        if (d < 5.2) {
+          let help = false; for (const f of foes(p)) if (f !== man && D(f, p) < 2.5 && rimDist(f.x, f.z, h) < d + 0.5) help = true;
+          const front = !laneOpen(p, h);
+          if ((help && d > 2.4) || (front && d > 2.6)) {
+            let q = null, qs = 0.84;
+            for (const m of mates(p)) { if (m === p || D(m, p) < 2.2) continue; const o = openness(m); if (o < 1.7 || passGap(p, m) < 0.8) continue; const s = shotValue(m, m.x, m.z) + o * 0.03; if (s > qs) { qs = s; q = m; } }
+            if (q && rng() < 0.78) { if (aiPass(p, q)) return; }
+            if (front && d > 2.6 && d < 6.4 && sv > 0.7 && open > 1.0 && rng() < 0.5) { if (startShot(p)) return; }
+            if (front && d > 2.6 && sp < 2.2) { if (sv > 0.62 && open > 0.8 && rng() < 0.6) { if (startShot(p)) return; } p.drive = 0; p.via = null; p.backT = 0.5; }
+          }
+        }
+        moveHandler(p, dt, h, d, u, O); return;
+      }
+      // a ball screen is set: use it
+      const S = O.scr;
+      if (S && S.h === p && S.st === 'hold' && S.ht > 0.12 && !S.used) {
+        S.used = true; const s = S.s, ax = h.x - p.x, az = h.z - p.z, al = Math.hypot(ax, az) || 1, px = -az / al * S.side, pz = ax / al * S.side;
+        p.via = [s.x + px * 1.35 + ax / al * 0.5, s.z + pz * 1.35 + az / al * 0.5]; p.drive = 1.7; moveHandler(p, dt, h, d, u, O); return;
+      }
+      // a screen is on its way: wait for it; now and then the CPU's handler calls for one (yours comes when you ask: callScreen)
+      if (S && S.h === p && !S.used && S.t < 2.4 && shotClk > 3.5) { moveHandler(p, dt, h, d, u, O); return; }
+      if (!S && !isUser(p) && p.holdT > 0.35 && d > 6.2 && d < 9.4 && shotClk > 5.5 && shotClk < 11.5 && tLive > O.scrT && rng() < 0.07 && callScreen(p.side)) { moveHandler(p, dt, h, d, u, O); return; }
+      // attack: a lane to the rim, a man who is beaten or too close, or the clock says go
+      const ath = (rt(p, 'fin') + rt(p, 'spd') + rt(p, 'dunk')) / 3, lane = laneOpen(p, h);
+      const pDrive = lane ? 0.55 + sk * 0.15 + (ath - 60) * 0.006 : (late ? 0.5 : 0.14 + (11 - Math.min(11, shotClk)) * 0.025 + (ath - 60) * 0.004) + (dman < 1.0 ? 0.08 : 0);
+      if (d > 2 && d < 9.6 && p.holdT > 0.3 && !(S && S.h === p) && rng() < pDrive) {
+        // a move first when his man is on him
+        if (!lane && man && dman < 1.6 && tLive - (p.cmbLast || -9) > 0.8 && rng() < 0.5 + (rt(p, 'hand') - 60) * 0.006) doMove(p);
+        p.drive = 1.3 + rng() * 0.5; p.dside = 0; moveHandler(p, dt, h, d, u, O); return;
+      }
+      // move the ball: the open man one pass away, the reversal, the post
+      if (p.holdT > (p.holdMax || 1) && !late) {
+        let q = null, qs = -1e9;
+        for (const m of mates(p)) {
+          if (m === p) continue;
+          const dd = D(m, p); if (dd < 2.5 || dd > 12.5) continue;
+          const o = openness(m), g = passGap(p, m); if (o < 1.3 || g < 0.9) continue;
+          const sm = O.slot.get(m);
+          const s = shotValue(m, m.x, m.z) * 1.3 + o * 0.22 + (sm != null && SLOT_ADJ[O.ballSlot].includes(sm) ? 0.7 : 0) - (m === p.from ? 0.6 : 0) - dd * 0.05 + rng() * 0.5;
+          if (s > qs) { qs = s; q = m; }
+        }
+        if (q) { if (aiPass(p, q)) { q.from = p; return; } }
+        p.holdMax += 0.45;
+      }
+      // a move to keep his man honest
+      if (man && dman < 1.4 && rng() < 0.08 + (rt(p, 'hand') - 60) * 0.003 && tLive - (p.cmbLast || -9) > 1.0) doMove(p);
+      moveHandler(p, dt, h, d, u, O);
     }
-    function moveHandler(p, dt, h, d) {
-      const v = effV(p);
+    function moveHandler(p, dt, h, d, u, O) {
+      p.face2 = null;
       if (p.hesiGo > 0) { p.hesiGo -= dt; if (p.hesiGo > 0) { p.vx *= 0.92; p.vz *= 0.92; return; } p.drive = Math.max(p.drive || 0, 0.8); }
-      if (p.drive > 0) { p.drive -= dt; const t = atRim(h, 0.6, 0); steer(p, t[0], t[1], v * 1.15, dt); p.sprint = true; return; }
-      // probe: work toward a spot on the wing / top, a step inside the arc for good shooters going back out
-      if (!p.probe || p.probeT <= 0) { const a = (rng() - 0.5) * 2.4, r = rt(p, 'three') > 68 ? 6.8 : 5.4; p.probe = atRim(h, Math.cos(a) * r, Math.sin(a) * r); p.probeT = 1.2 + rng() * 1.5; }
-      p.probeT -= dt;
-      steer(p, p.probe[0], p.probe[1], v * 0.75, dt);
+      if (p.drive > 0) {
+        p.drive -= dt;
+        if (p.via) { if (Math.hypot(p.via[0] - p.x, p.via[1] - p.z) < 0.7 || uOf(h, p.via[0]) > u + 0.3) p.via = null; else { go(p, p.via[0] + (p.via[0] - p.x), p.via[1] + (p.via[1] - p.z), 1.1, true, dt); return; } }
+        // his man is in the way: attack a hip (the side he is already shaded off), not his chest
+        const g = guardOf(p);
+        if (g && d > 2.4) {
+          const ax = h.x - p.x, az = h.z - p.z, al = Math.hypot(ax, az) || 1, lx = -az / al, lz = ax / al;
+          const along = ((g.x - p.x) * ax + (g.z - p.z) * az) / al, off = (g.x - p.x) * lx + (g.z - p.z) * lz;
+          if (along > -0.2 && along < 2.8 && Math.abs(off) < 1.35) {
+            if (!p.dside) p.dside = off > 0.12 ? -1 : off < -0.12 ? 1 : (rng() < 0.5 ? 1 : -1);
+            // (a hip that would take him over a line is no way round: take the other one)
+            let tx = g.x + lx * p.dside * 1.3 + ax / al * 0.7, tz = g.z + lz * p.dside * 1.3 + az / al * 0.7;
+            if (!inBounds(tx, tz, 0.9)) { p.dside = -p.dside; tx = g.x + lx * p.dside * 1.3 + ax / al * 0.7; tz = g.z + lz * p.dside * 1.3 + az / al * 0.7; }
+            const tl = Math.hypot(tx - p.x, tz - p.z) || 1;
+            go(p, clamp(tx + (tx - p.x) / tl * 2, -COURT.HL + 0.9, COURT.HL - 0.9), clamp(tz + (tz - p.z) / tl * 2, -COURT.HW + 0.8, COURT.HW - 0.8), 1.12, true, dt);
+            if (p.drive <= 0) { p.backT = 0.4; p.dside = 0; }
+            return;
+          }
+        }
+        // to the rim, on his side of it; never under the board
+        const t = atRim(h, 0.7, clamp(p.z, -0.5, 0.5)); go(p, t[0], t[1], 1.12, true, dt);
+        if (p.drive <= 0) p.dside = 0;
+        if (p.drive <= 0 && d > 3) p.backT = 0.4;
+        return;
+      }
+      // coming up the floor: to the top, pushed after a stop or a board
+      if (u > 10.2) { const t = atRim(h, 8.4, clamp(p.z * 0.5, -2.5, 2.5)), fb = tLive - O.fbT < 2.5; go(p, t[0], t[1], 1.08, fb || shotClk < 8, dt); return; }
+      // the half court: stay on his spot with a live dribble, squared to the rim
+      const s = SLOT[O.ballSlot], t = atRim(h, s[0], s[1]), ds = Math.hypot(t[0] - p.x, t[1] - p.z);
+      if (p.backT > 0) { p.backT -= dt; go(p, t[0], t[1], 0.9, false, dt); return; }
+      if (ds > 1.0) go(p, t[0], t[1], 0.8, false, dt);
+      else { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); if (Math.hypot(p.vx, p.vz) < 0.8) p.face2 = Math.atan2(h.x - p.x, h.z - p.z); }
+    }
+    // ---------- the ball screen: the big (or the last forward) comes up, sets it on the handler's man, then rolls or pops ----------
+    function callScreen(side) {
+      const t = teams[side], O = OS(t), hd = ball.holder;
+      if (!hd || hd.side !== side || O.scr || phase !== 'live') return false;
+      const h = hoopOf(side); if (uOf(h, hd.x) > 10.5 || rimDist(hd.x, hd.z, h) < 5) return false;
+      let s = bigOf(t); if (!s || s === hd || isUser(s)) { s = null; for (const i of [4, 3, 2]) { const q = t.on[i]; if (q && q !== hd && !isUser(q) && !q.cutS) { s = q; break; } } }
+      if (!s) return false;
+      // the side of the floor with more room
+      const side2 = hd.z > 1.5 ? -1 : hd.z < -1.5 ? 1 : (rng() < 0.5 ? 1 : -1);
+      O.scr = { s, h: hd, st: 'set', t: 0, ht: 0, zs: side2, side: 1, used: false }; O.scrT = tLive + 5; s.cutS = null;
+      return true;
+    }
+    function screenerAI(p, dt, O, h) {
+      const S = O.scr, hd = S.h, def = hd ? guardOf(hd) : null;
+      S.t += dt; p.calling = false;
+      if (!hd || ball.holder !== hd || !def || S.t > 4.2 || hd.shotS || hd.fin) { endScreen(p, O, h, false); return; }
+      // beside the defender, on the side the handler will come off (zs: toward +z or -z)
+      const ax = h.x - hd.x, az = h.z - hd.z, al = Math.hypot(ax, az) || 1; let px = -az / al, pz = ax / al; const sgn = pz * S.zs >= 0 ? 1 : -1; px *= sgn; pz *= sgn; S.side = sgn;
+      if (S.st === 'set') {
+        const tx = def.x + px * 1.25 - ax / al * 0.1, tz = def.z + pz * 1.25 - az / al * 0.1;
+        go(p, tx, tz, 1, false, dt); p.cutting = true;
+        if (Math.hypot(tx - p.x, tz - p.z) < 0.5) { S.st = 'hold'; S.ht = 0; }
+      } else {
+        S.ht += dt; p.vx *= Math.pow(0.001, dt); p.vz *= Math.pow(0.001, dt); p.screening = true; p.cutting = false;
+        p.face2 = Math.atan2(def.x - p.x, def.z - p.z);
+        if (S.ht > 1.5 || (S.used && (uOf(h, hd.x) < uOf(h, p.x) - 0.4 || S.ht > 1.0))) endScreen(p, O, h, true);
+      }
+    }
+    function endScreen(p, O, h, roll) {
+      O.scr = null; p.screening = false; p.face2 = null; O.reT = 0;
+      if (!roll) return;
+      // the roll to the rim; a shooter pops to the arc instead (back to a spot)
+      if (rt(p, 'three') > 70 && rng() < 0.6) return;
+      p.cutS = { k: 'roll', t: 0, to: atRim(h, 1.3, clamp(p.z * 0.25, -0.9, 0.9)) };
     }
     // ---------- off the ball, on offense ----------
+    function startCut(p, h, k) { const O = OS(teams[p.side]); p.cutS = { k, t: 0, to: atRim(h, 1.25, (p.z >= 0 ? 1 : -1) * 0.8) }; O.cutT = tLive + 2.2; O.slot.delete(p); O.reT = 0; }
     function offBallAI(p, dt) {
-      const t = teams[p.side], h = hoopOf(p.side), i = t.on.indexOf(p), S = teamSpots(t)[i] || SPOTS5[0];
-      let u = S[0], v = S[1];
-      const hd = ball.holder;
-      // a drive: shooters drift to the corners and the slot, the big dives
-      if (hd && hd.side === p.side && hd.drive > 0) { if (u > 3) { u -= 1.3; v *= 1.12; } }
-      // don't stand on top of the ball handler
-      if (hd && hd !== p && hd.side === p.side) { const s = atRim(h, u, v); if (Math.hypot(s[0] - hd.x, s[1] - hd.z) < 2.4) { v += (v >= 0 ? 1 : -1) * 2.5; u += 0.8; } }
-      // now and then a cut to the rim (back door when he is denied)
-      p.aiT -= dt;
-      if (p.aiT <= 0) { p.aiT = 2 + rng() * 3; p.cut = rng() < 0.18 && i !== 0 ? 1.3 : 0; p.jit = [(rng() - 0.5) * 1.2, (rng() - 0.5) * 1.2]; }
-      if (p.cut > 0) { p.cut -= dt; u = 1.2; v = v > 0 ? 0.8 : -0.8; }
-      const s = atRim(h, u + (p.jit ? p.jit[0] : 0), clamp(v + (p.jit ? p.jit[1] : 0), -COURT.HW + 0.6, COURT.HW - 0.6));
-      steer(p, s[0], s[1], effV(p) * (p.cut > 0 ? 1.1 : 0.8), dt);
-      p.face2 = null; p.look = [ball.x, 1.4, ball.z];
+      const t = teams[p.side], O = OS(t), h = hoopOf(p.side), hd = lead(t), b = ball;
+      p.face2 = null; p.look = [b.x, 1.4, b.z]; p.calling = false; p.screening = false; p.cutting = false; p.drive = 0; p.via = null; p.dstance = false;
+      if (O.scr && O.scr.s === p) { screenerAI(p, dt, O, h); return; }
+      // the inbound: the point guard comes back to the ball
+      const IP = inb || (phase === 'dead' ? inbPlan : null);
+      if (IP && IP.recv === p) { go(p, IP.rx, IP.rz, 0.9, false, dt); p.calling = true; return; }
+      // a cut: hard to the rim, a look for the ball, then out to an open spot
+      if (p.cutS) {
+        const C = p.cutS; C.t += dt; p.cutting = true;
+        // the ball is driven at the rim: clear out of the lane
+        if (hd && hd !== p && hd.drive > 0 && C.k !== 'roll' && C.k !== 'dive' && rimDist(hd.x, hd.z, h) < 6) { p.cutS = null; O.slot.delete(p); O.reT = 0; return; }
+        const dd = Math.hypot(C.to[0] - p.x, C.to[1] - p.z);
+        go(p, C.to[0], C.to[1], 1.08, C.k !== 'roll' || dd > 2, dt);
+        if (dd < 2.5 && openness(p) > 1.2) p.calling = true;
+        if (C.k === 'dive' ? (C.t > 1.6 || !hd || !(hd.drive > 0 || hd.fin || hd.passT != null)) : (dd < 0.7 || C.t > (C.k === 'roll' ? 2.6 : 2.0))) { p.cutS = null; O.slot.delete(p); O.reT = 0; }
+        return;
+      }
+      const inHalf = !hd || uOf(h, hd.x) < 10.5, drv = hd && hd !== p && (hd.drive > 0 || hd.fin) && rimDist(hd.x, hd.z, h) < 7.5;
+      let u, v;
+      if (bigOf(t) === p) {
+        // the centre: the dunker spot away from the ball; now and then he flashes to the ball-side block for a post feed
+        if (hd && Math.abs(hd.z) > 1.8) O.postSide = hd.z > 0 ? -1 : 1;
+        O.flashT -= dt; if (O.flashT <= 0) { O.flashT = 2.2 + rng() * 2.5; O.flash = inHalf && hd && Math.abs(hd.z) > 3 && rng() < 0.4 ? 1.8 : 0; }
+        if (O.flash > 0) O.flash -= dt;
+        if (O.flash > 0 && hd && !drv) { u = 1.7; v = (hd.z > 0 ? 1 : -1) * 2.8; } else { u = 0.75; v = O.postSide * 2.5; }
+        if (!inHalf && uOf(h, p.x) > 9) { u = 2.2; v = O.postSide * 2.2; }
+      } else {
+        const si = O.slot.get(p), s = SLOT[si != null ? si : 0]; u = s[0]; v = s[1];
+        // on the way up the floor the corner men run the wide lanes deep; the wings fill the inside lanes a few steps ahead of the ball
+        if (!inHalf && (si === 1 || si === 2)) { u = Math.max(u, uOf(h, hd.x) - 4.5); v *= 0.72; }
+        if (drv && hd.drive > 0 && !isUser(p) && rimDist(hd.x, hd.z, h) < 5.5 && rt(p, 'three') < 66 && helper(hd) === guardOf(p) && rimDist(p.x, p.z, h) < 8.5 && !t.on.some((q) => q !== p && q.cutS)) {
+          p.cutS = { k: 'dive', t: 0, to: atRim(h, 0.85, (p.z >= 0 ? 1 : -1) * 2.2) }; O.slot.delete(p); return;
+        }
+        if (drv) { // a drive: the corner holds, the wing on his side drifts down, the far wing lifts, the top slides in behind him
+          const same = v * hd.z > 0;
+          if (si === 0) { v = (hd.z >= 0 ? 1 : -1) * 2.6; u = 7.6; } else if (si === 1 || si === 2) { if (same) { u -= 1.5; v *= 1.12; } else { u += 0.9; v *= 0.9; } } else if (same && rimDist(hd.x, hd.z, h) < 3.5 && Math.abs(hd.z) > 2.5) u += 1.4;
+        } else if (inHalf && hd && hd !== p) {
+          const g = guardOf(p), dg = g ? D(g, p) : 9, near = si != null && SLOT_ADJ[O.ballSlot].includes(si);
+          // decisions on his spot, one at a time across the team
+          p.aiT -= dt;
+          if (p.aiT <= 0) {
+            p.aiT = 0.8 + rng() * 1.2; p.vcut = 0;
+            const sp = atRim(h, u, v), onSpot = Math.hypot(sp[0] - p.x, sp[1] - p.z) < 1.2, paint = t.on.some((q) => q !== p && rimDist(q.x, q.z, h) < 3.2);
+            if (onSpot && tLive > O.cutT && !paint && !O.scr && shotClk > 3.5 && hd.holdT > 0.25) {
+              // back door when his man overplays or watches the ball; a basket cut now and then
+              const over = g && dg < 1.6 && rimDist(g.x, g.z, h) > rimDist(p.x, p.z, h) - 0.5;
+              if ((over && rng() < 0.7) || rng() < (near ? 0.2 : 0.14)) { startCut(p, h, over ? 'back' : 'cut'); return; }
+            }
+            // denied one pass away: a V-cut (a step in, then back out to the ball)
+            if (onSpot && near && dg < 1.5) p.vcut = 0.95;
+            else p.jit = [(rng() - 0.5) * 1.5, (rng() - 0.5) * 1.5];
+          }
+          if (p.vcut > 0) { p.vcut -= dt; if (p.vcut > 0.5) { u = Math.max(0.6, u - 1.9); v *= 0.82; } else u += 0.7; }
+          else if (p.jit) { u += p.jit[0]; v += p.jit[1]; }
+          // open and one pass away: he wants it
+          if (near && dg > 1.9 && passGap(hd, p) > 0.9) { p.calling = true; if (isUser(hd) && hd.holdT > 1.2 && tLive - O.callT > 3.5 && shotValue(p, p.x, p.z) > 0.95) { O.callT = tLive; popAt(p, 'OPEN', '#2bd46b'); } }
+        }
+      }
+      v = clamp(v, -COURT.HW + 0.9, COURT.HW - 0.9); u = Math.max(0.45, u);
+      let s = atRim(h, u, v);
+      // never on top of the ball
+      if (hd && hd !== p) { const dx = s[0] - hd.x, dz = s[1] - hd.z, dl = Math.hypot(dx, dz); if (dl < 4.4 && dl > 0.01) { s = [hd.x + dx / dl * 4.4, clamp(hd.z + dz / dl * 4.4, -COURT.HW + 0.9, COURT.HW - 0.9)]; } }
+      // elbow room: two teammates never run or stand side by side (the one behind gives way and swings wide of the other)
+      let slow = 1, crowd = false;
+      for (const q of t.on) {
+        if (q === p) continue;
+        const dx = p.x - q.x, dz = p.z - q.z, dl = Math.hypot(dx, dz), R = q === hd ? 4.6 : 3.4;
+        if (dl > R || dl < 0.01) continue;
+        if (q === hd && dl < 3.8) crowd = true; const k2 = (R - dl) * (q === hd ? 1.5 : 0.9); s = [s[0] + dx / dl * k2, clamp(s[1] + dz / dl * k2, -COURT.HW + 0.9, COURT.HW - 0.9)];
+        if (q !== hd && uOf(h, p.x) > uOf(h, q.x) && !q.cutS) slow = 0.7;
+      }
+      const ds = Math.hypot(s[0] - p.x, s[1] - p.z), fb = tLive - O.fbT < 2.5;
+      // running the floor: full speed to the spot (a sprint on the break); in the half court a jog, a burst on a cut or a drift
+      go(p, s[0], s[1], (crowd && ds > 0.8 ? 1.05 : ds > 4 ? 1 : drv || p.vcut > 0 ? 1 : 0.8) * slow, // (the ball has come to his spot: he clears out at once)
+         ds > 5 && slow === 1 && (fb || !inHalf), dt);
+      if (ds < 0.5 && Math.hypot(p.vx, p.vz) < 0.8) p.face2 = Math.atan2(b.x - p.x, b.z - p.z);
     }
     // ---------- defense ----------
+    function beaten(hd, own) { const g = guardOf(hd); if (!g) return true; const ax = own.x - hd.x, az = own.z - hd.z, al = Math.hypot(ax, az) || 1, t = ((g.x - hd.x) * ax + (g.z - hd.z) * az) / al; if (t < 0.1) return true; return Math.hypot(g.x - (hd.x + ax / al * t), g.z - (hd.z + az / al * t)) > 1.15; }
+    // the one helper on a drive: the defender off the ball who is nearest the rim
+    function helper(hd) { const own = ownHoop(1 - hd.side); let best = null, bd = 1e9; for (const d of foes(hd)) { if (d.man === hd || isUser(d)) continue; const dd = rimDist(d.x, d.z, own) + D(d, hd) * 0.35; if (dd < bd) { bd = dd; best = d; } } return best; }
     function defenseAI(p, dt) {
       const own = ownHoop(p.side), man = p.man && onCourt.includes(p.man) ? p.man : nearestTo(foes(p), p);
-      const b = ball, hd = b.holder;
+      const b = ball, hd = b.holder && b.holder.side !== p.side ? b.holder : null;
       if (p.react > 0) { p.react -= dt; if (p.react <= 0) defReact(p); }
-      p.dstance = false;
+      p.dstance = false; p.calling = false; p.cutting = false; p.screening = false; p.cutS = null; p.drive = 0;
       if (!man) return;
-      const rimx = own.x, rimz = own.z;
-      let tx, tz, spd = effV(p);
-      if (hd === man) {
-        // on the ball: between him and the rim, a gap by his perimeter defense; face him
-        const gap = 1.05 - rt(p, 'perD') * 0.003 - (p.side === 1 ? DK * 0.08 : 0) + (D(man, own) > 8 ? 0.6 : 0);
-        const ax = rimx - man.x, az = rimz - man.z, al = Math.hypot(ax, az) || 1;
-        tx = man.x + ax / al * gap; tz = man.z + az / al * gap;
-        p.face2 = Math.atan2(man.x - p.x, man.z - p.z); p.dstance = D(p, man) < 2.4;
-        // a steal try now and then (the better his hands and the level, the more often)
-        if (D(p, man) < 1.2 && p.stealCd <= 0 && rng() < dt * (0.06 + rt(p, 'stl') * 0.0016 + (p.side ? DK : 0.3) * 0.08)) trySteal(p);
+      const rx = own.x, rz = own.z, tgt = b.st === 'air' && b.pass && b.pass.to && b.pass.to.side !== p.side ? b.pass.to : hd;
+      const bx = tgt ? tgt.x : b.x, bz = tgt ? tgt.z : b.z;
+      const mx = man.x, mz = man.z, dmr = Math.hypot(mx - rx, mz - rz) || 1, ux = (rx - mx) / dmr, uz = (rz - mz) / dmr;
+      let tx, tz, k = 1;
+      if (tgt === man) {
+        if (dmr > 9.6 && !(man.drive > 0 && dmr < 13)) {
+          // he is still coming up the floor: wait for him just outside the arc on his line to the rim
+          tx = rx - ux * 8.3; tz = rz - uz * 8.3;
+        } else {
+          // on the ball: between him and the rim; closer with good perimeter defense, a step back off a non-shooter and far out
+          let gap = 1.6 - rt(p, 'perD') * 0.003 - (p.side === 1 ? DK * 0.08 : 0) + clamp((dmr - 7) * 0.22, 0, 0.5) + (rt(man, 'three') < 55 && dmr > 6 ? 0.45 : 0);
+          if (dmr < 3) gap = 1.0;
+          if (p.lagT > 0) { p.lagT -= dt; p.face2 = Math.atan2(mx - p.x, mz - p.z); p.dstance = true; drive(p, 0, 0, 0, dt * 0.35); return; } // caught by the move: a beat before his feet answer
+          gap = Math.min(gap, dmr - 0.4);
+          // he reads his man's feet a beat late (less with good perimeter defense, at a higher level): a first step, a change of
+          // direction or a move gains a step on him before he catches up
+          const tau = clamp(0.32 - rt(p, 'perD') * 0.0016 - (p.side === 1 ? DK * 0.06 : 0.03), 0.1, 0.32);
+          if (p.trkM !== man) { p.trkM = man; p.tvx = man.vx; p.tvz = man.vz; }
+          const kk = Math.min(1, dt / tau); p.tvx += (man.vx - p.tvx) * kk; p.tvz += (man.vz - p.tvz) * kk;
+          tx = mx + ux * gap + p.tvx * 0.24; tz = mz + uz * gap + p.tvz * 0.24;
+          if (D(p, man) < 1.42 && hd === man && p.stealCd <= 0 && rng() < dt * (0.06 + rt(p, 'stl') * 0.0016 + (p.side ? DK : 0.3) * 0.08)) trySteal(p);
+        }
+        p.face2 = Math.atan2(mx - p.x, mz - p.z); p.dstance = D(p, man) < 2.6;
       } else {
-        // off the ball: sag toward the rim and the ball (help), deny a man one pass away
-        const bx = b.x, bz = b.z, dball = Math.hypot(man.x - bx, man.z - bz), sag = clamp(0.25 + dball * 0.03, 0.25, 0.5);
-        tx = lerp(man.x, rimx, sag * 0.6) * 0.75 + lerp(man.x, bx, 0.25) * 0.25; tz = lerp(man.z, rimz, sag * 0.6) * 0.75 + lerp(man.z, bz, 0.25) * 0.25;
-        // help: a drive at the rim pulls the nearest helper into the lane
-        if (hd && hd.side !== p.side && rimDist(hd.x, hd.z, own) < 4 && helper(hd) === p) { tx = lerp(hd.x, rimx, 0.45); tz = lerp(hd.z, rimz, 0.45); spd *= 1.15; }
+        const dbm = Math.hypot(mx - bx, mz - bz) || 1, bux = (bx - mx) / dbm, buz = (bz - mz) / dbm;
+        // his man is far up the floor (transition): get back inside the arc on his line first
+        const far = dmr > 9.5, mxx = mx, mzz = mz, dm2 = dmr;
+        if (far) { // back first: his own lane of the floor, inside the arc, deeper the deeper his man runs
+          // (each in his own lane, so five men running back never arrive on one spot)
+          const li = teams[p.side].on.indexOf(p), lane = [0, 3.4, -3.4, 5.8, -5.8][li < 0 ? 0 : li % 5], dep = [7.6, 6.6, 6.6, 4.6, 4.6][li < 0 ? 0 : li % 5];
+          tx = rx - Math.sign(rx) * clamp(dmr * 0.5, dep - 1.2, dep + 0.8); tz = clamp(mz * 0.35 + lane, -6.8, 6.8);
+        } else if (dm2 < 3.6) { // a post man: behind him, a half step to the ball side
+          const g = Math.min(0.75, dm2 - 0.3); tx = mxx + ux * g + bux * 0.3; tz = mzz + uz * g + buz * 0.3;
+        } else if (dbm < 7.3) { // one pass away: a step and a half off toward the rim, a step into the lane of the pass
+          const g = clamp(dm2 * 0.26, 1.45, 2.1); tx = mxx + ux * g + bux * 0.45; tz = mzz + uz * g + buz * 0.45;
+        } else { // two passes away: sunk to the help line, seeing ball and man
+          const g = clamp(dm2 * 0.36, 1.6, 2.9), s = clamp(dbm * 0.1, 0.6, 1.1); tx = mxx + ux * g + bux * s; tz = mzz + uz * g + buz * s;
+        }
+        // his man sets a ball screen: drop under it to keep the ball in front
+        if (man.screening && hd) { const ax = rx - hd.x, az = rz - hd.z, al = Math.hypot(ax, az) || 1; tx = lerp(tx, hd.x + ax / al * 2.8, 0.35); tz = lerp(tz, hd.z + az / al * 2.8, 0.35); }
+        // a beaten drive: the helper steps in front of the rim; the rest sink a step
+        if (hd && hd !== man) {
+          const dh = rimDist(hd.x, hd.z, own);
+          if (dh < 5.6 && (hd.drive > 0 || hd.fin) && beaten(hd, own)) {
+            if (helper(hd) === p) { const hx = hd.x - rx, hz = hd.z - rz, hl = Math.hypot(hx, hz) || 1, r = Math.min(1.5, hl * 0.5); tx = rx + hx / hl * r; tz = rz + hz / hl * r; k = 1.12; }
+            else { tx = lerp(tx, rx, 0.18); tz = lerp(tz, rz, 0.18); }
+          }
+        }
         p.face2 = Math.atan2(bx - p.x, bz - p.z);
-        p.dstance = D(p, man) < 2.5 && dball < 7;
+        p.dstance = D(p, man) < 2.1 && dbm < 7.3 && dmr < 9.5;
       }
       // the rebound: box out his man when a shot goes up, then go get it
-      if (b.st === 'air' && b.shot && b.shot.side !== p.side) { const ax = rimx - man.x, az = rimz - man.z, al = Math.hypot(ax, az) || 1; tx = man.x + ax / al * 0.7; tz = man.z + az / al * 0.7; p.boxOut = true; p.dstance = false; }
+      if (b.st === 'air' && b.shot && b.shot.side !== p.side) { const g = Math.min(0.7, dmr * 0.5); tx = mx + ux * g; tz = mz + uz * g; p.boxOut = dmr < 6; p.dstance = false; }
       else p.boxOut = false;
-      if (b.st === 'loose' || (b.st === 'air' && b.shot && (b.touchRim || b.vy < 0))) chaseBall(p, dt);
-      else steer(p, tx, tz, spd, dt);
+      // off the ball, defenders keep their own ground: nobody stands shoulder to shoulder with a teammate or sinks onto the man
+      // guarding the ball (only the one helper at the rim on a beaten drive goes there)
+      if (tgt !== man && k === 1 && !p.boxOut) {
+        for (const q of teams[p.side].on) {
+          if (q === p) continue;
+          const R = hd && q.man === hd ? 3.2 : 2.9, dx = tx - q.x, dz = tz - q.z, dl = Math.hypot(dx, dz);
+          if (dl < R && dl > 0.01) { tx += dx / dl * (R - dl) * 0.85; tz += dz / dl * (R - dl) * 0.85; }
+        }
+        if (hd) { const dx = tx - hd.x, dz = tz - hd.z, dl = Math.hypot(dx, dz); if (dl < 3.2 && dl > 0.01) { tx = hd.x + dx / dl * 3.2; tz = hd.z + dz / dl * 3.2; } }
+        tz = clamp(tz, -COURT.HW + 0.6, COURT.HW - 0.6);
+      }
+      const dt2 = Math.hypot(tx - p.x, tz - p.z);
+      // set on his spot: he stays set (no twitching after a target that wobbles by inches)
+      if (dt2 < (p.setD ? 0.42 : 0.16) && tgt !== man) { p.setD = true; drive(p, 0, 0, 0, dt); return; }
+      p.setD = false;
+      // behind the play or closing out: sprint; set: slide
+      // on the ball he stays square and gives ground at a backpedal: he holds his chest in front of the drive (30-move.js stops the
+      // handler on it) and only turns to run when he is beaten (his man is nearer the rim than he is)
+      const onB = tgt === man && hd === man, lost = onB && Math.hypot(p.x - rx, p.z - rz) > dmr + 0.25;
+      const hurry = onB ? lost && dt2 > 1.2 : dt2 > 3.2 || (tgt === man && dt2 > 1.8);
+      if (hurry) p.face2 = null;
+      go(p, tx, tz, k, hurry, dt);
     }
-    // the one helper on a drive: the closest defender who isn't guarding the ball
-    function helper(hd) { let best = null, bd = 1e9; for (const d of foes(hd)) { if (d.man === hd) continue; const dd = D(d, hd); if (dd < bd) { bd = dd; best = d; } } return best; }
     // a defender's reaction to a shot going up: jump to contest (or block, with good timing and length)
     function defReact(p) {
       const sh = onCourt.find((q) => q.side !== p.side && ((q.shotS && !q.shotRel) || q.fin));
       if (!sh) return;
-      const dd = D(p, sh); if (dd > 2.2 || p.jumpY > 0) return;
+      const dd = D(p, sh); if (dd > 2.4 || p.jumpY > 0) return;
+      // one man contests: the shooter's own, or whoever is nearest (a second one only at the rim); the rest stay down and box out
+      const near = nearestTo(foes(sh), sh);
+      if (p.man !== sh && p !== near && !(sh.fin && dd < 1.3)) return;
       const big = rt(p, 'blk') > 62 || (sh.fin && dd < 1.4);
       setPose(p, big ? 'block' : 'contest'); p.jumpV = 3.8 + rt(p, 'vert') * 0.022; p.jumpY = 0.001;
-      const ax = sh.x - p.x, az = sh.z - p.z, al = Math.hypot(ax, az) || 1; p.vx = ax / al * Math.min(2.5, dd * 2); p.vz = az / al * Math.min(2.5, dd * 2);
+      // at the rim he goes at the ball; on a jump shot he closes under control to a hand in the face (harder at a higher level)
+      const stop = sh.fin ? 0 : 1.22 - (p.side === 1 ? DK * 0.25 : 0.1) - (rt(p, 'perD') - 60) * 0.005, sp2 = clamp((dd - stop) * 2.4, 0, 2.5);
+      const ax = sh.x - p.x, az = sh.z - p.z, al = Math.hypot(ax, az) || 1; p.vx = ax / al * sp2; p.vz = az / al * sp2;
       // a late, hard close-out can be a shooting foul
-      if (dd < 0.75 && rng() < 0.1 + (p.side === 0 ? 0.04 : 0.02) - rt(p, 'perD') * 0.0008) setTimeout(() => { if (!finished && phase === 'live') callFoul(p, sh, true, 'Foul'); }, 140);
+      if (dd < 0.75 && sp2 > 0.6 && rng() < 0.1 + (p.side === 0 ? 0.04 : 0.02) - rt(p, 'perD') * 0.0008) setTimeout(() => { if (!finished && phase === 'live') callFoul(p, sh, true, 'Foul'); }, 140);
     }
     function chaseBall(p, dt) {
       const b = ball, d = Math.hypot(b.x - p.x, b.z - p.z);
       // where the ball comes down: aim a little ahead of it
-      const lead = clamp(d / 6, 0, 0.5), tx = b.x + b.vx * lead, tz = b.z + b.vz * lead;
-      steer(p, tx, tz, effV(p) * 1.1, dt); p.sprint = d > 3;
-      p.face2 = null; p.look = [b.x, b.y, b.z];
+      // (never past the lines: a ball going out is left to go out)
+      const lead2 = clamp(d / 6, 0, 0.5), tx = clamp(b.x + b.vx * lead2, -COURT.HL + 0.35, COURT.HL - 0.35), tz = clamp(b.z + b.vz * lead2, -COURT.HW + 0.35, COURT.HW - 0.35);
+      p.sprint = d > 3; steer(p, tx, tz, effV(p) * 1.1, dt);
+      p.face2 = null; p.look = [b.x, b.y, b.z]; p.dstance = false;
       // jump for it when it comes down to him
       if (d < 1.0 && p.jumpY <= 0 && b.y > p.lk.hs * 2.2 && b.y < p.lk.hs * 2.8 + 0.9 && b.vy < 1 && p.pose !== 'rebound') { setPose(p, 'rebound'); p.jumpV = 3.6 + rt(p, 'vert') * 0.02 + rt(p, 'reb') * 0.008; p.jumpY = 0.001; }
     }
-    // ---------- offense when a shot goes up: the bigs crash, a guard gets back ----------
+    // who goes for a ball nobody has: the nearest few of each team (to where it is going), never all ten
+    const chasers = new Set();
+    function pickChasers(n0, n1) {
+      const b = ball, la = b.st === 'air' && b.shot ? 0 : 0.35, bx = b.st === 'air' && b.shot ? b.shot.h.x - b.shot.h.dir * 0.6 : b.x + b.vx * la, bz = b.st === 'air' && b.shot ? b.shot.h.z : b.z + b.vz * la;
+      chasers.clear();
+      for (const t of teams) {
+        const n = t.side === 0 ? n0 : n1, L = t.on.filter((p) => !p.rag && !(p.stumbleT > 0.3)).map((p) => [Math.hypot(p.x - bx, p.z - bz) - (p.chasing ? 0.8 : 0), p]).sort((a, c) => a[0] - c[0]);
+        for (let i = 0; i < L.length; i++) { const on = i < n; L[i][1].chasing = on; if (on) chasers.add(L[i][1]); }
+      }
+    }
+    // ---------- when a shot goes up / the ball is loose: the nearest go, a guard gets back, the rest hold their ground ----------
     function crashAI(p, dt) {
-      const t = teams[p.side], i = t.on.indexOf(p), own = ownHoop(p.side);
-      if (i === 0 || (i === 1 && rt(p, 'reb') < 60)) { const s = [lerp(own.x, 0, 0.75), 0]; steer(p, s[0], s[1], effV(p), dt); return; }
-      chaseBall(p, dt);
+      const t = teams[p.side], i = t.on.indexOf(p), own = ownHoop(p.side), b = ball;
+      p.cutS = null; p.cutting = false; p.calling = false; p.drive = 0;
+      if (chasers.has(p) && !(i === 0 && b.shot && b.shot.by !== p)) { chaseBall(p, dt); return; }
+      // the point guard (and the shooter out top) get back; the others stay spaced and watch the flight
+      const h = hoopOf(p.side), u = uOf(h, p.x);
+      if (i === 0 || u > 6.5) { go(p, lerp(own.x, 0, 0.72), clamp(p.z * 0.4, -2.5, 2.5), 0.85, false, dt); p.look = [b.x, b.y, b.z]; return; }
+      p.vx *= Math.pow(0.05, dt); p.vz *= Math.pow(0.05, dt); p.face2 = Math.atan2(b.x - p.x, b.z - p.z);
+    }
+    function looseAI(p, dt) {
+      if (chasers.has(p)) { chaseBall(p, dt); return; }
+      // not his ball: keep his spot (offense) or his man (defense) so the floor stays spread
+      if (p.side === poss) offBallAI(p, dt); else defenseAI(p, dt);
     }
     // ---------- per step: everyone the CPU runs ----------
+    let aiPoss = -1;
     function aiStep(dt) {
       const b = ball;
+      // a change of possession: a new trip, new spots
+      if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const O = OS(t); O.slot.clear(); O.scr = null; O.reT = 0; O.ballSlot = 0; O.cutT = tLive + 1.5; O.flash = 0; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; p.vcut = 0; p.from = null; p.chasing = false; } }
+      // a pass just thrown: the passer cuts through or stays, the spots re-match around the catcher
+      if (b.st === 'air' && b.pass && !b.pass.seen) {
+        b.pass.seen = true; const P = b.pass, f = P.from, t = teams[f.side], O = OS(t), h = hoopOf(f.side);
+        O.reT = 0;
+        if (f.side === poss && !isUser(f) && phase === 'live' && uOf(h, f.x) < 9.5 && rimDist(f.x, f.z, h) > 5 && shotClk > 4 && tLive > O.cutT && bigOf(t) !== f && !t.on.some((q) => q !== f && q.cutS) && rng() < 0.42) startCut(f, h, 'give');
+      }
+      const T = teams[poss], O = OS(T);
+      O.reT -= dt; if (O.reT <= 0) { O.reT = 0.45; assignSlots(T); }
+      const shotUp = b.st === 'air' && b.shot && !b.shot.ft, loose = b.st === 'loose';
+      if (shotUp || loose) { if (shotUp) pickChasers(poss === 0 ? 2 : 3, poss === 1 ? 2 : 3); else pickChasers(b.shot ? 3 : 2, b.shot ? 3 : 2); }
       for (const p of onCourt) {
-        if (isUser(p) || p.rag) continue;
+        if (isUser(p)) { // (how long you have held it, and whether you are driving it at the rim: your teammates cut, drift and call off it, the help comes)
+          if (b.holder === p) { p.holdT += dt; const h = hoopOf(p.side), sp = Math.hypot(p.vx, p.vz), dx = h.x - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1; p.drive = p.fin || (sp > 3.4 && dl < 9.5 && (p.vx * dx + p.vz * dz) / (sp * dl) > 0.55) ? 0.3 : 0; }
+          continue;
+        }
+        if (p.rag) continue;
         if (p.stealCd > 0) p.stealCd -= dt;
         if (p.stealHeat > 0) p.stealHeat = Math.max(0, p.stealHeat - dt * 0.8);
         if (p.cmbHeat > 0) p.cmbHeat = Math.max(0, p.cmbHeat - dt * 0.9);
@@ -5039,22 +6895,31 @@ gl_FragColor=vec4(c,1.0);}`;
         p.sprint = false;
         const offense = p.side === poss;
         if (b.holder === p) handlerAI(p, dt);
-        else if (b.st === 'loose') chaseBall(p, dt);
-        else if (b.st === 'air' && b.shot && !b.shot.ft) { if (offense) crashAI(p, dt); else defenseAI(p, dt); }
-        else if (b.st === 'air' && b.pass && b.pass.to === p) { const P = b.pass, lt = Math.max(0, P.T - P.t); steer(p, b.x + b.vx * lt, b.z + b.vz * lt, effV(p) * 0.7, dt); p.face2 = Math.atan2(b.x - p.x, b.z - p.z); }
+        else if (loose) looseAI(p, dt);
+        else if (shotUp) { if (offense) crashAI(p, dt); else if (chasers.has(p) && (b.touchRim || b.touchBoard || b.vy < 0)) chaseBall(p, dt); else defenseAI(p, dt); }
+        else if (b.st === 'air' && b.pass && b.pass.to === p) { // the catcher goes to where the ball comes down, as fast as it takes to be there (a lead pass is run onto, not waited for)
+          const P = b.pass, lt = Math.max(0, P.T - P.t), cx = clamp(b.x + b.vx * lt, -COURT.HL + 0.5, COURT.HL - 0.5), cz = clamp(b.z + b.vz * lt, -COURT.HW + 0.5, COURT.HW - 0.5), need = Math.hypot(cx - p.x, cz - p.z) / Math.max(0.12, lt);
+          p.sprint = need > effV(p) * 0.95; steer(p, cx, cz, Math.max(effV(p) * 0.7, Math.min(need * 1.15, effV(p) * 1.1)), dt); p.face2 = Math.atan2(b.x - p.x, b.z - p.z); p.cutS = null; }
         else if (offense) offBallAI(p, dt);
         else defenseAI(p, dt);
         staminaStep(p, dt, p.sprint);
       }
     }
-    // walking to spots at a dead ball / an inbound / free throws (no ball play)
+    // dead balls, inbounds and free throws (no ball play): after a basket both teams run back the other way at once (the new
+    // offense to its spots, the new defense back in front of it, the inbounder to the ball); on a whistle everyone eases up
     function resetStep(dt) {
+      const run = phase === 'inb' || (phase === 'dead' && inbPlan);
+      if (run) { const T = teams[poss], O = OS(T); if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const o = OS(t); o.slot.clear(); o.scr = null; o.ballSlot = 0; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; } O.reT = 0; } O.reT -= dt; if (O.reT <= 0) { O.reT = 0.45; assignSlots(T); } }
       for (const p of onCourt) {
-        if (isUser(p) && phase === 'inb' && inb && inb.passer !== p) { userMove(p, dt); continue; }
+        if (isUser(p) && run && !(inb && inb.passer === p) && !(inbPlan && inbPlan.passer === p)) { userMove(p, dt); continue; }
         if (p.jumpY > 0.02) continue;
         if (phase === 'ft' || (inb && inb.passer === p)) { p.vx *= 0.8; p.vz *= 0.8; continue; }
-        const offense = p.side === poss;
-        if (phase === 'inb') { if (offense) offBallAI(p, dt); else defenseAI(p, dt); continue; }
+        p.sprint = false;
+        if (run) {
+          if (phase === 'dead' && inbPlan.passer === p) { go(p, inbPlan.x, inbPlan.z, 1, false, dt); p.face2 = null; continue; }
+          if (p.side === poss) offBallAI(p, dt); else defenseAI(p, dt);
+          continue;
+        }
         // a dead ball: slow down, face the ball
         p.vx *= Math.pow(0.15, dt); p.vz *= Math.pow(0.15, dt); p.face2 = null; p.look = [ball.x, 1.2, ball.z];
       }
@@ -5064,42 +6929,84 @@ gl_FragColor=vec4(c,1.0);}`;
     // jumps to contest / block; E passes (to the open man, or the one you lean toward) or switches to the defender nearest the
     // ball; Q is the next combo move on offense and a steal on defense; F fouls; T calls a timeout. And step(), the game's tick.
     // =====================================================================================
-    // the camera's own forward on the floor, and its right as the screen shows it (the view mirrors x: right = up x forward)
-    function camBasis() { let fx = cam.c[0] - cam.e[0], fz = cam.c[2] - cam.e[2]; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l; return { fx, fz, rx: fz, rz: -fx }; }
+    // The stick is relative to the screen: up = the way the camera looks down the floor (the basket being attacked), right = the
+    // screen's right (the view mirrors x, so that is up x forward). When the camera cuts to the other end after a change of
+    // possession, a direction you are still holding keeps its old meaning until you let go or press another, so nobody turns
+    // round under your thumb.
+    const stickS = { sig: '', hx: 1, hz: 0 };
+    function camBasis() { return { fx: stickS.hx, fz: stickS.hz, rx: stickS.hz, rz: -stickS.hx }; }
     function userDir() {
-      let ix, iz;
-      if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.22) { ix = input.stick[0]; iz = input.stick[1]; }
-      else { ix = input.r - input.l; iz = input.u - input.d; }
-      if (!ix && !iz) return null;
+      let ix, iz, sig;
+      if (input.stick && Math.hypot(input.stick[0], input.stick[1]) > 0.22) { ix = input.stick[0]; iz = input.stick[1]; sig = 's'; }
+      else { ix = input.r - input.l; iz = input.u - input.d; sig = ix + ',' + iz; }
+      const none = !ix && !iz;
+      // keys held through a cut keep their old meaning until one changes; a thumb stick takes the new view after a moment
+      if (none || sig !== stickS.sig || (sig === 's' && !camFlipping())) { const h = camHeading(); stickS.hx = h[0]; stickS.hz = h[1]; }
+      stickS.sig = none ? '' : sig;
+      if (none) return null;
       const l = Math.hypot(ix, iz), k = Math.min(1, l), B = camBasis();
       ix /= l; iz /= l;
       return [(B.fx * iz + B.rx * ix) * k, (B.fz * iz + B.rz * ix) * k];
     }
+    // a press that cannot happen this instant (the pass to you is still in the air, you are just landing) is remembered for a
+    // moment and fires the first tick it can: every press counts
+    let actBuf = null;
+    const bufAct = (fn) => { actBuf = { fn, t: 0 }; };
+    function bufStep(dt) {
+      if (!actBuf) return;
+      actBuf.t += dt;
+      if (actBuf.t > 0.45 || phase !== 'live') { actBuf = null; return; }
+      const f = actBuf.fn; actBuf = null; if (!f(true)) { if (!actBuf) actBuf = { fn: f, t: 0 }; actBuf.t += dt; }
+    }
+    const passToMe = () => ball.st === 'air' && ball.pass && ball.pass.to === ctrl;
     function userMove(p, dt) {
       const d = userDir();
+      bufStep(dt);
+      const b = ball, has = b.holder === p, def = p.side !== poss && phase === 'live';
       staminaStep(p, dt, input.sprint && !!d);
-      if (p.jumpY > 0.02 || p.land > 0 || p.shotS || p.fin || p.passT != null) { if (!p.fin) { p.vx *= 0.92; p.vz *= 0.92; } return; }
-      if (p.stumbleT > 0) { p.vx *= 0.9; p.vz *= 0.9; return; }
-      const v = effV(p);
-      // on defense he squares up to the ball (a slide when moving sideways); on offense he runs where you point
-      const def = p.side !== poss;
-      if (def && ball.holder && D(p, ball.holder) < 3) { p.face2 = Math.atan2(ball.holder.x - p.x, ball.holder.z - p.z); p.dstance = true; } else { p.face2 = null; p.dstance = false; }
-      if (d) { steerDir(p, d[0], d[1], v, dt); if (ball.holder === p && ball.st === 'held' && p.pose !== 'catch' && phase === 'live') startDribble(p); }
-      else { p.vx *= Math.pow(0.0005, dt); p.vz *= Math.pow(0.0005, dt); }
+      if (p.jumpY > 0.02 || p.land > 0 || p.shotS || p.fin || p.passT != null) { if (!p.fin) drive(p, 0, 0, 0, dt * 0.35); return; }
+      if (p.stumbleT > 0) { drive(p, 0, 0, 0, dt * 0.4); return; }
+      const v = effV(p), hp = hoopOf(p.side);
+      // facing: with the ball you face where you go and square to the hoop when you stand; off the ball you face your run and
+      // look at the ball when you stand; on defense you face the ball and slide, and Shift turns you to run
+      const tgt = b.holder && b.holder !== p ? b.holder : b, dB = Math.hypot(tgt.x - p.x, tgt.z - p.z);
+      if (def) {
+        const slide = !(p.sprint && d) && dB < 7.5;
+        p.face2 = slide ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : null;
+        p.dstance = slide && dB < 5 && !!b.holder;
+      } else {
+        p.dstance = false;
+        if (d) p.face2 = null;
+        else if (has) p.face2 = Math.atan2(hp.x - p.x, hp.z - p.z);
+        else p.face2 = dB > 0.5 ? Math.atan2(tgt.x - p.x, tgt.z - p.z) : null;
+      }
+      // the catch takes a beat (two hands on it), then the first step puts it on the floor: you never run with it held
+      p.gotT = has && b.st === 'held' ? (p.gotT || 0) + dt : 0;
+      // with the ball he does not run off the floor: his feet stop at the line (a plant, not a turnover) however hard you push
+      if (d && has) {
+        const stop = (pos, vel, lim, w) => { const out = pos >= 0 ? 1 : -1, room = lim - Math.abs(pos), vo = vel * out, wo = w * out; if (wo <= 0) return w; return out * Math.min(wo, Math.max(0, room - Math.max(0, vo) * Math.max(0, vo) / 44) * 6); };
+        d[0] = stop(p.x, p.vx, COURT.HL - 0.3, d[0] * v) / v; d[1] = stop(p.z, p.vz, COURT.HW - 0.3, d[1] * v) / v;
+      }
+      if (d) { drive(p, d[0] * v, d[1] * v, 0, dt); if (has && b.st === 'held' && phase === 'live' && (p.pose !== 'catch' || p.gotT > 0.16)) { if (p.pose === 'catch') setPose(p, 'idle'); startDribble(p); } }
+      else drive(p, 0, 0, 0, dt);
     }
     // ---------- actions (keyboard, touch buttons and the debug hook all come here) ----------
-    function actShootDown() {
-      if (finished) return;
-      if (phase === 'ft' && ftS && ftS.sh === ctrl && ftS.state === 'set') { ftS.press = true; ftS.wait = Math.min(ftS.wait, 0); return; }
-      if (phase === 'tip' && tipS && tipS.up && ctrl === tipS.c0) { tipJump(ctrl); return; }
-      if (phase === 'inb' && inb && inb.side === 0) { inb.go = true; return; }
-      if (phase !== 'live' || !ctrl) return;
-      if (ball.holder === ctrl) { input.shoot = true; startShot(ctrl); return; }
+    function actShootDown(again) {
+      if (finished) return true;
+      if (phase === 'ft' && ftS && ftS.sh === ctrl && ftS.state === 'set') { ftS.press = true; ftS.wait = Math.min(ftS.wait, 0); return true; }
+      if (phase === 'tip' && tipS && tipS.up && ctrl === tipS.c0) { tipJump(ctrl); return true; }
+      if (phase === 'inb' && inb && inb.side === 0) { inb.go = true; return true; }
+      if (phase !== 'live' || !ctrl) return true;
+      if (again && !input.shoot) return true; // a remembered press whose key is already up
+      input.shoot = true;
+      if (ball.holder === ctrl) { if (ctrl.shotS || ctrl.fin || ctrl.passT != null) return true; if (!startShot(ctrl)) { bufAct(actShootDown); return false; } return true; }
+      if (passToMe()) { bufAct(actShootDown); return false; } // the pass is on its way: catch and shoot
       // defense (or off the ball): jump to contest or block
-      if (ctrl.jumpY > 0.02 || ctrl.land > 0) return;
+      if (ctrl.jumpY > 0.02 || ctrl.land > 0) { bufAct(actShootDown); return false; }
       const near = ball.holder && ball.holder.side !== 0 ? D(ctrl, ball.holder) : 9, flying = ball.st === 'air' && ball.shot;
       setPose(ctrl, ball.st === 'loose' || (flying && ball.shot.t > 0.4) ? 'rebound' : near < 1.5 || flying ? 'block' : 'contest');
-      ctrl.jumpV = 3.9 + rt(ctrl, 'vert') * 0.022; ctrl.jumpY = 0.001; ctrl.blkDone = false;
+      ctrl.jumpV = 3.7 + rt(ctrl, 'vert') * 0.016; ctrl.jumpY = 0.001; ctrl.blkDone = false;
+      return true;
     }
     function actShootUp() {
       input.shoot = false;
@@ -5107,23 +7014,36 @@ gl_FragColor=vec4(c,1.0);}`;
       if (ctrl.shotS && !ctrl.shotRel) releaseShot(ctrl);
     }
     function actPass() {
-      if (finished || !ctrl) return;
-      if (phase === 'inb' && inb && inb.side === 0) { inb.go = true; return; }
-      if (phase !== 'live') return;
-      if (ball.holder === ctrl) { const d = userDir(); const q = bestPass(ctrl, d); if (q) startPass(ctrl, q); return; }
-      if (poss === 0 && ball.holder && ball.holder.side === 0) { // call for it: the handler passes to you
-        if (ball.holder !== ctrl && !ball.holder.shotS && !ball.holder.fin) startPass(ball.holder, ctrl);
-        return;
+      if (finished || !ctrl) return true;
+      if (phase === 'inb' && inb && inb.side === 0) { inb.go = true; return true; }
+      if (phase !== 'live') return true;
+      if (ball.holder === ctrl) {
+        if (ctrl.shotS || ctrl.fin) return true;
+        if (ctrl.passT != null) return true;
+        const d = userDir(), q = bestPass(ctrl, d) || nearestMate(ctrl);
+        if (q && startPass(ctrl, q)) { try { sfx.play('tap'); } catch (e) {} return true; }
+        bufAct(actPass); return false;
       }
-      // defense: the defender nearest the ball
-      let best = null, bd = 1e9; for (const p of teams[0].on) { if (p === ctrl) continue; const d = Math.hypot(p.x - ball.x, p.z - ball.z); if (d < bd) { bd = d; best = p; } }
-      if (best) { setCtrl(best); try { sfx.play('tap'); } catch (e) {} }
+      if (passToMe()) { bufAct(actPass); return false; } // touch pass: it goes on as soon as it arrives
+      if (poss === 0 && ball.holder && ball.holder.side === 0) { // call for it: the handler passes to you
+        if (!ball.holder.shotS && !ball.holder.fin && ball.holder.passT == null) { if (startPass(ball.holder, ctrl)) { popAt(ctrl, 'BALL!', '#4dd2ff'); return true; } }
+        return true;
+      }
+      // defense: the defender nearest the ball (the man it is being passed to, while it flies)
+      const at = ball.st === 'air' && ball.pass && ball.pass.to ? ball.pass.to : ball;
+      let best = null, bd = 1e9; for (const p of teams[0].on) { if (p === ctrl) continue; const d = Math.hypot(p.x - at.x, p.z - at.z); if (d < bd) { bd = d; best = p; } }
+      if (best) { if (ctrl) { ctrl.dstance = false; ctrl.face2 = null; } setCtrl(best); try { sfx.play('tap'); } catch (e) {} }
+      return true;
     }
+    function nearestMate(p) { let best = null, bd = 1e9; for (const q of mates(p)) { if (q === p) continue; const d = D(p, q); if (d < bd) { bd = d; best = q; } } return best; }
     function actMove() {
-      if (finished || !ctrl || phase !== 'live') return;
-      if (ball.holder === ctrl) doMove(ctrl);
-      else if (ball.holder && ball.holder.side === 1) trySteal(ctrl);
+      if (finished || !ctrl || phase !== 'live') return true;
+      if (ball.holder === ctrl) { doMove(ctrl); return true; }
+      if (passToMe()) { bufAct(actMove); return false; }
+      if (ball.holder && ball.holder.side === 1) trySteal(ctrl);
       else if (ball.st === 'air' && ball.pass) { setPose(ctrl, 'steal'); }
+      else if (poss === 1) setPose(ctrl, 'steal');
+      return true;
     }
     function actFoul() { if (!finished && ctrl && phase === 'live' && poss === 1 && !intentionalFoul(ctrl)) say2('Get closer to the ball handler to foul'); }
     function actTimeout() { if (finished) return; if (phase === 'timeout') { endTimeout(); return; } if (!callTimeout(0)) say2(teams[0].to ? 'Timeout: only on a dead ball or with the ball in your hands' : 'No timeouts left'); }
@@ -5151,7 +7071,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (pendFT && ball.shot && !ball.scored && (ball.touchRim || ball.y < 1.3 || ball.st === 'loose')) { const f = pendFT; pendFT = null; ball.st = 'dead'; setDead(1.1, () => startFT(f.sh, f.pts)); }
         if (ctrl && isUser(ctrl)) userMove(ctrl, dt);
         if (phase === 'live') aiStep(dt);
-        for (const p of onCourt) { if (p.inbT > 0) p.inbT -= dt; shotStep(p, dt); finStep(p, dt); passStep(p, dt); if (p.jumpY > 0.1 && !p.blkDone && p.side !== poss) { if (tryBlock(p)) p.blkDone = true; } }
+        for (const p of onCourt) { if (p.inbT > 0) p.inbT -= dt; mvStep(p, dt); shotStep(p, dt); finStep(p, dt); passStep(p, dt); if (p.jumpY > 0.1 && !p.blkDone && p.side !== poss) { if (tryBlock(p)) p.blkDone = true; } }
         if (phase === 'live') { passFlight(dt); grabStep(); }
         // stepping out with the ball
         const hd = ball.holder; if (hd && phase === 'live' && !hd.fin && hd.passT == null && !(hd.inbT > 0) && (Math.abs(hd.x) > COURT.HL + 0.05 || Math.abs(hd.z) > COURT.HW + 0.05)) { stat(hd.sq).to++; outOfBounds(hd.side, hd.x, hd.z); }
@@ -5177,53 +7097,18 @@ gl_FragColor=vec4(c,1.0);}`;
     let wave = 0, camF = [0, 0, 1], expo = SKY.exp, camSpeed = 0, replayCam = 0;
     const HFOV = 64; // horizontal field of view (degrees) at 16:9 -> about a 32 mm lens; the old framing was authored for 86, so offsets stretch by LENSK
     const LENSK = Math.tan((86 * Math.PI) / 360) / Math.tan((HFOV * Math.PI) / 360);
-    const op = { t: 0, x: 0, y: 0 }; // operator imperfection
-    // the 2K drone camera: floating behind and above the ball (the man with it, or yours), looking down the floor at the basket
-    // being attacked; it swings round smoothly when the ball changes hands. Free throws from behind the shooter, the tip from the
-    // side, wide orbits for the splash, timeouts, breaks and the final.
-    const drone = { yaw: Math.PI / 2, k: 0 };
+    // the camera itself (where it stands, what it looks at, its lens) is 81-cam.js: camFrame(dt) fills cam.e, cam.c and cam.fovY
     function updateCam(dt) {
-      let e, c, rate = 3.0, cdk = 1;
-      const b = ball || { x: 0, y: 1, z: 0 };
       replayCam = 0;
-      if (phase === 'splash' || phase === 'box' || phase === 'timeout' || phase === 'break' || phase === 'over') {
-        const t = performance.now() / 1000 * 0.06 + 1.2;
-        e = [Math.sin(t) * 13, 6.2 + 2.5 * por, Math.cos(t) * 9 + 3]; c = [0, 1.2, 0]; rate = 1.5;
-      } else if (phase === 'tip') {
-        e = [0, 5.2 + 2 * por, -11.5 - 3 * por]; c = [0, 2.2, 0]; rate = 2.5;
-      } else if (phase === 'ft' && ftS) {
-        const s = ftS.sh, h = hoopOf(s.side), d = h.dir;
-        e = [s.x - d * (6.2 + 2 * por), 4.0 + 1.5 * por, s.z * 0.5]; c = [h.x - d * 1.5, 2.6, h.z]; rate = 3;
-      } else {
-        // the subject: the ball (where it is going when it flies), else your man
-        const subj = b.holder ? b.holder : b.st === 'air' && b.shot ? b.shot.h : b.st === 'loose' || b.st === 'air' ? b : ctrl || b;
-        const sx = subj.x != null ? subj.x : 0, sz = subj.z != null ? subj.z : 0;
-        const side = b.holder ? b.holder.side : poss, att = hoopOf(side);
-        // the drone's heading: mostly straight down the floor at the basket, turned a little toward the ball's side of the court
-        const ax = att.x - sx, az = att.z - sz, want = Math.atan2(ax * 0.6 + att.dir * 4, az * 0.6);
-        if (dt < 0) drone.yaw = want; else drone.yaw += angDiff(want, drone.yaw) * Math.min(1, dt * 1.6);
-        const fx = Math.sin(drone.yaw), fz = Math.cos(drone.yaw), dAtt = Math.hypot(ax, az);
-        const back = 7.0 + 2.2 * por + 1.6 * lnd - clamp((8 - dAtt) * 0.2, 0, 1.2), hgt = 4.1 + 2.0 * por + 1.1 * lnd;
-        const fcx = sx + fx * Math.min(2.6, dAtt * 0.35), fcz = sz + fz * Math.min(2.6, dAtt * 0.35);
-        e = [sx - fx * back, hgt, sz - fz * back * 0.92]; c = [fcx, 0.7, fcz]; // the ball handler sits about two thirds down the screen, the rim near the top
-        if (!b.holder && b.st === 'air' && b.shot && subj === b.shot.h) c[1] = 2.3; // a shot in the air: frame the rim and the arc, not the floor under it
-        rate = phase === 'live' ? 3.2 : 2.4;
-      }
-      gymKeepOut(e);
+      camFrame(dt);
       let dbg = false;
-      if (DBG && DBG.cam) { e = DBG.cam.e; c = DBG.cam.c; dt = -1; dbg = true; }
-
-      const k = dt < 0 ? 1 : 1 - Math.exp(-dt * rate);
-      const pe = cam.e.slice();
-      for (let i = 0; i < 3; i++) { cam.e[i] += (e[i] - cam.e[i]) * k; cam.c[i] += (c[i] - cam.c[i]) * k; }
-      camSpeed = dt > 0 ? Math.hypot(cam.e[0] - pe[0], cam.e[1] - pe[1], cam.e[2] - pe[2]) / dt : 0;
-      // operator: slow drift of the framing, a little lag on fast pans, impact shake and FOV kick
-      if (dt > 0) { op.t += dt; cam.shake = Math.max(0, cam.shake - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 1.1); }
-      const opx = dbg ? 0 : (Math.sin(op.t * 0.7) * 0.6 + Math.sin(op.t * 1.9 + 1.0) * 0.3) * 0.06, opy = dbg ? 0 : (Math.sin(op.t * 0.9 + 2.0) * 0.6 + Math.sin(op.t * 2.3) * 0.25) * 0.04;
-      const sh = cam.shake * cam.shake * 0.35, sx = (crand() - 0.5) * sh + opx, sy = (crand() - 0.5) * sh + opy;
+      if (DBG && DBG.cam) { cam.e = DBG.cam.e.slice(); cam.c = DBG.cam.c.slice(); dt = -1; dbg = true; }
+      camSpeed = dbg ? 0 : camS.spd;
+      // impact shake and FOV kick (a dunk, a block); no drift, no sway
+      if (dt > 0) { cam.shake = Math.max(0, cam.shake - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 1.1); }
+      const sh = cam.shake * cam.shake * 0.35, sx = (crand() - 0.5) * sh, sy = (crand() - 0.5) * sh;
       const asp = cv.width / cv.height;
-      const hf = dbg ? 86 : HFOV * (replayCam ? 1 - 0.25 * replayCam : 1);
-      const fovy = (clamp(2 * Math.atan(Math.tan((hf * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por)) * (1 + cam.kick * 0.09);
+      const fovy = (dbg ? clamp(2 * Math.atan(Math.tan((86 * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por) : cam.fovY) * (1 + cam.kick * 0.09);
       const f = 1 / Math.tan(fovy / 2), n = 0.3, fa = 160; // the spread Metcalf map reaches MET_K times as far
       const ex = -(cam.e[0] + sx), ey = cam.e[1] + sy, ez = cam.e[2], cx = -(cam.c[0] + sx), cy = cam.c[1] + sy, cz = cam.c[2];
       let zx = ex - cx, zy = ey - cy, zz = ez - cz; let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
@@ -5407,11 +7292,15 @@ gl_FragColor=vec4(c,1.0);}`;
         gl.uniform2f(W.u.uUV, 0, 0);
         if (s.k === 'glass') { gl.enable(gl.BLEND); }
         if (s.blend) { gl.enable(gl.BLEND); gl.depthMask(false); } // see-through venue layers (the schoolyard's picket veil)
+        if (s.kind === 3) floorUniforms(W);
+        // the end wall and the hoop the camera stands behind are cut away (dithered out) so the eye can stay on the long axis
+        if (W.u.uCut) gl.uniform3f(W.u.uCut, camS.want, -(RIM_X - 0.75), forEnv || s.kind === 3 || camS.mode !== 'game' ? 0 : camS.hoopCut * 1.02);
         bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; DRAWS.tris += s.n / 3;
+        if (s.kind === 3) { floorUniformsDone(); if (!forEnv && showPlayers) floorReflection(W, s); }
         if (s.k === 'glass') gl.disable(gl.BLEND);
         if (s.blend) { gl.disable(gl.BLEND); gl.depthMask(true); }
       }
-      gl.uniformMatrix4fv(W.u.uModel, false, MFL.I);
+      gl.uniformMatrix4fv(W.u.uModel, false, MFL.I); if (W.u.uCut) gl.uniform3f(W.u.uCut, 1, 0, 0);
       disableAll(W);
       // crowd
       { const P = G.crowd; gl.useProgram(P.pr); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform1f(P.u.uTime, now); gl.uniform1f(P.u.uExcite, excite); gl.uniform1f(P.u.uWave, wave); gl.uniform1f(P.u.uMood, crowdMood); gl.uniform3f(P.u.uEye, cam.e[0], cam.e[1], cam.e[2]); gl.uniform3f(P.u.uCamF, camF[0], camF[1], camF[2]); gl.uniform3f(P.u.uFogR, SKY.fogR[0], SKY.fogR[1], SKY.fogR[2]); gl.uniform3f(P.u.uFog, SKY.fog[0], SKY.fog[1], SKY.fog[2]);
@@ -5429,6 +7318,29 @@ gl_FragColor=vec4(c,1.0);}`;
       if (tr.n) { gl.depthMask(false); worldMat(W, [0.5, 0, 0, 0], 0); bindWorldAttribs(W, G.tr, tr.f.subarray(0, tr.n * 12)); gl.drawArrays(gl.TRIANGLES, 0, tr.n); gl.depthMask(true); DRAWS.n++; }
       if (showPlayers) drawFxParts(W);
       disableAll(W);
+    }
+    // the players mirrored in the glossy floor: drawn under the floor plane (the view's y flipped) right after the floor, blended
+    // in with an alpha that fades with height (FS_SKIN uRefl), then the floor's depth is laid back so everything after it occludes
+    // normally. High quality mirrors everyone; medium the six nearest the camera; low none.
+    const RVP = new Float32Array(16), reflList = [];
+    function floorReflection(W, s) {
+      if (quality < 1) return;
+      reflList.length = 0;
+      for (const p of everyone) if (p.bones && !p.benched) reflList.push(p);
+      if (quality < 2) { reflList.sort((a, b) => Math.hypot(a.x - cam.e[0], a.z - cam.e[2]) - Math.hypot(b.x - cam.e[0], b.z - cam.e[2])); reflList.length = Math.min(reflList.length, 6); }
+      if (!reflList.length) return;
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      const S = quality >= 2 ? G.skinHi : G.skin; setLitUniforms(S);
+      for (let i = 0; i < 16; i++) RVP[i] = VP[i]; for (let i = 4; i < 8; i++) RVP[i] = -VP[i];
+      gl.uniformMatrix4fv(S.u.uVP, false, RVP); if (S.u.uRefl) gl.uniform1f(S.u.uRefl, quality >= 2 ? 0.3 : 0.26);
+      gl.bindTexture(gl.TEXTURE_2D, G.atlas); gl.enable(gl.BLEND);
+      drawPlayers(S, false, reflList);
+      gl.useProgram(S.pr); if (S.u.uRefl) gl.uniform1f(S.u.uRefl, 0); gl.uniformMatrix4fv(S.u.uVP, false, VP);
+      gl.disable(gl.BLEND);
+      // the floor's depth again (no colour), so the room and the players draw over the reflections where they should
+      gl.clear(gl.DEPTH_BUFFER_BIT); gl.useProgram(W.pr); gl.colorMask(false, false, false, false);
+      bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++;
+      gl.colorMask(true, true, true, true);
     }
     let feedOn = false;
     const flareBuf = new Float32Array(16);
@@ -5556,10 +7468,11 @@ gl_FragColor=vec4(c,1.0);}`;
       const b = ball, t = performance.now() / 1000;
       for (const h of HOOP) {
         if (!h.net) netInit(h);
+        const hid = camS.mode === 'game' && camS.hoopCut > 0.5 && h.dir === -camS.want; // the hoop the camera stands behind is cut away
         const sk = h.shake, dy = -0.035 * sk * Math.abs(Math.sin(t * 38)) - 0.05 * sk * sk, cy = h.y + dy;
         // the ring: a torus of tube segments, the back of it bolted to the bracket
         let pa = null;
-        for (let i = 0; i <= 24; i++) { const a = (i / 24) * 6.2832, w = [h.x + Math.cos(a) * RIM_C, cy + Math.max(0, -Math.cos(a) * h.dir) * dy * 0.5, h.z + Math.sin(a) * RIM_C]; if (pa) dyn.tube(pa, w, RIM_T * 1.25, RIMC, 6); pa = w; }
+        for (let i = 0; i <= 24; i++) { const a = (i / 24) * 6.2832, w = [h.x + Math.cos(a) * RIM_C, cy + Math.max(0, -Math.cos(a) * h.dir) * dy * 0.5, h.z + Math.sin(a) * RIM_C]; if (pa && !hid) dyn.tube(pa, w, RIM_T * 1.25, RIMC, 6); pa = w; }
         // the net: verlet, the top row on the ring
         const n = h.net, P = n.P, O = n.O;
         if (dt > 0) {
@@ -5576,7 +7489,7 @@ gl_FragColor=vec4(c,1.0);}`;
             if (b && Math.abs(b.x - h.x) < 0.6 && b.y < h.y + 0.2 && b.y > h.y - 0.7) for (let i = NS; i < NS * NR; i++) { const o = i * 3, dx = P[o] - b.x, dy2 = P[o + 1] - b.y, dz = P[o + 2] - b.z, dl = Math.hypot(dx, dy2, dz), rr = BALL_R + 0.012; if (dl < rr && dl > 1e-6) { const k = (rr - dl) / dl; P[o] += dx * k; P[o + 1] += dy2 * k; P[o + 2] += dz * k; } }
           }
         }
-        for (const [a, c] of n.rest) dyn.tube([P[a * 3], P[a * 3 + 1], P[a * 3 + 2]], [P[c * 3], P[c * 3 + 1], P[c * 3 + 2]], 0.0045, NETC, 3);
+        if (!hid) for (const [a, c] of n.rest) dyn.tube([P[a * 3], P[a * 3 + 1], P[a * 3 + 2]], [P[c * 3], P[c * 3 + 1], P[c * 3 + 2]], 0.0045, NETC, 3);
       }
     }
     // ---------- floor markers: your man's ring (2K's player indicator), the pass target, the shot's landing on a miss ----------
@@ -5591,7 +7504,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const p = ctrl;
       if (!p || phase === 'splash' || phase === 'box' || phase === 'timeout' || phase === 'over' || phase === 'break') { ctag.classList.add('hide'); }
       else {
-        const s = project(p.x, 2.62 * p.lk.hs + p.jumpY + 0.25, p.z);
+        const s = project(p.x, 2.06 * p.lk.hs + p.jumpY + 0.1, p.z);
         if (s && s[0] > -20 && s[0] < cssW + 20 && s[1] > 20) {
           if (ctag.dataset.k !== p.key) { ctag.dataset.k = p.key; ctag.innerHTML = `<b>${esc(String(p.num))}</b>${esc(shortName(p.sq.name))}`; }
           ctag.classList.remove('hide'); ctag.style.left = s[0].toFixed(1) + 'px'; ctag.style.top = s[1].toFixed(1) + 'px';
@@ -5600,6 +7513,112 @@ gl_FragColor=vec4(c,1.0);}`;
       updMeter();
     }
 
+    // =====================================================================================
+    // The camera: the "2K" broadcast camera. It sits on the court's long axis BEHIND the offense and looks down the length of the
+    // floor at the basket being attacked. It follows the ball along the floor on a critically damped spring (no wobble, no swing),
+    // it never turns during normal play, and when the ball changes hands it cuts to the other end behind a short dip. Free throws and the jump ball use the same camera, pulled in a little. Wide slow orbits for the splash,
+    // timeouts, breaks and the final. updateCam (80-render.js) calls camFrame(dt), then builds the matrices from cam.e / cam.c.
+    // =====================================================================================
+    const CAM2K = {
+      back: 7.6, h: 5.7, deepH: 0.9, // the eye: this far behind the ball along the floor, this high (yards); higher still when the ball goes deep
+      zk: 0.5,                     // the eye slides this share of the ball's way across the floor
+      ahead: 3.5, lookY: 1.0, lookZ: 0.56, // it looks this far past the ball toward the basket, at chest height; across the floor the look slides
+                                   // with the eye (almost no turn: the floor never reads as a diagonal)
+      lookCap: 8.5, pace: 0.3,     // past this (dir-relative x) the look all but stops, so the view tips down onto a deep ball; the eye's pace past `front`
+      fov: 38,                     // vertical field of view (degrees) on a wide screen
+      front: -2.0,                 // deep in the half court the eye slows to half the ball's pace from here (dir-relative x)
+      out: 4.4,                    // how far past the end wall the eye may stand (the wall and the near hoop are cut away, 80-render)
+      keep: 8.2,                   // your own man is kept at least this far in front of the eye (his feet inside the bottom edge)
+      cut: 0.24,                   // the dip after a cut to the other end (seconds)
+      fx: 0.2, fz: 0.3,            // how tightly it follows the ball along and across the floor (spring times)
+    };
+    // a critically damped spring toward a target: s = { x, v }
+    function camSpring(s, target, time, dt) {
+      const om = 2 / Math.max(1e-4, time), x = om * dt, ex = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+      const ch = s.x - target, t = (s.v + om * ch) * dt;
+      s.v = (s.v - om * t) * ex; s.x = target + (ch + t) * ex;
+      return s.x;
+    }
+    const camS = {
+      on: false, mode: '', want: 1,
+      fx: { x: 0, v: 0 }, fz: { x: 0, v: 0 }, back: { x: CAM2K.back, v: 0 }, hgt: { x: CAM2K.h, v: 0 }, ly: { x: CAM2K.lookY, v: 0 }, pull: { x: 0, v: 0 }, fr: { x: CAM2K.front, v: 0 },
+      spd: 0, lastX: 0, lastZ: 0, cutT: 0, cutAge: 9, hoopCut: 0,
+    };
+    // which way the camera looks along the floor (unit vector): always straight down the long axis; the controls are relative to it
+    function camHeading() { return [camS.want, 0]; }
+    const camFlipping = () => camS.cutAge < 0.8; // just after a cut to the other end
+    // the 2K camera for a ball at the spring's focus: fills e and c. The eye is on a line parallel to the long axis behind the
+    // ball, and the look is a fixed way down the floor from the eye, so the tilt and the heading never change in play.
+    // behind the ball, and deep in the half court (past `front`) at half the ball's pace, so the corners stay in the picture
+    function camRel(rel, front) { const t = rel - front, q = 1 - CAM2K.pace; return t > 1 ? rel - q * t : t > -1 ? rel - q * (t + 1) * (t + 1) / 4 : rel; }
+    function cam2k(e, c) {
+      const S = camS, d = S.want, fxx = S.fx.x, fzz = S.fz.x;
+      const wide = 1 + 0.28 * por + 0.1 * lnd, back = S.back.x * wide;
+      const raw = d * fxx - back, fr = S.fr.x - (wide - 1) * 6;
+      let rel = camRel(raw, fr) - S.pull.x; // behind the ball; pulled back to keep your man in view
+      rel = Math.max(rel, -(GYM.x1 + CAM2K.out));               // it may stand outside the end wall (cut away), never far
+      const deep = clamp((raw - fr) / 6, 0, 1);                  // the ball is deep in the half court: the eye stays back, higher, and tips down
+      e[0] = d * rel; e[1] = (S.hgt.x + CAM2K.deepH * deep * deep * (3 - 2 * deep) * (S.fr.x < 20 ? 1 : 0)) * (1 + 0.3 * por); e[2] = clamp(fzz * CAM2K.zk, GYM.z0 + 0.8, GYM.bl.z - 0.6);
+      let lx = rel + back + CAM2K.ahead; if (lx > CAM2K.lookCap && S.fr.x < 20) lx = CAM2K.lookCap + (lx - CAM2K.lookCap) * 0.25;
+      c[0] = d * lx; c[1] = S.ly.x; c[2] = fzz * CAM2K.lookZ;
+      // the near hoop and the end wall fade out as the eye goes back past them
+      const k = clamp((-rel - 8.4) / 1.5, 0, 1); S.hoopCut = k * k * (3 - 2 * k);
+    }
+    function camFrame(dt) {
+      const S = camS, b = ball || { x: 0, y: 1, z: 0, st: 'dead' };
+      const snap = dt < 0 || !S.on, h = snap ? 0 : Math.min(dt, 0.1);
+      const orbit = phase === 'splash' || phase === 'box' || phase === 'timeout' || phase === 'break' || phase === 'over';
+      const mode = orbit ? 'orbit' : 'game';
+      const e = [0, 0, 0], c = [0, 0, 0];
+      let fresh = snap;
+      if (mode !== S.mode) { // between the orbit and the game camera: a cut (never a fly-through)
+        if (!snap) S.cutT = CAM2K.cut;
+        if (mode === 'game') fresh = true;
+        S.mode = mode;
+      }
+      S.cutT = Math.max(0, S.cutT - h); S.cutAge += h; S.hoopCut = orbit ? 0 : S.hoopCut;
+      if (orbit) {
+        const t = performance.now() / 1000 * 0.06 + 1.2;
+        e[0] = Math.sin(t) * 13; e[1] = 6.2 + 2.5 * por; e[2] = Math.cos(t) * 9 + 3; c[0] = 0; c[1] = 1.2; c[2] = 0;
+        e[2] = Math.min(e[2], GYM.bl.z - 0.6);
+      } else {
+        // what it follows: the man with the ball; a pass in the air; on a shot it holds on the shooter and leans toward the rim
+        let tx = b.x, tz = b.z, back = CAM2K.back, hgt = CAM2K.h, ly = CAM2K.lookY, side = b.holder ? b.holder.side : poss;
+        let front = CAM2K.front;
+        if (phase === 'tip') { tx = 0; tz = 0; side = 0; ly = 1.3; back = 7.6; }
+        else if (phase === 'ft' && ftS) { const s = ftS.sh; tx = s.x; tz = s.z; side = s.side; back = 7.2; hgt = 4.0; ly = 1.5; front = 30; }
+        else if (b.holder) { tx = b.holder.x; tz = b.holder.z; }
+        else if (b.st === 'air' && b.shot) { const hp = b.shot.h || hoopOf(side), by = b.shot.by; tx = by ? by.x + (hp.x - by.x) * 0.3 : S.fx.x; tz = by ? by.z * 0.7 : S.fz.x; ly = 1.4; }
+        else if (b.st === 'dead' || b.x == null) { tx = S.lastX; tz = S.lastZ; }
+        // on defense the eye leans across the floor toward your own man, so he is never at the edge of the screen
+        if (ctrl && phase === 'live' && !ctrl.benched && ctrl.side !== side) tz += clamp((ctrl.z - tz) * 0.25, -2, 2);
+        tx = clamp(tx, -COURT.HL - 1, COURT.HL + 1); tz = clamp(tz, -COURT.HW - 0.5, COURT.HW + 0.5);
+        S.lastX = tx; S.lastZ = tz;
+        const want = dirOf(side);
+        // your own man is never left behind the lens: when he trails the ball (beaten on defense, a trailer on the break) the eye
+        // drops back far enough to keep him on the screen
+        let pull = 0;
+        if (ctrl && phase === 'live' && ctrl !== b.holder && !ctrl.benched) pull = clamp(camRel(want * tx - back * (1 + 0.28 * por + 0.1 * lnd), front - (0.28 * por + 0.1 * lnd) * 6) - (want * ctrl.x - CAM2K.keep), 0, 13);
+        // the ball changed hands: a cut to the other end (a short dip covers it), never a swing round the floor
+        if (!fresh && want !== S.want) { fresh = true; S.cutT = CAM2K.cut; S.cutAge = 0; }
+        if (fresh) {
+          S.want = want; S.fx.x = tx; S.fx.v = 0; S.fz.x = tz; S.fz.v = 0;
+          S.back.x = back; S.back.v = 0; S.fr.x = front; S.fr.v = 0; S.hgt.x = hgt; S.hgt.v = 0; S.ly.x = ly; S.ly.v = 0; S.pull.x = pull; S.pull.v = 0;
+        } else {
+          camSpring(S.pull, pull, pull > S.pull.x ? 0.2 : 0.5, h); // back at once when he drops behind the ball, forward again at leisure
+          camSpring(S.fx, tx, CAM2K.fx, h); camSpring(S.fz, tz, CAM2K.fz, h);
+          camSpring(S.back, back, 0.3, h); camSpring(S.fr, front, 0.35, h); camSpring(S.hgt, hgt, 0.3, h); camSpring(S.ly, ly, 0.35, h);
+        }
+        cam2k(e, c);
+      }
+      S.spd = h > 0 && S.cutT <= 0 ? Math.hypot(e[0] - cam.e[0], e[1] - cam.e[1], e[2] - cam.e[2]) / h : 0;
+      for (let i = 0; i < 3; i++) { cam.e[i] = e[i]; cam.c[i] = c[i]; }
+      camDip(S.cutT > 0 ? Math.min(1, S.cutT / CAM2K.cut * 1.3) : 0);
+      // the lens: 42 degrees tall on a wide screen; a narrow (portrait) screen keeps a useful width instead
+      const asp = cv.width / cv.height || 1.78, minH = 58 * Math.PI / 360;
+      cam.fovY = clamp(Math.max(CAM2K.fov * Math.PI / 180, 2 * Math.atan(Math.tan(minH) / asp)), 0.5, 1.25);
+      S.on = true;
+    }
     // =====================================================================================
     // Card effects in the game: every card variant and every set maps to a look built from a small library of primitives:
     // helmet props (small procedural meshes, lit, cast shadows), particle emitters that follow the player (sprites from a
@@ -6054,7 +8073,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     // ---------- controls ----------
-    let ctlKey = '';
+    let ctlKey = ''; const hintN = {};
     const K = (s) => (touchy ? '' : `<kbd>${s}</kbd>`);
     function btn(cls, html, fn, up) {
       const b = el('button', 'dk-btn ' + (cls || ''), html); b.type = 'button';
@@ -6073,10 +8092,15 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase === 'timeout') { ctl.appendChild(btn('dk-y dk-wide', 'Resume<small>back to the game</small>' + K('T'), () => endTimeout())); return; }
       if (phase === 'over' || phase === 'break') { msg(`<span>${esc(HOME.abbr)} <b>${hs}</b> – <b>${as}</b> ${esc(AWAY.abbr)}</span>`); return; }
       if (!touchy) {
-        msg(defn ? '<span><b>WASD</b> slide · <b>SPACE</b> jump / block · <b>Q</b> steal · <b>E</b> switch · <b>F</b> foul · <b>SHIFT</b> sprint</span>'
-          : off ? '<span><b>WASD</b> move · hold <b>SPACE</b>, let go in the green · <b>E</b> pass · <b>Q</b> combo moves · <b>SHIFT</b> sprint</span>'
-          : phase === 'ft' ? '<span>Free throw: hold <b>SPACE</b>, let go in the green</span>' : '<span><b>WASD</b> move · <b>E</b> call for the ball · <b>SPACE</b> jump · <b>SHIFT</b> sprint</span>');
-        ctl.appendChild(to); return;
+        // the keyboard hints: each one shows the first two times it applies, a few seconds each, then the floor stays clear
+        const hk = defn ? 'd' : phase === 'ft' ? 'f' : off ? 'o' : 'b';
+        ctl.classList.add('dk-keys'); ctl.appendChild(to);
+        if ((hintN[hk] = (hintN[hk] || 0) + 1) > 2) return;
+        const hm = msg(defn ? '<span><b>WASD</b> slide · <b>SHIFT</b> turn and run · <b>SPACE</b> jump / block · <b>Q</b> steal · <b>E</b> switch man · <b>F</b> foul · <b>T</b> timeout</span>'
+          : phase === 'ft' ? '<span>Free throw: hold <b>SPACE</b>, let go in the green</span>'
+          : off ? '<span><b>WASD</b> move (W = to the basket) · <b>SHIFT</b> sprint · hold <b>SPACE</b>, let go in the green · <b>E</b> pass · <b>Q</b> dribble moves · <b>T</b> timeout</span>'
+          : '<span><b>WASD</b> move · <b>SHIFT</b> sprint · <b>E</b> call for the ball · <b>SPACE</b> jump · <b>T</b> timeout</span>');
+        hm.classList.add('dk-hint'); ctl.insertBefore(hm, to); return;
       }
       // the phone: a cluster of round buttons under the right thumb (the left thumb drags anywhere on the floor for the joystick)
       const g = el('div', 'dk-pad');
