@@ -3137,3 +3137,7 @@ html.av3d-lock,html.av3d-lock body{overflow:hidden}
   .dk-page .arc-setup .lvls.six{grid-template-columns:repeat(2,1fr)}
   .dk-q{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ultra 1/1s */
+.mcard.v-s1-golden{--rc:#fde047}.mcard.v-s1-mrfull{--rc:#7dd3fc}.mcard.v-w1-undisputed{--rc:#f43f5e}.mcard.v-w1-lastword{--rc:#f8fafc}
+.mcard.v-s1-golden,.mcard.v-s1-mrfull,.mcard.v-w1-undisputed,.mcard.v-w1-lastword,.mcard.v-set-gta-vice-one,.mcard.v-set-gta-cover-wanted{box-shadow:0 0 0 2px var(--rc,#ffd166),0 0 34px 2px color-mix(in srgb,var(--rc,#ffd166) 70%,transparent),0 14px 30px -12px rgba(0,0,0,.8)}

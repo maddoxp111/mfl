@@ -965,6 +965,18 @@ const UPDATES = [
       'The playoffs setting at the start of a career is now clearly the county playoffs (top 4 or top 8). Win the county and you go to State, then Nationals.',
     ],
   },
+  {
+    n: 91,
+    date: '2026-11-15',
+    title: 'Ultra chase cards in the Carson, GTA and Weekly packs',
+    items: [
+      'Six new cards, the rarest in the shop. Each is a 1 of 1 per player and beats every other card in its packs.',
+      'Carson (Season 1) packs: Golden Ticket 1/1 and Mr. Full Extension 1/1.',
+      'GTA packs: Vice City Kingpin 1/1 and Cover Most Wanted 1/1.',
+      'Weekly packs (Rivalry Week): Undisputed 1/1 and The Last Word 1/1.',
+      'They never come from the normal odds. Every single card you pull from those packs has its own long shot at one, from 1 in 2,500 on the cheapest Season 1 packs to 1 in 100 on the top Weekly packs. The exact odds are under "What\'s inside" on each pack.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
