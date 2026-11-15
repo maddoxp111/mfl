@@ -259,6 +259,15 @@ function gtaArt(pid, design) {
   return ok;
 }
 // where the Cover art left its empty logo spot: [left, top, width, height] in % of the card (from <player>-cover.json)
+// A Season 1 or weekly ultra's own painted art (public/cards/ultra/<pid>-<variant>.webp), when the player has one.
+const ULTRA_ART_DIR = require('path').join(__dirname, 'public', 'cards', 'ultra');
+function ultraArt(pid, variant) {
+  const k = 'u|' + pid + '|' + variant, m = gtaArtMemo.get(k);
+  if (m && Date.now() - m.at < 60000) return m.ok;
+  const ok = require('fs').existsSync(require('path').join(ULTRA_ART_DIR, `${pid}-${variant}.webp`));
+  gtaArtMemo.set(k, { ok, at: Date.now() });
+  return ok;
+}
 function gtaSlot(pid) {
   const k = pid + '|slot', m = gtaArtMemo.get(k);
   if (m && Date.now() - m.at < 60000) return m.ok;
@@ -276,8 +285,8 @@ VARIANTS.push(
   { id: 's1-mrfull', rarity: 'zenith', label: 'Mr. Full Extension 1/1', mult: 8, one: true, ultra: true, season: 1, quote: 'The rarest thing Season 1 ever printed.', perkAs: 's1-bigboy' },
   { id: 'w1-undisputed', rarity: 'dark', label: 'Undisputed 1/1', mult: 7, one: true, ultra: true, week: 1, quote: 'No argument left.', perkAs: 'goat' },
   { id: 'w1-lastword', rarity: 'dark', label: 'The Last Word 1/1', mult: 8, one: true, ultra: true, week: 1, quote: 'Rivalry over. He ended it.', perkAs: 'goat' },
-  { id: 'set-gta-vice-one', rarity: 'dark', label: 'Vice City Kingpin 1/1', mult: 7, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'vice', art: 'vice', launch: GTA.launch },
-  { id: 'set-gta-cover-wanted', rarity: 'dark', label: 'Cover Most Wanted 1/1', mult: 8, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'cover', art: 'cover', launch: GTA.launch },
+  { id: 'set-gta-vice-one', rarity: 'dark', label: 'Vice City Kingpin 1/1', mult: 7, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'vice', art: 'kingpin', launch: GTA.launch },
+  { id: 'set-gta-cover-wanted', rarity: 'dark', label: 'Cover Most Wanted 1/1', mult: 8, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'cover', art: 'wanted', launch: GTA.launch },
 );
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
 
@@ -1309,13 +1318,13 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', design: v.design || '', ultra: !!v.ultra, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', design: v.design || '', art: v.art || '', ultra: !!v.ultra, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
 function catalog(db) {
   const key = JSON.stringify([Object.values(db.teams).map((t) => [t.id, t.tend, t.roster.map((p) => [p.id, p.name, p.tend, p.position, p.grade, p.tag])]), db.games.map((g) => [g.status, g.homeScore, g.awayScore, (g.events || []).length])]);
-  const artKey = Object.keys(GTA_DESIGNS).map((d) => Object.values(db.teams).flatMap((t) => t.roster.filter((p) => gtaArt(p.id, d)).map((p) => p.id)).join(',')).join('|');
+  const artKey = [...new Set(VARIANTS.map((v) => v.art).filter(Boolean))].map((d) => Object.values(db.teams).flatMap((t) => t.roster.filter((p) => gtaArt(p.id, d)).map((p) => p.id)).join(',')).join('|');
   if (key + artKey !== catKey) {
     const et = pk.effTend(db);
     catVal = Object.values(db.teams).flatMap((t) => t.roster.flatMap((p) => VARIANTS.filter((v) => (!v.only || v.only === p.id) && (!v.art || gtaArt(p.id, v.art))).map((v) => makeCard(et, t, p, v))));
@@ -1484,6 +1493,6 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { ULTRA_ODDS, GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { ULTRA_ODDS, ultraArt, GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf,
   rawFx, BB_KEYS, BB_LABELS, BB_SHORT, BB_W, FB2BB, bbBase, bbEffects, bbOvr, bbAttrs, bbEffectText, BB_POS, BB_FIT, bbPlace, bbBestPos };

@@ -974,6 +974,7 @@ const UPDATES = [
       'Carson (Season 1) packs: Golden Ticket 1/1 and Mr. Full Extension 1/1.',
       'GTA packs: Vice City Kingpin 1/1 and Cover Most Wanted 1/1.',
       'Weekly packs (Rivalry Week): Undisputed 1/1 and The Last Word 1/1.',
+      'Every one of them has its own painted art of the player (for players with a photo): holding up the golden ticket, a full-extension diving catch, lifting the trophy, and more.',
       'They never come from the normal odds. Every single card you pull from those packs has its own long shot at one, from 1 in 2,500 on the cheapest Season 1 packs to 1 in 100 on the top Weekly packs. The exact odds are under "What\'s inside" on each pack.',
     ],
   },

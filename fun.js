@@ -50,10 +50,11 @@ module.exports = function fun(app, h) {
     const serial = c.one || c.rarity === 'doh' ? '1/1' : '';
     // GTA Launch Set: the player in a comic panel over one of the set's painted scenes (one scene per player)
     const gta = st && st.panels ? st.panels[[...c.pid].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 9973, 7) % st.panels.length] : '';
-    if (gta && c.design && cards.gtaArt(c.pid, c.design)) return gtaArtCard(db, c, rt, serial, opts);
+    if (gta && c.design && cards.gtaArt(c.pid, c.art || c.design)) return gtaArtCard(db, c, rt, serial, opts);
     if (gta) return gtaCard(db, c, st, gta, rt, serial, opts);
-    const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '') + (c.week ? ` wkc w${c.week}c` : '');
-    const photo = COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
+    const uart = c.ultra && !st && cards.ultraArt(c.pid, c.variant);
+    const look = (st ? `setc par-${c.par} ph-${st.photo} pat-${st.pat} fr-${si % 6}` : `v-${c.variant.replace(/^spec-.*/, 'specx')} v-${c.variant} ph-${uart ? 'full ph-ultra' : PHOTO[c.variant] || 'frame'} pat-${vi % 10} fr-${Math.floor(vi / 10) % 6}`) + (c.season ? ` s${c.season}c` : '') + (c.week ? ` wkc w${c.week}c` : '');
+    const photo = uart ? `<img class="mc-uart" src="/static/cards/ultra/${esc(c.pid)}-${esc(c.variant)}.webp" alt="" loading="lazy" decoding="async">` : COVER_ART.has(c.variant) ? `<img class="mc-cover" src="${esc(S1.img)}" alt="" loading="lazy">` : avatar(c.t, c.p, opts.small ? 74 : 104, 'xl');
     return `<div class="mcard r-${c.rarity} ${look} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)};--hue:${(vi * 47) % 360};--ang:${((st ? si : vi) * 53) % 360}deg${st ? `;--s1:${st.c1};--s2:${st.c2}` : ''}">
       <div class="mc-pat"></div><div class="mc-glow"></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt" title="Card overall: how good this card is"><b>${rt}</b><small>OVR</small></span>${c.season ? `<span class="mc-season" title="Season ${c.season}">S${c.season}</span>` : ''}${logo(c.t, 22)}</div>
@@ -86,14 +87,14 @@ module.exports = function fun(app, h) {
   // The logo and the name are one lockup, like the words over the emblem on a game cover: the stacked name in front, centred over the
   // logo behind it. Cover: the lockup fills the empty spot the art left in the middle. Vice City: the lockup sits in the sky up top.
   function gtaArtCard(db, c, rt, serial, opts) {
-    const D = cards.GTA_DESIGNS[c.design], P = D.pars.find((x) => x.id === c.par) || D.pars[0], base = `/static/sets/gta/cards/${c.pid}`;
-    const sl = c.design === 'cover' ? cards.gtaSlot(c.pid) || [33, 34, 34, 34] : null;
+    const D = cards.GTA_DESIGNS[c.design], P = D.pars.find((x) => x.id === c.par) || D.pars[0], lay = c.ultra ? 'ultra' : c.design, base = `/static/sets/gta/cards/${c.pid}`;
+    const sl = lay === 'cover' ? cards.gtaSlot(c.pid) || [33, 34, 34, 34] : null;
     const slot = (sl ? `;--sx:${sl[0]}%;--sy:${sl[1]}%;--sw:${sl[2]}%;--sh:${sl[3]}%` : '') + gtaSeam(db);
-    return `<div class="mcard r-${c.rarity} setc gtac gta-art gd-${c.design} par-${c.par} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}${slot}">
-      <div class="ga-stage"><img class="ga-art" src="${base}-${c.design}.webp" alt="" loading="lazy" decoding="async">
+    return `<div class="mcard r-${c.rarity} setc gtac gta-art gd-${lay} par-${c.par} ${opts.cls || ''}" data-id="${esc(c.id)}" data-pid="${esc(c.pid)}" ${opts.fit ? `data-fit="${opts.fit}"` : ''} style="--c:${esc(c.t.color)};--c2:${esc(c.t.color2)}${slot}">
+      <div class="ga-stage"><img class="ga-art" src="${base}-${c.art || c.design}.webp" alt="" loading="lazy" decoding="async">
         <div class="ga-lock"><div class="ga-logo">${gtaMark(db, 'ga-mark')}<img class="ga-name" src="${base}-name.png" alt="${esc(c.p.name)}" loading="lazy" decoding="async"></div></div></div><div class="mc-shine"></div>
       <div class="mc-top"><span class="mc-rt" title="Card overall: how good this card is"><b>${rt}</b><small>OVR</small></span>${logo(c.t, 20)}</div>
-      <div class="ga-par"><span>${esc(D.name)} · ${esc(P.label)}</span>${serial ? `<b>${serial}</b>` : ''}${opts.count > 1 ? `<i>×${opts.count}</i>` : ''}</div>
+      <div class="ga-par"><span>${c.ultra ? esc(c.label.replace(/ 1\/1$/, '')) : `${esc(D.name)} · ${esc(P.label)}`}</span>${serial ? `<b>${serial}</b>` : ''}${opts.count > 1 ? `<i>×${opts.count}</i>` : ''}</div>
       <button type="button" class="mc-flip" aria-label="Flip card" aria-pressed="false"></button><div class="mc-back"${opts.back ? ` data-ok="1">${cardBack(db, c)}` : '>'}</div>
     </div>`;
   }
