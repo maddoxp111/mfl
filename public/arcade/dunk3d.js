@@ -226,7 +226,7 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-how li{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;line-height:1.4;color:#c9ccd4}
 .dk-how li b{color:#f5f6f8}
 .dk-how li>i{flex:0 0 auto;font-style:normal;font:400 8px 'Press Start 2P',monospace;color:#07080b;background:#ffc21a;border-radius:6px;padding:5px 6px;margin-top:1px}
-.dk-go{font:400 13px 'Press Start 2P',monospace;background:#ffc21a;color:#07080b;border:0;border-radius:10px;padding:14px 22px;box-shadow:0 4px 0 #a37a00;cursor:pointer;animation:dk-pulse 1.1s ease-in-out infinite}
+.dk-go,.dk-presume{font:400 13px 'Press Start 2P',monospace;background:#ffc21a;color:#07080b;border:0;border-radius:10px;padding:14px 22px;box-shadow:0 4px 0 #a37a00;cursor:pointer;animation:dk-pulse 1.1s ease-in-out infinite}
 .dk-err{padding:40px 18px;text-align:center;font:600 15px/1.5 Inter,sans-serif;color:#c9ccd4;background:#0f1117;border:1px solid #1d212c;border-radius:12px}
 .dk-err b{display:block;font:400 12px 'Press Start 2P',monospace;color:#ff3344;margin-bottom:12px}
 .dk-land .dk-splash{gap:6px;padding:8px 14px}.dk-land .dk-title{font-size:16px}.dk-land .dk-squad{display:none}.dk-land .dk-goal{font-size:8px;padding:6px 10px}
@@ -265,16 +265,87 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-pad .dk-big{grid-column:3;grid-row:1/3;width:84px;height:84px;min-height:84px;align-self:center;font-size:17px;background:rgba(43,212,107,.28);border-color:#2bd46b}
 .dk-pad .dk-sprint{grid-column:1;grid-row:2}
 .dk-to{flex:0 0 86px}.dk-to.off{opacity:.4}
-.dk-subs{position:absolute;inset:0;z-index:9;background:rgba(7,8,11,.94);overflow-y:auto;padding:14px calc(14px + env(safe-area-inset-right,0px)) 18px calc(14px + env(safe-area-inset-left,0px));text-align:center}
-.dk-subs.hide{display:none}.dk-subs h3{margin:4px 0;font:900 22px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;color:#ffc21a}.dk-subs h4{margin:10px 0 4px;font:800 13px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;color:#9aa0ad}
-.dk-subs p{margin:0 0 8px;font:600 12px Inter,sans-serif;color:#9aa0ad}
-.dk-sbl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.dk-sbp{display:flex;align-items:center;gap:8px;min-width:170px;padding:7px 10px;border-radius:10px;background:#161922;border:2px solid #262b38;color:#f5f6f8;cursor:pointer;position:relative;text-align:left}
-.dk-sbp.sel{border-color:#ffc21a;background:#2a2410}.dk-sbp.bench{border-style:dashed}.dk-sbp span{display:flex;flex-direction:column;font:800 13px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase}
-.dk-sbp small{font:600 10px Inter,sans-serif;color:#9aa0ad;text-transform:none}.dk-sbp u{position:absolute;left:8px;right:8px;bottom:3px;height:3px;background:#2a2f3c}.dk-sbp u i{display:block;height:100%;background:#2bd46b}
-.dk-subs .dk-go{margin-top:14px}
+.dk-subs{position:absolute;left:0;right:0;bottom:0;z-index:9;padding:34px calc(14px + env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) calc(14px + env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(7,8,11,0) 0,rgba(7,8,11,.9) 30px,rgba(7,8,11,.96) 100%);max-height:100%;overflow-y:auto;text-align:center;animation:dk-subin .35s ease-out}
+@keyframes dk-subin{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.dk-subs.hide{display:none}
+.dk-sbt{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:4px 14px;margin:0 0 6px}
+.dk-sbt h3{margin:0;font:900 24px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#ffc21a}
+.dk-sbt span{font:700 12px Inter,sans-serif;color:#c9ccd4}.dk-sbt b{color:#fff}
+.dk-sbh{margin:0 0 8px;font:600 12px Inter,sans-serif;color:#9aa0ad}.dk-sbh kbd{display:inline-block;min-width:16px;padding:1px 4px;border-radius:4px;background:#262b38;color:#f5f6f8;font:700 10px Inter,sans-serif}
+.dk-sbw{display:flex;gap:12px;align-items:stretch;justify-content:center;max-width:1180px;margin:0 auto}
+.dk-sbg{display:grid;gap:7px;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);flex:5 1 0;min-width:0}
+.dk-sbg.bn{flex:1 1 0;border-left:2px dashed #2f3544;padding-left:12px;position:relative}.dk-sbg.bn::before{content:'BENCH';position:absolute;left:12px;top:-12px;font:800 10px 'Barlow Condensed',Inter,sans-serif;letter-spacing:1px;color:#9aa0ad}
+.dk-sbg.fl::before{content:'ON THE FLOOR';position:absolute;left:0;top:-12px;font:800 10px 'Barlow Condensed',Inter,sans-serif;letter-spacing:1px;color:#9aa0ad}.dk-sbg.fl{position:relative}
+.dk-sbp{position:relative;display:flex;flex-direction:column;gap:5px;padding:8px 8px 7px;border-radius:12px;background:#161922;border:2px solid #262b38;color:#f5f6f8;cursor:pointer;text-align:left;font:inherit;min-width:0;transition:border-color .12s,background .12s,transform .12s}
+.dk-sbp:hover{border-color:#4a5163}.dk-sbp.sel{border-color:#ffc21a;background:#2a2410;transform:translateY(-3px)}.dk-sbp.can{border-color:#2bd46b;background:#102017}
+.dk-sbp.bench{border-style:dashed}.dk-sbp .k{position:absolute;right:6px;top:5px;min-width:17px;height:17px;line-height:17px;text-align:center;border-radius:5px;background:#262b38;color:#c9ccd4;font:700 10px Inter,sans-serif}
+.dk-sbp .hd{display:flex;align-items:center;gap:7px;min-width:0}.dk-sbp .hd s{flex:none;width:38px;height:38px;border-radius:50%;background-size:cover;background-position:center 18%;border:2px solid #f5f6f8;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font:800 13px 'Barlow Condensed',sans-serif}
+.dk-sbp .hd div{display:flex;flex-direction:column;min-width:0;flex:1}.dk-sbp .hd b{font:800 14px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dk-sbp .hd small{font:600 10px Inter,sans-serif;color:#9aa0ad}
+.dk-sbp .ov{flex:none;display:flex;flex-direction:column;align-items:center;margin-right:16px;font:900 22px/1 'Barlow Condensed',Inter,sans-serif;color:#ffc21a}.dk-sbp .ov small{font:700 8px Inter,sans-serif;letter-spacing:.8px;color:#9aa0ad}
+.dk-sbp .rt{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}.dk-sbp .rt span{display:flex;justify-content:space-between;font:700 10px Inter,sans-serif;color:#9aa0ad;letter-spacing:.3px}.dk-sbp .rt b{color:#f5f6f8}.dk-sbp .rt b.hi{color:#2bd46b}
+.dk-sbp .sb{display:flex;align-items:center;gap:6px}.dk-sbp .sb em{font:700 9px Inter,sans-serif;font-style:normal;color:#9aa0ad;letter-spacing:.5px}.dk-sbp .sb u{flex:1;height:7px;border-radius:4px;background:#262b38;overflow:hidden;text-decoration:none}.dk-sbp .sb u i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#2bd46b,#8be04e)}
+.dk-sbp .sb u.mid i{background:linear-gradient(90deg,#ffb020,#ffc21a)}.dk-sbp .sb u.low i{background:#ff3344}.dk-sbp .sb b{min-width:22px;text-align:right;font:800 11px Inter,sans-serif}
+.dk-sbp .gs{font:600 10px Inter,sans-serif;color:#9aa0ad;border-top:1px solid #262b38;padding-top:4px;display:flex;justify-content:space-between;gap:4px}.dk-sbp .gs b{color:#f5f6f8}
+.dk-sbp .out{position:absolute;inset:0;border-radius:10px;display:none}
+.dk-sbf{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:9px}
+.dk-sbf .dk-resume{min-width:210px}.dk-sbf em{font:700 12px Inter,sans-serif;font-style:normal;color:#9aa0ad}
+@media (max-width:640px) and (orientation:portrait){.dk-sbw{flex-direction:column;gap:18px}.dk-sbg{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.dk-sbg.bn{border-left:0;padding-left:0;border-top:2px dashed #2f3544;padding-top:6px}.dk-sbg.bn::before,.dk-sbg.fl::before{display:none}.dk-subs{max-height:78%}}
+@media (max-height:480px){.dk-subs{padding-top:22px;padding-bottom:6px}.dk-sbt h3{font-size:18px}.dk-sbh{display:none}.dk-sbp{padding:5px 6px 4px;gap:3px;border-radius:9px}.dk-sbp .hd s{width:28px;height:28px}.dk-sbp .hd b{font-size:12px}.dk-sbp .ov{font-size:17px;margin-right:0}.dk-sbp .ov small{display:none}.dk-sbp .rt{gap:0 5px}.dk-sbp .rt span{font-size:9px}.dk-sbp .k{display:none}.dk-sbp .gs{display:none}.dk-sbf{margin-top:5px}.dk-sbg{gap:5px}.dk-sbg.bn{padding-left:7px}.dk-sbw{gap:7px}.dk-sbg.bn::before,.dk-sbg.fl::before{display:none}}
+.dk-stb{display:block;margin:3px auto 0;width:44px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}.dk-stb i{display:block;height:100%;width:100%;background:#2bd46b;font-style:normal}.dk-stb.mid i{background:#ffc21a}.dk-stb.low i{background:#ff3344}
+.dk-subs .dk-go{margin-top:0}
 .dk-land .dk-pad{grid-template-columns:58px 58px 80px;grid-template-rows:58px 58px}.dk-land .dk-pad .dk-btn{width:58px;height:58px;min-height:58px}.dk-land .dk-pad .dk-big{width:76px;height:76px;min-height:76px}
 .dk-how{list-style:none;margin:0;padding:0;display:grid;gap:3px;max-width:560px;font:600 12.5px/1.4 Inter,sans-serif;color:#c9ccd4;text-align:left}.dk-how b{color:#ffc21a}
+/* ---- phone controls, controls card, pause, rotate prompt ---- */
+.dk-ctl.dk-tp{position:absolute;inset:0;display:block;padding:0;background:none;pointer-events:none}
+.dk-tp>*{pointer-events:none}
+.dk-tp .dk-pad{position:absolute;right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));width:226px;height:184px;display:block;margin:0;transform-origin:100% 100%;transform:scale(var(--k,.9))}
+.dk-tp .dk-pad .dk-btn{position:absolute;display:flex;pointer-events:auto;width:60px;height:60px;min-height:0;flex:none;border-radius:50%;padding:0;font-size:12.5px;letter-spacing:0;opacity:.9;background:rgba(18,21,30,.34);border:2px solid rgba(255,255,255,.5);box-shadow:none;text-shadow:0 1px 3px #000,0 0 6px #000;touch-action:none}
+.dk-tp .dk-pad .dk-btn.gone{display:none}
+.dk-tp .dk-pad .dk-btn.dn{transform:scale(.9);opacity:1;background:rgba(255,194,26,.55);border-color:#ffc21a}
+.dk-tp .dk-pad .dk-big{width:84px;height:84px;right:0;bottom:34px;font-size:17px;background:rgba(31,157,85,.38);border-color:#2bd46b}
+.dk-tp .dk-pad .dk-big.dn{background:rgba(43,212,107,.8)}
+.dk-tp .dk-pad .dk-b-pass{right:98px;bottom:2px}
+.dk-tp .dk-pad .dk-b-move{right:98px;bottom:68px;background:rgba(255,51,68,.36);border-color:#ff5a6a}
+.dk-tp .dk-pad .dk-b-sprint{right:166px;bottom:2px;width:58px;height:58px;background:rgba(43,212,107,.22);border-color:#2bd46b;font-size:12px}
+.dk-tp .dk-pad .dk-b-post{right:166px;bottom:66px;width:58px;height:58px;font-size:13px}
+.dk-tp .dk-pad .dk-sm{width:50px;height:50px;font-size:13px}
+.dk-tp .dk-pad .dk-b-x{right:17px;bottom:126px}
+.dk-tp .dk-pad .dk-b-scr{right:94px;bottom:134px;font-size:11px}
+.dk-tp .dk-pad[data-m=def] .dk-b-move{background:rgba(255,51,68,.36)}
+.dk-tp .dk-pad[data-m=def] .dk-big{background:rgba(255,194,26,.4);border-color:#ffc21a}
+.dk-tp .dk-btn small{font-size:9px}
+.dk-tp .dk-to{position:absolute;pointer-events:auto;right:calc(8px + env(safe-area-inset-right,0px));top:46px;width:54px;min-height:0;height:34px;flex:none;border-radius:10px;padding:0;font-size:13px;flex-direction:row;gap:4px;opacity:.85;background:rgba(18,21,30,.7)}
+.dk-tp .dk-to small{font-size:11px;color:#ffc21a;font-weight:800}
+.dk-tp .dk-to.off{opacity:.35}
+.dk-tp .dk-tmsg{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none}
+.dk-stickbase{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:96px;height:96px;border-radius:50%;border:2px dashed rgba(255,255,255,.28);background:rgba(255,255,255,.04);pointer-events:none;z-index:2}
+.dk-stickbase::after{content:'MOVE';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 11px 'Barlow Condensed',Inter,sans-serif;letter-spacing:1px;color:rgba(255,255,255,.35)}
+.dk-stickbase.hide{display:none}
+@media (max-height:360px){.dk-tp .dk-pad{--k:.8}.dk-stickbase{width:80px;height:80px;left:18px;bottom:14px}}
+.dk-port .dk-tp .dk-pad,.dk-port .dk-ctl.dk-tp .dk-pad{--k:.78}
+.dk-port .dk-stickbase{bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+/* the controls card */
+.dk-cc{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;max-width:620px;width:100%;text-align:left;margin:0 auto}
+.dk-cc h5{margin:0 0 4px;font:900 13px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:1px;color:#ffc21a}
+.dk-cc ul{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.dk-cc li{display:flex;align-items:center;gap:7px;font:600 11.5px/1.25 Inter,sans-serif;color:#c9ccd4}
+.dk-cc kbd,.dk-cc i{flex:0 0 auto;min-width:42px;text-align:center;font:400 8px 'Press Start 2P',monospace;font-style:normal;color:#f5f6f8;background:#232836;border:1px solid #3a4152;border-bottom-width:3px;border-radius:5px;padding:4px 5px}
+.dk-cc i{font:800 11px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px;border-radius:999px;padding:3px 8px;min-width:50px}
+.dk-narrow .dk-cc{grid-template-columns:1fr}
+.dk-land .dk-cc{gap:2px 14px;max-width:760px}.dk-land .dk-cc li{font-size:10.5px;line-height:1.15}.dk-land .dk-cc ul{gap:2px}.dk-land .dk-cc h5{margin-bottom:2px}.dk-land .dk-cc kbd{padding:3px 4px}.dk-land .dk-cc i{padding:2px 7px}
+.dk-land.dk-narrow .dk-cc{grid-template-columns:1fr 1fr}
+.dk-splash .dk-cc{margin-top:2px}
+.dk-pause{position:absolute;inset:0;z-index:9;background:rgba(7,8,11,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;overflow:auto;touch-action:pan-y}
+.dk-pause.hide,.dk-rot.hide{display:none}
+.dk-pause h3{margin:0;font:400 18px 'Press Start 2P',monospace;color:#ffc21a}
+.dk-pb{display:flex;gap:10px}
+.dk-land .dk-pause{gap:6px;padding:8px}.dk-land .dk-pause h3{font-size:14px}.dk-land .dk-pause .dk-presume{padding:9px 18px;font-size:11px}
+.dk-rot{position:absolute;inset:0;z-index:11;background:rgba(7,8,11,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#f5f6f8;text-align:center;padding:20px}
+.dk-rot svg{width:84px;height:84px;color:#ffc21a;animation:dk-rotspin 2.4s ease-in-out infinite}
+@keyframes dk-rotspin{0%,25%{transform:rotate(0)}65%,100%{transform:rotate(-90deg)}}
+.dk-rot b{font:900 22px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:1px}
+.dk-rot span{font:600 13px Inter,sans-serif;color:#9aa0ad}
+.dk-rotgo{margin-top:8px;min-height:44px;padding:0 18px;border-radius:10px;border:2px solid #3a4152;background:#161922;color:#c9ccd4;font:800 14px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.5px}
 `;
   function injectCSS() {
     if (document.getElementById(P + '-css')) return;
@@ -4508,6 +4579,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // man-to-man by spot: each defender takes the man in his own position
       for (const t of teams) t.on.forEach((p, i) => { p.man = teams[1 - t.side].on[i]; });
       ball = mkBall();
+      REFS.build();
       placeBench();
       placeTip();
     }
@@ -5074,7 +5146,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const soleY = m[7] - 0.07 * hs, planted = g ? (i ? g.cR : g.cL) && soleY < 0.12 * hs : soleY < 0.045 * hs;
         const P = g ? mPt(m, 0, -0.04 * hs, 0.12 * hs) : [m[3], m[7], m[11]];
         if (planted) {
-          if (!L.on) { L.on = 1; L.x = P[0]; L.z = P[2]; L.m = m.slice(); L.fade = 0; if (Math.hypot(p.vx, p.vz) > 4.5 && g && g.cut > 0.2 && !(p.squeakT > 0)) { p.squeakT = 0.5; if (Math.hypot(p.x - cam.c[0], p.z - cam.c[2]) < 9) try { sfx.play('squeak'); } catch (e) {} } }
+          if (!L.on) { L.on = 1; L.x = P[0]; L.z = P[2]; L.m = m.slice(); L.fade = 0; if (Math.hypot(p.vx, p.vz) > 4.5 && g && g.cut > 0.2 && !(p.squeakT > 0)) { p.squeakT = 0.5; try { SND.squeakP(p, 1); } catch (e) {} } }
           const dx = L.x - P[0], dz = L.z - P[2], dd = Math.hypot(dx, dz);
           if (dd > 0.42 * hs) { L.on = 0; continue; }
           if (dd > 0.004) legIK(bones, side, [m[3] + dx, m[7], m[11] + dz], hs, fwd, g ? m : L.m, p.lk.ll);
@@ -5215,11 +5287,12 @@ gl_FragColor=vec4(c,1.0);}`;
             if (dl < 0.4) continue;
             const k = Math.min(1, 4.5 / dl); X.V = [p.x + dx * k, p.z + dz * k]; X.mode = 'ret'; X.mspd = 2.3 + rnd() * 0.5;
           }
-          if (phase === 'timeout') for (const t of teams) {
-            const BR = t.side === 0 ? GYM.bench.home : GYM.bench.away, cx = (BR[0] + BR[1]) / 2 + (t.side === 0 ? 1.2 : -1.2), cz = COURT.HW + 0.75;
-            t.on.forEach((p, i) => { const X = bx(p), a = (i / 5) * TAU + 0.6; X.A = [cx + Math.sin(a) * 0.62, cz + Math.cos(a) * 0.62]; X.Ah = a + Math.PI; X.mode = 'anch'; X.mspd = 2.4 + rnd() * 0.4; X.jump = false; if (!X.V) X.V = [p.x, p.z]; });
+          if (phase === 'timeout' || phase === 'break') for (const t of teams) {
+            // both teams walk to their own bench and huddle just in front of it, the six not on the floor stand at their chairs
+            const BR = t.side === 0 ? GYM.bench.home : GYM.bench.away, cx = (BR[0] + BR[1]) / 2 + (t.side === 0 ? 1.2 : -1.2), cz = GYM.bs * (COURT.HW + 1.0);
+            t.on.forEach((p, i) => { const X = bx(p), a = (i / 5) * TAU + 0.6; X.A = [cx + Math.sin(a) * 0.9, cz + Math.cos(a) * 0.9]; X.Ah = a + Math.PI; X.mode = 'anch'; X.mspd = 3.3 + rnd() * 0.5; X.jump = false; if (!X.V) X.V = [p.x, p.z]; });
           }
-          if (lastPhase === 'timeout') for (const p of everyone) { const X = bx(p); if (X.mode === 'anch') { X.mode = 'ret'; X.mspd = 9; } }
+          if (lastPhase === 'timeout' || lastPhase === 'break') for (const p of everyone) { const X = bx(p); if (X.mode === 'anch') { X.mode = 'ret'; X.mspd = 5.5; } }
           if (phase === 'over' && !overDone) {
             overDone = true; const won = hs > as ? 0 : as > hs ? 1 : -1;
             for (const t of teams) {
@@ -5276,7 +5349,7 @@ gl_FragColor=vec4(c,1.0);}`;
       function benchCheer(side, k, dur) { for (const p of teams[side].bench) { const X = bx(p); X.bench = k; X.benchT = dur; } }
       // ---------- the visual walk: to the line, into a huddle, a chest bump (bones moved; the gameplay body stays put) ----------
       function walk(p, X, dt) {
-        if (X.mode === 'free' || (ball.holder === p && phase !== 'over')) { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; return null; }
+        if (X.mode === 'free' || (ball.holder === p && phase !== 'over' && phase !== 'timeout' && phase !== 'break')) { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; return null; }
         if (!X.V) X.V = [p.x, p.z];
         const tgt = X.mode === 'ret' ? [p.x, p.z] : X.A, dx = tgt[0] - X.V[0], dz = tgt[1] - X.V[1], dl = Math.hypot(dx, dz);
         if (X.mode === 'ret' && X.mspd > 6 && dl > 2.5) { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; return null; } // too far to walk back: cut
@@ -5313,7 +5386,7 @@ gl_FragColor=vec4(c,1.0);}`;
         }
         X.ps = p.stumbleT;
         if (c === 'rag' || p.rag) return c;
-        if (p.benched) return benchClip(p, X, dt);
+        if (p.benched && X.mode === 'free') return benchClip(p, X, dt);
         // a playing one-shot (and what follows it)
         if (X.k) {
           if (X.src && p.pose !== X.src) X.k = null;
@@ -5326,6 +5399,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const w = walk(p, X, dt);
         if (w === 'xHuddle' && X.jump) return 'xHuddleJ';
         if (w) return w;
+        if (p.benched) return benchClip(p, X, dt);
         if (phase === 'ft' && ftS && p !== ftS.sh && !p.benched) {
           const lane = Math.abs(p.z) < COURT.keyW / 2 + 0.8 && Math.abs(p.x) > COURT.HL - 3.2;
           const shooting = ftS.state !== 'set' && ball.st === 'air';
@@ -5470,7 +5544,15 @@ gl_FragColor=vec4(c,1.0);}`;
       // standing at his chair: a step forward off it (the bones move, his chair spot stays his)
       const standPost = (p, bones) => { const fx = Math.sin(p.h) * 0.42, fz = Math.cos(p.h) * 0.42; for (let i = 0; i < NB; i++) { const m = bones[i].slice(); m[3] += fx; m[11] += fz; bones[i] = m; } };
       for (const k of ['Clap', 'Wave', 'Jump', 'Head']) add('xStand' + k, { blend: 0.4, pose: (p, X) => dfBenchStand(k === 'Head' ? 'head' : k.toLowerCase(), X.t), post: standPost });
-      return { add, remap, floor, blend, leg, top, pose, post, clips: C, sideOf };
+      // a substitution at the bench (called by doSub before the bodies swap places): the man coming off walks from where he stands to
+      // his chair and sits, the man coming on walks from his chair to the spot in the huddle (or, in a dead ball, to where the other stood)
+      function subWalk(out, inn, outAt, innAt) {
+        const O = bx(out), I = bx(inn), A = O.A && (phase === 'timeout' || phase === 'break') ? O.A.slice() : null, Ah = O.Ah;
+        O.V = O.V ? O.V.slice() : [outAt[0], outAt[1]]; O.vh = O.vh != null ? O.vh : out.h; O.mode = 'ret'; O.mspd = 3.2; O.jump = false; O.k = null; O.A = null; O.bench = null; O.benchT = 0;
+        I.V = [innAt[0], innAt[1]]; I.vh = inn.h; I.bench = null; I.benchT = 0; I.k = null; I.jump = false; I.mspd = 3.4;
+        if (A) { I.A = A; I.Ah = Ah; I.mode = 'anch'; } else I.mode = 'ret';
+      }
+      return { add, remap, floor, blend, leg, top, pose, post, clips: C, sideOf, subWalk, life };
     })();
     if (DBG) DBG.animx = { ANIMX, anim: (p, dt) => animUpdate(p, dt), every: () => everyone };
     // =====================================================================================
@@ -5484,7 +5566,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const runV = (p) => RUN80 * (1 + (Math.min(99, p.spd || 70) - 80) * 0.004);
     // the man with the ball in traffic: a body in front of him within a step and a half takes the edge off his pace
     function trafficK(p) { let n = 0; const s = Math.hypot(p.vx, p.vz); if (s < 1) return 1; for (const q of onCourt) { if (q.side === p.side || q.rag || q.man === p) continue; const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz); if (d < 1.9 && (dx * p.vx + dz * p.vz) > 0.25 * d * s) n++; } return n > 1 ? 0.76 : n ? 0.86 : 1; } // (his own man is the bump's business, below)
-    const effV = (p) => runV(p) * (p.sprint && p.sta > 0 ? SPRINT80 / RUN80 : 1) * (p.stumbleT > 0 ? 0.6 : 1) * (p.rising > 0 ? 0 : 1) * (ball && ball.holder === p ? (p.sprint ? 0.93 : 0.97) * trafficK(p) : 1) * (0.9 + 0.1 * p.sta) * (p.burstT > 0 ? 1.12 : 1);
+    const effV = (p) => runV(p) * (p.sprint && p.sta > 0 ? SPRINT80 / RUN80 : 1) * (p.stumbleT > 0 ? 0.6 : 1) * (p.rising > 0 ? 0 : 1) * (ball && ball.holder === p ? (p.sprint ? 0.93 : 0.97) * trafficK(p) : 1) * fatigue(p) * (p.burstT > 0 ? 1 + (p.burstK || 0.12) : 1);
     function steer(p, tx, tz, spd, dt, acc) {
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
       let vx = 0, vz = 0;
@@ -5508,18 +5590,31 @@ gl_FragColor=vec4(c,1.0);}`;
       // a sharp cut at speed: the plant (the body leans into it; 25-animrt.js reads p.plant)
       if (s > 2.5 && ws > 0.5 && (wx * p.vx + wz * p.vz) / (ws * s) < 0.45 && !(p.plant > 0)) { p.plant = 0.2; p.cutK = 1; }
       const braking = ex * p.vx + ez * p.vz < 0; // the gap opposes where he is going: stopping or cutting
-      const A = (braking ? MOVE_BRK : MOVE_ACC) * (0.86 + 0.28 * ag) * Math.pow(1 / m, 0.25) * air * (p === ctrl ? 1 : 0.85);
+      const A = (braking ? MOVE_BRK : MOVE_ACC) * (0.86 + 0.28 * ag) * Math.pow(1 / m, 0.25) * air * (p === ctrl ? 1 : 0.85) * (0.5 + 0.5 * fatigue(p));
       const st = Math.min(el, A * dt);
       p.vx += (ex / el) * st; p.vz += (ez / el) * st;
     }
-    // stamina: sprinting drains it, standing gets it back; a tired player is a step slower and his shot shorter (STA)
+    // ---------- stamina (0..1) ----------
+    // It drains with every hard thing: a sprint most, then running, defensive slides, jumps, combo moves and posting up. It comes back
+    // a little at dead balls, much more on the bench, and in a timeout or a break. Tired legs cost speed and quickness, a shorter
+    // green window, a looser handle and a weaker contest (fatigue(), below). STA on the card sets how fast it goes.
+    const fatigue = (p) => 1 - 0.2 * Math.pow(1 - clamp(p.sta, 0, 1), 1.5); // 1 fresh .. 0.8 empty
+    const tire = (p, a) => { if (p && !p.benched) p.sta = Math.max(0, p.sta - a / (p.staK || 1)); };
     function staminaStep(p, dt, want) {
       p.sprint = !!want && p.sta > 0.03;
-      const k = p.staK || 1, sp = Math.hypot(p.vx, p.vz);
-      if (p.sprint && sp > 2) p.sta = Math.max(0, p.sta - dt / (6.5 * k));
-      else p.sta = Math.min(1, p.sta + dt * k / (sp > 3 ? 40 : 14));
-      p.sta = Math.max(0, p.sta - dt * (sp > 3.5 ? 0.0035 : 0) / k); // a long game wears everyone down a little
+      const k = p.staK || 1, sp = Math.hypot(p.vx, p.vz), live = phase === 'live';
+      if (p.sprint && sp > 2) p.sta -= dt / (isUser(p) ? 7.5 : 55) / k;   // a sprint (the CPU's bursts are short and spread out)
+      else if (live && sp > 3.5) p.sta -= dt * 0.0042 / k;            // a run
+      else if (live && sp > 1.6) p.sta -= dt * 0.0016 / k;            // a jog or a slide
+      else p.sta += dt * k * (live ? 0.004 : 0.012) * (sp < 0.6 ? 1.4 : 1); // standing or walking: a breather (more at a dead ball)
+      if (live && p.side !== poss && sp > 1.2) p.sta -= dt * 0.0016 / k; // guarding a man is hard work
+      if (live && ball.holder === p && sp > 2) p.sta -= dt * 0.0012 / k;
+      if (p.jumpY > 0.2 && p.jumpV > 0 && !p.jumpTired) { p.jumpTired = true; tire(p, 0.012); } else if (p.jumpY <= 0.05) p.jumpTired = false;
+      p.sta = clamp(p.sta, 0, 1);
     }
+    // the bench: everyone sitting down gets his wind back (every step), a timeout and a break give a good deal more
+    function benchRest(dt) { for (const t of teams) for (const p of t.bench) p.sta = Math.min(1, p.sta + dt * (p.staK || 1) * 0.03); }
+    function restAll(onFloor, onBench) { for (const t of teams) { for (const p of t.on) p.sta = Math.min(1, p.sta + onFloor * (p.staK || 1)); for (const p of t.bench) p.sta = Math.min(1, p.sta + onBench * (p.staK || 1)); } }
     function integrate(p, dt) {
       if (p.rag) return;
       if (p.rising > 0) { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); }
@@ -5648,7 +5743,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const wh = g > 0.05 ? 0.3 : 0.85, wd = 1 - wh;
       h.x -= ux * pen * wh; h.z -= uz * pen * wh; df.x += ux * pen * wd; df.z += uz * pen * wd;
       df.postOnT = 0.18; df.postOn = h; if (P) { P.cT = 0.18; P.df = df; }
-      if (g > 0.05 && P) h.sta = Math.max(0, h.sta - 0.004 * g * (1 / 60));
+      if (g > 0.05 && P) tire(h, 0.0003 * g);
     }
     // ---------- the user's feet in the post (userMove calls this; true = handled) ----------
     function postUserMove(p, d, dt) {
@@ -5874,7 +5969,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const handY = dH * low * hs + h.jumpY, u = b.u, sb = Math.abs(2 * u - 1), y = BALL_R + (handY - BALL_R) * sb * (2 - sb); // a parabola each way (gravity): quick off the floor, hanging at the top, a sharp bounce at the floor
       const nx = h.x + f[0] * fw * hs + r[0] * side * hs + h.vx * 0.035, nz = h.z + f[1] * fw * hs + r[1] * side * hs + h.vz * 0.035;
-      if (b.prevU < 0.5 && u >= 0.5) { if (Math.hypot(h.x - cam.e[0], h.z - cam.e[2]) < 14) try { sfx.play('tap'); } catch (e) {} }
+      if (b.prevU < 0.5 && u >= 0.5) { if (Math.hypot(h.x - cam.e[0], h.z - cam.e[2]) < 14) try { sfx.play('drib'); } catch (e) {} }
       b.prevU = u;
       b.vx = (nx - b.x) / Math.max(dt, 1e-3); b.vy = (y - b.y) / Math.max(dt, 1e-3); b.vz = (nz - b.z) / Math.max(dt, 1e-3);
       b.x = nx; b.y = y; b.z = nz;
@@ -5965,7 +6060,7 @@ gl_FragColor=vec4(c,1.0);}`;
     let hitT = 0;
     function hitSound(k, v) {
       if (v < 1.2 || hitT > 0) return; hitT = 0.06;
-      try { sfx.play(k === 'rim' ? 'clang' : k === 'board' ? 'doink' : 'tap'); } catch (e) {}
+      try { SND.hit(k, v); } catch (e) {}
     }
     // ball state per game step
     function ballStep(dt) {
@@ -6200,7 +6295,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function skillAt(p, d, ft) { return ft ? rt(p, 'ft') : d < 2.2 ? rt(p, 'fin') : d < COURT.three ? rt(p, 'mid') : rt(p, 'three'); }
     function basePct(p, d, ft) {
-      const r = skillAt(p, d, ft), tired = 1 - 0.12 * (1 - p.sta);
+      const r = skillAt(p, d, ft), tired = 1 - 0.24 * Math.pow(1 - p.sta, 1.2); // tired legs: the shot comes up short
       if (ft) return clamp(0.42 + (r - 50) * 0.0105, 0.25, 0.95) * tired;
       let b = lerp(0.62, 0.36, clamp((d - 1.5) / 5.2, 0, 1)) - clamp((d - COURT.three - 1.2) / 4, 0, 0.3);
       return clamp(b + (r - 65) * 0.0065, 0.08, 0.85) * tired;
@@ -6226,7 +6321,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // a fresh player; narrower when contested, deep, off the dribble or at a higher level
     function shotSetup(p, ft, kind, T) {
       const h = hoopOf(p.side), d = rimDist(p.x, p.z, h), c = ft ? 0 : contestOf(p, h), r = skillAt(p, d, ft);
-      let w = (0.27 + (r - 50) * 0.0035) * (1 - 0.6 * c) * (1 - clamp((d - 3) / 10, 0, 0.4)) * (ft ? 1.2 : 1) * (kind === 'catch' ? 1.12 : kind === 'pull' || kind === 'step' ? 0.88 : kind === 'fade' || kind === 'lean' ? 0.8 : 1) * (0.88 + 0.12 * p.sta);
+      let w = (0.27 + (r - 50) * 0.0035) * (1 - 0.6 * c) * (1 - clamp((d - 3) / 10, 0, 0.4)) * (ft ? 1.2 : 1) * (kind === 'catch' ? 1.12 : kind === 'pull' || kind === 'step' ? 0.88 : kind === 'fade' || kind === 'lean' ? 0.8 : 1) * (0.8 + 0.2 * p.sta);
       if (p.side === 0) w *= userGreenK; else w *= 1.05 - 0.2 * DK;
       return { h, d, c, kind: kind || 'stand', T: T || 0.5, tJ: ft ? 0 : (T || 0.5) * 0.5, gc: GREEN_C, w: clamp(w, 0.07, 0.55), pts: ft ? 1 : isThree(p.x, p.z, h) ? 3 : 2, ft: !!ft, x: p.x, z: p.z };
     }
@@ -6237,7 +6332,7 @@ gl_FragColor=vec4(c,1.0);}`;
       p.face2 = Math.atan2(h.x - p.x, h.z - p.z);
       if (!(opt && opt.step)) {
         // (the modifier key asks for the crafty finish instead: a euro step at the rim, a floater from the lane)
-        const mod = isUser(p) && input.mod, toRim = sp > 0.1 ? (p.vx * (h.x - p.x) + p.vz * (h.z - p.z)) / (sp * (d || 1)) : 0;
+        const mod = (isUser(p) && input.mod) || p.euroT > 0, toRim = sp > 0.1 ? (p.vx * (h.x - p.x) + p.vz * (h.z - p.z)) / (sp * (d || 1)) : 0;
         if (d < layReach(sp) && !p.noLay) return startLayup(p, h, mod ? (d > 2.2 && sp > 2 ? 'euro_step' : 'layup_finger') : null);
         // the floater: on the move in the lane, let go early and high over the big man (the modifier; the CPU when one waits at the rim)
         if (sp > 2.4 && toRim > 0.6 && d < layReach(sp) + 1.5 && (mod || (!isUser(p) && rt(p, 'fin') >= 60 && rimGuard(p, h)))) return startLayup(p, h, 'floater');
@@ -6312,12 +6407,13 @@ gl_FragColor=vec4(c,1.0);}`;
         P = clamp(0.88 + 0.1 * (1 - Math.abs(off) / half) - 0.4 * cNow - (S.d > COURT.three + 2 ? 0.1 : 0), 0.35, 0.99);
         if (isUser(p) && cNow < 0.15 && S.d < COURT.three + 3.5) P = 1; // green and wide open: it goes in
       } else { const q = clamp(1 - (Math.abs(off) - half) / 0.3, 0, 1); P = basePct(p, S.d, S.ft) * (1 - 0.55 * cNow) * (0.2 + 0.8 * q) * (grade === 'vearly' || grade === 'vlate' ? 0.55 : 1); }
-      if (S.ft) P = green ? Math.max(P, 0.9) : P;
+      if (S.ft) P = isUser(p) ? (green ? Math.max(P, 0.9) : P) : basePct(p, S.d, true); // yours is the meter; the CPU's is his FT rating
       const made = rng() < P;
       const LG = DBG && DBG.shotLog ? { side: p.side, kind: S.kind, T: +S.T.toFixed(3), d: +S.d.toFixed(1), c: +cNow.toFixed(2), off: +off.toFixed(3), w: +S.w.toFixed(3), grade, P: +P.toFixed(2), made, tRel: +(m * S.T).toFixed(3) } : null; if (LG) DBG.shotLog.push(LG);
       const exc = grade === 'exc' && !S.ft;
       if (p.shotA < REL_A && !S.ft) { p.relPend = { S, made, off, green, lg: LG, exc }; } // the ball is not up in his hands yet: it goes the moment it is
       else { launchShot(p, S, made, off, green); if (LG) { ball.shot.lg = LG; LG.made = ball.shot.made; } ball.shot.trail = exc; }
+      if (!S.ft) bodyFoul(p, cNow, 0.2, 0.34);
       p.shotS = null; p.meterG = green; p.lastGrade = grade;
     }
     // the ball leaves his hand on a real arc with backspin. The result is decided; the aim that gets it (a swish, a rattle in, a
@@ -6333,7 +6429,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!S.ft) { const s = stat(p.sq); s.fga++; if (S.pts === 3) s.tpa++; } else stat(p.sq).fta++;
       // fouled in the act: the shot counts if it goes (and one), else he shoots two or three
       if (p.foulOn && !S.ft) { b.shot.and1 = true; b.shot.fouled = { d: p.foulOn.d, sh: p }; pendFT = { sh: p, d: p.foulOn.d, pts: S.pts }; p.foulOn = null; }
-      try { sfx.play('throw'); } catch (e) {}
+      try { sfx.play('throw'); SND.shot(b.shot); } catch (e) {}
       p.dribbling = false;
     }
     // ---------- layups and floaters (no meter: the finish is decided by FIN against the rim protection) ----------
@@ -6396,24 +6492,34 @@ gl_FragColor=vec4(c,1.0);}`;
         p.fin = null;
       }
     }
+    // contact on the shot: a defender (not your own man: his fouls are his jump, tryBlock) all over the shooter gets the whistle
+    // now and then, more at the rim than on a jumper; the shot is already away, so a make is an and-one
+    function bodyFoul(p, c, from, k) {
+      if (phase !== 'live' || c <= from) return;
+      let d = null, bd = 1.5; for (const q of foes(p)) { const dd = D(q, p); if (dd < bd && !isUser(q)) { bd = dd; d = q; } }
+      if (d && rng() < clamp((c - from) * k * (1.15 - rt(d, 'intD') * 0.004), 0, 0.3)) callFoul(d, p, true, 'Foul');
+    }
     // ---------- through the hoop: points ----------
     function onThrough(h) {
       const b = ball, S = b.shot;
-      if (b.scored) return;
+      if (b.scored || b.st === 'dead') return;
       // a ball dropped in by the wrong team at its own basket still counts for the side that attacks it
       const side = HOOP.indexOf(h) === (dirOf(0) > 0 ? 1 : 0) ? 0 : 1;
       if (S && S.side !== side) return;
       b.scored = true; if (S && S.lg) S.lg.end = 'in';
       const pts = S ? S.pts : 2, by = S ? S.by : b.last;
       if (side === 0) hs += pts; else as += pts;
+      if (runS.side === side) runS.pts += pts; else runS = { side, pts };
       boardDirty = true;
       if (by && by.sq) { const s = stat(by.sq); s.pts += pts; if (S && S.ft) s.ftm++; else { s.fgm++; if (pts === 3) s.tpm++; } }
       if (S && S.ast) stat(S.ast.sq).ast++;
       const ft = S && S.ft;
+      runPts[side] += pts; runPts[1 - side] = 0;
       const andOne = S && S.and1;
       lastBig = { kind: S && S.post ? 'post' : pts === 3 ? 'three' : 'score', side, t: tLive };
       excite = Math.min(1, excite + (S && S.post ? 0.55 : pts === 3 ? 0.6 : 0.35));
-      try { sfx.play(side === 0 ? 'cheer' : 'ooh'); if (!ft) setTimeout(() => { try { sfx.play('clap'); } catch (e) {} }, 300); } catch (e) {}
+      try { SND.made(S, side, pts, ft); } catch (e) {}
+      if (!ft && qtr >= 4 && clock <= 4 && (side === 0 ? hs - as : as - hs) > 0 && (side === 0 ? hs - as : as - hs) - pts <= 0) PRES.mark('winner', by, null); else if (!ft && clock <= 0.8 && qtr <= 3) PRES.mark('buzzer', by, null);
       if (!ft) {
         const clean = !b.touchRim && !b.touchBoard;
         const txt = S && S.post ? (S.green ? 'BUCKET' : 'POST BUCKET') : S && S.tip ? 'TIP IN' : pts === 3 ? 'THREE!' : S && S.green ? (clean ? 'SWISH!' : 'GREEN!') : S && S.layup ? (b.touchBoard && !b.touchRim ? 'OFF THE GLASS' : 'BUCKET') : b.touchBoard && !S.layup ? 'BANK!' : clean ? 'SWISH' : 'BUCKET';
@@ -6425,7 +6531,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (!ft) { camHoldT = 0.7; camHoldSide = side; }
       // what happens next: free throws carry on, an and-one goes to the line, else the other team inbounds from under the basket
-      if (ft) return; // ftStep decides
+      if (ft) { if (S.ftLast) { ftLive = false; endPossession('ft', side); } return; } // (the earlier ones: ftStep decides)
       if (andOne && S.fouled) { pendFT = null; const sh = S.fouled.sh; setDead(1.3, () => startFT(sh, 1)); popAt(sh, 'AND ONE!', side === 0 ? '#ffc21a' : '#ff7a6a'); return; }
       endPossession('made', side);
     }
@@ -6440,12 +6546,19 @@ gl_FragColor=vec4(c,1.0);}`;
       stat(d.sq).blk++;
       popAt(d, 'BLOCKED!', d.side === 0 ? '#4dd2ff' : '#ff7a6a'); tableFlash('BLOCKED!', 1.6);
       excite = Math.min(1, excite + 0.5); cam.shake = Math.max(cam.shake, 0.4);
-      try { sfx.play('ooh'); } catch (e) {}
+      try { sfx.play('ooh'); SND.bench(d.side, 2); SND.bump(d.x, d.z, 0.9); } catch (e) {}
+      PRES.mark('block', d, shooter);
       if (meterOn && shooter === ctrl) meterHide();
     }
     // a contest in the air: his hand gets to a shot that just left (or a shot still in the shooter's hands at the top)
     function tryBlock(d) {
       const b = ball;
+      // your own jump into the shooter's body is a foul more often than not: contest with a hand up from a step away
+      if (isUser(d) && !(tLive - (d.cfT || -9) < 1)) {
+        const sh = b.holder && b.holder.side !== d.side && ((b.holder.shotS && !b.holder.shotRel) || b.holder.fin) ? b.holder : b.st === 'air' && b.shot && !b.shot.ft && b.shot.t < 0.2 && b.shot.side !== d.side ? b.shot.by : null;
+        if (sh) { const dd = D(d, sh), into = ((sh.x - d.x) * d.vx + (sh.z - d.z) * d.vz) / (dd || 1);
+          if (dd < 0.95) { d.cfT = tLive; if (rng() < clamp(0.16 + (0.95 - dd) * 0.7 + Math.max(0, into) * 0.09 - rt(d, 'perD') * 0.001, 0.08, 0.75) || (DBG && DBG.forceFoul)) { callFoul(d, sh, true, 'Foul'); return false; } } }
+      }
       if (b.st === 'air' && b.shot && !b.shot.ft && b.shot.t < 0.32 && b.shot.side !== d.side) {
         const hy = d.jumpY + d.lk.hs * 2.75, hand = [d.x + Math.sin(d.h) * 0.3, hy, d.z + Math.cos(d.h) * 0.3];
         const dd = Math.hypot(b.x - hand[0], b.y - hand[1], b.z - hand[2]);
@@ -6462,10 +6575,10 @@ gl_FragColor=vec4(c,1.0);}`;
       const dd = D(d, h); if (dd > 1.45) return false;
       // reach-ins: spamming it, or reaching from behind, is a foul
       const fx = Math.sin(d.h), fz = Math.cos(d.h), front = ((h.x - d.x) * fx + (h.z - d.z) * fz) / (dd || 1);
-      const foulP = clamp(0.06 + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0), 0, 0.7);
+      const foulP = clamp((isUser(d) ? 0.05 : 0.13) + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0), 0, 0.7);
       if (rng() < foulP) { callFoul(d, h, false, 'Reach-in'); return false; }
       const exposed = (b.st === 'drib' && b.u > 0.25 && b.u < 0.75 ? 0.08 : 0) + (b.mv ? 0.1 : 0) + (h.pose === 'pass' ? 0.1 : 0) + (h.pm ? (h.pm.k === 'pspin' ? 0.2 : h.pm.k === 'shimmy' ? 0.04 : 0.1) : h.post ? 0.04 : 0); // (a post man is loose on a spin: the strip)
-      const pr = clamp(0.1 + (rt(d, 'stl') - rt(h, 'hand')) * 0.006 + exposed + (d.side === 1 ? DK * 0.04 : 0) - (dd - 0.8) * 0.15, 0.03, 0.55);
+      const pr = clamp(0.1 + (rt(d, 'stl') - rt(h, 'hand')) * 0.006 + (1 - h.sta) * 0.12 - (1 - d.sta) * 0.06 + exposed + (d.side === 1 ? DK * 0.04 : 0) - (dd - 0.8) * 0.15, 0.03, 0.55);
       if (rng() < pr) {
         stat(d.sq).stl++; stat(h.sq).to++;
         popAt(d, 'STEAL!', d.side === 0 ? '#4dd2ff' : '#ff7a6a');
@@ -6481,41 +6594,74 @@ gl_FragColor=vec4(c,1.0);}`;
     const MOVES = BB_CHAIN; // the Q chain and its moves' timing: 05b-bbclips.js
     const MOVE_D = BB_MOVE_D;
     // Q on offense: the next move in the chain. Too fast or too many in a row and he loses it
-    function doMove(p) {
+    // which moves suit the side he wants to go (the stick, relative to his body: +1 his right) and the way his ball hand points:
+    // a swap (crossover, between the legs, behind the back) takes the ball and him to the other side; an in-and-out or a double
+    // goes out the ball side; a spin turns him off the ball side.
+    const MV_SWAP = { cross: 1, btl: 1, btb: 1 }, MV_SAME = { inout: 1, dbl: 1 }, SIZE_UP = ['inout', 'cross', 'hesi', 'btl', 'dbl', 'btb'];
+    function pickMove(p, want, fw, sp0, mod) {
+      const from = p.dh || 1;
+      if (mod) return sp0 > 2.4 && fw > -0.5 ? 'euro' : 'stepback';
+      if (fw < -0.45 && Math.abs(want) < 0.6) return 'stepback'; // pulling the stick back = the step-back
+      const chain = sp0 < 1.0 ? SIZE_UP : MOVES.filter((k) => k !== 'stepback');
+      for (let i = 0; i < chain.length; i++) {
+        const k = chain[(p.cmb + i) % chain.length];
+        if (!want) return k;
+        const need = MV_SWAP[k] || k === 'spin' ? -from : MV_SAME[k] ? from : 0;
+        if (!need || need === want) { p.cmb += i; return k; }
+      }
+      return chain[p.cmb % chain.length];
+    }
+    // Q on offense: the next move in the chain. Too fast or too many in a row and he loses it
+    function doMove(p, mod) {
       const b = ball; if (b.holder !== p || phase !== 'live' || p.shotS || p.fin) return false;
       if (b.st !== 'drib') startDribble(p);
-      const gap = tLive - (p.cmbLast || -9), minGap = 0.26 - (rt(p, 'hand') - 50) * 0.0012;
+      const hnd = rt(p, 'hand'), gap = tLive - (p.cmbLast || -9), minGap = 0.3 - (hnd - 50) * 0.0013 + (1 - p.sta) * 0.12;
       if (gap > 1.6) p.cmb = 0;
-      p.cmbHeat = (p.cmbHeat || 0) + 1;
-      const tooFast = gap < minGap, risk = clamp((p.cmbHeat - 3.2) * 0.13 + (tooFast ? 0.4 : 0) - (rt(p, 'hand') - 60) * 0.005, 0, 0.92);
+      p.cmbHeat = Math.max(0, (p.cmbHeat || 0) - Math.min(gap, 4) * 0.9) + 1; // (the heat cools with the time since the last one)
+      const tooFast = gap < minGap, tired = 1 - p.sta;
+      const risk = clamp((p.cmbHeat - 3.0) * 0.14 + (tooFast ? 0.42 : 0) + tired * 0.3 - (hnd - 60) * 0.005, 0, 0.92);
+      tire(p, 0.014);
       p.cmbLast = tLive;
-      if ((tooFast || p.cmbHeat > 3) && rng() < risk) { // lost it off his foot
+      if ((tooFast || p.cmbHeat > 3 || tired > 0.6) && rng() < risk) { // lost it off his foot
         stat(p.sq).to++; setPose(p, 'fumble');
-        b.holder = null; b.st = 'loose'; b.mv = null; b.vx = Math.sin(p.h) * 2.5 + (rng() - 0.5) * 2.5; b.vz = Math.cos(p.h) * 2.5 + (rng() - 0.5) * 2.5; b.vy = 0.5; b.lastSide = p.side; b.last = p;
+        const sdl = p.dh || 1, rr = rightOf(p);
+        b.holder = null; b.st = 'loose'; b.mv = null; b.vx = Math.sin(p.h) * 2.2 + rr[0] * sdl * 1.4 + (rng() - 0.5) * 2.5; b.vz = Math.cos(p.h) * 2.2 + rr[1] * sdl * 1.4 + (rng() - 0.5) * 2.5; b.vy = 0.5; b.noGrabT = tLive + 0.45; b.lastSide = p.side; b.last = p;
+        p.mvB = null; p.stumbleT = Math.max(p.stumbleT, 0.2); p.cmbHeat = 0;
         popAt(p, 'LOST IT!', '#ff7a6a'); try { sfx.play('bad'); } catch (e) {}
         return false;
       }
-      const k = MOVES[p.cmb % MOVES.length]; p.cmb++;
-      const dur = MOVE_D[k] * (1.08 - rt(p, 'hand') * 0.0015);
-      const from = p.dh || 1, to = BBMOVES[k] && BBMOVES[k].swap ? -from : from;
+      const r = rightOf(p), f = fwdOf(p), sp0 = Math.hypot(p.vx, p.vz), sdir = isUser(p) ? userDir() : null;
+      const lat = sdir ? sdir[0] * r[0] + sdir[1] * r[1] : 0, fw = sdir ? sdir[0] * f[0] + sdir[1] * f[1] : 0, want = Math.abs(lat) > 0.38 ? Math.sign(lat) : 0;
+      const k0 = pickMove(p, want, fw, sp0, mod), euro = k0 === 'euro', k = euro ? 'btl' : k0; p.cmb++;
+      const dur = (MOVE_D[k] * (euro ? 1.15 : 1)) * (1.08 - hnd * 0.0015);
+      const from = p.dh || 1, swap = BBMOVES[k] && BBMOVES[k].swap, to = swap ? -from : from;
       b.mv = { k, t: 0, dur, from, to }; p.dh = to; p.mvS = to;
       setPose(p, k);
-      // the move moves him: a lateral burst (a crossover), a stop and go (hesitation), a spin round the defender
       // the move moves him: a hard step to the side the ball goes (a crossover, between the legs, behind the back), a stop and
-      // go (hesitation), a turn round the defender (spin), a hop back (step-back). The step is the move's own: it is not braked
-      // by a stick at rest, and he comes out of it at pace (mvStep below).
-      const r = rightOf(p), f = fwdOf(p), push = 2.2 + rt(p, 'spd') * 0.02, ST = MOVE_STEP[k] || MOVE_STEP.cross, qk = 0.9 + rt(p, 'spd') * 0.002;
-      const sd = k === 'spin' ? -from : to, sp0 = Math.hypot(p.vx, p.vz), cv = Math.min(1, 3.2 / (sp0 || 1)) * 0.6;
+      // go (hesitation), a turn round the defender (spin), a hop back (step-back), a long two-step across (euro). The step is the
+      // move's own: it is not braked by a stick at rest, and he comes out of it at pace (mvStep below). Standing, he sizes up: the
+      // same moves in place (a short shift), the real step comes when he is moving.
+      const push = 2.2 + rt(p, 'spd') * 0.02, ST0 = euro ? [1.85, 0.95] : (MOVE_STEP[k] || MOVE_STEP.cross), qk = 0.9 + rt(p, 'spd') * 0.002;
+      const sz = sp0 < 1.0 && k !== 'stepback' ? 0.45 : 1, ST = [ST0[0] * sz, ST0[1] * sz];
+      const sd = k === 'spin' ? -from : to, cv = Math.min(1, 3.2 / (sp0 || 1)) * 0.6;
       if (k === 'hesi') bbMoveKick(p, k, to, push);
       else if (k === 'stepback') { p.hesiGo = 0.25; p.stepBackT = 0.9; }
-      p.mvB = { k, t: 0, dur: dur * 1.12, h: p.h, dx: (r[0] * sd * ST[0] + f[0] * ST[1]) * qk, dz: (r[1] * sd * ST[0] + f[1] * ST[1]) * qk, cx: k === 'stepback' || k === 'hesi' ? 0 : p.vx * cv, cz: k === 'stepback' || k === 'hesi' ? 0 : p.vz * cv, sd };
-      // the man guarding him may bite: a stumble (broken ankles) by the handle against his perimeter defense
+      if (euro) p.euroT = 1.1; // the next layup is the euro step
+      p.mvB = { k, t: 0, dur: dur * 1.12, h: p.h, dx: (r[0] * sd * ST[0] + f[0] * ST[1]) * qk, dz: (r[1] * sd * ST[0] + f[1] * ST[1]) * qk, cx: k === 'stepback' || k === 'hesi' ? 0 : p.vx * cv, cz: k === 'stepback' || k === 'hesi' ? 0 : p.vz * cv, sd, bit: false };
+      // the man guarding him: his weight is on the wrong foot when the move goes the other way from where he is moving (a
+      // momentum read), so a quick handler against a defender who has just committed breaks his ankles; a chain of moves wears
+      // him down; if he is not fooled he recovers and cuts the new lane off
       for (const d of foes(p)) {
         if (D(d, p) > 2.5) continue;
-        // he reads it a beat late and leans the way the ball was (the fake) before he slides back in front
-        if (!isUser(d) && k !== 'hesi') { d.lagT = clamp(0.14 + (rt(p, 'hand') - rt(d, 'perD')) * 0.004 + rng() * 0.08 - (d.side === 1 ? DK * 0.04 : 0), 0.07, 0.34); d.vx -= r[0] * sd * 1.3; d.vz -= r[1] * sd * 1.3; }
-        const pr = clamp(0.1 + (rt(p, 'hand') - rt(d, 'perD')) * 0.008 + (k === 'spin' || k === 'btb' ? 0.05 : 0) - (d.side === 1 ? DK * 0.06 : 0) - (p.cmbHeat > 2 ? 0 : 0.04), 0.02, 0.5);
-        if (rng() < pr) { d.stumbleT = 0.55; d.vx *= 0.2; d.vz *= 0.2; if (pr > 0.25 && rng() < 0.5) { popAt(d, 'ANKLES!', p.side === 0 ? '#ffc21a' : '#ff7a6a'); excite = Math.min(1, excite + 0.35); try { sfx.play('ooh'); } catch (e) {} } }
+        const dvx = d.vx - p.vx, dvz = d.vz - p.vz, along = (dvx * r[0] + dvz * r[1]) * sd; // his speed across, relative to the handler: negative = going the other way
+        const caught = clamp(-along, 0, 3), chainB = Math.min(0.15, Math.max(0, p.cmbHeat - 1) * 0.05), tm = k === 'hesi' ? clamp(1.6 - Math.hypot(d.vx, d.vz), 0, 1.6) * 0.04 : 0;
+        const pr = clamp(0.07 + (hnd - rt(d, 'perD')) * 0.008 + caught * 0.075 + Math.min(5, sp0) * 0.012 + chainB + tm + (k === 'spin' || k === 'btb' ? 0.04 : 0) + (euro ? 0.03 : 0) - (d.side === 1 ? DK * 0.06 : 0) - (sp0 < 1 ? 0.04 : 0), 0.02, 0.6);
+        const bit = rng() < pr;
+        if (!isUser(d) && k !== 'hesi') { d.lagT = clamp(0.14 + (hnd - rt(d, 'perD')) * 0.004 + rng() * 0.08 - (d.side === 1 ? DK * 0.04 : 0) + (bit ? 0.06 : 0), 0.07, 0.36); d.vx -= r[0] * sd * 1.3; d.vz -= r[1] * sd * 1.3; }
+        if (bit) {
+          d.stumbleT = 0.5 + Math.min(0.5, pr * 0.8); d.vx *= 0.2; d.vz *= 0.2; p.mvB.bit = true;
+          if (pr > 0.26 && rng() < 0.55) { popAt(d, 'ANKLES!', p.side === 0 ? '#ffc21a' : '#ff7a6a'); excite = Math.min(1, excite + 0.35); try { sfx.play('ooh'); SND.squeak(d.x, d.z, 1.1); } catch (e) {} PRES.mark('ankles', p, d); }
+        } else if (!isUser(d) && rt(d, 'perD') > hnd - 5) { d.burstT = 0.45; d.cutV = [r[0] * sd, r[1] * sd]; d.cutT = 0.3; } // he recovers and cuts the lane off
         break;
       }
       return true;
@@ -6523,11 +6669,13 @@ gl_FragColor=vec4(c,1.0);}`;
     const MOVE_STEP = { cross: [1.25, 0.4], btl: [1.05, 0.5], btb: [1.15, 0.35], inout: [0.95, 0.55], dbl: [1.2, 0.35], spin: [1.15, 1.0], stepback: [0, -1.5], hesi: [0, 0.12] }; // yards: [to the side, forward]
     // the step of a dribble move: a quick push off the outside foot and a glide (the whole distance over the move's time)
     function mvStep(p, dt) {
+      if (p.cutT > 0) { p.cutT -= dt; if (p.cutV) { p.vx += p.cutV[0] * dt * 9; p.vz += p.cutV[1] * dt * 9; } }
+      if (p.euroT > 0) p.euroT -= dt;
       if (p.post || p.pm) postTick(p, dt); // the post game (30-move.js)
       const M = p.mvB; if (!M) return;
       if (ball.holder !== p || p.shotS || p.fin || p.passT != null || p.stumbleT > 0 || phase !== 'live') { p.mvB = null; return; }
       M.t += dt; const u = M.t / M.dur;
-      if (u >= 1) { p.mvB = null; p.burstT = 0.55; return; }
+      if (u >= 1) { p.mvB = null; p.burstT = M.bit ? 0.85 : 0.55; p.burstK = M.bit ? 0.24 : 0.14; const bl = Math.hypot(M.dx, M.dz) || 1; p.vx += M.dx / bl * (M.bit ? 1.6 : 0.8); p.vz += M.dz / bl * (M.bit ? 1.6 : 0.8); return; }
       const w = Math.sin(Math.PI * u) * Math.PI / 2 / M.dur;
       p.vx = M.dx * w + M.cx; p.vz = M.dz * w + M.cz; if (M.k !== 'spin') p.face2 = M.h;
     }
@@ -6618,9 +6766,9 @@ gl_FragColor=vec4(c,1.0);}`;
     function outOfBounds(lastSide, x, z) {
       if (phase !== 'live') return;
       const side = 1 - lastSide;
-      whistle('Out of bounds', (side === 0 ? HOME.abbr : AWAY.abbr) + ' ball');
+      whistle('Out of bounds', (side === 0 ? HOME.abbr : AWAY.abbr) + ' ball', 'oob');
       ball.st = 'dead'; ball.holder = null; ball.shot = null;
-      setDead(0.9, () => startInbound(side, clamp(x, -COURT.HL + 0.5, COURT.HL - 0.5), z));
+      deadInbound(0.9, side, clamp(x, -COURT.HL + 0.5, COURT.HL - 0.5), z);
     }
     // ---------- fouls ----------
     function contact(a, b, v) { // a hard bump in traffic: a charge or a block now and then (by who was moving into whom)
@@ -6628,19 +6776,19 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = ball.holder; if (!h || (h !== a && h !== b)) return;
       const d = h === a ? b : a, hv = Math.hypot(h.vx, h.vz), dv = Math.hypot(d.vx, d.vz);
       if (hv > dv + 2 && d.stumbleT <= 0) { // charging: the defender had his spot
-        stat(h.sq).pf++; stat(h.sq).to++; whistle('Charge!', 'Offensive foul on ' + shortName(h.sq.name));
+        stat(h.sq).pf++; stat(h.sq).to++; whistle('Charge!', 'Offensive foul on ' + shortName(h.sq.name), 'charge');
         ball.st = 'dead'; ball.holder = null;
-        setDead(1.0, () => startInbound(d.side, clamp(h.x, -COURT.HL + 1, COURT.HL - 1), h.z > 0 ? COURT.HW : -COURT.HW));
-      } else if (dv > hv + 1.5) callFoul(d, h, false, 'Blocking foul');
+        deadInbound(1.0, d.side, clamp(h.x, -COURT.HL + 1, COURT.HL - 1), h.z > 0 ? COURT.HW : -COURT.HW);
+      } else if (dv > hv + 1.5) callFoul(d, h, false, 'Blocking foul', 'block');
     }
-    function callFoul(d, sh, shooting, why) {
+    function callFoul(d, sh, shooting, why, sig) {
       if (phase !== 'live' && phase !== 'inb') return;
       const t = teams[d.side]; t.fq++; stat(d.sq).pf++;
       if (t.fq >= 5) t.bonus = true;
       const b = ball, shotInAir = b.st === 'air' && b.shot && b.shot.by === sh && !b.shot.ft;
       const isShoot = shooting || (sh.shotS && !sh.shotRel) || !!sh.fin || shotInAir;
       boardDirty = true;
-      // fouled going up (in a layup or dunk, or in the shooting motion): the play goes on to the release; if it drops it counts
+      // fouled going up (in a layup, or in the shooting motion): the play goes on to the release; if it drops it counts
       // and he shoots one, else two or three (launchShot / the slam pick the foul up)
       if (phase === 'live' && !shotInAir && ball.holder === sh && !sh.foulOn && (sh.fin || (sh.shotS && !sh.shotRel && sh.jumped))) {
         sh.foulOn = { d, t: tLive };
@@ -6649,16 +6797,16 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       if (isShoot && shotInAir) { // fouled on the shot: if it goes in it counts plus one, else two or three shots
         b.shot.and1 = true; b.shot.fouled = { d, sh };
-        whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), 'Shooting foul');
+        whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), 'Shooting foul · and one if it drops', 'foul');
         pendFT = { sh, d, pts: b.shot.pts };
         return;
       }
-      whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), isShoot ? 'Shooting foul · ' + (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) + ' shots' : t.bonus ? 'Bonus · 2 shots' : (sh.side === 0 ? HOME.abbr : AWAY.abbr) + ' ball');
+      whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), isShoot ? 'Shooting foul · ' + (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) + ' shots' : t.bonus ? 'Bonus · 2 shots' : (sh.side === 0 ? HOME.abbr : AWAY.abbr) + ' ball · team fouls ' + t.fq, sig || 'foul');
       const n = isShoot ? (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) : t.bonus ? 2 : 0;
       sh.shotS = null; sh.fin = null; sh.shotRel = true; if (meterOn && sh === ctrl) meterHide();
       b.st = 'dead'; b.holder = null; b.shot = null; b.pass = null;
       if (n) setDead(1.2, () => startFT(sh, n));
-      else setDead(1.0, () => startInbound(sh.side, clamp(sh.x, -COURT.HL + 1, COURT.HL - 1), sh.z >= 0 ? COURT.HW : -COURT.HW));
+      else deadInbound(1.0, sh.side, clamp(sh.x, -COURT.HL + 1, COURT.HL - 1), sh.z >= 0 ? COURT.HW : -COURT.HW);
     }
     let pendFT = null;
     // F on defense: an intentional foul by your man (or the closest of yours to the ball)
@@ -6667,12 +6815,34 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = ball.holder; if (!h || h.side === p.side) return false;
       let f = p; if (D(p, h) > 2.0) { let bd = 99; for (const q of mates(p)) { const d = D(q, h); if (d < bd) { bd = d; f = q; } } }
       if (D(f, h) > 3) return false;
-      setPose(f, 'steal'); callFoul(f, h, false, 'Foul');
+      setPose(f, 'steal'); f.face2 = Math.atan2(h.x - f.x, h.z - f.z); callFoul(f, h, false, 'Intentional foul');
       return true;
     }
     // ---------- whistles, dead balls, inbounds ----------
-    function whistle(a, b2) { try { sfx.play('whistle'); } catch (e) {} banner(a, b2, '#ffc21a'); setTimeout(() => clearBanner(), 1600); clockRun = false; }
-    function setDead(t, next) { inbPlan = null; phase = 'dead'; deadT = t; deadNext = next; clockRun = false; for (const p of onCourt) { p.shotS = null; p.fin = null; p.passT = null; p.dstance = false; p.face2 = null; p.foulOn = null; } if (meterOn) meterHide(); }
+    function whistle(a, b2, sig) { try { sfx.play('whistle'); REFS.blow(); } catch (e) {} refCall(sig || 'foul', a, b2); clockRun = false; }
+    // a dead ball: every move in progress is over (nobody is left frozen in a reach, a stumble or a half-made layup)
+    function setDead(t, next) {
+      inbPlan = null; phase = 'dead'; deadT = t; deadNext = next; clockRun = false;
+      for (const p of onCourt) { p.shotS = null; p.fin = null; p.passT = null; p.dstance = false; p.face2 = null; p.foulOn = null; p.mvB = null; p.stumbleT = 0; p.sprint = false; if (p.jumpY < 0.02 && p.pose !== 'idle') setPose(p, 'idle'); }
+      if (meterOn) meterHide();
+    }
+    // a whistle that ends in a throw-in: the ball goes to the man who takes it out, he walks to the spot while the others set up,
+    // and the throw-in starts when he is there (nobody is beamed to the line)
+    function deadInbound(t, side, x, z, base, slow) {
+      setDead(t, null); poss = side; shotClk = SHOT;
+      ball.st = 'dead'; ball.holder = null; ball.shot = null; ball.pass = null;
+      inbPlan = planInbound(side, x, z, base);
+      armInbound(side, x, z, base, slow);
+    }
+    function armInbound(side, x, z, base, slow) {
+      let n = 0; const max = slow ? 34 : 16;
+      const f = () => {
+        const P = inbPlan, t = teams[side];
+        if (P && P.side === side && t.on.includes(P.passer) && n++ < max && Math.hypot(P.passer.x - P.x, P.passer.z - P.z) > 0.8) { phase = 'dead'; deadT = 0.15; deadNext = f; return; }
+        startInbound(side, x, z, base);
+      };
+      deadNext = f;
+    }
     function changePoss(side, holder) {
       poss = side; shotClk = SHOT;
       for (const p of onCourt) { p.dstance = false; p.boxOut = false; }
@@ -6691,7 +6861,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // comes back for the ball and everyone else heads up the floor during the dead second (60-ai.js resetStep)
       poss = side; shotClk = SHOT; inbPlan = planInbound(side, h.x + h.dir * 0.9, z0, true);
       const far = Math.hypot(inbPlan.passer.x - inbPlan.x, inbPlan.passer.z - inbPlan.z); deadT += clamp((far - 4) * 0.15, 0, 0.6);
-      deadNext = () => startInbound(side, h.x + h.dir * 0.9, z0, true);
+      armInbound(side, h.x + h.dir * 0.9, z0, true);
       for (const p of onCourt) { p.shotS = null; p.fin = null; }
     }
     // the inbound: the passer out of bounds at the spot, his teammates get open, the pass in after a moment (or E)
@@ -6740,50 +6910,71 @@ gl_FragColor=vec4(c,1.0);}`;
       }
     }
     // ---------- free throws ----------
+    // everyone walks to his place: the shooter to the line, the lane filled low to high (two defenders on the low blocks, two of
+    // the shooter's side above them, a third defender above those), the rest behind the arc; then the shots, on the meter
+    let ftLive = false;
+    const runPts = [0, 0];
+    function ftSpots(sh) {
+      const h = hoopOf(sh.side), d = h.dir, zl = COURT.keyW / 2 + 0.42, M = new Map();
+      const big = (L) => L.slice().sort((a, b) => (rt(b, 'reb') + b.lk.hs * 60) - (rt(a, 'reb') + a.lk.hs * 60));
+      const defs = big(teams[1 - sh.side].on), offs = big(teams[sh.side].on.filter((p) => p !== sh));
+      const lx = (k) => d * (COURT.HL - 2.45 - k * 1.08);
+      M.set(sh, [d * (COURT.ftX - 0.3), 0]);
+      M.set(defs[0], [lx(0), zl]); M.set(defs[1], [lx(0), -zl]); M.set(offs[0], [lx(1), zl]); M.set(offs[1], [lx(1), -zl]); M.set(defs[2], [lx(2), -zl]);
+      const back = [[d * (COURT.ftX - 3.3), 3.6], [d * (COURT.ftX - 3.3), -3.6], [d * (COURT.ftX - 5.2), 1.2], [d * (COURT.ftX - 4.4), -1.4]];
+      [offs[2], defs[3], offs[3], defs[4]].forEach((p, i) => { if (p) M.set(p, back[i]); });
+      return M;
+    }
     function startFT(sh, n) {
-      phase = 'ft'; phaseT = 0; clockRun = false; poss = sh.side;
-      const h = hoopOf(sh.side), d = h.dir;
-      ftS = { sh, n, i: 0, side: sh.side, wait: 1.2, state: 'set' };
-      const fx = d * COURT.ftX;
-      sh.x = fx - d * 0.25; sh.z = 0; sh.vx = sh.vz = 0; sh.face2 = d > 0 ? Math.PI / 2 : -Math.PI / 2; sh.h = sh.face2;
-      // the lane: two of each side on the blocks and marks, the rest behind the arc
-      const lane = [[1.2, 1], [2.3, 1], [1.2, -1], [2.3, -1]];
-      const others = onCourt.filter((p) => p !== sh);
-      const defs = others.filter((p) => p.side !== sh.side), offs = others.filter((p) => p.side === sh.side);
-      const place = (p, x, z) => { p.x = x; p.z = z; p.vx = p.vz = 0; p.face2 = Math.atan2(h.x - x, h.z - z); setPose(p, 'idle'); };
-      place(defs[0], d * (COURT.HL - lane[0][0]), lane[0][1] * (COURT.keyW / 2 + 0.3)); place(defs[1], d * (COURT.HL - lane[2][0]), lane[2][1] * (COURT.keyW / 2 + 0.3));
-      place(offs[0], d * (COURT.HL - lane[1][0]), lane[1][1] * (COURT.keyW / 2 + 0.3)); place(offs[1], d * (COURT.HL - lane[3][0]), lane[3][1] * (COURT.keyW / 2 + 0.3));
-      const back = others.filter((p) => !(p === defs[0] || p === defs[1] || p === offs[0] || p === offs[1]));
-      back.forEach((p, i) => place(p, d * (COURT.ftX - 3.2 - (i % 2) * 1.2), (i - 1.5) * 3.2));
-      giveBall(sh, 'held'); setPose(sh, 'idle');
+      if (sh.benched) sh = sh.subBy && !sh.subBy.benched ? sh.subBy : teams[sh.side].on[0];
+      phase = 'ft'; phaseT = 0; clockRun = false; poss = sh.side; inbPlan = null; ftLive = false;
+      ftS = { sh, n, i: 0, side: sh.side, wait: 0.7, state: 'walk', t: 0, spots: ftSpots(sh) };
+      for (const p of onCourt) { p.shotS = null; p.fin = null; p.dstance = false; p.boxOut = false; p.sprint = false; if (p.jumpY < 0.02) setPose(p, 'idle'); }
+      giveBall(sh, 'held');
       if (sh.side === 0) setCtrl(sh);
-      banner('FREE THROW' + (n > 1 ? 'S' : ''), shortName(sh.sq.name) + ' · ' + n + (n > 1 ? ' shots' : ' shot'), '#ffc21a'); setTimeout(() => clearBanner(), 1400);
+      const t = teams[1 - sh.side];
+      flashBanner('FREE THROW' + (n > 1 ? 'S' : ''), shortName(sh.sq.name) + ' · ' + n + (n > 1 ? ' shots' : ' shot') + (t.bonus ? ' · bonus' : ''), '#ffc21a', 1500);
     }
     function ftStep(dt) {
       const F = ftS; if (!F) return;
-      const sh = F.sh, b = ball;
-      if (F.state === 'set') {
-        F.wait -= dt;
+      const sh = F.sh, b = ball, h = hoopOf(F.side);
+      if (F.state === 'walk') {
+        F.t += dt; let far = 0;
         if (b.holder !== sh) giveBall(sh, 'held');
-        if (F.wait <= 0 && (sh.side === 1 || (DBG && DBG.auto) || F.press || F.wait < -4)) {
+        for (const [p, sp] of F.spots) {
+          if (p.benched) continue;
+          const dx = sp[0] - p.x, dz = sp[1] - p.z, dl = Math.hypot(dx, dz);
+          if (dl > 0.12) { const v = Math.min(3.6 + (dl > 6 ? 1.6 : 0), dl * 4); p.vx = dx / dl * v; p.vz = dz / dl * v; p.face2 = null; if (dl > 0.4) far++; }
+          else { p.vx = p.vz = 0; p.face2 = p === sh ? Math.atan2(h.x - p.x, h.z - p.z) : Math.atan2(h.x - p.x, -p.z * 0.6); }
+        }
+        if (!far || F.t > 4.2) {
+          for (const [p, sp] of F.spots) { if (p.benched) continue; p.x = sp[0]; p.z = sp[1]; p.vx = p.vz = 0; p.face2 = p === sh ? Math.atan2(h.x - p.x, h.z - p.z) : Math.atan2(h.x - p.x, -p.z * 0.6); }
+          F.state = 'set'; F.wait = 0.7;
+        }
+      } else if (F.state === 'set') {
+        F.wait -= dt;
+        for (const p of onCourt) { p.vx = p.vz = 0; }
+        if (b.holder !== sh) giveBall(sh, 'held');
+        if (F.wait <= 0 && (sh.side === 1 || (DBG && DBG.auto) || F.press || F.wait < -5)) {
+          F.press = false;
           F.state = 'shoot'; setPose(sh, 'ftshot'); sh.shotS = shotSetup(sh, true, 'ft', 0.7); sh.meter = 0; sh.shotA = 0; sh.shotRel = false; sh.jumped = true; sh.relPend = null;
           sh.cpuRel = cpuTiming(sh);
           if (sh.side === 0 && isUser(sh)) meterShow(true);
         }
       } else if (F.state === 'shoot') {
         shotStep(sh, dt);
-        if (sh.shotRel) { F.state = 'flight'; F.t = 0; }
+        if (sh.shotRel) {
+          F.state = 'flight'; F.t = 0;
+          // the last one is live off the iron: the lane crashes the glass as it leaves his hand
+          if (F.i >= F.n - 1 && b.shot) { b.shot.ftLast = true; ftS = null; ftLive = true; phase = 'live'; clockRun = false; for (const p of onCourt) p.face2 = null; }
+        }
       } else if (F.state === 'flight') {
         F.t += dt;
         const done = b.scored || (b.shot && b.st === 'loose' && (b.y < 1.2 || F.t > 2.2)) || F.t > 2.6 || b.st === 'dead';
-        if (b.st === 'loose' && b.shot) b.shot.t += 0;
         if (done) {
           const made = !!b.scored; F.i++;
           if (!made) popAt(sh, 'MISS', '#c9ccd4');
-          if (F.i < F.n) { b.scored = false; F.state = 'set'; F.wait = 0.8; giveBall(sh, 'held'); setPose(sh, 'idle'); return; }
-          ftS = null;
-          if (made) { b.scored = false; endPossession('ft', F.side); }
-          else { phase = 'live'; clockRun = true; b.st = 'loose'; b.shot = { by: sh, side: F.side, pts: 1, ft: true, made: false, h: hoopOf(F.side), t: 3 }; } // a live rebound off the miss
+          b.scored = false; F.state = 'set'; F.wait = 0.9; giveBall(sh, 'held'); setPose(sh, 'idle');
         }
       }
     }
@@ -6791,89 +6982,176 @@ gl_FragColor=vec4(c,1.0);}`;
     function startTip() {
       phase = 'tip'; phaseT = 0; placeTip();
       const c0 = teams[0].on[4], c1 = teams[1].on[4];
+      // the two jumpers shoulder to shoulder across the middle line (each seen whole from behind either basket), turned to the ball
+      for (const c of [c0, c1]) { const d = dirOf(c.side); c.x = -d * 0.42; c.z = d * 0.36; c.tipJ = false; c.face2 = Math.atan2(-c.x, -c.z * 0.4); c.h = c.face2; }
       tipS = { c0, c1, t: 0, up: false, won: -1 };
       setCtrl(c0);
-      banner('JUMP BALL', 'Space to jump', '#ffc21a'); setTimeout(() => clearBanner(), 1500);
+      flashBanner('JUMP BALL', touchy ? 'Tap SHOOT to jump' : 'SPACE to jump', '#ffc21a', 1500);
     }
     function tipStep(dt) {
       const T = tipS; if (!T) return;
       T.t += dt;
       const b = ball;
-      if (!T.up && T.t > 1.4) { T.up = true; b.st = 'loose'; b.holder = null; b.x = 0; b.y = 1.6; b.z = 0; b.vx = 0; b.vz = 0; b.vy = 7.2; b.lastSide = -1; try { sfx.play('whistle'); } catch (e) {} T.apex = T.t + b.vy / BALL_G; }
+      if (!T.up) { b.x = 0; b.z = 0; b.y = 1.25; } // in the official's hands between them, in the open
+      if (!T.up && T.t > 1.4) { T.up = true; b.st = 'loose'; b.holder = null; b.x = 0; b.y = 1.7; b.z = 0; b.vx = 0; b.vz = 0; b.vy = 7.6; b.lastSide = -1; try { sfx.play('whistle'); } catch (e) {} T.apex = T.t + b.vy / BALL_G; }
       if (!T.up) return;
       // the centres jump: the CPU on its timing; yours on Space (or his own timing if you don't)
       for (const c of [T.c0, T.c1]) {
         if (c.tipJ) continue;
-        const want = T.apex - 0.42 + (c.side === 1 ? (rng() - 0.5) * (0.3 - DK * 0.15) : 0);
-        if ((c.side === 1 || !isUser(c) || T.t > T.apex) && T.t >= want) tipJump(c);
+        const want = T.apex - 0.34 + (c.side === 1 ? (rng() - 0.5) * (0.3 - DK * 0.15) : 0);
+        if ((c.side === 1 || !isUser(c) || T.t > T.apex - 0.1) && T.t >= want) tipJump(c);
       }
-      if (T.won < 0 && b.y < 3.2 && b.vy < 0) {
-        // whoever reaches it higher (jump timing, VERT, height) tips it back to a teammate
-        const sc = (c) => (c.tipJ ? c.lk.hs * 2.7 + c.jumpY + rt(c, 'vert') * 0.004 - Math.abs((c.tipT || 0) - (T.apex - 0.42)) * 0.8 : 0) + rng() * 0.25;
+      const top = Math.max(T.c0.lk.hs * 2.72 + T.c0.jumpY, T.c1.lk.hs * 2.72 + T.c1.jumpY);
+      if (T.won < 0 && b.vy < 0 && (b.y < top + 0.1 || b.y < 2.6)) {
+        // whoever reaches it higher (jump timing, VERT, height) taps it high and back to his point guard
+        const sc = (c) => (c.tipJ ? c.lk.hs * 2.7 + c.jumpY + rt(c, 'vert') * 0.004 - Math.abs((c.tipT || 0) - (T.apex - 0.34)) * 0.8 : 0) + rng() * 0.25;
         const w = sc(T.c0) >= sc(T.c1) ? T.c0 : T.c1;
         T.won = w.side; poss1 = w.side;
         // the tap is a pass to his point guard: one man gets it, the other nine go straight to their jobs (no scramble)
-        const mate = teams[w.side].on[0], T2 = 0.8, ty = 1.25 * mate.lk.hs;
+        const mate = teams[w.side].on[0], T2 = 1.05, ty = 1.3 * mate.lk.hs;
+        b.y = Math.max(b.y, w.lk.hs * 2.72 + w.jumpY); // off his fingertips, over everyone
         b.vx = (mate.x - b.x) / T2; b.vz = (mate.z - b.z) / T2; b.vy = (ty - b.y + 0.5 * BALL_G * T2 * T2) / T2; b.lastSide = w.side; b.last = w;
-        b.st = 'air'; b.shot = null; b.pass = { from: w, to: mate, t: 0, T: T2 };
+        b.st = 'air'; b.shot = null; b.pass = { from: w, to: mate, t: 0, T: T2 }; b.spin = [0, 0, 0];
+        try { sfx.play('tap'); } catch (e) {}
+        for (const c of [T.c0, T.c1]) c.face2 = null;
         phase = 'live'; tipS = null; clockRun = true; tLive = 0; changePoss(w.side, null);
         say2(`<b>${esc(w.side === 0 ? HOME.name : AWAY.name)}</b> win the tip`);
       }
     }
     function tipJump(c) { if (c.tipJ) return; c.tipJ = true; c.tipT = tipS ? tipS.t : 0; setPose(c, 'tip'); c.jumpV = 4.4 + rt(c, 'vert') * 0.02; c.jumpY = 0.001; }
-    // ---------- timeouts and subs ----------
+    // ---------- timeouts, breaks and subs ----------
+    // A rest (a timeout or a break) runs in stages: 'walk' (the whistle, everyone jogs to his own bench and huddles; the sub screen
+    // comes up when they are there), 'subs' (you swap players, then resume), 'back' (the huddles break and they walk back out).
+    // CPU teams sub at every rest: the most tired man out for the freshest one on the bench.
     function canTimeout(side) { const t = teams[side]; return t.to > 0 && (phase === 'dead' || phase === 'inb' || phase === 'ft' || (phase === 'live' && poss === side && ball.holder && ball.holder.side === side)); }
+    const gameT = () => qtr * 1000 - clock; // a clock that only runs forward (for cool-downs)
+    function restBegin() {
+      for (const p of onCourt) { p.vx = p.vz = 0; p.shotS = null; p.fin = null; p.passT = null; p.post = null; p.pm = null; p.face2 = null; p.dstance = false; p.jumpY = 0; p.jumpV = 0; setPose(p, 'idle'); }
+      if (meterOn) meterHide();
+      input.post = false; input.shoot = false;
+      const b = ball; b.holder = null; b.st = 'dead'; b.shot = null; b.pass = null; b.mv = null; b.vx = b.vy = b.vz = 0; // the ball rests by the table
+      b.x = clamp(b.x, -9, 9); b.z = GYM.bs * (COURT.HW + 0.35); b.y = BALL_R;
+    }
     function callTimeout(side) {
       if (!canTimeout(side)) return false;
       const t = teams[side]; t.to--;
       const resume = phase === 'live' ? { k: 'inb', side: poss, x: ball.holder ? ball.holder.x : 0, z: ball.holder ? ball.holder.z : 0 } : phase === 'ft' ? { k: 'ft', F: ftS } : phase === 'inb' ? { k: 'inb', side: inb.side, x: inb.x, z: inb.z, base: Math.abs(inb.x) > COURT.HL } : { k: 'next', next: deadNext };
-      toS = { side, resume, t: 0 };
-      phase = 'timeout'; clockRun = false; if (meterOn) meterHide();
-      try { sfx.play('horn'); } catch (e) {}
-      banner('TIMEOUT', (side === 0 ? HOME.name : AWAY.name) + ' · ' + t.to + ' left', '#ffc21a'); setTimeout(() => clearBanner(), 1500);
-      // the CPU uses its timeout to sub out its most tired starter
-      if (side === 1) cpuSub();
-      // both benches: during a timeout the other team can sub too (the CPU does when it has a tired man)
-      if (side === 0) { cpuSub(); if (!(DBG && DBG.auto)) openSubs(); }
+      toS = { side, resume, t: 0, stage: 'walk', kind: 'timeout', touched: false, subs: 0 };
+      phase = 'timeout'; clockRun = false; restBegin(); restAll(0.1, 0.18);
+      try { sfx.play('whistle'); } catch (e) {}
+      banner('TIMEOUT', (side === 0 ? HOME.name : AWAY.name) + ' · ' + t.to + ' left', '#ffc21a'); setTimeout(() => clearBanner(), 1700);
+      cpuSubs(); // the other bench makes its changes too
       return true;
     }
-    function cpuSub() {
-      const t = teams[1]; if (!t.bench.length) return;
-      let worst = null; for (const p of t.on) if (!worst || p.sta < worst.sta) worst = p;
-      if (worst && worst.sta < 0.55 && t.bench[0].sta > worst.sta + 0.2) doSub(1, worst, t.bench[0]);
+    // the CPU's changes: its most tired man for the freshest man on its bench (when the swap is worth it)
+    function cpuSubs() {
+      const t = teams[1]; if (!t.bench.length) return false;
+      let did = false;
+      for (let n = 0; n < t.bench.length; n++) {
+        let worst = null, best = null; for (const p of t.on) if (!worst || p.sta < worst.sta) worst = p; for (const p of t.bench) if (!best || p.sta > best.sta) best = p;
+        if (worst && best && worst.sta < 0.62 && best.sta > worst.sta + 0.22 && (best.ovr >= worst.ovr - 14 || worst.sta < 0.3) && doSub(1, worst, best)) did = true; else break;
+      }
+      return did;
     }
     function doSub(side, out, inn) {
       const t = teams[side], i = t.on.indexOf(out), j = t.bench.indexOf(inn); if (i < 0 || j < 0) return false;
+      try { ANIMX.subWalk(out, inn, [out.x, out.z], [inn.x, inn.z]); } catch (e) {}
       t.on[i] = inn; t.bench[j] = out;
-      inn.x = out.x; inn.z = out.z; inn.h = out.h; inn.vx = inn.vz = 0; inn.benched = false; setPose(inn, 'idle');
+      inn.x = out.x; inn.z = out.z; inn.h = out.h; inn.vx = inn.vz = 0; inn.benched = false; inn.jumpY = 0; setPose(inn, 'idle');
+      inn.cmbHeat = 0; out.cmbHeat = 0;
       onCourt = teams[0].on.concat(teams[1].on);
       for (const tm of teams) tm.on.forEach((p, k) => { p.man = teams[1 - tm.side].on[k]; });
       if (ctrl === out) setCtrl(inn);
+      if (ftS && ftS.sh === out) ftS.sh = inn;
       placeBench();
+      if (toS) toS.subs++;
       say2(`Sub: <b>${esc(shortName(inn.sq.name))}</b> in for <b>${esc(shortName(out.sq.name))}</b>`);
+      try { sfx.play('tap'); } catch (e) {}
       return true;
     }
-    function endTimeout() {
-      if (phase !== 'timeout' || !toS) return;
-      const R = toS.resume; toS = null; closeSubs();
-      if (R.k === 'inb') startInbound(R.side, R.x, R.z, R.base);
-      else if (R.k === 'ft' && R.F) { ftS = R.F; phase = 'ft'; ftS.state = 'set'; ftS.wait = 0.8; }
-      else if (R.k === 'next' && R.next) { phase = 'dead'; deadT = 0.2; deadNext = R.next; }
-      else startInbound(poss, 0, COURT.HW);
+    // one step of a rest (S = toS or brk)
+    function restStep(S, dt) {
+      S.t += dt;
+      for (const p of onCourt) { p.vx = p.vz = 0; }
+      if (S.stage === 'walk') {
+        let ok = S.t > 1.0;
+        if (ok) for (const p of onCourt) { const X = p.bx; if (X && X.mode === 'anch' && X.V && X.A && Math.hypot(X.V[0] - X.A[0], X.V[1] - X.A[1]) > 0.2) { ok = false; break; } }
+        if (ok || S.t > 4.8) { S.stage = 'subs'; S.t = 0; clearBanner(); if (!(DBG && DBG.auto)) openSubs(); }
+      } else if (S.stage === 'subs') {
+        if (DBG && DBG.auto) { if (S.t > 0.5) leaveRest(S); }
+        else if (S.kind === 'break' && !S.touched) { S.cd -= dt; subsTick(S); if (S.cd <= 0) leaveRest(S); }
+      } else if (S.stage === 'back') {
+        let ok = S.t > 0.5; if (ok) for (const p of everyone) { const X = p.bx; if (X && X.mode === 'ret' && X.V) { ok = false; break; } }
+        if (ok || S.t > 3.2) finishRest(S);
+      }
+    }
+    function leaveRest(S) { if (!S || S.stage !== 'subs') return; closeSubs(); S.stage = 'back'; S.t = 0; }
+    function finishRest(S) {
+      if (S === toS) {
+        const R = toS.resume; toS = null;
+        for (const p of everyone) { const X = p.bx; if (X && X.mode === 'ret') { X.mode = 'free'; X.V = null; X.vh = null; X.vs = 0; } }
+        if (R.k === 'inb') startInbound(R.side, R.x, R.z, R.base);
+        else if (R.k === 'ft' && R.F) { ftS = R.F; phase = 'ft'; ftS.state = 'set'; ftS.wait = 0.8; }
+        else if (R.k === 'next' && R.next) { phase = 'dead'; deadT = 0.2; deadNext = R.next; }
+        else startInbound(poss, 0, COURT.HW);
+      } else { brk = null; nextQuarter(); }
+    }
+    // resume (the Resume button, T, Enter): from the sub screen only
+    function endTimeout() { const S = phase === 'timeout' ? toS : phase === 'break' ? brk : null; if (S) leaveRest(S); }
+    // the CPU calls a timeout: against a run, late in a close game, or to give its tired starters a blow
+    let runS = { side: -1, pts: 0 }, cpuToAt = -999, cpuToChk = false;
+    function cpuTimeout() {
+      const t = teams[1]; if (!(t.to > 0) || phase !== 'dead') return false;
+      if (gameT() - cpuToAt < 30) return false;
+      let tired = 0, n = 0; for (const p of t.on) { tired += p.sta; n++; } tired /= n || 1;
+      let fresh = 0; for (const p of t.bench) fresh = Math.max(fresh, p.sta);
+      const run = runS.side === 0 && runS.pts >= 8, late = qtr >= 4 && clock < 45 && hs > as && hs - as <= 10, blow = tired < 0.4 && fresh > 0.6 && (t.to > 1 || qtr < 4);
+      if (!(run || late || blow)) return false;
+      cpuToAt = gameT(); if (run) runS = { side: -1, pts: 0 };
+      return callTimeout(1);
+    }
+    // the CPU's hands and bodies: a defender on a driving or dribbling handler now and then ties him up (a hand check, a body-up
+    // on the hip); a pile for a rebound gets a push now and then. Better defenders foul less; a tired one more; a trailing team more late.
+    let hazT = 0;
+    function foulHazard(dt) {
+      if (phase !== 'live' || ftLive || tLive < 3) return;
+      const h = ball.holder; hazT -= dt;
+      if (hazT > 0) return;
+      hazT = 0.2;
+      if (h && !h.shotS && !h.fin && !h.pm) {
+        let d = null, bd = 1.45; for (const q of foes(h)) { const dd = D(q, h); if (dd < bd && !isUser(q)) { bd = dd; d = q; } }
+        if (d) {
+          const sp = Math.hypot(h.vx, h.vz), mv = clamp((sp - 1.5) / 4, 0, 1);
+          const late = qtr >= 4 && clock < 40 && (d.side ? as < hs : hs < as) ? 2 : 1;
+          const lam = (0.012 + 0.05 * mv + (h.post ? 0.03 : 0)) * (1.25 - rt(d, 'perD') * 0.0095 + (1 - d.sta) * 0.4) * (1.9 - bd) * late;
+          if (rng() < lam * 0.2 * 7) callFoul(d, h, false, h.post ? 'Hand check' : mv > 0.4 ? 'Hand check' : 'Foul', 'foul');
+        }
+      }
+    }
+    function rulesTick(dt) {
+      const play = phase === 'live';
+      foulHazard(dt);
+      if (ctrl && isUser(ctrl) && ctrl.stealHeat > 0) ctrl.stealHeat = Math.max(0, ctrl.stealHeat - dt * 0.8);
+      if (play) for (const p of onCourt) stat(p.sq).min += dt;
+      // a whistle in mid-air: the ball still comes down and rolls away (it is never left hanging)
+      const b = ball;
+      if (b.st === 'dead' && !b.holder && phase !== 'timeout' && phase !== 'break' && phase !== 'tip' && phase !== 'splash') { b.touchRim = b.touchRim || false; const n = Math.max(1, Math.ceil(dt * 240)); for (let i = 0; i < n; i++) freeStep(b, dt / n); }
+      // the last free throw: the clock starts when the ball is touched (or drops)
+      if (ftLive && phase === 'live') { if (b.holder || !b.shot) { ftLive = false; clockRun = true; } } else if (ftLive) ftLive = false;
     }
     // ---------- quarters ----------
     function endQuarter() {
       clockRun = false; ball.shot = null;
       try { sfx.play('horn'); } catch (e) {}
       const tied = hs === as;
-      if (qtr >= 4 && (!tied || !NOTIES)) { gameOver(); return; }
-      const label = qtr === 2 ? 'HALFTIME' : qtr >= 4 ? 'END OF REGULATION' : 'END OF Q' + qtr;
-      banner(label, `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, '#ffc21a');
-      phase = 'break'; brk = { t: 2.6 }; for (const p of onCourt) { p.shotS = null; p.fin = null; } if (meterOn) meterHide();
-      ball.st = 'dead'; ball.holder = null;
+      if (qtr >= 4 && !tied) { gameOver(); return; } // tied after four: overtime, as many as it takes (never a tie)
+      const label = qtr === 2 ? 'HALFTIME' : qtr === 4 ? 'OVERTIME!' : qtr > 4 ? 'ANOTHER OVERTIME!' : 'END OF Q' + qtr;
+      banner(label, `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}<br>${PRES.leaders()}`, '#ffc21a');
+      phase = 'break'; brk = { stage: 'walk', t: 0, kind: 'break', cd: qtr === 2 ? 20 : 14, touched: false, subs: 0 }; restBegin(); if (qtr === 2) restAll(0.3, 0.45); else restAll(0.16, 0.3); cpuSubs();
     }
     function nextQuarter() {
-      clearBanner(); qtr++; clock = qtr > 4 ? Math.min(60, QS) : QS; teams[0].fq = teams[1].fq = 0; teams[0].bonus = teams[1].bonus = false; boardDirty = true;
+      clearBanner(); qtr++; clock = qtr > 4 ? Math.min(60, QS) : QS; if (qtr <= 4) teams[0].fq = teams[1].fq = 0; // (overtime carries the fourth quarter's fouls)
+      if (qtr <= 4)  { teams[0].bonus = teams[1].bonus = false; } boardDirty = true; runPts[0] = runPts[1] = 0;
       // alternating possession: the team that lost the tip starts the 2nd and 3rd, the winner the 4th (overtime: a jump ball)
       if (qtr > 4) { startTip(); return; }
       const side = qtr === 4 ? poss1 : 1 - poss1;
@@ -6884,13 +7162,22 @@ gl_FragColor=vec4(c,1.0);}`;
     function gameOver() {
       phase = 'over'; overT = 0; clockRun = false; if (meterOn) meterHide();
       const won = hs > as;
-      banner(won ? 'FINAL · YOU WIN' : hs === as ? 'FINAL · TIED' : 'FINAL', `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}`, won ? '#2bd46b' : '#ffc21a');
+      banner(won ? 'FINAL · YOU WIN' : hs === as ? 'FINAL · TIED' : qtr > 4 ? 'FINAL · OT' : 'FINAL', `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}<br>${PRES.leaders()}`, won ? '#2bd46b' : '#ffc21a');
+      if (DBG) DBG.over = { hs, as, qtr };
       for (const p of teams[won ? 0 : 1].on) { p.celType = (p.num % 4); setPose(p, 'celebrate'); }
       try { sfx.play(won ? 'win' : 'lose'); } catch (e) {}
       ball.st = 'dead'; ball.holder = null;
     }
     // ---------- control ----------
     function setCtrl(p) { if (!p || p.side !== 0 || p.benched) return; ctrl = p; }
+    // the rules, for the test tools: put the game straight into a whistle
+    if (DBG) DBG.rules = {
+      ft(i, n) { const p = onCourt[i] || ctrl; phase = 'live'; ball.st = 'dead'; ball.holder = null; ball.shot = null; setDead(0.3, () => startFT(p, n || 2)); },
+      foul(di, si, shooting) { phase = 'live'; return callFoul(onCourt[di], onCourt[si], !!shooting, 'Foul'); },
+      oob(side, x, z) { phase = 'live'; outOfBounds(side, x, z); },
+      made(side) { phase = 'live'; ball.st = 'dead'; ball.holder = null; endPossession('made', side); },
+      tip() { startTip(); },
+    };
     // =====================================================================================
     // The CPU (both teams, everyone you don't control).
     // Offense: five real spots (point, two wings at the free-throw line extended, two corners; a non-shooting centre plays the
@@ -6902,13 +7189,22 @@ gl_FragColor=vec4(c,1.0);}`;
     // Loose balls and rebounds: only the nearest go for it, everyone else keeps his job (no scrum).
     // Flags for the animation side: p.calling (open, wants it), p.cutting, p.screening, p.dstance (in a stance on his man).
     // =====================================================================================
+    // The level (Rookie..Hall of Fame): the CPU side's ratings are shifted (LV_RB points on every skill and its legs; the table was fitted to 20-game win-rate runs, tools/winrate.js), and its decisions
+    // sharpen (DK: closer defense, quicker help, better shots, switches). A typical user should win about 85/70/55/42/30/20 percent.
+    const lvRB = () => (DBG && DBG.rb != null && !isNaN(DBG.rb) ? +DBG.rb : [-5, -3.7, -2.3, -0.85, 0, 2.4][LEVEL]);
+    const RB_KEYS = ['spd', 'vert', 'str', 'hand', 'pass', 'fin', 'mid', 'three', 'ft', 'perD', 'intD', 'stl', 'blk', 'reb'];
+    function applyBoost(p) {
+      p.rbDone = true; const LV_RB = lvRB(); if (!LV_RB || p.side !== 1) return;
+      p.bb = Object.assign({}, p.bb); for (const k of RB_KEYS) p.bb[k] = clamp((p.bb[k] || 60) + LV_RB, 25, 99);
+      p.spd = Math.max(25, p.spd + LV_RB); p.agi = Math.max(25, p.agi + LV_RB); p.str = Math.max(25, p.str + LV_RB);
+    }
     // a spot in the frame of the basket a team attacks: u = yards out from the rim toward half court, v = across
     const atRim = (h, u, v) => [h.x - h.dir * u, v];
     const uOf = (h, x) => (h.x - x) * h.dir;
     const SLOT = [[8.1, 0], [6.0, 6.1], [6.0, -6.1], [0.45, 7.3], [0.45, -7.3]]; // point, wings, corners
     const SLOT_ADJ = [[1, 2], [0, 3], [0, 4], [1], [2]];                        // one pass away
     const SLOT_KIND = [0, 1, 1, 2, 2], POS_KIND = [0, 1, 1, 2, 2];              // guards up top and on the wings, forwards in the corners
-    function OS(t) { return t.O || (t.O = { slot: new Map(), reT: 0, scr: null, ballSlot: 0, postSide: 1, cutT: 0, fbT: -9, callT: -9, flash: 0, flashT: 2, scrT: 0 }); }
+    function OS(t) { return t.O || (t.O = { slot: new Map(), reT: 0, scr: null, ballSlot: 0, postSide: 1, cutT: 0, fbT: -9, callT: -9, flash: 0, flashT: 2, scrT: 0, ds: null, dsT: 0 }); }
     function bigOf(t) { const c = t.on[4]; return c && (c.sq.pos === 'C' || rt(c, 'three') < 58 || rt(c, 'intD') > 70) ? c : null; } // (the centre plays inside: the block, the post)
     // who has the ball for a team, or is about to (a pass in the air to him)
     function lead(t) { const b = ball; if (b.holder && b.holder.side === t.side) return b.holder; if (b.st === 'air' && b.pass && b.pass.to && b.pass.to.side === t.side) return b.pass.to; return null; }
@@ -6923,7 +7219,7 @@ gl_FragColor=vec4(c,1.0);}`;
         else if (!(hd.drive > 0) && hd !== big && rimDist(hd.x, hd.z, h) > 4.4) O.ballSlot = nearestSlot(h, hd.x, hd.z, O.ballSlot);
         free.splice(free.indexOf(O.ballSlot), 1);
       }
-      let pl = t.on.filter((p) => p !== hd && p !== big && !p.cutS && !(O.scr && O.scr.s === p) && !(inb && inb.recv === p) && !(phase === 'dead' && inbPlan && (inbPlan.recv === p || inbPlan.passer === p)));
+      let pl = t.on.filter((p) => p !== hd && p !== big && !p.cutS && !(O.scr && O.scr.s === p) && !(O.ds && O.ds.s === p) && !(inb && inb.recv === p) && !(phase === 'dead' && inbPlan && (inbPlan.recv === p || inbPlan.passer === p)));
       if (pl.length > free.length) pl = pl.slice(0, free.length);
       const n = pl.length, cur = new Array(n), used = free.map(() => false); let bc = 1e9, ba = null;
       const cost = pl.map((p) => free.map((s) => { const sp = atRim(h, SLOT[s][0], SLOT[s][1]); return Math.hypot(p.x - sp[0], p.z - sp[1]) - (O.slot.get(p) === s ? 2.4 : 0) - (SLOT_KIND[s] === POS_KIND[t.on.indexOf(p)] ? 1.2 : 0); }));
@@ -6973,7 +7269,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function aiPass(p, q) { if (shotClk < 2.7 && phase === 'live') return false; const kick = p.drive > 0; if (!startPass(p, q)) return false; q.kickT = kick ? tLive : -9; p.drive = 0; p.via = null; return true; }
     function handlerAI(p, dt) {
       const b = ball, h = hoopOf(p.side), t = teams[p.side], O = OS(t), d = rimDist(p.x, p.z, h), u = uOf(h, p.x), sk = p.side === 1 ? DK : 0.9;
-      if (p.holdT < dt * 1.5) { p.think = 0.1 + rng() * 0.1; p.drive = 0; p.via = null; p.dside = 0; p.holdMax = 0.55 + rng() * 1.1 + (1 - Math.min(1, sk)) * 0.3; p.backT = 0; p.postRoll = rng(); p.feedRoll = rng(); }
+      if (p.holdT < dt * 1.5) { p.think = 0.1 + rng() * 0.1; p.drive = 0; p.via = null; p.dside = 0; p.holdMax = 0.4 + rng() * 0.95 + (1 - Math.min(1, sk)) * 0.3; p.backT = 0; p.postRoll = rng(); p.feedRoll = rng(); }
       p.holdT += dt; p.think -= dt; p.calling = false; p.cutS = null; p.cutting = false; p.dstance = false;
       if (O.scr && O.scr.s === p) O.scr = null;
       if (p.shotS || p.fin || p.passT != null) { p.vx *= 0.9; p.vz *= 0.9; return; }
@@ -7001,10 +7297,26 @@ gl_FragColor=vec4(c,1.0);}`;
         moveHandler(p, dt, h, d, u, O); return;
       }
       // ----- the half court -----
+      // a down screen is being set for a man off the ball: wait for it, then hit him as he comes off it
+      if (O.ds && O.ds.c !== p && O.ds.t < 3.6 && shotClk > 4.2 && p.holdT > 0.15) {
+        if (O.ds.go && p.holdT > 0.2) { const c = O.ds.c, dd = D(p, c); if (dd > 2.5 && dd < 14 && openness(c) > 1.25 && passGap(p, c) > 0.9 && Math.hypot(c.x - O.ds.to[0], c.z - O.ds.to[1]) < 4.6 && rng() < 0.9 && aiPass(p, c)) { c.kickT = tLive; pcount('pinPass'); return; } }
+        moveHandler(p, dt, h, d, u, O); return;
+      }
+      // a big with the ball out on the floor: a guard who is open takes it from him (the big does not run the offense from the top)
+      if (bigOf(t) === p && u > 5.6 && p.holdT > 0.3 && !late && !(O.scr && O.scr.h === p)) {
+        let q = null, qo = 1.3; for (const m of mates(p)) { if (m === p || m === bigOf(t) || D(m, p) < 2.5 || D(m, p) > 13) continue; const o = openness(m); if (o > qo && passGap(p, m) > 1.0) { qo = o; q = m; } }
+        if (q && rng() < 0.85 && aiPass(p, q)) { q.from = p; pcount('bigout'); return; }
+      }
+      // the call for this trip: a ball screen, motion (the default), or a clear-out for the best scorer when the clock runs down
+      if (O.play == null) { const r = rng(); O.play = r < 0.42 ? 'pnr' : 'motion'; }
+      const best = t.on.every((q) => q === p || rt(q, 'ovr') <= rt(p, 'ovr') + 2), isoOn = !isUser(p) && best && shotClk < 9.5 && shotClk > 3.2 && !O.scr && !(p.sq.pos === 'C') && u < 9.6;
+      if (isoOn && O.iso === 0) { O.iso = 1; O.isoP = p; pcount('iso'); } else if (!isoOn && O.isoP === p && O.iso === 1) { O.iso = 0; O.isoP = null; }
+      if (O.play === 'pnr' && !O.scr && !isUser(p) && p.holdT > 0.55 && d > 5.4 && d < 10 && shotClk > 8 && tLive > O.scrT && !p.post && !p.pm && callScreen(p.side)) { O.play = 'pnr-done'; moveHandler(p, dt, h, d, u, O); return; }
       if (postStartAI(p, man, dman, d, u, sk, late)) return; // a big at the block, or a man guarded by someone much smaller: post him up
       if (p.holdT > 0.3 && postFeed(p, late)) return;    // an entry pass to a big sealing his man
       // an open look he can make (the bar drops as the clock runs down)
-      const thr = clamp(0.58 + 0.024 * shotClk, 0.4, 0.92) - (p.side === 1 ? (1 - Math.min(1, sk)) * 0.08 : 0), rhythm = tLive - (p.kickT || -9) < 1.4 && p.holdT < 0.7, needOpen = rhythm ? 1.0 : clamp(0.9 + 0.08 * shotClk, 1.1, 1.7);
+      const avgOvr = t.on.reduce((a, q) => a + rt(q, 'ovr'), 0) / t.on.length, usage = clamp((rt(p, 'ovr') - avgOvr) * 0.0035, -0.07, 0.07);
+      const thr = clamp(0.58 + 0.024 * shotClk, 0.4, 0.92) - usage - (p.side === 1 ? (1 - Math.min(1, sk)) * 0.08 : 0), rhythm = tLive - (p.kickT || -9) < 1.4 && p.holdT < 0.7, needOpen = rhythm ? 1.0 : clamp(0.9 + 0.08 * shotClk, 1.1, 1.7);
       // (a three takes a shooter: the bar is higher for a poor one)
       const thr3 = isThree(p.x, p.z, h) ? clamp((72 - rt(p, 'three')) * 0.02, -0.04, 0.42) * (late ? 0.6 : 1) : 0;
       if (p.holdT > 0.16 && open > needOpen && sv > (rhythm ? thr - 0.18 : thr) + thr3 && d > 2.3) { if (startShot(p)) return; }
@@ -7039,14 +7351,14 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!S && !isUser(p) && p.holdT > 0.35 && d > 6.2 && d < 9.4 && shotClk > 5.5 && shotClk < 11.5 && tLive > O.scrT && rng() < 0.07 && callScreen(p.side)) { moveHandler(p, dt, h, d, u, O); return; }
       // attack: a lane to the rim, a man who is beaten or too close, or the clock says go
       const ath = (rt(p, 'fin') + rt(p, 'spd') + rt(p, 'vert')) / 3, lane = laneOpen(p, h);
-      const pDrive = lane ? 0.55 + sk * 0.15 + (ath - 60) * 0.006 : (late ? 0.5 : 0.14 + (11 - Math.min(11, shotClk)) * 0.025 + (ath - 60) * 0.004) + (dman < 1.0 ? 0.08 : 0);
-      if (d > 2 && d < 9.6 && p.holdT > 0.3 && !(S && S.h === p) && rng() < pDrive) {
+      const pDrive = lane ? 0.46 + sk * 0.15 + (ath - 60) * 0.006 : (late ? 0.5 : 0.14 + (11 - Math.min(11, shotClk)) * 0.025 + (ath - 60) * 0.004) + (dman < 1.0 ? 0.08 : 0);
+      if (d > 2 && d < 9.6 && p.holdT > 0.3 && !(S && S.h === p) && rng() < (O.isoP === p ? Math.max(pDrive, 0.7) : pDrive)) {
         // a move first when his man is on him
         if (!lane && man && dman < 1.6 && tLive - (p.cmbLast || -9) > 0.8 && rng() < 0.5 + (rt(p, 'hand') - 60) * 0.006) doMove(p);
         p.drive = 1.3 + rng() * 0.5; p.dside = 0; moveHandler(p, dt, h, d, u, O); return;
       }
       // move the ball: the open man one pass away, the reversal, the post
-      if (p.holdT > (p.holdMax || 1) && !late) {
+      if (p.holdT > (p.holdMax || 1) && !late && O.isoP !== p) {
         let q = null, qs = -1e9;
         for (const m of mates(p)) {
           if (m === p) continue;
@@ -7059,8 +7371,8 @@ gl_FragColor=vec4(c,1.0);}`;
         if (q) { if (aiPass(p, q)) { q.from = p; return; } }
         p.holdMax += 0.45;
       }
-      // a move to keep his man honest
-      if (man && dman < 1.4 && rng() < 0.08 + (rt(p, 'hand') - 60) * 0.003 && tLive - (p.cmbLast || -9) > 1.0) doMove(p);
+      // a move to keep his man honest (in a clear-out it is the whole point)
+      if (man && dman < (O.isoP === p ? 2.2 : 1.4) && rng() < (O.isoP === p ? 0.3 : 0.08) + (rt(p, 'hand') - 60) * 0.003 && tLive - (p.cmbLast || -9) > (O.isoP === p ? 0.7 : 1.0)) doMove(p);
       moveHandler(p, dt, h, d, u, O);
     }
     // ---------- the post (30-move.js has the game: backing down, the hook, the drop step, the spin, the up-and-under) ----------
@@ -7166,15 +7478,37 @@ gl_FragColor=vec4(c,1.0);}`;
       else { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); if (Math.hypot(p.vx, p.vz) < 0.8) p.face2 = Math.atan2(h.x - p.x, h.z - p.z); }
     }
     // ---------- the ball screen: the big (or the last forward) comes up, sets it on the handler's man, then rolls or pops ----------
+    // C (a tap): the user with the ball calls for a ball screen; the big (or a forward) comes up and sets it, then rolls or pops
+    let cDownT = 0;
+    function actScreen(quiet) {
+      if (finished || !ctrl || phase !== 'live') return true;
+      const hd = ball.holder; if (hd !== ctrl || hd.shotS || hd.fin || hd.passT != null) return true;
+      const O = OS(teams[0]); if (O.scr) return true;
+      if (callScreen(0)) popAt(ctrl, 'SCREEN', '#4dd2ff'); else if (!quiet) say2(uOf(hoopOf(0), ctrl.x) > 10.5 ? 'Bring it past half court to call a screen' : rimDist(ctrl.x, ctrl.z, hoopOf(0)) < 5 ? 'Too close to the rim for a screen' : 'Wait a moment, the screen is on its way');
+      return true;
+    }
+    // the phone: the POST button held backs a man down, a quick tap away from the rim is the same call
+    let pBtnT = 0;
+    function actPostBtnDown() { pBtnT = performance.now(); return actPostDown(); }
+    function actPostBtnUp() { actPostUp(); if (performance.now() - pBtnT < 260 && ctrl && ball.holder === ctrl && !ctrl.post && !ctrl.pm && rimDist(ctrl.x, ctrl.z, hoopOf(0)) > 5) actScreen(true); }
+    // (C held is the finish modifier; a quick tap on its own is the call)
+    function actCKey(down, repeat) {
+      if (down) { if (!repeat) cDownT = performance.now(); input.mod = true; return; }
+      input.mod = false; if (performance.now() - cDownT < 260 && !(ctrl && (ctrl.shotS || ctrl.fin))) actScreen();
+    }
     function callScreen(side) {
       const t = teams[side], O = OS(t), hd = ball.holder;
       if (!hd || hd.side !== side || O.scr || phase !== 'live') return false;
+      if (isUser(hd) && tLive < O.scrT - 2.5) return false;
       const h = hoopOf(side); if (uOf(h, hd.x) > 10.5 || rimDist(hd.x, hd.z, h) < 5) return false;
       let s = bigOf(t); if (!s || s === hd || isUser(s)) { s = null; for (const i of [4, 3, 2]) { const q = t.on[i]; if (q && q !== hd && !isUser(q) && !q.cutS) { s = q; break; } } }
       if (!s) return false;
       // the side of the floor with more room
       const side2 = hd.z > 1.5 ? -1 : hd.z < -1.5 ? 1 : (rng() < 0.5 ? 1 : -1);
-      O.scr = { s, h: hd, st: 'set', t: 0, ht: 0, zs: side2, side: 1, used: false }; O.scrT = tLive + 5; s.cutS = null;
+      // how the defense plays it: drop under (the big sags), hedge (the big shows in front of the handler), or switch (they trade men);
+      // the better the CPU defense (the level), the more they switch and show
+      const dk = 1 - side === 1 ? DK : 0.45, r = rng(), pSw = clamp((dk - 0.5) * 0.7, 0, 0.5), pHe = clamp(0.12 + dk * 0.3, 0, 0.5);
+      O.scr = { s, h: hd, st: 'set', t: 0, ht: 0, zs: side2, side: 1, used: false, cov: r < pSw ? 'switch' : r < pSw + pHe ? 'hedge' : 'drop', sw: false }; O.scrT = tLive + 5; s.cutS = null; pcount('screen');
       return true;
     }
     function screenerAI(p, dt, O, h) {
@@ -7200,18 +7534,77 @@ gl_FragColor=vec4(c,1.0);}`;
       if (rt(p, 'three') > 70 && rng() < 0.6) return;
       p.cutS = { k: 'roll', t: 0, to: atRim(h, 1.3, clamp(p.z * 0.25, -0.9, 0.9)) };
     }
+
+    // ---------- the down screen (a pindown): a man in the corner runs up off a screen set on his defender, to the wing, and shoots it off the catch ----------
+    // The screener walks to a spot on the defender's path (a body he cannot walk through), plants (p.screening), and the shooter runs tight off his hip
+    // (p.cutting, then calling for it). The shooter's man trails, goes over, or the two defenders switch (more often at a higher level).
+    function tryDownScreen(t, hd, h) {
+      const O = OS(t);
+      if (O.ds || O.scr || phase !== 'live' || tLive < O.dsT || shotClk < 6.5 || hd.holdT < 0.4 || hd.drive > 0 || hd.post || hd.pm || hd.shotS || hd.fin || hd.passT != null) return false;
+      if (uOf(h, hd.x) > 11 || t.on.some((q) => q.cutS && q.cutS.k !== 'roll')) return false;
+
+      let c = null, cs = -1e9;
+      for (const q of t.on) {
+        if (q === hd || isUser(q) || q.cutS || bigOf(t) === q) continue;
+        const si = O.slot.get(q); if (si == null || si === 0 || D(q, hd) < 4.8) continue;
+        const g = guardOf(q); if (!g || D(g, q) > 4.0 || passGap(hd, q) < 0.9) continue;
+        const sc = (rt(q, 'three') - 50) * 0.02 + rng() * 0.5 + (D(g, q) < 2 ? 0.3 : 0) + (si >= 3 ? 0.35 : 0); if (sc > cs) { cs = sc; c = q; }
+      }
+      if (!c) return false;
+      const g = guardOf(c), wv = c.z >= 0 ? 1 : -1, to = O.slot.get(c) >= 3 ? atRim(h, 6.5, wv * 6.4) : atRim(h, 8.4, wv * 5.0); // (the corner up to the wing, the wing up above the break)
+      let s = bigOf(t); if (!s || s === hd || s === c || isUser(s)) { s = null; let bd = 1e9; for (const q of t.on) { if (q === hd || q === c || isUser(q) || q.cutS) continue; const dd = Math.hypot(q.x - to[0], q.z - to[1]); if (dd < bd) { bd = dd; s = q; } } }
+      if (!s || Math.hypot(s.x - c.x, s.z - c.z) > 13 || Math.hypot(to[0] - hd.x, to[1] - hd.z) < 4.6) return false;
+      const dx = to[0] - g.x, dz = to[1] - g.z, dl = Math.hypot(dx, dz) || 1, spot = [g.x + dx / dl * 1.25, g.z + dz / dl * 1.25];
+      if (Math.hypot(spot[0] - hd.x, spot[1] - hd.z) < 3.2 || Math.hypot(spot[0] - s.x, spot[1] - s.z) > 7.5) return false; // (a short walk for the screener: the handler is not left standing)
+      O.ds = { s, c, to, spot, st: 'set', t: 0, ht: 0, sw: false, go: false }; O.dsT = tLive + 8;
+      c.cutS = { k: 'pin', t: 0, wait: true, via: null, to }; O.slot.delete(c); O.slot.delete(s); pcount('pindown');
+      return true;
+    }
+    function endDS(p, O) { O.ds = null; O.dsT = tLive + 6; p.screening = false; p.face2 = null; O.reT = 0; }
+    function dsScreenerAI(p, dt, O, h) {
+      const S = O.ds, c = S.c, g = c && guardOf(c), hd = lead(teams[p.side]);
+      S.t += dt; p.calling = false;
+      if (!c || !g || !hd || S.t > 5.0 || (S.st === 'set' && S.t > 3.0) || c.cutS == null && S.st === 'set' || hd.shotS || hd.fin || hd.drive > 0 || hd.post || uOf(h, hd.x) > 10.5) { if (c && c.cutS && c.cutS.k === 'pin') c.cutS = null; endDS(p, O); return; }
+      if (S.st === 'set') {
+        const dx = S.to[0] - g.x, dz = S.to[1] - g.z, dl = Math.hypot(dx, dz) || 1; S.spot = [g.x + dx / dl * 1.25, g.z + dz / dl * 1.25];
+        go(p, S.spot[0], S.spot[1], 1.02, false, dt); p.cutting = true;
+        if (Math.hypot(S.spot[0] - p.x, S.spot[1] - p.z) < 0.55) { S.st = 'hold'; S.ht = 0; // the cutter's way round: tight off the screener's far shoulder
+          const ux = (S.to[0] - c.x), uz = (S.to[1] - c.z), ul = Math.hypot(ux, uz) || 1, lx = -uz / ul, lz = ux / ul, sg = ((g.x - p.x) * lx + (g.z - p.z) * lz) >= 0 ? 1 : -1;
+          if (c.cutS && c.cutS.k === 'pin') c.cutS.via = [p.x - lx * sg * 0.95 + ux / ul * 0.5, p.z - lz * sg * 0.95 + uz / ul * 0.5]; }
+      } else {
+        S.ht += dt; p.vx *= Math.pow(0.001, dt); p.vz *= Math.pow(0.001, dt); p.screening = true; p.cutting = false; p.face2 = Math.atan2(g.x - p.x, g.z - p.z);
+        if (!S.sw && S.ht > 0.1) { S.sw = true; const sd = guardOf(p), k = p.side === 0 ? clamp(DK * 0.5 - 0.1, 0, 0.3) : clamp((DK - 0.55) * 0.6, 0, 0.42);
+          if (sd && sd !== g && !isUser(sd) && !isUser(g) && g.man === c && sd.man === p && rng() < k) { g.man = p; sd.man = c; O.swap = [g, sd]; O.swapT = tLive; pcount('switch'); } }
+        if (S.ht > 1.9 || (S.go && Math.hypot(c.x - S.to[0], c.z - S.to[1]) < 2.0 && S.ht > 0.7) || !c.cutS) endDS(p, O);
+      }
+    }
+    // the shooter running off the screen: waits for it to be set, then runs it tight and ends at the wing, calling for the ball
+    function pindownCut(p, C, O, h, hd, dt) {
+      const S = O.ds; p.cutting = true;
+      if (!S || S.c !== p || C.t > 4.4) { p.cutS = null; O.slot.delete(p); O.reT = 0; if (S && S.c === p) O.ds = null; return; }
+      if (C.wait) {
+        if (S.st === 'hold' && S.ht > 0.18 && C.via) { C.wait = false; S.go = true; }
+        else { p.vx *= Math.pow(0.02, dt); p.vz *= Math.pow(0.02, dt); p.face2 = Math.atan2(S.s.x - p.x, S.s.z - p.z); if (D(p, S.s) < 5) p.look = [S.s.x, 1.4, S.s.z]; return; }
+      }
+      p.face2 = null;
+      if (C.via) { go(p, C.via[0], C.via[1], 1.12, true, dt); if (Math.hypot(C.via[0] - p.x, C.via[1] - p.z) < 0.8) C.via = null; return; }
+      const dd = Math.hypot(C.to[0] - p.x, C.to[1] - p.z); go(p, C.to[0], C.to[1], 1.1, dd > 2.5, dt);
+      if (dd < 3.2 && openness(p) > 1.1) p.calling = true;
+      if (dd < 0.8 || C.t > 3.8) { p.cutS = null; O.slot.delete(p); O.reT = 0; }
+    }
     // ---------- off the ball, on offense ----------
     function startCut(p, h, k) { const O = OS(teams[p.side]); p.cutS = { k, t: 0, to: atRim(h, 1.25, (p.z >= 0 ? 1 : -1) * 0.8) }; O.cutT = tLive + 2.2; O.slot.delete(p); O.reT = 0; }
     function offBallAI(p, dt) {
       const t = teams[p.side], O = OS(t), h = hoopOf(p.side), hd = lead(t), b = ball;
       p.face2 = null; p.look = [b.x, 1.4, b.z]; p.calling = false; p.screening = false; p.cutting = false; p.drive = 0; p.via = null; p.dstance = false; if (!isUser(p)) p.postWant = false;
       if (O.scr && O.scr.s === p) { screenerAI(p, dt, O, h); return; }
+      if (O.ds && O.ds.s === p) { dsScreenerAI(p, dt, O, h); return; }
       // the inbound: the point guard comes back to the ball
       const IP = inb || (phase === 'dead' ? inbPlan : null);
       if (IP && IP.recv === p) { go(p, IP.rx, IP.rz, 0.9, false, dt); p.calling = true; return; }
       // a cut: hard to the rim, a look for the ball, then out to an open spot
       if (p.cutS) {
-        const C = p.cutS; C.t += dt; p.cutting = true;
+        const C = p.cutS; if (C.k === 'pin') { C.t += dt; pindownCut(p, C, O, h, hd, dt); return; } C.t += dt; p.cutting = true;
         // the ball is driven at the rim: clear out of the lane
         if (hd && hd !== p && hd.drive > 0 && C.k !== 'roll' && C.k !== 'dive' && rimDist(hd.x, hd.z, h) < 6) { p.cutS = null; O.slot.delete(p); O.reT = 0; return; }
         const dd = Math.hypot(C.to[0] - p.x, C.to[1] - p.z);
@@ -7230,12 +7623,17 @@ gl_FragColor=vec4(c,1.0);}`;
         // the big lives on the block: ball side while the ball is on that wing, else the weak side; sealing his man there he calls for it
         if (O.flash > 0 && hd && !drv) { u = 1.5; v = (hd.z > 0 ? 1 : -1) * 2.3; } else { u = 1.2; v = O.postSide * 2.3; }
         p.postWant = inHalf && !drv && hd && hd !== p && rimDist(p.x, p.z, h) < 4.9 && D(p, hd) > 2.2;
-        if (!inHalf && uOf(h, p.x) > 9) { u = 2.2; v = O.postSide * 2.2; }
+        if (!inHalf && uOf(h, p.x) > 9) {
+          // on the break the big runs the floor behind the ball as the trailer (a pull-up three or a drag screen), or fills the rim when he is ahead of it
+          if (hd && hd !== p && uOf(h, p.x) > uOf(h, hd.x) - 1.5) { u = clamp(uOf(h, hd.x) + 3.5, 8.2, 13); v = clamp(-hd.z * 0.5 + (hd.z === 0 ? 2 : 0), -3, 3); } else { u = 2.2; v = O.postSide * 2.2; }
+        }
       } else {
         const si = O.slot.get(p), s = SLOT[si != null ? si : 0]; u = s[0]; v = s[1];
         // on the way up the floor the corner men run the wide lanes deep; the wings fill the inside lanes a few steps ahead of the ball
         if (!inHalf && (si === 1 || si === 2)) { u = Math.max(u, uOf(h, hd.x) - 4.5); v *= 0.72; }
-        if (drv && (hd.drive > 0 || hd.post) && !isUser(p) && rimDist(hd.x, hd.z, h) < 5.5 && rt(p, 'three') < 66 && helper(hd) === guardOf(p) && rimDist(p.x, p.z, h) < 8.5 && !t.on.some((q) => q !== p && q.cutS)) {
+        // a clear-out for the star: the wings and the corners give him the floor, spread wide and low
+        if (O.iso === 1 && O.isoP && O.isoP !== p && hd === O.isoP && inHalf) { if (si === 1 || si === 2) { u = 3.4; v *= 1.12; } else if (si === 0) { u = 9.6; v = (hd.z >= 0 ? -1 : 1) * 4.6; } }
+        if (drv && (hd.drive > 0 || hd.post) && !isUser(p) && p.z * hd.z <= 0.5 && rimDist(hd.x, hd.z, h) < 5.5 && rt(p, 'three') < 66 && helper(hd) === guardOf(p) && rimDist(p.x, p.z, h) < 8.5 && !t.on.some((q) => q !== p && q.cutS) && foes(p).filter((f) => D(f, hd) < 3.5).length < 3) {
           p.cutS = { k: 'dive', t: 0, to: atRim(h, 0.85, (p.z >= 0 ? 1 : -1) * 2.2) }; O.slot.delete(p); return;
         }
         if (drv) { // a drive: the corner holds, the wing on his side drifts down, the far wing lifts, the top slides in behind him
@@ -7290,7 +7688,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const own = ownHoop(p.side), man = p.man && onCourt.includes(p.man) ? p.man : nearestTo(foes(p), p);
       const b = ball, hd = b.holder && b.holder.side !== p.side ? b.holder : null;
       if (p.react > 0) { p.react -= dt; if (p.react <= 0) defReact(p); }
-      p.dstance = false; p.calling = false; p.cutting = false; p.screening = false; p.cutS = null; p.drive = 0;
+      p.dstance = false; p.calling = false; p.cutting = false; p.screening = false; p.cutS = null; p.drive = 0; p.dctx = null; // (dctx: what he is doing, for the animation side: ball, post, closeout, deny, help, rim, trap, hedge, trail, box, recover)
       if (!man) return;
       const rx = own.x, rz = own.z, tgt = b.st === 'air' && b.pass && b.pass.to && b.pass.to.side !== p.side ? b.pass.to : hd;
       const bx = tgt ? tgt.x : b.x, bz = tgt ? tgt.z : b.z;
@@ -7315,7 +7713,7 @@ gl_FragColor=vec4(c,1.0);}`;
           if (man.post || man.pm) { tx = mx + ux * POST_R * 0.96; tz = mz + uz * POST_R * 0.96; p.lagT = 0; } // his back to him: chest to his back on the line to the rim, holding his ground
           if (D(p, man) < 1.42 && hd === man && p.stealCd <= 0 && rng() < dt * (0.06 + rt(p, 'stl') * 0.0016 + (p.side ? DK : 0.3) * 0.08)) trySteal(p);
         }
-        p.face2 = Math.atan2(mx - p.x, mz - p.z); p.dstance = D(p, man) < 2.6;
+        p.face2 = Math.atan2(mx - p.x, mz - p.z); p.dstance = D(p, man) < 2.6; p.dctx = man.post || man.pm ? 'post' : 'ball';
       } else {
         const dbm = Math.hypot(mx - bx, mz - bz) || 1, bux = (bx - mx) / dbm, buz = (bz - mz) / dbm;
         // his man is far up the floor (transition): get back inside the arc on his line first
@@ -7323,29 +7721,36 @@ gl_FragColor=vec4(c,1.0);}`;
         if (far) { // back first: his own lane of the floor, inside the arc, deeper the deeper his man runs
           // (each in his own lane, so five men running back never arrive on one spot)
           const li = teams[p.side].on.indexOf(p), lane = [0, 3.4, -3.4, 5.8, -5.8][li < 0 ? 0 : li % 5], dep = [7.6, 6.6, 6.6, 4.6, 4.6][li < 0 ? 0 : li % 5];
-          tx = rx - Math.sign(rx) * clamp(dmr * 0.5, dep - 1.2, dep + 0.8); tz = clamp(mz * 0.35 + lane, -6.8, 6.8);
+          tx = rx - Math.sign(rx) * clamp(dmr * 0.5, dep - 1.2, dep + 0.8); tz = clamp(mz * 0.35 + lane, -6.8, 6.8); p.dctx = 'recover';
         } else if (dm2 < 3.6) { // a post man: behind him, a half step to the ball side; with the pass coming, now and then in front of him (the lob goes over)
-          if (tLive - (p.frontT || -99) > 7) { p.frontT = tLive; p.frontP = rng() < 0.16 + DK * 0.2; }
+          p.dctx = 'post'; if (tLive - (p.frontT || -99) > 7) { p.frontT = tLive; p.frontP = rng() < 0.16 + DK * 0.2; }
           if (man.postWant && p.frontP && dbm < 9) { tx = mxx + bux * 0.9; tz = mzz + buz * 0.9; }
           else { const g = Math.min(0.75, dm2 - 0.3); tx = mxx + ux * g + bux * 0.3; tz = mzz + uz * g + buz * 0.3; }
         } else if (dbm < 7.3) { // one pass away: a step and a half off toward the rim, a step into the lane of the pass
-          const g = clamp(dm2 * 0.26, 1.45, 2.1); tx = mxx + ux * g + bux * 0.45; tz = mzz + uz * g + buz * 0.45;
+          const g = clamp(dm2 * 0.26, 1.45, 2.1); tx = mxx + ux * g + bux * 0.45; tz = mzz + uz * g + buz * 0.45; p.dctx = 'deny';
         } else { // two passes away: sunk to the help line, seeing ball and man
-          const g = clamp(dm2 * 0.36, 1.6, 2.9), s = clamp(dbm * 0.1, 0.6, 1.1); tx = mxx + ux * g + bux * s; tz = mzz + uz * g + buz * s;
+          const g = clamp(dm2 * 0.36, 1.6, 2.9), s = clamp(dbm * 0.1, 0.6, 1.1); tx = mxx + ux * g + bux * s; tz = mzz + uz * g + buz * s; p.dctx = 'help';
         }
         // his man sets a ball screen: drop under it to keep the ball in front
-        if (man.screening && hd) { const ax = rx - hd.x, az = rz - hd.z, al = Math.hypot(ax, az) || 1; tx = lerp(tx, hd.x + ax / al * 2.8, 0.35); tz = lerp(tz, hd.z + az / al * 2.8, 0.35); }
+        if (man.screening && hd && teams[1 - p.side].O && teams[1 - p.side].O.scr && teams[1 - p.side].O.scr.s === man) {
+          const S = teams[1 - p.side].O && teams[1 - p.side].O.scr, ax = rx - hd.x, az = rz - hd.z, al = Math.hypot(ax, az) || 1;
+          // a hedge: step out into the handler's path for a moment, then get back to the rolling man; a drop: sag toward the rim
+          if (S && S.cov === 'hedge' && S.s === man && S.ht < 1.15 && !S.used) { tx = hd.x + ax / al * 1.55 + (-az / al) * S.side * 0.3; tz = hd.z + az / al * 1.55 + (ax / al) * S.side * 0.3; k = 1.1; p.dstance = true; p.dctx = 'hedge'; }
+          else { tx = lerp(tx, hd.x + ax / al * 2.8, 0.35); tz = lerp(tz, hd.z + az / al * 2.8, 0.35); }
+        }
+        // his man runs off a down screen: stay on his hip, chasing (a step behind him, over the top)
+        if (man.cutS && man.cutS.k === 'pin' && !man.cutS.wait) { const ms = Math.hypot(man.vx, man.vz) || 1; tx = mx - man.vx / ms * 0.85 + ux * 0.25; tz = mz - man.vz / ms * 0.85 + uz * 0.25; k = 1.12; p.dctx = 'trail'; }
         // the double: the man in the post has been backing down a while, the helper comes at him from the weak side
         if (hd && hd.post && hd.post.dbl && hd.post.t > 0.9 && hd !== man && helper(hd) === p && !isUser(p)) {
           const hx = rx - hd.x, hz = rz - hd.z, hl = Math.hypot(hx, hz) || 1, sd = ((p.z - hd.z) * hx - (p.x - hd.x) * hz) * (hx > 0 ? 1 : -1) >= 0 ? 1 : -1;
-          tx = hd.x + hx / hl * 0.55 - hz / hl * sd * 0.95; tz = hd.z + hz / hl * 0.55 + hx / hl * sd * 0.95; k = 1.15;
+          tx = hd.x + hx / hl * 0.55 - hz / hl * sd * 0.95; tz = hd.z + hz / hl * 0.55 + hx / hl * sd * 0.95; k = 1.15; p.dctx = 'trap';
           if (!hd.post.dbled) { hd.post.dbled = true; if (isUser(hd)) popAt(hd, 'DOUBLED: KICK IT OUT', '#ffc21a'); }
         }
         // a beaten drive: the helper steps in front of the rim; the rest sink a step
         if (hd && hd !== man) {
           const dh = rimDist(hd.x, hd.z, own);
           if (dh < 5.6 && (hd.drive > 0 || hd.fin) && beaten(hd, own)) {
-            if (helper(hd) === p) { const hx = hd.x - rx, hz = hd.z - rz, hl = Math.hypot(hx, hz) || 1, r = Math.min(1.5, hl * 0.5); tx = rx + hx / hl * r; tz = rz + hz / hl * r; k = 1.12; }
+            if (helper(hd) === p) { const hx = hd.x - rx, hz = hd.z - rz, hl = Math.hypot(hx, hz) || 1, r = Math.min(1.5, hl * 0.5); tx = rx + hx / hl * r; tz = rz + hz / hl * r; k = 1.12; p.dctx = 'rim'; }
             else { tx = lerp(tx, rx, 0.18); tz = lerp(tz, rz, 0.18); }
           }
         }
@@ -7353,7 +7758,7 @@ gl_FragColor=vec4(c,1.0);}`;
         p.dstance = D(p, man) < 2.1 && dbm < 7.3 && dmr < 9.5;
       }
       // the rebound: box out his man when a shot goes up, then go get it
-      if (b.st === 'air' && b.shot && b.shot.side !== p.side) { const g = Math.min(0.7, dmr * 0.5); tx = mx + ux * g; tz = mz + uz * g; p.boxOut = dmr < 6; p.dstance = false; }
+      if (b.st === 'air' && b.shot && b.shot.side !== p.side) { const g = Math.min(0.7, dmr * 0.5); tx = mx + ux * g; tz = mz + uz * g; p.boxOut = dmr < 6; p.dstance = false; if (p.boxOut) p.dctx = 'box'; }
       else p.boxOut = false;
       // off the ball, defenders keep their own ground: nobody stands shoulder to shoulder with a teammate or sinks onto the man
       // guarding the ball (only the one helper at the rim on a beaten drive goes there)
@@ -7363,7 +7768,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const R = hd && q.man === hd ? 3.2 : 2.9, dx = tx - q.x, dz = tz - q.z, dl = Math.hypot(dx, dz);
           if (dl < R && dl > 0.01) { tx += dx / dl * (R - dl) * 0.85; tz += dz / dl * (R - dl) * 0.85; }
         }
-        if (hd) { const dx = tx - hd.x, dz = tz - hd.z, dl = Math.hypot(dx, dz); if (dl < 3.2 && dl > 0.01) { tx = hd.x + dx / dl * 3.2; tz = hd.z + dz / dl * 3.2; } }
+        if (hd) { const dx = tx - hd.x, dz = tz - hd.z, dl = Math.hypot(dx, dz); if (dl < 3.9 && dl > 0.01) { tx = hd.x + dx / dl * 3.9; tz = hd.z + dz / dl * 3.9; } }
         tz = clamp(tz, -COURT.HW + 0.6, COURT.HW - 0.6);
       }
       const dt2 = Math.hypot(tx - p.x, tz - p.z);
@@ -7376,7 +7781,9 @@ gl_FragColor=vec4(c,1.0);}`;
       const onB = tgt === man && hd === man, lost = onB && Math.hypot(p.x - rx, p.z - rz) > dmr + 0.25;
       const hurry = onB ? lost && dt2 > 1.2 : dt2 > 3.2 || (tgt === man && dt2 > 1.8);
       if (hurry) p.face2 = null;
-      go(p, tx, tz, k, hurry, dt);
+      // a close-out: a sprint to get there, then short choppy steps with a hand up (under control, so the shooter cannot just blow by)
+      if (tgt === man && !onB && dt2 < 3.2 && dt2 > 0.3) { k *= clamp(0.42 + dt2 * 0.2, 0.5, 1); p.dstance = true; p.dctx = 'closeout'; if (dt2 < 2.2) p.face2 = Math.atan2(mx - p.x, mz - p.z); }
+      go(p, tx, tz, k, hurry && !(tgt === man && !onB && dt2 < 2.2), dt);
     }
     // a defender's reaction to a shot going up: jump to contest (or block, with good timing and length)
     function defReact(p) {
@@ -7406,6 +7813,9 @@ gl_FragColor=vec4(c,1.0);}`;
       // jump for it when it comes down to him
       if (d < 1.0 && p.jumpY <= 0 && b.y > p.lk.hs * 2.2 && b.y < p.lk.hs * 2.8 + 0.9 && b.vy < 1 && p.pose !== 'rebound') { setPose(p, 'rebound'); p.jumpV = 3.6 + rt(p, 'vert') * 0.02 + rt(p, 'reb') * 0.008; p.jumpY = 0.001; }
     }
+    // a defender who has his man sealed behind him on the block holds the seal until the ball is within his reach (he does not run to the rim
+    // and give the man the inside track)
+    function sealed(p) { const m = p.man, own = ownHoop(p.side); if (!m || !p.boxOut || D(p, m) > 1.4) return false; return rimDist(p.x, p.z, own) < rimDist(m.x, m.z, own) - 0.15 && Math.hypot(ball.x - p.x, ball.z - p.z) > 2.3; }
     // who goes for a ball nobody has: the nearest few of each team (to where it is going), never all ten
     const chasers = new Set();
     function pickChasers(n0, n1) {
@@ -7431,12 +7841,20 @@ gl_FragColor=vec4(c,1.0);}`;
       // not his ball: keep his spot (offense) or his man (defense) so the floor stays spread
       if (p.side === poss) offBallAI(p, dt); else defenseAI(p, dt);
     }
+    // a switch on a ball screen: the handler's man and the screener's man trade men; they trade back after the action
+    function doSwitch(O) {
+      const S = O.scr, a = S.h && guardOf(S.h), b = S.s && guardOf(S.s);
+      S.sw = true; if (!a || !b || a === b || isUser(a) || isUser(b) || a.man !== S.h || b.man !== S.s) return;
+      a.man = S.s; b.man = S.h; O.swap = [a, b]; O.swapT = tLive; pcount('switch');
+    }
+    function unswitch(O) { const w = O.swap; O.swap = null; if (!w) return; const [a, b] = w; if (a.man && b.man && onCourt.includes(a) && onCourt.includes(b)) { const m = a.man; a.man = b.man; b.man = m; } }
     // ---------- per step: everyone the CPU runs ----------
     let aiPoss = -1;
     function aiStep(dt) {
       const b = ball;
+      for (const p of onCourt) if (!p.rbDone) applyBoost(p);
       // a change of possession: a new trip, new spots
-      if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const O = OS(t); O.slot.clear(); O.scr = null; O.reT = 0; O.ballSlot = 0; O.cutT = tLive + 1.5; O.flash = 0; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; p.vcut = 0; p.from = null; p.chasing = false; } }
+      if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const O = OS(t); unswitch(O); O.slot.clear(); O.scr = null; O.reT = 0; O.ballSlot = 0; O.cutT = tLive + 1.5; O.flash = 0; O.play = null; O.iso = 0; O.hoT = 0; O.ds = null; O.dsT = tLive + 2.5; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; p.vcut = 0; p.from = null; p.chasing = false; } }
       // a pass just thrown: the passer cuts through or stays, the spots re-match around the catcher
       if (b.st === 'air' && b.pass && !b.pass.seen) {
         b.pass.seen = true; const P = b.pass, f = P.from, t = teams[f.side], O = OS(t), h = hoopOf(f.side);
@@ -7445,10 +7863,14 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       const T = teams[poss], O = OS(T);
       O.reT -= dt; if (O.reT <= 0) { O.reT = 0.45; assignSlots(T); }
+      if (!O.ds && b.holder && b.holder.side === poss && rng() < dt * 1.2) tryDownScreen(T, b.holder, hoopOf(poss));
+      if (O.scr && O.scr.cov === 'switch' && !O.scr.sw && O.scr.used) doSwitch(O);
+      if (O.swap && tLive - O.swapT > 5) unswitch(O);
       const shotUp = b.st === 'air' && b.shot && !b.shot.ft, loose = b.st === 'loose';
       if (shotUp || loose) { if (shotUp) pickChasers(poss === 0 ? 2 : 3, poss === 1 ? 2 : 3); else pickChasers(b.shot ? 3 : 2, b.shot ? 3 : 2); }
       for (const p of onCourt) {
         if (isUser(p)) { // (how long you have held it, and whether you are driving it at the rim: your teammates cut, drift and call off it, the help comes)
+          { const S = teams[p.side].O && teams[p.side].O.scr; if (S && S.h === p && S.st === 'hold' && !S.used && S.ht > 0.15 && D(p, S.s) < 2.1 && Math.hypot(p.vx, p.vz) > 2.2) S.used = true; }
           if (b.holder === p) { p.holdT += dt; const h = hoopOf(p.side), sp = Math.hypot(p.vx, p.vz), dx = h.x - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1; p.drive = p.fin || p.post || (sp > 3.4 && dl < 9.5 && (p.vx * dx + p.vz * dz) / (sp * dl) > 0.55) ? 0.3 : 0; }
           continue;
         }
@@ -7462,7 +7884,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const offense = p.side === poss;
         if (b.holder === p) handlerAI(p, dt);
         else if (loose) looseAI(p, dt);
-        else if (shotUp) { if (offense) crashAI(p, dt); else if (chasers.has(p) && (b.touchRim || b.touchBoard || b.vy < 0)) chaseBall(p, dt); else defenseAI(p, dt); }
+        else if (shotUp) { if (offense) crashAI(p, dt); else if (chasers.has(p) && (b.touchRim || b.touchBoard || b.vy < 0) && !sealed(p)) chaseBall(p, dt); else defenseAI(p, dt); }
         else if (b.st === 'air' && b.pass && b.pass.to === p) { // the catcher goes to where the ball comes down, as fast as it takes to be there (a lead pass is run onto, not waited for)
           const P = b.pass, lt = Math.max(0, P.T - P.t), cx = clamp(b.x + b.vx * lt, -COURT.HL + 0.5, COURT.HL - 0.5), cz = clamp(b.z + b.vz * lt, -COURT.HW + 0.5, COURT.HW - 0.5), need = Math.hypot(cx - p.x, cz - p.z) / Math.max(0.12, lt);
           p.sprint = need > effV(p) * 0.95; steer(p, cx, cz, Math.max(effV(p) * 0.7, Math.min(need * 1.15, effV(p) * 1.1)), dt); p.face2 = Math.atan2(b.x - p.x, b.z - p.z); p.cutS = null; }
@@ -7475,7 +7897,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // offense to its spots, the new defense back in front of it, the inbounder to the ball); on a whistle everyone eases up
     function resetStep(dt) {
       const run = phase === 'inb' || (phase === 'dead' && inbPlan);
-      if (run) { const T = teams[poss], O = OS(T); if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const o = OS(t); o.slot.clear(); o.scr = null; o.ballSlot = 0; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; } O.reT = 0; } O.reT -= dt; if (O.reT <= 0) { O.reT = 0.45; assignSlots(T); } }
+      if (run) { const T = teams[poss], O = OS(T); if (poss !== aiPoss) { aiPoss = poss; for (const t of teams) { const o = OS(t); unswitch(o); o.play = null; o.slot.clear(); o.scr = null; o.ds = null; o.ballSlot = 0; } for (const p of onCourt) { p.cutS = null; p.drive = 0; p.via = null; } O.reT = 0; } O.reT -= dt; if (O.reT <= 0) { O.reT = 0.45; assignSlots(T); } }
       for (const p of onCourt) {
         if (isUser(p) && run && !(inb && inb.passer === p) && !(inbPlan && inbPlan.passer === p)) { userMove(p, dt); continue; }
         if (p.jumpY > 0.02) continue;
@@ -7576,7 +7998,21 @@ gl_FragColor=vec4(c,1.0);}`;
       ctrl.jumpV = 3.7 + rt(ctrl, 'vert') * 0.016; ctrl.jumpY = 0.001; ctrl.blkDone = false;
       return true;
     }
-    const actStepDown = (again) => actShootDown(again, { step: true }); // X: the step-back jumper
+    // X: the finish modifier (held: a euro step or finger roll at the rim, a floater from the lane). From outside, pressing it also starts
+    // the step-back jumper. On a phone the modifier stays on for a moment after the tap so a thumb can go on to SHOOT.
+    let xShot = false, xT = 0;
+    function actXDown() {
+      if (finished) return true;
+      // right after a Q move he is still on the ball: X is the euro step / step-back move (the dribble's modifier), not a shot
+      if (!ctrl.shotS && ball.holder === ctrl && ctrl && phase === 'live' && (ctrl.mvB || tLive - (ctrl.cmbLast || -9) < 0.45)) { doMove(ctrl, true); return true; }
+      clearTimeout(xT); input.mod = true; xShot = false;
+      if (phase === 'live' && ctrl && ball.holder === ctrl && !ctrl.shotS && !ctrl.fin && !ctrl.post && ctrl.passT == null && rimDist(ctrl.x, ctrl.z, hoopOf(ctrl.side)) > 7) { actShootDown(false, { step: true }); xShot = !!ctrl.shotS; }
+      return true;
+    }
+    function actXUp(touch) {
+      if (touch) { clearTimeout(xT); xT = setTimeout(() => { input.mod = false; }, 750); } else input.mod = false;
+      if (xShot) { xShot = false; actShootUp(); }
+    }
     function actShootUp() {
       input.shoot = false;
       if (!ctrl) return;
@@ -7610,7 +8046,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function actMove() {
       if (finished || !ctrl || phase !== 'live') return true;
       if (ball.holder === ctrl && ctrl.post) { postQ(ctrl); return true; }
-      if (ball.holder === ctrl) { doMove(ctrl); return true; }
+      if (ball.holder === ctrl) { doMove(ctrl, input.mod); return true; }
       if (passToMe()) { bufAct(actMove); return false; }
       if (!ball.holder && ball.st === 'loose' && ball.y < 0.7) { startDive(ctrl); return true; } // a ball on the floor: dive on it
       if (ball.holder && ball.holder.side === 1) trySteal(ctrl);
@@ -7621,7 +8057,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // R / the POST button: hold to back a man down in the post
     function actPostDown() { if (finished) return true; input.post = true; return true; }
     function actPostUp() { input.post = false; if (ctrl && ctrl.post && !ctrl.pm) exitPost(ctrl); }
-    function actFoul() { if (!finished && ctrl && phase === 'live' && poss === 1 && !intentionalFoul(ctrl)) say2('Get closer to the ball handler to foul'); }
+    function actFoul() { if (finished || !ctrl) return; if (phase !== 'live' || poss !== 1) { if (phase === 'live') say2('F fouls on defense: you have the ball'); return; } if (!intentionalFoul(ctrl)) say2('Get closer to the ball handler to foul'); }
     function actTimeout() { if (finished) return; if (phase === 'timeout') { endTimeout(); return; } if (!callTimeout(0)) say2(teams[0].to ? 'Timeout: only on a dead ball or with the ball in your hands' : 'No timeouts left'); }
     // ---------- the tick ----------
     function step(dt) {
@@ -7639,7 +8075,7 @@ gl_FragColor=vec4(c,1.0);}`;
           else if (ball.st === 'air' && ball.pass) shotClk = Math.max(0, shotClk - dt);
         }
         // the shot clock: a violation when it runs out with the ball in hand (a shot in the air plays on)
-        if (shotClk <= 0 && ball.holder && clock > 0) { const s = ball.holder.side; stat(ball.holder.sq).to++; whistle('Shot clock', 'Violation · ' + (s ? HOME.abbr : AWAY.abbr) + ' ball'); ball.holder = null; ball.st = 'dead'; setDead(1.0, () => startInbound(1 - s, 0, COURT.HW)); }
+        if (shotClk <= 0 && ball.holder && clock > 0) { const s = ball.holder.side; stat(ball.holder.sq).to++; try { sfx.play('buzzer'); } catch (e) {} whistle('Shot clock violation', (s ? HOME.abbr : AWAY.abbr) + ' ball', 'clock'); deadInbound(1.0, 1 - s, clamp(ball.holder.x, -COURT.HL + 2, COURT.HL - 2), ball.holder.z >= 0 ? COURT.HW : -COURT.HW); }
         // the quarter ends: a shot already in the air still counts
         if (clock <= 0 && phase === 'live' && !(ball.st === 'air' && ball.shot && !ball.shot.ft) && !(ball.holder && ball.holder.fin)) { endQuarter(); }
         if (ball.shot) ball.shot.t += dt;
@@ -7657,11 +8093,14 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (phase === 'dead') { resetStep(dt); deadT -= dt; if (deadT <= 0) { const f = deadNext; deadNext = null; if (f) f(); else startInbound(poss, 0, COURT.HW); } }
       else if (phase === 'inb') { resetStep(dt); inbStep(dt); }
       else if (phase === 'ft') { resetStep(dt); ftStep(dt); }
-      else if (phase === 'timeout') { if (DBG && DBG.auto) { toS && (toS.t += dt); if (toS && toS.t > 0.5) endTimeout(); } }
-      else if (phase === 'break') { brk.t -= dt; if (brk.t <= 0) nextQuarter(); }
+      else if (phase === 'timeout') { if (toS) restStep(toS, dt); }
+      else if (phase === 'break') { if (brk) restStep(brk, dt); }
       else if (phase === 'over') { overT += dt; if (overT > 3.2 && !boxShown) showBox(); }
-      // a CPU timeout: on a run against it, at a dead ball
-      if (phase === 'dead' && teams[1].to > 0 && deadT < 0.5 && deadT > 0.4 && lastBig && lastBig.side === 0 && hs - as > 6 && rng() < 0.08) callTimeout(1);
+      // a CPU timeout: on a run against it, late in a close game, or when its starters are spent (once per dead ball)
+      if (phase === 'dead') { if (!cpuToChk && deadT < 0.7) { cpuToChk = true; cpuTimeout(); } } else cpuToChk = false;
+      if (phase !== 'splash' && phase !== 'box' && phase !== 'over') benchRest(dt);
+      rulesTick(dt);
+      REFS.step(dt);
       for (const p of everyone) { if (p.benched) continue; integrate(p, dt); }
       if (phase === 'live' || phase === 'tip') collide();
       ballStep(dt);
@@ -7805,7 +8244,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!depthOnly) gl.uniform1f(P.u.uAlpha, 0);
       for (const p of list) {
         if (!p.bones) continue;
-        const d = depthOnly ? 99 : Math.hypot(p.x - cam.e[0], p.z - cam.e[2]);
+        const vp = p.bx && p.bx.V, d = depthOnly ? 99 : Math.hypot((vp ? vp[0] : p.x) - cam.e[0], (vp ? vp[1] : p.z) - cam.e[2]);
         const mesh = meshForP(p)[d < (quality === 0 ? 9 : LOD_D) && !depthOnly ? 0 : 1];
         const rh = rhLevel(p, d, depthOnly); // his own scanned head in place of the drawn one (22-heads.js)
         if (rh >= 0) gl.uniform1f(P.u.uHead, 1);
@@ -7924,11 +8363,12 @@ gl_FragColor=vec4(c,1.0);}`;
       if (glLost || !G || finished) return;
       const t0 = performance.now();
       DRAWS.n = 0; DRAWS.tris = 0;
+      PRES.update(dt);
       updateCam(dt);
       const now = performance.now() / 1000;
       crowdMood += ((lastBig && lastBig.side === 1 && tLive - lastBig.t < 4 ? -0.6 : 0) - crowdMood) * Math.min(1, dt * 0.8);
       // pose everyone for this frame
-      for (const p of everyone) animUpdate(p, Math.max(0, dt));
+      if (!PRES.on) { for (const p of everyone) animUpdate(p, Math.max(0, dt)); PRES.record(Math.max(0, dt)); SND.frame(Math.max(0, dt)); }
       dyn.n = 0; tr.n = 0;
       const showPlayers = phase !== 'box';
       if (ball && showPlayers) drawBallNow(now);
@@ -8108,7 +8548,9 @@ gl_FragColor=vec4(c,1.0);}`;
       else {
         const s = project(p.x, 2.06 * p.lk.hs + p.jumpY + 0.1, p.z);
         if (s && s[0] > -20 && s[0] < cssW + 20 && s[1] > 20) {
-          if (ctag.dataset.k !== p.key) { ctag.dataset.k = p.key; ctag.innerHTML = `<b>${esc(String(p.num))}</b>${esc(shortName(p.sq.name))}`; }
+          if (ctag.dataset.k !== p.key) { ctag.dataset.k = p.key; ctag.innerHTML = `<b>${esc(String(p.num))}</b>${esc(shortName(p.sq.name))}<span class="dk-stb"><i></i></span>`; ctag.sbar = ctag.querySelector('.dk-stb'); ctag.sfil = ctag.sbar.firstChild; ctag.sv = -1; }
+          const sv = Math.round(p.sta * 50); if (sv !== ctag.sv) { ctag.sv = sv; ctag.sfil.style.width = (sv * 2) + '%'; ctag.sbar.className = 'dk-stb ' + (p.sta < 0.3 ? 'low' : p.sta < 0.6 ? 'mid' : ''); }
+          if (p.sta < 0.22 && !p.windedPop && phase === 'live') { p.windedPop = true; popAt(p, 'WINDED', '#ff7a6a'); } else if (p.sta > 0.4) p.windedPop = false;
           ctag.classList.remove('hide'); ctag.style.left = s[0].toFixed(1) + 'px'; ctag.style.top = s[1].toFixed(1) + 'px';
         } else ctag.classList.add('hide');
       }
@@ -8175,16 +8617,35 @@ gl_FragColor=vec4(c,1.0);}`;
     function camFrame(dt) {
       const S = camS, b = ball || { x: 0, y: 1, z: 0, st: 'dead' };
       const snap = dt < 0 || !S.on, h = snap ? 0 : Math.min(dt, 0.1);
-      const orbit = phase === 'splash' || phase === 'box' || phase === 'timeout' || phase === 'break' || phase === 'over';
+      // a timeout or a break: the camera goes to the huddle at the bench (until the huddles break up), then flies back to the game view
+      const rest = (phase === 'timeout' && toS && toS.stage !== 'back') || (phase === 'break' && brk && brk.stage !== 'back');
+      const orbit = phase === 'splash' || phase === 'box' || phase === 'over' || rest || ((phase === 'timeout' || phase === 'break') && !(toS || brk));
       const mode = orbit ? 'orbit' : 'game';
       const e = [0, 0, 0], c = [0, 0, 0];
+      if (PRES.cam(e, c, dt > 0 ? Math.min(dt, 0.1) : 0)) { // a replay or the flyover has the camera
+        S.on = false; S.spd = 0; S.mode = '';
+        for (let i = 0; i < 3; i++) { cam.e[i] = e[i]; cam.c[i] = c[i]; }
+        camDip(0); S.hoopCut = 0;
+        const asp0 = cv.width / cv.height || 1.78; cam.fovY = clamp(Math.max((PRES.on ? 33 : 38) * Math.PI / 180, 2 * Math.atan(Math.tan(58 * Math.PI / 360) / asp0)), 0.5, 1.25);
+        return;
+      }
       let fresh = snap;
       if (mode !== S.mode) { // between the orbit and the game camera: straight over (never a fly-through)
-        if (mode === 'game') fresh = true;
+        if (mode === 'game') { fresh = true; if (S.restCam) { S.xfT = 0.001; S.xfE = cam.e.slice(); S.xfC = cam.c.slice(); } }
         S.mode = mode;
       }
       S.spT += h; S.hoopCut = orbit ? 0 : S.hoopCut;
-      if (orbit) {
+      S.restCam = false;
+      if (rest) {
+        // the calling team's huddle in front of its bench, seen from out on the floor: low, the huddle in the upper half of the picture
+        // (the sub cards fill the lower part), the benches and the scorer's table behind it
+        const side = phase === 'timeout' ? toS.side : 0, BR = side === 0 ? GYM.bench.home : GYM.bench.away;
+        const hx = (BR[0] + BR[1]) / 2 + (side === 0 ? 1.2 : -1.2), hz = GYM.bs * (COURT.HW + 1.0), t = performance.now() / 1000;
+        e[0] = hx * 0.55 + Math.sin(t * 0.25) * 0.6; e[1] = 2.5 + 0.9 * por; e[2] = hz - GYM.bs * (6.4 + 1.6 * por); c[0] = hx; c[1] = 0.35 + 0.3 * por; c[2] = hz;
+        const k = snap ? 1 : 1 - Math.exp(-h * 2.6);
+        for (let i = 0; i < 3; i++) { e[i] = cam.e[i] + (e[i] - cam.e[i]) * k; c[i] = cam.c[i] + (c[i] - cam.c[i]) * k; }
+        S.restCam = true;
+      } else if (orbit) {
         const t = performance.now() / 1000 * 0.06 + 1.2;
         e[0] = Math.sin(t) * 13; e[1] = 6.2 + 2.5 * por; e[2] = Math.cos(t) * 9 + 3; c[0] = 0; c[1] = 1.2; c[2] = 0;
         e[2] = Math.min(e[2], GYM.bl.z - 0.6);
@@ -8241,6 +8702,10 @@ gl_FragColor=vec4(c,1.0);}`;
         const wr = S.spT < CAM2K.swing ? camEase((S.spT / CAM2K.swing - 0.75) / 0.25) : 1; // mid-turn only a hoop right at the lens is cut; the end wall stays up (no void) until the turn settles
         const kk = Math.max(wr * clamp((-S.cutWant * e[0] - 8.4) / 1.5, 0, 1), clamp((8 - Math.hypot(e[0] + S.cutWant * RIM_X, e[2])) / 2.5, 0, 1)); // ...or when the eye swings close to a hoop
         S.hoopCut = kk * kk * (3 - 2 * kk);
+      }
+      if (S.xfT > 0) { // back from the huddle: the old view melts into the game view
+        S.xfT += h; const u = S.xfT / 1.0;
+        if (u >= 1) S.xfT = 0; else { const w = 1 - camEase(u); for (let i = 0; i < 3; i++) { e[i] += (S.xfE[i] - e[i]) * w; c[i] += (S.xfC[i] - c[i]) * w; } }
       }
       S.spd = h > 0 && S.spT >= CAM2K.swing ? Math.hypot(e[0] - cam.e[0], e[1] - cam.e[1], e[2] - cam.e[2]) / h : 0;
       for (let i = 0; i < 3; i++) { cam.e[i] = e[i]; cam.c[i] = c[i]; }
@@ -8628,6 +9093,477 @@ gl_FragColor=vec4(c,1.0);}`;
       gl.depthMask(true); gl.bindTexture(gl.TEXTURE_2D, G.white);
     }
     // =====================================================================================
+    // Sound: the gym, synthesized (WebAudio, nothing downloaded). Every sound has a place on the floor: it is quieter with distance
+    // from the camera's focus and panned to where it is on the screen (the projection decides left and right). A little hall
+    // reverb sits under everything (a high school gym rings). What is here: the dribble (a low thump with a slap on every bounce,
+    // louder when he pounds it), sneaker squeaks on cuts and stops, steps, landings, a ball off the iron (a clank, a rattle),
+    // off the glass (a thud and a ring), the net, the referee's pea whistle, the shot clock buzzer and the quarter horn, the crowd
+    // bed that swells with the game (runs, threes, close and late) and hushes at the line, its cheer, its groan, its gasp as a
+    // shot rises, claps, and the benches' shouts. sfx.play(name) is rerouted here for every name the game already uses.
+    // =====================================================================================
+    const SND = (() => {
+      let ac = null, bus = null, comp = null, send = null, nz = null, pk = null, bed = null, live = 0, bedT = 0, shotNote = null;
+      let sd = 4711; const R = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+      const q = { on: true };
+      function init() {
+        if (ac) return true;
+        let a = null; try { a = sfx.ctx(); } catch (e) {}
+        if (!a) return false;
+        ac = a;
+        comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 14; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.22;
+        bus = ac.createGain(); bus.gain.value = 1.2; bus.connect(comp); comp.connect(sfx.out);
+        // the hall: a decaying burst of noise (stereo) through a convolver
+        const sr = ac.sampleRate, len = (sr * 1.5) | 0, ir = ac.createBuffer(2, len, sr);
+        for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (R() * 2 - 1) * Math.pow(1 - i / len, 2.8) * Math.min(1, i / (sr * 0.01)); }
+        const cv2 = ac.createConvolver(); cv2.buffer = ir; send = ac.createGain(); send.gain.value = 1;
+        const wet = ac.createGain(); wet.gain.value = 0.42; send.connect(cv2); cv2.connect(wet); wet.connect(comp);
+        // white and pink noise, three seconds
+        const n = sr * 3, b1 = ac.createBuffer(1, n, sr), b2 = ac.createBuffer(1, n, sr), d1 = b1.getChannelData(0), d2 = b2.getChannelData(0);
+        let a0 = 0, a1 = 0, a2 = 0, a3 = 0, a4 = 0, a5 = 0, a6 = 0;
+        for (let i = 0; i < n; i++) {
+          const w = R() * 2 - 1; d1[i] = w;
+          a0 = 0.99886 * a0 + w * 0.0555179; a1 = 0.99332 * a1 + w * 0.0750759; a2 = 0.969 * a2 + w * 0.153852; a3 = 0.8665 * a3 + w * 0.3104856; a4 = 0.55 * a4 + w * 0.5329522; a5 = -0.7616 * a5 - w * 0.016898;
+          d2[i] = (a0 + a1 + a2 + a3 + a4 + a5 + a6 + w * 0.5362) * 0.11; a6 = w * 0.115926;
+        }
+        nz = b1; pk = b2;
+        // the crowd bed: a murmur, a roar, chatter; always running, only the levels move
+        const mk = (buf, type, f, qq) => { const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = buf; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = qq; g.gain.value = 0.0001; s.connect(fl); fl.connect(g); g.connect(bus); s.start(0, R() * 2); return { s, fl, g }; };
+        bed = { mur: mk(pk, 'lowpass', 700, 0.5), roar: mk(pk, 'bandpass', 950, 0.42), chat: mk(nz, 'bandpass', 2300, 0.9) };
+        try { // a slow swell in the roar's colour and in the murmur
+          const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.19; lg.gain.value = 260; lfo.connect(lg); lg.connect(bed.roar.fl.frequency); lfo.start();
+          const l2 = ac.createOscillator(), g2 = ac.createGain(); l2.frequency.value = 0.31; g2.gain.value = 0.012; l2.connect(g2); g2.connect(bed.mur.g.gain); l2.start();
+        } catch (e) {}
+        try { sfx.crowd(0); } catch (e) {}
+        return true;
+      }
+      function ready() { if (!ac && !init()) return false; try { if (ac.state === 'suspended') ac.resume(); } catch (e) {} return !sfx.muted; }
+      // where a sound is: a gain from the distance to the camera's focus, a pan from where it lands on the screen
+      function spat(x, z) {
+        if (x == null) return { g: 1, pan: 0 };
+        const d = Math.hypot(x - cam.c[0], z - cam.c[2]); let pan = 0;
+        try { const s = project(x, 1.2, z); if (s) pan = clamp((s[0] / cssW - 0.5) * 1.7, -0.85, 0.85); } catch (e) {}
+        return { g: Math.max(0.14, 1 / (1 + (d / 13) * (d / 13))), pan, d };
+      }
+      function sink(node, sp, wet) {
+        let n = node;
+        if (ac.createStereoPanner && sp.pan) { const p = ac.createStereoPanner(); p.pan.value = sp.pan; n.connect(p); n = p; }
+        n.connect(bus);
+        if (wet) { const w = ac.createGain(); w.gain.value = wet; n.connect(w); w.connect(send); }
+      }
+      const track = (d) => { live++; setTimeout(() => { live--; }, (d + 0.15) * 1000); };
+      // noise through a filter and an envelope
+      function nv(o) {
+        if (live > 60) return;
+        const t = ac.currentTime + (o.t || 0), sp = o.sp || spat(o.x, o.z), s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+        s.buffer = o.white ? nz : pk; f.type = o.type || 'bandpass'; f.frequency.setValueAtTime(o.f, t); if (o.f2) f.frequency.exponentialRampToValueAtTime(o.f2, t + o.dur); f.Q.value = o.q || 1;
+        const top = Math.max(0.0002, (o.g || 0.1) * sp.g), att = o.att || 0.004;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(top, t + att);
+        if (o.hold) g.gain.setValueAtTime(top, t + o.hold);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
+        s.connect(f); f.connect(g); sink(g, sp, o.wet); s.start(t, R() * 1.5); s.stop(t + o.dur + 0.05); track(o.dur + (o.t || 0));
+      }
+      // an oscillator through an envelope
+      function ov(o) {
+        if (live > 60) return;
+        const t = ac.currentTime + (o.t || 0), sp = o.sp || spat(o.x, o.z), s = ac.createOscillator(), g = ac.createGain();
+        s.type = o.type || 'sine'; s.frequency.setValueAtTime(o.f, t); if (o.f2) s.frequency.exponentialRampToValueAtTime(o.f2, t + o.dur);
+        const top = Math.max(0.0002, (o.g || 0.1) * sp.g), att = o.att || 0.003;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(top, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
+        let n = s; if (o.lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; n.connect(f); n = f; } if (o.bp) { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = o.bp; f.Q.value = o.q || 4; n.connect(f); n = f; }
+        n.connect(g); sink(g, sp, o.wet); s.start(t); s.stop(t + o.dur + 0.05); track(o.dur + (o.t || 0));
+      }
+      // ---------- the ball and the floor ----------
+      // v 0.3 .. 1.4: how hard it was put into the floor (a pounded dribble is deeper and louder)
+      function drib(x, z, v) {
+        if (!ready()) return; v = clamp(v == null ? 0.8 : v, 0.25, 1.5); const pit = 0.9 + R() * 0.2, w = 0.5 + 0.5 * v;
+        ov({ x, z, f: 138 * pit, f2: 64 * pit, dur: 0.12, g: 0.55 * w, wet: 0.12 });           // the body of the ball on the boards
+        nv({ x, z, type: 'lowpass', f: 520, dur: 0.06, g: 0.5 * w, att: 0.002, wet: 0.1 });       // the floor
+        nv({ x, z, f: 1500 + R() * 300, q: 1.4, dur: 0.035, g: 0.22 * w, att: 0.001, wet: 0.2 }); // the slap of the skin
+      }
+      function slap(x, z, v) { if (!ready()) return; nv({ x, z, f: 1700, q: 1.1, dur: 0.05, g: 0.3 * (v || 1), att: 0.001, wet: 0.2 }); ov({ x, z, f: 220, f2: 140, dur: 0.07, g: 0.2 * (v || 1) }); } // a catch
+      function whoosh(x, z, v) { if (!ready()) return; nv({ x, z, f: 500, f2: 1700, q: 0.8, dur: 0.17, g: 0.09 * (v || 1), att: 0.05, wet: 0.1 }); }
+      function iron(x, z, v) { // off the rim: a clank, the metal ringing out
+        if (!ready()) return; v = clamp(v / 9, 0.12, 1.1);
+        for (const [f, dec, g] of [[430, 0.55, 0.34], [1090, 0.4, 0.22], [1860, 0.3, 0.14], [2740, 0.22, 0.09]]) ov({ x, z, f: f * (0.99 + R() * 0.02), dur: dec, g: g * v, wet: 0.4, att: 0.0015 });
+        nv({ x, z, f: 2600, q: 1.6, dur: 0.03, g: 0.3 * v, att: 0.001, wet: 0.3 });
+      }
+      function glass(x, z, v) { // off the board: a thud in the frame and a ring in the glass
+        if (!ready()) return; v = clamp(v / 9, 0.15, 1.1);
+        ov({ x, z, f: 175, f2: 105, dur: 0.16, g: 0.26 * v, wet: 0.2 }); ov({ x, z, f: 660, type: 'triangle', dur: 0.26, g: 0.1 * v, wet: 0.5 }); ov({ x, z, f: 1280, type: 'triangle', dur: 0.16, g: 0.06 * v, wet: 0.5 });
+        nv({ x, z, type: 'lowpass', f: 900, dur: 0.06, g: 0.16 * v, att: 0.002 });
+      }
+      function net(x, z, v) { // the swish: air through the cords, bright, quick, a little drag behind it
+        if (!ready()) return; v = v == null ? 1 : v;
+        nv({ x, z, white: true, type: 'highpass', f: 3600, q: 0.5, dur: 0.34, g: 0.2 * v, att: 0.012, wet: 0.25 });
+        nv({ x, z, white: true, f: 6800, f2: 4200, q: 0.7, dur: 0.3, g: 0.22 * v, att: 0.01, wet: 0.2 });
+        nv({ x, z, f: 2400, q: 1.5, dur: 0.18, g: 0.06 * v, att: 0.02, t: 0.07 });
+      }
+      function rattle(x, z) { for (let i = 0; i < 4; i++) { const t = i * (0.07 + R() * 0.03); setTimeout(() => { try { iron(x, z, 4 - i); } catch (e) {} }, t * 1000 * (1 + i * 0.5)); } }
+      function landing(x, z, h) { if (!ready()) return; const w = clamp(h / 0.9, 0.3, 1.3); ov({ x, z, f: 95, f2: 55, dur: 0.12, g: 0.4 * w }); nv({ x, z, type: 'lowpass', f: 420, dur: 0.07, g: 0.35 * w, att: 0.002 }); nv({ x, z, f: 1100, q: 1, dur: 0.04, g: 0.1 * w }); }
+      function bump(x, z, v) { if (!ready()) return; v = clamp(v == null ? 0.7 : v, 0.2, 1.2); nv({ x, z, type: 'lowpass', f: 300, dur: 0.12, g: 0.5 * v, att: 0.004, wet: 0.1 }); ov({ x, z, f: 70, f2: 48, dur: 0.12, g: 0.25 * v }); }
+      function stepSnd(x, z, v) { if (!ready()) return; nv({ x, z, f: 800 + R() * 500, q: 1.1, dur: 0.035, g: 0.05 * clamp(v, 0.3, 1.2), att: 0.001 }); }
+      function squeak(x, z, v) { // rubber on varnish: two or three bright chirps going up
+        if (!ready()) return; v = clamp(v == null ? 0.8 : v, 0.3, 1.2); const n = v > 0.85 ? 3 : 2;
+        for (let i = 0; i < n; i++) { const f0 = 1400 + R() * 900; ov({ x, z, type: 'sawtooth', f: f0, f2: f0 * (1.3 + R() * 0.5), bp: f0 * 1.5, q: 7, dur: 0.065 + R() * 0.03, g: 0.07 * v, att: 0.006, t: i * (0.07 + R() * 0.03), wet: 0.3 }); }
+        nv({ x, z, f: 3200, q: 2, dur: 0.12, g: 0.02 * v, att: 0.01, wet: 0.2 });
+      }
+      // ---------- the officials and the clock ----------
+      function whistle(x, z, len) { // a pea whistle: a bright tone with a fast tremble, a breathy edge
+        if (!ready()) return; len = len || 0.5; const t = ac.currentTime, sp = spat(x, z), g = ac.createGain(), o1 = ac.createOscillator(), o2 = ac.createOscillator(), lfo = ac.createOscillator(), lg = ac.createGain(), mg = ac.createGain();
+        o1.type = 'sine'; o2.type = 'sine'; o1.frequency.setValueAtTime(2780, t); o1.frequency.linearRampToValueAtTime(3010, t + 0.07); o1.frequency.linearRampToValueAtTime(2930, t + len);
+        o2.frequency.setValueAtTime(3120, t); o2.frequency.linearRampToValueAtTime(3300, t + 0.07); o2.frequency.linearRampToValueAtTime(3200, t + len);
+        lfo.frequency.value = 34; lg.gain.value = 0.4; mg.gain.value = 0.6; lfo.connect(lg); lg.connect(mg.gain);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2 * Math.max(0.4, sp.g), t + 0.025); g.gain.setValueAtTime(0.2 * Math.max(0.4, sp.g), t + len - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.05);
+        o1.connect(mg); o2.connect(mg); mg.connect(g); sink(g, sp, 0.35);
+        for (const o of [o1, o2, lfo]) { o.start(t); o.stop(t + len + 0.1); }
+        nv({ x, z, f: 3300, q: 3, dur: len, g: 0.05, att: 0.02, white: true }); track(len);
+      }
+      function horn(kind) {
+        if (!ready()) return; const t = ac.currentTime, big = kind !== 'short', len = big ? 1.5 : 0.7, g = ac.createGain(), f = ac.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.value = big ? 1500 : 2400; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(big ? 0.2 : 0.13, t + 0.025); g.gain.setValueAtTime(big ? 0.2 : 0.13, t + len); g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.2);
+        for (const [fr, ty, gg] of big ? [[130.8, 'sawtooth', 1], [132, 'sawtooth', 1], [261.6, 'square', 0.45], [196, 'sawtooth', 0.5]] : [[420, 'square', 1], [426, 'square', 1], [840, 'square', 0.3]]) {
+          const o = ac.createOscillator(), og = ac.createGain(); o.type = ty; o.frequency.value = fr; og.gain.value = gg * 0.5; o.connect(og); og.connect(f); o.start(t); o.stop(t + len + 0.3);
+        }
+        f.connect(g); sink(g, { g: 1, pan: 0 }, 0.3); track(len + 0.3);
+      }
+      // ---------- the crowd ----------
+      // the bed: called a few times a second with the game's excitement
+      function bedTick() {
+        if (!ac && !init()) return; if (sfx.muted) return; const t = ac.currentTime;
+        const calm = phase === 'splash' || phase === 'box', ex = clamp(excite, 0, 1), late = qtr >= 4 && Math.abs(hs - as) <= 6 ? 0.18 : 0, hush = phase === 'ft' ? 0.5 : phase === 'timeout' || phase === 'break' ? 0.7 : 1;
+        const lvl = calm ? 0.1 : clamp(0.32 + ex * 0.85 + late, 0, 1.3) * hush;
+        const set = (n, v) => { try { n.g.gain.setTargetAtTime(Math.max(0.0001, v), t, 0.35); } catch (e) {} };
+        set(bed.mur, 0.12 + 0.1 * lvl); set(bed.roar, 0.035 + 0.3 * lvl * lvl); set(bed.chat, 0.012 + 0.03 * lvl);
+        try { bed.roar.fl.Q.setTargetAtTime(0.42 + 0.2 * (1 - lvl), t, 0.5); } catch (e) {}
+      }
+      function swell(p, o) { // a shout from the stands: noise opening up, a hold, a long tail
+        const up = o.up || [520, 1100], dur = o.dur || 2.2;
+        nv({ sp: { g: 1, pan: 0 }, f: up[0], f2: up[1], q: 0.6, dur, hold: dur * 0.18, g: o.g * p, att: o.att || 0.22, wet: 0.35 });
+        nv({ sp: { g: 1, pan: 0 }, f: up[0] * 1.9, f2: up[1] * 1.7, q: 0.9, dur: dur * 0.8, g: o.g * p * 0.45, att: (o.att || 0.22) * 1.2, wet: 0.3, white: true });
+      }
+      function clapsRun(p, n, gap) { // a patter of hands
+        if (!ready()) return; const t0 = ac.currentTime + 0.12, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+        s.buffer = nz; f.type = 'bandpass'; f.frequency.value = 2100; f.Q.value = 0.8; g.gain.setValueAtTime(0.0001, t0);
+        for (let k = 0; k < n; k++) { const tk = t0 + k * gap + R() * gap * 0.8, a = 0.16 * p * (1 - 0.6 * k / n) * (0.5 + R() * 0.5); g.gain.setValueAtTime(0.0001, tk); g.gain.linearRampToValueAtTime(a, tk + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, tk + 0.03); }
+        s.connect(f); f.connect(g); sink(g, { g: 1, pan: 0 }, 0.3); s.start(t0, R()); s.stop(t0 + n * gap + 0.3); track(n * gap + 0.4);
+      }
+      function cheer(p, mine) {
+        if (!ready()) return; p = clamp(p == null ? 0.7 : p, 0.15, 1.3); if (!mine) p *= 0.4;
+        swell(p, { g: 0.55, up: [480, 1200], dur: 1.7 + 1.5 * p, att: 0.2 });
+        if (mine) { ov({ sp: { g: 1, pan: 0 }, type: 'sawtooth', f: 180, f2: 270, bp: 900, q: 1.2, dur: 0.9, g: 0.05 * p, att: 0.1, wet: 0.4 }); if (p > 0.45) clapsRun(p, 18 + (p * 14) | 0, 0.075); }
+      }
+      function groan(p) { if (!ready()) return; p = clamp(p == null ? 0.7 : p, 0.15, 1.2); swell(p, { g: 0.4, up: [1000, 430], dur: 1.5, att: 0.12 }); ov({ sp: { g: 1, pan: 0 }, type: 'sawtooth', f: 230, f2: 140, bp: 600, q: 1.5, dur: 1.2, g: 0.04 * p, att: 0.1, wet: 0.4 }); }
+      function ooh(p) { if (!ready()) return; p = clamp(p == null ? 0.7 : p, 0.15, 1.2); swell(p, { g: 0.42, up: [560, 980], dur: 1.2, att: 0.28 }); }
+      function bench(side, n) { // the bench on its feet: "yeah", "let's go"
+        if (!ready()) return; const B = side === 0 ? GYM.bench.home : GYM.bench.away, x = (B[0] + B[1]) / 2, z = GYM.bench.z;
+        for (let i = 0; i < (n || 2); i++) { const f0 = 125 + R() * 70; ov({ x: x + (R() - 0.5) * 3, z, type: 'sawtooth', f: f0, f2: f0 * 1.25, bp: 650 + R() * 300, q: 3, dur: 0.2 + R() * 0.1, g: 0.11, att: 0.03, t: i * (0.16 + R() * 0.12), wet: 0.35 }); }
+      }
+      // ---------- the game's own sounds, rerouted ----------
+      const ballAt = () => (ball ? [ball.x, ball.z] : [0, 0]);
+      const hoopNear = () => { const b = ball || { x: 0 }; return HOOP[b.x < 0 ? 0 : 1]; };
+      function hit(k, v) {
+        const [x, z] = ballAt(); v = v || 4;
+        if (k === 'rim') {
+          iron(x, z, v);
+          const S = ball && ball.shot;
+          if (S && S.will === 'out' && !S.grn && !S.ft) { S.grn = true; setTimeout(() => { try { groan(S.pts === 3 ? 0.8 : 0.6); } catch (e) {} }, 380); }
+          else if (S && S.will === 'in' && !S.gsp) { S.gsp = true; ooh(0.5); }
+        } else if (k === 'board') glass(x, z, v);
+        else drib(x, z, clamp(v / 7, 0.3, 1.5));
+      }
+      // a shot leaves the hand: the crowd draws a breath, more for a three and late in a close game
+      function shot(S) {
+        if (!S || S.ft) return; const big = S.pts === 3 || (qtr >= 4 && clock < 25 && Math.abs(hs - as) <= 3);
+        shotNote = S; if (big) ooh(S.pts === 3 ? 0.55 : 0.4);
+      }
+      // a basket: the net, the roar (theirs is small), the bench of the side that scored; a three or a post move is louder
+      function made(S, side, pts, ft) {
+        const big = !ft && (pts === 3 || (S && S.post)), mine = side === 0, close = qtr >= 4 && Math.abs(hs - as) <= 4 && clock < 60;
+        if (ft) { if (mine) cheer(0.35, true); return; }
+        if (!mine) { groan(0.45); cheer(0.5, false); } else cheer(big ? 1.1 : close ? 0.95 : 0.7, true);
+        if (S && S.and1) cheer(0.5, true);
+        setTimeout(() => { try { bench(side, big ? 3 : 2); } catch (e) {} }, 250);
+      }
+      const NAMES = {
+        drib: () => { const b = ball; if (b && b.holder) { const h = b.holder, sp = Math.hypot(h.vx, h.vz); drib(h.x, h.z, 0.7 + sp * 0.07); } else drib(b ? b.x : 0, b ? b.z : 0, 0.8); },
+        catch: () => { const [x, z] = ballAt(); slap(x, z, 1); },
+        throw: () => { const [x, z] = ballAt(); whoosh(x, z, 1); },
+        swish: () => { const [x, z] = ballAt(); const h = hoopNear(); net(h.x, h.z, 1); },
+        clang: () => { const [x, z] = ballAt(); iron(x, z, 5); }, doink: () => { const [x, z] = ballAt(); glass(x, z, 6); },
+        whistle: () => { const r = REFS.list[0]; whistle(r ? r.x : null, r ? r.z : null, 0.55); },
+        win: () => { cheer(1.3, true); clapsRun(1, 44, 0.07); setTimeout(() => { try { bench(0, 3); } catch (e) {} }, 400); }, lose: () => groan(0.9),
+        horn: () => horn(phase === 'timeout' ? 'short' : 'big'), buzzer: () => horn('short'),
+        cheer: () => cheer(0.7, true), ooh: () => ooh(0.8), clap: () => clapsRun(0.6, 10, 0.08), boo: () => groan(0.7),
+        squeak: () => { let b = null; for (const p of onCourt) if (p.squeakT > 0.35 && (!b || p.squeakT > b.squeakT)) b = p; if (b) squeak(b.x, b.z, 0.9); },
+      };
+      // returns true when the game's sound is handled here
+      function map(name) { if (!NAMES[name]) return false; if (!ready()) return true; try { NAMES[name](); } catch (e) {} return true; }
+      // a squeak for a player, once in a while (the stride's own plant calls it too)
+      function squeakP(p, v) { if (p._sqT > 0) return; p._sqT = 0.2; if (Math.hypot(p.x - cam.c[0], p.z - cam.c[2]) < 14) squeak(p.x, p.z, v || 0.9); }
+      // per frame: landings, cuts and stops, steps, for the ten on the floor
+      function frame(dt) {
+        if (!ac || sfx.muted || dt <= 0 || (typeof PRES !== 'undefined' && PRES.hold())) return;
+        if (phase === 'splash' || phase === 'box' || phase === 'timeout' || phase === 'break') return;
+        for (const p of onCourt) {
+          const s = p._s || (p._s = { jy: 0, vx: 0, vz: 0, acc: 0.8, sp: 0 });
+          const sp = Math.hypot(p.vx, p.vz); if (p._sqT > 0) p._sqT -= dt;
+          const near = Math.hypot(p.x - cam.c[0], p.z - cam.c[2]) < 15;
+          if (near) {
+            if (s.jy > 0.22 && p.jumpY <= 0.02) landing(p.x, p.z, s.jy);
+            const dv = Math.hypot(p.vx - s.vx, p.vz - s.vz) / dt;
+            if (dv > 24 && Math.max(sp, s.sp) > 3 && !(p._sqT > 0) && p.jumpY < 0.05) squeakP(p, clamp(0.5 + dv / 70, 0.5, 1.1));
+            if (sp > 2.3 && p.jumpY < 0.03) { s.acc += sp * dt; if (s.acc > 1.5) { s.acc = 0; stepSnd(p.x, p.z, sp / 6); } } else s.acc = 0.9;
+          }
+          s.jy = p.jumpY; s.vx = p.vx; s.vz = p.vz; s.sp = sp;
+        }
+      }
+      return { init, ready, drib, slap, whoosh, iron, glass, net, rattle, landing, bump, squeak, squeakP, whistle, horn, cheer, groan, ooh, bench, hit, shot, made, bedTick, map, frame, step: stepSnd, spat, get live() { return live; }, get ctx() { return ac; }, get bus() { return bus; }, get out() { return comp; }, bed: () => bed };
+    })();
+    // the game's old sound names go through the new gym sounds first
+    { const old = sfx.play; sfx.play = function (n) { if (SND.map(n)) return; return old.apply(sfx, arguments); }; }
+    // =====================================================================================
+    // Presentation: the two referees who run the floor, the replays of the big plays, the flyover before the tip.
+    //
+    // Referees: two officials (side 2, the striped kit) on the long sides of the floor. The lead stands at the baseline of the end
+    // being attacked and shifts with the ball; the trail comes up behind the play; they swap jobs when possession turns and
+    // run the length of the floor. At the line they stand at the lane and the top. A whistle freezes the nearest one with an arm up.
+    //
+    // Replays: the pose of everyone (all the bones) and the ball are kept for the last ten seconds, a frame every 1/52 s. After a
+    // block, a broken ankle, a buzzer beater or a game winner, at the next dead ball the play runs again from a low camera that
+    // circles in, slowed down around the moment, under REPLAY bars. Any key, a click or a tap skips it. The game is held (the clock,
+    // the ball, the AI) while it plays and carries on exactly where it stopped. There are no dunks in this game, so none here.
+    //
+    // The flyover: before the tip the camera comes down over the stands, past the scoreboard, to the jump ball; skippable.
+    // =====================================================================================
+    const REFS = (() => {
+      const list = [];
+      function mk(i) {
+        const q = { key: 'ref' + i, name: 'Referee', num: 0, look: normLook(null, 1 + i * 3, { hgt: 71 }), cell: -1, fx: null, pos: 'SF', hgt: 71, wgt: 175, bb: { ovr: 60, spd: 60, vert: 40, str: 50, hand: 50, pass: 50, fin: 50, dunk: 30, mid: 50, three: 50, ft: 50, perD: 50, intD: 50, stl: 50, blk: 50, reb: 50, sta: 99 }, sixth: false };
+        const p = mkP(q, 2);
+        p.role = 'REF'; const bd = bodySpec(BODY.REF, p.lk, 175); p.body = bd; p.lk = Object.assign({}, p.lk, { sw: bd.sw, ll: bd.ll || 1 }); p.w = bd.bulk;
+        p.ncell = -1; p.nmcell = -1; p.isRef = true; p.rad = 0.3; p.holdT = 0;
+        p.v = 5.0; p.acc = 12; p.spd = 60;
+        return p;
+      }
+      function build() {
+        for (const r of list) { const k = everyone.indexOf(r); if (k >= 0) everyone.splice(k, 1); }
+        list.length = 0;
+        for (let i = 0; i < 2; i++) { const r = mk(i); r.x = (i ? 3.2 : -3.2); r.z = -GYM.bs * (COURT.HW + 0.7); r.h = i ? -Math.PI / 2 : Math.PI / 2; r.vx = r.vz = 0; list.push(r); everyone.push(r); }
+      }
+      function targets(lead, trail) {
+        const bs = GYM.bs, HW = COURT.HW, HL = COURT.HL, b = ball;
+        if (phase === 'splash' || phase === 'tip' || phase === 'box') return [[1.8, -bs * (HW + 0.7)], [-3.0, -bs * (HW + 0.7)]];
+        if (phase === 'ft' && ftS) {
+          const dd = dirOf(ftS.sh.side);
+          return [[dd * (HL + 0.9), bs * 3.6], [dd * (HL - 5.4), -bs * (HW + 0.7)]];
+        }
+        const bx = clamp(b.x, -HL, HL), bz = clamp(b.z, -HW, HW), d = dirOf(poss);
+        // the lead ahead of the play at the end line; the trail behind it on the far sideline
+        const lx = d * (HL + 0.55), lz = clamp(-bz * 0.5 + bs * 1.2, -5.8, 5.8);
+        const tx = clamp(bx - d * 4.4, -HL + 1, HL - 1), tz = -bs * (HW + 0.7);
+        return [[lx, lz], [tx, tz]];
+      }
+      function step(dt) {
+        if (!list.length || !ball) return;
+        const d = dirOf(poss), lead = d > 0 ? list[0] : list[1], trail = lead === list[0] ? list[1] : list[0];
+        const T = targets(lead, trail);
+        for (const [r, t] of [[lead, T[0]], [trail, T[1]]]) {
+          if (r.holdT > 0) { r.holdT -= dt; drive(r, 0, 0, 14, dt); }
+          else {
+            const dx = t[0] - r.x, dz = t[1] - r.z, dl = Math.hypot(dx, dz);
+            let sp = dl > 7 ? 6.4 : clamp(dl * 1.6, 0, 5.0);
+            let vx = dl > 0.08 ? dx / dl * sp : 0, vz = dl > 0.08 ? dz / dl * sp : 0;
+            for (const q of onCourt) { const ax = r.x - q.x, az = r.z - q.z, al = Math.hypot(ax, az); if (al < 1.25 && al > 0.01) { const k = (1.25 - al) * 5; vx += ax / al * k; vz += az / al * k; } }
+            drive(r, vx, vz, 12, dt);
+          }
+          r.sprint = false; r.stumbleT = 0;
+          // standing still he squares to the ball
+          if (Math.hypot(r.vx, r.vz) < 0.9) { const a = Math.atan2(ball.x - r.x, ball.z - r.z); r.h += angDiff(a, r.h) * Math.min(1, dt * 5); }
+        }
+      }
+      // the whistle: the nearest official stops with an arm up
+      function blow() {
+        if (!list.length || !ball) return;
+        let r = list[0]; if (D(list[1], ball) < D(list[0], ball)) r = list[1];
+        r.holdT = 1.3; try { ANIMX.life(r, 'raise', 1.3, 0); } catch (e) {}
+      }
+      return { list, build, step, blow };
+    })();
+
+    const PRES = (() => {
+      const CAP = 560, HZ = 52, LEAD = 2.1, TAIL = 0.9;
+      let frames = null, head = 0, count = 0, clk = 0, lastRec = -9, roster = [];
+      const rep = { on: false, t: 0, ta: 0, tEnd: 0, kind: '', who: '', dir: 1, f: [0, 1, 0], sgn: 1, ph: 0, real: 0, sv: null, pre: 0 };
+      const intro = { on: false, t: 0, dur: 5.2 };
+      let pend = null, nRep = 0, lastRepClk = -99, lastPhase = '', phaseAt = 0, ui = null, uiTag = null, uiWhat = null, cssDone = false;
+      const hold = () => rep.on || intro.on;
+      function css() {
+        if (cssDone) return; cssDone = true;
+        const s = document.createElement('style'); s.id = 'dk-css2';
+        s.textContent = '.dk-rep{position:absolute;inset:0;z-index:8;pointer-events:none;opacity:0;transition:opacity .25s}.dk-rep.on{opacity:1;pointer-events:auto}'
+          + '.dk-rep .bar{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease}.dk-rep.on .bar{height:8.5%}.dk-rep .bt{top:0}.dk-rep .bb{bottom:0}'
+          + ".dk-rep .tag{position:absolute;left:3.5%;top:11%;display:flex;align-items:center;gap:.55em;font:800 clamp(15px,2.6vw,30px)/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:.14em;color:#fff;text-shadow:0 2px 6px #000}"
+          + '.dk-rep .tag b{display:inline-block;background:#c8102e;padding:.18em .55em .12em;border-radius:2px}.dk-rep .tag i{font-style:normal;width:.6em;height:.6em;border-radius:50%;background:#ff3b30;animation:dk-rp 1s infinite}'
+          + "@keyframes dk-rp{50%{opacity:.25}}.dk-rep .what{position:absolute;left:3.5%;bottom:11%;font:700 clamp(13px,2.1vw,24px)/1.15 'Barlow Condensed',Impact,sans-serif;letter-spacing:.1em;color:#f4f4f0;text-shadow:0 2px 6px #000;text-transform:uppercase}"
+          + ".dk-rep .skip{position:absolute;right:3%;bottom:10.5%;border:2px solid #fff8;background:#000a;color:#fff;font:700 clamp(12px,1.9vw,20px)/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:.14em;padding:.55em 1em;border-radius:4px;cursor:pointer}"
+          + '.dk-pres .dk-ctl,.dk-pres .dk-tick,.dk-pres .dk-fx>:not(.dk-dip){visibility:hidden}';
+        document.head.appendChild(s);
+      }
+      function mkUi() {
+        if (ui) return; css();
+        ui = el('div', 'dk-rep', '<i class="bar bt"></i><i class="bar bb"></i><div class="tag"><i></i><b>REPLAY</b></div><div class="what"></div><button type="button" class="skip">SKIP &#9656;</button>');
+        uiTag = ui.querySelector('.tag b'); uiWhat = ui.querySelector('.what');
+        ui.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); skip(); });
+        stage.appendChild(ui);
+      }
+      function setHud(on) { wrap.classList.toggle('dk-pres', on); if (ui) ui.classList.toggle('on', on); }
+      // ---------- the memory ----------
+      function alloc() {
+        roster = everyone.slice(); const nb = NB * 12;
+        frames = []; for (let i = 0; i < CAP; i++) frames.push({ t: 0, b: new Float32Array(roster.length * nb), ok: new Uint8Array(roster.length), pos: new Float32Array(roster.length * 3), ball: new Float32Array(15) });
+        head = 0; count = 0; lastRec = -9;
+      }
+      function record(dt) {
+        if (hold() || !ball || phase === 'splash' || phase === 'box') return;
+        clk += dt;
+        if (clk - lastRec < 1 / HZ) return; lastRec = clk;
+        if (!frames || roster.length !== everyone.length) alloc();
+        const f = frames[head]; head = (head + 1) % CAP; if (count < CAP) count++;
+        f.t = clk; const nb = NB * 12;
+        for (let i = 0; i < roster.length; i++) {
+          const p = roster[i], bn = p.bones; f.ok[i] = bn ? 1 : 0;
+          f.pos[i * 3] = p.x; f.pos[i * 3 + 1] = p.z; f.pos[i * 3 + 2] = p.h;
+          if (!bn) continue; const o = i * nb;
+          for (let b = 0; b < NB; b++) { const m = bn[b]; if (!m) continue; const q = o + b * 12; for (let k = 0; k < 12; k++) f.b[q + k] = m[k]; }
+        }
+        const bb = f.ball; bb[0] = ball.x; bb[1] = ball.y; bb[2] = ball.z; for (let k = 0; k < 12; k++) bb[3 + k] = ball.rot[k];
+      }
+      const frameAt = (i) => frames[(head - count + i + CAP * 2) % CAP];
+      function find(t) { // the last frame at or before t
+        let lo = 0, hi = count - 1; if (hi < 0) return -1;
+        while (lo < hi) { const m = (lo + hi + 1) >> 1; if (frameAt(m).t <= t) lo = m; else hi = m - 1; }
+        return lo;
+      }
+      function ballAt(t) {
+        const i = find(t); if (i < 0) return [0, 1, 0];
+        const a = frameAt(i), b = frameAt(Math.min(count - 1, i + 1)), u = b.t > a.t ? clamp((t - a.t) / (b.t - a.t), 0, 1) : 0;
+        return [a.ball[0] + (b.ball[0] - a.ball[0]) * u, a.ball[1] + (b.ball[1] - a.ball[1]) * u, a.ball[2] + (b.ball[2] - a.ball[2]) * u];
+      }
+      // ---------- the triggers ----------
+      const PRI = { winner: 5, buzzer: 4, block: 3, ankles: 2 };
+      function mark(kind, p, o) {
+        if (!frames || count < 20 || intro.on || (DBG && !DBG.replay)) return;
+        if (pend && PRI[pend.kind] > PRI[kind] && clk - pend.ta < 6) return;
+        pend = { kind, ta: clk, who: p ? shortName(p.sq.name) : '', other: o ? shortName(o.sq.name) : '', dir: p ? dirOf(p.side) : 1, z: p ? p.z : 0, side: p ? p.side : 0, q: qtr };
+      }
+      // tests: a replay of the last seconds now, whatever the phase
+      function force(kind, p, o) { const dbg = DBG && DBG.replay; if (DBG) DBG.replay = true; mark(kind, p, o); if (DBG) DBG.replay = dbg; if (pend) pend.force = true; }
+      function startable() {
+        if (!pend || hold() || finished) return false;
+        if (pend.force) return true;
+        const k = pend.kind, since = clk - phaseAt, age = clk - pend.ta;
+        if (age > 8.5) { pend = null; return false; }                    // too long ago: the buffer no longer reaches it
+        if (k === 'winner') return phase === 'over' && since > 0.9;
+        if (k === 'buzzer') return (phase === 'break' && since > 0.5) || (phase === 'over' && since > 0.9);
+        if (nRep >= 5 || clk - lastRepClk < 35) { pend = null; return false; }
+        if (qtr >= 4 && clock < 25 && Math.abs(hs - as) <= 6) { pend = null; return false; } // no interruptions in a close finish
+        return (phase === 'dead' || phase === 'inb' || phase === 'ft') && since > 0.6 && !meterOn;
+      }
+      function start() {
+        const P = pend; pend = null; if (!P || !frames) return;
+        const oldest = frameAt(0).t, newest = frameAt(count - 1).t;
+        const t0 = Math.max(oldest + 0.05, P.ta - LEAD), t1 = Math.min(newest, P.ta + TAIL);
+        if (t1 - t0 < 1.2) return;
+        mkUi(); Object.assign(rep, { on: true, t: t0, ta: P.ta, tEnd: t1, kind: P.kind, dir: P.dir, real: 0, ph: 0 });
+        // the camera stands on the side away from the benches (the stands behind it fill the picture), or the other when the play is on that side
+        const b0 = ballAt(P.ta), bs = GYM.bs; rep.sgn = (b0[2] * bs > 4) ? bs : -bs; rep.f = ballAt(t0).slice();
+        // save what the replay will overwrite
+        rep.sv = { b: { x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, lead: ball.lead, rot: ball.rot.slice() }, p: roster.map((p) => ({ bones: p.bones, x: p.x, z: p.z, h: p.h })) };
+        const lab = { block: 'BLOCK', ankles: 'ANKLE BREAKER', buzzer: 'BUZZER BEATER', winner: 'GAME WINNER' }[P.kind] || 'PLAY';
+        uiTag.textContent = 'REPLAY'; uiWhat.innerHTML = lab + (P.who ? ' &middot; ' + esc(P.who) : '');
+        setHud(true); try { clearBanner(); SND.whoosh(null, null, 2.2); } catch (e) {}
+        nRep++; lastRepClk = clk;
+        if (meterOn) meterHide();
+      }
+      function end() {
+        if (!rep.on) return; rep.on = false;
+        const sv = rep.sv; rep.sv = null;
+        if (sv) { Object.assign(ball, { x: sv.b.x, y: sv.b.y, z: sv.b.z, vx: sv.b.vx, vy: sv.b.vy, vz: sv.b.vz, lead: sv.b.lead }); ball.rot = sv.b.rot; roster.forEach((p, i) => { const s = sv.p[i]; p.bones = s.bones; p.x = s.x; p.z = s.z; p.h = s.h; }); }
+        setHud(false); camS.on = false; try { SND.whoosh(null, null, 1.2); } catch (e) {}
+        lastRec = -9;
+      }
+      // the playback speed: easy at the start, slow around the moment, easing back
+      function speed(t) {
+        const a = rep.ta, k = (x) => x * x * (3 - 2 * x), slow = k(clamp((t - (a - 1.05)) / 0.35, 0, 1)) * (1 - k(clamp((t - (a + 0.55)) / 0.4, 0, 1)));
+        return 0.92 - 0.5 * slow;
+      }
+      function play(dt) {
+        rep.real += dt; rep.t += dt * speed(rep.t);
+        if (rep.t >= rep.tEnd) { end(); return; }
+        const i = find(rep.t); if (i < 0) { end(); return; }
+        const a = frameAt(i), b = frameAt(Math.min(count - 1, i + 1)), u = b.t > a.t ? clamp((rep.t - a.t) / (b.t - a.t), 0, 1) : 0, nb = NB * 12;
+        for (let n = 0; n < roster.length; n++) {
+          const p = roster[n]; if (!a.ok[n] || !b.ok[n]) continue;
+          const rb = p._rb || (p._rb = Array.from({ length: NB }, () => new Float32Array(12)));
+          const o = n * nb;
+          for (let k = 0; k < NB; k++) { const m = rb[k], q = o + k * 12; for (let j = 0; j < 12; j++) m[j] = a.b[q + j] + (b.b[q + j] - a.b[q + j]) * u; }
+          p.bones = rb; p.x = a.pos[n * 3] + (b.pos[n * 3] - a.pos[n * 3]) * u; p.z = a.pos[n * 3 + 1] + (b.pos[n * 3 + 1] - a.pos[n * 3 + 1]) * u; p.h = a.pos[n * 3 + 2];
+        }
+        const L = ball.rot; for (let k = 0; k < 12; k++) L[k] = a.ball[3 + k] + (b.ball[3 + k] - a.ball[3 + k]) * u;
+        ball.x = a.ball[0] + (b.ball[0] - a.ball[0]) * u; ball.y = a.ball[1] + (b.ball[1] - a.ball[1]) * u; ball.z = a.ball[2] + (b.ball[2] - a.ball[2]) * u; ball.vx = ball.vy = ball.vz = 0; ball.lead = 0;
+        L[3] = ball.x; L[7] = ball.y; L[11] = ball.z;
+      }
+      // ---------- the cameras ----------
+      const ease = (u) => { u = clamp(u, 0, 1); return u * u * u * (u * (u * 6 - 15) + 10); };
+      const crom = (p0, p1, p2, p3, u) => 0.5 * ((2 * p1) + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+      function repCam(e, c, dt) {
+        const bp = ballAt(rep.t), F = rep.f, k = Math.min(1, dt * 6);
+        F[0] += (bp[0] - F[0]) * k; F[1] += (bp[1] - F[1]) * k; F[2] += (bp[2] - F[2]) * k;
+        const prog = clamp((rep.t - (rep.ta - LEAD)) / (LEAD + TAIL), 0, 1), u = ease(prog);
+        const r = 10.2 - 4.2 * u, ph = (1.25 - 0.9 * u), D = rep.dir; // from the side (1.3 rad) round to nearly behind the play
+        e[0] = F[0] - D * r * Math.cos(ph) * 0.9; e[2] = F[2] + rep.sgn * r * Math.sin(ph); e[1] = 1.55 + 0.8 * u + F[1] * 0.15;
+        c[0] = F[0] + D * 0.6; c[1] = clamp(0.55 + F[1] * 0.62, 0.8, 2.8); c[2] = F[2];
+        gymKeepOut(e);
+      }
+      function introCam(e, c, dt) {
+        intro.t += dt;
+        const d = dirOf(0), bs = GYM.bs, ST0 = [[-5.5, 3.2, bs * 9.0], [3.5, 3.8, -bs * 14]], A0 = [[-12, 7.8, 12.2], [5.5, 4.6, -12.7]], K = [ST0, ST0, A0, [[-4.0, 6.2, 10.5], [4.0, 2.2, -3.0]], [[-7.6, CAM2K.h, 0], [3.8, 1.3, 0]], [[-7.6, CAM2K.h, 0], [3.8, 1.3, 0]]];
+        const u = ease(clamp(intro.t / intro.dur, 0, 1)) * 3, i = Math.min(2, Math.floor(u)), f = u - i;
+        for (let a = 0; a < 3; a++) {
+          const E = crom(K[i][0][a], K[i + 1][0][a], K[i + 2][0][a], K[i + 3][0][a], f), Cc = crom(K[i][1][a], K[i + 1][1][a], K[i + 2][1][a], K[i + 3][1][a], f);
+          e[a] = a === 0 ? d * E : E; c[a] = a === 0 ? d * Cc : Cc;
+        }
+        if (intro.t >= intro.dur) endIntro();
+      }
+      function cam(e, c, dt) {
+        if (rep.on) { repCam(e, c, Math.max(dt, 0)); return true; }
+        if (intro.on) { introCam(e, c, Math.max(dt, 0)); return true; }
+        return false;
+      }
+      function startIntro() {
+        if (intro.on || rep.on || (DBG && !DBG.intro)) return; mkUi(); intro.on = true; intro.t = 0;
+        uiTag.textContent = 'WILDCAT GYM'; uiWhat.innerHTML = esc(HOME.name) + ' &nbsp;vs&nbsp; ' + esc(AWAY.name);
+        setHud(true); try { clearBanner(); SND.cheer(0.6, true); SND.whoosh(null, null, 1.6); } catch (e) {}
+      }
+      function endIntro() {
+        if (!intro.on) return; intro.on = false; setHud(false); camS.on = false;
+        try { banner('JUMP BALL', 'Space to jump', '#ffc21a'); setTimeout(() => clearBanner(), 1500); } catch (e) {}
+      }
+      // the best scorer of each side, for the quarter and final cards
+      function leaders() {
+        const row = (t, abbr) => { let b = null; for (const q of t.sq) { const s = ST[q.key]; if (s && (!b || s.pts > b.s.pts)) b = { q, s }; } return b && b.s.pts > 0 ? esc(abbr) + ' ' + esc(shortName(b.q.name)) + ' ' + b.s.pts : ''; };
+        return [row(teams[0], HOME.abbr), row(teams[1], AWAY.abbr)].filter(Boolean).join(' &nbsp;·&nbsp; ');
+      }
+      function skip() { if (rep.on) end(); else if (intro.on) endIntro(); }
+      // every frame: where the phases changed, and whether a replay is due
+      function update(dt) {
+        if (phase !== lastPhase) { lastPhase = phase; phaseAt = clk; }
+        if (rep.on) { play(dt); return; }
+        if (pend && startable()) start();
+      }
+      return { hold, record, update, cam, mark, force, leaders, skip, intro: startIntro, get on() { return rep.on; }, get introOn() { return intro.on; }, get frames() { return count; }, get clk() { return clk; }, get rep() { return rep; } };
+    })();
+    // =====================================================================================
     // The HUD: the score bug (score, quarter, clock, shot clock, fouls, timeouts), the shot meter beside your player, banners,
     // pops and the ticker; the controls (keyboard hints on a computer, the joystick and buttons on a phone); the sub screen at a
     // timeout; the box score at the end.
@@ -8639,6 +9575,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const bH = bug.querySelector('[data-t=h]'), bA = bug.querySelector('[data-t=a]'), bClk = bug.querySelector('.dk-clk'), bPc = bug.querySelector('.dk-pc'), bFl = bug.querySelectorAll('.dk-fl b');
     const mkIB = (html, title) => { const b = el('button', 'dk-ib', html); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); bug.appendChild(b); return b; };
     const QN = ['LOW', 'MED', 'HIGH'], qBtn = mkIB('<span class="dk-q">' + QN[quality] + '</span>', 'Graphics quality'), sndBtn = mkIB(SVG_SND, 'Sound'), fsBtn = mkIB(SVG_FS, 'Full screen'), quitBtn = mkIB(SVG_X, 'Quit game');
+    const SVG_PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.4" height="12" rx="1"/><rect x="9.6" y="2" width="3.4" height="12" rx="1"/></svg>', pauseBtn = mkIB(SVG_PAUSE, 'Pause'); bug.insertBefore(pauseBtn, quitBtn); pauseBtn.addEventListener('click', () => { if (!paused) setPaused(true); });
     qBtn.addEventListener('click', () => { setQuality((quality + 1) % 3); qBtn.innerHTML = '<span class="dk-q">' + QN[quality] + '</span>'; sfx.play('tap'); });
     function showQuality() { qBtn.innerHTML = '<span class="dk-q">' + QN[quality] + '</span>'; }
     sndBtn.addEventListener('click', () => { sfx.mute(!sfx.muted); sndBtn.style.opacity = sfx.muted ? 0.4 : 1; });
@@ -8676,6 +9613,65 @@ gl_FragColor=vec4(c,1.0);}`;
       fx.appendChild(b); return b;
     }
     const clearBanner = () => fx.querySelectorAll('.dk-banner').forEach((b) => b.remove());
+    // a banner that takes itself away (and only itself: a later banner is never cut short by an earlier one's timer)
+    function flashBanner(txt, sub, col, ms) { const b = banner(txt, sub, col); setTimeout(() => b.remove(), ms || 1500); return b; }
+    // the official's call: a short card under the score bug with his signal (a little striped figure), the call and what follows
+    const REF_ARMS = { // [left arm, right arm] as points from the shoulder: elbow, hand
+      foul: [[-5, 6, -4, 13], [3, -8, 3, -17]],        // a fist straight up
+      oob: [[-5, 6, -4, 13], [9, -2, 18, -3]],         // pointing the way the ball goes
+      to: [[-9, -1, -18, -1], [9, -1, 18, -1]],        // arms out (then the T)
+      charge: [[-5, 6, -4, 13], [8, -5, 2, -11]],      // a hand behind the head
+      block: [[-7, 5, -3, 10], [7, 5, 3, 10]],         // hands on the hips
+      clock: [[-5, 6, -4, 13], [6, -7, 1, -12]],       // tapping the top of the head
+    };
+    function refSVG(k) {
+      const A = REF_ARMS[k] || REF_ARMS.foul, arm = (sx, a) => `<path d="M${sx} 15l${a[0]} ${a[1]}L${sx + a[2]} ${15 + a[3]}" stroke="#f5f6f8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="${sx + a[2]}" cy="${15 + a[3]}" r="2.3" fill="#e8b98f"/>`;
+      return `<svg viewBox="-6 -8 52 52" width="46" height="46"><rect x="13" y="12" width="14" height="19" rx="3" fill="#f5f6f8"/><path d="M16.5 12v19M20 12v19M23.5 12v19" stroke="#15171d" stroke-width="1.7"/><rect x="14" y="30" width="5" height="12" rx="2" fill="#15171d"/><rect x="21" y="30" width="5" height="12" rx="2" fill="#15171d"/><circle cx="20" cy="6" r="5" fill="#e8b98f"/><path d="M15 4.5a5 5 0 0 1 10 0z" fill="#15171d"/>${arm(14, A[0])}${arm(26, A[1])}${k === 'to' ? '<path d="M20 -6v9" stroke="#ffc21a" stroke-width="3" stroke-linecap="round"/><path d="M13 -6h14" stroke="#ffc21a" stroke-width="3" stroke-linecap="round"/>' : ''}</svg>`;
+    }
+    function refCall(kind, txt, sub) {
+      fx.querySelectorAll('.dk-banner').forEach((b) => b.remove());
+      const b = el('div', 'dk-banner dk-ref', `${refSVG(kind)}<span><b>${esc(txt)}</b>${sub ? `<i>${esc(sub)}</i>` : ''}</span>`);
+      fx.appendChild(b); setTimeout(() => b.remove(), 1900); return b;
+    }
+    { const st = el('style', '', `
+.dk-banner.dk-ref{top:15%;display:flex;align-items:center;gap:10px;padding:6px 16px 6px 8px;background:linear-gradient(90deg,rgba(10,11,15,.94),rgba(22,25,34,.9));border-left:5px solid #ffc21a;border-radius:8px;text-shadow:none;text-align:left;animation:dk-refin .22s ease-out both;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.dk-banner.dk-ref span{display:block}
+.dk-banner.dk-ref b{font:900 22px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;letter-spacing:.6px;color:#ffc21a}
+.dk-banner.dk-ref i{font:700 12px/1.3 Inter,sans-serif;margin-top:2px;color:#e6e8ee;white-space:nowrap}
+@keyframes dk-refin{from{opacity:0;transform:translate(-50%,-90%)}to{opacity:1;transform:translate(-50%,-50%)}}
+.dk-tos{position:absolute;left:0;right:0;bottom:0;z-index:9;padding:10px calc(12px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(7,8,11,0),rgba(7,8,11,.9) 16%,rgba(7,8,11,.97));text-align:center;animation:dk-tosin .3s ease-out both}
+.dk-tos.hide{display:none}
+@keyframes dk-tosin{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.dk-tos .hd{display:flex;align-items:baseline;justify-content:center;gap:12px;margin:14px 0 8px}
+.dk-tos .hd b{font:900 24px/1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;color:#ffc21a;letter-spacing:.8px}
+.dk-tos .hd span{font:700 12px Inter,sans-serif;color:#c9ccd4}
+.dk-tos .hd em{font:700 12px Inter,sans-serif;color:#8d93a1;font-style:normal;font-variant-numeric:tabular-nums}
+.dk-tos .rw{display:flex;gap:8px;justify-content:center;align-items:stretch;flex-wrap:wrap}
+.dk-tc{position:relative;width:118px;padding:8px 8px 9px;border-radius:10px;background:linear-gradient(180deg,#1b1f2a,#12141b);border:2px solid #2a3040;color:#f5f6f8;cursor:pointer;text-align:left;font-family:Inter,sans-serif}
+.dk-tc:hover{border-color:#ffc21a}
+.dk-tc.six{border-color:#ffc21a;background:linear-gradient(180deg,#2c2610,#15130b)}
+.dk-tc.tired{border-color:#b8433a}
+.dk-tc .k{position:absolute;top:-8px;left:-6px;min-width:18px;height:18px;border-radius:5px;background:#ffc21a;color:#07080b;font:900 12px/18px 'Barlow Condensed',Inter,sans-serif;text-align:center;padding:0 3px}
+.dk-tc .tp{display:flex;align-items:center;gap:6px}
+.dk-tc .dk-face{width:36px;height:36px}
+.dk-tc .ov{margin-left:auto;text-align:right;font:900 26px/0.9 'Barlow Condensed',Inter,sans-serif;color:#fff}
+.dk-tc .ov small{display:block;font:700 8px Inter,sans-serif;color:#8d93a1;letter-spacing:.6px}
+.dk-tc .nm{margin-top:5px;font:800 14px/1.1 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dk-tc .ps{font:600 10px Inter,sans-serif;color:#9aa0ad}
+.dk-tc .st{margin-top:6px;height:7px;border-radius:4px;background:#2a2f3c;overflow:hidden}
+.dk-tc .st i{display:block;height:100%;border-radius:4px;background:#2bd46b;transition:width .4s}
+.dk-tc .st i.m{background:#ffc21a}.dk-tc .st i.l{background:#ff5a4a}
+.dk-tc .sl{display:flex;justify-content:space-between;margin-top:3px;font:700 9px Inter,sans-serif;color:#8d93a1;letter-spacing:.3px}
+.dk-tc .tg{position:absolute;top:-8px;right:8px;padding:0 6px;height:16px;border-radius:4px;background:#ffc21a;color:#07080b;font:900 10px/16px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.5px}
+.dk-tos .sw{align-self:center;font:900 22px 'Barlow Condensed',Inter,sans-serif;color:#ffc21a;padding:0 2px}
+.dk-tos .ft{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;font:600 12px Inter,sans-serif;color:#9aa0ad}
+.dk-tos .ft button{font:900 15px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.8px;background:#ffc21a;color:#07080b;border:0;border-radius:8px;padding:8px 18px;box-shadow:0 3px 0 #a37a00;cursor:pointer}
+.dk-tos kbd{display:inline-block;min-width:16px;padding:0 4px;border-radius:4px;background:#2a2f3c;color:#f5f6f8;font:700 10px/16px Inter,sans-serif;text-align:center}
+.dk-fl b.bonus::after{content:'B';margin-left:2px;font:900 8px Inter,sans-serif;color:#ff5a5a;vertical-align:top}
+.dk-box tr.tot td{font-weight:800;color:#ffc21a;border-top:2px solid #3a4052}
+.dk-box td.me{color:#fff;font-weight:800}
+@media (max-width:760px){.dk-tc{width:96px;padding:6px}.dk-tc .ov{font-size:21px}.dk-tos .hd{margin-top:8px}}
+`); wrap.appendChild(st); }
     let tickT = 0;
     function say(html) {
       if (!html) return;
@@ -8717,75 +9713,190 @@ gl_FragColor=vec4(c,1.0);}`;
     const K = (s) => (touchy ? '' : `<kbd>${s}</kbd>`);
     function btn(cls, html, fn, up) {
       const b = el('button', 'dk-btn ' + (cls || ''), html); b.type = 'button';
-      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); try { b.setPointerCapture(e.pointerId); } catch (er) {} fn(e); });
-      if (up) { const u = (e) => { up(e); }; b.addEventListener('pointerup', u); b.addEventListener('pointercancel', u); b.addEventListener('lostpointercapture', u); }
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); b.classList.add('dn'); try { b.setPointerCapture(e.pointerId); } catch (er) {} try { if (touchy && navigator.vibrate) navigator.vibrate(6); } catch (er) {} fn(e); });
+      const u = (e) => { if (!b.classList.contains('dn')) return; b.classList.remove('dn'); if (up) up(e); };
+      b.addEventListener('pointerup', u); b.addEventListener('pointercancel', u); b.addEventListener('lostpointercapture', u);
       return b;
     }
     function msg(h) { const m = el('div', 'dk-msg', h); ctl.appendChild(m); return m; }
+    // ---- the compact controls card: on the splash and the pause screen, for the keyboard or the phone ----
+    function controlsCard() {
+      const kb = (k, t) => `<li><kbd>${k}</kbd><span>${t}</span></li>`, tb = (k, t) => `<li><i>${k}</i><span>${t}</span></li>`;
+      if (touchy) return `<div class="dk-cc">
+        <div><h5>Offense</h5><ul>${tb('STICK', 'left thumb: move')}${tb('SHOOT', 'hold, let go in the green')}${tb('PASS', 'lean the stick to aim it')}${tb('MOVE', 'tap again to chain dribble moves')}${tb('POST', 'hold to back him down')}${tb('SPRINT', 'run faster, uses stamina')}${tb('X', 'hold: step-back, euro, floater')}${tb('SCR', 'call a ball screen')}</ul></div>
+        <div><h5>Defense</h5><ul>${tb('STICK', 'slide with the ball handler')}${tb('SPRINT', 'turn and run')}${tb('BLOCK', 'jump to contest or block')}${tb('STEAL', 'reach (spam it and you foul)')}${tb('SWITCH', 'change defender')}${tb('FOUL', 'foul on purpose')}${tb('T/O', 'timeout and subs')}</ul></div></div>`;
+      return `<div class="dk-cc">
+        <div><h5>Offense</h5><ul>${kb('WASD', 'move (W = to the basket)')}${kb('SHIFT', 'sprint')}${kb('SPACE', 'hold to shoot, let go in the green')}${kb('E', 'pass (lean toward a man)')}${kb('Q', 'dribble moves, tap to chain')}${kb('R', 'hold to post up')}${kb('X', 'step-back / euro / floater')}${kb('C', 'call a ball screen')}</ul></div>
+        <div><h5>Defense</h5><ul>${kb('WASD', 'slide with the ball handler')}${kb('SHIFT', 'turn and run')}${kb('SPACE', 'jump: contest or block')}${kb('Q', 'steal (spam it and you foul)')}${kb('E', 'switch man')}${kb('F', 'foul on purpose')}${kb('T', 'timeout and subs')}${kb('P', 'pause')}</ul></div></div>`;
+    }
+    // ---- pause (P / Esc / the II button) and the rotate prompt on a phone held upright ----
+    let paused = false, pausedBy = '', rotOK = false;
+    const pauseEl = el('div', 'dk-pause hide', `<h3>Paused</h3>${controlsCard()}<div class="dk-pb"><button type="button" class="dk-presume">RESUME</button></div>`);
+    wrap.appendChild(pauseEl);
+    pauseEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+    pauseEl.addEventListener('click', (e) => { if (e.target.closest('.dk-presume')) setPaused(false); });
+    const rotEl = el('div', 'dk-rot hide', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="6" width="24" height="42" rx="4"/><path d="M30 42h4"/><path d="M10 52c6 8 24 10 36 2M44 58l4-5-6-2"/></svg><b>Turn your phone sideways</b><span>3D Dunk plays in landscape</span><button type="button" class="dk-rotgo">Play anyway</button>');
+    wrap.appendChild(rotEl);
+    rotEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+    rotEl.addEventListener('click', (e) => { if (e.target.closest('.dk-rotgo')) { rotOK = true; updRot(); } });
+    function canPause() { return !finished && (phase === 'live' || phase === 'dead' || phase === 'inb' || phase === 'ft' || phase === 'tip'); }
+    function releaseInputs() { input.l = input.r = input.u = input.d = 0; input.sprint = false; input.mod = false; try { actPostUp(); } catch (e) {} try { if (input.shoot) actShootUp(); } catch (e) {} try { resetPtr(); } catch (e) {} }
+    function setPaused(on, by) {
+      if (on === paused) return;
+      if (on && !canPause()) return;
+      paused = on; pausedBy = on ? (by || 'user') : '';
+      if (on) releaseInputs();
+      pauseEl.classList.toggle('hide', !(on && pausedBy === 'user'));
+      if (!on) { last = performance.now(); try { cv.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    const togglePause = () => setPaused(!paused);
+    function updRot() {
+      const port = touchy && cssH > cssW * 1.1, playing = phase !== 'splash' && phase !== 'box' && !finished;
+      wrap.classList.toggle('dk-port', !!port);
+      const show = port && !rotOK && playing;
+      rotEl.classList.toggle('hide', !show);
+      if (show && !paused) setPaused(true, 'rot');
+      else if (!show && paused && pausedBy === 'rot') setPaused(false);
+      if (!port) rotOK = false;
+    }
+    // ---- the phone pad: built once and relabelled with the situation (so a held SPRINT survives a change of possession) ----
+    let padEl = null, padMode = '', padKey = '', toBtn = null, padB = {}, touchMsg = null;
+    function buildPad() {
+      ctl.classList.add('dk-tp');
+      padEl = el('div', 'dk-pad'); const add = (k, cls, fn, up) => { const b = btn('dk-b-' + k + ' ' + cls, '', fn, up); padEl.appendChild(b); padB[k] = b; return b; };
+      add('shoot', 'dk-g dk-big', () => actShootDown(), () => actShootUp());
+      add('pass', '', () => actPass());
+      add('move', 'dk-r', () => actMove());
+      add('post', '', () => actPostDown(), () => actPostUp());
+      add('sprint', 'dk-sprint', () => { input.sprint = true; }, () => { input.sprint = false; });
+      add('x', 'dk-sm', () => { if (padMode === 'def') actFoul(); else actXDown(); }, () => actXUp(true));
+      add('scr', 'dk-sm dk-b-scr', () => actScreen());
+      toBtn = btn('dk-to', '', () => actTimeout());
+      touchMsg = el('div', 'dk-msg dk-tmsg'); touchMsg.style.display = 'none';
+      ctl.appendChild(touchMsg); ctl.appendChild(toBtn); ctl.appendChild(padEl);
+    }
+    const PAD = {
+      off: { shoot: 'SHOOT<small>hold</small>', pass: 'PASS', move: 'MOVE', post: 'POST<small>hold</small>', sprint: 'SPRINT', x: 'X', scr: 'SCR' },
+      offb: { shoot: 'JUMP', pass: 'CALL', sprint: 'SPRINT' },
+      def: { shoot: 'BLOCK', pass: 'SWITCH', move: 'STEAL', sprint: 'SPRINT', x: 'FOUL' },
+      ft: { shoot: 'SHOOT<small>hold</small>' },
+      tip: { shoot: 'JUMP', sprint: 'SPRINT' },
+      none: {}
+    };
+    function padModeNow() {
+      if (phase === 'ft') return ftS && ftS.sh.side === 0 ? 'ft' : 'none';
+      if (phase === 'tip') return 'tip';
+      if (phase === 'live' || phase === 'inb' || phase === 'dead') return poss === 1 && phase !== 'dead' ? 'def' : ball && ball.holder === ctrl && ctrl ? 'off' : 'offb';
+      return 'none';
+    }
+    function setTouchControls() {
+      if (!padEl) buildPad();
+      const mode = padModeNow(), tOK = canTimeout(0), tl = teams[0].to, over = phase === 'over' || phase === 'break';
+      const key = mode + '|' + phase + '|' + tl + '|' + tOK + '|' + (over ? hs + '-' + as : '');
+      if (key === padKey) return;
+      padKey = key; padMode = mode;
+      padEl.dataset.m = mode;
+      const L = PAD[mode];
+      for (const k in padB) { const t = L[k]; padB[k].classList.toggle('gone', t == null); if (t != null && padB[k].dataset.l !== t) { padB[k].innerHTML = t; padB[k].dataset.l = t; } }
+      toBtn.innerHTML = `T/O<small>${tl}</small>`; toBtn.classList.toggle('off', !tOK);
+      toBtn.style.display = mode === 'none' || phase === 'timeout' ? 'none' : '';
+      padEl.style.display = mode === 'none' ? 'none' : '';
+      touchMsg.style.display = over ? '' : 'none';
+      if (over) touchMsg.innerHTML = `<span>${esc(HOME.abbr)} <b>${hs}</b> – <b>${as}</b> ${esc(AWAY.abbr)}</span>`;
+    }
     function setControls(force) {
+      if (touchy) {
+        if (phase === 'splash' || phase === 'box') { ctl.style.display = 'none'; baseEl.classList.add('hide'); return; }
+        ctl.style.display = ''; baseEl.classList.toggle('hide', pid != null || paused || phase === 'over' || phase === 'break' || phase === 'timeout');
+        if (force) padKey = '';
+        setTouchControls(); return;
+      }
       const off = ball && ball.holder === ctrl && ctrl, defn = poss === 1;
       const key = [phase, !!off, defn, teams[0].to, phase === 'ft' && ftS ? ftS.sh.side : '', phase === 'inb' && inb ? inb.side : ''].join('|');
       if (key === ctlKey && !force) return;
       ctlKey = key; ctl.innerHTML = '';
       if (phase === 'splash' || phase === 'box') return;
       const to = btn('dk-to' + (canTimeout(0) ? '' : ' off'), `T/O<small>${teams[0].to} left</small>${K('T')}`, () => actTimeout());
-      if (phase === 'timeout') { ctl.appendChild(btn('dk-y dk-wide', 'Resume<small>back to the game</small>' + K('T'), () => endTimeout())); return; }
+      if (phase === 'timeout') return; // (the sub screen has its own Resume)
       if (phase === 'over' || phase === 'break') { msg(`<span>${esc(HOME.abbr)} <b>${hs}</b> – <b>${as}</b> ${esc(AWAY.abbr)}</span>`); return; }
-      if (!touchy) {
-        // the keyboard hints: each one shows the first two times it applies, a few seconds each, then the floor stays clear
-        const hk = defn ? 'd' : phase === 'ft' ? 'f' : off ? 'o' : 'b';
-        ctl.classList.add('dk-keys'); ctl.appendChild(to);
-        if ((hintN[hk] = (hintN[hk] || 0) + 1) > 2) return;
-        const hm = msg(defn ? '<span><b>WASD</b> slide · <b>SHIFT</b> turn and run · <b>SPACE</b> jump / block · <b>Q</b> steal · <b>E</b> switch man · <b>F</b> foul · <b>T</b> timeout</span>'
-          : phase === 'ft' ? '<span>Free throw: hold <b>SPACE</b>, let go in the green</span>'
-          : off ? '<span><b>WASD</b> move (W = to the basket) · <b>SHIFT</b> sprint · hold <b>SPACE</b>, let go in the green (tap = pump fake) · <b>X</b> step-back shot · hold <b>R</b> to post up · <b>E</b> pass · <b>Q</b> dribble moves · <b>T</b> timeout</span>'
-          : '<span><b>WASD</b> move · <b>SHIFT</b> sprint · <b>E</b> call for the ball · <b>SPACE</b> jump · <b>T</b> timeout</span>');
-        hm.classList.add('dk-hint'); ctl.insertBefore(hm, to); return;
-      }
-      // the phone: a cluster of round buttons under the right thumb (the left thumb drags anywhere on the floor for the joystick)
-      const g = el('div', 'dk-pad');
-      const add = (cls, html, fn, up) => { const b = btn(cls, html, fn, up); g.appendChild(b); return b; };
-      if (phase === 'ft') { add('dk-g dk-big', 'SHOOT<small>hold</small>', () => actShootDown(), () => actShootUp()); }
-      else if (defn) {
-        add('dk-g dk-big', 'BLOCK', () => actShootDown(), () => actShootUp());
-        add('', 'SWITCH', () => actPass()); add('dk-r', 'STEAL', () => actMove()); add('', 'FOUL', () => actFoul());
-      } else {
-        add('dk-g dk-big', 'SHOOT<small>hold</small>', () => actShootDown(), () => actShootUp());
-        add('', off ? 'PASS' : 'CALL', () => actPass()); add('dk-r', 'MOVE', () => actMove());
-        if (off) add('', 'STEP<small>shot</small>', () => actStepDown(), () => actShootUp());
-        if (off) add('', 'POST<small>hold</small>', () => actPostDown(), () => actPostUp());
-      }
-      const sp = add('dk-sprint', 'SPRINT', () => { input.sprint = true; }, () => { input.sprint = false; });
-      void sp;
-      ctl.appendChild(to); ctl.appendChild(g);
+      // the keyboard hints: each one shows the first two times it applies, a few seconds each, then the floor stays clear
+      const hk = defn ? 'd' : phase === 'ft' ? 'f' : off ? 'o' : 'b';
+      ctl.classList.add('dk-keys'); ctl.appendChild(to);
+      if ((hintN[hk] = (hintN[hk] || 0) + 1) > 2) return;
+      const hm = msg(defn ? '<span><b>WASD</b> slide · <b>SHIFT</b> turn and run · <b>SPACE</b> jump / block · <b>Q</b> steal · <b>E</b> switch man · <b>F</b> foul · <b>T</b> timeout · <b>P</b> pause</span>'
+        : phase === 'ft' ? '<span>Free throw: hold <b>SPACE</b>, let go in the green · the last one is live off the rim</span>'
+        : off ? '<span><b>WASD</b> move · <b>SHIFT</b> sprint · hold <b>SPACE</b>, let go in the green · <b>E</b> pass · <b>Q</b> moves · hold <b>R</b> post up · <b>X</b> step-back / euro · <b>C</b> screen · <b>P</b> pause</span>'
+        : '<span><b>WASD</b> move · <b>SHIFT</b> sprint · <b>E</b> call for the ball · <b>SPACE</b> jump · <b>C</b> screen · <b>T</b> timeout</span>');
+      hm.classList.add('dk-hint'); ctl.insertBefore(hm, to);
     }
-    // ---------- the sub screen (a timeout): tap a starter, then the sixth man, to swap them ----------
+    // ---------- the sub screen (a timeout or a break): five cards on the floor, the bench cards, a swap by tap or number keys ----------
+    // Card: face, name, position and height, basketball OVR, the four best ratings, a stamina bar and the game line. Tap one on the
+    // floor and then one on the bench (or the other way round) to swap them; the keys 1-5 are the floor, 6 is the sixth man.
     const subsEl = el('div', 'dk-subs hide', ''); wrap.appendChild(subsEl);
     let subPick = null;
-    function openSubs() { subPick = null; drawSubs(); subsEl.classList.remove('hide'); }
-    function closeSubs() { subsEl.classList.add('hide'); }
+    const SUB_R = [['spd', 'SPD'], ['hand', 'HND'], ['pass', 'PAS'], ['three', '3PT'], ['mid', 'MID'], ['fin', 'FIN'], ['perD', 'PER D'], ['intD', 'INT D'], ['reb', 'REB'], ['blk', 'BLK']];
+    const staCls = (v) => (v < 0.3 ? 'low' : v < 0.6 ? 'mid' : '');
+    const subOrder = () => teams[0].on.concat(teams[0].bench);
+    const hgtTxt = (p) => { const i = Math.round(p.lk.hin || p.sq.hgt || 66); return Math.floor(i / 12) + "'" + (i % 12) + '"'; };
+    function subCard(p, n, bench) {
+      const s = stat(p.sq), rs = SUB_R.map(([k, l]) => [l, rt(p, k)]).sort((a, b2) => b2[1] - a[1]).slice(0, 4), sta = Math.round(p.sta * 100);
+      const can = subPick && subPick !== p && teams[0].on.includes(subPick) !== teams[0].on.includes(p);
+      return `<button type="button" class="dk-sbp${subPick === p ? ' sel' : ''}${can ? ' can' : ''}${bench ? ' bench' : ''}" data-k="${p.key}"><i class="k">${n}</i>`
+        + `<span class="hd">${faceHTML(p.sq)}<div><b>${esc(shortName(p.sq.name))}</b><small>#${p.num} · ${p.sq.pos} · ${hgtTxt(p)}</small></div><span class="ov">${p.ovr}<small>OVR</small></span></span>`
+        + `<span class="rt">${rs.map(([l, v], i) => `<span>${l}<b${i === 0 ? ' class="hi"' : ''}>${v}</b></span>`).join('')}</span>`
+        + `<span class="sb"><em>STA</em><u class="${staCls(p.sta)}"><i style="width:${sta}%"></i></u><b style="color:${p.sta < 0.3 ? '#ff6a78' : p.sta < 0.6 ? '#ffc21a' : '#2bd46b'}">${sta}</b></span>`
+        + `<span class="gs"><span><b>${s.pts}</b> PTS</span><span><b>${s.reb}</b> REB</span><span><b>${s.ast}</b> AST</span><span><b>${s.pf}</b> PF</span></span></button>`;
+    }
+    function subsTitle() {
+      const S = phase === 'break' ? brk : toS;
+      const what = phase === 'break' ? (qtr === 2 ? 'Halftime' : qtr > 4 ? 'End of overtime' : 'End of Q' + qtr) : 'Timeout';
+      const last = S && S.kind === 'break' ? (S.touched ? '' : ` · starts in ${Math.max(0, Math.ceil(S.cd))}`) : ` · ${teams[0].to} left`;
+      return `<h3>${what}</h3><span><b>${esc(HOME.abbr)}</b> ${hs} – ${as} <b>${esc(AWAY.abbr)}</b>${last}</span>`;
+    }
     function drawSubs() {
-      const t = teams[0], row = (p, bench) => `<button type="button" class="dk-sbp${subPick === p ? ' sel' : ''}${bench ? ' bench' : ''}" data-k="${p.key}">${faceHTML(p.sq)}<span><b>#${p.num} ${esc(shortName(p.sq.name))}</b><small>${p.sq.pos} · ${p.ovr} OVR</small></span><u><i style="width:${Math.round(p.sta * 100)}%"></i></u></button>`;
-      subsEl.innerHTML = `<h3>Timeout · Subs</h3><p>Tap a starter, then your sixth man, to swap them. Energy comes back on the bench.</p><div class="dk-sbl">${t.on.map((p) => row(p, false)).join('')}</div><h4>Bench</h4><div class="dk-sbl">${t.bench.map((p) => row(p, true)).join('')}</div><button type="button" class="dk-go dk-resume">RESUME</button>`;
+      const t = teams[0], S = phase === 'break' ? brk : toS, nxt = phase === 'break' ? 'Next quarter' : 'Resume';
+      subsEl.innerHTML = `<div class="dk-sbt">${subsTitle()}</div>`
+        + (touchy ? '' : `<p class="dk-sbh">Pick a player on the floor, then a bench man, to swap them (<kbd>1</kbd>-<kbd>5</kbd> floor, <kbd>6</kbd> bench) · <kbd>Enter</kbd> ${phase === 'break' ? 'next quarter' : 'resume'}</p>`)
+        + `<div class="dk-sbw"><div class="dk-sbg fl">${t.on.map((p, i) => subCard(p, i + 1, false)).join('')}</div><div class="dk-sbg bn">${t.bench.map((p, i) => subCard(p, 6 + i, true)).join('')}</div></div>`
+        + `<div class="dk-sbf"><button type="button" class="dk-go dk-resume">${nxt.toUpperCase()}</button></div>`;
+    }
+    // (the title and the countdown refresh once a second)
+    let subsTickAt = 0;
+    function subsTick(S) { const k = Math.ceil(S.cd); if (k === subsTickAt) return; subsTickAt = k; const h = subsEl.querySelector('.dk-sbt'); if (h) h.innerHTML = subsTitle(); }
+    function openSubs() { subPick = null; subsTickAt = 0; drawSubs(); subsEl.classList.remove('hide'); }
+    function closeSubs() { subsEl.classList.add('hide'); subPick = null; }
+    const subsOpen = () => !subsEl.classList.contains('hide');
+    function subPickP(p) {
+      if (!p) return;
+      const S = phase === 'break' ? brk : toS; if (S) S.touched = true;
+      const t = teams[0];
+      if (!subPick || subPick === p) subPick = subPick === p ? null : p;
+      else { const a = subPick, onA = t.on.includes(a), onP = t.on.includes(p); if (onA !== onP) { doSub(0, onA ? a : p, onA ? p : a); subPick = null; } else subPick = p; }
+      sfx.play('tap'); drawSubs();
+    }
+    // the keys: 1-5 the floor, 6 (7..) the bench, Enter / Space / T resume, Escape clears the pick
+    function subKey(code) {
+      const m = /^(?:Digit|Numpad)(\d)$/.exec(code);
+      if (m) { const o = subOrder()[+m[1] - 1]; if (o) subPickP(o); return; }
+      if (code === 'Enter' || code === 'NumpadEnter' || code === 'Space' || code === 'KeyT') endTimeout();
+      else if (code === 'Escape') { subPick = null; drawSubs(); }
     }
     subsEl.addEventListener('pointerdown', (e) => e.stopPropagation());
     subsEl.addEventListener('click', (e) => {
-      const r = e.target.closest('.dk-resume'); if (r) { endTimeout(); return; }
+      if (e.target.closest('.dk-resume')) { endTimeout(); return; }
       const b = e.target.closest('.dk-sbp'); if (!b) return;
-      const p = everyone.find((q) => q.key === b.dataset.k); if (!p) return;
-      const t = teams[0];
-      if (!subPick) subPick = p;
-      else if (subPick === p) subPick = null;
-      else { const a = subPick, onA = t.on.includes(a), onP = t.on.includes(p); if (onA !== onP) doSub(0, onA ? a : p, onA ? p : a); subPick = null; }
-      sfx.play('tap'); drawSubs();
+      subPickP(everyone.find((q) => q.key === b.dataset.k));
     });
     // ---------- the box score ----------
     let boxShown = false;
     function showBox() {
       boxShown = true; phase = 'box'; clearBanner();
-      const won = hs > as, line = (p) => { const s = stat(p.sq); return `<tr><td>${faceHTML(p.sq)} ${esc(shortName(p.sq.name))}</td><td>${s.pts}</td><td>${s.fgm}-${s.fga}</td><td>${s.tpm}-${s.tpa}</td><td>${s.ftm}-${s.fta}</td><td>${s.reb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.to}</td></tr>`; };
-      const tbl = (t) => `<table><tr><th>${esc(t.T.name)}</th><th>PTS</th><th>FG</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th></tr>${t.on.concat(t.bench).map(line).join('')}</table>`;
-      const box = el('div', 'dk-box', `<h2>${won ? 'You win!' : hs === as ? 'Tied' : 'Final'}</h2><div class="fs"><span style="color:${HOMECSS}">${esc(HOME.abbr)}</span>${hs} – ${as}<span style="color:${OPPCSS}">${esc(AWAY.abbr)}</span></div><h3>Box score</h3>${tbl(teams[0])}${tbl(teams[1])}${HL.length ? '<h3>Highlights</h3>' + HL.slice(-8).map((h) => `<div class="hl">Q${h.q} · ${esc(h.txt)}</div>`).join('') : ''}<button type="button" class="go">CONTINUE</button>`);
+      const mmss = (v) => { v = Math.round(v || 0); return Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0'); };
+      const cells = (s, min) => `<td>${min}</td><td>${s.pts}</td><td>${s.fgm}-${s.fga}</td><td>${s.tpm}-${s.tpa}</td><td>${s.ftm}-${s.fta}</td><td>${s.reb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.to}</td><td>${s.pf}</td>`;
+      const won = hs > as, line = (p) => { const s = stat(p.sq); return `<tr><td>${faceHTML(p.sq)} ${esc(shortName(p.sq.name))}${p.sq.sixth ? ' <small>6th</small>' : ''}</td>${cells(s, mmss(s.min))}</tr>`; };
+      const total = (t) => { const o = { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, pf: 0 }; for (const q of t.sq) { const s = stat(q); for (const k in o) o[k] += s[k] || 0; } return `<tr class="tot"><td>Team · ${o.fga ? Math.round(o.fgm / o.fga * 100) : 0}% FG</td>${cells(o, '')}</tr>`; };
+      const tbl = (t) => `<table><tr><th>${esc(t.T.name)}</th><th>MIN</th><th>PTS</th><th>FG</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>PF</th></tr>${t.on.concat(t.bench).sort((a, b) => t.sq.indexOf(a.sq) - t.sq.indexOf(b.sq)).map(line).join('')}${total(t)}</table>`;
+      const box = el('div', 'dk-box', `<h2>${won ? 'You win!' : hs === as ? 'Tied' : 'Final'}${qtr > 4 ? ' · ' + (qtr > 5 ? (qtr - 4) + 'OT' : 'OT') : ''}</h2><div class="fs"><span style="color:${HOMECSS}">${esc(HOME.abbr)}</span>${hs} – ${as}<span style="color:${OPPCSS}">${esc(AWAY.abbr)}</span></div><h3>Box score</h3>${tbl(teams[0])}${tbl(teams[1])}${HL.length ? '<h3>Highlights</h3>' + HL.slice(-8).map((h) => `<div class="hl">${h.q > 4 ? 'OT' : 'Q' + h.q} · ${esc(h.txt)}</div>`).join('') : ''}<button type="button" class="go">CONTINUE</button>`);
       wrap.appendChild(box);
       box.querySelector('.go').addEventListener('click', () => finishGame(false));
       setControls(true);
@@ -8798,13 +9909,15 @@ gl_FragColor=vec4(c,1.0);}`;
       const mul = (DBG && DBG.speed) || 1;
       let sim = el2 * mul, n = 0, rdt = el2 * mul;
       if (DBG && DBG.stepT) { sim = DBG.stepT; rdt = Math.min(DBG.stepT, 0.1); DBG.stepT = 0; } else if (DBG && DBG.speed === 0) { sim = 0; rdt = 0; }
+      if (paused && !(DBG && DBG.stepT)) { sim = 0; rdt = 0; }
       const ts = performance.now();
-      while (sim > 1e-6 && n < 2400 && !finished) { const d = Math.min(sim, 1 / 60); step(d); sim -= d; n++; }
+      while (sim > 1e-6 && n < 2400 && !finished && !PRES.hold()) { const d = Math.min(sim, 1 / 60); step(d); sim -= d; n++; }
       perf.sim += performance.now() - ts;
       if (finished) return;
       try { render(Math.min(rdt, 0.1)); } catch (err) { if (!stepErrLogged) { stepErrLogged = true; try { console.error('dunk3d: render error', err); } catch (e2) {} } }
       updBug();
-      if (((now / 250) | 0) !== (((now - el2 * 1000) / 250) | 0)) { sfx.crowd(phase === 'splash' || phase === 'box' ? 0.05 : 0.14 + excite * 0.55); setControls(false); }
+      setControls(false);
+      if (((now / 250) | 0) !== (((now - el2 * 1000) / 250) | 0)) { SND.bedTick(); updRot(); }
       if (el2 > 0 && el2 < 0.25) {
         ftAvg += (el2 - ftAvg) * 0.08; ftT += el2;
         if (DBG && DBG.lockQ) ftT = 0;
@@ -8854,14 +9967,18 @@ gl_FragColor=vec4(c,1.0);}`;
       const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
       if (finished) return;
       const down = e.type === 'keydown', k = e.code;
+      if (down && PRES.hold()) { e.preventDefault(); if (!e.repeat && k !== 'ShiftLeft' && k !== 'ShiftRight') PRES.skip(); return; } // a replay or the flyover: any key skips it
+      if (down && !KEYS[k] && k !== 'ShiftLeft' && k !== 'ShiftRight' && subsOpen()) { e.preventDefault(); if (!e.repeat) subKey(k); return; }
       if (KEYS[k]) { input[KEYS[k]] = down ? 1 : 0; if (phase !== 'splash' && phase !== 'box') e.preventDefault(); return; }
       if (k === 'ShiftLeft' || k === 'ShiftRight') { input.sprint = down; return; }
-      if (k === 'KeyC') { input.mod = down; return; } // the finish modifier: a euro step at the rim, a floater from the lane
-      if (k === 'KeyR' && phase !== 'splash' && phase !== 'box') { e.preventDefault(); if (e.repeat) return; if (down) actPostDown(); else actPostUp(); return; }
+      if (k === 'KeyC' && !paused) { actCKey(down, e.repeat); return; } // held: the finish modifier (a euro step at the rim, a floater from the lane); a tap: call for a screen
+      if (k === 'KeyR' && phase !== 'splash' && phase !== 'box' && !paused) { e.preventDefault(); if (e.repeat) return; if (down) actPostDown(); else actPostUp(); return; }
       if (phase === 'splash') { if (down && (k === 'Space' || k === 'Enter')) { e.preventDefault(); begin(); } return; }
       if (phase === 'box') return;
+      if (down && !e.repeat && (k === 'KeyP' || k === 'Escape')) { e.preventDefault(); togglePause(); return; }
+      if (paused) { if (down && (k === 'Space' || k === 'Enter')) { e.preventDefault(); setPaused(false); } return; }
       if (k === 'Space') { e.preventDefault(); if (e.repeat) return; if (down) actShootDown(); else actShootUp(); return; } // a held key repeats: only the first press counts
-      if (k === 'KeyX') { e.preventDefault(); if (e.repeat) return; if (down) actStepDown(); else actShootUp(); return; }
+      if (k === 'KeyX') { e.preventDefault(); if (e.repeat) return; if (down) actXDown(); else actXUp(false); return; }
       if (!down || e.repeat) return;
       if (k === 'KeyE') { e.preventDefault(); actPass(); }
       else if (k === 'KeyQ') { e.preventDefault(); actMove(); }
@@ -8869,10 +9986,11 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (k === 'KeyT') { e.preventDefault(); actTimeout(); }
     }
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
-    const onBlur = () => { input.l = input.r = input.u = input.d = 0; input.sprint = false; actPostUp(); if (input.shoot) actShootUp(); resetPtr(); };
+    const onBlur = () => { input.l = input.r = input.u = input.d = 0; input.sprint = false; input.mod = false; actPostUp(); if (input.shoot) actShootUp(); resetPtr(); };
     window.addEventListener('blur', onBlur);
     // ---------- the floating joystick: drag anywhere on the floor (not on a button) ----------
     const stickEl = el('div', 'dk-stick', '<b></b>'); stickEl.style.display = 'none'; stage.appendChild(stickEl);
+    const baseEl = el('div', 'dk-stickbase hide'); if (touchy) stage.appendChild(baseEl);
     const hideStick = () => { stickEl.style.display = 'none'; };
     let pid = null, origin = null, ptT = 0;
     function resetPtr() { pid = null; origin = null; input.stick = null; try { hideStick(); } catch (e) {} }
@@ -8881,8 +9999,11 @@ gl_FragColor=vec4(c,1.0);}`;
       if (touchy && !aligned()) { scrollIn(); e.preventDefault(); return; }
       if (pid != null && (e.pointerId === pid || performance.now() - ptT > 8000)) resetPtr();
       if (pid != null) return;
-      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const r = cv.getBoundingClientRect(); let x = e.clientX - r.left, y = e.clientY - r.top;
       if (!touchy && e.pointerType === 'mouse') return; // a computer plays on the keyboard
+      // a thumb that lands on the stick's resting ring grabs the ring's own centre (a fixed stick); anywhere else the stick floats from the touch
+      const br = baseEl.getBoundingClientRect(), bx = br.left + br.width / 2 - r.left, by = br.top + br.height / 2 - r.top;
+      if (br.width && Math.hypot(x - bx, y - by) < br.width * 0.9) { x = bx; y = by; }
       pid = e.pointerId; ptT = performance.now(); origin = [x, y]; input.stick = [0, 0];
       try { stage.setPointerCapture(e.pointerId); } catch (er) {}
       stickEl.style.display = 'block'; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.firstChild.style.transform = '';
@@ -8934,7 +10055,7 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="dk-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
       <div class="dk-goal">${opts.label ? esc(opts.label) : lvlName} · Wildcat Gym<br>4 quarters × <em>${fmtClock(QS)}</em> · <em>${SHOT}</em>-second shot clock · <em>${TOS}</em> timeouts</div>
       <div class="dk-squad">${SQH.map((q) => `<div>${faceHTML(q)}<span>${esc(shortName(q.name))}</span><em>${q.sixth ? '6th' : q.pos} #${q.num}</em></div>`).join('')}</div>
-      <ul class="dk-how">${touchy ? '<li><b>Drag</b> on the floor to move</li><li><b>Hold SHOOT</b>, let go in the green</li><li><b>PASS</b> / <b>SWITCH</b>, <b>MOVE</b> for combo moves</li><li><b>STEAL</b>, <b>BLOCK</b>, <b>FOUL</b> on defense</li>' : '<li><b>WASD</b> move · <b>SHIFT</b> sprint</li><li><b>SPACE</b> hold to shoot, let go in the green · on defense jump / block</li><li><b>E</b> pass / switch · <b>Q</b> combo moves (not too fast!) / steal</li><li><b>F</b> foul · <b>T</b> timeout and subs</li>'}</ul>
+      ${controlsCard()}
       <button type="button" class="dk-go">TIP OFF</button>`);
     wrap.appendChild(splash);
     splash.querySelector('.dk-go').addEventListener('click', begin);
@@ -8942,14 +10063,15 @@ gl_FragColor=vec4(c,1.0);}`;
       if (phase !== 'splash' || finished) return;
       sfx.init(); sfx.play('whistle');
       splash.remove(); fit(); scrollIn(); setTimeout(() => { if (!finished) { fit(); scrollIn(); } }, 400);
-      startTip(); setControls(true);
+      startTip(); setControls(true); PRES.intro();
       try { cv.focus({ preventScroll: true }); } catch (e) {}
     }
 
     // ---------- debug hook (tests only): window.__dunkDebug.api ----------
-    const press = (k, down) => { const m = { space: [actShootDown, actShootUp], e: [actPass], q: [actMove], r: [actPostDown, actPostUp], x: [actStepDown, actShootUp], f: [actFoul], t: [actTimeout] }[String(k).toLowerCase()]; if (!m) { const d = { w: 'u', a: 'l', s: 'd', d: 'r' }[String(k).toLowerCase()]; if (d) input[d] = down === false ? 0 : 1; if (String(k).toLowerCase() === 'shift') input.sprint = down !== false; return; } if (down === false) { if (m[1]) m[1](); } else m[0](); };
+    const press = (k, down) => { const m = { space: [actShootDown, actShootUp], e: [actPass], q: [actMove], r: [actPostDown, actPostUp], x: [actXDown, () => actXUp(false)], c: [actScreen], p: [togglePause], f: [actFoul], t: [actTimeout] }[String(k).toLowerCase()]; if (!m) { const d = { w: 'u', a: 'l', s: 'd', d: 'r' }[String(k).toLowerCase()]; if (d) input[d] = down === false ? 0 : 1; if (String(k).toLowerCase() === 'shift') input.sprint = down !== false; return; } if (down === false) { if (m[1]) m[1](); } else m[0](); };
     const api = {
-      get phase() { return phase; }, get clock() { return clock; }, get period() { return qtr; }, get qtr() { return qtr; }, get shotClock() { return shotClk; }, get hs() { return hs; }, get as() { return as; },
+      get phase() { return phase; }, get paused() { return paused; }, get clock() { return clock; }, get period() { return qtr; }, get qtr() { return qtr; }, get shotClock() { return shotClk; }, get hs() { return hs; }, get as() { return as; },
+      get pres() { return PRES; }, get snd() { return SND; }, get refs() { return REFS.list; },
       get ball() { return ball; }, get ctrl() { return ctrl; }, get poss() { return poss; }, get teams() { return teams; }, get everyone() { return everyone; }, get onCourt() { return onCourt; }, get cam() { return cam; },
       get players() { return onCourt.map((p) => ({ key: p.key, name: p.sq.name, team: p.side, x: p.x, z: p.z, vx: p.vx, vz: p.vz, anim: p.an.clip, pose: p.pose, hasBall: ball.holder === p, jumpY: p.jumpY })); },
       get meter() { const p = ctrl; return p && p.shotS ? { on: true, t: p.meter, greenLo: p.shotS.gc - p.shotS.w / 2, greenHi: p.shotS.gc + p.shotS.w / 2 } : { on: false }; },
@@ -8960,9 +10082,11 @@ gl_FragColor=vec4(c,1.0);}`;
       setQuality(q) { setQuality(q); showQuality(); },
       // shoot now with your man (or anyone): release at meter value m (default: the middle of the green)
       forceShot(m, who) { const p = who != null ? onCourt[who] : ctrl; if (!p) return false; if (ball.holder !== p) { giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); } phase = 'live'; clockRun = true; if (!startShot(p)) return false; if (p.shotS) p.cpuRel = m != null ? m : p.shotS.gc; return true; },
+      callPlay(k) { const O = OS(teams[poss]); if (k === 'pin') { if (!ball.holder || ball.holder.side !== poss) return false; O.dsT = 0; O.ds = null; return tryDownScreen(teams[poss], ball.holder, hoopOf(poss)); } if (k === 'screen') { O.scrT = 0; return callScreen(poss); } return false; }, // (tests: run a CPU play now)
       giveTo(i) { const p = onCourt[i]; if (!p) return; giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); else if (p.side === 0) setCtrl(p); phase = 'live'; clockRun = true; },
       move(i) { return doMove(onCourt[i] || ctrl); }, postMove(k, side) { return postMoveStart(ctrl, k, side || 0); }, steal(i) { return trySteal(onCourt[i] || ctrl); },
       timeout(side) { return callTimeout(side || 0); }, endTimeout() { endTimeout(); }, sub(outKey, inKey) { const t = teams[0], o = everyone.find((p) => p.key === outKey), i = everyone.find((p) => p.key === inKey); return o && i ? doSub(0, o, i) : false; },
+      get stage() { const S = phase === 'timeout' ? toS : phase === 'break' ? brk : null; return S ? S.stage : ''; }, get subsShown() { return subsOpen(); }, cpuTimeout() { return cpuTimeout(); }, setRun(side, pts) { runS = { side, pts }; },
       skipQuarter() { if (phase === 'splash') begin(); clock = 0; if (phase !== 'live') { phase = 'live'; clockRun = true; } ball.shot = null; if (ball.st === 'air') ball.st = 'loose'; },
       // play the rest of the game out with the CPU running your team too
       simToEnd(fast) { DBG.auto = true; if (phase === 'splash') begin(); DBG.speed = fast || 40; DBG.lockQ = true; },
