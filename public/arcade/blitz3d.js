@@ -10799,9 +10799,9 @@ gl_FragColor=vec4(col,1.0);}`;
       if (METCALF) casDress(p); // Metcalf: T-shirt, own bottoms, sneakers and hair instead of the uniform (21-casual.js)
       p.fcell = faceCell(p.lk.skin);
       // a real Lineup player's overall on offense: 90+ is a superstar (tier 1), 95+ adds an ability for his spot (tier 2), 99 is tier 3
-      p.ovr = p.side === 0 && p.sq && p.sq.pid != null && p.sq.r ? +p.sq.r.ovr || 0 : 0;
+      p.ovr = (p.side === 0 || (p.sq && p.sq.defCard)) && p.sq && p.sq.pid != null && p.sq.r ? +p.sq.r.ovr || 0 : 0;
       p.star = p.ovr >= 99 ? 3 : p.ovr >= 95 ? 2 : p.ovr >= 90 ? 1 : 0;
-      p.starAb = p.star >= 2 ? starAbility(p) : null;
+      p.starAb = p.star >= 2 && p.side === 0 ? starAbility(p) : null;
       fxSetup(p); // the card in this spot: helmet prop, particles, kit look
       return p;
     }
@@ -10978,7 +10978,16 @@ gl_FragColor=vec4(col,1.0);}`;
       filmPrep(); // has the defense seen this play (and this receiver) too often?
       dcall = DEFP.on ? defpDcall() : VS ? vsDcall() : chooseDef(); // head to head: the other side's call; a key play: yours
       const sgn = OK.Y.x >= 0 ? 1 : -1, cush = mdCush();
-      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defSqOpts(key))));
+      const D = (role, key, x, z, o) => addDef(mkP(1, role, key, xin(x, 1), z, defV(Object.assign({ v: role === 'CB' ? DP.cbV : role === 'S' ? DP.sV : role === 'LB' ? DP.lbV : DP.dlV, str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) }, o, defCard(defSqOpts(key), role)))));
+      function defV(m) { if (m.vK) { m.v *= m.vK; delete m.vK; } return m; }
+      // our own defender's card (33-defplay.js defSqOpts): his ratings lift the base defender's, his speed nudges his top speed
+      function defCard(so, role) {
+        if (!so.defR) return so;
+        const R = so.defR, b = { str: 50 + 30 * KDEF + (role === 'DL' ? 6 : 0), agi: 48 + 38 * KDEF, spd: 45 + 45 * KDEF + (role === 'CB' || role === 'S' ? 8 : 0) };
+        so.str = R.up(b.str, R.str); so.agi = R.up(b.agi, R.agi); so.spd = R.up(b.spd, R.spd); so.cat = R.cat;
+        delete so.defR;
+        return so;
+      }
       const slot = OK.S, nickel = Math.abs(LXI(slot.x)) > 5.5;
       if (M7) { // 7 on 7: one down lineman shaded on the center, the middle linebacker stacked to the weak side behind him
         D('DL', 'DT1', LX(-0.7 * sgn), los + 0.9, { w: 1.2, rad: 0.5, num: 97 });
@@ -12933,14 +12942,23 @@ gl_FragColor=vec4(col,1.0);}`;
       QBR = SQ.QB.r;
       DEFP.flipped = on;
     }
-    // our defenders wear our own players: names, numbers, faces and looks from the Lineup (their cards stay on offense)
+    // our defenders are our own Lineup players, cards and all: names, numbers, faces and looks, the card's look and effects, his
+    // overall (superstars glow on defense too) and his ratings (a little faster or slower than the base defender, stronger, shiftier).
+    // Head to head keeps the plain version (looks only) so both screens stay in step.
     const DEF_SQ = M7 ? { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBS: 'QB', DT1: 'OL2' } // 7 on 7: the seven who play (the center is the down lineman)
       : { CB1: 'X', CB2: 'Z', FS: 'S', SS: 'Y', LBM: 'RB', LBW: 'QB', LBS: 'OL0', DE1: 'OL1', DT1: 'OL2', DT2: 'OL3', DE2: 'OL4' };
     const defSq = (key) => { if (!(DEFP.flipped || VS) || !SQ2) return null; const q = SQ2[DEF_SQ[key]]; return q && (q.real !== false) ? q : null; };
     function defSqOpts(key) {
       const q = defSq(key); if (!q) return {};
-      const o = { sq: Object.assign({}, q, { fx: null }), num: q.num, face: q.cell };
+      const mine = DEFP.flipped && !VS && q.r;
+      const o = { sq: mine ? Object.assign({}, q, { defCard: 1 }) : Object.assign({}, q, { fx: null }), num: q.num, face: q.cell };
       if (q.look) o.lk = q.look;
+      if (mine) {
+        const r = q.r, up = (base, v) => Math.max(base, Math.min(99, +v || 0)); // the card can only make him better than the base defender
+        o.fx = q.fx; o.wgt = r.wgt; o.staR = r.sta;
+        o.defR = { str: r.str, agi: r.agi, spd: r.spd, cat: r.cat, up };
+        o.vK = clamp(0.97 + ((+r.spd || 60) - 60) / 39 * 0.08, 0.97, 1.05);
+      }
       return o;
     }
     function defpDcall() {
@@ -17416,7 +17434,7 @@ gl_FragColor=vec4(col,1.0);}`;
       if (!force && (STAR.lastN === PK.playN || PK.t - STAR.lastT < 5)) return false;
       STAR.lastN = PK.playN; STAR.lastT = PK.t;
       popAt(p, '\u2605' + txt + '|' + p.ovr + ' OVR \u00b7 ' + nm(p), '#ffd23f');
-      sparkle(p, p.star >= 3 ? '#fff6c2' : '#ffd23f', 10 + 6 * p.star);
+      sparkle(p, p.star >= 3 ? '#fff6c2' : '#ffd23f', 5 + 3 * p.star);
       sfx.play('good');
       return true;
     }
@@ -20985,8 +21003,9 @@ gl_FragColor=vec4(col,1.0);}`;
       if (st) {
         r = r || { k: 0.6 };
         r.e = (r.e || []).slice();
-        if (r.e.indexOf('sparkle:gold') < 0) r.e.push('sparkle:gold');
-        if (st >= 3 && r.e.indexOf('star') < 0) r.e.push('star');
+        r.calm = {}; // what his overall adds comes off him gently (a few a second), not in a cloud
+        if (r.e.indexOf('sparkle:gold') < 0) { r.e.push('sparkle:gold'); r.calm['sparkle:gold'] = 1; }
+        if (st >= 3 && r.e.indexOf('star') < 0) { r.e.push('star'); r.calm.star = 1; }
         if (!r.o || st >= 3) r.o = st >= 3 ? '#fff4c8' : '#ffd23f';
       }
       p.fxr = r;
@@ -21015,7 +21034,7 @@ gl_FragColor=vec4(col,1.0);}`;
         for (const ek of r.e) {
           const E = EMIT[ek]; if (!E) continue;
           if (E.run && sp < 2.5 && !(DBG && DBG.fxAll)) continue; // fxAll: proof sheets show running-only emitters on a standing player
-          let rate = E.rate * Math.max(0.8, K) * (quality === 0 ? 0.4 : 1) * (E.idle && phase === 'live' && !(DBG && DBG.fxAll) ? 0.3 : 1) * (live ? 1 : 0.6);
+          let rate = E.rate * (r.calm && r.calm[ek] ? 0.3 : 1) * Math.max(0.8, K) * (quality === 0 ? 0.4 : 1) * (E.idle && phase === 'live' && !(DBG && DBG.fxAll) ? 0.3 : 1) * (live ? 1 : 0.6);
           p.fxAcc[ek] = (p.fxAcc[ek] || 0) + rate * dt;
           while (p.fxAcc[ek] >= 1) {
             p.fxAcc[ek] -= 1;

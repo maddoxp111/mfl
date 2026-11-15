@@ -989,6 +989,17 @@ const UPDATES = [
       'The Season page shows the card and whether someone has pulled it yet.',
     ],
   },
+  {
+    n: 93,
+    date: '2026-11-15',
+    title: '3D Blitz: your cards play defense too, and calmer stars',
+    items: [
+      'When you play defense in 3D Blitz, your defenders are now your Lineup cards for real: each one has his card\'s look and effects, his overall (90+ players glow on defense too) and his ratings, so a better card is a faster, stronger defender.',
+      'A card can only make a defender better than the regular one, never worse.',
+      'The gold sparkles and stars coming off 90+ overall players are turned way down: a few now and then instead of a cloud.',
+      'Head to Head is unchanged.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
