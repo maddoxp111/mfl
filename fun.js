@@ -207,17 +207,37 @@ module.exports = function fun(app, h) {
       ['Player rating', esc(pr)], ['Build', esc(BUILD_NAME[build] || build)], ...(c.one || c.rarity === 'doh' ? [['Serial', '1 of 1']] : [])];
     return `<div class="mb"><div class="mb-h">${logo(c.t, 18)}<div><b>${esc(c.p.name)}</b><small>${esc(c.t.name)}${pos ? ' · ' + esc(pos) : ''}${c.p.number ? ' · #' + esc(c.p.number) : ''}</small></div></div>
       <div class="mb-lab"><span class="rar-tag r-${c.rarity}">${esc(c.rarityName)}</span><span>${esc(c.label)}</span></div>
+      <div class="mb-sport" role="tablist" aria-label="Sport"><button type="button" role="tab" data-mbs="fb" aria-selected="true" aria-label="Football">🏈<span class="mbs-t"> Football</span></button><button type="button" role="tab" data-mbs="bb" aria-selected="false" aria-label="Basketball">🏀<span class="mbs-t"> Basketball</span></button></div>
+      <div class="mb-fbx">
       <p class="mb-ovr"><b>${ovr}</b><span><small>Overall</small>Plays at ${ovr} in the Arcade. ${esc(c.p.name.split(' ')[0])} is ${/^(8|11|18)/.test(String(pr)) && String(pr).length === 2 ? 'an' : 'a'} ${pr}: skills ${ovr === pr ? 'about the same' : `${ovr > pr ? '+' : '−'}${Math.abs(ovr - pr)} on average`}.</span></p>
       <dl class="mb-meta">${meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
       <div class="mb-attrs"><div class="mb-a mb-ah"><span>${est ? 'Ratings (est.)' : 'Ratings'}</span><i>Base</i><em>Card</em><b>Now</b></div>${rows}</div>
       ${(() => { const P = perkOfCard(c); return P ? `<p class="mb-perk"><b>Perk · ${esc(P.name)}${P.lv > 1 ? ` · level ${P.lv}` : ''}</b>${esc(P.text)}. <span class="muted">When: ${esc(P.when)}.</span></p>` : ''; })()}
       ${(() => { const S = cards.superstarOf ? cards.superstarOf(ovr, pos, ca && ca.attr) : null; return S ? `<p class="mb-perk"><b>3D Blitz · ${esc(S.tier)} (${ovr})</b>${ovr >= 99 ? 'A shimmering 99 badge and a white-gold glow' : 'A gold OVR badge and a gold glow'}, a callout on big plays${S.ability ? `. ${esc(S.ability.name)}${pos ? ` at ${esc(pos)}` : ''}: ${esc(S.ability.text)}` : ''}.</p>` : ''; })()}
       <p class="mb-fx"><b>In game</b> ${effectWords(c, fx)}</p>
+      </div>${bbBack(db, c)}
       <p class="mb-tier"><b>${esc(tierOfCard(c).rarity || c.rarityName)} tier · ${esc(tierOfCard(c).name)}</b>${esc(tierOfCard(c).text)}</p>
       <p class="mb-fan"><b>Fantasy</b> ${c.mult}× points${c.flat ? ` · +${c.flat} every game` : ''}${c.spec ? ` · ${esc(cards.SPECIALTIES[c.spec].desc)}` : ''}</p>
       ${c.quote ? `<p class="mb-q">“${esc(c.quote)}”</p>` : ''}</div>`;
   }
   h.cardBack = cardBack;
+  // The back's Basketball tab: the card's 3D Dunk overall and its 16 basketball ratings (cards.bbAttrs through arcade.bbCardAttrs),
+  // two columns, each with the card's change from the player's own rating.
+  function bbBack(db, c) {
+    const arc = attempt(() => require('./arcade'));
+    const ca = arc && typeof arc.bbCardAttrs === 'function' ? attempt(() => arc.bbCardAttrs(db, c.t, c.p, c)) : null;
+    if (!ca || !cards.BB_KEYS) return '<div class="mb-bbx"><p class="mb-wait">Basketball ratings are not available.</p></div>';
+    const bo = ca.ovr, br = ca.base.ovr, first = esc(c.p.name.split(' ')[0]);
+    const rows = cards.BB_KEYS.map((k) => {
+      const dv = ca.shift + (ca.eff ? ca.eff.attr[k] : 0);
+      return `<div class="bb-a"><span title="${esc(cards.BB_LABELS[k])}">${esc(cards.BB_SHORT[k])}</span><b>${ca.attr[k]}</b><em class="${dv > 0 ? 'up' : dv < 0 ? 'down' : ''}">${dv ? (dv > 0 ? '+' : '−') + Math.abs(dv) : ''}</em></div>`;
+    }).join('');
+    const fx = ca.eff ? cards.bbEffectText(ca.eff) : '';
+    const hgt = ca.attr.hgt, body = `${Math.floor(hgt / 12)}′${hgt % 12}″ · ${ca.attr.wgt} lb`;
+    return `<div class="mb-bbx"><p class="mb-ovr bb-ovr"><b>${bo}</b><span><small>Basketball overall</small>Plays at ${bo} in 3D Dunk. ${first} is ${/^(8|11|18)/.test(String(br)) && String(br).length === 2 ? 'an' : 'a'} ${br} on the court.</span></p>
+      <div class="bb-grid" title="Each rating, then the card's change from his own">${rows}</div>
+      <p class="mb-fx"><b>On the court</b> ${fx ? esc(fx) + ' · ' : ''}${esc(body)}</p></div>`;
+  }
   app.get('/pickem/cards/back', (req, res) => {
     const db = h.load(), c = cards.cardInfo(db, String(req.query.id || ''));
     if (!c) return res.status(404).send('<p class="mb-wait">Card not found.</p>');
@@ -228,13 +248,16 @@ module.exports = function fun(app, h) {
   // Added once to every /pickem page that shows a card.
   const CARD_FLIP = `<script id="mcflip-js">(()=>{if(window.__mcFlip)return;window.__mcFlip=1;
     const calm=matchMedia('(prefers-reduced-motion: reduce)');
-    const load=(card)=>{const b=card&&card.querySelector(':scope>.mc-back');if(!b||b.dataset.ok)return;b.dataset.ok='1';b.innerHTML='<p class="mb-wait">Loading…</p>';
-      fetch('/pickem/cards/back?id='+encodeURIComponent(card.dataset.id)).then((r)=>{if(!r.ok)throw 0;return r.text();}).then((t)=>{b.innerHTML=t;}).catch(()=>{b.dataset.ok='';b.innerHTML='<p class="mb-wait">Could not load. Tap to try again.</p>';});};
+    const SK='mfl-mb-sport',pref=()=>{try{return localStorage.getItem(SK)==='bb'?'bb':'fb';}catch(e){return 'fb';}};
+    const sport=(mb,s,keep)=>{if(!mb)return;mb.classList.toggle('bb',s==='bb');mb.querySelectorAll('[data-mbs]').forEach((x)=>x.setAttribute('aria-selected',x.dataset.mbs===s));if(keep){try{localStorage.setItem(SK,s);}catch(e){}}};
+    const load=(card)=>{const b=card&&card.querySelector(':scope>.mc-back');if(!b||b.dataset.ok){if(b)sport(b.querySelector('.mb'),pref());return;}b.dataset.ok='1';b.innerHTML='<p class="mb-wait">Loading…</p>';
+      fetch('/pickem/cards/back?id='+encodeURIComponent(card.dataset.id)).then((r)=>{if(!r.ok)throw 0;return r.text();}).then((t)=>{b.innerHTML=t;sport(b.querySelector('.mb'),pref());}).catch(()=>{b.dataset.ok='';b.innerHTML='<p class="mb-wait">Could not load. Tap to try again.</p>';});};
     const flip=(card)=>{const on=!card.classList.contains('show-back'),btn=card.querySelector(':scope>.mc-flip'),b=card.querySelector(':scope>.mc-back');if(on)load(card);
       const swap=()=>{card.classList.toggle('show-back',on);if(btn){btn.setAttribute('aria-pressed',on);btn.setAttribute('aria-label',on?'Flip back to the front':'Flip card');}if(b)b.setAttribute('aria-hidden',!on);};
       if(calm.matches)return swap();card.classList.remove('mc-flipping');void card.offsetWidth;card.classList.add('mc-flipping');setTimeout(swap,160);clearTimeout(card._ft);card._ft=setTimeout(()=>card.classList.remove('mc-flipping'),380);};
     const tappable=(card,t)=>!card.classList.contains('pickable')&&!card.closest('label,a,.slot,[data-notap],.flip:not(.on)')&&!t.closest('a,input,select,textarea,button:not(.mc-flip)');
     document.addEventListener('click',(e)=>{const t=e.target;if(!t.closest)return;const card=t.closest('.mcard');if(!card)return;
+      const sp=t.closest('[data-mbs]');if(sp){e.preventDefault();e.stopPropagation();sport(sp.closest('.mb'),sp.dataset.mbs,true);return;}
       if(t.closest('.mc-flip')||(card.classList.contains('show-back')&&t.closest('.mc-back'))||tappable(card,t)){e.preventDefault();e.stopPropagation();flip(card);}},true);
     document.addEventListener('pointerover',(e)=>{const b=e.target.closest&&e.target.closest('.mc-flip');if(b)load(b.closest('.mcard'));},{passive:true});
     document.addEventListener('focusin',(e)=>{if(e.target.classList&&e.target.classList.contains('mc-flip'))load(e.target.closest('.mcard'));});})();</script>`;

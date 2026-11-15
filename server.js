@@ -478,7 +478,7 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
 <link rel="icon" href="/static/mfl-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Press+Start+2P&family=Bungee&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=93">
+<link rel="stylesheet" href="/static/style.css?v=95">
 </head><body>
 <header class="hdr"><div class="hdr-in">
   <a class="brand" href="/"><img src="/static/mfl-logo.webp" alt=""><span>MFL</span></a>
@@ -3570,6 +3570,7 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
       <p class="muted sm">Tap the Lineup spots he likes. Fans can filter their cards by these when they pick a Lineup, and auto-pick puts him there first. Leave them all off to let his ratings decide.</p>
       <input type="hidden" name="prefSet" value="1">
       <div class="pref-chips" role="group" aria-label="Positions he likes to play">${PREF_POS.map(([k, n]) => `<label class="pref-chip"><input type="checkbox" name="pref" value="${k}" ${prefList(p).includes(k) ? 'checked' : ''}><b>${k}</b><small>${n}</small></label>`).join('')}</div>
+      ${bbAdminFields(db, tm, p)}
       <div class="actions"><button class="btn">Save player</button><a class="btn ghost" href="/admin/players">Back</a></div>
     </form></div>
     <script>
@@ -3644,6 +3645,32 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
     </script>`, { ticker: false }));
 });
 
+// Basketball ratings (3D Dunk and the card back's Basketball tab): the Basketball overall and the 16 ratings, stored as p.bb.
+// Blank = derived from his football ratings and height/weight (cards.bbBase); the placeholders show what blank gives.
+function bbAdminFields(db, tm, p) {
+  let fb = null;
+  try { fb = require('./arcade').playerAttrs(db, tm, p); } catch { fb = null; }
+  if (!fb) return '';
+  const B = p.bb && typeof p.bb === 'object' ? p.bb : {};
+  const autoOvr = cards.bbBase({}, fb).ovr, der = cards.bbBase({ bb: B.ovr != null && B.ovr !== '' ? { ovr: B.ovr } : {} }, fb);
+  const val = (k) => (B[k] != null && B[k] !== '' && Number.isFinite(+B[k]) ? Math.round(+B[k]) : '');
+  const inp = (k, label, ph) => `<label>${esc(label)}<input type="number" name="bb_${k}" min="25" max="99" step="1" inputmode="numeric" value="${val(k)}" placeholder="${ph}" data-bbk="${k}" data-bbd="${ph}"></label>`;
+  return `<h3 id="bb">Basketball (3D Dunk)</h3>
+      <p class="muted sm">Basketball overall and ratings, 25-99. Leave a box blank to use the derived value (shown in grey, from his football ratings, height and weight, levelled to the overall). His cards play at their own overall from this one, and the card back's Basketball tab shows the result.</p>
+      <div class="fgrid bb-adm">${inp('ovr', 'Basketball overall', autoOvr)}</div>
+      <div class="fgrid bb-adm">${cards.BB_KEYS.map((k) => inp(k, cards.BB_LABELS[k], der[k])).join('')}</div>
+      <script>(()=>{const o=document.querySelector('input[name=bb_ovr]');if(!o)return;const base=${der.ovr};
+        const upd=()=>{const v=o.value===''?${autoOvr}:Math.max(25,Math.min(99,+o.value||0)),d=v-base;document.querySelectorAll('input[data-bbk]:not([name=bb_ovr])').forEach((i)=>{i.placeholder=Math.max(25,Math.min(99,+i.dataset.bbd+d));});};o.addEventListener('input',upd);})();</script>`;
+}
+function bbAdminSave(p, b) {
+  const out = {};
+  for (const k of ['ovr', ...cards.BB_KEYS]) {
+    const v = String(b['bb_' + k] ?? '').trim();
+    if (v !== '' && Number.isFinite(+v)) out[k] = Math.max(25, Math.min(99, Math.round(+v)));
+  }
+  if (Object.keys(out).length) p.bb = out; else delete p.bb;
+}
+
 app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   const db = load();
   const tm = db.teams[req.params.team];
@@ -3671,6 +3698,7 @@ app.post('/admin/players/:team/:pid', requireAdmin, async (req, res) => {
   if (b.ir) p.ir = { note: String(b.irNote || '').trim().slice(0, 60), back: /^\d{4}-\d{2}-\d{2}$/.test(String(b.irBack || '')) ? String(b.irBack) : '', since: p.ir?.since || new Date().toISOString().slice(0, 10) };
   else delete p.ir;
   if (b.prefSet) { const got = [].concat(b.pref || []).map(String); p.pref = PREF_POS.map(([k]) => k).filter((k) => got.includes(k)); }
+  if ('bb_ovr' in b) bbAdminSave(p, b);
   const jpeg = (v) => {
     const m = /^data:image\/jpeg;base64,(.+)$/.exec(v || '');
     return m ? Buffer.from(m[1], 'base64') : null;

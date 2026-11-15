@@ -208,7 +208,7 @@ module.exports = function earn(app, h) {
       // ---------- Arcade ----------
       const four = E.LEVEL_ORDER.filter((i) => i < 4);
       const extra = (G) => topLevel(G).filter((i) => !four.includes(i));
-      const games = E.ORDER.filter((id) => GAMES[id]);
+      const games = E.ORDER.filter((id) => GAMES[id] && !GAMES[id].practiceOnly); // a practice-only game (3D Dunk for now) pays nothing yet
       const best = Math.max(...games.flatMap((id) => GAMES[id].prizes.map((p, i) => Math.round(p * E.RISK_MULT[i]))));
       const B = GAMES.blitz3d, main = E.RUN_MAIN, don = E.RUNS.don, dod = E.RUNS.dod;
       const factors = E.RUN_LEVELS.map((l) => `${lv(l)} ×${E.RUN_FACTOR[l]}`).join(', ');

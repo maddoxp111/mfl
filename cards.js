@@ -631,10 +631,11 @@ function scaleFx(a, up, down, body = 1) {
 // What a card does to its player in the games:
 // { attr: { thr, acc, spd, agi, sta, str, cat, def, kick, hgt, wgt }, build, fx: { variant, set, par, rarity, spec } }.
 // Takes a card from cardInfo (or a VARIANTS entry, or a card / variant id).
-function cardEffects(card) {
-  const attr = Object.fromEntries(ATTR_KEYS.map((k) => [k, 0]));
+// The raw table behind a card's effect (before its rarity tier): { a, build, one, variant, set, par, rarity, spec }.
+// Shared by the football effect (cardEffects) and the basketball one (bbEffects).
+function rawFx(card) {
   if (typeof card === 'string') card = { variant: card.includes(':') ? card.slice(card.indexOf(':') + 1) : card };
-  if (!card) return { attr, build: null, fx: null };
+  if (!card) return null;
   const variant = card.variant || card.id || '';
   const v = VARIANT_MAP.get(variant) || {};
   const set = card.set || v.set || null, par = card.par || v.par || null, rarity = card.rarity || v.rarity || 'common';
@@ -650,10 +651,12 @@ function cardEffects(card) {
     a = T.spec ? scaleFx(SPEC_FX[spec] || SPEC_FX.play, T.spec[0], T.spec[1]) : T.a;
     build = T.build || null;
   } else a = RARITY_FX[rarity] || RARITY_FX.common;
-  for (const [k, n] of Object.entries(a)) attr[k] = Math.round(n);
-  // The rarity tier's own boost, on top of the card's effect.
-  const T = TIERS[rarity] || TIERS.common;
-  const skills = ATTR_KEYS.filter((k) => !isBodyAttr(k));
+  return { a, build, one, variant, set, par, rarity, spec };
+}
+// The rarity tier's own boost on top of a card's effect (in place): the best skills get T.top in order, the others T.rest,
+// the T.shrink biggest downsides (< −1) get 1 smaller; then the caps, and a card that is not a 1 of 1 keeps a downside
+// (`downKey` loses 1 when nothing is below 0).
+function tierFx(attr, keys, skills, T, one, downKey, capOf) {
   const ranked = skills.slice().sort((x, y) => attr[y] - attr[x] || skills.indexOf(x) - skills.indexOf(y));
   T.top.forEach((n, i) => { attr[ranked[i]] += n; });
   if (T.rest) for (const k of ranked.slice(T.top.length)) attr[k] += T.rest;
@@ -661,12 +664,27 @@ function cardEffects(card) {
     const downs = skills.filter((k) => attr[k] < -1).sort((x, y) => attr[x] - attr[y]).slice(0, T.shrink);
     for (const k of downs) attr[k] += 1;
   }
-  for (const k of ATTR_KEYS) {
-    const cap = FX_CAP[k] || FX_CAP_SKILL;
+  for (const k of keys) {
+    const cap = capOf(k);
     attr[k] = Math.max(-cap, Math.min(cap, attr[k]));
   }
   // Only 1 of 1 cards may be all upside.
-  if (!one && !skills.some((k) => attr[k] < 0)) attr.kick -= 1;
+  if (!one && !skills.some((k) => attr[k] < 0)) attr[downKey] -= 1;
+  return attr;
+}
+// What a card does to its player in the games:
+// { attr: { thr, acc, spd, agi, sta, str, cat, def, kick, hgt, wgt }, build, fx: { variant, set, par, rarity, spec } }.
+// Takes a card from cardInfo (or a VARIANTS entry, or a card / variant id).
+function cardEffects(card) {
+  const attr = Object.fromEntries(ATTR_KEYS.map((k) => [k, 0]));
+  const R = rawFx(card);
+  if (!R) return { attr, build: null, fx: null };
+  const { a, build, one, variant, set, par, rarity, spec } = R;
+  for (const [k, n] of Object.entries(a)) attr[k] = Math.round(n);
+  // The rarity tier's own boost, on top of the card's effect.
+  const T = TIERS[rarity] || TIERS.common;
+  const skills = ATTR_KEYS.filter((k) => !isBodyAttr(k));
+  tierFx(attr, ATTR_KEYS, skills, T, one, 'kick', (k) => FX_CAP[k] || FX_CAP_SKILL);
   const perk = perkOf({ variant, set, rarity });
   return { attr, build, fx: { variant, set, par, rarity, spec, perk: perk ? perk.id : null, perkLv: T.lv } };
 }
@@ -688,6 +706,130 @@ function effectText(card, opts = {}) {
   }
   return out.filter(Boolean).join(' · ');
 }
+
+// ---------- basketball (3D Dunk) ----------
+// Every card also has basketball ratings, shown on the back's Basketball tab and played in 3D Dunk. The 16 keys in card-back order:
+const BB_KEYS = ['spd', 'vert', 'str', 'hand', 'pass', 'fin', 'dunk', 'mid', 'three', 'ft', 'perD', 'intD', 'stl', 'blk', 'reb', 'sta'];
+const BB_LABELS = { ovr: 'Overall', spd: 'Speed', vert: 'Vertical', str: 'Strength', hand: 'Ball handling', pass: 'Passing', fin: 'Finishing', dunk: 'Dunk', mid: 'Mid-range', three: '3-point', ft: 'Free throw', perD: 'Perimeter D', intD: 'Interior D', stl: 'Steal', blk: 'Block', reb: 'Rebound', sta: 'Stamina' };
+const BB_SHORT = { ovr: 'OVR', spd: 'SPD', vert: 'VERT', str: 'STR', hand: 'HND', pass: 'PAS', fin: 'FIN', dunk: 'DNK', mid: 'MID', three: '3PT', ft: 'FT', perD: 'PER D', intD: 'INT D', stl: 'STL', blk: 'BLK', reb: 'REB', sta: 'STA' };
+// How much each rating counts in the basketball overall (the derived ratings are levelled so this weighted mean is the overall).
+const BB_W = { spd: 1, vert: 0.8, str: 0.8, hand: 1.1, pass: 1, fin: 1.1, dunk: 0.6, mid: 1, three: 1.1, ft: 0.6, perD: 1, intD: 1, stl: 0.8, blk: 0.8, reb: 1, sta: 0.5 };
+const BB_LO = 25, BB_HI = 99;
+const bbClamp = (v) => Math.max(BB_LO, Math.min(BB_HI, Math.round(v)));
+const bbMean = (o) => { let s = 0, w = 0; for (const k of BB_KEYS) { s += (Number(o[k]) || 0) * BB_W[k]; w += BB_W[k]; } return s / w; };
+const bbNum = (v) => (v != null && v !== '' && Number.isFinite(+v) ? +v : null);
+// The shape of a player's game from his football ratings and body: football `fb` = { thr, acc, spd, agi, sta, str, cat, def, kick,
+// hgt (in), wgt (lb), ovr } (arcade.js playerAttrs). Height counts a lot: every inch over 5'2" helps dunks, blocks and boards.
+function bbShape(fb) {
+  const g = (k, d = 60) => (Number.isFinite(+fb[k]) ? +fb[k] : d);
+  const H = g('hgt', 62) - 62, W = g('wgt', 120) - 120;
+  const spd = g('spd'), agi = g('agi'), str = g('str'), acc = g('acc'), thr = g('thr'), cat = g('cat'), def = g('def'), sta = g('sta'), kick = g('kick');
+  const vert = 0.55 * agi + 0.25 * spd + 0.2 * kick - 0.1 * W;
+  return {
+    spd: spd - 0.04 * W, vert, str: str + 0.08 * W, hand: 0.6 * agi + 0.4 * acc - 0.4 * H, pass: 0.55 * acc + 0.45 * thr,
+    fin: 0.5 * agi + 0.5 * cat + 0.6 * H, dunk: 0.55 * vert + 0.2 * str + 0.25 * agi + 3 * H, mid: 0.65 * acc + 0.35 * thr,
+    three: 0.55 * acc + 0.45 * thr - 0.3 * H, ft: 0.8 * acc + 0.2 * thr, perD: 0.6 * def + 0.4 * spd - 0.3 * H,
+    intD: 0.55 * def + 0.45 * str + 1.6 * H + 0.04 * W, stl: 0.55 * def + 0.45 * agi, blk: 0.7 * def + 0.3 * vert + 2.4 * H,
+    reb: 0.45 * str + 0.3 * cat + 0.25 * vert + 2 * H + 0.04 * W, sta: sta - 0.03 * W,
+  };
+}
+// A real player's basketball ratings (no card): the admin's p.bb.ovr ("Basketball overall") and any admin-set p.bb.<key> win;
+// every other rating comes from the football ratings + height/weight, levelled so their weighted mean is the overall.
+// With no admin overall, the overall is the football one (fb.ovr), moved by the average change of any admin-set ratings.
+// Returns { spd..sta (16 keys), ovr, hgt, wgt, set: [admin-set keys] }, every rating 25-99.
+function bbBase(player, fb) {
+  const B = (player && player.bb && typeof player.bb === 'object') ? player.bb : {};
+  const raw = bbShape(fb || {});
+  const own = bbNum(B.ovr);
+  const lvl = own != null ? bbClamp(own) : bbClamp(Number(fb && fb.ovr) || 60);
+  const shift = lvl - bbMean(raw);
+  const out = {}, set = [];
+  let dsum = 0, wsum = 0;
+  for (const k of BB_KEYS) {
+    const d = bbClamp(raw[k] + shift), v = bbNum(B[k]);
+    out[k] = v != null ? bbClamp(v) : d;
+    if (v != null) { set.push(k); dsum += (out[k] - d) * BB_W[k]; }
+    wsum += BB_W[k];
+  }
+  out.ovr = own != null ? lvl : bbClamp(lvl + dsum / wsum);
+  out.hgt = Math.round(Number(fb && fb.hgt) || 62);
+  out.wgt = Math.round(Number(fb && fb.wgt) || 120);
+  out.set = set;
+  return out;
+}
+// Football card changes -> basketball changes (per point; height per inch, weight per lb). Rounded half away from zero.
+const FB2BB = {
+  spd: { spd: 1 }, agi: { vert: 0.6, hand: 0.7 }, str: { str: 1, reb: 0.4 }, cat: { fin: 0.7, reb: 0.5 },
+  acc: { mid: 0.7, three: 0.6, ft: 0.7, pass: 0.4 }, thr: { three: 0.5, pass: 0.7 }, def: { perD: 0.7, intD: 0.6, stl: 0.5, blk: 0.5 },
+  sta: { sta: 1 }, kick: { ft: 0.5, vert: 0.3 },
+  hgt: { blk: 1.5, reb: 1.2, dunk: 1.5, intD: 0.8, hand: -0.5 }, wgt: { str: 0.1, intD: 0.06, spd: -0.06, vert: -0.08 },
+};
+const BB_DOWN = ['ft', 'sta', 'dunk', 'mid', 'pass', 'str', 'vert', 'hand', 'stl', 'perD', 'intD', 'blk', 'reb', 'fin', 'three', 'spd'];
+const rnd0 = (v) => Math.sign(v) * Math.round(Math.abs(v));
+// What a card does to its player on the court, the same way cardEffects does it for football: the card's own table (set and
+// parallel, variant, specialty or rarity) turned into basketball changes, then the same rarity tier boost, the same ±12 cap and
+// the same rule that only a 1 of 1 is all upside. Returns { attr: {16 keys}, hgt, wgt, build, fx }.
+function bbEffects(card) {
+  const attr = Object.fromEntries(BB_KEYS.map((k) => [k, 0]));
+  const R = rawFx(card);
+  if (!R) return { attr, hgt: 0, wgt: 0, build: null, fx: null };
+  const acc = {};
+  for (const [k, n] of Object.entries(R.a)) for (const [b, m] of Object.entries(FB2BB[k] || {})) acc[b] = (acc[b] || 0) + n * m;
+  for (const k of BB_KEYS) attr[k] = rnd0(acc[k] || 0);
+  const T = TIERS[R.rarity] || TIERS.common;
+  tierFx(attr, BB_KEYS, BB_KEYS, T, true, 'ft', () => FX_CAP_SKILL);
+  // Only a 1 of 1 is all upside: otherwise the smallest change (free throws first on a tie) becomes −1.
+  if (!R.one && !BB_KEYS.some((k) => attr[k] < 0)) attr[BB_DOWN.reduce((m, k) => (attr[k] < attr[m] ? k : m), BB_DOWN[0])] = -1;
+  const fb = cardEffects(card);
+  const perk = perkOf({ variant: R.variant, set: R.set, rarity: R.rarity });
+  return { attr, hgt: fb.attr.hgt || 0, wgt: fb.attr.wgt || 0, build: R.build, fx: { variant: R.variant, set: R.set, par: R.par, rarity: R.rarity, spec: R.spec, perk: perk ? perk.id : null, perkLv: T.lv } };
+}
+// A card's basketball overall: the same rarity band, strength step and 1 of 1 bonus as cardOvr, from the player's basketball
+// overall (`bbRating`, bbBase().ovr) instead of his football rating. A variant's own `rating` (Big Doh Mi) wins here too.
+function bbOvr(card, bbRating) { return cardOvr(card, bbRating); }
+// The ratings a card plays at in 3D Dunk (like arcade.js cardAttrs for football): the card's basketball overall sets the level,
+// its own changes decide which ratings sit higher or lower. `base` = bbBase(player, fb). Returns { base, attr, shift, ovr, eff }.
+function bbAttrs(card, base) {
+  if (!base) return null;
+  if (!card) return { base, attr: { ...base }, shift: 0, ovr: base.ovr, eff: null };
+  const ovr = bbOvr(card, base.ovr), eff = bbEffects(card);
+  const shift = Math.round(ovr - base.ovr - bbMean(eff.attr));
+  const attr = {};
+  for (const k of BB_KEYS) attr[k] = bbClamp(base[k] + shift + eff.attr[k]);
+  attr.ovr = ovr;
+  attr.hgt = base.hgt + eff.hgt;
+  attr.wgt = base.wgt + eff.wgt;
+  return { base, attr, shift, ovr, eff };
+}
+// "+5 3PT, +3 HND, −2 FT": the basketball changes in words (biggest first, ups before downs).
+function bbEffectText(card) {
+  const e = card && card.attr && 'fx' in card && !('kick' in card.attr) ? card : bbEffects(card);
+  return BB_KEYS.filter((k) => e.attr[k]).map((k) => ({ k, v: e.attr[k] }))
+    .sort((x, y) => (y.v > 0) - (x.v > 0) || Math.abs(y.v) - Math.abs(x.v))
+    .map(({ k, v }) => `${v > 0 ? '+' : '−'}${Math.abs(v)} ${BB_SHORT[k]}`).join(', ');
+}
+// The five spots and how well a player fits each (used to place real teams and to auto-pick a Dunk lineup).
+const BB_POS = ['PG', 'SG', 'SF', 'PF', 'C'];
+const BB_FIT = {
+  PG: (a) => 0.3 * a.hand + 0.3 * a.pass + 0.15 * a.three + 0.15 * a.spd + 0.1 * a.perD,
+  SG: (a) => 0.35 * a.three + 0.2 * a.mid + 0.15 * a.hand + 0.15 * a.spd + 0.15 * a.perD,
+  SF: (a) => 0.2 * a.fin + 0.2 * a.mid + 0.15 * a.three + 0.15 * a.vert + 0.15 * a.perD + 0.15 * a.reb,
+  PF: (a) => 0.25 * a.reb + 0.2 * a.intD + 0.2 * a.fin + 0.15 * a.str + 0.1 * a.dunk + 0.1 * a.blk,
+  C: (a) => 0.25 * a.blk + 0.25 * a.reb + 0.2 * a.intD + 0.15 * a.str + 0.15 * ((a.hgt || 62) - 54) * 4,
+};
+// Places 5 players (ratings objects) in PG, SG, SF, PF, C by the best total fit; returns the 5 position names in input order.
+function bbPlace(list) {
+  const n = Math.min(5, list.length), idx = [...Array(n).keys()];
+  let best = null, bestS = -Infinity;
+  const perm = (arr, l) => {
+    if (l === n) { const s = arr.reduce((t, pi, i) => t + BB_FIT[BB_POS[pi]](list[i]), 0); if (s > bestS) { bestS = s; best = arr.slice(); } return; }
+    for (let i = l; i < 5; i++) { [arr[l], arr[i]] = [arr[i], arr[l]]; perm(arr, l + 1); [arr[l], arr[i]] = [arr[i], arr[l]]; }
+  };
+  perm([0, 1, 2, 3, 4], 0);
+  return idx.map((i) => BB_POS[best[i]]);
+}
+// A sixth man's natural spot: where he fits best.
+const bbBestPos = (a) => BB_POS.reduce((b, p) => (BB_FIT[p](a) > BB_FIT[b](a) ? p : b), 'PG');
 
 // Fantasy points for one player in one game.
 // A QB who throws 10 TD passes on a Base card scores 350 points (plus 10 for the win).
@@ -1317,4 +1459,5 @@ function fantasy(db, user, mvpOf) {
 }
 
 module.exports = { GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
-  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf };
+  BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf,
+  rawFx, BB_KEYS, BB_LABELS, BB_SHORT, BB_W, FB2BB, bbBase, bbEffects, bbOvr, bbAttrs, bbEffectText, BB_POS, BB_FIT, bbPlace, bbBestPos };
