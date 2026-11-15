@@ -28,6 +28,9 @@ const DOH_ODDS = 100000;
 // Ultra cards (`ultra: true`): a few 1/1s in the Season 1, GTA and weekly packs that are never rolled by rarity. Every card
 // pulled from one of those packs has a 1 in `P.ultra` shot (this, when the pack doesn't set its own) at one nobody owns yet.
 const ULTRA_ODDS = 2500;
+// The Invincible set: one card per season, the cover athlete's 1/1 at 99 overall with every rating at 99 (`allmax`). It has its
+// own, much longer shot on every card pulled from that season's packs (`P.inv`, else this).
+const INV_ODDS = 50000;
 
 // Specialist cards score extra on one kind of play.
 const SPECIALTIES = {
@@ -288,7 +291,10 @@ VARIANTS.push(
   { id: 'set-gta-vice-one', rarity: 'dark', label: 'Vice City Kingpin 1/1', mult: 7, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'vice', art: 'kingpin', launch: GTA.launch },
   { id: 'set-gta-cover-wanted', rarity: 'dark', label: 'Cover Most Wanted 1/1', mult: 8, one: true, ultra: true, quote: GTA.quote, set: GTA.id, par: 'one', design: 'cover', art: 'wanted', launch: GTA.launch },
 );
+for (const S of SEASONS) VARIANTS.push({ id: `inv-s${S.n}`, rarity: 'zenith', label: 'Invincible 1/1', mult: 10, rating: 99, allmax: true, one: true, ultra: true, inv: true, only: S.cover, season: S.n, quote: 'Ninety-nine everything.', perkAs: 's1-bigboy' });
 const VARIANT_MAP = new Map(VARIANTS.map((v) => [v.id, v]));
+// an Invincible card plays at 99 in every rating (football and basketball)
+const isAllMax = (card) => !!card && !!(card.allmax || (VARIANT_MAP.get(card.variant || String(card.id || '').split(':').pop()) || {}).allmax);
 
 // ---------- card effects ----------
 // Every card changes its player's game attributes: some go up, some go down. All of it comes
@@ -579,6 +585,7 @@ const WEEK_PERKS = {
   'w1-grudge': { name: 'Grudge Match', text: 'He plays with a grudge and runs through contact like a bulldozer' },
   'w1-bragging': { name: 'Bragging Rights', text: 'Ice in his veins when the game is on the line' },
   'w1-rivalry': { name: 'Rival Aura', text: 'The whole field bends around him: the rivalry card' },
+  ...Object.fromEntries(SEASONS.map((S) => [`inv-s${S.n}`, { name: 'Invincible', text: 'Nothing gets to him, and every teammate within 5 yards gets +2 in all skills' }])),
   's1-golden': { name: 'Golden Hands', text: 'Passes thrown near him bend toward his hands, and defenders right next to him move in slow motion' },
   's1-mrfull': { name: 'Mr. Full Extension', text: 'Everyone feeds off him: every teammate within 5 yards gets +2 in all skills' },
   'w1-undisputed': { name: 'Undisputed', text: 'Nobody argues with him: the whole field bends around him' },
@@ -824,7 +831,7 @@ function bbAttrs(card, base) {
   const ovr = bbOvr(card, base.ovr), eff = bbEffects(card);
   const shift = Math.round(ovr - base.ovr - bbMean(eff.attr));
   const attr = {};
-  for (const k of BB_KEYS) attr[k] = bbClamp(base[k] + shift + eff.attr[k]);
+  for (const k of BB_KEYS) attr[k] = isAllMax(card) ? 99 : bbClamp(base[k] + shift + eff.attr[k]);
   attr.ovr = ovr;
   attr.hgt = base.hgt + eff.hgt;
   attr.wgt = base.wgt + eff.wgt;
@@ -1012,7 +1019,7 @@ for (const id of ['halloween', 'super', 'galaxy', 'comic', 'pixel-plus', 'hot-sa
 // every pack (Zenith weighs 1, half of Dark Matter) with boosts on the chase packs; Carson's Filet Dinner tops the shop.
 // `allSeasons` (the Cover Athlete Pack): season cards from every season. `retired`: out of the shop, kept for old packs.
 const S1_ADDED = '2026-11-07';
-const s1Pack = (o) => ({ ultra: o.cost >= 600000 ? 250 : o.cost >= 150000 ? 600 : ULTRA_ODDS, group: 'season', season: 1, added: S1_ADDED, ...o });
+const s1Pack = (o) => ({ inv: o.cost >= 600000 ? 10000 : INV_ODDS, ultra: o.cost >= 600000 ? 250 : o.cost >= 150000 ? 600 : ULTRA_ODDS, group: 'season', season: 1, added: S1_ADDED, ...o });
 const S1_NAVY = '#0a1a3f';
 Object.assign(PACKS, {
   's1p-welcome': s1Pack({ name: 'Season 1: Carson Tabaka - Welcome Pack', cards: 4, cost: 0, free: 'season', group: 'free', art: { c: ['#38bdf8', S1_NAVY], e: '🎁', pat: 'rays', foil: 'silver' }, desc: 'Four free Season 1 cards, once per account.' }),
@@ -1024,7 +1031,7 @@ Object.assign(PACKS, {
   's1p-pick': s1Pack({ name: 'Carson Charles Tabaka - CT', cards: 3, choose: 12, floor: 'legendary', cost: 180000, art: { c: ['#a78bfa', S1_NAVY], e: '✍️', pat: 'dots', foil: 'holo' }, desc: 'See 12 Season 1 cards, every one Legend or better, and keep the 3 you want.' }),
   's1p-tabaka': s1Pack({ name: 'BigBoyCT - CT', cards: 5, cost: 240000, floor: 'legendary', art: { c: ['#0ea5e9', '#020617'], e: '💪', pat: 'waves', foil: 'gold' }, desc: '5 Season 1 cards and every one is Legend or better.' }),
   // Every season's cover athlete, in one pack that stays in the shop for good (seasons.js lists them).
-  's1p-cover': { name: 'Cover Athlete Pack', group: 'season', allSeasons: true, brand: 'Cover Athletes', added: S1_ADDED, cards: 5, hits: 3, cost: 300000, floor: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Every cover athlete's season cards (Season 1: ${S1.coverName}, including his Cover Athlete card and the ${S1.nick} 1/1). New cover athletes join it each season.`, desc: 'The cover athletes only: 5 of their season cards, every one Legend or better.' },
+  's1p-cover': { inv: 5000, upool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), name: 'Cover Athlete Pack', group: 'season', allSeasons: true, brand: 'Cover Athletes', added: S1_ADDED, cards: 5, hits: 3, cost: 300000, floor: 'legendary', boost: { mythic: 4, zenith: 6 }, pool: (c) => SEASONS.some((S) => S.n === c.season && S.cover === c.pid), art: { c: ['#5b2a86', S1_NAVY], e: '📸', pat: 'diamond', foil: 'holo' }, inside: `Every cover athlete's season cards (Season 1: ${S1.coverName}, including his Cover Athlete card and the ${S1.nick} 1/1). New cover athletes join it each season.`, desc: 'The cover athletes only: 5 of their season cards, every one Legend or better.' },
   's1p-onehand': s1Pack({ name: 'Tabaka Time Pack - CT', cards: 3, hits: 1, fillFloor: 'legendary', cost: 350000, floor: 'mythic', boost: { zenith: 2 }, art: { c: ['#c084fc', S1_NAVY], e: '⏳', pat: 'stars', foil: 'gold' }, desc: 'Three Legend-or-better Season 1 cards. The last is Mythic or better, with about a 1 in 5 shot at a Zenith 1/1.' }),
   's1p-fullext': s1Pack({ name: "Carson's Filet Dinner - CT", cards: 3, hits: 1, fillFloor: 'legendary', cost: 650000, floor: 'mythic', boost: { zenith: 8 }, art: { c: ['#7dd3fc', '#020617'], e: '🥩', pat: 'rays', foil: 'black' }, desc: 'The best pack in the shop: three Legend-or-better Season 1 cards. The last is Mythic or better, a coin flip for a Zenith 1/1.' }),
   // Retired Nov 7 (out of the shop; still here so packs already opened keep their name).
@@ -1238,7 +1245,7 @@ function rolePos(db, t, p) {
 // (openPack then falls back to every card, and the shop shows the pack as restocking).
 function packPool(db, P, taken = new Set()) {
   const all = catalog(db).filter((c) => !taken.has(c.id) && (P.mixed || (P.sets ? !!c.set : !c.set)) && (P.allSeasons ? !!c.season : (P.season || 0) === c.season) && (P.week || 0) === (c.week || 0) && (P.launch || '') === c.launch);
-  const base = all.filter((c) => !c.ultra), ultras = P.ultra === 0 ? [] : all.filter((c) => c.ultra); // ultras never roll by rarity
+  const base = all.filter((c) => !c.ultra), ultras = P.ultra === 0 ? [] : all.filter((c) => c.ultra && (!P.upool || P.upool(c))); // ultras never roll by rarity
   if (!P.pool) return { pool: base, base, ultras, ok: true };
   const f = base.filter(P.pool);
   return f.length ? { pool: f, base, ultras, ok: true } : { pool: base, base, ultras, ok: false };
@@ -1263,7 +1270,7 @@ function packOdds(db, type, ctx = {}) {
   if (!rs.reduce((s, r) => s + w(r), 0)) w = (r) => RARITIES[r].weight; // same fallback as rollCard
   const total = rs.reduce((s, r) => s + w(r), 0) || 1;
   const res = { ok, size: pool.length, players: new Set(pool.map((c) => c.pid)).size, sets: new Set(pool.map((c) => c.set).filter(Boolean)).size,
-    odds: type === 'starter' ? [{ r: 'common', pct: 100 }] : rs.map((r) => ({ r, pct: (w(r) / total) * 100 })).filter((x) => x.pct > 0), doh: type !== 'starter' && have.has('doh'), ultra: ultras.length ? { n: P.ultra || ULTRA_ODDS, cards: ultras.length, names: [...new Set(ultras.map((c) => c.label))] } : null };
+    odds: type === 'starter' ? [{ r: 'common', pct: 100 }] : rs.map((r) => ({ r, pct: (w(r) / total) * 100 })).filter((x) => x.pct > 0), doh: type !== 'starter' && have.has('doh'), ultra: ultras.some((c) => !c.inv) ? { n: P.ultra || ULTRA_ODDS, cards: ultras.filter((c) => !c.inv).length, names: [...new Set(ultras.filter((c) => !c.inv).map((c) => c.label))] } : null, inv: ultras.some((c) => c.inv) ? { n: P.inv || INV_ODDS, who: [...new Set(ultras.filter((c) => c.inv).map((c) => c.p.name))] } : null };
   if (P.hits && type !== 'starter') {
     const fmin = P.fillFloor || P.floor || 'common', wf = (r) => (P.boost?.[r] === 0 ? 0 : RARITIES[r].weight);
     const fr = RARITY_ORDER.filter((r) => r !== 'doh' && have.has(r) && RARITY_ORDER.indexOf(r) >= RARITY_ORDER.indexOf(fmin));
@@ -1282,7 +1289,7 @@ function packCanDrop(db, type, c, P = packInfo(db, type)) {
   if (type === 'starter') return c.variant === 'base';
   if (!P.mixed && !!P.sets !== !!c.set) return false; // set cards only come from set packs
   if (P.allSeasons ? !c.season : (P.season || 0) !== c.season) return false; if ((P.week || 0) !== (c.week || 0) || (P.launch || '') !== c.launch) return false; // launch-set cards only come from their own packs // weekly cards only come from that week's packs // season cards only come from season packs
-  if (c.ultra) return P.ultra !== 0;
+  if (c.ultra) return P.ultra !== 0 && (!P.upool || P.upool(c));
   if (P.pool && !P.pool(c)) return false;
   if (c.rarity !== 'doh' && P.boost && P.boost[c.rarity] === 0) return false;
   const floor = P.hits && P.fillFloor ? P.fillFloor : P.floor;
@@ -1318,7 +1325,7 @@ function makeCard(et, t, p, v) {
   const R = RARITIES[v.rarity];
   const spec = v.spec === 'own' ? specialtyOf(et, t, p) : v.spec || null;
   const label = v.spec === 'own' ? `Signature ${SPECIALTIES[spec].short}` : v.label;
-  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', design: v.design || '', art: v.art || '', ultra: !!v.ultra, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
+  return { id: `${p.id}:${v.id}`, pid: p.id, variant: v.id, label, rarity: v.rarity, rarityName: R.name, mult: v.mult || R.mult, flat: v.flat || 0, quote: v.quote || '', spec, one: !!v.one, hidden: !!(v.hidden || R.hidden), rating: v.rating || null, set: v.set || null, par: v.par || null, season: v.season || 0, week: v.week || 0, launch: v.launch || '', design: v.design || '', art: v.art || '', ultra: !!v.ultra, inv: !!v.inv, allmax: !!v.allmax, t, p, perk: perkOf(v), tier: tierOf(v.rarity) };
 }
 // The full card list, rebuilt only when rosters, tendencies or box scores change.
 let catKey = null, catVal = [], catMap = new Map();
@@ -1384,7 +1391,9 @@ function openPack(db, type, taken = new Set(), ctx = {}) {
   // A pool can run dry when it was only 1/1s: refill it with everything that isn't one.
   const pick = (min, PP = P) => {
     // the ultra long shot comes first, on every card pulled
-    if (ultras.length && rint(P.ultra || ULTRA_ODDS) === 0) { const u = ultras[rint(ultras.length)]; ultras = ultras.filter((c) => c.id !== u.id); return u.id; }
+    const invs = ultras.filter((c) => c.inv), us = ultras.filter((c) => !c.inv);
+    if (invs.length && rint(P.inv || INV_ODDS) === 0) { const u = invs[rint(invs.length)]; ultras = ultras.filter((c) => c.id !== u.id); return u.id; }
+    if (us.length && rint(P.ultra || ULTRA_ODDS) === 0) { const u = us[rint(us.length)]; ultras = ultras.filter((c) => c.id !== u.id); return u.id; }
     if (!pool.length) pool = base.filter((c) => !c.one); return drop(rollCard(pool, PP, min));
   };
   // Hit packs (P.hits): only the last `hits` cards get the pack's boosted odds. The others are regular cards from the same
@@ -1493,6 +1502,6 @@ function fantasy(db, user, mvpOf) {
   return { results, total: results.reduce((s, r) => s + r.total, 0) };
 }
 
-module.exports = { ULTRA_ODDS, ultraArt, GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
+module.exports = { ULTRA_ODDS, INV_ODDS, isAllMax, ultraArt, GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf,
   rawFx, BB_KEYS, BB_LABELS, BB_SHORT, BB_W, FB2BB, bbBase, bbEffects, bbOvr, bbAttrs, bbEffectText, BB_POS, BB_FIT, bbPlace, bbBestPos };

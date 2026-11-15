@@ -48,7 +48,19 @@ module.exports = function season(app, h) {
       const packs = cards.packTypes(db).map((t) => [t, cards.packInfo(db, t)]).filter(([, P]) => P.season === S.n || P.allSeasons).sort((a, b) => a[1].cost - b[1].cost);
       const top = packs.reduce((a, x) => (!a || x[1].cost > a[1].cost ? x : a), null);
       const big = card('s1-bigboy'), cov = card('s1-cover');
+      const inv = card(`inv-s${S.n}`);
       res.send(layout(req, `Season ${S.n}: ${S.name}`, `<div class="wrap s1-page">${seasonHero('full')}
+        ${inv ? `<section class="s1-sec" id="s1-inv">
+          <header class="s1-sh"><span class="s1-k">The Invincible set</span><h2>Invincible ${esc(S.coverName)} 1/1</h2><p>One card per season. There is only one, and it is the cover athlete's.</p></header>
+          <div class="s1-coverrow">
+            <div class="s1-cc">${art(inv)}<div class="s1-cap"><b>${esc(inv.label)}</b><span><span class="rar-tag r-${inv.rarity}">${esc(inv.rarityName)}</span> <b class="s1-ovr">${h.cardOvr(db, inv)}</b> OVR · ${inv.mult}× points</span>${who(inv)}</div></div>
+            <div class="s1-coverinfo">
+              <p><b>99 overall, and 99 in every single rating</b>: throwing, accuracy, speed, agility, stamina, strength, catching, defense and kicking, and every basketball rating too.</p>
+              <p>It is worth ${inv.mult}× fantasy points.</p>
+              <p>It is the rarest card of the season: every card you pull from a Season ${S.n} pack has a 1 in ${fmtN(cards.INV_ODDS)} shot at it (better in Carson's Filet Dinner and the Cover Athlete Pack; each pack shows its odds under "What's inside"). ${owner.has(inv.id) ? `<b>@${esc(owner.get(inv.id))} has it.</b> Nobody else can pull it.` : '<b>Nobody has pulled it yet.</b>'}</p>
+            </div>
+          </div>
+        </section>` : ''}
         <section class="s1-sec" id="s1-cover">
           <header class="s1-sh"><span class="s1-k">Cover athlete</span><h2>${esc(S.coverName)}</h2><p>#${S.number} · ${esc(S.nick)}. Two cards in the game are his alone.</p></header>
           <div class="s1-coverrow">

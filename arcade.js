@@ -259,6 +259,7 @@ function cardAttrs(db, team, player, card) {
   const shift = Math.round(ovr - rating - avgD);
   const attr = {};
   for (const k of ATTR_KEYS) attr[k] = clampAttr(k, Math.round(base[k] + (SKILL_KEYS.includes(k) ? shift : 0) + dv(k)), 30);
+  if (cards.isAllMax(card)) for (const k of SKILL_KEYS) attr[k] = 99; // the Invincible set: 99 in everything
   attr.ovr = ovr;
   return { base, attr, shift, ovr, eff };
 }

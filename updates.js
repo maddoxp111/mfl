@@ -978,6 +978,17 @@ const UPDATES = [
       'They never come from the normal odds. Every single card you pull from those packs has its own long shot at one, from 1 in 2,500 on the cheapest Season 1 packs to 1 in 100 on the top Weekly packs. The exact odds are under "What\'s inside" on each pack.',
     ],
   },
+  {
+    n: 92,
+    date: '2026-11-15',
+    title: 'The Invincible set: one 99-everything card per season',
+    items: [
+      'Every season now has one Invincible card. It is a 1 of 1 and it is the cover athlete: this season, Invincible Carson Tabaka.',
+      'It is 99 overall with 99 in every single rating, football and basketball, and it is worth 10× fantasy points.',
+      'It is the rarest card of the season. Every card you pull from a Season 1 pack has a 1 in 50,000 shot at it, 1 in 10,000 in Carson\'s Filet Dinner and 1 in 5,000 in the Cover Athlete Pack.',
+      'The Season page shows the card and whether someone has pulled it yet.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
