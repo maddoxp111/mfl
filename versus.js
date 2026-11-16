@@ -349,6 +349,7 @@ module.exports = function versus(app, h) {
   // and a host whose snapshots had stopped before his connection did (his screen was frozen: nobody can say whose fault it was) voids it.
   function dunkLeft(M, name, reason, at) {
     const other = otherOf(M, name), w = M.wit;
+    if (w.flagged) return settle(M, null, 'review', name); // a match the witness marked pays nobody, whoever leaves (a lying host must not win a forfeit)
     if (w.elapsed() < DUNK.EARLY_SECS && !w.ended()) return settle(M, null, 'early', name);
     if (w.ended() && !w.flagged) { const v = w.verdict({ host: { hs: w.score[0], as: w.score[1] }, guest: null }, true); if (v && v.winner != null) return settle(M, v.winner === 0 ? M.host : M.guest, 'final', name); }
     if (name === M.host && w.at && (at || Date.now()) - w.at > DUNK.HOST_STALE_MS) return settle(M, null, 'hostlost', name);
