@@ -70,7 +70,7 @@ function createWitness(opts) {
     // game seconds played (regulation), for the 'first 20 seconds' rule
     elapsed() { return this.snaps ? (this.qtr > 4 ? 4 * qs : (this.qtr - 1) * qs + (qs - this.clock)) : 0; },
     // the end of the game as the snapshots show it: the fourth quarter or overtime at 0:00 (or the engine's own 'over'), not tied
-    ended() { return this.snaps > 0 && ((this.qtr >= 4 && this.clock <= 1.5) || this.ph >= 8) && this.score[0] !== this.score[1]; },
+    ended() { return this.snaps > 0 && this.qtr >= 4 && (this.clock <= 1.5 || this.ph >= 8) && this.score[0] !== this.score[1]; }, // (the host's own 'over' flag counts only in the fourth quarter or overtime: a host cannot end the game early by setting it)
     snap(buf, now) {
       const s = parseSnap(buf);
       if (!s) { this.bad++; return false; }
@@ -122,7 +122,12 @@ function createWitness(opts) {
       if (!this.snaps) return { winner: null, reason: 'review' };
       const [h, g] = [fin.host, fin.guest], w = { hs: this.score[0], as: this.score[1] };
       const same = (a, b) => !!a && !!b && a.hs === b.hs && a.as === b.as;
-      if (h && g && !same(h, g)) return { winner: null, reason: 'dispute', disagree: same(h, w) ? 'guest' : same(g, w) ? 'host' : 'both' };
+      if (h && g && !same(h, g)) {
+        // exactly one of the two agrees with what the server saw: that one is right, and the other cannot void the game by lying (a loser's false final)
+        const hm = same(h, w), gm = same(g, w);
+        if (hm !== gm && w.hs !== w.as) return { winner: w.hs > w.as ? 0 : 1, reason: 'final', disagree: hm ? 'guest' : 'host' };
+        return { winner: null, reason: 'dispute', disagree: hm ? 'guest' : gm ? 'host' : 'both' };
+      }
       if (!(h && g) && !waited) return null;
       const f = h || g;
       if (!f) return { winner: null, reason: 'review' }; // no final from anyone

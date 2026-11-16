@@ -352,7 +352,8 @@ module.exports = function versus(app, h) {
     if (w.flagged) return settle(M, null, 'review', name); // a match the witness marked pays nobody, whoever leaves (a lying host must not win a forfeit)
     if (w.elapsed() < DUNK.EARLY_SECS && !w.ended()) return settle(M, null, 'early', name);
     if (w.ended() && !w.flagged) { const v = w.verdict({ host: { hs: w.score[0], as: w.score[1] }, guest: null }, true); if (v && v.winner != null) return settle(M, v.winner === 0 ? M.host : M.guest, 'final', name); }
-    if (name === M.host && w.at && (at || Date.now()) - w.at > DUNK.HOST_STALE_MS) return settle(M, null, 'hostlost', name);
+    // the host's snapshots had stopped before this player left (a frozen or hidden host screen, or a host that stalls to make the guest leave): nobody can say whose fault it was
+    if (w.at && (at || Date.now()) - w.at > DUNK.HOST_STALE_MS) return settle(M, null, 'hostlost', name);
     settle(M, other, reason, name);
   }
   function maybeStart(M) {
@@ -551,7 +552,7 @@ module.exports = function versus(app, h) {
       const u = await getDoc(userKey(name), { fresh: true });
       let n = 0;
       for (const r of (u && u.arcade) || []) {
-        if (!r.versus || r.status !== 'open' || matches.has(r.versus.id)) continue;
+        if (!r.versus || r.status !== 'open' || matches.has(r.versus.id) || ended.has(r.versus.id)) continue; // (a match being settled right now is in 'ended' already: its record is not a leftover)
         r.status = 'void';
         r.payout = 0;
         r.versus = { ...r.versus, reason: 'restart', endedAt: new Date().toISOString() };
