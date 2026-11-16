@@ -13,13 +13,24 @@
 //                     join { id } · ready { id } · ev { type, data } · quit { id }
 //   server -> client: me · online · challenges · challenge · challenge-sent · challenge-gone · error
 //                     match · go · ev · opp-gone · opp-back · over · detached
+//
+// 3D Dunk Head to Head runs on the same connection and lobby plumbing, tagged by game: a socket belongs to 'blitz3d' (the default) or
+// 'dunk3d' (connect with ?g=dunk3d, or send hello { game, cap }), and the online list, the challenges and the results of the two
+// games never mix. A Dunk match is hosted by one of the two players (chosen when the challenge is accepted): his screen runs the game
+// and sends snapshots (binary 0x53), the guest sends his controls (binary 0x49); the server relays both, and reads the host's
+// snapshots to check the score (dunkwitness.js). JSON between the two screens goes in { t: 'g', m: {...} } and is relayed as it is.
+//   client -> server (Dunk): hello { game, cap } · g { m } · final { hs, as, qtr } · join { id, fresh }
+//   server -> client (Dunk): match { game, host, youAre, role, home, away, data, ... } · go · g { m } · opp-gone · opp-back · over
 const crypto = require('crypto');
 const express = require('express');
 const { WebSocketServer } = require('ws');
+const { DUNK, pickHost, cleanCap, createWitness } = require('./dunkwitness');
 const { EventEmitter } = require('events');
 
 module.exports = function versus(app, h) {
   const { esc, icon, coins, layout, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, pk, TZ, sign, assetUrl } = h;
+  const GAME = DUNK.GAME, BLITZ = 'blitz3d';
+  const maxWagerOf = (game) => (game === GAME ? DUNK.MAX_WAGER : MAX_WAGER);
   const envMs = (k, d) => (Number(process.env[k]) > 0 ? Number(process.env[k]) : d);
   const GONE_MS = envMs('VERSUS_GONE_MS', 60e3); // a player with no connection to a live match for this long forfeits
   const CHALLENGE_MS = envMs('VERSUS_CHALLENGE_MS', 60e3);
@@ -72,10 +83,13 @@ module.exports = function versus(app, h) {
   const playing = new Map(); // name -> live match
   const busy = new Set(); // names being put into a match right now
 
+  const gameOf = (ws) => (ws && ws.game) || BLITZ;
+  const lastGame = new Map(); // name -> the game of the last tab that closed (for the grace period before a user counts as gone)
   const send = (ws, msg) => { if (ws && ws.readyState === OPEN) { try { ws.send(JSON.stringify(msg)); } catch (e) {} } };
-  const toUser = (name, msg) => { const s = socks.get(name); if (s) for (const ws of s) send(ws, msg); };
-  const hasTab = (name) => (socks.get(name)?.size || 0) > 0;
-  const isOnline = (name) => hasTab(name) || offTimers.has(name);
+  const tabs = (name, game) => [...(socks.get(name) || [])].filter((w) => !game || gameOf(w) === game);
+  const toUser = (name, msg, game) => { for (const ws of tabs(name, game)) send(ws, msg); };
+  const hasTab = (name, game) => tabs(name, game).length > 0;
+  const isOnline = (name, game) => hasTab(name, game) || (offTimers.has(name) && (!game || lastGame.get(name) === game));
   const otherOf = (M, name) => (M.players[0] === name ? M.players[1] : M.players[0]);
   const err = (ws, msg) => send(ws, { t: 'error', msg });
 
@@ -96,19 +110,19 @@ module.exports = function versus(app, h) {
   }
 
   // ---------- presence ----------
-  function onlineList(except) {
+  function onlineList(except, game) {
     const names = new Set([...socks.keys(), ...offTimers.keys()]);
-    return [...names].filter((n) => n !== except && isOnline(n)).map((name) => ({ name, status: playing.has(name) ? 'playing' : 'idle' }))
+    return [...names].filter((n) => n !== except && isOnline(n, game || BLITZ)).map((name) => ({ name, status: playing.has(name) ? 'playing' : 'idle' }))
       .sort((a, b) => (a.status === b.status ? a.name.localeCompare(b.name) : a.status === 'idle' ? -1 : 1));
   }
   function broadcastOnline(skip) {
-    for (const [name, set] of socks) { if (name === skip) continue; const msg = { t: 'online', list: onlineList(name) }; for (const ws of set) send(ws, msg); }
+    for (const [name, set] of socks) { if (name === skip) continue; for (const ws of set) send(ws, { t: 'online', list: onlineList(name, gameOf(ws)) }); }
   }
 
   // ---------- challenges ----------
-  const pub = (c) => ({ id: c.id, from: c.from, to: c.to, wager: c.wager, qs: c.qs, venue: c.venue || 'stadium', ...metOpts(c.venue, c), exp: c.exp, left: Math.max(0, c.exp - Date.now()) });
-  const challengesOf = (name) => {
-    const all = [...challenges.values()];
+  const pub = (c) => ({ id: c.id, game: c.game || BLITZ, from: c.from, to: c.to, wager: c.wager, qs: c.qs, ...(c.game === GAME ? { pv: c.pv || null } : { venue: c.venue || 'stadium', ...metOpts(c.venue, c) }), exp: c.exp, left: Math.max(0, c.exp - Date.now()) });
+  const challengesOf = (name, game) => {
+    const all = [...challenges.values()].filter((c) => (c.game || BLITZ) === (game || BLITZ));
     return { incoming: all.filter((c) => c.to === name).map(pub), outgoing: all.filter((c) => c.from === name).map(pub) };
   };
   function dropChallenge(c, why) {
@@ -116,20 +130,21 @@ module.exports = function versus(app, h) {
     challenges.delete(c.id);
     clearTimeout(c.timer);
     const msg = { t: 'challenge-gone', id: c.id, why };
-    toUser(c.from, msg);
-    toUser(c.to, msg);
+    toUser(c.from, msg, c.game);
+    toUser(c.to, msg, c.game);
   }
   const dropChallengesOf = (name, why) => { for (const c of [...challenges.values()]) if (c.from === name || c.to === name) dropChallenge(c, why); };
 
   async function onChallenge(ws, name, msg) {
+    const game = gameOf(ws), dunk = game === GAME, maxWager = maxWagerOf(game);
     const to = String(msg.to || '').trim().toLowerCase().replace(/^@/, '');
     const wager = msg.wager == null || msg.wager === '' ? 0 : Number(msg.wager);
-    const qs = QS.includes(Number(msg.qs)) ? Number(msg.qs) : 120;
-    const venue = VENUES.includes(msg.venue) ? msg.venue : 'stadium';
+    const qs = (dunk ? DUNK.QS : QS).includes(Number(msg.qs)) ? Number(msg.qs) : dunk ? DUNK.DEFAULT_QS : 120;
+    const venue = dunk ? 'dunk' : VENUES.includes(msg.venue) ? msg.venue : 'stadium';
     if (to === name) return err(ws, "You can't challenge yourself.");
     if (!pk.validName(to)) return err(ws, 'Pick a player to challenge.');
-    if (!Number.isInteger(wager) || wager < 0 || wager > MAX_WAGER) return err(ws, `A wager is a whole number of coins from 0 to ${fmt(MAX_WAGER)}.`);
-    const check = () => (!hasTab(to) ? `@${to} is not online.` : playing.has(to) || busy.has(to) ? `@${to} is in a match right now.` : playing.has(name) || busy.has(name) ? 'Finish your match first.' : null);
+    if (!Number.isInteger(wager) || wager < 0 || wager > maxWager) return err(ws, `A wager is a whole number of coins from 0 to ${fmt(maxWager)}.`);
+    const check = () => (!hasTab(to, game) ? `@${to} is not online.` : playing.has(to) || busy.has(to) ? `@${to} is in a match right now.` : playing.has(name) || busy.has(name) ? 'Finish your match first.' : null);
     if (check()) return err(ws, check());
     if (wager > 0) {
       const user = await getDoc(userKey(name), { fresh: true });
@@ -138,11 +153,13 @@ module.exports = function versus(app, h) {
       if (check()) return err(ws, check());
     }
     for (const old of [...challenges.values()]) if (old.from === name) dropChallenge(old, 'replaced');
-    const c = { id: hex(6), from: name, to, wager, qs, venue, ...metOpts(venue, { big: msg.big === true, touch: msg.touch === true, mfield: msg.mfield }), exp: Date.now() + CHALLENGE_MS, fromWs: ws };
+    const c = { id: hex(6), game, from: name, to, wager, qs, venue, ...(dunk ? {} : metOpts(venue, { big: msg.big === true, touch: msg.touch === true, mfield: msg.mfield })), exp: Date.now() + CHALLENGE_MS, fromWs: ws };
+    if (dunk) c.pv = await dunkPreviews(name, to, c.id);
+    if (check()) return err(ws, check());
     c.timer = setTimeout(() => dropChallenge(c, 'expired'), CHALLENGE_MS);
     challenges.set(c.id, c);
-    toUser(to, { t: 'challenge', c: pub(c) });
-    toUser(name, { t: 'challenge-sent', c: pub(c) });
+    toUser(to, { t: 'challenge', c: pub(c) }, game);
+    toUser(name, { t: 'challenge-sent', c: pub(c) }, game);
   }
   function onDecline(ws, name, id, mine, why) {
     const c = challenges.get(String(id || ''));
@@ -175,9 +192,48 @@ module.exports = function versus(app, h) {
     return { [ua.name]: A, [ub.name]: B };
   }
 
+  // 3D Dunk: each side brings his saved Dunk lineup, else an auto-pick of his best cards, else a real MFL team (the same real player
+  // may be on both sides). Picked in a fixed order (challenger first) from the challenge's id, so what the lobby previewed is what plays.
+  const seeded = (seed) => { let a = parseInt(crypto.createHash('sha1').update(String(seed)).digest('hex').slice(0, 8), 16) >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  function dunkSides(db, ua, ub, seed) { // [from's, to's] -> [{ kind, team, teamId? }, ...]
+    const rnd = seeded('dunk:' + seed), a = h.dunkTeamFor(db, ua, rnd), b = h.dunkTeamFor(db, ub, rnd, a.teamId);
+    return [a, b];
+  }
+  async function dunkPreviews(from, to, seed) {
+    try {
+      await refresh();
+      const db = load(), [ua, ub] = await Promise.all([from, to].map((n) => getDoc(userKey(n), { fresh: true })));
+      if (!ua || !ub) return null;
+      const [a, b] = dunkSides(db, ua, ub, seed);
+      return { [from]: h.dunkPreview(a), [to]: h.dunkPreview(b) };
+    } catch (e) { console.error('versus: dunk preview failed', e); return null; }
+  }
+  // Both teams for the match: home = the host's (side 0), away = the guest's; alike abbreviations and colours are told apart.
+  function dunkTeamsFor(db, ua, ub, seed, hostName) {
+    const sides = dunkSides(db, ua, ub, seed), byName = { [ua.name]: sides[0], [ub.name]: sides[1] };
+    const gName = hostName === ua.name ? ub.name : ua.name;
+    const home = JSON.parse(JSON.stringify(byName[hostName].team)), away = JSON.parse(JSON.stringify(byName[gName].team));
+    if (away.abbr === home.abbr) {
+      const l = gName.replace(/[^a-z0-9]/gi, '').toUpperCase();
+      away.abbr = (l.slice(0, 2) + l.slice(-1)) !== home.abbr ? l.slice(0, 2) + l.slice(-1) : home.abbr.slice(0, 2) + '2';
+    }
+    if (away.name === home.name) away.name = (away.name + ' 2').slice(0, 18);
+    if (near(home.color, away.color)) {
+      const alt = [['#c8102e', '#f2f4f7'], ['#1d4ed8', '#f2f4f7'], ['#16a34a', '#f2f4f7'], ['#f2f4f7', '#15171d']].find(([c]) => !near(c, home.color));
+      away.color = alt[0]; away.color2 = alt[1];
+    }
+    return { home, away, kinds: { [ua.name]: sides[0].kind, [ub.name]: sides[1].kind }, teams: { [hostName]: home, [gName]: away } };
+  }
+
   // ---------- matches ----------
   function matchMsg(M, name, extra) {
     const other = otherOf(M, name);
+    if (M.game === GAME) {
+      const youAre = M.host === name ? 0 : 1;
+      return { t: 'match', id: M.id, game: GAME, wager: M.wager, qs: M.qs, quarterSecs: M.qs, level: DUNK.LEVEL, seed: M.seed, noTies: true, host: M.host, youAre, role: youAre === 0 ? 'host' : 'guest',
+        http: !!M.http, kinds: M.kinds, home: M.home, away: M.away,
+        data: { home: M.home, away: M.away, level: DUNK.LEVEL, quarterSecs: M.qs, seed: M.seed }, me: { name, team: M.teams[name] }, opp: { name: other, team: M.teams[other] }, started: !!M.started, ...(extra || {}) };
+    }
     return { t: 'match', id: M.id, wager: M.wager, qs: M.qs, venue: M.venue || 'stadium', ...metOpts(M.venue, M), seed: M.seed, recvFirst: M.recvFirst === name, me: { name, team: M.teams[name] }, opp: { name: other, team: M.teams[other] }, ...(extra || {}) };
   }
   // The latest tracked state, as the given player sees it (pre/hand data are as their sender sent them).
@@ -190,9 +246,11 @@ module.exports = function versus(app, h) {
     const c = challenges.get(String(id || ''));
     if (!c || c.to !== name) { send(ws, { t: 'challenge-gone', id: String(id || ''), why: 'gone' }); return err(ws, 'That challenge is no longer open.'); }
     if (c.exp <= Date.now()) { dropChallenge(c, 'expired'); return err(ws, 'That challenge expired.'); }
-    if (!hasTab(c.from)) { dropChallenge(c, 'offline'); return err(ws, `@${c.from} is not online any more.`); }
+    if (!hasTab(c.from, c.game || BLITZ)) { dropChallenge(c, 'offline'); return err(ws, `@${c.from} is not online any more.`); }
     if (playing.has(name) || busy.has(name)) return err(ws, 'Finish your match first.');
     if (playing.has(c.from) || busy.has(c.from)) return err(ws, `@${c.from} is in a match right now.`);
+    const game = c.game || BLITZ, dunk = game === GAME;
+    if (c.wager > maxWagerOf(game)) { dropChallenge(c, 'gone'); return err(ws, `A wager can be at most ${fmt(maxWagerOf(game))} coins.`); }
     challenges.delete(c.id);
     clearTimeout(c.timer);
     const pair = [c.from, c.to];
@@ -204,7 +262,7 @@ module.exports = function versus(app, h) {
         await refresh();
         const db = load();
         const [ua, ub] = await Promise.all(pair.map((n) => getDoc(userKey(n), { fresh: true })));
-        if (!ua || !ub) { const gone = { t: 'challenge-gone', id: c.id, why: 'gone' }; toUser(c.from, gone); toUser(c.to, gone); return err(ws, 'That account was not found.'); }
+        if (!ua || !ub) { const gone = { t: 'challenge-gone', id: c.id, why: 'gone' }; toUser(c.from, gone, game); toUser(c.to, gone, game); return err(ws, 'That account was not found.'); }
         if (c.wager > 0) {
           const svState = await survivorNow(db);
           const short = [];
@@ -212,22 +270,32 @@ module.exports = function versus(app, h) {
           if (short.length) {
             const msg = { t: 'error', msg: `${short.join(' and ')} ${short.length > 1 ? "don't" : "doesn't"} have ${fmt(c.wager)} coins any more, so the challenge is off.` };
             const gone = { t: 'challenge-gone', id: c.id, why: 'funds' };
-            for (const n of pair) { toUser(n, msg); toUser(n, gone); }
+            for (const n of pair) { toUser(n, msg, game); toUser(n, gone, game); }
             return;
           }
         }
+        let dk = null;
+        if (dunk) {
+          const fw = c.fromWs && c.fromWs.readyState === OPEN ? c.fromWs : tabs(c.from, GAME).pop(), tw = ws.readyState === OPEN ? ws : tabs(c.to, GAME).pop();
+          const info = (w) => ({ http: !!(w && w.http), ...cleanCap(w && w.cap), rtt: (w && w.rtt) || cleanCap(w && w.cap).rtt });
+          const hostName = pair[pickHost(info(fw), info(tw), () => crypto.randomInt(1e6) / 1e6)];
+          dk = dunkTeamsFor(db, ua, ub, c.id, hostName);
+          dk.host = hostName; dk.guest = hostName === c.from ? c.to : c.from;
+          dk.http = !!(fw && fw.http) || !!(tw && tw.http);
+        }
         M = {
-          id: hex(8), seed: hex(8), wager: c.wager, qs: c.qs, venue: c.venue || 'stadium', ...metOpts(c.venue, c), players: [...pair], recvFirst: pair[crypto.randomInt(2)],
-          rec: { [c.from]: hex(6), [c.to]: hex(6) }, teams: teamsFor(db, ua, ub),
+          id: hex(8), game, seed: hex(8), wager: c.wager, qs: c.qs, venue: dunk ? undefined : c.venue || 'stadium', ...(dunk ? {} : metOpts(c.venue, c)), players: [...pair], recvFirst: pair[crypto.randomInt(2)],
+          rec: { [c.from]: hex(6), [c.to]: hex(6) }, teams: dunk ? dk.teams : teamsFor(db, ua, ub),
+          ...(dunk ? { host: dk.host, guest: dk.guest, http: dk.http, home: dk.home, away: dk.away, kinds: dk.kinds, wit: createWitness({ qs: c.qs, loose: LOOSE }), fin: { host: null, guest: null }, finTimer: null } : {}),
           sock: { [c.from]: null, [c.to]: null }, ready: new Set(), started: false, over: false, gone: {},
-          score: { [c.from]: 0, [c.to]: 0 }, pts: {}, clockAt: 0, flagged: 0, qtr: 1, clock: c.venue === 'metcalf' ? c.qs * 4 : c.qs, st: null, stBy: null, poss: null, pre: null, preBy: null, hand: null, handBy: null, created: Date.now(),
+          score: { [c.from]: 0, [c.to]: 0 }, pts: {}, clockAt: 0, flagged: 0, qtr: 1, clock: !dunk && c.venue === 'metcalf' ? c.qs * 4 : c.qs, st: null, stBy: null, poss: null, pre: null, preBy: null, hand: null, handBy: null, created: Date.now(),
         };
         matches.set(M.id, M); // before the records are written, so nothing voids them as left over
         for (const n of pair) playing.set(n, M);
         const at = new Date().toISOString(), local = pk.nowLocal(TZ);
         for (const u of [ua, ub]) {
           u.arcade = u.arcade || [];
-          u.arcade.push({ id: M.rec[u.name], game: 'blitz3d', level: 3, risk: false, stake: c.wager, seed: M.seed, at, local, status: 'open', payout: 0, versus: { id: M.id, opp: otherOf(M, u.name), wager: c.wager, qs: c.qs, ...(M.venue !== 'stadium' ? { venue: M.venue, ...metOpts(M.venue, M) } : {}) } });
+          u.arcade.push({ id: M.rec[u.name], game: dunk ? GAME : 'blitz3d', level: 3, risk: false, stake: c.wager, seed: M.seed, at, local, status: 'open', payout: 0, versus: { id: M.id, opp: otherOf(M, u.name), wager: c.wager, qs: c.qs, ...(dunk ? { host: M.host } : M.venue !== 'stadium' ? { venue: M.venue, ...metOpts(M.venue, M) } : {}) } });
           if (u.arcade.length > 600) u.arcade = u.arcade.slice(-600);
         }
         await putDoc(userKey(ua.name), ua);
@@ -236,7 +304,7 @@ module.exports = function versus(app, h) {
     } catch (e) {
       console.error('versus: could not start a match', e);
       const msg = { t: 'error', msg: 'Could not start the match. Try again.' };
-      for (const n of pair) toUser(n, msg);
+      for (const n of pair) toUser(n, msg, game);
       if (M) { pair.forEach((n) => busy.delete(n)); await settle(M, null, 'error'); }
       return;
     } finally {
@@ -245,18 +313,18 @@ module.exports = function versus(app, h) {
     if (!M) return;
     // Both have a minute to load the game and say they're ready, like a dropped connection.
     for (const n of M.players) startGone(M, n, false);
-    const fromWs = c.fromWs && c.fromWs.readyState === OPEN ? c.fromWs : [...(socks.get(c.from) || [])].pop();
+    const fromWs = c.fromWs && c.fromWs.readyState === OPEN ? c.fromWs : tabs(c.from, game).pop();
     send(fromWs, matchMsg(M, c.from));
-    send(ws.readyState === OPEN ? ws : [...(socks.get(c.to) || [])].pop(), matchMsg(M, c.to));
+    send(ws.readyState === OPEN ? ws : tabs(c.to, game).pop(), matchMsg(M, c.to));
     const gone = { t: 'challenge-gone', id: c.id, why: 'accepted' };
-    for (const n of pair) { toUser(n, gone); dropChallengesOf(n, 'busy'); }
-    console.log(`versus: match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters${M.venue !== 'stadium' ? ', at ' + M.venue + (M.big ? ' (big field)' : '') + (M.mfield && M.mfield !== 'blacktop' ? ' (' + M.mfield + ')' : '') + (M.touch ? ' (touch)' : '') : ''}`);
+    for (const n of pair) { toUser(n, gone, game); dropChallengesOf(n, 'busy'); }
+    console.log(`versus: ${dunk ? '3D Dunk ' : ''}match ${M.id} @${c.from} vs @${c.to}, wager ${c.wager}, ${c.qs}s quarters${dunk ? `, host @${M.host}` : M.venue !== 'stadium' ? ', at ' + M.venue + (M.big ? ' (big field)' : '') + (M.mfield && M.mfield !== 'blacktop' ? ' (' + M.mfield + ')' : '') + (M.touch ? ' (touch)' : '') : ''}`);
     broadcastOnline();
   }
 
   function startGone(M, name, tell) {
     if (M.over || M.gone[name]) return;
-    M.gone[name] = { tell, timer: setTimeout(() => goneOut(M, name), GONE_MS) };
+    M.gone[name] = { tell, at: Date.now(), timer: setTimeout(() => goneOut(M, name), GONE_MS) };
     if (tell) send(M.sock[otherOf(M, name)], { t: 'opp-gone', secs: Math.round(GONE_MS / 1000) });
   }
   function clearGone(M, name) {
@@ -268,20 +336,32 @@ module.exports = function versus(app, h) {
   }
   function goneOut(M, name) {
     if (M.over || !M.gone[name]) return;
+    const at = M.gone[name].at;
     delete M.gone[name];
     const other = otherOf(M, name);
     // Before kickoff, or both players gone: nobody loses.
     if (!M.started || M.gone[other] || !M.sock[other]) return settle(M, null, 'disconnect', name);
+    if (M.game === GAME) return dunkLeft(M, name, 'disconnect', at);
     settle(M, other, 'disconnect', name);
+  }
+  // A Dunk player is gone for good (his minute ran out, he quit, or the host came back with no game to continue). The game is only lost
+  // by leaving when something was played: in the first 20 seconds of game time nobody loses, a game already over is paid as it ended,
+  // and a host whose snapshots had stopped before his connection did (his screen was frozen: nobody can say whose fault it was) voids it.
+  function dunkLeft(M, name, reason, at) {
+    const other = otherOf(M, name), w = M.wit;
+    if (w.elapsed() < DUNK.EARLY_SECS && !w.ended()) return settle(M, null, 'early', name);
+    if (w.ended() && !w.flagged) { const v = w.verdict({ host: { hs: w.score[0], as: w.score[1] }, guest: null }, true); if (v && v.winner != null) return settle(M, v.winner === 0 ? M.host : M.guest, 'final', name); }
+    if (name === M.host && w.at && (at || Date.now()) - w.at > DUNK.HOST_STALE_MS) return settle(M, null, 'hostlost', name);
+    settle(M, other, reason, name);
   }
   function maybeStart(M) {
     if (M.started || M.over || M.ready.size < 2 || !M.players.every((p) => M.sock[p])) return;
     M.started = true;
     M.goAt = Date.now();
-    for (const p of M.players) send(M.sock[p], { t: 'go' });
+    for (const p of M.players) send(M.sock[p], { t: 'go', ...(M.game === GAME ? { host: M.host } : {}) });
   }
 
-  function onJoin(ws, name, id) {
+  function onJoin(ws, name, id, fresh) {
     const M = matches.get(String(id || ''));
     if (!M || !M.players.includes(name)) {
       const E = ended.get(String(id || ''));
@@ -294,9 +374,15 @@ module.exports = function versus(app, h) {
     if (prev) { prev.matchId = null; send(prev, { t: 'detached', id: M.id }); }
     M.sock[name] = ws;
     ws.matchId = M.id;
+    const gAt = M.gone[name] && M.gone[name].at;
     const told = clearGone(M, name);
     const other = otherOf(M, name);
-    if (M.started) {
+    if (M.started && M.game === GAME) {
+      // the host's screen IS the game: a host that comes back with no game running (a reload) has lost it; a guest that comes back has nothing to lose
+      if (fresh && name === M.host) return dunkLeft(M, name, 'disconnect', gAt || Date.now());
+      send(ws, { t: 'go', resume: true, host: M.host });
+      send(M.sock[other], { t: 'opp-back' });
+    } else if (M.started) {
       send(ws, { t: 'go', resume: snapshot(M, name) });
       send(M.sock[other], { t: 'opp-back' });
     } else {
@@ -348,9 +434,49 @@ module.exports = function versus(app, h) {
     else if (type === 'hand') { M.poss = other; M.hand = data == null ? null : data; M.handBy = name; }
     else if (type === 'kick') M.poss = other; // the kicking side gives the ball away with the kick (after its own report is checked)
   }
+  // ---------- 3D Dunk: relay, score witness, finals ----------
+  const roleOf = (M, name) => (M.host === name ? 'host' : 'guest');
+  const finalScore = (d) => { const hs = Number(d && d.hs), as = Number(d && d.as); return Number.isInteger(hs) && Number.isInteger(as) && hs >= 0 && as >= 0 && hs < 1000 && as < 1000 ? { hs, as } : null; };
+  function mirrorScore(M) { M.score[M.host] = M.wit.score[0]; M.score[M.guest] = M.wit.score[1]; M.qtr = M.wit.qtr; M.clock = M.wit.clock; M.flagged = M.wit.flagged; }
+  function dunkVerdict(M, waited) {
+    if (M.over) return;
+    const v = M.wit.verdict(M.fin, waited);
+    if (!v) return;
+    mirrorScore(M);
+    if (v.reason === 'dispute') console.warn(`versus ${M.id}: finals disagree: host ${JSON.stringify(M.fin.host)}, guest ${JSON.stringify(M.fin.guest)}, witness ${M.wit.score.join('-')} (odd one out: ${v.disagree})`);
+    if (v.reason === 'review') console.warn(`versus ${M.id}: marked, nobody is paid: ${M.wit.reasons.join('; ') || 'no final score'}`);
+    const by = v.disagree === 'host' ? M.host : v.disagree === 'guest' ? M.guest : null;
+    settle(M, v.winner == null ? null : v.winner === 0 ? M.host : M.guest, v.reason, by);
+  }
+  function onDunkFinal(M, name, data) {
+    if (M.over) return;
+    const f = finalScore(data);
+    if (!f) return;
+    mirrorScore(M);
+    // a final that comes before the whistle (as the host's snapshots show it) is no final: it is ignored (and a plain bogus final never marks the match)
+    if (!M.wit.ended()) { if (!M.earlyFinals) console.warn(`versus ${M.id}: ignored an early final from @${name} (q${M.wit.qtr} ${M.wit.clock}s, ${M.wit.score.join('-')})`); M.earlyFinals = (M.earlyFinals || 0) + 1; return; }
+    const role = roleOf(M, name);
+    if (M.fin[role]) return;
+    M.fin[role] = f;
+    dunkVerdict(M, false);
+    if (!M.over && !M.finTimer) M.finTimer = setTimeout(() => { M.finTimer = null; dunkVerdict(M, true); }, DUNK.FINAL_WAIT_MS);
+  }
+  function onDunkSnapshot(M, buf, now) {
+    if (!M.wit.snap(buf, now)) return;
+    mirrorScore(M);
+    if (M.wit.flagged && !M.flagLogged) { M.flagLogged = true; console.warn(`versus ${M.id}: marked: ${M.wit.reasons.join('; ')}`); }
+  }
+  // the engine's own messages between the two screens ({ t: 'g', m: { t, ... } }): relayed as they are. A final score inside one counts as a final.
+  function onDunkG(ws, name, M, msg) {
+    const m = msg.m;
+    if (!m || typeof m !== 'object' || typeof m.t !== 'string' || m.t.length > 16) return;
+    if (m.t === 'final') return onDunkFinal(M, name, m);
+    send(M.sock[otherOf(M, name)], { t: 'g', m });
+  }
   function onEv(ws, name, msg) {
     const M = ws.matchId && matches.get(ws.matchId);
     if (!M || M.over || M.sock[name] !== ws) return;
+    if (M.game === GAME) { if (String(msg.type) === 'final') onDunkFinal(M, name, msg.data); return; }
     const type = String(msg.type == null ? '' : msg.type).slice(0, 40);
     track(M, name, type, msg.data);
     send(M.sock[otherOf(M, name)], { t: 'ev', type, data: msg.data === undefined ? null : msg.data });
@@ -368,6 +494,7 @@ module.exports = function versus(app, h) {
     const M = matches.get(String(id || '')) || playing.get(name);
     if (!M || M.over || !M.players.includes(name)) return;
     if (!M.started) return settle(M, null, 'cancelled', name);
+    if (M.game === GAME) return dunkLeft(M, name, 'forfeit', Date.now());
     settle(M, otherOf(M, name), 'forfeit', name);
   }
 
@@ -377,6 +504,8 @@ module.exports = function versus(app, h) {
     M.over = true;
     M.endedAt = new Date().toISOString();
     for (const p of M.players) { clearGone(M, p); if (playing.get(p) === M) playing.delete(p); }
+    if (M.finTimer) { clearTimeout(M.finTimer); M.finTimer = null; }
+    if (M.game === GAME && M.wit) mirrorScore(M);
     matches.delete(M.id);
     M.overMsg = {};
     ended.set(M.id, M);
@@ -397,7 +526,7 @@ module.exports = function versus(app, h) {
             r.stats = { opp: M.score[other] };
             delete r.forfeit;
             if (reason === 'tie') r.tie = true;
-            if (by === p && (reason === 'forfeit' || reason === 'cancelled')) r.quit = true;
+            if (by === p && (reason === 'forfeit' || reason === 'cancelled' || reason === 'early')) r.quit = true;
             if (M.goAt) r.secs = Math.round((Date.now() - M.goAt) / 1000);
             r.versus = { ...(r.versus || {}), id: M.id, opp: other, wager: M.wager, qs: M.qs, reason, endedAt: M.endedAt, ...(by ? { by } : {}) };
             await putDoc(userKey(p), u);
@@ -409,8 +538,8 @@ module.exports = function versus(app, h) {
     const score = Object.fromEntries(M.players.map((p) => [p, M.score[p]]));
     for (const p of M.players) {
       const s = status(p);
-      M.overMsg[p] = { t: 'over', id: M.id, winner: winner || null, reason, by: by || null, score, payout: s === 'won' ? 2 * M.wager : s === 'void' ? M.wager : 0, net: s === 'won' ? M.wager : s === 'lost' ? -M.wager : 0, balance: balance[p] };
-      toUser(p, M.overMsg[p]);
+      M.overMsg[p] = { t: 'over', id: M.id, game: M.game || BLITZ, winner: winner || null, reason, by: by || null, score, payout: s === 'won' ? 2 * M.wager : s === 'void' ? M.wager : 0, net: s === 'won' ? M.wager : s === 'lost' ? -M.wager : 0, balance: balance[p] };
+      toUser(p, M.overMsg[p], M.game || BLITZ);
     }
     console.log(`versus: match ${M.id} over (${reason}): ${M.players.map((p) => `@${p} ${M.score[p]}`).join(', ')}${winner ? `, @${winner} wins ${M.wager}` : ', void'}`);
   }
@@ -440,30 +569,32 @@ module.exports = function versus(app, h) {
 
   // ---------- connections ----------
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME, perMessageDeflate: false });
-  async function onConnect(ws, name) {
+  const pingNow = (ws) => { try { ws.pingAt = Date.now(); ws.ping(); } catch (e) {} };
+  async function onConnect(ws, name, game) {
     ws.user = name;
+    ws.game = game === GAME ? GAME : BLITZ;
+    ws.cap = null;
     ws.matchId = null;
     ws.alive = true;
     ws.rate = { at: 0, text: 0, bin: 0 };
-    const wasOnline = isOnline(name);
+    const wasOnline = isOnline(name, ws.game);
     if (offTimers.has(name)) { clearTimeout(offTimers.get(name)); offTimers.delete(name); }
     if (!socks.has(name)) socks.set(name, new Set());
     socks.get(name).add(ws);
     ws.on('message', (data, isBinary) => { try { onMessage(ws, data, isBinary); } catch (e) { console.error('versus message', e); } });
     ws.on('close', () => onClose(ws));
     ws.on('error', () => {});
-    ws.on('pong', () => { ws.alive = true; });
+    ws.on('pong', () => { ws.alive = true; if (ws.pingAt) { ws.rtt = Math.max(1, Date.now() - ws.pingAt); ws.pingAt = 0; } });
     try {
       const user = await voidLeftovers(name);
       if (!user) { err(ws, 'Account not found.'); return ws.close(4001, 'no account'); }
       const balance = await balanceOf(user);
       if (ws.readyState !== OPEN) return;
-      send(ws, { t: 'me', name, balance });
-      send(ws, { t: 'online', list: onlineList(name) });
-      send(ws, { t: 'challenges', ...challengesOf(name) });
+      greet(ws, name, balance);
+      pingNow(ws);
       // A reloaded page gets its live match back (unless another tab is playing it).
       const M = playing.get(name);
-      if (M && !M.over && !(M.sock[name] && M.sock[name].readyState === OPEN)) send(ws, matchMsg(M, name, { rejoin: true }));
+      if (M && !M.over && (M.game || BLITZ) === ws.game && !(M.sock[name] && M.sock[name].readyState === OPEN)) send(ws, matchMsg(M, name, { rejoin: true }));
     } catch (e) {
       console.error('versus: hello failed', e);
       err(ws, 'Could not load your account.');
@@ -471,9 +602,27 @@ module.exports = function versus(app, h) {
     }
     if (!wasOnline) broadcastOnline(name); // (this user just got its own list)
   }
+  function greet(ws, name, balance) {
+    const game = gameOf(ws);
+    send(ws, { t: 'me', name, balance, game, maxWager: maxWagerOf(game), ...(game === GAME ? { qs: DUNK.QS, defaultQs: DUNK.DEFAULT_QS } : {}) });
+    send(ws, { t: 'online', list: onlineList(name, game) });
+    send(ws, { t: 'challenges', ...challengesOf(name, game) });
+  }
+  // hello { game, cap }: which game this tab is for (before it is in a match) and what kind of machine it is (for choosing the host)
+  async function onHello(ws, name, msg) {
+    if (msg.cap !== undefined) ws.cap = cleanCap(msg.cap);
+    const game = msg.game === GAME ? GAME : msg.game === BLITZ ? BLITZ : null;
+    if (!game || game === gameOf(ws) || ws.matchId) return;
+    ws.game = game;
+    const user = await getDoc(userKey(name), { fresh: true });
+    greet(ws, name, user ? await balanceOf(user) : 0);
+    broadcastOnline();
+  }
   function onClose(ws) {
     const name = ws.user, set = socks.get(name);
     if (set) { set.delete(ws); if (!set.size) socks.delete(name); }
+    if (!hasTab(name)) lastGame.set(name, gameOf(ws));
+    else if (!hasTab(name, gameOf(ws))) broadcastOnline();
     const M = ws.matchId && matches.get(ws.matchId);
     if (M && !M.over && M.sock[name] === ws) {
       M.sock[name] = null;
@@ -494,18 +643,24 @@ module.exports = function versus(app, h) {
   function onMessage(ws, data, isBinary) {
     const now = Date.now(), r = ws.rate;
     if (now - r.at >= 1000) { r.at = now; r.text = 0; r.bin = 0; }
-    const name = ws.user;
+    const name = ws.user, lim = gameOf(ws) === GAME ? DUNK.RATE : RATE;
     if (isBinary) {
-      if (++r.bin > RATE.bin) return drop('binary rate');
+      if (++r.bin > lim.bin) return drop('binary rate');
       const M = ws.matchId && matches.get(ws.matchId);
       if (!M || M.over || M.sock[name] !== ws) return;
+      if (M.game === GAME) {
+        // only the host's snapshots (0x53, which the witness reads) go to the guest, only the guest's controls (0x49) go to the host
+        const host = M.host === name, type = data[0];
+        if (host ? type !== 0x53 : type !== 0x49) return drop('unexpected frame');
+        if (host) onDunkSnapshot(M, data, now);
+      }
       const to = M.sock[otherOf(M, name)];
       if (!to || to.readyState !== OPEN) return;
       if (to.bufferedAmount > MAX_BUFFERED) return drop('receiver backed up');
       to.send(data, { binary: true });
       return;
     }
-    if (++r.text > RATE.text) return drop('text rate');
+    if (++r.text > lim.text) return drop('text rate');
     if (data.length > MAX_TEXT) return drop('text too big');
     let msg;
     try { msg = JSON.parse(data.toString('utf8')); } catch { return; }
@@ -516,9 +671,12 @@ module.exports = function versus(app, h) {
       case 'decline': return onDecline(ws, name, msg.id, 'to', 'declined');
       case 'cancel': return onDecline(ws, name, msg.id, 'from', 'cancelled');
       case 'accept': return onAccept(ws, name, msg.id).catch(fail);
-      case 'join': return onJoin(ws, name, msg.id);
+      case 'join': return onJoin(ws, name, msg.id, msg.fresh === true);
       case 'ready': return onReady(ws, name, msg.id);
       case 'ev': return onEv(ws, name, msg);
+      case 'hello': return onHello(ws, name, msg).catch(fail);
+      case 'g': { const M = ws.matchId && matches.get(ws.matchId); if (M && !M.over && M.game === GAME && M.sock[name] === ws) onDunkG(ws, name, M, msg); return; }
+      case 'final': { const M = ws.matchId && matches.get(ws.matchId); if (M && !M.over && M.game === GAME && M.sock[name] === ws) onDunkFinal(M, name, msg); return; }
       case 'quit': return onQuit(ws, name, msg.id);
       default:
     }
@@ -539,7 +697,8 @@ module.exports = function versus(app, h) {
         socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
         return socket.destroy();
       }
-      wss.handleUpgrade(req, socket, head, (ws) => onConnect(ws, name));
+      const game = url.searchParams.get('g') === GAME ? GAME : BLITZ;
+      wss.handleUpgrade(req, socket, head, (ws) => onConnect(ws, name, game));
     });
     if (attached++) return;
     // Ping every socket: dead ones get closed (which starts the disconnect clock), and proxies keep idle ones open.
@@ -547,7 +706,7 @@ module.exports = function versus(app, h) {
       for (const ws of wss.clients) {
         if (!ws.alive) { ws.terminate(); continue; }
         ws.alive = false;
-        try { ws.ping(); } catch (e) {}
+        pingNow(ws);
       }
     }, 25e3).unref();
     setTimeout(scanLeftovers, SCAN_MS).unref();
@@ -588,20 +747,22 @@ module.exports = function versus(app, h) {
       this.emit('close');
     }
   }
+  const holdOf = (s) => (gameOf(s) === GAME ? DUNK.HTTP_HOLD_MS : HTTP_HOLD); // (Dunk's snapshots and controls can't wait out an 8 s hold)
   const hsockOf = (req) => { const s = hsocks.get(String((req.body && req.body.sid) || '')); return s && s.name === currentUser(req) ? s : null; };
   const httpJson = express.json({ limit: '1mb' });
   app.post('/arcade/versus/http/open', httpJson, (req, res) => {
     const name = currentUser(req);
     if (!name) return json(res, { ok: false, error: 'login' });
+    const game = req.body && req.body.g === GAME ? GAME : BLITZ;
     const s = new HttpSock(name); hsocks.set(s.sid, s);
-    onConnect(s, name);
-    json(res, { ok: true, sid: s.sid, hold: HTTP_HOLD });
+    onConnect(s, name, game);
+    json(res, { ok: true, sid: s.sid, hold: holdOf(s) });
   });
   app.post('/arcade/versus/http/poll', httpJson, (req, res) => {
     const s = hsockOf(req); if (!s) return json(res, { ok: false, closed: true });
     s.seen = Date.now();
     if (s.waiter) { const w = s.waiter; s.waiter = null; clearTimeout(w.timer); json(w.res, { ok: true, m: [] }); }
-    const w = { res, timer: setTimeout(() => { if (s.waiter === w) { s.waiter = null; s.seen = Date.now(); json(res, { ok: true, m: [] }); } }, HTTP_HOLD) };
+    const w = { res, timer: setTimeout(() => { if (s.waiter === w) { s.waiter = null; s.seen = Date.now(); json(res, { ok: true, m: [] }); } }, holdOf(s)) };
     s.waiter = w;
     req.on('close', () => { if (s.waiter === w && !res.headersSent) { s.waiter = null; clearTimeout(w.timer); } });
     s.flush();
@@ -627,9 +788,9 @@ module.exports = function versus(app, h) {
     json(res, { ok: true, token: makeToken(name), ws: WS_PATH }); // a path: the page opens it on its own address
   });
   // Your last 10 finished Head to Head games.
-  function results(user) {
-    return (user.arcade || []).filter((m) => m.versus && m.status !== 'open').slice(-10).reverse().map((m) => ({
-      id: m.id, at: m.at, local: m.local || '', status: m.status, opp: m.versus.opp, me: m.score ?? null, them: m.stats && m.stats.opp != null ? m.stats.opp : null,
+  function results(user, game) {
+    return (user.arcade || []).filter((m) => m.versus && m.status !== 'open' && (m.game || BLITZ) === (game || BLITZ)).slice(-10).reverse().map((m) => ({
+      id: m.id, game: m.game || BLITZ, at: m.at, local: m.local || '', status: m.status, opp: m.versus.opp, me: m.score ?? null, them: m.stats && m.stats.opp != null ? m.stats.opp : null,
       wager: m.versus.wager || 0, qs: m.versus.qs || 120, venue: m.versus.venue || 'stadium', reason: m.versus.reason || '', by: m.versus.by || null, net: m.status === 'won' ? (m.payout || 0) - (m.stake || 0) : m.status === 'lost' ? -(m.stake || 0) : 0,
     }));
   }
@@ -638,7 +799,7 @@ module.exports = function versus(app, h) {
       const name = currentUser(req);
       const user = name ? await getDoc(userKey(name), { fresh: true }) : null;
       if (!user) return json(res, { ok: false, error: 'Log in to play Head to Head.' });
-      json(res, { ok: true, balance: await balanceOf(user), results: results(user) });
+      json(res, { ok: true, balance: await balanceOf(user), results: results(user, req.query.g === GAME ? GAME : BLITZ) });
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not load your results.' }); }
   });
 
@@ -713,5 +874,5 @@ body.vs-playing .ftr{display:none}
     } catch (e) { next(e); }
   });
 
-  return { attach, wsPath: WS_PATH };
+  return { attach, wsPath: WS_PATH, results };
 };

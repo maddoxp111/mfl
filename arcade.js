@@ -11,6 +11,7 @@ const path = require('path');
 const { Worker } = require('worker_threads');
 const cards = require('./cards');
 const bjMod = require('./blackjack');
+const { DUNK } = require('./dunkwitness');
 const BJ = bjMod.BJ;
 
 // Levels by stored index. 3D Blitz alone has the two past Legend: GOAT (index 4) and Hall of Fame (index 5, between Legend and
@@ -648,14 +649,57 @@ module.exports = function arcade(app, h) {
     }
     return out;
   }
-  function dunkMine(db, user) {
-    const cs = dunkLineupCards(db, user);
+  function dunkMine(db, user, owned) {
+    const cs = owned || dunkLineupCards(db, user);
     if (!cs) return null;
     const nm = `${user.name}'s Five`;
     return { name: nm.length <= 18 ? nm : user.name.slice(0, 18), abbr: user.name.slice(0, 3).toUpperCase(), color: '#ffc21a', color2: '#151515', mine: true,
       players: cs.map((c, i) => { const ca = i >= 5 ? bbCardAttrs(db, c.t, c.p, c) : null; return dunkPlayer(db, c.t, c.p, c, i < 5 ? cards.BB_POS[i] : cards.bbBestPos(ca.attr), i === 5); }) };
   }
   const strip = (team) => ({ ...team, players: team.players.map(({ a, ...p }) => p) });
+  // Auto-pick (Head to Head, when a player has no saved Dunk lineup): the same pick as the page's Auto-pick best button. Each
+  // player's best card, the top 6 players by overall, then the five starters and the sixth man placed for the best total fit.
+  // -> 6 cards in slot order (PG, SG, SF, PF, C, sixth man), or null with cards of fewer than 6 different players.
+  function dunkAutoCards(db, user) {
+    const own = cards.collection(user), best = new Map();
+    for (const id of Object.keys(own)) {
+      const c = cards.cardInfo(db, id), ca = c ? bbCardAttrs(db, c.t, c.p, c) : null;
+      if (!ca) continue;
+      const cur = best.get(c.pid);
+      if (!cur || ca.attr.ovr > cur.ca.attr.ovr || (ca.attr.ovr === cur.ca.attr.ovr && String(c.id) < String(cur.c.id))) best.set(c.pid, { c, ca });
+    }
+    const top = [...best.values()].sort((x, y) => y.ca.attr.ovr - x.ca.attr.ovr || String(x.c.id).localeCompare(String(y.c.id))).slice(0, 6);
+    if (top.length < 6) return null;
+    let bs = -Infinity, bp = null;
+    for (let sixth = 0; sixth < 6; sixth++) {
+      const st = top.filter((_, i) => i !== sixth);
+      const perm = (a, l) => {
+        if (l === 5) { const t = a.reduce((m, ci, i) => m + cards.BB_FIT[cards.BB_POS[i]](st[ci].ca.attr), 0); if (t > bs) { bs = t; bp = { sixth, order: a.slice(), st }; } return; }
+        for (let i = l; i < 5; i++) { [a[l], a[i]] = [a[i], a[l]]; perm(a, l + 1); [a[l], a[i]] = [a[i], a[l]]; }
+      };
+      perm([0, 1, 2, 3, 4], 0);
+    }
+    return [...bp.order.map((ci) => bp.st[ci].c), top[bp.sixth].c];
+  }
+  // The team a player brings to Head to Head: his saved Dunk lineup, else an auto-pick from his cards, else a real MFL team
+  // (rnd picks it; avoidId: the team the other side already plays as, when there is another one to take). The same real player
+  // may be on both sides. -> { kind: 'lineup' | 'auto' | 'real', team } (team in the engine's shape, with no rating helpers)
+  function dunkTeamFor(db, user, rnd, avoidId) {
+    const saved = dunkLineupCards(db, user);
+    if (saved) return { kind: 'lineup', team: strip(dunkMine(db, user, saved)) };
+    const auto = dunkAutoCards(db, user);
+    if (auto) return { kind: 'auto', team: strip(dunkMine(db, user, auto)) };
+    const teams = Object.values(db.teams).filter((t) => t.roster && t.roster.length), pool = teams.filter((t) => t.id !== avoidId);
+    const list = pool.length ? pool : teams;
+    const r = rnd || Math.random;
+    if (list.length) { const t = dunkRealTeam(db, list[Math.floor(r() * list.length)], r); const id = t.teamId; delete t.teamId; return { kind: 'real', team: strip(t), teamId: id }; }
+    return { kind: 'real', team: strip(dunkCpuTeam(0, r)) };
+  }
+  // What the other side will see before a wager is accepted: which team it is and its overall (the five starters' average).
+  function dunkPreview(t) {
+    const five = t.team.players.slice(0, 5);
+    return { kind: t.kind, name: t.team.name, ovr: Math.round(five.reduce((a, p) => a + ((p.bb && p.bb.ovr) || 0), 0) / (five.length || 1)), five: five.map((p) => ({ n: p.name, pos: p.pos, o: (p.bb && p.bb.ovr) || 0 })) };
+  }
   function dunkData(db, user, level, seed, opts = {}) {
     const rnd = rngFrom('dunk:' + seed);
     const teams = Object.values(db.teams).filter((t) => t.roster && t.roster.length);
@@ -998,6 +1042,7 @@ module.exports = function arcade(app, h) {
       const keyCols = cards.BB_KEYS.map((k) => [k, cards.BB_SHORT[k], cards.BB_LABELS[k]]);
       res.send(layout(req, G.name, `<div class="wrap arc-page dk-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user && acct ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        <a class="card bf-promo" href="/arcade/dunk3d/versus"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your five against theirs. Put up to ${fmt(DUNK.MAX_WAGER)} coins on it (the winner takes both wagers) or play a friendly.</small></div><span class="btn">Find a game ${icon('arrow')}</span></a>
         <section class="card dk-lu arc-setup-x">
           <div class="card-h"><h2>Your Dunk lineup</h2>${user ? '<span class="muted sm">5 starters and a sixth man, plus an optional 7th and 8th man (the bench subs in at timeouts)</span>' : ''}</div>
           ${user ? `${pool.length ? `<div class="dk-slots" id="dkSlots"></div>
@@ -1356,7 +1401,7 @@ module.exports = function arcade(app, h) {
   const fixLoop = async () => { let done = false; try { done = await fixAll(); } catch (e) { console.error('arcade fix failed', e && e.message); } if (!done && ++fixTries < 40) setTimeout(fixLoop, 30000); };
   setTimeout(fixLoop, 8000);
 
-  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, challengeDays, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData, dunkData };
+  return { GAMES, ORDER, LEVELS, LEVEL_ORDER, RISK_MULT, POSITIONS, POS_LABEL, arcadeCoins, challengeStatus, challengeDays, today, playerAttrs, bowlPlayer, bowlTeam, myLineup, realLineup, blitzData, dunkData, dunkMine, dunkLineupCards, dunkAutoCards, dunkTeamFor, dunkPreview };
 };
 module.exports.GAMES = GAMES;
 module.exports.POSITIONS = POSITIONS;
