@@ -1074,6 +1074,20 @@ const UPDATES = [
       'Players lean into cuts and stops, contact has more weight, and makes, misses, steals and blocks have clearer sound and feedback.',
     ],
   },
+  {
+    n: 101,
+    date: '2026-11-16',
+    title: '3D Dunk: a shot meter you can hit, defense that matters',
+    items: [
+      'The green window on the shot meter is about three times wider, and it shrinks smoothly the farther out you are. Deep shots are hard, not impossible.',
+      'A release just outside the green still has a chance. It used to be all or nothing.',
+      'Defense decides shots now. A hand in the face at the release makes even a green shot a tough one, so get open first.',
+      'Open layups go in. The layup meter shows a smaller green when a defender is on you.',
+      'Shot timing no longer reads late on phones and slower computers.',
+      'Both teams take about a third of their shots from three, down from over half at the top levels.',
+      'Fixed: the player throwing the ball in could be called out of bounds for a turnover.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
