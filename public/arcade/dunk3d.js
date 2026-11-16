@@ -7016,7 +7016,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (F.kind !== 'hook') { P += (F.bonus || 0); if (p.side === 1) P *= 0.94 + 0.08 * DK; else P *= 1.02 - 0.06 * DK; }
         if (p.foulOn) P *= 0.72 + rt(p, 'str') * 0.002; // through the contact
         // a rim protector right there can send it back (never after the whistle: that is a foul)
-        let blocker = null; if (!p.foulOn) for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && rimDist(d.x, d.z, h) < dr + 0.35 && d.lk.hs * 2.6 + d.jumpY > (fl ? p.lk.hs * 2.5 + p.jumpY : RIM_Y - 0.2) && rng() < (rt(d, 'blk') - 40) / 260 * (fl ? 0.45 : 1) * 0.7) { blocker = d; break; }
+        let blocker = null; if (!p.foulOn) for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && rimDist(d.x, d.z, h) < dr + 0.35 && d.lk.hs * 2.6 + d.jumpY > (fl ? p.lk.hs * 2.5 + p.jumpY : RIM_Y - 0.2) && rng() < (rt(d, 'blk') - 40) / 260 * (fl ? 0.45 : 1) * 0.4) { blocker = d; break; }
         if (blocker) { blockShot(blocker, p); p.fin = null; return; }
         const made = rng() < P;
           // off the glass from the side (the reverse always), straight over the front of the rim from in front; the finger roll
@@ -7099,7 +7099,7 @@ gl_FragColor=vec4(c,1.0);}`;
         const hy = d.jumpY + d.lk.hs * 2.75, hand = [d.x + Math.sin(d.h) * 0.3, hy, d.z + Math.cos(d.h) * 0.3];
         const dd = Math.hypot(b.x - hand[0], b.y - hand[1], b.z - hand[2]);
         // one look at the ball per shot: his hand is there at its best moment or it is not (a roll every frame it is near is a block on almost every shot)
-        if (dd < 0.45 && b.vy > -1 && d.blkSh !== b.shot) { d.blkSh = b.shot; const pr = clamp((0.04 + (rt(d, 'blk') - 40) / 220 + (d.lk.hs - b.shot.by.lk.hs) * 1.2 + (d.side === 1 ? DK * 0.05 : 0)) * (0.55 + (0.45 - dd) * 2.6) * 0.75, 0.02, 0.45); if (rng() < pr) { d.blkDone = true; const sh = b.shot.by; blockShot(d, sh); return true; } }
+        if (dd < 0.45 && b.vy > -1 && d.blkSh !== b.shot && b.shot.d != null && b.shot.d < 4.2) { /* blocks happen in the paint: a jump shot from outside it is contested, never swatted */ d.blkSh = b.shot; const pr = clamp((0.04 + (rt(d, 'blk') - 40) / 220 + (d.lk.hs - b.shot.by.lk.hs) * 1.2 + (d.side === 1 ? DK * 0.05 : 0)) * (0.55 + (0.45 - dd) * 2.6) * 0.4, 0.01, 0.3); if (rng() < pr) { d.blkDone = true; const sh = b.shot.by; blockShot(d, sh); return true; } }
       }
       return false;
     }

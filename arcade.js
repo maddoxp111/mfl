@@ -855,11 +855,12 @@ module.exports = function arcade(app, h) {
       const db = load();
       const name = currentUser(req);
       const { user, acct } = await loadAccount(db, name);
+      const BIG_TILES = ['blitz3d', 'bowl', 'dunk3d']; // the full-width banners at the top
       const tile = (id) => { const G = GAMES[id];
         if (G.practiceOnly) return `<a class="arc-tile dk-tile" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay dk-po">Practice only for now</span></a>`; // a practice-only game promises no coins
-        return `<a class="arc-tile ${id === 'bowl' || id === 'blitz3d' ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(Math.max(...G.prizes.map((p, i) => Math.round(p * RISK_MULT[i]))))}</span>${user ? `<span class="arc-left">${paidToday(user, id)} paid ${paidToday(user, id) === 1 ? 'win' : 'wins'} today</span>` : ''}</a>`; };
+        return `<a class="arc-tile ${BIG_TILES.includes(id) ? 'big' : ''}" href="/arcade/${id}"><span class="arc-emoji">${G.emoji}</span><div><b>${esc(G.name)}${G.isNew ? ' <span class="arc-new">NEW</span>' : ''}</b><small>${esc(G.tag)}</small></div><span class="arc-pay">Up to ${fmt(Math.max(...G.prizes.map((p, i) => Math.round(p * RISK_MULT[i]))))}</span>${user ? `<span class="arc-left">${paidToday(user, id)} paid ${paidToday(user, id) === 1 ? 'win' : 'wins'} today</span>` : ''}</a>`; };
       const bjTile = `<a class="arc-tile" href="/arcade/hitorstand"><span class="arc-emoji">${BJ.emoji}</span><div><b>${esc(BJ.name)} <span class="arc-new">NEW</span></b><small>${esc(BJ.tag)}</small></div><span class="arc-pay">21 in two cards pays ${BJ.pays.join(':')}</span></a>`;
-      const tiles = ORDER.map(tile); tiles.splice(ORDER.indexOf('bowl') + 1, 0, bjTile); // after the two big football tiles
+      const tiles = ORDER.map(tile); tiles.splice(Math.max(...BIG_TILES.map((g) => ORDER.indexOf(g))) + 1, 0, bjTile); // after the big tiles
       const recent = user ? (user.arcade || []).filter((m) => m.status !== 'open').slice(-6).reverse() : [];
       res.send(layout(req, 'Arcade', `<section class="arc-hero"><div class="wrap">
           <div class="arc-hero-in">

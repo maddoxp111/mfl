@@ -1031,6 +1031,14 @@ const UPDATES = [
       'Defense counts more: a hand up at the right moment hurts the shot, a pump fake only fools a defender who is flying at you, and the game tells you if a look was open or contested.',
       'More 3D Dunk gameplay updates are on the way.',
     ],
+  },  {
+    n: 97,
+    date: '2026-11-16',
+    title: '3D Dunk: fewer blocks, and a big banner',
+    items: [
+      'Blocks are much rarer in 3D Dunk and only happen in the paint. A jump shot from outside can be contested but not swatted.',
+      '3D Dunk has a big banner at the top of the Arcade, next to 3D Blitz and Modern Bowl.',
+    ],
   },
 ];
 
