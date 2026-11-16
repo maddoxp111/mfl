@@ -123,7 +123,7 @@ module.exports = function earn(app, h) {
       // what actually happened, not just which way the coins went: a run's won game pays nothing until the cash out (its coins
       // are the stake for the bigger risk), so it reads as a win; an unfinished game says so
       const R = m.run, state = m.status === 'open' ? `${G} in progress` : m.status === 'won' ? `${G} win` : n > 0 ? `${G} win` : `${G} loss`;
-      const note = m.status === 'open' ? 'no result yet' : R && m.status === 'won' && R.pending ? `cash out ${Number(R.cash || 0).toLocaleString('en-US')} waiting on the 3D Blitz page` : R && m.status === 'won' && R.rolled ? 'won and played on: this is the extra put at risk' : R && m.status === 'won' && R.cashedOut ? 'cashed out' : '';
+      const note = m.status === 'open' ? 'no result yet' : R && m.status === 'won' && R.pending ? `cash out ${Number(R.cash || 0).toLocaleString('en-US')} waiting on the ${(GAMES[m.game] && GAMES[m.game].name) || '3D Blitz'} page` : R && m.status === 'won' && R.rolled ? 'won and played on: this is the extra put at risk' : R && m.status === 'won' && R.cashedOut ? 'cashed out' : '';
       add(m.at, state, n, [lv && (lv.name || lv), mode, note].filter(Boolean).join(' · '), 'arcade');
     }
     if (A && A.challengeDays) for (const d of A.challengeDays(user)) add(localIso(d.day, '23:59'), 'Daily challenges', d.coins, `${d.n} done`, 'arcade', true);
@@ -208,9 +208,10 @@ module.exports = function earn(app, h) {
       // ---------- Arcade ----------
       const four = E.LEVEL_ORDER.filter((i) => i < 4);
       const extra = (G) => topLevel(G).filter((i) => !four.includes(i));
-      const games = E.ORDER.filter((id) => GAMES[id] && !GAMES[id].practiceOnly); // a practice-only game (3D Dunk for now) pays nothing yet
+      const games = E.ORDER.filter((id) => GAMES[id] && !GAMES[id].practiceOnly); // a practice-only game pays nothing
       const best = Math.max(...games.flatMap((id) => GAMES[id].prizes.map((p, i) => Math.round(p * E.RISK_MULT[i]))));
       const B = GAMES.blitz3d, main = E.RUN_MAIN, don = E.RUNS.don, dod = E.RUNS.dod;
+      const runGames = (E.RUN_GAMES || ['blitz3d']).filter((id) => games.includes(id)).map((id) => esc(GAMES[id].name)).join(' or ');
       const factors = E.RUN_LEVELS.map((l) => `${lv(l)} ×${E.RUN_FACTOR[l]}`).join(', ');
       const arcadeSec = section('arcade', '🕹️', 'Arcade', '/arcade', 'Play', `
         <p class="earn-sub">${games.length} games. Beat the computer and you win coins. Every win pays, with no daily cap. Harder levels pay more. Practice is free and pays nothing.</p>
@@ -219,9 +220,9 @@ module.exports = function earn(app, h) {
         ${item({ t: 'Risk mode', amt: `Up to ${amt(best)}`, when: 'Any game you start',
           p: `Put up the whole prize before you play. Win and you get the prize × ${E.LEVEL_ORDER.map((i) => `${E.RISK_MULT[i]} (${esc(lv(i))})`).join(', ')}. Lose and what you put up is gone.`, href: '/arcade', go: 'Arcade' })}
         ${item({ t: `${don.emoji} ${esc(don.name)}`, amt: `${amt(don.cash(main))} and up`, when: 'As many runs as you like',
-          p: `A run of ${esc(B.name)} games with nothing up front. Win at ${esc(lv(main))} and you can cash out ${fmt(don.cash(main))}, or play one more. Each more win multiplies it by the next game's level: ${factors}. So ${fmt(don.cash(main))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main]))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main] ** 2))}… One loss and the run pays nothing.`, href: '/arcade/blitz3d?mode=don', go: 'Start a run' })}
+          p: `A run of ${runGames} games with nothing up front. Win at ${esc(lv(main))} and you can cash out ${fmt(don.cash(main))}, or play one more. Each more win multiplies it by the next game's level: ${factors}. So ${fmt(don.cash(main))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main]))}, then ${fmt(Math.round(don.cash(main) * E.RUN_FACTOR[main] ** 2))}… One loss and the run pays nothing.`, href: '/arcade/blitz3d?mode=don', go: 'Start a run' })}
         ${item({ t: `${dod.emoji} ${esc(dod.name)}`, amt: `${amt(Math.round(dod.cash(main)))} and up`, when: 'As many runs as you like',
-          p: `The bold one. At ${esc(lv(main))} you put ${fmt(dod.stake(main))} at risk to cash out ${fmt(Math.round(dod.cash(main)))}, and both grow with every win (${factors}). Lose and you lose everything at risk, even if it takes you below zero.`, href: '/arcade/blitz3d?mode=dod', go: 'Start a run' })}
+          p: `The bold one, in ${runGames}. At ${esc(lv(main))} you put ${fmt(dod.stake(main))} at risk to cash out ${fmt(Math.round(dod.cash(main)))}, and both grow with every win (${factors}). Lose and you lose everything at risk, even if it takes you below zero.`, href: '/arcade/blitz3d?mode=dod', go: 'Start a run' })}
         ${item({ t: `${BJM.BJ.emoji} ${esc(BJM.BJ.name)}`, amt: `Bet up to ${amt(BJM.BJ.max)}`, when: 'Every hand you win',
           p: `Bet ${fmt(BJM.BJ.min)} to ${fmt(BJM.BJ.max)} coins a hand against the dealer (never more than you have). A win pays 1:1, a <b>21 in two cards pays ${BJM.BJ.pays.join(':')}</b> (a ${fmt(BJM.BJ.max)} bet wins ${fmt(BJM.bjWin(BJM.BJ.max))}) and a push gives your bet back. Double down (one card, twice the bet) and split pairs once. ${BJM.BJ.decks} decks shuffled every hand, the dealer stands on all 17s. Lose the hand and you lose the bet.`, href: '/arcade/hitorstand', go: 'Play Hit or Stand' })}
         ${item({ t: esc(PK.arcade.name), amt: 'Free pack', when: 'Once a day', p: `${esc(PK.arcade.desc)} ${PK.arcade.cards} cards${PK.arcade.min ? `, ${esc(R[PK.arcade.min].name)} or better guaranteed` : ''}.`, href: '/pickem/packs', go: 'Packs' })}`);

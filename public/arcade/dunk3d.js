@@ -254,11 +254,12 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-ptag b{color:#4dd2ff;margin-right:4px}.dk-ptag::after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-5px;border:5px solid transparent;border-top-color:rgba(77,210,255,.85);border-bottom:0}.dk-ptag.hide{display:none}
 .dk-ctl.dk-keys{background:none;justify-content:flex-end}.dk-msg.dk-hint{flex:0 1 auto;margin:0 auto;font-size:11px;min-height:26px;padding:5px 12px;background:rgba(15,17,23,.6);animation:dk-hintout .5s 4.5s ease-in forwards}@keyframes dk-hintout{to{opacity:0;visibility:hidden}}
 .dk-dip{position:absolute;inset:0;background:#07080b;opacity:0;pointer-events:none;z-index:1}
-.dk-smeter{position:absolute;width:30px;height:176px;transform:translate(0,-50%);border-radius:8px;background:rgba(10,12,17,.82);border:2px solid rgba(255,255,255,.75);overflow:hidden;pointer-events:none;z-index:4}
-.dk-smeter.hide{display:none}.dk-smeter u{position:absolute;left:0;right:0;background:#2bd46b;box-shadow:0 0 8px #2bd46b;text-decoration:none}
+.dk-smeter{position:absolute;width:30px;height:176px;transform:translate(0,-50%);border-radius:8px;background:rgba(10,12,17,.82);border:2px solid rgba(255,255,255,.75);overflow:visible;pointer-events:none;z-index:4}
+.dk-smeter b{position:absolute;left:36px;bottom:calc(100% - 22px);font:900 13px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.6px;white-space:nowrap;text-shadow:1px 1px 0 #000,0 0 6px #000;font-style:normal}.dk-smeter s{display:none}.dk-smeter.hide{display:none}.dk-smeter u{position:absolute;left:0;right:0;background:#2bd46b;box-shadow:0 0 8px #2bd46b;text-decoration:none}
 .dk-smeter i{position:absolute;left:2px;right:2px;bottom:0;background:linear-gradient(#fff,#ffc21a);border-radius:5px;opacity:.92}
 .dk-smeter em{position:absolute;left:38px;top:50%;transform:translateY(-50%);font:400 17px 'Press Start 2P',monospace;font-style:normal;white-space:nowrap;text-shadow:2px 2px 0 #000}
 .dk-smeter.x{border-color:#9dffb8;overflow:visible;box-shadow:0 0 22px #2bd46b;animation:dk-exc .5s ease-out}.dk-smeter.x em{color:#9dffb8;font-size:22px}@keyframes dk-exc{0%{transform:translate(0,-50%) scale(1.5)}100%{transform:translate(0,-50%) scale(1)}}
+@media (max-height:520px){.dk-smeter{height:128px;width:24px}.dk-smeter em{left:30px;font-size:12px}.dk-smeter.x em{font-size:15px}.dk-smeter b{left:28px;font-size:11px;bottom:calc(100% - 18px)}}
 .dk-smeter.g{border-color:#2bd46b;overflow:visible}.dk-smeter.g em{color:#2bd46b}.dk-smeter.r{border-color:#ff5a5a;overflow:visible}.dk-smeter.r em{color:#ff7a6a}
 .dk-pad{display:grid;grid-template-columns:64px 64px 88px;grid-template-rows:64px 64px;gap:8px;margin-left:auto;flex:0 0 auto;align-items:end}
 .dk-pad .dk-btn{width:64px;height:64px;min-height:64px;border-radius:50%;padding:0;font-size:14px}
@@ -6501,7 +6502,9 @@ gl_FragColor=vec4(c,1.0);}`;
       const dd = D(p, to);
       if (phase !== 'live') return 'chest';
       const g = passGap(p, to);
-      if (dd > 11 || (g < 0.75 && dd > 4.5)) return 'lob';
+      // a lob is for a man at the rim (a cutter) or the length of the floor; into a man standing in the line to the wing it is not an option
+      // (a lazy chest pass there is the one he gets a hand on), and a tight lane out wide gets the bounce under his arms or nothing
+      if (dd > 11 || (g < 0.75 && dd > 4.5 && rimDist(to.x, to.z, hoopOf(p.side)) < 4.2)) return 'lob';
       if (g < 1.25 && dd > 2.4 && dd < 8.5) return 'bounce';
       return 'chest';
     }
@@ -6535,7 +6538,13 @@ gl_FragColor=vec4(c,1.0);}`;
       for (const d of foes(p)) {
         const ax = tx - hp[0], az = tz - hp[2], al = Math.hypot(ax, az) || 1, t = clamp(((d.x - hp[0]) * ax + (d.z - hp[2]) * az) / (al * al), 0.15, 0.9), px = hp[0] + ax * t, pz = hp[2] + az * t, off = Math.hypot(d.x - px, d.z - pz);
         if (kind === 'lob' && t < 0.78) continue;
-        if (off < 0.75) { const pr = clamp(0.12 + (rt(d, 'stl') - rt(p, 'pass')) * 0.006 - off * 0.2 + (d.side === 1 ? DK * 0.04 : 0), 0.02, 0.4) * (kind === 'bounce' ? 0.55 : 1); if (rng() < pr) { P.pick = d; P.pickT = t * T; break; } }
+        if (off < 0.75) {
+          // a lazy pass is deflected: a man standing in the line of it gets a hand on it; one a step off it does not. Long passes and a passer
+          // with a man on him float; a quick bounce under the arms is hard to get to; a man at the passer's elbow cannot react in time
+          const lane = clamp(1 - off / 0.75, 0, 1), close = t < 0.22 ? 0.5 : 1, press = D(p, d) < 1.3 ? 0.04 : 0;
+          const pr = clamp((0.04 + lane * lane * 0.42 + (dist > 7.5 ? 0.07 : 0) + (rt(d, 'stl') - pas) * 0.004 + (d.side === 1 ? DK * 0.04 : 0) + press) * close, 0.02, 0.5) * (kind === 'bounce' ? 0.45 + 0.5 * lane * lane : kind === 'lob' ? 0.8 : 1);
+          if (rng() < pr) { P.pick = d; P.pickT = t * T; break; }
+        }
       }
     }
     // a bounce pass comes up off the floor to the man it was thrown to
@@ -6704,13 +6713,25 @@ gl_FragColor=vec4(c,1.0);}`;
     const rt = (p, k) => (p.bb[k] || 60);
     function say2(t) { try { say(t); } catch (e) {} }
     // ---------- shot quality ----------
+    // the hand: where a defender's hand is at this instant. A contest is decided by timing: the hand at its highest as the ball leaves
+    // (full), a defender on his feet in the shooter's face (some), one who went up too early and is coming down, or who has only just
+    // left the floor, or who is landing (little). So a good contest cuts a shot a lot, a late or early jump hardly.
+    function handQ(d) {
+      if (d.biteUntil > tLive) return 0.3; // he went up at the pump fake: out of the play
+      if (d.jumpY > 0.04 || d.jumpV > 0) {
+        if (d.jumpY < 0.14 && d.jumpV > 0) return 0.7;  // just leaving the floor: the hand is not up yet
+        if (d.jumpV < -1.5) return 0.55;                // coming down: too early
+        return 2.0;                                     // up and near the top: the hand is in his face
+      }
+      if (d.land > 0) return 0.45;                      // landing
+      return 1;                                         // on his feet in his face
+    }
     function contestOf(p, h) { // 0 wide open .. 1 smothered: the closest defender between him and the rim, his length and timing
       let c = 0;
       for (const d of foes(p)) {
         const dd = D(d, p); if (dd > 2.8) continue;
         const tx = h.x - p.x, tz = h.z - p.z, tl = Math.hypot(tx, tz) || 1, front = ((d.x - p.x) * tx + (d.z - p.z) * tz) / (tl * (dd || 1));
-        let k = Math.pow(clamp((2.3 - dd) / 1.8, 0, 1), 1.5) * clamp(0.3 + front * 0.7, 0.1, 1) * (0.7 + (rt(d, 'perD') + rt(d, 'blk')) / 500) * (d.jumpY > 0.15 ? 1.2 : 1) * clamp(d.lk.hs / p.lk.hs, 0.85, 1.15);
-        if (d.biteUntil > tLive) k *= 0.3; // he went up on the pump fake: out of the play
+        let k = Math.pow(clamp((2.3 - dd) / 1.8, 0, 1), 1.5) * clamp(0.3 + front * 0.7, 0.1, 1) * (0.7 + (rt(d, 'perD') + rt(d, 'blk')) / 500) * handQ(d) * clamp(d.lk.hs / p.lk.hs, 0.85, 1.15) * (0.55 + 0.45 * fatigue(d));
         c = Math.max(c, k);
       }
       return clamp(c, 0, 0.95);
@@ -6718,7 +6739,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function skillAt(p, d, ft) { return ft ? rt(p, 'ft') : d < 2.2 ? rt(p, 'fin') : d < COURT.three ? rt(p, 'mid') : rt(p, 'three'); }
     function basePct(p, d, ft) {
       const r = skillAt(p, d, ft), tired = 1 - 0.24 * Math.pow(1 - p.sta, 1.2); // tired legs: the shot comes up short
-      if (ft) return clamp(0.42 + (r - 50) * 0.0105, 0.25, 0.95) * tired;
+      if (ft) return clamp(0.6 + (r - 50) * 0.0105, 0.3, 0.95) * tired;
       let b = lerp(0.62, 0.36, clamp((d - 1.5) / 5.2, 0, 1)) - clamp((d - COURT.three - 1.2) / 4, 0, 0.3);
       return clamp(b + (r - 65) * 0.0065, 0.08, 0.85) * tired;
     }
@@ -6739,14 +6760,69 @@ gl_FragColor=vec4(c,1.0);}`;
       const pos = (p.sq && p.sq.pos) || '', guard = pos === 'PG' || pos === 'SG' ? 0.03 : pos === 'C' ? -0.015 : 0;
       return clamp(KIND_T[kind] - guard - (skillAt(p, d, false) - 60) * 0.0005 - (rt(p, 'hand') - 60) * 0.0003 + (1 - p.sta) * 0.02, 0.38, 0.56);
     }
-    // the green window (a fraction of the set time): wider for a good shooter, an open look, a close shot, a catch and shoot and
-    // a fresh player; narrower when contested, deep, off the dribble or at a higher level
-    function shotSetup(p, ft, kind, T) {
-      const h = hoopOf(p.side), d = rimDist(p.x, p.z, h), c = ft ? 0 : contestOf(p, h), r = skillAt(p, d, ft);
-      let w = (0.27 + (r - 50) * 0.0035) * (1 - 0.6 * c) * (1 - clamp((d - 3) / 10, 0, 0.4)) * (ft ? 1.2 : 1) * (kind === 'catch' ? 1.12 : kind === 'pull' || kind === 'step' ? 0.88 : kind === 'fade' || kind === 'lean' ? 0.8 : 1) * (0.8 + 0.2 * p.sta);
-      if (p.side === 0) w *= userGreenK; else w *= 1.05 - 0.2 * DK;
-      return { h, d, c, kind: kind || 'stand', T: T || 0.5, tJ: ft ? 0 : (T || 0.5) * 0.5, gc: GREEN_C, w: clamp(w, 0.07, 0.55), pts: ft ? 1 : isThree(p.x, p.z, h) ? 3 : 2, ft: !!ft, x: p.x, z: p.z };
+    // ---------- the shooting model: how big the green window is, and what a release is worth ----------
+    // One model for you and the CPU. Everything is measured against the shooter's RANGE: the arc plus what his THREE rating buys
+    // (a good shooter is a threat a step or two behind it, a poor one only up to the line). Inside his range the green window is
+    // a real window (wide close in, thinner toward the arc, thinner again for a poor shooter, a man in his face, tired legs,
+    // off the dribble, fading away, a cold hand) and a GREEN RELEASE GOES IN (only a hand all over him, SMOTHERED, takes some of
+    // that back). BEYOND his range the window collapses (a few steps back it is thin, from half court it is a hairline) and even
+    // a perfect release is a long shot: ~13% from half court, ~4% from the far end; a mistimed one is a 1-3% prayer.
+    let forceHeave = false; // (tests: take the shot whatever the range)
+    const rangeOf = (p) => clamp(COURT.three + 0.55 + (rt(p, 'three') - 62) * 0.04, COURT.three + 0.3, COURT.three + 1.9); // (62 three: a step behind the arc; 85: 2+ steps; 45: just past the line)
+    // chance that a PERFECT (green) release from this far past his range goes in (over = yards past the end of his range)
+    const OVER_G = [[0, 0.97], [0.7, 0.8], [1.6, 0.55], [3, 0.3], [5, 0.15], [6.2, 0.13], [10, 0.07], [16, 0.04]];
+    function overGreen(over) { for (let i = 1; i < OVER_G.length; i++) if (over <= OVER_G[i][0]) { const a = OVER_G[i - 1], b = OVER_G[i]; return lerp(a[1], b[1], (over - a[0]) / (b[0] - a[0])); } return 0.04; }
+    // the window in SECONDS of hold (so it reads the same whatever his set time is), before the level's own factor
+    function windowSec(p, d, c, kind, ft, over) {
+      const r = skillAt(p, d, ft);
+      let w = (0.05 + (r - 50) * 0.0014) * 0.54; // 50 rating 32 ms .. 90 rating 68 ms (an open mid-range or three: about +-20 ms around the release)
+      if (ft) return w * 1.6 * (0.85 + 0.15 * p.sta);
+      const rg = Math.max(rangeOf(p) - 2.5, 0.5);
+      w *= lerp(1.3, 0.56, Math.pow(clamp((d - 2.5) / rg, 0, 1), 0.7)); // close = wide, at the end of his range about half that
+      if (over > 0) w *= Math.max(0.04, Math.exp(-over / 1.3)); // past his range it collapses: a few steps back thin, half court a hair
+      w *= 1 - 0.55 * c; // a hand in his face
+      w *= kind === 'catch' ? 1.14 : kind === 'pull' || kind === 'step' ? 0.86 : kind === 'fade' ? 0.78 : kind === 'lean' ? 0.74 : 1;
+      w *= 0.78 + 0.22 * p.sta; // tired legs
+      w *= 1 + 0.045 * clamp(p.form || 0, -3, 3); // hot or cold
+      return w;
     }
+    // the green window (a fraction of the set time) and everything a release needs, decided when the shot starts
+    function shotSetup(p, ft, kind, T) {
+      const h = hoopOf(p.side), d = rimDist(p.x, p.z, h), c = ft ? 0 : contestOf(p, h), over = ft ? 0 : Math.max(0, d - rangeOf(p)), TT = T || 0.5;
+      // a move that beat his man pays: the defender is a step behind (lagging or out of reach) for a second after it, so the look is cleaner and the window fatter
+      let sep = 0; if (!ft && tLive - (p.moveT || -9) < 1.0) { const [fo, fd] = nearFoe(p); if (!fo || fo.lagT > 0 || fd > 1.5) sep = 1; }
+      const c2 = sep ? c * 0.7 : c;
+      let ws = windowSec(p, d, c2, kind, ft, over) * (sep ? 1.12 : 1);
+      if (p.side === 0) ws *= userGreenK; else ws *= 1.05 - 0.2 * DK;
+      const w = clamp(ws / TT, 0.012, 0.6);
+      return { h, d, c: c2, sep, over, kind: kind || 'stand', T: TT, tJ: ft ? 0 : TT * 0.5, gc: GREEN_C, w, pts: ft ? 1 : isThree(p.x, p.z, h) ? 3 : 2, ft: !!ft, x: p.x, z: p.z };
+    }
+    // who is on him, in words (2K's coverage read)
+    const coverOf = (c) => (c < 0.12 ? 'WIDE OPEN' : c < 0.36 ? 'OPEN' : c < 0.68 ? 'CONTESTED' : 'SMOTHERED');
+    // how well the release was timed: 'exc' (the middle of the window), 'green', 'early'/'late' (just outside: slightly), 'vearly'/'vlate'
+    function gradeOf(off, w, T) { const a = Math.abs(off), half = w / 2; if (a <= half * 0.4) return 'exc'; if (a <= half) return 'green'; return (a - half) * (T || 0.5) <= 0.05 ? (off < 0 ? 'early' : 'late') : (off < 0 ? 'vearly' : 'vlate'); }
+    // what a release at meter value m is worth: { P (chance it goes in), grade, green, why (what a miss will be blamed on) }
+    function makeChance(p, S, m, cNow) {
+      const off = m - S.gc, half = S.w / 2, grade = gradeOf(off, S.w, S.T), green = grade === 'exc' || grade === 'green', over = S.over || 0;
+      let P, why = '';
+      if (S.ft) { // the line: yours is the meter, the CPU's is his FT rating
+        const bp = basePct(p, S.d, true); P = isUser(p) ? (green ? Math.max(0.9, bp) : bp * (0.25 + 0.75 * clamp(1 - ((Math.abs(off) - half) * S.T) / 0.15, 0, 1))) : bp;
+        return { P, grade, green, off, why: green ? '' : off < 0 ? 'EARLY' : 'LATE' };
+      }
+      if (green) {
+        if (over > 0) P = overGreen(over) * (1 - 0.5 * cNow);
+        else P = cNow < 0.45 ? 1 : cNow < 0.8 ? lerp(1, 0.85, (cNow - 0.45) / 0.35) : 0.35;
+        if (P < 0.9) why = over > 0 ? 'TOO FAR' : cNow >= 0.8 ? 'SMOTHERED' : 'CONTESTED';
+      } else {
+        const outSec = (Math.abs(off) - half) * S.T, q = Math.exp(-outSec / 0.04); // a hair off still has a chance, a long way off none
+        P = basePct(p, S.d, false) * (1 - 0.6 * cNow) * q * (grade === 'vearly' || grade === 'vlate' ? 0.6 : 1) * 0.55;
+        if (over > 0) P *= Math.max(0.03, Math.exp(-over / 1.4));
+        P = Math.max(P, over > 3 ? 0.012 : 0.02 * q);
+        why = off < 0 ? 'EARLY' : 'LATE';
+      }
+      return { P: clamp(P, 0, 1), grade, green, off, why };
+    }
+    if (DBG) DBG.model = { rangeOf, shotSetup, makeChance, windowSec, overGreen, contestOf, shotKind, setTimeOf };
     // ---------- starting a shot: a layup at the rim, else the jump shot with the meter (no dunks in this game) ----------
     function startShot(p, opt) {
       const b = ball; if (b.holder !== p || p.shotS || phase !== 'live') return false;
@@ -6759,6 +6835,8 @@ gl_FragColor=vec4(c,1.0);}`;
         // the floater: on the move in the lane, let go early and high over the big man (the modifier; the CPU when one waits at the rim)
         if (sp > 2.4 && toRim > 0.6 && d < layReach(sp) + 1.5 && (mod || (!isUser(p) && rt(p, 'fin') >= 60 && rimGuard(p, h)))) return startLayup(p, h, 'floater', mod);
       }
+      // nobody chucks a heave: the CPU only throws one up from past his range at the buzzer (the quarter or the shot clock about to go)
+      if (!isUser(p) && !forceHeave && !(opt && opt.step) && d - rangeOf(p) > 1.4 && !((clockRun && clock < 3.2) || shotClk < 1.1)) return false;
       b.st = 'held'; b.mv = null;
       const pk = pickJumper(p, h, d, sp, opt), kind = pk.kind, T = setTimeOf(p, kind, d);
       p.shotS = shotSetup(p, false, kind, T); p.shotS.pk = pk; p.shotS.bank = !!pk.bank; p.meter = 0; p.shotA = 0; p.shotRel = false; p.jumped = false; p.relPend = null; p.shotRate = SHOT_REL / T; p.cpuRel = cpuTiming(p);
@@ -6779,12 +6857,27 @@ gl_FragColor=vec4(c,1.0);}`;
     // a tap of Space: a pump fake. The ball goes up and comes back; a defender close by may bite and leave the floor
     function pumpFake(p) {
       const S = p.shotS; S.pump = 0; p.meterG = false;
+      // whether a defender goes up for it is a read, not a roll: a man flying at the shooter (a closeout) or right in his face goes
+      // for the ball going up; a set man with good feet stays down; a second fake right after the first does not fool anyone
+      const conv = clamp(p.meter / PUMP_M, 0.3, 1), again = tLive - (p.pumpT || -9) < 2.5;
+      let bit = null;
       for (const d of foes(p)) {
-        if (D(d, p) > 2.6 || d.jumpY > 0 || d.rag) continue;
-        const bite = clamp(0.62 - (rt(d, 'perD') - 60) * 0.007 - (d.side === 1 ? DK * 0.18 : 0.05) + (D(d, p) < 1.6 ? 0.1 : 0), 0.1, 0.85);
-        if (isUser(d) || rng() > bite) continue;
-        setPose(d, 'contest'); d.jumpV = 3.4 + rt(d, 'vert') * 0.01; d.jumpY = 0.001; d.biteUntil = tLive + 0.75;
-        const ax = p.x - d.x, az = p.z - d.z, al = Math.hypot(ax, az) || 1; d.vx = ax / al * 1.4; d.vz = az / al * 1.4;
+        const dd = D(d, p); if (dd > 2.6 || d.jumpY > 0 || d.rag) continue;
+        const closing = clamp((d.vx * (p.x - d.x) + d.vz * (p.z - d.z)) / (dd || 1), 0, 3);
+        const sc = 0.2 + closing * 0.17 + (dd < 1.6 ? 0.12 : 0) + conv * 0.22 + (rt(p, 'hand') - rt(d, 'perD')) * 0.004 - (d.side === 1 ? DK * 0.12 : 0.03) - (again ? 0.4 : 0) + (rng() - 0.5) * 0.1;
+        if (isUser(d) || sc < 0.55) continue;
+        setPose(d, 'contest'); d.jumpV = 3.4 + rt(d, 'vert') * 0.01; d.jumpY = 0.001; d.biteUntil = tLive + 0.75; d.biteBy = p;
+        const ax = p.x - d.x, az = p.z - d.z, al = Math.hypot(ax, az) || 1; d.vx = ax / al * 1.4; d.vz = az / al * 1.4; d.lagT = Math.max(d.lagT || 0, 0.55); // (up in the air and coming down out of the play: shoot or go by him)
+        if (!bit || dd < D(bit, p)) bit = d;
+      }
+      if (bit) { popAt(bit, 'BIT ON THE FAKE', '#ffc21a'); try { sfx.play('ooh'); } catch (e) {} }
+    }
+    // a man who went up for a pump fake (or a closeout he overran) and comes down on the shooter fouls him
+    function biteFoul(p) {
+      if (p.foulOn || phase !== 'live') return;
+      for (const d of foes(p)) {
+        if (!(d.biteUntil > tLive) || D(d, p) > 1.45 || isUser(d)) continue;
+        if (rng() < (d.jumpY > 0.05 ? 0.7 : 0.4)) { callFoul(d, p, true, 'Foul'); return; }
       }
     }
     // each step while the shot is up: the meter fills with time, he jumps so the apex is the ideal release; held too long = a late release
@@ -6802,7 +6895,7 @@ gl_FragColor=vec4(c,1.0);}`;
       }
       p.meter += dt / S.T; p.shotA = SHOT_REL * Math.min(METER_MAX, p.meter);
       if (!S.ft && !p.jumped && p.meter * S.T >= S.tJ && !(S.pk && S.pk.hop && p.jumpY > 0.03)) { // off the floor: the apex comes at the set time
-        p.jumped = true; p.jumpV = 17 * Math.max(0.12, S.T - Math.max(S.tJ, p.meter * S.T)) * (0.96 + rt(p, 'vert') * 0.0006); p.jumpY = 0.001;
+        p.jumped = true; p.jumpV = 17 * Math.max(0.12, S.T - Math.max(S.tJ, p.meter * S.T)) * (0.96 + rt(p, 'vert') * 0.0006); p.jumpY = 0.001; biteFoul(p);
         const pk = S.pk;
         if (pk && pk.fade) { p.vx = -Math.sin(p.h) * pk.fade; p.vz = -Math.cos(p.h) * pk.fade; }
         else if (S.kind === 'step') { p.vx *= 0.3; p.vz *= 0.3; }
@@ -6813,29 +6906,37 @@ gl_FragColor=vec4(c,1.0);}`;
       if (!isUser(p) && p.meter >= p.cpuRel) releaseShot(p);
       else if (p.meter >= GREEN_C + 0.3) releaseShot(p);
     }
-    function cpuTiming(p) { // where on the meter a CPU shooter releases: around the green, tighter for good shooters and higher levels
-      const r = skillAt(p, p.shotS.d, p.shotS.ft), s = clamp(0.09 - (r - 50) * 0.0007 + p.shotS.c * 0.05 - (p.side ? DK * 0.025 : 0.01), 0.025, 0.12);
-      return GREEN_C + (rng() + rng() + rng() - 1.5) * s * 1.5;
+    // a CPU shooter is not a human with a thumb: how often he lands in the window is set by what the shot is (his rating at that
+    // spot, the hand in his face, the level), and his release is placed in the window so that is how often he is green. Past his range
+    // he is "perfect" and the model's own long-shot odds (overGreen) are the only thing between him and the rim.
+    const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x < 0 ? -y : y; };
+    function zOf(pg) { let lo = 0, hi = 6; for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (erf(m / Math.SQRT2) < pg) lo = m; else hi = m; } return (lo + hi) / 2; } // (the z where a normal falls within +-z with chance pg)
+    function cpuTiming(p) {
+      const S = p.shotS, r = skillAt(p, S.d, S.ft);
+      let tg;
+      if (S.ft) tg = 0.9;
+      else if (S.over > 0) tg = 0.97;
+      else { const want = basePct(p, S.d, false) * (1 - 0.4 * S.c) * (p.side ? 0.94 + 0.08 * DK : 1.04) + 0.05; tg = clamp(want / 0.97, 0.05, 0.97); }
+      const sd = (S.w / 2) / zOf(tg); // (in meter units)
+      return GREEN_C + (rng() + rng() + rng() + rng() - 2) * 1.73 * sd;
     }
-    // how well the release was timed: 'exc' (the middle of the window), 'green', 'early'/'late' (a little off), 'vearly'/'vlate'
-    function gradeOf(off, w) { const a = Math.abs(off), half = w / 2; if (a <= half * 0.4) return 'exc'; if (a <= half) return 'green'; return a <= half + 0.14 ? (off < 0 ? 'early' : 'late') : (off < 0 ? 'vearly' : 'vlate'); }
     function releaseShot(p) {
       if (!p.shotS || p.shotRel) return;
       const S = p.shotS, m = p.meter;
       if (S.pump != null) return;
       if (!S.ft && !p.jumped && m < PUMP_M && isUser(p)) { pumpFake(p); return; } // a tap
-      const off = m - S.gc, half = S.w / 2, grade = gradeOf(off, S.w), green = grade === 'exc' || grade === 'green';
+      const cNow = S.ft ? 0 : Math.max(S.c, contestOf(p, S.h) * (S.sep ? 0.7 : 1));
+      const MC = makeChance(p, S, m, cNow), off = MC.off, grade = MC.grade, green = MC.green, P = MC.P;
       p.shotRel = true;
-      if (p.side === 0 && isUser(p)) meterResult(grade, off, S);
-      const cNow = S.ft ? 0 : Math.max(S.c, contestOf(p, S.h));
-      let P;
-      if (green) {
-        P = clamp(0.88 + 0.1 * (1 - Math.abs(off) / half) - 0.4 * cNow - (S.d > COURT.three + 2 ? 0.1 : 0), 0.35, 0.99);
-        if (isUser(p) && cNow < 0.15 && S.d < COURT.three + 3.5) P = 1; // green and wide open: it goes in
-      } else { const q = clamp(1 - (Math.abs(off) - half) / 0.3, 0, 1); P = basePct(p, S.d, S.ft) * (1 - 0.55 * cNow) * (0.2 + 0.8 * q) * (grade === 'vearly' || grade === 'vlate' ? 0.55 : 1); }
-      if (S.ft) P = isUser(p) ? (green ? Math.max(P, 0.9) : P) : basePct(p, S.d, true); // yours is the meter; the CPU's is his FT rating
+      if (p.side === 0 && isUser(p)) meterResult(grade, off, S, cNow, MC.why);
+      // if you are the man guarding him, say whether your hand was up in time (the shooter's own look is on his meter)
+      if (!S.ft) {
+        if (!isUser(p)) for (const d of foes(p)) if (isUser(d) && D(d, p) < 2.6) { const hq = handQ(d); if (hq >= 1.6) popAt(d, 'GOOD CONTEST', '#4dd2ff'); else if (d.jumpY > 0.04 && hq <= 0.7) popAt(d, d.jumpV > 0 ? 'LATE' : 'TOO EARLY', '#ff7a6a'); else if (d.jumpY <= 0.04 && D(d, p) > 1.9) popAt(d, 'TOO FAR OFF', '#ff7a6a'); }
+      }
       const made = rng() < P;
-      const LG = DBG && DBG.shotLog ? { side: p.side, kind: S.kind, T: +S.T.toFixed(3), d: +S.d.toFixed(1), c: +cNow.toFixed(2), off: +off.toFixed(3), w: +S.w.toFixed(3), grade, P: +P.toFixed(2), made, tRel: +(m * S.T).toFixed(3) } : null; if (LG) DBG.shotLog.push(LG);
+      if (!S.ft) p.form = clamp((p.form || 0) * 0.85 + (made ? 0.6 : -0.45), -3, 3); // a hot hand, a cold one
+      S.why = made ? '' : MC.why;
+      const LG = DBG && DBG.shotLog ? { side: p.side, kind: S.kind, over: +(S.over || 0).toFixed(1), T: +S.T.toFixed(3), d: +S.d.toFixed(1), c: +cNow.toFixed(2), off: +off.toFixed(3), w: +S.w.toFixed(3), grade, P: +P.toFixed(2), made, tRel: +(m * S.T).toFixed(3) } : null; if (LG) DBG.shotLog.push(LG);
       const exc = grade === 'exc' && !S.ft;
       if (p.shotA < REL_A && !S.ft) { p.relPend = { S, made, off, green, lg: LG, exc }; } // the ball is not up in his hands yet: it goes the moment it is
       else { launchShot(p, S, made, off, green); if (LG) { ball.shot.lg = LG; LG.made = ball.shot.made; } ball.shot.trail = exc; }
@@ -6850,7 +6951,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const A = aimShot(hp, h, S, made, early, Object.assign({ green }, S.bank ? { bank: true, th: 56 * Math.PI / 180 } : {}, o));
       b.holder = null; b.st = 'air'; b.acc = 0; b.x = hp[0]; b.y = hp[1]; b.z = hp[2]; b.vx = A.v[0]; b.vy = A.v[1]; b.vz = A.v[2];
       b.spin = A.spin;
-      b.shot = { by: p, side: p.side, pts: S.pts, ft: S.ft, d: S.d, made: A.made, will: A.made ? 'in' : 'out', kind: A.kind, perfect: !!(o && o.perfect), h, t: 0, green, x: S.x, z: S.z, ast: b.astBy && b.astBy !== p && tLive - b.astT < 4 ? b.astBy : null };
+      b.shot = { by: p, side: p.side, pts: S.pts, ft: S.ft, d: S.d, why: S.why || '', made: A.made, will: A.made ? 'in' : 'out', kind: A.kind, perfect: !!(o && o.perfect), h, t: 0, green, x: S.x, z: S.z, ast: b.astBy && b.astBy !== p && tLive - b.astT < 4 ? b.astBy : null };
       b.lastSide = p.side; b.last = p; b.touchRim = false; b.touchBoard = false; b.thru = null; b.astBy = null; b.scored = false; b.rimN = 0; b.pass = null;
       if (!S.ft) { const s = stat(p.sq); s.fga++; if (S.pts === 3) s.tpa++; } else stat(p.sq).fta++;
       // fouled in the act: the shot counts if it goes (and one), else he shoots two or three
@@ -6884,12 +6985,14 @@ gl_FragColor=vec4(c,1.0);}`;
       } else {
         const gT = clamp(run / clamp(sp, 3.4, 6.6), 0.14, 0.36); p.fin = { h, t: 0, kind: 'layup', v, gT, gv: run / gT, rel: gT + 0.24 };
       }
+      if (p.fin && isUser(p) && p.side === 0) { p.fin.lm = 1; meterShow(true); } // the layup's own meter: short, and a very wide green (anything but a flick is good; hold it through the finish for the best)
       shotPressure(p);
       return true;
     }
     function finStep(p, dt) {
       const F = p.fin; if (!F) return;
       F.t += dt;
+      if (F.lm && F.upT == null && !input.shoot) F.upT = F.t; // when Space came up
       if (F.kind === 'layup') {
         const h = F.h, dx = h.x - p.x, dz = h.z - p.z, dl = Math.hypot(dx, dz) || 1;
         p.face2 = Math.atan2(dx, dz);
@@ -6897,7 +7000,7 @@ gl_FragColor=vec4(c,1.0);}`;
           p.vx = dx / dl * F.gv; p.vz = dz / dl * F.gv; p.poseT = 0.18 * F.t / F.gT;
           if (F.eu) { const u = F.t / F.gT, lat = (u < 0.42 ? 3.6 : -5.2) * F.sd; p.vx += -dz / dl * lat; p.vz += dx / dl * lat; }
         } else {
-          if (!F.jumped) { F.jumped = true; p.jumpV = (F.jv || 3.7) + rt(p, 'vert') * 0.012; p.jumpY = 0.001; const v = F.jf != null ? Math.min(F.jf, Math.max(0.4, (dl - 0.9) / 0.24)) : clamp((dl - 0.95) / 0.24, 1.0, 5.0); p.vx = dx / dl * v; p.vz = dz / dl * v; }
+          if (!F.jumped) { F.jumped = true; p.jumpV = (F.jv || 3.7) + rt(p, 'vert') * 0.012; p.jumpY = 0.001; biteFoul(p); const v = F.jf != null ? Math.min(F.jf, Math.max(0.4, (dl - 0.9) / 0.24)) : clamp((dl - 0.95) / 0.24, 1.0, 5.0); p.vx = dx / dl * v; p.vz = dz / dl * v; }
           p.poseT = 0.18 + (F.t - F.gT);
         }
       }
@@ -6906,18 +7009,21 @@ gl_FragColor=vec4(c,1.0);}`;
         const h = F.h, fl = F.gait === 'floater' || F.v === 'floater' || F.v === 'floater_l', dr = rimDist(p.x, p.z, h);
         let c = contestOf(p, h); if (F.beat) c *= 0.55; if (fl) c *= 0.6;
         const sk = rt(p, 'fin');
-        let P = F.kind === 'hook' ? hookChance(p, F, c) : fl ? clamp(0.5 + (sk - 60) * 0.008 - c * 0.4 - Math.max(0, dr - 2.2) * 0.05, 0.15, 0.8) : clamp(0.6 + (sk - 60) * 0.008 - c * 0.42, 0.18, 0.92);
+        // a layup is mostly a matter of who is at the rim: open it goes (85-95%), a man in front of it takes most of that away; a floater is
+        // a shot over a big (~65% open); the timing (your meter) is worth a little either way
+        let P = F.kind === 'hook' ? hookChance(p, F, c) : fl ? clamp(0.66 + (sk - 60) * 0.006 - c * 0.4 - Math.max(0, dr - 2.2) * 0.05, 0.12, 0.85) : clamp(0.89 + (sk - 60) * 0.004 - c * 0.56, 0.1, 0.97);
+        if (F.lm) { const fr = F.upT == null ? 1 : F.upT / Math.max(0.1, F.rel), gr = fr >= 0.7 ? 'exc' : fr >= 0.25 ? 'green' : 'early'; P += gr === 'exc' ? 0.04 : gr === 'early' ? -0.07 : 0; meterResult(gr, 0, { w: 1.1, gc: 0.8, T: 1, c, over: 0 }, c, ''); }
         if (F.kind !== 'hook') { P += (F.bonus || 0); if (p.side === 1) P *= 0.94 + 0.08 * DK; else P *= 1.02 - 0.06 * DK; }
         if (p.foulOn) P *= 0.72 + rt(p, 'str') * 0.002; // through the contact
         // a rim protector right there can send it back (never after the whistle: that is a foul)
-        let blocker = null; if (!p.foulOn) for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && rimDist(d.x, d.z, h) < dr + 0.35 && d.lk.hs * 2.6 + d.jumpY > (fl ? p.lk.hs * 2.5 + p.jumpY : RIM_Y - 0.2) && rng() < (rt(d, 'blk') - 40) / 260 * (fl ? 0.45 : 1)) { blocker = d; break; }
+        let blocker = null; if (!p.foulOn) for (const d of foes(p)) if (d.jumpY > 0.25 && D(d, p) < 1.0 && rimDist(d.x, d.z, h) < dr + 0.35 && d.lk.hs * 2.6 + d.jumpY > (fl ? p.lk.hs * 2.5 + p.jumpY : RIM_Y - 0.2) && rng() < (rt(d, 'blk') - 40) / 260 * (fl ? 0.45 : 1) * 0.7) { blocker = d; break; }
         if (blocker) { blockShot(blocker, p); p.fin = null; return; }
         const made = rng() < P;
           // off the glass from the side (the reverse always), straight over the front of the rim from in front; the finger roll
           // and the floater go in soft with no glass, the floater on a high arc
           const S = { h, d: dr, c, pts: 2, ft: false, x: p.x, z: p.z }, ang = Math.atan2(Math.abs(p.z - h.z), Math.abs(h.x - p.x)), v = F.v, am = FIN_AIM[v] || F.aim;
           const o = am ? { bank: am.bank, th: am.th * Math.PI / 180, spin: am.spin } : { bank: ang > 0.3 && ang < 1.35, th: 60 * Math.PI / 180, spin: 4 };
-          launchShot(p, S, made, 0, false, o); ball.shot.layup = v || 'layup'; if (F.post) ball.shot.post = true;
+          launchShot(p, S, made, 0, false, o); ball.shot.layup = v || 'layup'; if (F.post) ball.shot.post = true; bodyFoul(p, c, 0.15, 0.55); // (contact at the rim: a bump on the way up is a whistle, and an and-one if it drops)
           if (DBG && DBG.shotLog) { const LG = { side: p.side, lay: v || 'layup', post: !!F.post, d: +S.d.toFixed(1), c: +c.toFixed(2), P: +P.toFixed(2), made: ball.shot.made, kind: ball.shot.kind }; DBG.shotLog.push(LG); ball.shot.lg = LG; }
         p.fin = null;
       }
@@ -6992,9 +7098,18 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.st === 'air' && b.shot && !b.shot.ft && b.shot.t < 0.32 && b.shot.side !== d.side) {
         const hy = d.jumpY + d.lk.hs * 2.75, hand = [d.x + Math.sin(d.h) * 0.3, hy, d.z + Math.cos(d.h) * 0.3];
         const dd = Math.hypot(b.x - hand[0], b.y - hand[1], b.z - hand[2]);
-        if (dd < 0.45 && b.vy > -1) { const pr = clamp(0.04 + (rt(d, 'blk') - 40) / 220 + (d.lk.hs - b.shot.by.lk.hs) * 1.2 + (d.side === 1 ? DK * 0.05 : 0), 0.02, 0.45); if (rng() < pr) { d.blkDone = true; const sh = b.shot.by; blockShot(d, sh); return true; } }
+        // one look at the ball per shot: his hand is there at its best moment or it is not (a roll every frame it is near is a block on almost every shot)
+        if (dd < 0.45 && b.vy > -1 && d.blkSh !== b.shot) { d.blkSh = b.shot; const pr = clamp((0.04 + (rt(d, 'blk') - 40) / 220 + (d.lk.hs - b.shot.by.lk.hs) * 1.2 + (d.side === 1 ? DK * 0.05 : 0)) * (0.55 + (0.45 - dd) * 2.6) * 0.75, 0.02, 0.45); if (rng() < pr) { d.blkDone = true; const sh = b.shot.by; blockShot(d, sh); return true; } }
       }
       return false;
+    }
+    // how open the ball is to this defender's hand right now (0 protected .. 1 hanging out): the ball on his side of the handler's body,
+    // low (at the floor, or swinging through a move), away from the handler's chest; a ball held in two hands is mostly safe
+    function ballExposure(h, d) {
+      const b = ball, dd = Math.hypot(h.x - d.x, h.z - d.z) || 1, bd = Math.hypot(b.x - d.x, b.z - d.z);
+      if (b.st !== 'drib' && !b.mv) return h.pose === 'pass' ? 0.5 : 0.12;
+      const side = clamp((dd - bd) / 0.4 + 0.45, 0, 1), low = clamp(1.15 - b.y / (h.lk.hs * 0.95), 0.1, 1);
+      return clamp(side * (0.35 + 0.65 * low) + (b.mv ? 0.12 : 0) + (h.pm ? (h.pm.k === 'pspin' ? 0.25 : 0.08) : h.post ? -0.1 : 0), 0, 1);
     }
     function trySteal(d) {
       if (d.stealCd > 0 || phase !== 'live') return false;
@@ -7003,12 +7118,13 @@ gl_FragColor=vec4(c,1.0);}`;
       if (b.st === 'air' && b.pass) return false;
       if (!h || h.side === d.side) return false;
       const dd = D(d, h); if (dd > 1.45) return false;
-      // reach-ins: spamming it, or reaching from behind, is a foul
-      const fx = Math.sin(d.h), fz = Math.cos(d.h), front = ((h.x - d.x) * fx + (h.z - d.z) * fz) / (dd || 1);
-      const foulP = clamp((isUser(d) ? 0.05 : 0.13) + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0), 0, 0.7);
+      // a steal is a read of the ball: a reach at the exposed ball (low, on his side, in the swing of a move) is a poke; a reach across
+      // a protected ball is a foul or a miss that leaves him lunging and beaten. Spamming it, or reaching from behind, is a foul.
+      const fx = Math.sin(d.h), fz = Math.cos(d.h), front = ((h.x - d.x) * fx + (h.z - d.z) * fz) / (dd || 1), E = ballExposure(h, d);
+      const foulP = clamp((E < 0.3 ? 0.4 : E < 0.55 ? 0.14 : 0.04) + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0) - (isUser(d) ? 0.04 : 0), 0, 0.8);
       if (rng() < foulP) { callFoul(d, h, false, 'Reach-in'); return false; }
-      const exposed = (b.st === 'drib' && b.u > 0.25 && b.u < 0.75 ? 0.08 : 0) + (b.mv ? 0.1 : 0) + (h.pose === 'pass' ? 0.1 : 0) + (h.pm ? (h.pm.k === 'pspin' ? 0.2 : h.pm.k === 'shimmy' ? 0.04 : 0.1) : h.post ? 0.04 : 0); // (a post man is loose on a spin: the strip)
-      const pr = clamp(0.1 + (rt(d, 'stl') - rt(h, 'hand')) * 0.006 + (1 - h.sta) * 0.12 - (1 - d.sta) * 0.06 + exposed + (d.side === 1 ? DK * 0.04 : 0) - (dd - 0.8) * 0.15, 0.03, 0.55);
+      const pr = clamp(0.03 + 0.52 * Math.pow(E, 1.3) + (rt(d, 'stl') - rt(h, 'hand')) * 0.004 + (1 - h.sta) * 0.1 - (1 - d.sta) * 0.05 + (d.side === 1 ? DK * 0.03 : 0) - (dd - 0.8) * 0.15, 0.02, 0.72);
+      if (DBG && DBG.stealLog) DBG.stealLog.push({ E: +E.toFixed(2), pr: +pr.toFixed(2) });
       if (rng() < pr) {
         stat(d.sq).stl++; stat(h.sq).to++;
         popAt(d, 'STEAL!', d.side === 0 ? '#4dd2ff' : '#ff7a6a');
@@ -7019,6 +7135,8 @@ gl_FragColor=vec4(c,1.0);}`;
         try { sfx.play('good'); } catch (e) {}
         return true;
       }
+      // a miss: he is lunging at air, a step late to the drive (the handler gets by)
+      if (E < 0.55) { if (isUser(d)) d.stumbleT = Math.max(d.stumbleT || 0, 0.16); else d.lagT = Math.max(d.lagT || 0, 0.3 + (0.55 - E) * 0.4); if (h.side === 0) { if (E < 0.3) popAt(h, 'BEAT HIM', '#ffc21a'); } else if (isUser(d)) popAt(d, E < 0.3 ? 'BAD READ' : 'MISSED IT', '#ff7a6a'); }
       return false;
     }
     const MOVES = BB_CHAIN; // the Q chain and its moves' timing: 05b-bbclips.js
@@ -7078,21 +7196,41 @@ gl_FragColor=vec4(c,1.0);}`;
       else if (k === 'stepback') { p.hesiGo = 0.25; p.stepBackT = 0.9; }
       if (euro) p.euroT = 1.1; // the next layup is the euro step
       p.mvB = { k, t: 0, dur: dur * 1.12, h: p.h, dx: (r[0] * sd * ST[0] + f[0] * ST[1]) * qk, dz: (r[1] * sd * ST[0] + f[1] * ST[1]) * qk, cx: k === 'stepback' || k === 'hesi' ? 0 : p.vx * cv, cz: k === 'stepback' || k === 'hesi' ? 0 : p.vz * cv, sd, bit: false };
-      // the man guarding him: his weight is on the wrong foot when the move goes the other way from where he is moving (a
-      // momentum read), so a quick handler against a defender who has just committed breaks his ankles; a chain of moves wears
-      // him down; if he is not fooled he recovers and cuts the new lane off
-      for (const d of foes(p)) {
-        if (D(d, p) > 2.5) continue;
-        const dvx = d.vx - p.vx, dvz = d.vz - p.vz, along = (dvx * r[0] + dvz * r[1]) * sd; // his speed across, relative to the handler: negative = going the other way
-        const caught = clamp(-along, 0, 3), chainB = Math.min(0.15, Math.max(0, p.cmbHeat - 1) * 0.05), tm = k === 'hesi' ? clamp(1.6 - Math.hypot(d.vx, d.vz), 0, 1.6) * 0.04 : 0;
-        const pr = clamp(0.07 + (hnd - rt(d, 'perD')) * 0.008 + caught * 0.075 + Math.min(5, sp0) * 0.012 + chainB + tm + (k === 'spin' || k === 'btb' ? 0.04 : 0) + (euro ? 0.03 : 0) - (d.side === 1 ? DK * 0.06 : 0) - (sp0 < 1 ? 0.04 : 0), 0.02, 0.6);
-        const bit = rng() < pr;
-        if (!isUser(d) && k !== 'hesi') { d.lagT = clamp(0.14 + (hnd - rt(d, 'perD')) * 0.004 + rng() * 0.08 - (d.side === 1 ? DK * 0.04 : 0) + (bit ? 0.06 : 0), 0.07, 0.36); d.vx -= r[0] * sd * 1.3; d.vz -= r[1] * sd * 1.3; }
-        if (bit) {
-          d.stumbleT = 0.5 + Math.min(0.5, pr * 0.8); d.vx *= 0.2; d.vz *= 0.2; p.mvB.bit = true;
-          if (pr > 0.26 && rng() < 0.55) { popAt(d, 'ANKLES!', p.side === 0 ? '#ffc21a' : '#ff7a6a'); excite = Math.min(1, excite + 0.35); try { sfx.play('ooh'); SND.squeak(d.x, d.z, 1.1); } catch (e) {} PRES.mark('ankles', p, d); }
-        } else if (!isUser(d) && rt(d, 'perD') > hnd - 5) { d.burstT = 0.45; d.cutV = [r[0] * sd, r[1] * sd]; d.cutT = 0.3; } // he recovers and cuts the lane off
-        break;
+      // the man guarding him (the nearest): a read of his feet, not a roll. A move beats him by catching his weight going the other way
+      // (his speed against the move's direction: a man sliding with the handler left and a crossover right is on the wrong foot), by
+      // quickness, by a chain that has worn him down, and by a hesitation as he rushes. A set man (his feet under him) is not fooled:
+      // he cuts the lane off, the handler runs into his chest, and a chain of moves into him is a strip waiting to happen.
+      let df = null, dfd = 2.5; for (const d of foes(p)) { const dd = D(d, p); if (dd < dfd && !d.rag) { dfd = dd; df = d; } }
+      if (df) {
+        const d = df, dir = [r[0] * sd, r[1] * sd];
+        // where the move takes him: the step the move makes, and where the stick is sending him (a move is thrown the way he is going next, so a man who slid the
+        // other way and cuts back is the read, even when the first step is still across his chest)
+        const go = sdir && Math.hypot(sdir[0], sdir[1]) > 0.3 ? sdir : dir, mom = clamp(Math.max(-(d.vx * dir[0] + d.vz * dir[1]), -(d.vx * go[0] + d.vz * go[1])), 0, 4.5); // his weight going the other way (yards a second)
+        const ux = (p.x - d.x) / (dfd || 1), uz = (p.z - d.z) / (dfd || 1);
+        const rush = k === 'hesi' ? clamp(d.vx * ux + d.vz * uz - 0.6, 0, 3) * 0.42 : 0;                  // a hesitation catches a man coming at him (a closeout)
+        // a move back the other way soon after the last one catches the weight he put on it
+        const lastD = p.lastMvDir, opp = lastD ? -(lastD[0] * dir[0] + lastD[1] * dir[1]) : 0, wnd = clamp(1 - (tLive - (p.moveT0 || -9)) / 0.75, 0, 1), flip = opp > 0.3 ? 0.8 * opp * wnd : 0;
+        p.lastMvDir = dir; p.moveT0 = tLive;
+        const heat = Math.max(0, p.cmbHeat - 1), kind = k === 'spin' || k === 'btb' ? 0.12 : k === 'btl' ? 0.06 : 0;
+        const margin = mom * 0.45 + rush * 0.8 + flip * 0.7 + (hnd - rt(d, 'perD')) * 0.02 + Math.min(5, sp0) * 0.04 + Math.min(3, heat) * 0.08 + kind + (euro ? 0.05 : 0)
+          - (d.side === 1 ? DK * 0.5 : 0) - (sp0 < 1 && k !== 'hesi' ? 0.12 : 0) - (dfd > 1.9 ? 0.2 : 0) - 0.55 + (rng() - 0.5) * 0.7;
+        const cnt = DBG && (DBG.moveLog || (DBG.moveLog = []));
+        if (cnt) cnt.push({ k, mom: +mom.toFixed(2), margin: +margin.toFixed(2) });
+        if (margin > 0) { // on the wrong foot: the ankles go (the stumble), or at least his hips turn
+          d.stumbleT = 0.45 + Math.min(0.55, margin * 0.7); d.vx *= 0.2; d.vz *= 0.2; p.mvB.bit = true; p.beatT = tLive;
+          if (!isUser(d)) { d.lagT = clamp(0.2 + margin * 0.3, 0.2, 0.45); d.vx -= dir[0] * 1.3; d.vz -= dir[1] * 1.3; }
+          if (margin > 0.5 && p.side === 0) { popAt(d, 'ANKLES!', '#ffc21a'); excite = Math.min(1, excite + 0.35); try { sfx.play('ooh'); SND.squeak(d.x, d.z, 1.1); } catch (e) {} PRES.mark('ankles', p, d); }
+          else if (p.side === 0) popAt(d, 'BEAT HIM', '#ffc21a');
+          else if (margin > 0.5) { popAt(d, 'ANKLES!', '#ff7a6a'); try { sfx.play('ooh'); } catch (e) {} PRES.mark('ankles', p, d); }
+        } else if (margin > -0.45) { // his hips turn and he is a step late: some room
+          if (!isUser(d)) { d.lagT = clamp(0.16 + (margin + 0.45) * 0.4, 0.12, 0.3); d.vx -= dir[0] * 0.9; d.vz -= dir[1] * 0.9; }
+        } else { // not fooled: he stays in front and cuts the new lane off; spamming into him gets the ball poked
+          if (!isUser(d)) {
+            d.lagT = 0; d.burstT = 0.45; d.cutV = [dir[0], dir[1]]; d.cutT = 0.3;
+            const sp = heat >= 3 ? 0.4 : heat >= 2 ? 0.26 : heat >= 1 ? 0.1 : 0;
+            if (sp && dfd < 1.5 && rng() < sp) { d.stealCd = 0; d.stealHeat = 0; setTimeout(() => { if (!finished && ball.holder === p && phase === 'live') trySteal(d); }, 90); }
+          }
+        }
       }
       return true;
     }
@@ -7203,9 +7341,13 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- fouls ----------
     function contact(a, b, v) { // a hard bump in traffic: a charge or a block now and then (by who was moving into whom)
-      if (phase !== 'live' || v < 4.5 || rng() > 0.18) return;
+      if (phase !== 'live' || v < 4.5) return;
       const h = ball.holder; if (!h || (h !== a && h !== b)) return;
       const d = h === a ? b : a, hv = Math.hypot(h.vx, h.vz), dv = Math.hypot(d.vx, d.vz);
+      // a man who has his feet set and his chest to the driver (he did not slide or backpedal into it) takes the charge; one who is
+      // moving or turned away is a block or nothing. Running into a set big is the mistake that gets whistled.
+      const setD = dv < 1.5 && d.stumbleT <= 0 && (Math.sin(d.h) * (h.x - d.x) + Math.cos(d.h) * (h.z - d.z)) > 0.25;
+      if (rng() > (setD ? 0.55 : 0.1)) return;
       if (hv > dv + 2 && d.stumbleT <= 0) { // charging: the defender had his spot
         stat(h.sq).pf++; stat(h.sq).to++; whistle('Charge!', 'Offensive foul on ' + shortName(h.sq.name), 'charge');
         ball.st = 'dead'; ball.holder = null;
@@ -7689,7 +7831,8 @@ gl_FragColor=vec4(c,1.0);}`;
       const h = hoopOf(p.side), d = rimDist(x, z, h), save = [p.x, p.z]; p.x = x; p.z = z;
       const c = contestOf(p, h); p.x = save[0]; p.z = save[1];
       const pts = isThree(x, z, h) ? 3 : 2;
-      return basePct(p, d, false) * (1 - 0.55 * c) * pts;
+      const over = Math.max(0, d - rangeOf(p)); // (a shot from past his range is worth little: the CPU stops chucking heaves)
+      return basePct(p, d, false) * (1 - 0.55 * c) * pts * (over > 0 ? Math.max(0.02, Math.exp(-over / 0.8)) : 1);
     }
     function openness(q) { let o = 9; for (const d of foes(q)) o = Math.min(o, D(d, q)); return o; }
     function laneOpen(p, h) { // nobody standing in the line between him and the rim
@@ -8165,7 +8308,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const kk = Math.min(1, dt / tau); p.tvx += (man.vx - p.tvx) * kk; p.tvz += (man.vz - p.tvz) * kk;
           tx = mx + ux * gap + p.tvx * 0.24; tz = mz + uz * gap + p.tvz * 0.24;
           if (man.post || man.pm) { tx = mx + ux * POST_R * 0.96; tz = mz + uz * POST_R * 0.96; p.lagT = 0; } // his back to him: chest to his back on the line to the rim, holding his ground
-          if (D(p, man) < 1.42 && hd === man && p.stealCd <= 0 && rng() < dt * (0.06 + rt(p, 'stl') * 0.0016 + (p.side ? DK : 0.3) * 0.08)) trySteal(p);
+          if (D(p, man) < 1.42 && hd === man && p.stealCd <= 0) { const E = ballExposure(man, p); if (E > 0.3 && rng() < dt * (0.06 + rt(p, 'stl') * 0.0016 + (p.side ? DK : 0.3) * 0.08) * (0.3 + 2.0 * E)) trySteal(p); } // (he reaches when the ball is out there, not at a protected one)
         }
         p.face2 = Math.atan2(mx - p.x, mz - p.z); p.dstance = D(p, man) < 2.6; p.dctx = man.post || man.pm ? 'post' : 'ball';
       } else {
@@ -8447,7 +8590,10 @@ gl_FragColor=vec4(c,1.0);}`;
       if (passToMe()) { bufAct(actShootDown); return false; } // the pass is on its way: catch and shoot
       // defense (or off the ball): jump to contest or block
       if (ctrl.jumpY > 0.02 || ctrl.land > 0) { bufAct(actShootDown); return false; }
+      // a jump at a pump fake: the shooter's ball goes up and comes back and you are in the air for nothing
+      for (const q of onCourt) if (q.side !== ctrl.side && D(q, ctrl) < 2.6 && ((q.shotS && q.shotS.pump != null) || tLive - (q.pumpT || -9) < 0.3)) { ctrl.biteUntil = tLive + 0.85; ctrl.biteBy = q; popAt(ctrl, 'FELL FOR THE FAKE', '#ff7a6a'); try { sfx.play('bad'); } catch (e) {} break; }
       const near = ball.holder && ball.holder.side !== 0 ? D(ctrl, ball.holder) : 9, flying = ball.st === 'air' && ball.shot;
+      if (flying && !ball.shot.ft && ball.shot.side !== ctrl.side && ball.shot.t > 0.22 && ball.shot.by && D(ctrl, ball.shot.by) < 3.2) popAt(ctrl, 'TOO LATE', '#ff7a6a'); // (the ball is already gone: jump at the release)
       setPose(ctrl, ball.st === 'loose' || (flying && ball.shot.t > 0.4) ? 'rebound' : near < 1.5 || flying ? 'block' : 'contest');
       ctrl.jumpV = 3.7 + rt(ctrl, 'vert') * 0.016; ctrl.jumpY = 0.001; ctrl.blkDone = false;
       return true;
@@ -8533,6 +8679,8 @@ gl_FragColor=vec4(c,1.0);}`;
         // the quarter ends: a shot already in the air still counts
         if (clock <= 0 && phase === 'live' && !(ball.st === 'air' && ball.shot && !ball.shot.ft) && !(ball.holder && ball.holder.fin)) { endQuarter(); }
         if (ball.shot) ball.shot.t += dt;
+        // a miss of yours says why, as it comes off the iron (or the air ball falls): early, late, contested, too far
+        { const S = ball.shot; if (S && S.will === 'out' && S.why && !S.whyShown && !S.ft && S.by && S.by.side === 0 && isUser(S.by) && (ball.touchRim || ball.touchBoard || (S.t > 0.35 && ball.y < 1.6 && ball.vy < 0))) { S.whyShown = true; try { popAt(S.by, 'MISSED: ' + S.why, '#ffb3a8'); } catch (e) {} } }
         // a fouled shot that misses: to the line for two (or three)
         if (pendFT && ball.shot && !ball.scored && ((ball.touchRim && ball.shot.will !== 'in') || ball.y < 1.3 || ball.st === 'loose')) { const f = pendFT; pendFT = null; ball.st = 'dead'; setDead(1.1, () => startFT(f.sh, f.pts)); }
         if (ctrl && isUser(ctrl)) userMove(ctrl, dt);
@@ -10134,32 +10282,41 @@ gl_FragColor=vec4(c,1.0);}`;
       clearTimeout(tickT); tickT = setTimeout(() => tick.classList.remove('on'), 3600);
     }
     // ---------- the shot meter: a bar beside your player; the green window, the marker; GREEN / EARLY / LATE when you let go ----------
-    const meterEl = el('div', 'dk-smeter hide', '<u></u><i></i><em></em>');
+    const meterEl = el('div', 'dk-smeter hide', '<u></u><i></i><em></em><b></b><s></s>');
     fx.appendChild(meterEl);
     let meterOn = false, meterHoldT = 0, meterLast = 0;
     function meterShow() { meterOn = true; meterHoldT = 0; meterEl.className = 'dk-smeter'; meterEl.querySelector('em').textContent = ''; }
     function meterHide() { meterOn = false; meterEl.className = 'dk-smeter hide'; }
-    const GRADE_TXT = { exc: 'EXCELLENT!', green: 'GREEN', early: 'EARLY', late: 'LATE', vearly: 'VERY EARLY', vlate: 'VERY LATE' };
-    function meterResult(grade, off, S) {
+    const GRADE_TXT = { exc: 'EXCELLENT!', green: 'GOOD', early: 'SLIGHTLY EARLY', late: 'SLIGHTLY LATE', vearly: 'EARLY', vlate: 'LATE' };
+    function meterResult(grade, off, S, cNow, why) {
       const em = meterEl.querySelector('em'), green = grade === 'exc' || grade === 'green';
       em.textContent = GRADE_TXT[grade] || ''; meterEl.classList.add(grade === 'exc' ? 'x' : green ? 'g' : 'r');
       if (grade === 'exc') { void meterEl.offsetWidth; try { popAt(ctrl, 'EXCELLENT!', '#9dffb8'); } catch (e) {} }
       meterHoldT = 0.8;
       if (green) try { sfx.play('good'); } catch (e) {}
     }
+    // 2K's read of who is on him, and how far out the shot is for this shooter (it sits over the bar while the shot is up)
+    function meterTag(S, c) {
+      const cov = c < 0.12 ? 'WIDE OPEN' : c < 0.36 ? 'OPEN' : c < 0.68 ? 'CONTESTED' : 'SMOTHERED', rng2 = S && S.over > 5 ? 'HEAVE' : S && S.over > 1.6 ? 'WAY DEEP' : S && S.over > 0 ? 'DEEP' : '';
+      return { cov, rng2, col: c < 0.12 ? '#9dffb8' : c < 0.36 ? '#d6f5a0' : c < 0.68 ? '#ffc21a' : '#ff6a5a' };
+    }
     function updMeter() {
       if (!meterOn) return;
-      const p = ctrl, S = p && (p.shotS || p.lastS);
-      if (p && p.shotS) p.lastS = p.shotS;
-      if (!p || (!p.shotS && meterHoldT <= 0)) { meterHide(); return; }
+      const p = ctrl, F = p && p.fin && p.fin.lm ? p.fin : null;
+      let S = p && (p.shotS || p.lastS), mval = p ? p.meter || 0 : 0;
+      if (F) { S = p.lastS = { gc: 0.8, w: 1.1, over: 0, c: contestOf(p, F.h) }; mval = Math.min(1, F.t / F.rel); } // (the layup's meter runs to the release at 1.0, its green is most of the bar)
+      else if (p && p.shotS) p.lastS = p.shotS;
+      if (!p || (!p.shotS && !F && meterHoldT <= 0)) { meterHide(); return; }
       const nowM = performance.now() / 1000, dtM = Math.min(0.1, nowM - (meterLast || nowM)); meterLast = nowM;
-      if (!p.shotS) meterHoldT -= dtM;
+      if (!p.shotS && !F) meterHoldT -= dtM;
       const s = project(p.x, 1.6 * p.lk.hs + p.jumpY, p.z);
       if (s) { meterEl.style.left = (s[0] + 34).toFixed(1) + 'px'; meterEl.style.top = s[1].toFixed(1) + 'px'; }
       if (S) {
         const u = meterEl.querySelector('u'), i = meterEl.querySelector('i');
-        u.style.bottom = ((S.gc - S.w / 2) * 100 / METER_MAX).toFixed(1) + '%'; u.style.height = (S.w * 100 / METER_MAX).toFixed(1) + '%';
-        i.style.height = (Math.min(METER_MAX, p.meter || 0) * 100 / METER_MAX).toFixed(1) + '%';
+        // the green sits at its TRUE size (a layup's is fat, a deep three's thin, a heave's a hairline), never less than 2px so it is seen
+        u.style.bottom = ((S.gc - S.w / 2) * 100 / METER_MAX).toFixed(2) + '%'; u.style.height = 'max(2px,' + (S.w * 100 / METER_MAX).toFixed(2) + '%)';
+        if (p.shotS || F) { const t = meterTag(S, F ? S.c : Math.max(S.c, contestOf(p, S.h) * (S.sep ? 0.7 : 1))), bb = meterEl.querySelector('b'); bb.textContent = t.cov + (t.rng2 ? ' · ' + t.rng2 : ''); bb.style.color = t.col; meterEl.querySelector('s').style.height = ''; }
+        i.style.height = (Math.min(METER_MAX, mval) * 100 / METER_MAX).toFixed(1) + '%';
       }
     }
     // ---------- controls ----------
@@ -10535,7 +10692,7 @@ gl_FragColor=vec4(c,1.0);}`;
       stick(x, z) { input.stick = x == null ? null : [x, z]; },
       setQuality(q) { setQuality(q); showQuality(); },
       // shoot now with your man (or anyone): release at meter value m (default: the middle of the green)
-      forceShot(m, who) { const p = who != null ? onCourt[who] : ctrl; if (!p) return false; if (ball.holder !== p) { giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); } phase = 'live'; clockRun = true; if (!startShot(p)) return false; if (p.shotS) p.cpuRel = m != null ? m : p.shotS.gc; return true; },
+      forceShot(m, who) { const p = who != null ? onCourt[who] : ctrl; if (!p) return false; if (ball.holder !== p) { giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); } phase = 'live'; clockRun = true; forceHeave = true; const okS = startShot(p); forceHeave = false; if (!okS) return false; if (p.shotS) p.cpuRel = m != null ? m : p.shotS.gc; return true; },
       callPlay(k) { const O = OS(teams[poss]); if (k === 'pin') { if (!ball.holder || ball.holder.side !== poss) return false; O.dsT = 0; O.ds = null; return tryDownScreen(teams[poss], ball.holder, hoopOf(poss)); } if (k === 'screen') { O.scrT = 0; return callScreen(poss); } return false; }, // (tests: run a CPU play now)
       giveTo(i) { const p = onCourt[i]; if (!p) return; giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); else if (p.side === 0) setCtrl(p); phase = 'live'; clockRun = true; },
       move(i) { return doMove(onCourt[i] || ctrl); }, postMove(k, side) { return postMoveStart(ctrl, k, side || 0); }, steal(i) { return trySteal(onCourt[i] || ctrl); },

@@ -1018,6 +1018,19 @@ const UPDATES = [
       'Basketball overalls were showing too low for the ratings behind them. They now sit a few points above the plain average, more for the best players, so the top players read in the mid 90s.',
       'No rating was changed. Only the overall number moved.',
     ],
+  },  {
+    n: 96,
+    date: '2026-11-16',
+    title: '3D Dunk pays coins',
+    items: [
+      '3D Dunk is out of practice. Play it for coins at six levels, Rookie to GOAT: 250 for a Rookie win up to 3,500 at GOAT.',
+      'Risk mode works in 3D Dunk: put up the prize and win 3× to 7× back.',
+      'Double or Nothing and Double or Double are in 3D Dunk too. Win, then cash out or play one more for more.',
+      'Coin games are 4 quarters of 2 minutes, and a tie goes to overtime. Practice is still free, with any quarter length.',
+      'New shooting: the green window is smaller the farther out you are, and smaller again with a hand in your face, on the move or when tired. A half-court heave is no longer a layup.',
+      'Defense counts more: a hand up at the right moment hurts the shot, a pump fake only fools a defender who is flying at you, and the game tells you if a look was open or contested.',
+      'More 3D Dunk gameplay updates are on the way.',
+    ],
   },
 ];
 
