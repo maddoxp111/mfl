@@ -1047,6 +1047,20 @@ const UPDATES = [
       'The computer team takes fewer threes in 3D Dunk and makes fewer of them. At the top levels it was hitting almost half. Now it is closer to a third.',
     ],
   },
+  {
+    n: 99,
+    date: '2026-11-16',
+    title: '3D Dunk: a bigger bench, a new gym, fewer whistles',
+    items: [
+      'Your Dunk lineup can carry a 7th and an 8th man. They are optional: the first six are still all you need. Any bench player can go in for anyone at a timeout or a break, and a worn-out starter is swapped automatically (you can turn that off on the sub screen).',
+      'On your throw-in you now control the player getting the ball, so you can move to get open. Press pass and the ball comes to you.',
+      'The computer waits for players to get set before it throws the ball in.',
+      'Players no longer run the ball up the court facing backwards, and your stick no longer sends you the wrong way for a moment after a steal or a rebound.',
+      'Far fewer fouls are called, about a quarter of what it was.',
+      'Fixed: a foul could be called without the game stopping or free throws being shot. Every foul now ends in free throws or the ball out of bounds, and a fouled three gets three shots.',
+      'Wildcat Gym was redone from photos of the real one: gold floor, tan and cream walls with the red band, white doors, volleyball lines, the paw sign and the clock.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

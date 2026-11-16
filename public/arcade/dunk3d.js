@@ -221,6 +221,7 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-squad{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .dk-squad div{display:flex;flex-direction:column;align-items:center;gap:4px;font:800 12px 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;color:#c9ccd4;max-width:70px}
 .dk-squad .dk-face{width:44px;height:44px;box-shadow:0 0 0 2px #ffc21a}
+.dk-squad.n8{gap:7px}.dk-squad.n8 div{max-width:58px}.dk-squad.n8 .dk-face{width:38px;height:38px}
 .dk-squad em{font-style:normal;color:#6f7584;font-size:10px}
 .dk-how{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-width:440px;text-align:left}
 .dk-how li{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;line-height:1.4;color:#c9ccd4}
@@ -283,13 +284,18 @@ html.dk-lock,html.dk-lock body{overflow:hidden!important;overscroll-behavior:non
 .dk-sbp .hd{display:flex;align-items:center;gap:7px;min-width:0}.dk-sbp .hd s{flex:none;width:38px;height:38px;border-radius:50%;background-size:cover;background-position:center 18%;border:2px solid #f5f6f8;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font:800 13px 'Barlow Condensed',sans-serif}
 .dk-sbp .hd div{display:flex;flex-direction:column;min-width:0;flex:1}.dk-sbp .hd b{font:800 14px/1.05 'Barlow Condensed',Inter,sans-serif;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dk-sbp .hd small{font:600 10px Inter,sans-serif;color:#9aa0ad}
 .dk-sbp .ov{flex:none;display:flex;flex-direction:column;align-items:center;margin-right:16px;font:900 22px/1 'Barlow Condensed',Inter,sans-serif;color:#ffc21a}.dk-sbp .ov small{font:700 8px Inter,sans-serif;letter-spacing:.8px;color:#9aa0ad}
-.dk-sbp .rt{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}.dk-sbp .rt span{display:flex;justify-content:space-between;font:700 10px Inter,sans-serif;color:#9aa0ad;letter-spacing:.3px}.dk-sbp .rt b{color:#f5f6f8}.dk-sbp .rt b.hi{color:#2bd46b}
+.dk-sbp .rt{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}.dk-sbp .rt span{white-space:nowrap;display:flex;justify-content:space-between;font:700 10px Inter,sans-serif;color:#9aa0ad;letter-spacing:.3px}.dk-sbp .rt b{color:#f5f6f8}.dk-sbp .rt b.hi{color:#2bd46b}
 .dk-sbp .sb{display:flex;align-items:center;gap:6px}.dk-sbp .sb em{font:700 9px Inter,sans-serif;font-style:normal;color:#9aa0ad;letter-spacing:.5px}.dk-sbp .sb u{flex:1;height:7px;border-radius:4px;background:#262b38;overflow:hidden;text-decoration:none}.dk-sbp .sb u i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#2bd46b,#8be04e)}
 .dk-sbp .sb u.mid i{background:linear-gradient(90deg,#ffb020,#ffc21a)}.dk-sbp .sb u.low i{background:#ff3344}.dk-sbp .sb b{min-width:22px;text-align:right;font:800 11px Inter,sans-serif}
 .dk-sbp .gs{font:600 10px Inter,sans-serif;color:#9aa0ad;border-top:1px solid #262b38;padding-top:4px;display:flex;justify-content:space-between;gap:4px}.dk-sbp .gs b{color:#f5f6f8}
 .dk-sbp .out{position:absolute;inset:0;border-radius:10px;display:none}
 .dk-sbf{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:9px}
-.dk-sbf .dk-resume{min-width:210px}.dk-sbf em{font:700 12px Inter,sans-serif;font-style:normal;color:#9aa0ad}
+.dk-sbf .dk-resume{min-width:210px}.dk-sba{font:800 12px 'Barlow Condensed',Inter,sans-serif;letter-spacing:.8px;text-transform:uppercase;padding:9px 12px;border-radius:9px;border:2px solid #3a4152;background:#161922;color:#9aa0ad;cursor:pointer}.dk-sba.on{border-color:#2bd46b;color:#2bd46b;background:#102017}
+.dk-box td.dnp{color:#6f7584;font-style:italic;text-align:left}
+.dk-sbp .hd small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dk-sbp .ovx{display:none}
+.dk-subs.cmp .dk-sbp .ov{display:none}.dk-subs.cmp .dk-sbp .ovx{display:flex;grid-column:1/-1;font-size:11px}.dk-subs.cmp .dk-sbp .k{right:auto;left:-7px;top:-7px;background:#ffc21a;color:#14161d;border-radius:50%;min-width:20px;height:20px;line-height:20px;z-index:1}.dk-subs.cmp .dk-sbp.bench .k{background:#2bd46b}
+.dk-subs.cmp .dk-sbg{gap:6px}.dk-subs.cmp .dk-sbw{gap:10px}
+.dk-sbf em{font:700 12px Inter,sans-serif;font-style:normal;color:#9aa0ad}
 @media (max-width:640px) and (orientation:portrait){.dk-sbw{flex-direction:column;gap:18px}.dk-sbg{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.dk-sbg.bn{border-left:0;padding-left:0;border-top:2px dashed #2f3544;padding-top:6px}.dk-sbg.bn::before,.dk-sbg.fl::before{display:none}.dk-subs{max-height:78%}}
 @media (max-height:480px){.dk-subs{padding-top:22px;padding-bottom:6px}.dk-sbt h3{font-size:18px}.dk-sbh{display:none}.dk-sbp{padding:5px 6px 4px;gap:3px;border-radius:9px}.dk-sbp .hd s{width:28px;height:28px}.dk-sbp .hd b{font-size:12px}.dk-sbp .ov{font-size:17px;margin-right:0}.dk-sbp .ov small{display:none}.dk-sbp .rt{gap:0 5px}.dk-sbp .rt span{font-size:9px}.dk-sbp .k{display:none}.dk-sbp .gs{display:none}.dk-sbf{margin-top:5px}.dk-sbg{gap:5px}.dk-sbg.bn{padding-left:7px}.dk-sbw{gap:7px}.dk-sbg.bn::before,.dk-sbg.fl::before{display:none}}
 .dk-stb{display:block;margin:3px auto 0;width:44px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}.dk-stb i{display:block;height:100%;width:100%;background:#2bd46b;font-style:normal}.dk-stb.mid i{background:#ffc21a}.dk-stb.low i{background:#ff3344}
@@ -739,9 +745,9 @@ if(uKind>2.5&&uKind<3.5){
   float fz=0.006,fx=0.006;
 #endif
   float vk=1.0-0.75*smoothstep(0.25,0.9,fz/BW); // boards under a pixel tall: calm the per-board tones (no shimmer far away)
-  vec3 wood=vec3(0.88,0.675,0.44)*(1.0+(h1-0.5)*0.13*vk);
-  wood=mix(wood,vec3(0.8,0.56,0.33),step(0.9,h2)*0.45*vk);
-  wood=mix(wood,vec3(0.93,0.77,0.54),step(h2,0.09)*0.45*vk);
+  vec3 wood=vec3(0.82,0.56,0.27)*(1.0+(h1-0.5)*0.13*vk); // honey gold, deeper and warmer than raw maple (the owner's photos)
+  wood=mix(wood,vec3(0.72,0.46,0.21),step(0.9,h2)*0.45*vk);
+  wood=mix(wood,vec3(0.9,0.68,0.38),step(h2,0.09)*0.45*vk);
   wood*=1.0+g*0.2;
   float dz=min(fract(zb),1.0-fract(zb))*BW,dx=min(fract(sx),1.0-fract(sx))*L;
   float seam=max(flCov(dz,0.0011,fz),flCov(dx,0.0016,fx));
@@ -3419,7 +3425,7 @@ gl_FragColor=vec4(c,1.0);}`;
     const normTeam = (t, dn) => {
       t = t || {};
       return { name: String(t.name || dn).slice(0, 28), abbr: String(t.abbr || String(t.name || dn).replace(/[^A-Za-z]/g, '').slice(0, 3) || 'CPU').toUpperCase().slice(0, 4),
-        color: hex(t.color), color2: hex(t.color2), mine: !!t.mine, ovr: clamp(+t.ovr || 0, 0, 99), players: Array.isArray(t.players) ? t.players.filter((p) => p && p.name).slice(0, 6) : [] };
+        color: hex(t.color), color2: hex(t.color2), mine: !!t.mine, ovr: clamp(+t.ovr || 0, 0, 99), players: Array.isArray(t.players) ? t.players.filter((p) => p && p.name).slice(0, 8) : [] };
     };
     const HOME = normTeam(opts.home, 'Home'), AWAY = normTeam(opts.away, 'Visitors');
     const TEAM = HOME.color || hex('#c8102e');
@@ -3458,19 +3464,21 @@ gl_FragColor=vec4(c,1.0);}`;
     };
     const numOf = (q) => { const s = String(q.num != null ? q.num : q.number != null ? q.number : '').trim(); return /^\d{1,2}$/.test(s) ? +s : null; };
     const fxOf = (q) => (q && q.fx && typeof q.fx === 'object' ? { variant: String(q.fx.variant || ''), set: q.fx.set ? String(q.fx.set) : null, par: q.fx.par ? String(q.fx.par) : null, rarity: String(q.fx.rarity || 'common'), spec: q.fx.spec ? String(q.fx.spec) : null, perk: null, perkLv: 0 } : null);
-    const GENN = [['Guard', 3], ['Shooter', 11], ['Wing', 23], ['Forward', 32], ['Center', 50], ['Sixth', 6]];
-    // a team's six: five starters (PG SG SF PF C) and the sixth man; idx0 offsets the photo cells
+    const GENN = [['Guard', 3], ['Shooter', 11], ['Wing', 23], ['Forward', 32], ['Center', 50], ['Sixth', 6], ['Seventh', 7], ['Eighth', 8]];
+    const BENCH_TAG = ['6th', '7th', '8th'];
+    // a team's squad: five starters (PG SG SF PF C) and up to three bench men (the 6th, 7th and 8th man, in that order). The site sends
+    // 5 to 8 players; none at all (a CPU team without a roster) gives six generic ones. idx = side * 8 + slot is the photo cell.
     function mkSquad(T, side) {
-      const L = [];
+      const L = [], N = T.players.length ? clamp(T.players.length, 5, 8) : 6;
       const base = clamp(T.ovr || (side ? 58 + LEVEL * 6 : 66), 35, 95);
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < N; i++) {
         const q = T.players[i] || null, g = GENN[i];
         const bb = {}; for (const k of BBK) bb[k] = rat(q, k, base + (k === 'ovr' ? 0 : ((i * 7 + k.length * 3) % 9) - 4));
         const pos = q && POSS.indexOf(String(q.pos || '').toUpperCase()) >= 0 ? String(q.pos).toUpperCase() : POSS[Math.min(i, 4)];
         const num = q && numOf(q) != null ? numOf(q) : g[1] + side * 10;
-        const hgt = q && +q.hgt > 40 ? clamp(+q.hgt, 54, 80) : [63, 64, 66, 68, 70, 65][i];
-        L.push({ key: (side ? 'a' : 'h') + i, side, idx: side * 6 + i, slot: i, name: q ? String(q.name) : (side ? AWAY.abbr : HOME.abbr) + ' ' + g[0], pid: q ? String(q.id != null ? q.id : q.name) : null,
-          num, photo: q ? safeUrl(q.photo) : null, look: normLook(q && q.look, (i * 2 + side) % 5, { hgt }), cell: -1, fx: fxOf(q), pos, hgt, wgt: q && +q.wgt > 0 ? clamp(+q.wgt, 80, 280) : 0, bb, sixth: i === 5, card: q && q.card ? q.card : null });
+        const hgt = q && +q.hgt > 40 ? clamp(+q.hgt, 54, 80) : [63, 64, 66, 68, 70, 65, 66, 67][i];
+        L.push({ key: (side ? 'a' : 'h') + i, side, idx: side * 8 + i, slot: i, name: q ? String(q.name) : (side ? AWAY.abbr : HOME.abbr) + ' ' + g[0], pid: q ? String(q.id != null ? q.id : q.name) : null,
+          num, photo: q ? safeUrl(q.photo) : null, look: normLook(q && q.look, (i * 2 + side) % 5, { hgt }), cell: -1, fx: fxOf(q), pos, hgt, wgt: q && +q.wgt > 0 ? clamp(+q.wgt, 80, 280) : 0, bb, sixth: i === 5, bench: i >= 5, bn: i - 5, tag: i >= 5 ? BENCH_TAG[i - 5] : null, card: q && q.card ? q.card : null });
       }
       return L;
     }
@@ -3559,7 +3567,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // the gym's light rig (indoors: a soft key from the roof lights for the shadows, four high-bay banks as point lights, warm bounce
     // off the maple; 12-gym.js adds eight more high-bays as diffuse pools). Linear HDR values, engine units (yards).
-    const SKY = { top: [0.16, 0.16, 0.17], hor: [0.12, 0.115, 0.11], fog: [0.2, 0.19, 0.18], fogR: [40, 160, 0.25], amb: [0.42, 0.4, 0.37], gnd: [0.36, 0.26, 0.16], sun: [1.55, 1.5, 1.42], L: [0.22, 0.93, 0.3], night: 0, cloud: 0, glow: 0.4, tower: 1, exp: 0.78, soft: 1.2, env: 0.9 };
+    const SKY = { top: [0.16, 0.16, 0.17], hor: [0.12, 0.115, 0.11], fog: [0.2, 0.19, 0.18], fogR: [40, 160, 0.25], amb: [0.44, 0.4, 0.34], gnd: [0.36, 0.26, 0.16], sun: [1.58, 1.48, 1.3], L: [0.22, 0.93, 0.3], night: 0, cloud: 0, glow: 0.4, tower: 1, exp: 0.78, soft: 1.2, env: 0.9 };
     const LDIR = v3n(SKY.L);
     const TOWERS = [[-7, 8.4, -3.6], [7, 8.4, -3.6], [-7, 8.4, 3.6], [7, 8.4, 3.6]];
     const LPOS = TOWERS.map((t) => [t[0], t[1], t[2], 240]);
@@ -3803,15 +3811,15 @@ gl_FragColor=vec4(c,1.0);}`;
       G.env = tex; G.texs.push(tex);
     }
 
-    // ---------- atlas (1024 x 2048): player photos (12 x 256px cells, rows 0-2), name plates (16 x 256x64 cells at y 768),
-    // numbers and generic faces (64 x 128px cells from y 1024) ----------
-    const AH = 2048, NAMEY = 768, SMALLY = 1024, NAMEY2 = 2816; // head to head: the opponent's photo cells at 32+ (y 2048) and 16 more name plates at y 2816
+    // ---------- atlas (1024 x 2048): player photos (16 x 256px cells, rows 0-3: two squads of up to 8), name plates (16 x 256x64 cells
+    // at y 1024), numbers and generic faces (48 x 128px cells from y 1280) ----------
+    const AH = 2048, NAMEY = 1024, SMALLY = 1280, NAMEY2 = 2816; // (name plates past 16 do not exist: nameCell refuses)
     const atlas = document.createElement('canvas'); atlas.width = 1024; atlas.height = AH;
     const ag = atlas.getContext('2d');
     let atlasDirty = true;
     const numMap = {};
     let numN = 0;
-    function smallCell() { if (numN >= 64) return -1; const k = numN++; return k; }
+    function smallCell() { if (numN >= 48) return -1; const k = numN++; return k; }
     function numCell(n) {
       const key = 'n' + n;
       if (numMap[key] != null) return numMap[key];
@@ -3978,7 +3986,7 @@ gl_FragColor=vec4(c,1.0);}`;
       ccR: 6 * F2Y,                         // centre circle radius
       three: (19 * 12 + 9) * IN2Y,          // 3-point arc radius from the rim centre (6.583)
       boxX: 28 * F2Y,                       // coaching box line, 28 ft from the baseline
-      oobBand: 1.0,                         // the black out-of-bounds band (gym paint), yards past the lines
+      oobBand: 1.15,                         // the black out-of-bounds band (gym paint), yards past the lines
       // the painted markings (NFHS court diagram): every line 2 in wide; lane-space marks 2 in x 6 in off the lane line, the
       // neutral-zone block 12 in x 8 in at 7 ft from the end line, then three 36 in spaces; the 3-point line runs straight from the
       // end line, parallel to the sideline, out to the rim's x (5 ft 3 in) and then arcs at 19 ft 9 in (to the line's outside edge)
@@ -4223,27 +4231,27 @@ gl_FragColor=vec4(c,1.0);}`;
     const GYM = {
       x0: -17.2, x1: 17.2, z0: -12.75, z1: 20.65,         // inside faces of the walls (-z far wall, +z wall behind the bleachers): benches + table + a walkway on -z
       truss: 8.4, deck: 10.2,                             // bottom chord of the trusses, roof deck
-      band: [2.56, 2.86], pin: [2.44, 2.475],             // the ONE red band round the room at door-top height (~2.35-2.6 m) and the thin red pinstripe under it; cream block floor to roof
+      band: [2.56, 3.0], pin: [2.42, 2.47],             // the ONE red band round the room at door-top height (~2.35-2.6 m) and the thin red pinstripe under it; cream block floor to roof
       base: 0.2,                                           // the short dark base along the walls by the stands
       bs: BS,
       bl: { z: COURT.HW + 4.6, rows: 10, rise: 10 * IN2Y, tread: 24 * IN2Y, banks: [[-14.3, -0.9], [0.9, 14.3]], aisleW: 1.1, alu: 3 }, // bleachers (alu: front rows with aluminium seat planks)
       div: { x: 0.85, pleat: 0.3, depth: 0.2, face: '#a2a5a9', side: '#7d8085' }, // the folded divider: a grey pleated stack between the banks, front row to the back wall
       doors: { stands: COURT.HW + 4.6 + 1.5, standsW: 2.0, wood: { end: -1, z: -6.4, w: 2.3 }, endSteel: { end: 1, z: -8.6 } }, // steel doors to the left and right of the stands (in both end walls, beside each end of the bleachers; stands: their z); a wood double door on a baseline wall near the bench-side corner; a steel door on the other baseline wall
       rec: { end: -1, z: 3.2, y: 4.3, w: 5.0, h: 2.7, flag: { z: -2.7, y: 4.6, w: 3.4, h: 1.8 } }, // the red-and-white record board and a flag high on that baseline wall (end -1 = the -x wall, which shows on the right from the stands: the renderer mirrors x)
-      prac: [{ wall: 'z1', x: -8.5, y: 4.9 }, { wall: 'z1', x: 8.5, y: 4.9 }, { wall: 'end', end: -1, z: 9.7, y: 4.1 }], // small white side-court practice backboards
+      prac: [{ wall: 'z1', x: -8.5, y: 4.8 }, { wall: 'z1', x: 8.5, y: 4.8 }, { wall: 'end', end: -1, z: 9.7, y: 3.25 }], // small white side-court practice backboards
       deckC: '#d9ccae', speakers: [[-10, -3.2], [10, -3.2], [-10, 6.2], [10, 6.2], [0, -8.4], [0, 13.5]], hvac: [[-12.5, 0], [-2.5, -5], [7.5, 0], [-7.5, 9.6], [2.5, 4.6], [12.5, -7.5], [12.5, 13]], // ceiling: tan deck, hanging black speakers, round grey diffusers
       bench: { z: BS * (COURT.HW + 2.15), face: -BS, home: [-8.82, -3.3], away: [3.3, 8.82], n: 12 }, // folding chairs side by side, frames all but touching (0.46 yd centre to centre, ~1 cm gap), facing the court (face: +1 = toward +z)
       near: { xs: [[10.3, 16.0], [-16.0, -10.3]], z: BS * (COURT.HW + 1.75), rows: 2, tread: 0.62, rise: 0.3, open: [10.2, 13.6] }, // (open: an empty stretch of the front row) // low aluminium plank seating for fans at the corners of the bench sideline (the owner's third photo is taken from it)
       table: { x: 0, z: BS * (COURT.HW + 1.7), len: 5.4, dep: 0.85, h: 0.83 },   // the scorer's table (its screen faces the court)
       board: { x: 6.5, y: 5.6, w: 5.4, h: 2.0 },           // the scoreboard on the far wall (upper left from the stands: the renderer mirrors x)
       flag: { x: -6.2, y: 5.4, w: 4.0, h: 2.1 },           // the flag on the far wall (upper right)
-      lineC: '#16110d', red: '#b3121f', redD: '#7e0b15', cream: '#ebe4d2', maple: '#d6a565',
+      lineC: '#16110d', red: '#b3121f', redD: '#7e0b15', cream: '#f3e9d0', tan: '#dccaa0', maple: '#d6a565',
     };
-    const MAPLE = hx3('#ffffff'), CREAM = hx3(GYM.cream), REDC = hx3(GYM.red), REDD = hx3(GYM.redD), BLK = hx3('#121315'), STEELW = hx3('#e4e4df'), GREY = hx3('#55585e'), DGREY = hx3('#2f3135');
+    const MAPLE = hx3('#ffffff'), CREAM = hx3(GYM.cream), TAN = hx3(GYM.tan), REDC = hx3(GYM.red), REDD = hx3(GYM.redD), BLK = hx3('#121315'), STEELW = hx3('#e4e4df'), GREY = hx3('#55585e'), DGREY = hx3('#2f3135');
     // the gym's light: eight of the dome high-bays as diffuse pools in every lit shader (no shadows), the rest visual only
     const LAMPC = [1.0, 0.95, 0.86];
     // the round dome high-bays hang on this grid (the floor shader mirrors them in the clear coat); k = their brightness in the floor
-    const LAMPG = { x0: -12.5, dx: 5, nx: 6, z0: -7.5, dz: 4.6, nz: 5, y: 7.4, k: 1.0 };
+    const LAMPG = { x0: -12.5, dx: 5, nx: 6, z0: -7.5, dz: 4.6, nz: 5, y: 7.4, k: 1.4 };
     const SKX = { on: false, pools: new Float32Array(32), poolK: 6, snow: null, wet: 0 };
     { let i = 0; for (const x of [-10.5, -3.5, 3.5, 10.5]) for (const z of [-4.5, 4.5]) { SKX.pools.set([x, 7.6, z, 22], i * 4); i++; } }
     function skyShader(src) {
@@ -4280,7 +4288,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // (premultiplied alpha over the maple): the black out-of-bounds band and its red edge, the red lanes and centre circle, the paw,
     // every 2 in line of the high school court and the lettering. It is drawn in yards (one transform), 4096 x 2048 where the
     // device allows it. The renderer mirrors x on screen (see updateCam), so text and the paw are drawn flipped in x.
-    const MK = { x0: -16.4, x1: 16.4, z0: -10.25, z1: 12.85 }; // (the lettering's run-off is on the bleachers' side)
+    const MK = { x0: -16.9, x1: 16.9, z0: -10.25, z1: 12.85 }; // (the lettering's run-off is on the bleachers' side)
     const MIRX = -1;
     // athletic block letters, drawn as thick square-capped strokes on a 10-unit cap height (canvas y down), chamfered corners
     const BLK_A = 1.3, BLK_C = 1.7, BLK_W = 2.6;
@@ -4302,18 +4310,27 @@ gl_FragColor=vec4(c,1.0);}`;
       def('A', 7.4, [[[a, b], [a, t + c], [a + c, t], [7.4 - a - c, t], [7.4 - a, t + c], [7.4 - a, b]], [[a, 5.7], [7.4 - a, 5.7]]]);
       def('W', 9.4, [[[a, t], [a, b], [9.4 - a, b], [9.4 - a, t]], [[4.7, 4.3], [4.7, b]]]);
       def('M', 9.4, [[[a, b], [a, t], [9.4 - a, t], [9.4 - a, b]], [[4.7, t], [4.7, 5.7]]]);
+      // lowercase (x-height 4.2 from the baseline) for the floor's mixed-case "Wildcats"
+      const xh = 4.3, sw = 7.4;
+      def('i', 2.6, [[[a, xh], [a, b]], [[a, t], [a, t + 0.05]]]);
+      def('l', 2.6, [[[a, t], [a, b]]]);
+      def('d', sw, [[[sw - a, t], [sw - a, b]], [[sw - a, xh], [a + c, xh], [a, xh + c], [a, b - c], [a + c, b], [sw - a, b]]]);
+      def('c', 6.2, [[[6.2 - a, xh + 0.1], [6.2 - a, xh], [a + c, xh], [a, xh + c], [a, b - c], [a + c, b], [6.2 - a, b], [6.2 - a, b - 0.1]]]);
+      def('a', sw, [[[sw - a, xh], [sw - a, b]], [[sw - a, xh], [a + c, xh], [a, xh + c], [a, b - c], [a + c, b], [sw - a, b]]]);
+      def('t', 5, [[[a + 0.2, t + 1.2], [a + 0.2, b - 0.6], [a + 1.0, b], [5 - a, b]], [[a - 0.6, xh], [5 - a + 0.4, xh]]]);
+      def('s', 6, [[[6 - a, xh], [a + c, xh], [a, xh + c * 0.8], [a + 0.4, xh + 2.0], [6 - a - 0.4, xh + 2.2], [6 - a, b - c * 0.8], [6 - a - c, b], [a, b]]]);
       def(' ', 3.2, []);
       void box; return F;
     })();
     // draw a word of block letters centred at the current origin, cap height 1 (caller scales); passes: outline, fill, highlight
-    function blockWord(g, s, fill, outline, olw, track, slant) {
+    function blockWord(g, s, fill, outline, olw, track, slant, sw0) {
       const tr = track == null ? 1.0 : track; let W = -tr; for (const ch of s) W += (BLOCKF[ch] || BLOCKF[' ']).w + tr;
       g.save(); g.scale(0.1, 0.1); g.transform(1, 0, -(slant || 0), 1, 0, 0); g.translate(-W / 2 + (slant || 0) * 5, -5);
       g.lineJoin = 'miter'; g.miterLimit = 6; g.lineCap = 'square';
       const path = () => { g.beginPath(); let x = 0; for (const ch of s) { const G2 = BLOCKF[ch] || BLOCKF[' ']; for (const st of G2.s) { g.moveTo(x + st[0][0], st[0][1]); for (let i = 1; i < st.length; i++) g.lineTo(x + st[i][0], st[i][1]); } x += G2.w + tr; } };
       path();
-      if (outline) { g.strokeStyle = outline; g.lineWidth = BLK_W + 2 * olw; g.stroke(); }
-      g.strokeStyle = fill; g.lineWidth = BLK_W; g.stroke();
+      if (outline) { g.strokeStyle = outline; g.lineWidth = (sw0 || BLK_W) + 2 * olw; g.stroke(); }
+      g.strokeStyle = fill; g.lineWidth = sw0 || BLK_W; g.stroke();
       g.restore(); return W / 10;
     }
     function gymFloorCanvas(big) {
@@ -4328,12 +4345,16 @@ gl_FragColor=vec4(c,1.0);}`;
       const seg = (x0, z0, x1, z1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, z0); g.lineTo(x1, z1); g.stroke(); };
       // a word / paw in world yards: centre (x, z), the letters' tops toward (ux, uz), cap height h
       const place = (x, z, ux, uz, h, fn) => { g.save(); g.translate(x, z); g.rotate(Math.atan2(ux, -uz)); g.scale(MIRX * h, h); fn(); g.restore(); };
-      const word = (s, x, z, ux, uz, h, fill, outline, olw, slant, track) => place(x, z, ux, uz, h, () => blockWord(g, s, fill, outline, olw, track, slant));
+      const word = (s, x, z, ux, uz, h, fill, outline, olw, slant, track, sw) => place(x, z, ux, uz, h, () => blockWord(g, s, fill, outline, olw, track, slant, sw));
       const paw = (x, z, ux, uz, s, col, edge, ew) => { g.save(); g.translate(x, z); g.rotate(Math.atan2(uz, ux)); g.scale(s, s); g.translate(-0.157, 0); // (the paw is symmetric: no mirror needed)
         if (edge) { g.strokeStyle = edge; g.lineWidth = ew / s; g.lineJoin = 'round'; pawPath(g); g.stroke(); } g.fillStyle = col; pawPath(g); g.fill(); g.restore(); };
       // ---- the black out-of-bounds band (its inner edge is the boundary line) and its red edge ----
       ring(-HL, -HW, HL, HW, band, '#0f0f10');
       ring(-HL - band, -HW - band, HL + band, HW + band, C.bandEdge, RED);
+      // ---- the volleyball court of the photos: thin pale lines across the maple (20 x 10 yd, attack lines 10 ft from the net), under the red paint and the black lines ----
+      { const VC = 'rgba(246,242,226,0.78)', vx = 10, vz = 5, vw = lw * 0.9, ax = 10 * F2Y;
+        rect(-vx, -vz - vw / 2, vx, -vz + vw / 2, VC); rect(-vx, vz - vw / 2, vx, vz + vw / 2, VC);
+        for (const x of [-vx, vx, -ax, ax]) rect(x - vw / 2, -vz, x + vw / 2, vz, VC); }
       // ---- red paint: the lanes and the centre circle ----
       const ftE = 19 * F2Y;                           // the free-throw line's far edge, from the end line (15 ft from the board face)
       for (const d of [-1, 1]) rect(d * HL, -C.keyW / 2, d * (HL - ftE), C.keyW / 2, RED);
@@ -4372,7 +4393,7 @@ gl_FragColor=vec4(c,1.0);}`;
       // the stands; METCALF in the band in front of the scorer's table; everything's tops toward the far wall
       const ls = -GYM.bs, zr = ls * (HW + band + C.bandEdge), runoff = Math.min(GYM.bl.z - 0.05, MK.z1 - 0.1) - Math.abs(zr);
       const hW = Math.min(1.9, runoff - 0.7);
-      word('WILDCATS', 0, zr + ls * (0.28 + hW / 2), 0, -1, hW, RED, LINE, 0.5, 0.16, 0.95);
+      word('Wildcats', 0, zr + ls * (0.28 + hW / 2), 0, -1, hW, RED, LINE, 0.4, 0.3, 0.7, 2.2); // the owner's photo: a big red mixed-case script across the floor
       for (const s of [-1, 1]) paw(s * 9.4, zr - 0.14 - hW / 2, 0, -1, 0.8, RED, LINE, 0.08);
       word('METCALF', 0, GYM.bs * (HW + band / 2), 0, -1, 0.56, WHITE, null, 0, 0.12, 1.3);
       for (const s of [-1, 1]) paw(s * 10.5, ls * (HW + band / 2), 0, -1, 0.36, WHITE);
@@ -4410,13 +4431,13 @@ gl_FragColor=vec4(c,1.0);}`;
       const N = 256, c = mkCv(N, N), g = c.getContext('2d'), r = mrng(77);
       g.fillStyle = '#f1efe9'; g.fillRect(0, 0, N, N);
       const bw = N / 2, bh = N / 4;
-      for (let row = 0; row < 4; row++) { const off = row % 2 ? bw / 2 : 0, y = row * bh; g.fillStyle = '#cbc5b8'; g.fillRect(0, y, N, 3); g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(0, y + 3, N, 1);
-        for (let k = -1; k < 3; k++) { const x = off + k * bw; g.fillStyle = '#cbc5b8'; g.fillRect(x, y, 3, bh); } }
+      for (let row = 0; row < 4; row++) { const off = row % 2 ? bw / 2 : 0, y = row * bh; g.fillStyle = '#d6cfbf'; g.fillRect(0, y, N, 3); g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(0, y + 3, N, 1);
+        for (let k = -1; k < 3; k++) { const x = off + k * bw; g.fillStyle = '#d6cfbf'; g.fillRect(x, y, 3, bh); } }
       g.globalAlpha = 0.06; for (let i = 0; i < 3000; i++) { g.fillStyle = r() < 0.5 ? '#000' : '#fff'; g.fillRect(r() * N, r() * N, 2, 2); } g.globalAlpha = 1;
       return c;
     }
     // the atlas: banners, the flag, the pads' lettering, the doors, the exit sign (named rectangles in a 2048 x 1024 canvas)
-    const GATL = { banner: [0, 0, 256, 512], banner2: [256, 0, 256, 512], banner3: [512, 0, 256, 512], flag: [768, 0, 760, 400], pad: [768, 400, 1024, 128], exit: [1792, 400, 256, 96], door: [1536, 0, 256, 400], hoopPad: [768, 528, 1024, 96], clock: [1792, 528, 256, 256], header: [0, 512, 768, 128], rec: [0, 640, 768, 384], door2: [768, 624, 384, 400] };
+    const GATL = { banner: [0, 0, 256, 512], banner2: [256, 0, 256, 512], banner3: [512, 0, 256, 512], flag: [768, 0, 760, 400], pad: [768, 400, 1024, 128], exit: [1792, 400, 256, 96], door: [1536, 0, 256, 400], hoopPad: [768, 528, 1024, 96], clock: [1792, 528, 256, 256], header: [0, 512, 768, 128], rec: [0, 640, 768, 384], door2: [768, 624, 384, 400], paw: [1152, 624, 256, 256] };
     const guv = (k) => { const a = GATL[k]; return [a[0] / 2048, a[1] / 1024, (a[0] + a[2]) / 2048, (a[1] + a[3]) / 1024]; };
     function gymAtlasCanvas() {
       const c = mkCv(2048, 1024), g = c.getContext('2d');
@@ -4440,8 +4461,12 @@ gl_FragColor=vec4(c,1.0);}`;
       { const [x, y, w, h] = GATL.pad; g.fillStyle = '#a80f1c'; g.fillRect(x, y, w, h); g.fillStyle = '#f4f1e8'; g.font = font(96); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('WILDCATS', x + w / 2, y + h / 2 + 4); }
       { const [x, y, w, h] = GATL.hoopPad; g.fillStyle = '#a80f1c'; g.fillRect(x, y, w, h); g.fillStyle = '#f4f1e8'; g.font = font(70); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('WILDCATS', x + w / 2, y + h / 2 + 3); }
       { const [x, y, w, h] = GATL.exit; g.fillStyle = '#1a0606'; g.fillRect(x, y, w, h); g.fillStyle = '#ff2a1a'; g.font = font(78); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('EXIT', x + w / 2, y + h / 2 + 3); }
-      { const [x, y, w, h] = GATL.door; g.fillStyle = '#9d1220'; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 4; g.strokeRect(x + 6, y + 6, w - 12, h - 12); g.beginPath(); g.moveTo(x + w / 2, y + 6); g.lineTo(x + w / 2, y + h - 6); g.stroke();
-        g.fillStyle = '#c9ccd0'; g.fillRect(x + 20, y + h * 0.48, w - 40, 12); g.fillStyle = 'rgba(200,220,235,0.8)'; g.fillRect(x + 30, y + 40, 50, 90); g.fillRect(x + w - 80, y + 40, 50, 90); }
+      { const [x, y, w, h] = GATL.door; g.fillStyle = '#4a4741'; g.fillRect(x, y, w, h); // painted steel double doors (pale grey-cream leaves in a dark frame, a window and a push bar each, as in the photos)
+        for (const k of [0, 1]) { const lx = x + 10 + k * (w / 2 - 4), lw2 = w / 2 - 14, ly = y + 10, lh = h - 10; g.fillStyle = '#dedcd2'; g.fillRect(lx, ly, lw2, lh);
+          g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(lx, ly + lh * 0.62, lw2, 3); g.fillStyle = '#25282c'; g.fillRect(lx + lw2 * 0.22, ly + 34, lw2 * 0.56, 120); g.fillStyle = 'rgba(150,175,190,0.85)'; g.fillRect(lx + lw2 * 0.22 + 4, ly + 38, lw2 * 0.56 - 8, 112);
+          g.fillStyle = '#b8bbbf'; g.fillRect(lx + 8, ly + lh * 0.5, lw2 - 16, 9); } }
+      { const [x, y, w, h] = GATL.paw; g.fillStyle = '#f2efe6'; g.fillRect(x, y, w, h); g.strokeStyle = '#1b1b1d'; g.lineWidth = 14; g.strokeRect(x + 7, y + 7, w - 14, h - 14);
+        g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(-Math.PI / 2); g.scale(120, 120); g.translate(-0.157, 0); g.fillStyle = '#1b1b1d'; pawPath(g); g.fill(); g.restore(); }
       { const [x, y, w, h] = GATL.clock; g.fillStyle = '#f4f4f0'; g.beginPath(); g.arc(x + w / 2, y + h / 2, w / 2 - 8, 0, 6.2832); g.fill(); g.strokeStyle = '#222'; g.lineWidth = 10; g.stroke();
         g.lineWidth = 6; for (let i = 0; i < 12; i++) { const a = i / 12 * 6.2832; g.beginPath(); g.moveTo(x + w / 2 + Math.cos(a) * 96, y + h / 2 + Math.sin(a) * 96); g.lineTo(x + w / 2 + Math.cos(a) * 112, y + h / 2 + Math.sin(a) * 112); g.stroke(); }
         g.lineWidth = 8; g.beginPath(); g.moveTo(x + w / 2, y + h / 2); g.lineTo(x + w / 2 + 40, y + h / 2 - 50); g.moveTo(x + w / 2, y + h / 2); g.lineTo(x + w / 2 - 70, y + h / 2 + 10); g.stroke(); }
@@ -4522,7 +4547,7 @@ gl_FragColor=vec4(c,1.0);}`;
       floor.quad([GYM.x0, 0, GYM.z0], [GYM.x1, 0, GYM.z0], [GYM.x1, 0, GYM.z1], [GYM.x0, 0, GYM.z1], up, [1, 1, 1, 1], [mu(GYM.x0), mv(GYM.z0), mu(GYM.x1), mv(GYM.z0), mu(GYM.x1), mv(GYM.z1), mu(GYM.x0), mv(GYM.z1)]);
       // ---- walls: cream block, the wide red band high up with dark pinstripes, cream above to the steel, a grey band to the deck ----
       const wallSeg = (x0, z0, x1, z1, n) => {
-        const bands = [[0, GYM.pin[0], CREAM], [GYM.pin[0], GYM.pin[1], REDC], [GYM.pin[1], GYM.band[0], CREAM], [GYM.band[0], GYM.band[1], REDC], [GYM.band[1], GYM.deck, CREAM]];
+        const bands = [[0, GYM.pin[0], TAN], [GYM.pin[0], GYM.pin[1], REDC], [GYM.pin[1], GYM.band[0], TAN], [GYM.band[0], GYM.band[1], REDC], [GYM.band[1], GYM.deck, CREAM]]; // the owner's photos: tan block under the band, light painted cream above it
         for (const [y0, y1, col] of bands) block.wall(x0, z0, x1, z1, y0, y1, col, n, 1.15);
       };
       wallSeg(GYM.x1, GYM.z0, GYM.x0, GYM.z0, [0, 0, 1]);     // far wall (-z)
@@ -4561,8 +4586,8 @@ gl_FragColor=vec4(c,1.0);}`;
       for (let ix = 0; ix < LAMPG.nx; ix++) for (let iz = 0; iz < LAMPG.nz; iz++) {
         const x = LAMPG.x0 + ix * LAMPG.dx, z = LAMPG.z0 + iz * LAMPG.dz, y = LAMPG.y;
         steel.tube([x, y + 0.35, z], [x, GYM.truss + 0.1, z], 0.012, DGREY, 4);
-        steel.lathe(x, z, [[0.06, y + 0.45], [0.16, y + 0.42], [0.36, y + 0.12], [0.42, y]], hx3('#d6d6d0'), 14);
-        glow.disc(x, z, 0.38, [2.6, 2.5, 2.3, 1], y - 0.005, 14);
+        steel.lathe(x, z, [[0.05, y + 0.4], [0.13, y + 0.37], [0.28, y + 0.1], [0.33, y]], hx3('#ecece6'), 14); // round dome high-bays, bright white undersides
+        glow.disc(x, z, 0.3, [3.2, 3.1, 2.8, 1], y - 0.005, 14);
       }
       // ---- the far wall: the scoreboard (upper left), the flag (upper right), the banners, folded side backboards ----
       const fz = GYM.z0 + 0.05;
@@ -4577,6 +4602,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const bannerAt = (x, z, n, k, y, w0, h0) => { const uv = guv(k), w = w0 || 1.25, h = h0 || 2.5, tx = n[2] ? -n[2] : n[0], tz = n[2] ? 0 : -n[0]; void tz;
         const p = (s, yy) => (n[2] ? [x + s * w / 2 * (n[2] > 0 ? -1 : 1), yy, z + n[2] * 0.06] : [x + n[0] * 0.06, yy, z + s * w / 2 * (n[0] > 0 ? 1 : -1)]); void tx;
         atl.quad(p(-1, y), p(1, y), p(1, y + h), p(-1, y + h), n, [1, 1, 1, 1], [uv[0], uv[3], uv[2], uv[3], uv[2], uv[1], uv[0], uv[1]]); };
+      bannerAt(-8.3, GYM.z0, [0, 0, 1], 'paw', 3.5, 0.95, 0.95); bannerAt(11.2, GYM.z0, [0, 0, 1], 'clock', 4.3, 0.85, 0.85); // the paw sign and the round clock of the photos
       [-0.5, -2.1, -3.7].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner', 'banner2', 'banner3'][i], 5.2));
       [-10, -11.6, -13.2, -14.8].forEach((x, i) => bannerAt(x, GYM.z0, [0, 0, 1], ['banner3', 'banner', 'banner2', 'banner'][i], 5.6));
       // the baselines: the record board and a flag high on one (a pair of banners past them), banners on the other
@@ -4591,7 +4617,11 @@ gl_FragColor=vec4(c,1.0);}`;
         const n = P.wall === 'z1' ? [0, 0, -1] : endN(P.end), wx = P.wall === 'z1' ? P.x : endX(P.end), wz = P.wall === 'z1' ? GYM.z1 : P.z, tx = -n[2] !== 0 ? 1 : 0, tz = 1 - tx, bw = 0.85, bh = 0.55;
         const at = (a, o) => [wx + tx * a + n[0] * o, 0, wz + tz * a + n[2] * o];
         const p0 = at(-bw, 0.35), p1 = at(bw, 0.42);
-        flat.wbox(Math.min(p0[0], p1[0]), P.y, Math.min(p0[2], p1[2]), Math.max(p0[0], p1[0]), P.y + bh * 2, Math.max(p0[2], p1[2]), hx3('#f2f2ee'));
+        // the fan-shaped board of the photos: a round white face with a red edge ring, a flat steel back plate (an ellipse fan, both sides lit)
+        { const fan2 = (o, rx, ry, col, sgn) => { const c0 = at(0, o), seg = 14; flat.grow(seg * 3);
+            for (let i = 0; i < seg; i++) { const a0 = i / seg * 6.2832, a1 = (i + 1) / seg * 6.2832, pt = (a) => [c0[0] + tx * Math.cos(a) * rx, P.y + 0.55 + Math.sin(a) * ry, c0[2] + tz * Math.cos(a) * rx];
+              const A = pt(a0), B2 = pt(a1); flat.v(c0[0], P.y + 0.55, c0[2], sgn * n[0], 0, sgn * n[2], col, 0.5, 0.5); flat.v(A[0], A[1], A[2], sgn * n[0], 0, sgn * n[2], col, 0.5, 0.5); flat.v(B2[0], B2[1], B2[2], sgn * n[0], 0, sgn * n[2], col, 0.5, 0.5); } };
+          fan2(0.40, 0.66, 0.56, hx3('#b3121f'), 1); fan2(0.415, 0.6, 0.5, hx3('#f4f2ec'), 1); fan2(0.385, 0.66, 0.56, hx3('#7d8085'), -1); }
         const q0 = at(-0.33, 0.43), q1 = at(0.33, 0.44); flat.wbox(Math.min(q0[0], q1[0]), P.y + 0.25, Math.min(q0[2], q1[2]), Math.max(q0[0], q1[0]), P.y + 0.75, Math.max(q0[2], q1[2]), hx3('#d43a2a'));
         const q2 = at(-0.29, 0.435), q3 = at(0.29, 0.445); flat.wbox(Math.min(q2[0], q3[0]), P.y + 0.29, Math.min(q2[2], q3[2]), Math.max(q2[0], q3[0]), P.y + 0.71, Math.max(q2[2], q3[2]), hx3('#f2f2ee'));
         for (const s2 of [-1, 1]) { const a = at(s2 * 0.6, 0), b = at(s2 * 0.6, 0.36); steel.tube([a[0], P.y + 0.5, a[2]], [b[0], P.y + 0.5, b[2]], 0.03, GREY, 5); }
@@ -5964,7 +5994,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const sp = Math.hypot(p.vx, p.vz);
       const mine = p === ctrl;
       if (p.face2 != null) p.h += angDiff(p.face2, p.h) * Math.min(1, dt * (mine ? 16 : 10));
-      else if (sp > 0.6) { const back = !mine && (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; if (!back) p.h += angDiff(Math.atan2(p.vx, p.vz), p.h) * Math.min(1, dt * (mine ? 16 : 9)); }
+      else if (sp > 0.6) { const back = !mine && !(ball && ball.holder === p) && (p.dstance || (p.side !== poss && phase === 'live')) && (p.vx * Math.sin(p.h) + p.vz * Math.cos(p.h)) < -0.6 * sp; if (!back) p.h += angDiff(Math.atan2(p.vx, p.vz), p.h) * Math.min(1, dt * (mine ? 16 : 9)); }
       if (p.jumpY > 0 || p.jumpV > 0) { p.jumpV -= (p.hang > 0 ? 6 : 17) * dt; p.jumpY = Math.max(0, p.jumpY + p.jumpV * dt); if (p.hang > 0) p.hang -= dt; if (p.jumpY <= 0) { p.jumpV = 0; p.land = 0.15; } }
       if (p.land > 0) { p.land -= dt; p.vx *= Math.pow(0.05, dt); p.vz *= Math.pow(0.05, dt); }
       // walls of the room (and nobody walks through the scorer's table or the benches)
@@ -6877,7 +6907,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (p.foulOn || phase !== 'live') return;
       for (const d of foes(p)) {
         if (!(d.biteUntil > tLive) || D(d, p) > 1.45 || isUser(d)) continue;
-        if (rng() < (d.jumpY > 0.05 ? 0.7 : 0.4)) { callFoul(d, p, true, 'Foul'); return; }
+        if (rng() < (d.jumpY > 0.05 ? 0.3 : 0.14)) { callFoul(d, p, true, 'Foul', null, 'bite'); return; } // (falling for a fake is a foul now and then, not every time: a pump fake is not a free throw machine)
       }
     }
     // each step while the shot is up: the meter fills with time, he jumps so the apex is the ideal release; held too long = a late release
@@ -6955,7 +6985,7 @@ gl_FragColor=vec4(c,1.0);}`;
       b.lastSide = p.side; b.last = p; b.touchRim = false; b.touchBoard = false; b.thru = null; b.astBy = null; b.scored = false; b.rimN = 0; b.pass = null;
       if (!S.ft) { const s = stat(p.sq); s.fga++; if (S.pts === 3) s.tpa++; } else stat(p.sq).fta++;
       // fouled in the act: the shot counts if it goes (and one), else he shoots two or three
-      if (p.foulOn && !S.ft) { b.shot.and1 = true; b.shot.fouled = { d: p.foulOn.d, sh: p }; pendFT = { sh: p, d: p.foulOn.d, pts: S.pts }; p.foulOn = null; }
+      if (p.foulOn && !S.ft) { b.shot.and1 = true; b.shot.fouled = { d: p.foulOn.d, sh: p }; pendFT = { sh: p, d: p.foulOn.d, pts: S.pts, shot: b.shot }; p.foulOn = null; }
       try { sfx.play('throw'); SND.shot(b.shot); } catch (e) {}
       p.dribbling = false;
     }
@@ -7033,7 +7063,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function bodyFoul(p, c, from, k) {
       if (phase !== 'live' || c <= from) return;
       let d = null, bd = 1.5; for (const q of foes(p)) { const dd = D(q, p); if (dd < bd && !isUser(q)) { bd = dd; d = q; } }
-      if (d && rng() < clamp((c - from) * k * (1.15 - rt(d, 'intD') * 0.004), 0, 0.3)) callFoul(d, p, true, 'Foul');
+      if (d && rng() < clamp((c - from) * k * 0.3 * (d.side === 1 ? 0.75 : 1) * (1.15 - rt(d, 'intD') * 0.004), 0, 0.2)) callFoul(d, p, true, 'Foul', null, 'body');
     }
     // ---------- through the hoop: points ----------
     function onThrough(h) {
@@ -7073,6 +7103,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- blocks, steals, passes, moves ----------
     function blockShot(d, shooter) {
+      if (pendFT && pendFT.sh === shooter) { fouledShotDead(); return; } // (the whistle came first: no swat, the free throws)
       const b = ball, h = hoopOf(shooter.side);
       if (b.shot && b.shot.lg) b.shot.lg.end = 'blk';
       b.holder = null; b.st = 'loose'; b.shot = null;
@@ -7093,7 +7124,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (isUser(d) && !(tLive - (d.cfT || -9) < 1)) {
         const sh = b.holder && b.holder.side !== d.side && ((b.holder.shotS && !b.holder.shotRel) || b.holder.fin) ? b.holder : b.st === 'air' && b.shot && !b.shot.ft && b.shot.t < 0.2 && b.shot.side !== d.side ? b.shot.by : null;
         if (sh) { const dd = D(d, sh), into = ((sh.x - d.x) * d.vx + (sh.z - d.z) * d.vz) / (dd || 1);
-          if (dd < 0.95) { d.cfT = tLive; if (rng() < clamp(0.16 + (0.95 - dd) * 0.7 + Math.max(0, into) * 0.09 - rt(d, 'perD') * 0.001, 0.08, 0.75) || (DBG && DBG.forceFoul)) { callFoul(d, sh, true, 'Foul'); return false; } } }
+          if (dd < 0.95) { d.cfT = tLive; if (rng() < clamp(0.16 + (0.95 - dd) * 0.7 + Math.max(0, into) * 0.09 - rt(d, 'perD') * 0.001, 0.08, 0.75) || (DBG && DBG.forceFoul)) { callFoul(d, sh, true, 'Foul', null, 'userjump'); return false; } } }
       }
       if (b.st === 'air' && b.shot && !b.shot.ft && b.shot.t < 0.32 && b.shot.side !== d.side) {
         const hy = d.jumpY + d.lk.hs * 2.75, hand = [d.x + Math.sin(d.h) * 0.3, hy, d.z + Math.cos(d.h) * 0.3];
@@ -7121,8 +7152,8 @@ gl_FragColor=vec4(c,1.0);}`;
       // a steal is a read of the ball: a reach at the exposed ball (low, on his side, in the swing of a move) is a poke; a reach across
       // a protected ball is a foul or a miss that leaves him lunging and beaten. Spamming it, or reaching from behind, is a foul.
       const fx = Math.sin(d.h), fz = Math.cos(d.h), front = ((h.x - d.x) * fx + (h.z - d.z) * fz) / (dd || 1), E = ballExposure(h, d);
-      const foulP = clamp((E < 0.3 ? 0.4 : E < 0.55 ? 0.14 : 0.04) + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0) - (isUser(d) ? 0.04 : 0), 0, 0.8);
-      if (rng() < foulP) { callFoul(d, h, false, 'Reach-in'); return false; }
+      const foulP = clamp(((E < 0.3 ? 0.4 : E < 0.55 ? 0.14 : 0.04) + Math.max(0, d.stealHeat - 2) * 0.12 + (front < 0.2 ? 0.25 : 0) - (isUser(d) ? 0.04 : 0)) * (isUser(d) ? 1 : 0.7), 0, 0.8);
+      if (rng() < foulP) { callFoul(d, h, false, 'Reach-in', null, 'reach'); return false; }
       const pr = clamp(0.03 + 0.52 * Math.pow(E, 1.3) + (rt(d, 'stl') - rt(h, 'hand')) * 0.004 + (1 - h.sta) * 0.1 - (1 - d.sta) * 0.05 + (d.side === 1 ? DK * 0.03 : 0) - (dd - 0.8) * 0.15, 0.02, 0.72);
       if (DBG && DBG.stealLog) DBG.stealLog.push({ E: +E.toFixed(2), pr: +pr.toFixed(2) });
       if (rng() < pr) {
@@ -7288,7 +7319,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function grabStep() {
       const b = ball;
       // fouled in the act but the shot never got off (stripped, landed with it): to the line for two
-      for (const p of onCourt) if (p.foulOn && !p.fin && !(p.shotS && !p.shotRel)) { const f = p.foulOn; p.foulOn = null; if (tLive - f.t < 2 && !(b.shot && b.shot.fouled)) { b.st = 'dead'; b.holder = null; b.shot = null; setDead(1.1, () => startFT(p, 2)); return; } }
+      for (const p of onCourt) if (p.foulOn && !p.fin && !(p.shotS && !p.shotRel)) { const f = p.foulOn; p.foulOn = null; if (!(b.shot && b.shot.fouled)) { b.st = 'dead'; b.holder = null; b.shot = null; setDead(1.1, () => startFT(p, f.pts || 2)); return; } }
       if (b.holder) return;
       const shot = b.shot;
       if (b.st === 'air' && !shot) return; // passes are handled by passFlight
@@ -7334,6 +7365,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function outOfBounds(lastSide, x, z) {
       if (phase !== 'live') return;
+      if (pendFT) { fouledShotDead(); return; }
       const side = 1 - lastSide;
       whistle('Out of bounds', (side === 0 ? HOME.abbr : AWAY.abbr) + ' ball', 'oob');
       ball.st = 'dead'; ball.holder = null; ball.shot = null;
@@ -7342,20 +7374,21 @@ gl_FragColor=vec4(c,1.0);}`;
     // ---------- fouls ----------
     function contact(a, b, v) { // a hard bump in traffic: a charge or a block now and then (by who was moving into whom)
       if (phase !== 'live' || v < 4.5) return;
-      const h = ball.holder; if (!h || (h !== a && h !== b)) return;
+      const h = ball.holder; if (!h || (h !== a && h !== b) || h.foulOn) return;
       const d = h === a ? b : a, hv = Math.hypot(h.vx, h.vz), dv = Math.hypot(d.vx, d.vz);
       // a man who has his feet set and his chest to the driver (he did not slide or backpedal into it) takes the charge; one who is
       // moving or turned away is a block or nothing. Running into a set big is the mistake that gets whistled.
       const setD = dv < 1.5 && d.stumbleT <= 0 && (Math.sin(d.h) * (h.x - d.x) + Math.cos(d.h) * (h.z - d.z)) > 0.25;
       if (rng() > (setD ? 0.55 : 0.1)) return;
       if (hv > dv + 2 && d.stumbleT <= 0) { // charging: the defender had his spot
-        stat(h.sq).pf++; stat(h.sq).to++; whistle('Charge!', 'Offensive foul on ' + shortName(h.sq.name), 'charge');
+        if (DBG && DBG.foulLog) DBG.foulLog.push({ t: tLive, q: qtr, by: h.side, on: d.side, src: 'charge', ph: phase }); stat(h.sq).pf++; stat(h.sq).to++; whistle('Charge!', 'Offensive foul on ' + shortName(h.sq.name), 'charge');
         ball.st = 'dead'; ball.holder = null;
         deadInbound(1.0, d.side, clamp(h.x, -COURT.HL + 1, COURT.HL - 1), h.z > 0 ? COURT.HW : -COURT.HW);
-      } else if (dv > hv + 1.5) callFoul(d, h, false, 'Blocking foul', 'block');
+      } else if (dv > hv + 1.5) callFoul(d, h, false, 'Blocking foul', 'block', 'block');
     }
-    function callFoul(d, sh, shooting, why, sig) {
+    function callFoul(d, sh, shooting, why, sig, src) {
       if (phase !== 'live' && phase !== 'inb') return;
+      if (DBG && DBG.foulLog) DBG.foulLog.push({ t: tLive, q: qtr, by: d.side, on: sh.side, src: src || sig || 'x', ph: phase });
       const t = teams[d.side]; t.fq++; stat(d.sq).pf++;
       if (t.fq >= 5) t.bonus = true;
       const b = ball, shotInAir = b.st === 'air' && b.shot && b.shot.by === sh && !b.shot.ft;
@@ -7364,50 +7397,64 @@ gl_FragColor=vec4(c,1.0);}`;
       // fouled going up (in a layup, or in the shooting motion): the play goes on to the release; if it drops it counts
       // and he shoots one, else two or three (launchShot / the slam pick the foul up)
       if (phase === 'live' && !shotInAir && ball.holder === sh && !sh.foulOn && (sh.fin || (sh.shotS && !sh.shotRel && sh.jumped))) {
-        sh.foulOn = { d, t: tLive };
+        sh.foulOn = { d, t: tLive, pts: sh.shotS && sh.shotS.pts === 3 ? 3 : 2 }; dlog('foul', { br: 'foulOn', sh: sh.key, src });
         whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), 'Shooting foul');
         return;
       }
       if (isShoot && shotInAir) { // fouled on the shot: if it goes in it counts plus one, else two or three shots
-        b.shot.and1 = true; b.shot.fouled = { d, sh };
+        b.shot.and1 = true; b.shot.fouled = { d, sh }; dlog('foul', { br: 'air', sh: sh.key, src });
         whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), 'Shooting foul · and one if it drops', 'foul');
-        pendFT = { sh, d, pts: b.shot.pts };
+        pendFT = { sh, d, pts: b.shot.pts, shot: b.shot };
         return;
       }
       whistle((why || 'Foul') + ' on ' + shortName(d.sq.name), isShoot ? 'Shooting foul · ' + (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) + ' shots' : t.bonus ? 'Bonus · 2 shots' : (sh.side === 0 ? HOME.abbr : AWAY.abbr) + ' ball · team fouls ' + t.fq, sig || 'foul');
-      const n = isShoot ? (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) : t.bonus ? 2 : 0;
+      const n = isShoot ? (sh.shotS && sh.shotS.pts === 3 ? 3 : 2) : t.bonus ? 2 : 0; dlog('foul', { br: 'dead', sh: sh.key, n, src });
       sh.shotS = null; sh.fin = null; sh.shotRel = true; if (meterOn && sh === ctrl) meterHide();
       b.st = 'dead'; b.holder = null; b.shot = null; b.pass = null;
       if (n) setDead(1.2, () => startFT(sh, n));
       else deadInbound(1.0, sh.side, clamp(sh.x, -COURT.HL + 1, COURT.HL - 1), sh.z >= 0 ? COURT.HW : -COURT.HW);
     }
     let pendFT = null;
+    // the shot of a fouled shooter is over without going in (blocked, tipped out, out of bounds, caught, an air ball): to the line for it
+    function fouledShotDead() { const f = pendFT; pendFT = null; if (!f) return; ball.st = 'dead'; ball.holder = null; ball.shot = null; ball.pass = null; setDead(1.1, () => startFT(f.sh, f.pts)); }
+    // a whistle that is still waiting to be paid: a man fouled in the act, or a fouled shot in the air
+    const foulPending = () => !!pendFT || onCourt.some((q) => q.foulOn);
     // F on defense: an intentional foul by your man (or the closest of yours to the ball)
     function intentionalFoul(p) {
       if (phase !== 'live') return false;
       const h = ball.holder; if (!h || h.side === p.side) return false;
       let f = p; if (D(p, h) > 2.0) { let bd = 99; for (const q of mates(p)) { const d = D(q, h); if (d < bd) { bd = d; f = q; } } }
       if (D(f, h) > 3) return false;
-      setPose(f, 'steal'); f.face2 = Math.atan2(h.x - f.x, h.z - f.z); callFoul(f, h, false, 'Intentional foul');
+      setPose(f, 'steal'); f.face2 = Math.atan2(h.x - f.x, h.z - f.z); callFoul(f, h, false, 'Intentional foul', null, 'intent');
       return true;
     }
     // ---------- whistles, dead balls, inbounds ----------
+    function dlog(k, o) { if (DBG && DBG.evLog) DBG.evLog.push(Object.assign({ k, t: elapsedT, ph: phase, ball: ball.st }, o)); } // (tests only)
     function whistle(a, b2, sig) { try { sfx.play('whistle'); REFS.blow(); } catch (e) {} refCall(sig || 'foul', a, b2); clockRun = false; }
     // a dead ball: every move in progress is over (nobody is left frozen in a reach, a stumble or a half-made layup)
     function setDead(t, next) {
-      inbPlan = null; phase = 'dead'; deadT = t; deadNext = next; clockRun = false;
+      inbPlan = null; phase = 'dead'; deadT = t; deadNext = next; clockRun = false; pendFT = null;
       for (const p of onCourt) { p.shotS = null; p.fin = null; p.passT = null; p.dstance = false; p.face2 = null; p.foulOn = null; p.mvB = null; p.stumbleT = 0; p.sprint = false; if (p.jumpY < 0.02 && p.pose !== 'idle') setPose(p, 'idle'); }
       if (meterOn) meterHide();
     }
     // a whistle that ends in a throw-in: the ball goes to the man who takes it out, he walks to the spot while the others set up,
     // and the throw-in starts when he is there (nobody is beamed to the line)
     function deadInbound(t, side, x, z, base, slow) {
+      dlog('side', { side });
       setDead(t, null); poss = side; shotClk = SHOT;
       ball.st = 'dead'; ball.holder = null; ball.shot = null; ball.pass = null;
       inbPlan = planInbound(side, x, z, base);
       armInbound(side, x, z, base, slow);
     }
+    // your team's throw-in: you play a man who gets open for it (never the one out of bounds), and E / SPACE / CALL has him thrown the ball
+    function inbCtrl(passer, recv) {
+      if (!passer || passer.side !== 0 || DBG && DBG.auto) return;
+      if (ctrl && ctrl !== passer && ctrl.side === 0 && !ctrl.benched) return;
+      const c = recv && recv !== passer && !recv.benched ? recv : nearestTo(teams[0].on.filter((q) => q !== passer && !q.benched), passer);
+      if (c) setCtrl(c);
+    }
     function armInbound(side, x, z, base, slow) {
+      if (inbPlan) inbCtrl(inbPlan.passer, inbPlan.recv);
       let n = 0; const max = slow ? 34 : 16;
       const f = () => {
         const P = inbPlan, t = teams[side];
@@ -7417,6 +7464,7 @@ gl_FragColor=vec4(c,1.0);}`;
       deadNext = f;
     }
     function changePoss(side, holder) {
+      if (side === 0 && poss !== 0) stickS.rbUntil = performance.now() + 1400;
       poss = side; shotClk = SHOT;
       for (const p of onCourt) { p.dstance = false; p.boxOut = false; }
       if (side === 0) { if (holder) setCtrl(holder); }
@@ -7428,7 +7476,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const side = 1 - scoredSide, h = hoopOf(scoredSide);
       deadNext = null;
       setTimeout(() => {}, 0);
-      phase = 'dead'; deadT = 1.1; clockRun = false;
+      phase = 'dead'; deadT = 1.1; clockRun = false; dlog('made', { side: scoredSide });
       const z0 = (rng() - 0.5) * 3;
       // the other team's ball: its inbounder (the nearest man who is not the point guard) goes to the baseline, the point guard
       // comes back for the ball and everyone else heads up the floor during the dead second (60-ai.js resetStep)
@@ -7452,18 +7500,19 @@ gl_FragColor=vec4(c,1.0);}`;
       return { side, x: ix, z: iz, passer, recv, rx, rz };
     }
     function startInbound(side, x, z, base) {
-      phase = 'inb'; phaseT = 0; clockRun = false; poss = side;
+      phase = 'inb'; phaseT = 0; clockRun = false; if (side === 0 && poss !== 0) stickS.rbUntil = performance.now() + 1400; poss = side;
       const t = teams[side];
       const P = inbPlan && inbPlan.side === side && t.on.includes(inbPlan.passer) && (!inbPlan.recv || t.on.includes(inbPlan.recv)) ? inbPlan : planInbound(side, x, z, base);
       inbPlan = null;
       const ix = P.x, iz = P.z, passer = P.passer;
-      inb = { side, x: ix, z: iz, passer, t: 0, wait: 0.55 + rng() * 0.3, recv: P.recv, rx: P.rx, rz: P.rz };
+      inb = { side, x: ix, z: iz, passer, t: 0, wait: 1.5 + rng() * 0.3, recv: P.recv, rx: P.rx, rz: P.rz, go: false, cnt: 0, base: !!base || Math.abs(ix) > COURT.HL };
       passer.x = ix; passer.z = iz; passer.vx = passer.vz = 0; passer.face2 = Math.atan2(-ix * 0.3 - ix, -iz);
       setPose(passer, 'inbound');
       giveBall(passer, 'held');
       ball.st = 'held';
       shotClk = SHOT;
-      if (side === 0) setCtrl(passer); else if (!ctrl || ctrl.side !== 0) setCtrl(teams[0].on[0]);
+      if (side === 0) { if (DBG && DBG.auto) setCtrl(passer); else inbCtrl(passer, P.recv); } else if (!ctrl || ctrl.side !== 0) setCtrl(teams[0].on[0]);
+      if (side === 0 && !(DBG && DBG.auto)) flashBanner('THROW-IN', 'Get open · ' + (touchy ? 'tap CALL' : 'E or SPACE') + ' to have it thrown in', '#ffc21a', 1300);
       for (const p of onCourt) { p.shotS = null; p.fin = null; p.dstance = false; p.boxOut = false; p.holdT = 0; }
     }
     function inbStep(dt) {
@@ -7473,14 +7522,42 @@ gl_FragColor=vec4(c,1.0);}`;
       p.x = I.x; p.z = I.z; p.vx = p.vz = 0; p.face2 = Math.atan2(-I.x * 0.25 - I.x * 0.1, -I.z);
       // room for the throw-in: nobody stands on the inbounder (a defender gives him a full step off the line)
       for (const q of onCourt) { if (q === p) continue; const dx = q.x - p.x, dz = q.z - p.z, dl = Math.hypot(dx, dz), R = 1.7; if (dl < R) { const ux = dl > 0.05 ? dx / dl : -Math.sign(p.x || 1), uz = dl > 0.05 ? dz / dl : 0, k = Math.min(R - dl, dt * 6); q.x += ux * k; q.z += uz * k; q.x = clamp(q.x, -COURT.HL + 0.3, COURT.HL - 0.3); q.z = clamp(q.z, -COURT.HW + 0.3, COURT.HW - 0.3); } }
-      if (I.t > I.wait && (I.side === 1 || (DBG && DBG.auto) || I.t > 2.6 || I.go)) {
-        // the most open teammate
+      // the beat before the pass: the offense runs to its spots, the defense gets to its men, then the ball goes in (the CPU's inbounder
+      // takes about 1.5 to 3 s; yours waits for you, and the five-second count is real)
+      const mine = I.side === 0 && !(DBG && DBG.auto);
+      if (mine) {
+        const c5 = Math.floor(I.t);
+        if (c5 > I.cnt && c5 >= 3 && c5 <= 4) { I.cnt = c5; popAt(p, c5 + '', c5 >= 4 ? '#ff7a6a' : '#ffc21a'); } else if (c5 > I.cnt) I.cnt = c5;
+        if (I.t >= 5) { // five seconds: the ball goes over
+          stat(p.sq).to++; try { sfx.play('buzzer'); } catch (e) {}
+          whistle('Five-second violation', (I.side ? HOME.abbr : AWAY.abbr) + ' ball', 'clock');
+          ball.st = 'dead'; ball.holder = null; ball.pass = null; const bs = I.base, ox = I.x, oz = I.z; inb = null;
+          deadInbound(1.0, 1 - I.side, ox, oz, bs);
+          return;
+        }
+      }
+      const ready = I.t >= I.wait && (inbSet(I) || I.t >= 2.9);
+      if (mine ? (I.go && I.t >= 0.25) : ready) {
+        // the most open teammate (the man you control, when you called for it)
         let best = null, bs = -1e9;
-        for (const q of teams[I.side].on) { if (q === p) continue; let open = 9; for (const d of foes(q)) open = Math.min(open, D(d, q)); const s = open - D(q, p) * 0.15 + rng() * 0.3 + (q === I.recv ? 2.5 : 0); if (s > bs) { bs = s; best = q; } }
+        if (mine && ctrl && ctrl !== p && ctrl.side === I.side && !ctrl.benched) best = ctrl;
+        else for (const q of teams[I.side].on) { if (q === p || q.benched) continue; let open = 9; for (const d of foes(q)) open = Math.min(open, D(d, q)); const dq = D(q, p) || 1, toward = Math.max(0, (q.vx * (p.x - q.x) + q.vz * (p.z - q.z)) / dq), s = open - dq * 0.15 + rng() * 0.3 + (q === I.recv ? 2.5 : 0) - toward * 0.45; /* (a man running back at the inbounder catches it going the wrong way) */ if (s > bs) { bs = s; best = q; } }
+        if (DBG && DBG.evLog) dlog('inbpass', { t0: I.t, set: inbSet(I) });
         phase = 'live'; inb = null; clockRun = true;
         setPose(p, 'idle'); p.face2 = null; p.inbT = 1.2;
         startPass(p, best, 'chest'); p.passT = 0.05;
       }
+    }
+    // the teams are set for the throw-in: the man it goes to is at his spot and open, and the defense is back (goal side of its men, or on them)
+    function inbSet(I) {
+      const t = teams[I.side], own = ownHoop(1 - I.side);
+      let tgt = I.recv && !I.recv.benched ? I.recv : null;
+      if (!tgt) { let bo = -1; for (const q of t.on) { if (q === I.passer || q.benched) continue; const o = openness(q); if (o > bo) { bo = o; tgt = q; } } }
+      if (!tgt) return true;
+      if (Math.hypot(tgt.vx, tgt.vz) > 3.4 || openness(tgt) < 1.3) return false;
+      let n = 0, on = 0;
+      for (const d of teams[1 - I.side].on) { if (d.benched || (I.side === 1 && isUser(d))) continue; n++; const m = d.man; if (!m || D(d, m) < 3 || rimDist(d.x, d.z, own) <= rimDist(m.x, m.z, own) + 1.2) on++; }
+      return on >= Math.max(1, n - 1);
     }
     // ---------- free throws ----------
     // everyone walks to his place: the shooter to the line, the lane filled low to high (two defenders on the low blocks, two of
@@ -7500,6 +7577,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function startFT(sh, n) {
       if (sh.benched) sh = sh.subBy && !sh.subBy.benched ? sh.subBy : teams[sh.side].on[0];
+      dlog('ft', { sh: sh.key, n });
       phase = 'ft'; phaseT = 0; clockRun = false; poss = sh.side; inbPlan = null; ftLive = false;
       ftS = { sh, n, i: 0, side: sh.side, wait: 0.7, state: 'walk', t: 0, spots: ftSpots(sh) };
       for (const p of onCourt) { p.shotS = null; p.fin = null; p.dstance = false; p.boxOut = false; p.sprint = false; if (p.jumpY < 0.02) setPose(p, 'idle'); }
@@ -7596,7 +7674,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // A rest (a timeout or a break) runs in stages: 'walk' (the whistle, everyone jogs to his own bench and huddles; the sub screen
     // comes up when they are there), 'subs' (you swap players, then resume), 'back' (the huddles break and they walk back out).
     // CPU teams sub at every rest: the most tired man out for the freshest one on the bench.
-    function canTimeout(side) { const t = teams[side]; return t.to > 0 && (phase === 'dead' || phase === 'inb' || phase === 'ft' || (phase === 'live' && poss === side && ball.holder && ball.holder.side === side)); }
+    function canTimeout(side) { const t = teams[side]; return t.to > 0 && !foulPending() && (phase === 'dead' || phase === 'inb' || phase === 'ft' || (phase === 'live' && poss === side && ball.holder && ball.holder.side === side)); }
     const gameT = () => qtr * 1000 - clock; // a clock that only runs forward (for cool-downs)
     function restBegin() {
       for (const p of onCourt) { p.vx = p.vz = 0; p.shotS = null; p.fin = null; p.passT = null; p.post = null; p.pm = null; p.face2 = null; p.dstance = false; p.jumpY = 0; p.jumpV = 0; setPose(p, 'idle'); }
@@ -7613,19 +7691,27 @@ gl_FragColor=vec4(c,1.0);}`;
       phase = 'timeout'; clockRun = false; restBegin(); restAll(0.1, 0.18);
       try { sfx.play('whistle'); } catch (e) {}
       banner('TIMEOUT', (side === 0 ? HOME.name : AWAY.name) + ' · ' + t.to + ' left', '#ffc21a'); setTimeout(() => clearBanner(), 1700);
-      cpuSubs(); // the other bench makes its changes too
+      restSubs(); // the benches make their changes too
       return true;
     }
-    // the CPU's changes: its most tired man for the freshest man on its bench (when the swap is worth it)
-    function cpuSubs() {
-      const t = teams[1]; if (!t.bench.length) return false;
-      let did = false;
-      for (let n = 0; n < t.bench.length; n++) {
-        let worst = null, best = null; for (const p of t.on) if (!worst || p.sta < worst.sta) worst = p; for (const p of t.bench) if (!best || p.sta > best.sta) best = p;
-        if (worst && best && worst.sta < 0.62 && best.sta > worst.sta + 0.22 && (best.ovr >= worst.ovr - 14 || worst.sta < 0.3) && doSub(1, worst, best)) did = true; else break;
-      }
-      return did;
+    // A side's changes at a rest: its most tired man for the best man on the bench, the freshest
+    // first and a man who plays his position preferred (a bench of one, two or three). The CPU always does it; the user's side only when
+    // AUTO SUB is on (a toggle on the sub screen), and then only for a man who is really spent.
+    let autoSub = true; try { autoSub = localStorage.getItem('mfl-dunk-autosub') !== '0'; } catch (e) {}
+    const posKind = (p) => (p.sq.pos === 'PG' || p.sq.pos === 'SG' ? 0 : p.sq.pos === 'C' || p.sq.pos === 'PF' ? 2 : 1);
+    function subPlan(side, spent) {
+      const t = teams[side]; if (!t.bench.length) return null;
+      let worst = null; for (const p of t.on) if (!worst || p.sta < worst.sta) worst = p;
+      if (!worst || worst.sta >= spent) return null;
+      let best = null, bv = -9;
+      for (const p of t.bench) { const v = p.sta + p.ovr / 250 + (p.sq.pos === worst.sq.pos ? 0.18 : posKind(p) === posKind(worst) ? 0.08 : 0) - (stat(p.sq).pf >= 4 ? 0.2 : 0); if (v > bv) { bv = v; best = p; } }
+      if (!best || !(best.sta > worst.sta + 0.22) || !(best.ovr >= worst.ovr - 14 || worst.sta < 0.3)) return null;
+      return [worst, best];
     }
+    function sideSubs(side, spent) { let did = false; for (let n = 0; n < 3; n++) { const m = subPlan(side, spent); if (m && doSub(side, m[0], m[1])) did = true; else break; } return did; }
+    function cpuSubs() { return sideSubs(1, 0.62); }
+    function restSubs() { const a = cpuSubs(); if (autoSub && !(DBG && DBG.noAutoSub)) sideSubs(0, 0.3); return a; }
+    function setAutoSub(v) { autoSub = !!v; try { localStorage.setItem('mfl-dunk-autosub', autoSub ? '1' : '0'); } catch (e) {} }
     function doSub(side, out, inn) {
       const t = teams[side], i = t.on.indexOf(out), j = t.bench.indexOf(inn); if (i < 0 || j < 0) return false;
       try { ANIMX.subWalk(out, inn, [out.x, out.z], [inn.x, inn.z]); } catch (e) {}
@@ -7697,7 +7783,7 @@ gl_FragColor=vec4(c,1.0);}`;
           const sp = Math.hypot(h.vx, h.vz), mv = clamp((sp - 1.5) / 4, 0, 1);
           const late = qtr >= 4 && clock < 40 && (d.side ? as < hs : hs < as) ? 2 : 1;
           const lam = (0.012 + 0.05 * mv + (h.post ? 0.03 : 0)) * (1.25 - rt(d, 'perD') * 0.0095 + (1 - d.sta) * 0.4) * (1.9 - bd) * late;
-          if (rng() < lam * 0.2 * 7) callFoul(d, h, false, h.post ? 'Hand check' : mv > 0.4 ? 'Hand check' : 'Foul', 'foul');
+          if (rng() < lam * 0.2 * 1.05 * (d.side === 1 ? 0.7 : 1)) callFoul(d, h, false, h.post ? 'Hand check' : mv > 0.4 ? 'Hand check' : 'Foul', 'foul', 'hazard');
         }
       }
     }
@@ -7720,7 +7806,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (qtr >= 4 && !tied) { gameOver(); return; } // tied after four: overtime, as many as it takes (never a tie)
       const label = qtr === 2 ? 'HALFTIME' : qtr === 4 ? 'OVERTIME!' : qtr > 4 ? 'ANOTHER OVERTIME!' : 'END OF Q' + qtr;
       banner(label, `${esc(HOME.abbr)} ${hs} – ${as} ${esc(AWAY.abbr)}<br>${PRES.leaders()}`, '#ffc21a');
-      phase = 'break'; brk = { stage: 'walk', t: 0, kind: 'break', cd: qtr === 2 ? 20 : 14, touched: false, subs: 0 }; restBegin(); if (qtr === 2) restAll(0.3, 0.45); else restAll(0.16, 0.3); cpuSubs();
+      phase = 'break'; brk = { stage: 'walk', t: 0, kind: 'break', cd: qtr === 2 ? 20 : 14, touched: false, subs: 0 }; restBegin(); if (qtr === 2) restAll(0.3, 0.45); else restAll(0.16, 0.3); restSubs();
     }
     function nextQuarter() {
       clearBanner(); qtr++; clock = qtr > 4 ? Math.min(60, QS) : QS; if (qtr <= 4) teams[0].fq = teams[1].fq = 0; // (overtime carries the fourth quarter's fouls)
@@ -8396,7 +8482,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const stop = sh.fin ? 0 : 1.22 - (p.side === 1 ? DK * 0.25 : 0.1) - (rt(p, 'perD') - 60) * 0.005, sp2 = clamp((dd - stop) * 2.4, 0, 2.5);
       const ax = sh.x - p.x, az = sh.z - p.z, al = Math.hypot(ax, az) || 1; p.vx = ax / al * sp2; p.vz = az / al * sp2;
       // a late, hard close-out can be a shooting foul
-      if (dd < 0.75 && sp2 > 0.6 && rng() < 0.1 + (p.side === 0 ? 0.04 : 0.02) - rt(p, 'perD') * 0.0008) setTimeout(() => { if (!finished && phase === 'live') callFoul(p, sh, true, 'Foul'); }, 140);
+      if (dd < 0.75 && sp2 > 0.6 && rng() < 0.1 + (p.side === 0 ? 0.04 : 0.02) - rt(p, 'perD') * 0.0008) setTimeout(() => { if (!finished && phase === 'live') callFoul(p, sh, true, 'Foul', null, 'closeout'); }, 140);
     }
     function chaseBall(p, dt) {
       const b = ball, d = Math.hypot(b.x - p.x, b.z - p.z);
@@ -8501,7 +8587,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (phase === 'ft' || (inb && inb.passer === p)) { p.vx *= 0.8; p.vz *= 0.8; continue; }
         p.sprint = false;
         if (run) {
-          if (phase === 'dead' && inbPlan.passer === p) { go(p, inbPlan.x, inbPlan.z, 1, false, dt); p.face2 = null; continue; }
+          if (phase === 'dead' && inbPlan.passer === p) { go(p, inbPlan.x, inbPlan.z, 1, Math.hypot(inbPlan.x - p.x, inbPlan.z - p.z) > 4.5, dt); p.face2 = null; continue; } // (the inbounder runs to the line: no dead waiting)
           if (p.side === poss) offBallAI(p, dt); else defenseAI(p, dt);
           continue;
         }
@@ -8518,7 +8604,7 @@ gl_FragColor=vec4(c,1.0);}`;
     // screen's right (the view mirrors x, so that is up x forward). When the camera cuts to the other end after a change of
     // possession, a direction you are still holding keeps its old meaning until you let go or press another, so nobody turns
     // round under your thumb.
-    const stickS = { sig: '', hx: 1, hz: 0 };
+    const stickS = { sig: '', hx: 1, hz: 0, rbUntil: 0 };
     function camBasis() { return { fx: stickS.hx, fz: stickS.hz, rx: stickS.hz, rz: -stickS.hx }; }
     function userDir() {
       let ix, iz, sig;
@@ -8528,6 +8614,8 @@ gl_FragColor=vec4(c,1.0);}`;
       // keys held through a cut keep their old meaning until one changes; a thumb stick takes the new view after a moment
       if (none || sig !== stickS.sig || (sig === 's' && !camFlipping())) { const h = camHeading(); stickS.hx = h[0]; stickS.hz = h[1]; }
       stickS.sig = none ? '' : sig;
+      // the ball just came to your team (a steal, a board, a throw-in): the camera turns round, and so does what a held key means (you would dribble it back toward your own basket)
+      if (stickS.rbUntil > performance.now() && poss === 0 && camS.want !== stickS.hx) { stickS.hx = camS.want; stickS.hz = 0; }
       if (none) return null;
       const l = Math.hypot(ix, iz), k = Math.min(1, l), B = camBasis();
       ix /= l; iz /= l;
@@ -8547,7 +8635,7 @@ gl_FragColor=vec4(c,1.0);}`;
     function userMove(p, dt) {
       const d = userDir();
       bufStep(dt);
-      const b = ball, has = b.holder === p, def = p.side !== poss && phase === 'live';
+      const b = ball, has = b.holder === p, def = p.side !== poss && (phase === 'live' || phase === 'inb' || phase === 'dead');
       staminaStep(p, dt, input.sprint && !!d);
       if (p.jumpY > 0.02 || p.land > 0 || p.shotS || p.fin || p.passT != null) { if (!p.fin) drive(p, 0, 0, 0, dt * 0.35); return; }
       if (p.stumbleT > 0) { drive(p, 0, 0, 0, dt * 0.4); return; }
@@ -8682,13 +8770,13 @@ gl_FragColor=vec4(c,1.0);}`;
         // a miss of yours says why, as it comes off the iron (or the air ball falls): early, late, contested, too far
         { const S = ball.shot; if (S && S.will === 'out' && S.why && !S.whyShown && !S.ft && S.by && S.by.side === 0 && isUser(S.by) && (ball.touchRim || ball.touchBoard || (S.t > 0.35 && ball.y < 1.6 && ball.vy < 0))) { S.whyShown = true; try { popAt(S.by, 'MISSED: ' + S.why, '#ffb3a8'); } catch (e) {} } }
         // a fouled shot that misses: to the line for two (or three)
-        if (pendFT && ball.shot && !ball.scored && ((ball.touchRim && ball.shot.will !== 'in') || ball.y < 1.3 || ball.st === 'loose')) { const f = pendFT; pendFT = null; ball.st = 'dead'; setDead(1.1, () => startFT(f.sh, f.pts)); }
+        if (pendFT && !ball.scored && (!ball.shot || ball.shot !== pendFT.shot || (ball.touchRim && ball.shot.will !== 'in') || ball.y < 1.3 || ball.st === 'loose')) fouledShotDead();
         if (ctrl && isUser(ctrl)) userMove(ctrl, dt);
         if (phase === 'live') aiStep(dt);
         for (const p of onCourt) { if (p.inbT > 0) p.inbT -= dt; mvStep(p, dt); shotStep(p, dt); finStep(p, dt); diveStep(p, dt); passStep(p, dt); if (p.jumpY > 0.1 && !p.blkDone && p.side !== poss) { if (tryBlock(p)) p.blkDone = true; } }
         if (phase === 'live') { passFlight(dt); autoSwitchLoose(); grabStep(); }
         // stepping out with the ball
-        const hd = ball.holder; if (hd && phase === 'live' && !hd.fin && hd.passT == null && !(hd.inbT > 0) && (Math.abs(hd.x) > COURT.HL + 0.05 || Math.abs(hd.z) > COURT.HW + 0.05)) { stat(hd.sq).to++; outOfBounds(hd.side, hd.x, hd.z); }
+        const hd = ball.holder; if (hd && phase === 'live' && !hd.fin && hd.passT == null && !hd.foulOn && !(hd.inbT > 0) && (Math.abs(hd.x) > COURT.HL + 0.05 || Math.abs(hd.z) > COURT.HW + 0.05)) { stat(hd.sq).to++; outOfBounds(hd.side, hd.x, hd.z); }
         // a loose ball rolling dead: whoever is nearest just picks it up
         if (ball.st === 'loose' && ball.quietT > 1.2) { const p = nearestTo(onCourt, ball); if (p) { giveBall(p, 'held'); if (p.side !== poss) changePoss(p.side, p); else if (p.side === 0) setCtrl(p); } }
       } else if (phase === 'tip') { tipStep(dt); }
@@ -8725,7 +8813,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (dt > 0) { cam.shake = Math.max(0, cam.shake - dt * 1.6); cam.kick = Math.max(0, cam.kick - dt * 1.1); }
       const sh = cam.shake * cam.shake * 0.35, sx = (crand() - 0.5) * sh, sy = (crand() - 0.5) * sh;
       const asp = cv.width / cv.height;
-      const fovy = (dbg ? clamp(2 * Math.atan(Math.tan((86 * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por) : cam.fovY) * (1 + cam.kick * 0.09);
+      const fovy = (dbg ? clamp(2 * Math.atan(Math.tan(((DBG.cam.fov || 86) * Math.PI) / 360) / asp), 0.5, 1.12 + 0.2 * por) : cam.fovY) * (1 + cam.kick * 0.09);
       const f = 1 / Math.tan(fovy / 2), n = 0.3, fa = 160; // the spread Metcalf map reaches MET_K times as far
       const ex = -(cam.e[0] + sx), ey = cam.e[1] + sy, ez = cam.e[2], cx = -(cam.c[0] + sx), cy = cam.c[1] + sy, cz = cam.c[2];
       let zx = ex - cx, zy = ey - cy, zz = ez - cz; let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
@@ -8911,7 +8999,7 @@ gl_FragColor=vec4(c,1.0);}`;
         if (s.blend) { gl.enable(gl.BLEND); gl.depthMask(false); } // see-through venue layers (the schoolyard's picket veil)
         if (s.kind === 3) floorUniforms(W);
         // the end wall and the hoop the camera stands behind are cut away (dithered out) so the eye can stay on the long axis
-        if (W.u.uCut) gl.uniform3f(W.u.uCut, camS.cutWant, -(RIM_X - 0.75), forEnv || s.kind === 3 || camS.mode !== 'game' ? 0 : camS.hoopCut * 1.02);
+        if (W.u.uCut) gl.uniform3f(W.u.uCut, camS.cutWant, -(RIM_X - 0.75), forEnv || s.kind === 3 || camS.mode !== 'game' || (DBG && DBG.cam) ? 0 : camS.hoopCut * 1.02);
         bindWorldAttribs(W, s.b); gl.drawArrays(gl.TRIANGLES, 0, s.n); DRAWS.n++; DRAWS.tris += s.n / 3;
         if (s.kind === 3) { floorUniformsDone(); if (!forEnv && showPlayers) floorReflection(W, s); }
         if (s.k === 'glass') gl.disable(gl.BLEND);
@@ -10442,7 +10530,7 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     // ---------- the sub screen (a timeout or a break): five cards on the floor, the bench cards, a swap by tap or number keys ----------
     // Card: face, name, position and height, basketball OVR, the four best ratings, a stamina bar and the game line. Tap one on the
-    // floor and then one on the bench (or the other way round) to swap them; the keys 1-5 are the floor, 6 is the sixth man.
+    // floor and then one on the bench (or the other way round) to swap them; the keys 1-5 are the floor, 6 7 8 the bench (the sixth, seventh and eighth man).
     const subsEl = el('div', 'dk-subs hide', ''); wrap.appendChild(subsEl);
     let subPick = null;
     const SUB_R = [['spd', 'SPD'], ['hand', 'HND'], ['pass', 'PAS'], ['three', '3PT'], ['mid', 'MID'], ['fin', 'FIN'], ['perD', 'PER D'], ['intD', 'INT D'], ['reb', 'REB'], ['blk', 'BLK']];
@@ -10454,7 +10542,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const can = subPick && subPick !== p && teams[0].on.includes(subPick) !== teams[0].on.includes(p);
       return `<button type="button" class="dk-sbp${subPick === p ? ' sel' : ''}${can ? ' can' : ''}${bench ? ' bench' : ''}" data-k="${p.key}"><i class="k">${n}</i>`
         + `<span class="hd">${faceHTML(p.sq)}<div><b>${esc(shortName(p.sq.name))}</b><small>#${p.num} · ${p.sq.pos} · ${hgtTxt(p)}</small></div><span class="ov">${p.ovr}<small>OVR</small></span></span>`
-        + `<span class="rt">${rs.map(([l, v], i) => `<span>${l}<b${i === 0 ? ' class="hi"' : ''}>${v}</b></span>`).join('')}</span>`
+        + `<span class="rt"><span class="ovx">OVR<b class="hi">${p.ovr}</b></span>${rs.map(([l, v], i) => `<span>${l}<b${i === 0 ? ' class="hi"' : ''}>${v}</b></span>`).join('')}</span>`
         + `<span class="sb"><em>STA</em><u class="${staCls(p.sta)}"><i style="width:${sta}%"></i></u><b style="color:${p.sta < 0.3 ? '#ff6a78' : p.sta < 0.6 ? '#ffc21a' : '#2bd46b'}">${sta}</b></span>`
         + `<span class="gs"><span><b>${s.pts}</b> PTS</span><span><b>${s.reb}</b> REB</span><span><b>${s.ast}</b> AST</span><span><b>${s.pf}</b> PF</span></span></button>`;
     }
@@ -10466,10 +10554,11 @@ gl_FragColor=vec4(c,1.0);}`;
     }
     function drawSubs() {
       const t = teams[0], S = phase === 'break' ? brk : toS, nxt = phase === 'break' ? 'Next quarter' : 'Resume';
+      subsEl.classList.toggle('cmp', t.bench.length > 1);
       subsEl.innerHTML = `<div class="dk-sbt">${subsTitle()}</div>`
-        + (touchy ? '' : `<p class="dk-sbh">Pick a player on the floor, then a bench man, to swap them (<kbd>1</kbd>-<kbd>5</kbd> floor, <kbd>6</kbd> bench) · <kbd>Enter</kbd> ${phase === 'break' ? 'next quarter' : 'resume'}</p>`)
-        + `<div class="dk-sbw"><div class="dk-sbg fl">${t.on.map((p, i) => subCard(p, i + 1, false)).join('')}</div><div class="dk-sbg bn">${t.bench.map((p, i) => subCard(p, 6 + i, true)).join('')}</div></div>`
-        + `<div class="dk-sbf"><button type="button" class="dk-go dk-resume">${nxt.toUpperCase()}</button></div>`;
+        + (touchy ? '' : `<p class="dk-sbh">Pick a player on the floor, then a bench man, to swap them (<kbd>1</kbd>-<kbd>5</kbd> floor, <kbd>6</kbd>${t.bench.length > 1 ? '-<kbd>' + (5 + t.bench.length) + '</kbd>' : ''} bench) · <kbd>Enter</kbd> ${phase === 'break' ? 'next quarter' : 'resume'}</p>`)
+        + `<div class="dk-sbw"><div class="dk-sbg fl">${t.on.map((p, i) => subCard(p, i + 1, false)).join('')}</div><div class="dk-sbg bn" style="flex:${Math.max(1, t.bench.length)} 1 0">${t.bench.map((p, i) => subCard(p, 6 + i, true)).join('')}</div></div>`
+        + `<div class="dk-sbf"><button type="button" class="dk-go dk-resume">${nxt.toUpperCase()}</button>${t.bench.length ? `<button type="button" class="dk-sba${autoSub ? ' on' : ''}" aria-pressed="${autoSub}">AUTO SUB: ${autoSub ? 'ON' : 'OFF'}</button>` : ''}</div>`;
     }
     // (the title and the countdown refresh once a second)
     let subsTickAt = 0;
@@ -10495,6 +10584,7 @@ gl_FragColor=vec4(c,1.0);}`;
     subsEl.addEventListener('pointerdown', (e) => e.stopPropagation());
     subsEl.addEventListener('click', (e) => {
       if (e.target.closest('.dk-resume')) { endTimeout(); return; }
+      if (e.target.closest('.dk-sba')) { setAutoSub(!autoSub); sfx.play('tap'); drawSubs(); return; }
       const b = e.target.closest('.dk-sbp'); if (!b) return;
       subPickP(everyone.find((q) => q.key === b.dataset.k));
     });
@@ -10504,7 +10594,7 @@ gl_FragColor=vec4(c,1.0);}`;
       boxShown = true; phase = 'box'; clearBanner();
       const mmss = (v) => { v = Math.round(v || 0); return Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0'); };
       const cells = (s, min) => `<td>${min}</td><td>${s.pts}</td><td>${s.fgm}-${s.fga}</td><td>${s.tpm}-${s.tpa}</td><td>${s.ftm}-${s.fta}</td><td>${s.reb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.to}</td><td>${s.pf}</td>`;
-      const won = hs > as, line = (p) => { const s = stat(p.sq); return `<tr><td>${faceHTML(p.sq)} ${esc(shortName(p.sq.name))}${p.sq.sixth ? ' <small>6th</small>' : ''}</td>${cells(s, mmss(s.min))}</tr>`; };
+      const won = hs > as, line = (p) => { const s = stat(p.sq); return `<tr><td>${faceHTML(p.sq)} ${esc(shortName(p.sq.name))}${p.sq.tag ? ' <small>' + p.sq.tag + '</small>' : ''}</td>${s.min > 0 || s.pf || s.fga || s.fta || s.reb || s.ast || s.to ? cells(s, mmss(s.min)) : '<td class="dnp" colspan="11">Did not play</td>'}</tr>`; };
       const total = (t) => { const o = { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, pf: 0 }; for (const q of t.sq) { const s = stat(q); for (const k in o) o[k] += s[k] || 0; } return `<tr class="tot"><td>Team · ${o.fga ? Math.round(o.fgm / o.fga * 100) : 0}% FG</td>${cells(o, '')}</tr>`; };
       const tbl = (t) => `<table><tr><th>${esc(t.T.name)}</th><th>MIN</th><th>PTS</th><th>FG</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>PF</th></tr>${t.on.concat(t.bench).sort((a, b) => t.sq.indexOf(a.sq) - t.sq.indexOf(b.sq)).map(line).join('')}${total(t)}</table>`;
       const box = el('div', 'dk-box', `<h2>${won ? 'You win!' : hs === as ? 'Tied' : 'Final'}${qtr > 4 ? ' · ' + (qtr > 5 ? (qtr - 4) + 'OT' : 'OT') : ''}</h2><div class="fs"><span style="color:${HOMECSS}">${esc(HOME.abbr)}</span>${hs} – ${as}<span style="color:${OPPCSS}">${esc(AWAY.abbr)}</span></div><h3>Box score</h3>${tbl(teams[0])}${tbl(teams[1])}${HL.length ? '<h3>Highlights</h3>' + HL.slice(-8).map((h) => `<div class="hl">${h.q > 4 ? 'OT' : 'Q' + h.q} · ${esc(h.txt)}</div>`).join('') : ''}<button type="button" class="go">CONTINUE</button>`);
@@ -10654,7 +10744,7 @@ gl_FragColor=vec4(c,1.0);}`;
       if (finished) return;
       finished = true;
       cleanup();
-      const box = SQL.map((q) => Object.assign({ id: q.pid, name: q.name, num: q.num, side: q.side ? 'away' : 'home', pos: q.pos }, ST[q.key] || {}));
+      const box = SQL.map((q) => Object.assign({ id: q.pid, name: q.name, num: q.num, side: q.side ? 'away' : 'home', pos: q.pos, bench: q.bench ? q.bn + 6 : 0 }, ST[q.key] || {}));
       const res = { homeScore: hs, awayScore: as, quit: !!quit, overtime: qtr > 4, team: teamStats(teams[0]), opp: teamStats(teams[1]), box, highlights: HL.slice(-10) };
       try { done(res); } catch (e) { console.error(e); }
     }
@@ -10665,7 +10755,7 @@ gl_FragColor=vec4(c,1.0);}`;
       <div class="dk-title">3D DUNK</div>
       <div class="dk-tag2"><span style="color:${HOMECSS}">${esc(HOME.name)}</span> vs <span style="color:${OPPCSS}">${esc(AWAY.name)}</span></div>
       <div class="dk-goal">${opts.label ? esc(opts.label) : lvlName} · Wildcat Gym<br>4 quarters × <em>${fmtClock(QS)}</em> · <em>${SHOT}</em>-second shot clock · <em>${TOS}</em> timeouts</div>
-      <div class="dk-squad">${SQH.map((q) => `<div>${faceHTML(q)}<span>${esc(shortName(q.name))}</span><em>${q.sixth ? '6th' : q.pos} #${q.num}</em></div>`).join('')}</div>
+      <div class="dk-squad${SQH.length > 6 ? ' n8' : ''}">${SQH.map((q) => `<div>${faceHTML(q)}<span>${esc(shortName(q.name))}</span><em>${q.tag || q.pos} #${q.num}</em></div>`).join('')}</div>
       ${controlsCard()}
       <button type="button" class="dk-go">TIP OFF</button>`);
     wrap.appendChild(splash);
@@ -10704,6 +10794,10 @@ gl_FragColor=vec4(c,1.0);}`;
       attDir(side) { return dirOf(side || 0); },
       project(x, y, z) { return project(x, y, z); }, get cssW() { return cssW; }, get cssH() { return cssH; },
       debugSet(o) { if (o.clock != null) clock = o.clock; if (o.qtr) qtr = o.qtr; if (o.hs != null) hs = o.hs; if (o.as != null) as = o.as; if (o.shotClk != null) shotClk = o.shotClk; boardDirty = true; },
+      foulNow(shooting) { const sh = ball.holder || (ball.shot && ball.shot.by); if (!sh || phase !== 'live') return false; const d = nearestTo(foes(sh), sh); callFoul(d, sh, !!shooting, 'Foul', null, 'fuzz'); return true; }, // (tests: a whistle right now)
+      get pendFT() { return pendFT; },
+      get inbInfo() { return inb || inbPlan; },
+      blockNow() { const sh = ball.shot && ball.shot.by; if (!sh) return false; const d = nearestTo(foes(sh), sh); blockShot(d, sh); return true; }, // (tests: a swat at the shot in the air, as a defender's jump would)
       quit() { finishGame(true); }, showBox() { if (!boxShown) showBox(); }, finish() { finishGame(false); },
     };
     let elapsedT = 0, stepErrs = 0, stepErrLogged = false;
@@ -10740,7 +10834,7 @@ gl_FragColor=vec4(c,1.0);}`;
   }
   // =====================================================================================
   // Public API + the Arcade game 'dunk3d'
-  // ctx.data (the server's /arcade/start): { home: {name, abbr, color, color2, mine, players: [6 x {id, name, num, photo, look, hgt, wgt,
+  // ctx.data (the server's /arcade/start): { home: {name, abbr, color, color2, mine, players: [5 to 8 x {id, name, num, photo, look, hgt, wgt,
   // pos, sixth, bb: {ovr, spd, vert, str, hand, pass, fin, dunk, mid, three, ft, perD, intD, stl, blk, reb, sta}}]}, away: {...}, level, quarterSecs, seed }
   // =====================================================================================
   window.MFLDunk = {
@@ -10760,7 +10854,7 @@ gl_FragColor=vec4(c,1.0);}`;
     window.MFLArcade.register('dunk3d', {
       start(ctx) {
         const data = ctx.data || {}, lvl = clamp((data.level != null ? data.level : ctx.level) | 0, 0, 5);
-        const team = (t, dn) => (t && typeof t === 'object' ? Object.assign({}, t, { players: (Array.isArray(t.players) ? t.players : []).filter((p) => p && p.name).slice(0, 6) }) : { name: dn, players: [] });
+        const team = (t, dn) => (t && typeof t === 'object' ? Object.assign({}, t, { players: (Array.isArray(t.players) ? t.players : []).filter((p) => p && p.name).slice(0, 8) }) : { name: dn, players: [] });
         const home = team(data.home, 'MFL Stars');
         let away = team(data.away, '');
         if (!away.players.length && !data.away) { const o = pickOpponent(lvl, { name: home.name, color: home.color || '#c8102e' }, ctx.seed); away = { name: o.name, abbr: o.abbr, color: o.color, color2: o.color2, players: [], ovr: 56 + lvl * 7 }; }

@@ -54,7 +54,7 @@ const GAMES = {
   blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Career mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 150, maxScore: 90, isNew: true },
   // 3D Dunk pays like 3D Blitz: the same six levels and prizes, Risk mode and both runs (RUN_GAMES). A coin game is always
   // 2-minute quarters (only Practice picks the quarter length).
-  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball in Wildcat Gym with your own cards: five starters and a sixth man, crossovers, layups, blocks and the green release.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, isNew: true },
+  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball in Wildcat Gym with your own cards: five starters and a bench of up to three, crossovers, layups, blocks and the green release.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Double or Nothing / Double or Double: a run of 3D Blitz games at Legend, Hall of Fame (the main one) or GOAT. After every win
@@ -585,10 +585,10 @@ module.exports = function arcade(app, h) {
     return { players: (team.players || []).filter(Boolean).map((p) => rosterEntry(team, p)) };
   }
   // ---------- 3D Dunk ----------
-  // The game's data (the engine contract): home and away, 6 players each (5 starters PG, SG, SF, PF, C, then the sixth man), every
+  // The game's data (the engine contract): home and away, 6 to 8 players each (5 starters PG, SG, SF, PF, C, then the sixth, seventh and eighth man), every
   // player with his basketball ratings (bb, 25-99) and what the engine needs to draw him (exact roster name and id for scanned heads,
   // number, photo, look, height in inches and weight in pounds).
-  const DUNK_KEEP = 6;
+  const DUNK_KEEP = 6, DUNK_MAX = 8;
   const dunkCpuNames = ['J. Carter', 'M. Brooks', 'D. Ellis', 'T. Grant', 'K. Hayes', 'R. Lowe', 'A. Price', 'C. Reed', 'L. Shaw', 'B. Wells'];
   function dunkPlayer(db, t, p, card, pos, sixth) {
     const ca = bbCardAttrs(db, t, p, card);
@@ -604,7 +604,7 @@ module.exports = function arcade(app, h) {
   function dunkOrder(list) {
     const st = list.slice(0, 5), pos = cards.bbPlace(st.map((x) => x.a));
     const out = st.map((x, i) => ({ ...x, pos: pos[i] })).sort((a, b) => cards.BB_POS.indexOf(a.pos) - cards.BB_POS.indexOf(b.pos));
-    if (list[5]) out.push({ ...list[5], pos: cards.bbBestPos(list[5].a), sixth: true });
+    for (let i = 5; i < list.length && i < DUNK_MAX; i++) out.push({ ...list[i], pos: cards.bbBestPos(list[i].a), sixth: i === 5 });
     return out;
   }
   // A made-up player (CPU teams, or to fill a real roster shorter than 6).
@@ -624,7 +624,7 @@ module.exports = function arcade(app, h) {
     const top = (ps) => ps.map((p) => ({ p, a: bbBaseOf(db, t, p) })).filter((x) => x.a).sort((x, y) => y.a.ovr - x.a.ovr);
     const out = skip && skip.size ? top(t.roster.filter((p) => !skip.has(p.id))) : top(t.roster);
     // a player already on the other side never plays twice: a short roster is filled with made-up players below
-    const ps = out.slice(0, DUNK_KEEP);
+    const ps = out.slice(0, DUNK_MAX);
     const list = ps.map((x) => ({ ...dunkPlayer(db, t, x.p, null, null, false), a: x.a }));
     for (let i = list.length; i < DUNK_KEEP; i++) list.push(dunkCpuPlayer(t, i, 58, rnd));
     return { name: t.name, abbr: t.abbr, color: t.color, color2: t.color2, mine: false, teamId: t.id, players: dunkOrder(list) };
@@ -633,13 +633,13 @@ module.exports = function arcade(app, h) {
   function dunkCpuTeam(level, rnd) {
     const c = CPU_TEAMS[Math.floor(rnd() * CPU_TEAMS.length)], ovr = [62, 68, 74, 80, 90, 86][level] || 70;
     const at = Math.floor(rnd() * dunkCpuNames.length);
-    const list = Array.from({ length: DUNK_KEEP }, (_, i) => dunkCpuPlayer(c, i, ovr - (i === 5 ? 4 : 0), rnd, at));
+    const list = Array.from({ length: DUNK_MAX }, (_, i) => dunkCpuPlayer(c, i, ovr - (i < 5 ? 0 : 4 + (i - 5) * 2), rnd, at));
     return { name: c.name, abbr: c.abbr, color: c.color, color2: c.color2, mine: false, cpu: true, players: dunkOrder(list) };
   }
-  // The user's saved Dunk lineup (user.bbLineup.cards: PG, SG, SF, PF, C, sixth man), or null unless all 6 are still owned and different players.
+  // The user's saved Dunk lineup (user.bbLineup.cards: PG, SG, SF, PF, C, sixth man, then an optional 7th and 8th), or null unless all of them are still owned and different players.
   function dunkLineupCards(db, user) {
     const ids = user && user.bbLineup && Array.isArray(user.bbLineup.cards) ? user.bbLineup.cards : null;
-    if (!ids || ids.length !== DUNK_KEEP) return null;
+    if (!ids || ids.length < DUNK_KEEP || ids.length > DUNK_MAX) return null;
     const own = cards.collection(user), seen = new Set(), out = [];
     for (const id of ids) {
       const c = id && own[id] ? cards.cardInfo(db, id) : null;
@@ -653,7 +653,7 @@ module.exports = function arcade(app, h) {
     if (!cs) return null;
     const nm = `${user.name}'s Five`;
     return { name: nm.length <= 18 ? nm : user.name.slice(0, 18), abbr: user.name.slice(0, 3).toUpperCase(), color: '#ffc21a', color2: '#151515', mine: true,
-      players: cs.map((c, i) => { const ca = i === 5 ? bbCardAttrs(db, c.t, c.p, c) : null; return dunkPlayer(db, c.t, c.p, c, i < 5 ? cards.BB_POS[i] : cards.bbBestPos(ca.attr), i === 5); }) };
+      players: cs.map((c, i) => { const ca = i >= 5 ? bbCardAttrs(db, c.t, c.p, c) : null; return dunkPlayer(db, c.t, c.p, c, i < 5 ? cards.BB_POS[i] : cards.bbBestPos(ca.attr), i === 5); }) };
   }
   const strip = (team) => ({ ...team, players: team.players.map(({ a, ...p }) => p) });
   function dunkData(db, user, level, seed, opts = {}) {
@@ -948,20 +948,20 @@ module.exports = function arcade(app, h) {
   });
 
   // ---------- 3D Dunk page: the Dunk lineup (5 starters + a sixth man from your cards) and Practice ----------
-  // Saved on its own as user.bbLineup = { at, cards: [PG, SG, SF, PF, C, sixth man] } (never user.lineups: that one is the fantasy Lineup).
+  // Saved on its own as user.bbLineup = { at, cards: [PG, SG, SF, PF, C, sixth man, 7th?, 8th?] } (never user.lineups: that one is the fantasy Lineup).
   app.post('/arcade/dunk3d/lineup', async (req, res) => {
     try {
       const name = currentUser(req);
       if (!name) return json(res, { ok: false, error: 'Log in to save a Dunk lineup.' });
       const db = load();
       const ids = Array.isArray(req.body && req.body.cards) ? req.body.cards.map((x) => String(x || '').slice(0, 120)) : [];
-      if (ids.length !== DUNK_KEEP || ids.some((id) => !id)) return json(res, { ok: false, error: 'Pick all 6: five starters (PG, SG, SF, PF, C) and a sixth man.' });
+      if (ids.length < DUNK_KEEP || ids.length > DUNK_MAX || ids.some((id) => !id)) return json(res, { ok: false, error: 'Pick at least 6: five starters (PG, SG, SF, PF, C) and a sixth man. A 7th and 8th man are optional.' });
       const user = await getDoc(userKey(name), { fresh: true });
       const own = cards.collection(user), seen = new Set();
       for (const id of ids) {
         const c = own[id] ? cards.cardInfo(db, id) : null;
         if (!c) return json(res, { ok: false, error: 'You can only use cards you own.' });
-        if (seen.has(c.pid)) return json(res, { ok: false, error: `${c.p.name} is in your lineup twice. Pick 6 different players.` });
+        if (seen.has(c.pid)) return json(res, { ok: false, error: `${c.p.name} is in your lineup twice. Every spot needs a different player.` });
         seen.add(c.pid);
       }
       user.bbLineup = { at: new Date().toISOString(), cards: ids };
@@ -999,10 +999,10 @@ module.exports = function arcade(app, h) {
       res.send(layout(req, G.name, `<div class="wrap arc-page dk-page">
         <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user && acct ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
         <section class="card dk-lu arc-setup-x">
-          <div class="card-h"><h2>Your Dunk lineup</h2>${user ? '<span class="muted sm">5 starters and a sixth man (he subs in at timeouts)</span>' : ''}</div>
+          <div class="card-h"><h2>Your Dunk lineup</h2>${user ? '<span class="muted sm">5 starters and a sixth man, plus an optional 7th and 8th man (the bench subs in at timeouts)</span>' : ''}</div>
           ${user ? `${pool.length ? `<div class="dk-slots" id="dkSlots"></div>
             <div class="dk-bar"><button type="button" class="btn ghost sm" id="dkAuto">Auto-pick best</button><button type="button" class="btn ghost sm" id="dkClear">Clear</button><button type="button" class="btn sm" id="dkSave">Save lineup</button><span class="dk-msg" id="dkMsg" role="status"></span></div>
-            <div class="dk-pick" id="dkPick" hidden><div class="dk-pick-h"><b id="dkPickT">Pick a player</b><input type="search" id="dkFind" placeholder="Search your cards" aria-label="Search your cards"><button type="button" class="btn ghost sm" id="dkPickX">Done</button></div><div class="dk-list" id="dkList"></div></div>`
+            <div class="dk-pick" id="dkPick" hidden><div class="dk-pick-h"><b id="dkPickT">Pick a player</b><input type="search" id="dkFind" placeholder="Search your cards" aria-label="Search your cards"><button type="button" class="btn ghost sm" id="dkPickNone" hidden>Leave empty</button><button type="button" class="btn ghost sm" id="dkPickX">Done</button></div><div class="dk-list" id="dkList"></div></div>`
             : `<p class="muted">You have no cards yet. <a href="/pickem/cards">Open a pack →</a> Until you build a lineup you play as a real MFL team.</p>`}`
             : `<p class="muted"><a href="/pickem/login?next=/arcade/dunk3d">Log in</a> to build your Dunk lineup from your cards. Practice works without it: you play as a real MFL team.</p>`}
         </section>
@@ -1029,9 +1029,9 @@ module.exports = function arcade(app, h) {
         const b=f.querySelector('.arc-go [data-label]');if(b)b.textContent=run?'Start the run':p?'Practice':'Play';};
       f.addEventListener('change',sync);sync();})();</script>
       ${user && pool.length ? `<script>(function(){
-        var POOL=${JSON.stringify(pool).replace(/</g, '\\u003c')},SAVED=${JSON.stringify(saved).replace(/</g, '\\u003c')},KEYS=${JSON.stringify(keyCols)},POS=['PG','SG','SF','PF','C','6TH'];
-        var POSN={PG:'Point guard',SG:'Shooting guard',SF:'Small forward',PF:'Power forward',C:'Center','6TH':'Sixth man'};
-        var KEY={PG:['hand','pass','three','spd'],SG:['three','mid','hand','spd'],SF:['fin','mid','three','perD'],PF:['reb','intD','fin','str'],C:['blk','reb','intD','str'],'6TH':['spd','fin','three','reb']};
+        var POOL=${JSON.stringify(pool).replace(/</g, '\\u003c')},SAVED=${JSON.stringify(saved).replace(/</g, '\\u003c')},KEYS=${JSON.stringify(keyCols)},POS=['PG','SG','SF','PF','C','6TH','7TH','8TH'],BENCH=function(p){return p==='6TH'||p==='7TH'||p==='8TH';};
+        var POSN={PG:'Point guard',SG:'Shooting guard',SF:'Small forward',PF:'Power forward',C:'Center','6TH':'Sixth man','7TH':'7th man (optional)','8TH':'8th man (optional)'};
+        var KEY={PG:['hand','pass','three','spd'],SG:['three','mid','hand','spd'],SF:['fin','mid','three','perD'],PF:['reb','intD','fin','str'],C:['blk','reb','intD','str'],'6TH':['spd','fin','three','reb'],'7TH':['spd','fin','three','reb'],'8TH':['spd','fin','three','reb']};
         var FIT={PG:function(a){return .3*a.hand+.3*a.pass+.15*a.three+.15*a.spd+.1*a.perD;},SG:function(a){return .35*a.three+.2*a.mid+.15*a.hand+.15*a.spd+.15*a.perD;},SF:function(a){return .2*a.fin+.2*a.mid+.15*a.three+.15*a.vert+.15*a.perD+.15*a.reb;},PF:function(a){return .25*a.reb+.2*a.intD+.2*a.fin+.2*a.str+.15*a.blk;},C:function(a,h){return .25*a.blk+.25*a.reb+.2*a.intD+.15*a.str+.15*((h||62)-54)*4;}};
         var byId={};POOL.forEach(function(c){byId[c.id]=c;});
         var lu=POS.map(function(_,i){return SAVED[i]&&byId[SAVED[i]]?SAVED[i]:'';});
@@ -1042,25 +1042,25 @@ module.exports = function arcade(app, h) {
         var face=function(c){return c.ph?'<img class="dk-face" src="'+E(c.ph)+'" alt="" loading="lazy" data-ini="'+E(ini(c))+'" onerror="this.outerHTML=this.dataset.ini">':ini(c);};
         var keys=function(c,pos){return KEY[pos].map(function(k){var L=KEYS.find(function(x){return x[0]===k;});return '<i title="'+E(L[2])+'"><small>'+E(L[1])+'</small>'+c.a[k]+'</i>';}).join('');};
         var dirty=false,say=function(t,ok){msg.textContent=t;msg.className='dk-msg'+(ok?' ok':'');};
-        function draw(){slots.innerHTML=POS.map(function(p,i){var c=byId[lu[i]];return '<button type="button" class="dk-slot'+(i===5?' six':'')+(i===cur?' on':'')+(c?' full r-'+E(c.r):'')+'" data-i="'+i+'"><span class="dk-pos" title="'+POSN[p]+'">'+p+'</span>'+(c?face(c)+'<b class="dk-n">'+E(c.n)+'</b><small class="dk-l">'+E(c.lab)+'</small><span class="dk-o"><b>'+c.o+'</b><small>OVR</small></span><span class="dk-k">'+keys(c,p)+'</span>':'<span class="dk-empty">+ Pick</span>')+'</button>';}).join('');}
+        function draw(){slots.innerHTML=POS.map(function(p,i){var c=byId[lu[i]];return '<button type="button" class="dk-slot'+(i>=5?' six':'')+(i>5?' opt':'')+(i===cur?' on':'')+(c?' full r-'+E(c.r):'')+'" data-i="'+i+'"><span class="dk-pos" title="'+POSN[p]+'">'+p+'</span>'+(c?face(c)+'<b class="dk-n">'+E(c.n)+'</b><small class="dk-l">'+E(c.lab)+'</small><span class="dk-o"><b>'+c.o+'</b><small>OVR</small></span><span class="dk-k">'+keys(c,p)+'</span>':'<span class="dk-empty">'+(i>5?'+ Optional':'+ Pick')+'</span>')+'</button>';}).join('');}
         function taken(c){return lu.some(function(id,i){return id&&i!==cur&&byId[id].pid===c.pid;});}
-        function drawList(){var q=(find.value||'').toLowerCase().trim(),p=POS[cur];document.getElementById('dkPickT').textContent='Pick your '+POSN[p];
-          var rows=POOL.filter(function(c){return !q||(c.n+' '+c.lab+' '+c.tm).toLowerCase().indexOf(q)>=0;}).map(function(c){return {c:c,f:p==='6TH'?c.o:FIT[p](c.a,c.h)};}).sort(function(x,y){return y.f-x.f||y.c.o-x.c.o;});
+        function drawList(){var q=(find.value||'').toLowerCase().trim(),p=POS[cur];document.getElementById('dkPickT').textContent='Pick your '+POSN[p];document.getElementById('dkPickNone').hidden=!(cur>5&&lu[cur]);
+          var rows=POOL.filter(function(c){return !q||(c.n+' '+c.lab+' '+c.tm).toLowerCase().indexOf(q)>=0;}).map(function(c){return {c:c,f:BENCH(p)?c.o:FIT[p](c.a,c.h)};}).sort(function(x,y){return y.f-x.f||y.c.o-x.c.o;});
           list.innerHTML=rows.slice(0,150).map(function(r){var c=r.c,t=taken(c),on=lu[cur]===c.id;return '<button type="button" class="dk-row r-'+E(c.r)+(on?' on':'')+(t?' taken':'')+'" data-id="'+E(c.id)+'"'+(t?' disabled':'')+'>'+face(c)+'<span class="dk-rn"><b>'+E(c.n)+'</b><small>'+E(c.tm)+(c.num?' #'+E(c.num):'')+' · '+E(c.lab.indexOf(c.rn)===0?c.lab:c.rn+' '+c.lab)+' · '+ft(c.h)+(t?' · in lineup':'')+'</small></span><span class="dk-o"><b>'+c.o+'</b><small>OVR</small></span><span class="dk-k">'+keys(c,p)+'</span></button>';}).join('')||'<p class="muted">No cards match.</p>';}
         function open(i){cur=i;pick.hidden=false;find.value='';draw();drawList();try{pick.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}}
         function close(){cur=-1;pick.hidden=true;draw();}
         slots.addEventListener('click',function(e){var b=e.target.closest('.dk-slot');if(b)open(+b.dataset.i);});
-        list.addEventListener('click',function(e){var b=e.target.closest('.dk-row');if(!b||b.disabled)return;lu[cur]=b.dataset.id;dirty=true;say('Not saved yet');var nx=lu.findIndex(function(x){return !x;});if(nx>=0)open(nx);else close();});
-        find.addEventListener('input',drawList);document.getElementById('dkPickX').addEventListener('click',close);
+        list.addEventListener('click',function(e){var b=e.target.closest('.dk-row');if(!b||b.disabled)return;lu[cur]=b.dataset.id;dirty=true;say('Not saved yet');var nx=lu.findIndex(function(x,i){return !x&&i<6;});if(nx>=0)open(nx);else close();});
+        find.addEventListener('input',drawList);document.getElementById('dkPickX').addEventListener('click',close);document.getElementById('dkPickNone').addEventListener('click',function(){if(cur>5){lu[cur]='';dirty=true;say('Not saved yet');}close();});
         document.getElementById('dkClear').addEventListener('click',function(){lu=POS.map(function(){return '';});dirty=true;close();say('Not saved yet');});
         // Auto-pick: each player's best card, the top 6 by overall, then the 5 starters and the sixth man placed for the best total fit.
         document.getElementById('dkAuto').addEventListener('click',function(){var best={};POOL.forEach(function(c){if(!best[c.pid]||c.o>best[c.pid].o)best[c.pid]=c;});
           var top=Object.keys(best).map(function(k){return best[k];}).sort(function(x,y){return y.o-x.o;}).slice(0,6);if(top.length<6){say('You need cards of 6 different players.');return;}
           var five=['PG','SG','SF','PF','C'],bs=-1e9,bp=null;
           for(var s=0;s<6;s++){var st=top.filter(function(_,i){return i!==s;});(function perm(a,l){if(l===5){var t=a.reduce(function(m,ci,i){return m+FIT[five[i]](st[ci].a,st[ci].h);},0);if(t>bs){bs=t;bp={s:s,a:a.slice(),st:st};}return;}for(var i=l;i<5;i++){var x=a[l];a[l]=a[i];a[i]=x;perm(a,l+1);x=a[l];a[l]=a[i];a[i]=x;}})([0,1,2,3,4],0);}
-          lu=bp.a.map(function(ci){return bp.st[ci].id;}).concat([top[bp.s].id]);dirty=true;close();say('Auto-picked. Save to keep it.',true);});
-        document.getElementById('dkSave').addEventListener('click',function(){if(lu.some(function(x){return !x;})){say('Pick all 6 first.');return;}var btn=this;btn.disabled=true;say('Saving…',true);
-          fetch('/arcade/dunk3d/lineup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:lu})}).then(function(r){return r.json();}).then(function(r){btn.disabled=false;if(r.ok){dirty=false;say('Saved ✓',true);var w=document.getElementById('dkWho');if(w)w.textContent='Your saved Dunk lineup takes the court.';}else say(r.error||'Could not save.');},function(){btn.disabled=false;say('Could not reach the server.');});});
+          var all=Object.keys(best).map(function(k){return best[k];}).sort(function(x,y){return y.o-x.o;});lu=bp.a.map(function(ci){return bp.st[ci].id;}).concat([top[bp.s].id,all[6]?all[6].id:'',all[7]?all[7].id:'']);dirty=true;close();say('Auto-picked. Save to keep it.',true);});
+        document.getElementById('dkSave').addEventListener('click',function(){if(lu.slice(0,6).some(function(x){return !x;})){say('Pick the first 6 first.');return;}var btn=this;btn.disabled=true;say('Saving…',true);
+          fetch('/arcade/dunk3d/lineup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:lu.slice(0,6).concat(lu.slice(6).filter(Boolean))})}).then(function(r){return r.json();}).then(function(r){btn.disabled=false;if(r.ok){dirty=false;say('Saved ✓',true);var w=document.getElementById('dkWho');if(w)w.textContent='Your saved Dunk lineup takes the court.';}else say(r.error||'Could not save.');},function(){btn.disabled=false;say('Could not reach the server.');});});
         window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue='';}});
         document.getElementById('arcSetup').addEventListener('submit',function(){dirty=false;},true);
         draw();})();</script>` : ''}
