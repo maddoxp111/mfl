@@ -1061,6 +1061,19 @@ const UPDATES = [
       'Wildcat Gym was redone from photos of the real one: gold floor, tan and cream walls with the red band, white doors, volleyball lines, the paw sign and the clock.',
     ],
   },
+  {
+    n: 100,
+    date: '2026-11-16',
+    title: '3D Dunk: closer games, icon passing, better feel',
+    items: [
+      'Games stay closer. The side that is behind gets a quiet lift on shots that are not perfectly timed, on loose balls and on defense, and it grows late. A green release is never touched: perfect timing always counts the same.',
+      'Clutch time: in the last minute of a close game both defenses tighten up and the crowd gets loud.',
+      'Pick who gets the pass. On a keyboard, keys 1 to 5 pass to your PG, SG, SF, PF and C. On a phone, hold the pass button and tap the icon over a teammate.',
+      'Passes into the paint get there: entry passes and lobs are caught instead of sailing away.',
+      'Teammates move more without the ball, and the computer runs more kinds of plays.',
+      'Players lean into cuts and stops, contact has more weight, and makes, misses, steals and blocks have clearer sound and feedback.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
