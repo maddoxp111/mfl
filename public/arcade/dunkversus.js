@@ -11,7 +11,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (n) => Number(n || 0).toLocaleString('en-US');
-  const ME = cfg.me, MAXW = cfg.maxWager || 10000, GAME = 'dunk3d';
+  const ME = cfg.me, MAXW = cfg.maxWager || 2000, GAME = 'dunk3d';
   const POS = ['PG', 'SG', 'SF', 'PF', 'C'];
   const QLABEL = { 60: '1-min', 120: '2-min', 180: '3-min' };
   const qlabel = (q) => QLABEL[q] || Math.round((q || 120) / 60) + '-min';

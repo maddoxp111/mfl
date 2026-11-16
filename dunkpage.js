@@ -10,7 +10,7 @@ const cards = require('./cards');
 const arcadeMod = require('./arcade');
 
 const PAGE = '/arcade/dunk3d/versus';
-const MAX_WAGER = 10000, QS = [60, 120, 180], DUNK_KEEP = 6, DUNK_MAX = 8;
+const MAX_WAGER = 2000, QS = [60, 120, 180], DUNK_KEEP = 6, DUNK_MAX = 8;
 const fmtN = (n) => Number(n || 0).toLocaleString('en-US');
 
 // The lineup this player takes into a game, as the page shows it: the saved Dunk lineup (6 to 8 owned cards, all different players), else the six best

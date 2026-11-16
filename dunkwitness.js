@@ -13,7 +13,7 @@
 // VERSUS_LOOSE=1 turns the real-time checks off (tests there play at several times real speed).
 const DUNK = {
   GAME: 'dunk3d',
-  MAX_WAGER: 10000, // coins per game (until the game is refereed by the server)
+  MAX_WAGER: 2000, // coins per game (until the game is refereed by the server)
   QS: [60, 120, 180], // quarter lengths in seconds
   DEFAULT_QS: 120,
   LEVEL: 2, // the AI teammates of both players play at this level (All-Pro)
