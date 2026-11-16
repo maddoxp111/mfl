@@ -2888,7 +2888,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/gta', 'GTA logo'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/gta', 'GTA logo'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/basketball', 'Basketball'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3645,6 +3645,103 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
     </script>`, { ticker: false }));
 });
 
+// ---------- admin: basketball ratings (3D Dunk) ----------
+// One page for everyone's basketball overall and 16 ratings (p.bb), with sliders. Dragging the overall presets every rating from
+// the overall and his height and weight (cards.bbPreset: 6'0" and up is a definite big); dragging a rating moves the overall,
+// which is always the weighted mean of the 16 (cards.BB_W). Height and weight are his real ones (p.attr.hgt / p.attr.wgt).
+const BB_GROUPS = [['Athleticism', ['spd', 'vert', 'str', 'sta']], ['Offense', ['hand', 'pass', 'fin', 'dunk', 'mid', 'three', 'ft']], ['Defense', ['perD', 'intD', 'stl', 'blk', 'reb']]];
+function bbAdminRow(db, tm, p) {
+  const A = require('./arcade'), fb = A.playerAttrs(db, tm, p);
+  if (!fb) return null;
+  const b = cards.bbBase(p, fb), r = {};
+  for (const k of cards.BB_KEYS) r[k] = b[k];
+  return { id: p.id, team: tm.id, name: p.name, abbr: tm.abbr, color: tm.color, hgt: b.hgt, wgt: b.wgt, ovr: cards.bbOvrOf(r), r, set: !!(p.bb && Object.keys(p.bb).length), lean: cards.bbLean(fb), pos: cards.bbBestPos(r) };
+}
+app.get('/admin/basketball', requireAdmin, (req, res) => {
+  const db = load(), list = [];
+  for (const tm of Object.values(db.teams)) for (const p of tm.roster) { const row = bbAdminRow(db, tm, p); if (row) list.push({ row, tm, p }); }
+  list.sort((a, b) => b.row.ovr - a.row.ovr || a.row.name.localeCompare(b.row.name));
+  const slider = (k, label, min, max, cls = '') => `<label class="bb-s ${cls}" data-k="${k}"><span class="bb-l">${esc(label)}</span><input type="range" min="${min}" max="${max}" step="1" data-k="${k}" aria-label="${esc(label)}"><b class="bb-v"></b></label>`;
+  const editor = `<div class="bb-body"><div class="bb-s2">${slider('hgt', 'Height', 54, 78, 'bb-hw')}${slider('wgt', 'Weight', 70, 250, 'bb-hw')}</div>
+      ${slider('ovr', 'Overall', 25, 99, 'bb-ovr')}<p class="muted sm bb-tip">Drag Overall to preset every rating for his size. Drag any rating and the overall follows.</p>
+      ${BB_GROUPS.map(([g, ks]) => `<h4>${g}</h4><div class="bb-s2">${ks.map((k) => slider(k, cards.BB_LABELS[k], 25, 99)).join('')}</div>`).join('')}
+      <div class="bb-acts"><button type="button" class="btn sm bb-save">Save</button><button type="button" class="btn sm ghost bb-auto">Back to automatic</button><small class="bb-msg" aria-live="polite"></small></div></div>`;
+  const rows = list.map(({ row, tm, p }) => `<details class="bb-row" data-p="${esc(JSON.stringify(row))}" data-n="${esc((row.name + ' ' + teamFull(tm) + ' ' + row.abbr).toLowerCase())}">
+      <summary>${avatar(tm, p, 36)}<span class="bb-name"><b>${esc(row.name)}</b><small><span class="bb-meta"></span> · ${esc(row.abbr)}</small></span><span class="bb-tag"></span><span class="bb-o"></span></summary></details>`).join('');
+  res.send(layout(req, 'Basketball ratings', pageHead('Admin', 'Basketball ratings', 'Everyone\'s 3D Dunk overall. Tap a player to open his sliders.') + `<div class="wrap">${adminNav('/admin/basketball')}
+    <div class="bb-bar"><input type="search" class="bb-q" placeholder="Search a player or team" aria-label="Search"><select class="bb-sort" aria-label="Sort"><option value="ovr">Highest overall</option><option value="hgt">Tallest</option><option value="name">Name</option><option value="team">Team</option></select></div>
+    <p class="muted sm">6'0" and taller presets as a big. <span class="bb-count"></span></p>
+    <div class="bb-list">${rows}</div><template id="bb-ed">${editor}</template>
+    <div class="bb-all" hidden><span></span><button type="button" class="btn sm">Save all</button></div></div>
+    <style>.bb-bar{display:flex;gap:8px;margin:10px 0}.bb-q{flex:1;min-width:0;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:16px}.bb-sort{background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:10px;padding:0 8px}
+    .bb-list{display:flex;flex-direction:column;gap:6px;padding-bottom:80px}.bb-row{background:var(--card2);border-radius:12px;overflow:hidden}.bb-row[open]{outline:2px solid var(--a,#ffc21a)}
+    .bb-row summary{display:grid;grid-template-columns:36px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 10px;cursor:pointer;list-style:none}.bb-row summary::-webkit-details-marker{display:none}
+    .bb-name{min-width:0}.bb-name b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bb-name small{color:var(--muted);font-size:12px}
+    .bb-tag{font-size:11px;font-weight:700;padding:3px 7px;border-radius:999px;background:var(--card);color:var(--muted);white-space:nowrap}.bb-tag.big{background:#b3261e;color:#fff}.bb-tag.dirty{background:#ffc21a;color:#111}
+    .bb-o{font-size:22px;font-weight:800;min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+    .bb-body{padding:4px 12px 14px}.bb-body h4{margin:12px 0 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .bb-s2{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px}.bb-s{display:grid;grid-template-columns:104px minmax(0,1fr) 44px;gap:8px;align-items:center;min-height:40px}
+    .bb-l{font-size:13px}.bb-hw{grid-template-columns:104px minmax(0,1fr) 62px}.bb-v{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;font-size:15px}.bb-s input[type=range]{width:100%;height:28px;accent-color:var(--a,#ffc21a);touch-action:pan-y}
+    .bb-ovr{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--card);grid-template-columns:70px minmax(0,1fr) 48px}.bb-ovr .bb-l{font-weight:800}.bb-ovr .bb-v{font-size:24px;font-weight:800}
+    .bb-tip{margin:6px 0 0}.bb-acts{display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap}.bb-msg{color:var(--muted)}
+    .bb-all{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:12px;align-items:center;justify-content:center;background:var(--bg);border-top:1px solid var(--line2);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}.bb-all[hidden]{display:none}
+    @media (max-width:640px){.bb-s2{grid-template-columns:1fr}.bb-s{grid-template-columns:96px minmax(0,1fr) 40px}.bb-hw{grid-template-columns:96px minmax(0,1fr) 62px}}</style>
+    <script>(function(){
+      const KEYS=${JSON.stringify(cards.BB_KEYS)}, W=${JSON.stringify(cards.BB_W)}, preset=${cards.bbPresetCore.toString()};
+      const cl=(v,a,b)=>Math.max(a,Math.min(b,v)), ftIn=(h)=>Math.floor(h/12)+"'"+(h%12)+'"';
+      const ovrOf=(r)=>{let s=0,w=0;for(const k of KEYS){s+=r[k]*W[k];w+=W[k];}return cl(Math.round(s/w),25,99);};
+      const list=document.querySelector('.bb-list'), tpl=document.getElementById('bb-ed'), all=document.querySelector('.bb-all'), rows=[...list.children];
+      const S=new Map();
+      const head=(el)=>{const s=S.get(el),d=s.cur;el.querySelector('.bb-o').textContent=ovrOf(d.r);el.querySelector('.bb-meta').textContent=ftIn(d.hgt)+' · '+d.wgt+' lb';
+        const t=el.querySelector('.bb-tag');t.className='bb-tag'+(s.dirty?' dirty':d.hgt>=72?' big':'');t.textContent=s.dirty?'Not saved':d.hgt>=72?'BIG':s.set?'Set':'Auto';};
+      const paint=(el)=>{const d=S.get(el).cur;el.querySelectorAll('.bb-s').forEach((lab)=>{const k=lab.dataset.k,i=lab.querySelector('input'),v=k==='ovr'?ovrOf(d.r):k==='hgt'||k==='wgt'?d[k]:d.r[k];
+        if(document.activeElement!==i||k==='ovr')i.value=v;lab.querySelector('.bb-v').textContent=k==='hgt'?ftIn(v):k==='wgt'?v+' lb':v;});head(el);};
+      const bar=()=>{const n=rows.filter((el)=>S.get(el).dirty).length;all.hidden=!n;all.firstElementChild.textContent=n+(n===1?' player':' players')+' not saved';};
+      const touch=(el)=>{S.get(el).dirty=true;paint(el);bar();};
+      const save=async(el,auto)=>{const s=S.get(el),d=s.cur,msg=el.querySelector('.bb-msg');if(msg)msg.textContent='Saving…';
+        try{const r=await fetch('/admin/basketball/'+encodeURIComponent(d.team)+'/'+encodeURIComponent(d.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(auto?{auto:1,hgt:d.hgt,wgt:d.wgt}:{hgt:d.hgt,wgt:d.wgt,r:d.r})});
+          const j=await r.json();if(!j.ok)throw new Error(j.error||'failed');s.cur=j.row;s.set=j.row.set;s.dirty=false;paint(el);if(msg)msg.textContent=auto?'Back to automatic.':'Saved.';}
+        catch(e){if(msg)msg.textContent='Could not save. Try again.';}bar();};
+      rows.forEach((el)=>{const d=JSON.parse(el.dataset.p);S.set(el,{cur:d,set:d.set,dirty:false});head(el);
+        el.addEventListener('toggle',()=>{if(!el.open||el.querySelector('.bb-body'))return;el.appendChild(tpl.content.cloneNode(true));paint(el);
+          el.querySelector('.bb-body').addEventListener('input',(e)=>{const i=e.target,k=i.dataset.k,c=S.get(el).cur,v=+i.value;if(!k)return;
+            if(k==='ovr')c.r=preset(v,c.hgt,c.wgt,c.lean,KEYS,W);
+            else if(k==='hgt'||k==='wgt'){const o=ovrOf(c.r);c[k]=v;c.r=preset(o,c.hgt,c.wgt,c.lean,KEYS,W);}
+            else c.r[k]=cl(v,25,99);
+            touch(el);});
+          el.querySelector('.bb-save').addEventListener('click',()=>save(el,false));
+          el.querySelector('.bb-auto').addEventListener('click',()=>save(el,true));});});
+      all.querySelector('button').addEventListener('click',async()=>{for(const el of rows)if(S.get(el).dirty)await save(el,false);});
+      const q=document.querySelector('.bb-q'), so=document.querySelector('.bb-sort'), cnt=document.querySelector('.bb-count');
+      const view=()=>{const t=q.value.trim().toLowerCase();let n=0;rows.forEach((el)=>{const on=!t||el.dataset.n.includes(t);el.hidden=!on;if(on)n++;});cnt.textContent=n+' players.';
+        const key=so.value,val=(el)=>{const c=S.get(el).cur;return key==='ovr'?-ovrOf(c.r):key==='hgt'?-c.hgt:key==='team'?c.abbr:c.name;};
+        [...rows].sort((a,b)=>{const x=val(a),y=val(b);return x<y?-1:x>y?1:S.get(a).cur.name.localeCompare(S.get(b).cur.name);}).forEach((el)=>list.appendChild(el));};
+      q.addEventListener('input',view);so.addEventListener('change',view);view();
+      window.addEventListener('beforeunload',(e)=>{if(rows.some((el)=>S.get(el).dirty)){e.preventDefault();e.returnValue='';}});
+    })();</script>`, { ticker: false }));
+});
+app.post('/admin/basketball/:team/:pid', requireAdmin, smallJson, async (req, res) => {
+  const db = load(), tm = db.teams[req.params.team], p = tm?.roster.find((x) => x.id === req.params.pid);
+  if (!p) return res.status(404).json({ ok: false, error: 'No such player' });
+  const A = require('./arcade'), b = req.body || {}, cur = A.playerAttrs(db, tm, p);
+  const num = (v, lo, hi) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : null);
+  const hgt = num(b.hgt, 54, 78), wgt = num(b.wgt, 70, 250);
+  if (cur && ((hgt != null && hgt !== cur.hgt) || (wgt != null && wgt !== cur.wgt))) {
+    p.attr = p.attr && typeof p.attr === 'object' ? p.attr : {};
+    if (hgt != null && hgt !== cur.hgt) p.attr.hgt = hgt;
+    if (wgt != null && wgt !== cur.wgt) p.attr.wgt = wgt;
+  }
+  if (b.auto) delete p.bb;
+  else {
+    const out = {};
+    for (const k of cards.BB_KEYS) { const v = num(b.r && b.r[k], 25, 99); if (v == null) return res.status(400).json({ ok: false, error: 'Missing ' + k }); out[k] = v; }
+    out.ovr = cards.bbOvrOf(out);
+    p.bb = out;
+  }
+  await save();
+  res.json({ ok: true, row: bbAdminRow(db, tm, p) });
+});
+
 // Basketball ratings (3D Dunk and the card back's Basketball tab): the Basketball overall and the 16 ratings, stored as p.bb.
 // Blank = derived from his football ratings and height/weight (cards.bbBase); the placeholders show what blank gives.
 function bbAdminFields(db, tm, p) {
@@ -3656,6 +3753,7 @@ function bbAdminFields(db, tm, p) {
   const val = (k) => (B[k] != null && B[k] !== '' && Number.isFinite(+B[k]) ? Math.round(+B[k]) : '');
   const inp = (k, label, ph) => `<label>${esc(label)}<input type="number" name="bb_${k}" min="25" max="99" step="1" inputmode="numeric" value="${val(k)}" placeholder="${ph}" data-bbk="${k}" data-bbd="${ph}"></label>`;
   return `<h3 id="bb">Basketball (3D Dunk)</h3>
+      <p class="sm"><a href="/admin/basketball">Open the Basketball ratings page</a> to set these with sliders.</p>
       <p class="muted sm">Basketball overall and ratings, 25-99. Leave a box blank to use the derived value (shown in grey, from his football ratings, height and weight, levelled to the overall). His cards play at their own overall from this one, and the card back's Basketball tab shows the result.</p>
       <div class="fgrid bb-adm">${inp('ovr', 'Basketball overall', autoOvr)}</div>
       <div class="fgrid bb-adm">${cards.BB_KEYS.map((k) => inp(k, cards.BB_LABELS[k], der[k])).join('')}</div>

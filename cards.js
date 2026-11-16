@@ -793,6 +793,37 @@ function bbBase(player, fb) {
   out.set = set;
   return out;
 }
+// The admin's overall preset (/admin/basketball): 16 ratings for an overall, shaped by the body. At this age almost nobody is
+// tall, so height decides the role: 6'0" and up is a definite big (boards, blocks, inside; little handle or range), 5'6" and
+// under a guard, with a sliding mix between. Weight for his height adds strength and takes away speed, vertical and stamina.
+// `ind` is the player's own lean (bbLean: from his football ratings), so two players of one size do not come out the same.
+// The ratings are levelled so their weighted mean (the overall) is exactly `ovr`. Self-contained: the admin page runs this same
+// function in the browser.
+function bbPresetCore(ovr, hgt, wgt, ind, KEYS, W) {
+  const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  const big = cl((hgt - 65) / 7, 0, 1), sm = cl((66 - hgt) / 6, 0, 1), hv = cl((wgt - (100 + (hgt - 60) * 6)) / 40, -1, 1);
+  const B = { intD: 12, blk: 14, reb: 13, str: 8, dunk: 10, fin: 6, three: -9, hand: -9, spd: -6, perD: -6, stl: -4, pass: -3, mid: -2, ft: -4 };
+  const G = { spd: 6, hand: 8, three: 5, pass: 5, perD: 5, stl: 5, intD: -9, blk: -10, reb: -8, str: -5, dunk: -9 };
+  const H = { str: 7, intD: 3, reb: 3, spd: -5, vert: -5, sta: -5 };
+  const raw = {}, out = {};
+  for (const k of KEYS) raw[k] = (B[k] || 0) * big + (G[k] || 0) * sm + (H[k] || 0) * hv + ((ind && +ind[k]) || 0);
+  const target = cl(Math.round(ovr), 25, 99);
+  let shift = target, wsum = 0;
+  for (const k of KEYS) wsum += W[k];
+  const mean = () => { let t = 0; for (const k of KEYS) { out[k] = cl(Math.round(raw[k] + shift), 25, 99); t += out[k] * W[k]; } return t / wsum; };
+  for (let i = 0; i < 40; i++) { const m = mean(); if (Math.abs(m - target) < 0.02) break; shift += target - m; }
+  mean();
+  return out;
+}
+// A player's own lean for the preset: how far each rating sits from his average on his football ratings alone (an average
+// body), at 35%.
+function bbLean(fb) {
+  const raw = bbShape({ ...(fb || {}), hgt: 62, wgt: 120 }), m = bbMean(raw), out = {};
+  for (const k of BB_KEYS) out[k] = Math.round((raw[k] - m) * 0.35 * 10) / 10;
+  return out;
+}
+const bbPreset = (ovr, hgt, wgt, fb) => bbPresetCore(ovr, hgt, wgt, fb ? bbLean(fb) : null, BB_KEYS, BB_W);
+const bbOvrOf = (r) => bbClamp(bbMean(r));
 // Football card changes -> basketball changes (per point; height per inch, weight per lb). Rounded half away from zero.
 const FB2BB = {
   spd: { spd: 1 }, agi: { vert: 0.6, hand: 0.7 }, str: { str: 1, reb: 0.4 }, cat: { fin: 0.7, reb: 0.5 },
@@ -1504,4 +1535,4 @@ function fantasy(db, user, mvpOf) {
 
 module.exports = { ULTRA_ODDS, INV_ODDS, isAllMax, ultraArt, GTA_DESIGNS, gtaArt, gtaSlot, WEEKLY, weeklyNow, onesLeft, plusOk, SERIES, SETS, SET_MAP, PARALLELS, isSetCard, DOH_ODDS, RARITIES, RARITY_ORDER, SHOWN_RARITIES, SPECIALTIES, SPECIAL_BOOST, SPEC_KEYS, VARIANTS, packInfo, packTypes, COLLECTOR_STEPS, TEAM_PACK, SCORING, COINS_PER_POINT, SCORING_LABEL, LINEUP_SIZE, LINEUP_POS, PACKS, cardInfo, catalog, openPack, collection, gameLines, cardScore, lineupFor, fantasy, findPlayer,
   BODY_TYPES, ATTR_KEYS, ATTR_LABELS, ATTR_SHORT, BUILD_LABELS, VARIANT_FX, SET_FX, PARALLEL_FX, cardEffects, effectText, PERKS, perkOf, TIERS, tierOf, OVR_BAND, cardOvr, superstarOf,
-  rawFx, BB_KEYS, BB_LABELS, BB_SHORT, BB_W, FB2BB, bbBase, bbEffects, bbOvr, bbAttrs, bbEffectText, BB_POS, BB_FIT, bbPlace, bbBestPos };
+  rawFx, BB_KEYS, BB_LABELS, BB_SHORT, BB_W, FB2BB, bbBase, bbEffects, bbOvr, bbAttrs, bbEffectText, BB_POS, BB_FIT, bbPlace, bbBestPos, bbPresetCore, bbLean, bbPreset, bbOvrOf };

@@ -1000,6 +1000,16 @@ const UPDATES = [
       'Head to Head is unchanged.',
     ],
   },
+  {
+    n: 94,
+    date: '2026-11-15',
+    title: 'Basketball ratings get a tune-up tool',
+    items: [
+      'The commissioner has a new page for everyone\'s 3D Dunk ratings, so basketball overalls and ratings can be set player by player much faster.',
+      'A player\'s basketball overall is now always the average of his 16 ratings, and height and weight shape them: 6\'0" and taller plays as a big.',
+      'Ratings only change when the commissioner sets them, so nothing moved on its own.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
