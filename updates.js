@@ -1009,6 +1009,15 @@ const UPDATES = [
       'A player\'s basketball overall is now always the average of his 16 ratings, and height and weight shape them: 6\'0" and taller plays as a big.',
       'Ratings only change when the commissioner sets them, so nothing moved on its own.',
     ],
+  },  {
+    n: 95,
+    date: '2026-11-15',
+    title: 'No dunk rating, and basketball overalls read right',
+    items: [
+      'The Dunk rating is gone. There is no dunking in 3D Dunk, so every player and card now has 15 basketball ratings instead of 16.',
+      'Basketball overalls were showing too low for the ratings behind them. They now sit a few points above the plain average, more for the best players, so the top players read in the mid 90s.',
+      'No rating was changed. Only the overall number moved.',
+    ],
   },
 ];
 

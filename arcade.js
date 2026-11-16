@@ -54,7 +54,7 @@ const GAMES = {
   blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Career mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 150, maxScore: 90, isNew: true },
   // 3D Dunk is practice only until its coin games ship (practiceOnly: /arcade/start refuses anything else, /coins leaves it out and
   // its page and tile promise no coins). Its prizes are placeholders for then (same levels as 3D Blitz).
-  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball in Wildcat Gym with your own cards: five starters and a sixth man, crossovers, dunks, blocks and the green release.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, practiceOnly: true, isNew: true },
+  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball in Wildcat Gym with your own cards: five starters and a sixth man, crossovers, layups, blocks and the green release.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, practiceOnly: true, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Double or Nothing / Double or Double: a run of 3D Blitz games at Legend, Hall of Fame (the main one) or GOAT. After every win
@@ -265,7 +265,7 @@ function cardAttrs(db, team, player, card) {
 }
 
 // ---------- basketball (3D Dunk) ----------
-// A real player's basketball ratings (cards.bbBase): the admin's p.bb (Basketball overall and any of the 16 ratings) wins, the rest
+// A real player's basketball ratings (cards.bbBase): the admin's p.bb (Basketball overall and any of the 15 ratings) wins, the rest
 // comes from his football attributes above and his height/weight. On a card, cards.bbAttrs plays him at the card's basketball overall.
 function bbBaseOf(db, team, player) {
   const t = typeof team === 'string' ? db.teams[team] : team;
@@ -273,7 +273,7 @@ function bbBaseOf(db, team, player) {
   const fb = t && p ? playerAttrs(db, t, p) : null;
   return fb ? cards.bbBase(p, fb) : null;
 }
-// -> { base, attr: { 16 ratings, ovr, hgt, wgt }, shift, ovr, eff } (eff null with no card)
+// -> { base, attr: { 15 ratings, ovr, hgt, wgt }, shift, ovr, eff } (eff null with no card)
 function bbCardAttrs(db, team, player, card) {
   const base = bbBaseOf(db, team, player);
   return base ? cards.bbAttrs(card || null, base) : null;
@@ -1011,8 +1011,8 @@ module.exports = function arcade(app, h) {
       ${user && pool.length ? `<script>(function(){
         var POOL=${JSON.stringify(pool).replace(/</g, '\\u003c')},SAVED=${JSON.stringify(saved).replace(/</g, '\\u003c')},KEYS=${JSON.stringify(keyCols)},POS=['PG','SG','SF','PF','C','6TH'];
         var POSN={PG:'Point guard',SG:'Shooting guard',SF:'Small forward',PF:'Power forward',C:'Center','6TH':'Sixth man'};
-        var KEY={PG:['hand','pass','three','spd'],SG:['three','mid','hand','spd'],SF:['fin','mid','three','perD'],PF:['reb','intD','fin','dunk'],C:['blk','reb','intD','str'],'6TH':['spd','fin','three','reb']};
-        var FIT={PG:function(a){return .3*a.hand+.3*a.pass+.15*a.three+.15*a.spd+.1*a.perD;},SG:function(a){return .35*a.three+.2*a.mid+.15*a.hand+.15*a.spd+.15*a.perD;},SF:function(a){return .2*a.fin+.2*a.mid+.15*a.three+.15*a.vert+.15*a.perD+.15*a.reb;},PF:function(a){return .25*a.reb+.2*a.intD+.2*a.fin+.15*a.str+.1*a.dunk+.1*a.blk;},C:function(a,h){return .25*a.blk+.25*a.reb+.2*a.intD+.15*a.str+.15*((h||62)-54)*4;}};
+        var KEY={PG:['hand','pass','three','spd'],SG:['three','mid','hand','spd'],SF:['fin','mid','three','perD'],PF:['reb','intD','fin','str'],C:['blk','reb','intD','str'],'6TH':['spd','fin','three','reb']};
+        var FIT={PG:function(a){return .3*a.hand+.3*a.pass+.15*a.three+.15*a.spd+.1*a.perD;},SG:function(a){return .35*a.three+.2*a.mid+.15*a.hand+.15*a.spd+.15*a.perD;},SF:function(a){return .2*a.fin+.2*a.mid+.15*a.three+.15*a.vert+.15*a.perD+.15*a.reb;},PF:function(a){return .25*a.reb+.2*a.intD+.2*a.fin+.2*a.str+.15*a.blk;},C:function(a,h){return .25*a.blk+.25*a.reb+.2*a.intD+.15*a.str+.15*((h||62)-54)*4;}};
         var byId={};POOL.forEach(function(c){byId[c.id]=c;});
         var lu=POS.map(function(_,i){return SAVED[i]&&byId[SAVED[i]]?SAVED[i]:'';});
         var cur=-1,slots=document.getElementById('dkSlots'),pick=document.getElementById('dkPick'),list=document.getElementById('dkList'),find=document.getElementById('dkFind'),msg=document.getElementById('dkMsg');

@@ -3646,10 +3646,10 @@ app.get('/admin/players/:team/:pid', requireAdmin, (req, res) => {
 });
 
 // ---------- admin: basketball ratings (3D Dunk) ----------
-// One page for everyone's basketball overall and 16 ratings (p.bb), with sliders. Dragging the overall presets every rating from
+// One page for everyone's basketball overall and 15 ratings (p.bb), with sliders. Dragging the overall presets every rating from
 // the overall and his height and weight (cards.bbPreset: 6'0" and up is a definite big); dragging a rating moves the overall,
-// which is always the weighted mean of the 16 (cards.BB_W). Height and weight are his real ones (p.attr.hgt / p.attr.wgt).
-const BB_GROUPS = [['Athleticism', ['spd', 'vert', 'str', 'sta']], ['Offense', ['hand', 'pass', 'fin', 'dunk', 'mid', 'three', 'ft']], ['Defense', ['perD', 'intD', 'stl', 'blk', 'reb']]];
+// which is always cards.bbOvrOf of the 15. Height and weight are his real ones (p.attr.hgt / p.attr.wgt).
+const BB_GROUPS = [['Athleticism', ['spd', 'vert', 'str', 'sta']], ['Offense', ['hand', 'pass', 'fin', 'mid', 'three', 'ft']], ['Defense', ['perD', 'intD', 'stl', 'blk', 'reb']]];
 function bbAdminRow(db, tm, p) {
   const A = require('./arcade'), fb = A.playerAttrs(db, tm, p);
   if (!fb) return null;
@@ -3689,7 +3689,7 @@ app.get('/admin/basketball', requireAdmin, (req, res) => {
     <script>(function(){
       const KEYS=${JSON.stringify(cards.BB_KEYS)}, W=${JSON.stringify(cards.BB_W)}, preset=${cards.bbPresetCore.toString()};
       const cl=(v,a,b)=>Math.max(a,Math.min(b,v)), ftIn=(h)=>Math.floor(h/12)+"'"+(h%12)+'"';
-      const ovrOf=(r)=>{let s=0,w=0;for(const k of KEYS){s+=r[k]*W[k];w+=W[k];}return cl(Math.round(s/w),25,99);};
+      const LIFT=${cards.BB_LIFT}, AT=${cards.BB_LIFT_AT}, ovrOf=(r)=>{let s=0,w=0;for(const k of KEYS){s+=r[k]*W[k];w+=W[k];}const m=s/w;return cl(Math.round(m+Math.max(0,m-AT)*LIFT),25,99);};
       const list=document.querySelector('.bb-list'), tpl=document.getElementById('bb-ed'), all=document.querySelector('.bb-all'), rows=[...list.children];
       const S=new Map();
       const head=(el)=>{const s=S.get(el),d=s.cur;el.querySelector('.bb-o').textContent=ovrOf(d.r);el.querySelector('.bb-meta').textContent=ftIn(d.hgt)+' · '+d.wgt+' lb';
@@ -3705,8 +3705,8 @@ app.get('/admin/basketball', requireAdmin, (req, res) => {
       rows.forEach((el)=>{const d=JSON.parse(el.dataset.p);S.set(el,{cur:d,set:d.set,dirty:false});head(el);
         el.addEventListener('toggle',()=>{if(!el.open||el.querySelector('.bb-body'))return;el.appendChild(tpl.content.cloneNode(true));paint(el);
           el.querySelector('.bb-body').addEventListener('input',(e)=>{const i=e.target,k=i.dataset.k,c=S.get(el).cur,v=+i.value;if(!k)return;
-            if(k==='ovr')c.r=preset(v,c.hgt,c.wgt,c.lean,KEYS,W);
-            else if(k==='hgt'||k==='wgt'){const o=ovrOf(c.r);c[k]=v;c.r=preset(o,c.hgt,c.wgt,c.lean,KEYS,W);}
+            if(k==='ovr')c.r=preset(v,c.hgt,c.wgt,c.lean,KEYS,W,LIFT,AT);
+            else if(k==='hgt'||k==='wgt'){const o=ovrOf(c.r);c[k]=v;c.r=preset(o,c.hgt,c.wgt,c.lean,KEYS,W,LIFT,AT);}
             else c.r[k]=cl(v,25,99);
             touch(el);});
           el.querySelector('.bb-save').addEventListener('click',()=>save(el,false));
@@ -3742,7 +3742,7 @@ app.post('/admin/basketball/:team/:pid', requireAdmin, smallJson, async (req, re
   res.json({ ok: true, row: bbAdminRow(db, tm, p) });
 });
 
-// Basketball ratings (3D Dunk and the card back's Basketball tab): the Basketball overall and the 16 ratings, stored as p.bb.
+// Basketball ratings (3D Dunk and the card back's Basketball tab): the Basketball overall and the 15 ratings, stored as p.bb.
 // Blank = derived from his football ratings and height/weight (cards.bbBase); the placeholders show what blank gives.
 function bbAdminFields(db, tm, p) {
   let fb = null;

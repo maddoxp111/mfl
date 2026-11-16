@@ -222,7 +222,7 @@ module.exports = function fun(app, h) {
       ${c.quote ? `<p class="mb-q">“${esc(c.quote)}”</p>` : ''}</div>`;
   }
   h.cardBack = cardBack;
-  // The back's Basketball tab: the card's 3D Dunk overall and its 16 basketball ratings (cards.bbAttrs through arcade.bbCardAttrs),
+  // The back's Basketball tab: the card's 3D Dunk overall and its 15 basketball ratings (cards.bbAttrs through arcade.bbCardAttrs),
   // two columns, each with the card's change from the player's own rating.
   function bbBack(db, c) {
     const arc = attempt(() => require('./arcade'));
