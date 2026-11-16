@@ -228,8 +228,11 @@ module.exports = function earn(app, h) {
         ${item({ t: esc(PK.arcade.name), amt: 'Free pack', when: 'Once a day', p: `${esc(PK.arcade.desc)} ${PK.arcade.cards} cards${PK.arcade.min ? `, ${esc(R[PK.arcade.min].name)} or better guaranteed` : ''}.`, href: '/pickem/packs', go: 'Packs' })}`);
 
       // ---------- Head to Head ----------
+      const DK = require('./dunkwitness').DUNK, dunkName = (A.GAMES && A.GAMES.dunk3d && A.GAMES.dunk3d.name) || '3D Dunk';
       const h2h = section('h2h', '🆚', 'Head to Head', '/arcade/blitz3d/versus', 'Challenge someone', item({ t: `Beat another player at ${esc(B.name)}`, amt: '2× your wager', when: 'Any time you are both online',
-        p: "Challenge someone who's online to a live game. You both put up the same wager (or 0 for a friendly) and the winner takes both. If a game can't be settled, both wagers come back.", href: '/arcade/blitz3d/versus', go: 'Head to Head' }));
+        p: "Challenge someone who's online to a live game. You both put up the same wager (or 0 for a friendly) and the winner takes both. If a game can't be settled, both wagers come back.", href: '/arcade/blitz3d/versus', go: 'Head to Head' })
+        + item({ t: `Beat another player at ${esc(dunkName)}`, amt: '2× your wager', when: 'Any time you are both online',
+          p: `Challenge someone who's online to a live 5-on-5 game with your Dunk lineups. You both put up the same wager (up to ${fmt(DK.MAX_WAGER)} coins, or 0 for a friendly) and the winner takes both. A tied game goes to overtime. Leaving a game after the first ${DK.EARLY_SECS} seconds counts as a loss. If a game can't be settled, both wagers come back.`, href: '/arcade/dunk3d/versus', go: 'Dunk Head to Head' }));
 
       // ---------- Challenges and check-ins ----------
       const todayCh = A.challengeStatus(user || {}, A.today());

@@ -1088,6 +1088,18 @@ const UPDATES = [
       'Fixed: the player throwing the ball in could be called out of bounds for a turnover.',
     ],
   },
+  {
+    n: 102,
+    date: '2026-11-16',
+    title: '3D Dunk Head to Head',
+    items: [
+      'Play another MFL player live at 3D Dunk. Challenge someone who is online, put coins on it (up to 2,000 each for now) or play a friendly, and the winner takes both wagers.',
+      'Each of you plays your own man with your own five. If you have not saved a Dunk lineup, your best cards play. With no cards, you play as a real MFL team.',
+      'Games are 4 quarters of 1, 2 or 3 minutes, and a tie goes to overtime. Each team gets 3 timeouts, and you can sub at timeouts and between quarters. There is no pause.',
+      'Leave in the first 20 seconds and nobody loses. After that, quitting or being gone for a minute counts as a loss. If the game cannot be settled, both wagers come back.',
+      'Your 3D Dunk page has a Head to Head button, and the Earn coins page lists it.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);

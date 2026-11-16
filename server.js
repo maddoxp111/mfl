@@ -4135,7 +4135,9 @@ function ratingOf(db, t, p) {
 tts.register(app, { currentUser, requireAdmin, load }); // before /arcade/:game
 arcadeApi = require('./arcade')(app, { assetUrl, esc, icon, layout, pk, TZ, load, getDoc, putDoc, listDocs, userKey, currentUser, loadAccount, accountOf, survivorNow, ratingOf, coins, shortDate, requireAdmin, adminNav, pageHead, save, sign });
 // Head to Head (3D Blitz, live): its WebSocket is attached to each server app.listen() starts, below.
-const versusApi = require('./versus')(app, { assetUrl, esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData });
+const versusApi = require('./versus')(app, { assetUrl, esc, icon, coins, layout, pageHead, pk, TZ, load, refresh, getDoc, putDoc, listDocs, userKey, currentUser, accountOf, survivorNow, sign, blitzData: arcadeApi.blitzData, dunkTeamFor: arcadeApi.dunkTeamFor, dunkPreview: arcadeApi.dunkPreview });
+// The 3D Dunk Head to Head lobby page (/arcade/dunk3d/versus); it talks to the same connection versus.js serves, tagged for 3D Dunk.
+try { require('./dunkpage')(app, { esc, icon, coins, layout, load, refresh, getDoc, userKey, currentUser, accountOf, survivorNow, assetUrl, results: versusApi.results }); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; }
 // Every way to earn coins (/coins).
 Object.assign(earnH, { esc, icon, layout, pageHead, load, currentUser, loadAccount, ACHIEVEMENT_COINS, dailyInfo, addDays, today, packPrices, arcade: () => arcadeApi, TZ, getDoc });
 require('./earn')(app, earnH);
