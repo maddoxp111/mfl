@@ -1039,6 +1039,13 @@ const UPDATES = [
       'Blocks are much rarer in 3D Dunk and only happen in the paint. A jump shot from outside can be contested but not swatted.',
       '3D Dunk has a big banner at the top of the Arcade, next to 3D Blitz and Modern Bowl.',
     ],
+  },  {
+    n: 98,
+    date: '2026-11-16',
+    title: '3D Dunk: the computer cools off from three',
+    items: [
+      'The computer team takes fewer threes in 3D Dunk and makes fewer of them. At the top levels it was hitting almost half. Now it is closer to a third.',
+    ],
   },
 ];
 

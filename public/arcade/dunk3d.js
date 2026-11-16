@@ -6916,7 +6916,7 @@ gl_FragColor=vec4(c,1.0);}`;
       let tg;
       if (S.ft) tg = 0.9;
       else if (S.over > 0) tg = 0.97;
-      else { const want = basePct(p, S.d, false) * (1 - 0.4 * S.c) * (p.side ? 0.94 + 0.08 * DK : 1.04) + 0.05; tg = clamp(want / 0.97, 0.05, 0.97); }
+      else { const want = basePct(p, S.d, false) * (1 - 0.4 * S.c) * (p.side ? 0.94 + 0.08 * DK : 1.04) * (p.side && S.pts === 3 ? 0.66 : 1) + (p.side && S.pts === 3 ? 0.02 : 0.05); tg = clamp(want / 0.97, 0.05, 0.97); } // (the CPU's threes: about a third go in at the top levels, not half)
       const sd = (S.w / 2) / zOf(tg); // (in meter units)
       return GREEN_C + (rng() + rng() + rng() + rng() - 2) * 1.73 * sd;
     }
@@ -7915,7 +7915,7 @@ gl_FragColor=vec4(c,1.0);}`;
       const avgOvr = t.on.reduce((a, q) => a + rt(q, 'ovr'), 0) / t.on.length, usage = clamp((rt(p, 'ovr') - avgOvr) * 0.0035, -0.07, 0.07);
       const thr = clamp(0.58 + 0.024 * shotClk, 0.4, 0.92) - usage - (p.side === 1 ? (1 - Math.min(1, sk)) * 0.08 : 0), rhythm = tLive - (p.kickT || -9) < 1.4 && p.holdT < 0.7, needOpen = rhythm ? 1.0 : clamp(0.9 + 0.08 * shotClk, 1.1, 1.7);
       // (a three takes a shooter: the bar is higher for a poor one)
-      const thr3 = isThree(p.x, p.z, h) ? clamp((72 - rt(p, 'three')) * 0.02, -0.04, 0.42) * (late ? 0.6 : 1) : 0;
+      const thr3 = isThree(p.x, p.z, h) ? (clamp((72 - rt(p, 'three')) * 0.02, -0.04, 0.42) + 0.24) * (late ? 0.6 : 1) : 0; // (+0.24: a three is not the first look; too many of them and the game is a shootout)
       if (p.holdT > 0.16 && open > needOpen && sv > (rhythm ? thr - 0.18 : thr) + thr3 && d > 2.3) { if (startShot(p)) return; }
       // a cutter or a roller open at the rim
       if (p.holdT > 0.2) for (const q of mates(p)) {
