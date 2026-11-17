@@ -512,13 +512,9 @@ module.exports = function arcade(app, h) {
       .replace('<!-- MFL_BRIDGE -->', () => src('bridge.js')));
   });
   const json = (res, o) => res.set('Cache-Control', 'no-store').json(o);
-  // Until Nov 12, 2026 the game pages called /api/m/start, /api/m/finish, /api/m/save and /api/m/resume. Nothing on the site
-  // uses those now; they still answer for a few days so a game left open in a tab across the change keeps its result. Remove
-  // after Nov 19, 2026.
-  const OLD = (what) => (Date.now() < Date.parse('2026-11-20T00:00:00Z') ? ['/api/m/' + what] : []);
   const paidToday = (user, game) => (user.arcade || []).filter((m) => m.game === game && m.status === 'won' && m.local?.slice(0, 10) === today()).length;
 
-  app.post(['/arcade/start', ...OLD('start')], async (req, res) => {
+  app.post('/arcade/start', async (req, res) => {
     try {
       const db = load();
       const G = !HIDDEN.has(req.body.game) && GAMES[req.body.game];
@@ -757,7 +753,7 @@ module.exports = function arcade(app, h) {
   //   { id: match id, seq: the save's number (only a higher one replaces the one kept), live: null | the live play it was sent at
   //     ('snap', 'pass', 'kick', 'ko', 'ons', 'dsnap': that play is already settled against the player in it), snap: the save }
   const rsText = require('express').text({ type: 'text/plain', limit: '200kb' });
-  app.post(['/arcade/run/save', ...OLD('save')], rsText, async (req, res) => {
+  app.post('/arcade/run/save', rsText, async (req, res) => {
     const name = currentUser(req);
     if (!name) return json(res, { ok: false, error: 'Log in again.' });
     let b = req.body;
@@ -784,7 +780,7 @@ module.exports = function arcade(app, h) {
     } catch (e) { console.error(e); json(res, { ok: false, error: 'Could not save the game.' }); }
   });
   // POST /arcade/run/resume { id }: the run game in progress, from its latest save (the same answer as /arcade/start, plus save)
-  app.post(['/arcade/run/resume', ...OLD('resume')], async (req, res) => {
+  app.post('/arcade/run/resume', async (req, res) => {
     try {
       const name = currentUser(req);
       if (!name) return json(res, { ok: false, error: 'Log in to continue your game.' });
@@ -811,7 +807,7 @@ module.exports = function arcade(app, h) {
     return { id: m.id, mode: m.run.mode, name: RUNS[m.run.mode].name, emoji: RUNS[m.run.mode].emoji, step: m.run.step, levelName: LEVELS[m.level], sum: doc.sum || null, at: doc.at };
   }
 
-  app.post(['/arcade/finish', ...OLD('finish')], async (req, res) => {
+  app.post('/arcade/finish', async (req, res) => {
     try {
       const db = load();
       const name = currentUser(req);

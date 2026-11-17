@@ -655,7 +655,7 @@ const UPDATES = [
     date: '2026-11-12',
     title: 'One plain site at its own address',
     items: [
-      'The site now runs only from its own address. The old copy that pulled pages from somewhere else is gone, so web filters stop mistaking the site for a proxy.',
+      'The site now runs only from its own address. The old copy that loaded its pages from somewhere else is gone.',
       'Everything (pages, games, Head to Head) talks only to the site\'s own address. Head to Head may take a few seconds longer to connect the first time on some networks.',
       'New About page that says what the league site is.',
     ],

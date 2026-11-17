@@ -3380,7 +3380,7 @@ app.get('/admin/moves', requireAdmin, (req, res) => {
       const SRC='/static/arcade/blitz-avatar.js?v=${fileTag('arcade/blitz-avatar.js')}', st=document.querySelector('.mv-stage'), who=document.querySelector('.mv-who'), what=document.querySelector('.mv-what');
       let loading=null, view=null, viewPid=null;
       const load=()=>{ if(window.MFLBlitz&&window.MFLBlitz.avatar) return Promise.resolve(); if(loading) return loading;
-        loading=fetch(SRC).then((r)=>{ if(!r.ok) throw new Error('http '+r.status); return r.text(); }).then((code)=>{ const s=document.createElement('script'); s.textContent=code; document.head.appendChild(s); if(!(window.MFLBlitz&&window.MFLBlitz.avatar)) throw new Error('no avatar'); });
+        loading=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=SRC; s.onload=()=>{ if(window.MFLBlitz&&window.MFLBlitz.avatar) res(); else rej(new Error('no avatar')); }; s.onerror=rej; document.head.appendChild(s); });
         loading.catch(()=>{ loading=null; }); return loading; };
       const moveOf=(row)=>{ const sel=row.querySelector('select'); return sel.value||sel.options[0].dataset.move; };
       const nameOf=(row)=>{ const sel=row.querySelector('select'); return sel.value? sel.options[sel.selectedIndex].text : sel.options[0].text; };

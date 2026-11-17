@@ -24,12 +24,9 @@
     if (window.MFLBlitz && window.MFLBlitz.avatar) return Promise.resolve();
     if (loading) return loading;
     const ok = () => { if (!(window.MFLBlitz && window.MFLBlitz.avatar)) throw new Error('no avatar'); };
-    // the script's text run inline (some school devices block script files from the page's own server), else a plain <script src>
-    loading = fetch(SRC).then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.text(); }).then((code) => {
-      const s = document.createElement('script'); s.textContent = code; document.head.appendChild(s); ok();
-    }).catch(() => new Promise((res, rej) => {
+    loading = new Promise((res, rej) => {
       const s = document.createElement('script'); s.src = SRC; s.onload = () => { try { ok(); res(); } catch (e) { rej(e); } }; s.onerror = rej; document.head.appendChild(s);
-    }));
+    });
     loading.catch(() => { loading = null; });
     return loading;
   }
