@@ -71,6 +71,7 @@ const CSS = `<style>
 .dkv-team ol{list-style:none;margin:0;padding:0}.dkv-team li{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line);font-size:13.5px}.dkv-team li:first-child{border-top:0}
 .dkv-team li i{font:800 10px 'Press Start 2P',monospace;font-style:normal;color:#ffc21a;letter-spacing:0}.dkv-team li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.dkv-team li b{font:800 15px var(--disp);color:var(--ink)}
 .dkv-pv{flex:1 1 100%;margin-top:4px}.dkv-pv summary{cursor:pointer;font:700 12.5px Inter;color:var(--ink2)}.dkv-pv .dkv-teams{margin-top:8px}
+.dkv-det>summary{cursor:pointer;font:700 13px Inter;color:var(--ink2);margin-top:8px}
 .dkv-bench{margin:8px 0 0!important;color:var(--muted);font-size:12px;line-height:1.35}
 .dkv-bar{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:100003;display:flex;align-items:center;gap:10px;max-width:calc(100% - 20px);padding:8px 8px 8px 14px;border-radius:999px;background:rgba(15,17,23,.94);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.6);font:700 14px Inter}
 .dkv-bar[hidden]{display:none}.dkv-bar.conn{padding:8px 14px;color:#fcd34d}.dkv-bar .up{color:#4ade80}.dkv-bar .down{color:#ff6b7a}
@@ -87,9 +88,9 @@ module.exports = function dunkVersusPage(app, h) {
 
   const mineCard = (L) => {
     if (!L) return '';
-    if (L.kind === 'real') return `<p class="dkv-mine-s">You have no saved Dunk lineup and fewer than six cards, so you play as a real MFL team. <a href="/arcade/dunk3d">Build a lineup →</a></p>`;
+    if (L.kind === 'real') return `<p class="dkv-mine-s">You play as a real MFL team until you have six cards.</p>`;
     const rows = L.players.map((p) => `<li><i>${esc(p.pos)}</i><span>${esc(p.n)}</span><b>${p.o}</b></li>`).join('');
-    return `<p class="dkv-mine-s">${L.kind === 'lineup' ? 'Your saved Dunk lineup takes the court.' : 'No saved Dunk lineup: your six best cards play (auto-pick).'} Team overall <b>${L.ovr}</b>. <a href="/arcade/dunk3d">Edit lineup →</a></p>
+    return `<p class="dkv-mine-s">${L.kind === 'lineup' ? 'Your saved lineup plays.' : 'Your six best cards play.'} Team overall <b>${L.ovr}</b>. <a href="/arcade/dunk3d">Edit lineup →</a></p>
       <div class="dkv-mine"><div class="dkv-team"><ol>${rows}</ol>${L.bench.length ? `<p class="dkv-bench">Bench: ${esc(L.bench.join(', '))}</p>` : ''}</div></div>`;
   };
 
@@ -103,13 +104,13 @@ module.exports = function dunkVersusPage(app, h) {
       if (user) { try { balance = accountOf(db, user, await survivorNow(db)).balance; } catch (e) { balance = 0; } }
       const secs = Math.round((Number(process.env.VERSUS_GONE_MS) > 0 ? Number(process.env.VERSUS_GONE_MS) : 60e3) / 1000);
       const firstTeam = Object.values(db.teams)[0];
-      const how = `<section class="card"><div class="card-h"><h2>How it works</h2></div><ul class="how">
+      const how = `<section class="card"><div class="card-h"><h2>How it works</h2></div><p>Challenge a friend who is online. Keep this page open.</p><details class="dkv-det"><summary>Details</summary><ul class="how">
         <li>Pick someone under <b>Online now</b> and send a challenge: a wager of 0 to ${fmtN(MAX_WAGER)} coins (0 is a friendly) and 1, 2 or 3-minute quarters. They have a minute to accept.</li>
         <li>When they accept, both wagers are held until the game ends. The winner gets both: 2× the wager.</li>
         <li>Your saved Dunk lineup takes the court. No lineup yet? Your six best cards play, and with fewer than six cards you play as the ${esc(firstTeam ? firstTeam.name : 'MFL')}. The same real player can be on both sides. Your teammates and theirs play at the All-Pro level.</li>
         <li>4 quarters, a tie goes to overtime, 3 timeouts each, subs at timeouts and quarter breaks, no pause. One of the two browsers runs the game (the lobby says which): keep this page open and in front.</li>
-        <li>Quitting after the tip counts as a loss. Lose your connection and you have ${secs} seconds to come back. If the server restarts, or the game can't be finished, both wagers come back.</li></ul></section>`;
-      const head = `<div class="arc-head"><a href="/arcade/dunk3d" class="muted sm">${icon('arrow')} 3D Dunk</a><h1><span>🏀</span> Head to Head</h1><p class="muted">3D Dunk, live, against another MFL player. Put coins on it, or play a friendly.</p>${user ? `<span class="arc-bal"><span class="coins">${icon('coin')}<span data-balance>${fmtN(balance)}</span></span></span>` : ''}</div>`;
+        <li>Quitting after the tip counts as a loss. Lose your connection and you have ${secs} seconds to come back. If the server restarts, or the game can't be finished, both wagers come back.</li></ul></details></section>`;
+      const head = `<div class="arc-head"><a href="/arcade/dunk3d" class="muted sm">${icon('arrow')} 3D Dunk</a><h1><span>🏀</span> Head to Head</h1><p class="muted">Play a friend live. Coins are optional.</p>${user ? `<span class="arc-bal"><span class="coins">${icon('coin')}<span data-balance>${fmtN(balance)}</span></span></span>` : ''}</div>`;
       if (!user) {
         return res.send(layout(req, 'Dunk Head to Head', `${CSS}<div class="wrap arc-page dkv-page">${head}
           <section class="card"><p>Log in to see who's online and challenge them to a game of 3D Dunk.</p><div class="arc-cta"><a class="btn" href="/pickem/login?next=${encodeURIComponent(PAGE)}">Log in</a><a class="btn ghost" href="/pickem/signup">Sign up free</a></div></section>${how}</div>`));
@@ -127,7 +128,7 @@ module.exports = function dunkVersusPage(app, h) {
             <section class="card" id="dvInCard" hidden><div class="card-h"><h2>${icon('fire')} Challenges for you</h2></div><ol class="dkv-list" id="dvIn"></ol></section>
             <section class="card" id="dvOutCard" hidden><div class="card-h"><h2>Your challenge</h2></div><ol class="dkv-list" id="dvOut"></ol></section>
             <section class="card"><div class="card-h"><h2>Online now</h2><span class="muted sm" id="dvCount"></span></div>
-              <ol class="dkv-list" id="dvOnline"></ol><p class="empty" id="dvNobody" hidden>Nobody else is here right now. Send a friend this page: they'll show up here when they open it.</p></section>
+              <ol class="dkv-list" id="dvOnline"></ol><div class="empty" id="dvNobody" hidden><p>Nobody here yet. Play a quick game instead.</p><a class="btn" href="/arcade/dunk3d">Play</a></div></section>
             <section class="card"><div class="card-h"><h2>Your team</h2></div>${mineCard(mine)}</section>
           </div><div class="col">
             <section class="card"><div class="card-h"><h2>Your Head to Head games</h2></div><ol class="dkv-list dkv-res" id="dvResults"></ol><p class="empty" id="dvNoResults" hidden>No games yet.</p></section>
@@ -147,5 +148,5 @@ module.exports.PAGE = PAGE;
 module.exports.MAX_WAGER = MAX_WAGER;
 module.exports.lineupOf = lineupOf;
 // the promo card for the 3D Dunk page (the same look as the one on the 3D Blitz page)
-module.exports.link = () => `<a class="card bf-promo" href="${PAGE}"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your Dunk lineup against theirs. Put up to ${fmtN(MAX_WAGER)} coins on it, or play a friendly.</small></div><span class="btn">Play</span></a>`;
+module.exports.link = () => `<a class="card bf-promo" href="${PAGE}"><span class="bf-promo-e">🆚</span><div><b>Play a friend</b><small>Live, with optional coins.</small></div><span class="btn">Play</span></a>`;
 module.exports.CSS = CSS;

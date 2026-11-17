@@ -1100,6 +1100,20 @@ const UPDATES = [
       'Your 3D Dunk page has a Head to Head button, and the Earn coins page lists it.',
     ],
   },
+  {
+    n: 103,
+    date: '2026-11-17',
+    title: '3D Dunk made simple',
+    items: [
+      'One big Play button. Press it, then TIP OFF, and you are playing. Other modes, levels and your lineup are under More options.',
+      'Only 3 controls to learn: move, shoot (hold and let go at the top) and pass. On defense: steal and switch.',
+      'A clearer shot meter and far fewer pop-ups on the screen.',
+      'A short first-game coach shows what to press, and you can skip it. The intro is skippable too.',
+      'Throw-ins and subs happen on their own, so the game keeps moving.',
+      'Rookie is easier to win.',
+      'Want every move back? Turn on PRO CONTROLS in the pause menu or on the TIP OFF screen.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
