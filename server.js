@@ -50,14 +50,20 @@ const SITE_URL = (process.env.SITE_URL || 'https://www.metcalffootballleague.com
 // A way for school staff, parents and players to reach whoever runs the site, shown on /about (set it on the server).
 const CONTACT_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.CONTACT_EMAIL || '') ? process.env.CONTACT_EMAIL : '';
 app.disable('x-powered-by');
-// The hosting company's own address for this server (*.up.railway.app) sends visitors to the site's address, so the site
-// lives at one address. A request a front end passed along (X-Forwarded-Host names a different address, or it has a front
-// end's X-Vercel-Id) is served as usual, so pointing a front end at that address can never loop. CANONICAL_REDIRECT=0 turns
-// this off.
-const railwayHost = (h) => /\.up\.railway\.app$/.test(String(h || '').split(',')[0].trim().replace(/:\d+$/, '').toLowerCase());
+// The site lives at ONE address (SITE_URL). Every other address that reaches this server shows the same pages, and web
+// filters read "the same site under several hosts" as a proxy, so each of them is sent to the real address with a 301:
+// the hosting company's address (*.up.railway.app), its raw TCP address (*.proxy.rlwy.net:port), the front end's own
+// address (*.vercel.app) and a bare IP. The front end (Vercel) passes the address the visitor used in X-Forwarded-Host;
+// a forwarded request without it is served as usual, so this can never loop. /healthz always answers 200 (the host's
+// health check). CANONICAL_REDIRECT=0 turns this off.
+const SITE_HOST = new URL(SITE_URL).host.toLowerCase();
+const hostOnly = (h) => String(h || '').split(',')[0].trim().toLowerCase();
+const strayHost = (h) => { const x = hostOnly(h).replace(/:\d+$/, ''); return /\.(up\.railway\.app|rlwy\.net|vercel\.app)$/.test(x) || /^\d{1,3}(\.\d{1,3}){3}$/.test(x); };
+app.get('/healthz', (req, res) => res.type('text').send('ok'));
 app.use((req, res, next) => {
-  if (process.env.CANONICAL_REDIRECT === '0' || (req.method !== 'GET' && req.method !== 'HEAD') || !railwayHost(req.headers.host)) return next();
-  if ((req.headers['x-forwarded-host'] && !railwayHost(req.headers['x-forwarded-host'])) || req.headers['x-vercel-id']) return next();
+  if (process.env.CANONICAL_REDIRECT === '0' || (req.method !== 'GET' && req.method !== 'HEAD')) return next();
+  const fwd = req.headers['x-forwarded-host'], seen = fwd ? hostOnly(fwd) : req.headers['x-vercel-id'] ? SITE_HOST : hostOnly(req.headers.host);
+  if (seen === SITE_HOST || !strayHost(seen)) return next();
   res.redirect(301, SITE_URL + req.originalUrl);
 });
 // Gzip pages (they're mostly repeated markup, so they shrink ~10x).
