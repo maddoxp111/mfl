@@ -1155,7 +1155,7 @@ function slip(user) {
   <script>
   const mflSlip = (() => {
     const KEY = 'mfl_slip';
-    let legs = []; try { legs = (JSON.parse(localStorage.getItem(KEY)) || []).map((l) => ({ ...l, m: l.m || l['od' + 'ds'] })); } catch {}
+    let legs = []; try { legs = (JSON.parse(localStorage.getItem(KEY)) || []).map((l) => ({ ...l, m: l.m || l.odds })); } catch {}
     const el = (id) => document.getElementById(id);
     const mx = (d) => d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
     const store = () => { try { localStorage.setItem(KEY, JSON.stringify(legs)); } catch {} };
@@ -1862,6 +1862,7 @@ function authPage(req, mode, err = '') {
   return layout(req, signup ? 'Sign up' : 'Log in', `<div class="wrap login"><form method="post" class="card form">
     <img src="/static/mfl-logo.webp" alt="" class="login-logo"><h2>${signup ? "Join Pick'em" : 'Log in'}</h2>
     ${signup ? `<p class="muted sm">Free. You get ${pk.START_COINS.toLocaleString()} coins to start.</p>` : ''}
+    <p class="muted sm">The Metcalf Football League site: schedule, scores, stats and team pages are open to everyone. An account is for Pick'em, cards and the Arcade. <a href="/">League home</a> · <a href="/about">About this site</a></p>
     ${err ? `<p class="err">${esc(err)}</p>` : ''}
     <input type="hidden" name="next" value="${esc(next)}">
     <label>Username<input name="name" autocomplete="username" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_]+" placeholder="letters, numbers, _" value="${esc(req.body?.name || '')}"></label>
@@ -2044,8 +2045,8 @@ app.get('/about', (req, res) => {
     </ul>
     <h2>Play coins</h2>
     <p>Coins on this site are play coins. They're free, they have no money value, and they can't be bought, sold or cashed out. Nobody pays anything to use the site. <a href="/coins">Every way to earn coins</a>.</p>
-    <h2>One site, one address</h2>
-    <p>Every page and game here comes from this site itself, at one address: <b>${esc(host)}</b>. The site doesn't open, load or pass along other websites.</p>
+    <h2>Where to find it</h2>
+    <p>The league site lives at <b>${esc(host)}</b>.</p>
     <h2>Who runs it</h2>
     <p>The league's commissioner runs the site and keeps the scores, stats and rosters up to date. ${contact}</p>
   </article></div>`));

@@ -1,3 +1,6 @@
 {
+  "redirects": [
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "metcalffootballleague.vercel.app" }], "destination": "https://www.metcalffootballleague.com/$1", "permanent": true }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "http://zephyr.proxy.rlwy.net:25221/$1" }]
 }

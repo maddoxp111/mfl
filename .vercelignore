@@ -1,0 +1,4 @@
+# Vercel only forwards requests to the app on Railway (vercel.json). It publishes nothing of its own: no copy of the
+# server as a function (api/) and no second copy of public/.
+/*
+!vercel.json
