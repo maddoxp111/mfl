@@ -55,7 +55,7 @@ const GAMES = {
   blitz3d: { name: '3D Blitz', emoji: '🏟️', tag: 'Full 3D football: pull back to throw from the QB, scramble, sprint, real catches, tackles and hurdles, a 66-play playbook with Coach\'s Choice picks, 2-minute quarters. Plus Career mode. The biggest payouts in the Arcade.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 150, maxScore: 90, isNew: true },
   // 3D Dunk pays like 3D Blitz: the same six levels and prizes, Risk mode and both runs (RUN_GAMES). A coin game is always
   // 2-minute quarters (only Practice picks the quarter length).
-  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball in Wildcat Gym with your own cards: five starters and a bench of up to three, crossovers, layups, blocks and the green release.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, isNew: true },
+  dunk3d: { name: '3D Dunk', emoji: '🏀', tag: '5-on-5 basketball. Move, shoot, pass.', prizes: [250, 550, 1100, 2000, 3500, 2800], daily: 5, minSec: 240, maxScore: 200, isNew: true },
   memory: { name: 'Card Memory', emoji: '🃏', tag: 'Match MFL player cards from memory.', prizes: [30, 70, 150, 280], daily: 5, minSec: 7, maxScore: 12 },
 };
 // Double or Nothing / Double or Double: a run of 3D Blitz games at Legend, Hall of Fame (the main one) or GOAT. After every win
@@ -703,7 +703,9 @@ module.exports = function arcade(app, h) {
   function dunkData(db, user, level, seed, opts = {}) {
     const rnd = rngFrom('dunk:' + seed);
     const teams = Object.values(db.teams).filter((t) => t.roster && t.roster.length);
-    const mine = dunkMine(db, user);
+    // his saved lineup, else his six best cards (the same auto-pick Head to Head uses), else a random real MFL team
+    const auto = user && !dunkLineupCards(db, user) ? dunkAutoCards(db, user) : null;
+    const mine = dunkMine(db, user) || (auto ? dunkMine(db, user, auto) : null);
     const home = mine || (teams.length ? dunkRealTeam(db, teams[Math.floor(rnd() * teams.length)], rnd) : dunkCpuTeam(0, rnd));
     const used = new Set(home.players.map((p) => p.id).filter(Boolean));
     const others0 = teams.filter((t) => t.id !== home.teamId);
@@ -1034,34 +1036,44 @@ module.exports = function arcade(app, h) {
       const firstTeam = Object.values(db.teams)[0];
       const levels = levelsOf(G).map((i) => `<label class="lvl"><input type="radio" name="level" value="${i}" ${i === 0 ? 'checked' : ''}><span><b>${LEVELS[i]}</b><small>Win ${fmt(G.prizes[i])}</small><em>Risk: put up ${fmt(G.prizes[i])} → win ${fmt(Math.round(G.prizes[i] * RISK_MULT[i]))}</em><small class="dk-lvl-s">${i >= 4 ? 'vs a CPU all-star team' : 'vs a real MFL team'}</small></span></label>`).join('');
       const runs = Object.keys(RUNS), pending = pendingRun(user, id), pi = pending ? runInfo(pending) : null;
-      const want = user && runs.includes(String(req.query.mode)) ? String(req.query.mode) : String(req.query.mode) === 'practice' || !user ? 'practice' : 'coins';
+      const qm = String(req.query.mode), want = user && (runs.includes(qm) || qm === 'coins') ? qm : 'practice'; // a free practice game unless the link asks for coins or a run
       const modeLabel = (m) => m === 'coins' ? `${icon('coin')} Play for coins` : m === 'practice' ? `${icon('star')} Practice` : `${RUNS[m].emoji} ${RUNS[m].name}`;
       const runInfoHtml = runs.map((m) => { const R = RUNS[m], c = Math.round(R.cash(5, id)), r = R.stake(5, id); return `<div class="run-info" data-run="${m}" hidden>${m === 'don'
         ? `<b>Hall of Fame is the main level, nothing up front.</b> Win and choose: cash out, or play one more. The next game's level sets the multiplier: Legend ×1.5, Hall of Fame ×2, GOAT ×2.5. From Hall of Fame that is ${fmt(c)}, then ${fmt(c * 2)}, ${fmt(c * 4)} and up (a Legend start begins at ${fmt(R.cash(3, id))}, GOAT at ${fmt(R.cash(4, id))}). One loss and the run pays nothing.`
         : `<b>Hall of Fame is the main level, your coins on the line.</b> From Hall of Fame, ${fmt(r)} at risk to cash out ${fmt(c)} (Legend: ${fmt(R.stake(3, id))} to cash out ${fmt(R.cash(3, id))}; GOAT: ${fmt(R.stake(4, id))} to cash out ${fmt(R.cash(4, id))}). After every win: cash out, or play one more and both grow by the next game's level, ×1.5 at Legend, ×2 at Hall of Fame, ×2.5 at GOAT. The risk is never capped by your balance. Lose and you go into debt.`}</div>`; }).join('');
       const keyCols = cards.BB_KEYS.map((k) => [k, cards.BB_SHORT[k], cards.BB_LABELS[k]]);
+      const hasLu = !!(user && mine), hasAuto = !!(user && !mine && pool.length >= DUNK_KEEP);
+      const lvlName = (i) => LEVELS[i];
       res.send(layout(req, G.name, `<div class="wrap arc-page dk-page">
-        <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">${esc(G.tag)}</p>${user && acct ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
-        <a class="card bf-promo" href="/arcade/dunk3d/versus"><span class="bf-promo-e">🆚</span><div><b>Head to Head</b><small>Play another MFL player live, your five against theirs. Put up to ${fmt(DUNK.MAX_WAGER)} coins on it (the winner takes both wagers) or play a friendly.</small></div><span class="btn">Find a game ${icon('arrow')}</span></a>
-        <section class="card dk-lu arc-setup-x">
-          <div class="card-h"><h2>Your Dunk lineup</h2>${user ? '<span class="muted sm">5 starters and a sixth man, plus an optional 7th and 8th man (the bench subs in at timeouts)</span>' : ''}</div>
-          ${user ? `${pool.length ? `<div class="dk-slots" id="dkSlots"></div>
-            <div class="dk-bar"><button type="button" class="btn ghost sm" id="dkAuto">Auto-pick best</button><button type="button" class="btn ghost sm" id="dkClear">Clear</button><button type="button" class="btn sm" id="dkSave">Save lineup</button><span class="dk-msg" id="dkMsg" role="status"></span></div>
-            <div class="dk-pick" id="dkPick" hidden><div class="dk-pick-h"><b id="dkPickT">Pick a player</b><input type="search" id="dkFind" placeholder="Search your cards" aria-label="Search your cards"><button type="button" class="btn ghost sm" id="dkPickNone" hidden>Leave empty</button><button type="button" class="btn ghost sm" id="dkPickX">Done</button></div><div class="dk-list" id="dkList"></div></div>`
-            : `<p class="muted">You have no cards yet. <a href="/pickem/cards">Open a pack →</a> Until you build a lineup you play as a real MFL team.</p>`}`
-            : `<p class="muted"><a href="/pickem/login?next=/arcade/dunk3d">Log in</a> to build your Dunk lineup from your cards. Practice works without it: you play as a real MFL team.</p>`}
-        </section>
-        <section class="arc-setup card"><form id="arcSetup">
+        <div class="arc-head"><a href="/arcade" class="muted sm">${icon('arrow')} Arcade</a><h1><span>${G.emoji}</span> ${esc(G.name)}</h1><p class="muted">5-on-5 basketball. Move, shoot, pass.</p>${user && acct ? `<span class="arc-bal">${coins(acct.balance)}</span>` : ''}</div>
+        <section class="card arc-setup dk-quick"><form id="arcSetup">
           ${pending ? `<div class="run-wait" id="runWait"><b>${pi.emoji} Your ${pi.name} run is waiting.</b><span>You won game ${pi.step}. Cash out ${fmt(pi.cash)}, or play one more for ${((xs) => xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1])(RUN_LEVELS.map((l) => `${fmt(pi.next[l].cash)} at ${LEVELS[l]}`))}.</span><button type="button" class="btn" id="runResume">Decide now</button></div>` : ''}
-          <div class="arc-modes four">${['coins', 'practice', ...runs].map((m) => `<label class="mode ${runs.includes(m) ? 'run ' + m : ''}"><input type="radio" name="mode" value="${m}" ${m === want ? 'checked' : ''} ${m !== 'practice' && !user ? 'disabled' : ''}><span>${modeLabel(m)}</span></label>`).join('')}</div>
-          ${runInfoHtml}
-          ${!user ? `<p class="muted sm"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins or start a run. Practice is free.</p>` : ''}
-          <p class="muted sm" id="dkWho">${mine ? 'Your saved Dunk lineup takes the court.' : `${user && pool.length ? 'Save a full Dunk lineup to play with your own cards. Until then you' : 'You'} play as a real MFL team${firstTeam ? ` (like the ${esc(firstTeam.name)})` : ''}.`}</p>
-          <div class="lvls six">${levels}</div>
-          <fieldset class="bz-defmode dk-qlen" data-practice><legend>Quarter length</legend><div class="bz-chips dk-q">${[1, 2, 3, 4].map((m) => `<label><input type="radio" name="qmin" value="${m}" ${m === 2 ? 'checked' : ''}><span><i>⏱️</i><b>${m} min</b></span></label>`).join('')}</div></fieldset>
-          <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for ${RISK_MULT[0]}× to ${Math.max(...RISK_MULT.slice(0, G.prizes.length))}× back when you win. Lose it all when you don't.</small></span></label>
-          <p class="muted sm" data-nopractice>Coin games are 4 quarters of 2 minutes, and a tie goes to overtime. Every win pays. Leaving mid-game counts as a loss.</p>
-          <button type="submit" class="btn arc-go">🏀 <span data-label>Play</span></button><p id="arcMsg" class="err"></p>
+          <button type="submit" class="btn arc-go dk-play">🏀 <span data-label>Play</span></button>
+          <p class="dk-sub" id="dkSub" aria-live="polite"><span id="dkLvlNow">${lvlName(0)}</span> <i class="dk-here" id="dkHere">START HERE</i></p>
+          <div class="dk-seg" role="radiogroup" aria-label="Game type">${['practice', 'coins'].map((m) => `<label class="mode"><input type="radio" name="mode" value="${m}" ${m === want ? 'checked' : ''} ${m !== 'practice' && !user ? 'disabled' : ''}><span>${m === 'coins' ? 'For coins' : 'Practice'}</span></label>`).join('')}</div>
+          ${!user ? `<p class="muted sm dk-li"><a href="/pickem/login?next=/arcade/${id}">Log in</a> to play for coins.</p>` : ''}
+          <p class="muted sm dk-warn" data-nopractice>Leaving mid-game counts as a loss.</p>
+          <a class="dk-h2h" href="/arcade/dunk3d/versus"><span>🆚</span><b>Play a friend</b>${icon('arrow')}</a>
+          <details class="dk-more" id="dkMore"><summary>More options</summary>
+            <div class="dk-more-in">
+              <div class="dk-sec"><h3>Game type</h3>
+                <div class="arc-modes dk-runs">${runs.map((m) => `<label class="mode run ${m}"><input type="radio" name="mode" value="${m}" ${m === want ? 'checked' : ''} ${!user ? 'disabled' : ''}><span>${RUNS[m].emoji} ${RUNS[m].name}</span></label>`).join('')}</div>
+                ${runInfoHtml}
+                ${!user ? `<p class="muted sm">Log in to start a run.</p>` : ''}
+              </div>
+              <div class="dk-sec"><h3>Level</h3><div class="lvls six">${levels}</div></div>
+              <fieldset class="bz-defmode dk-qlen" data-practice><legend>Quarter length</legend><div class="bz-chips dk-q">${[1, 2, 3, 4].map((m) => `<label><input type="radio" name="qmin" value="${m}" ${m === 2 ? 'checked' : ''}><span><i>⏱️</i><b>${m} min</b></span></label>`).join('')}</div></fieldset>
+              <label class="risk" data-coins><input type="checkbox" name="risk" value="1"><span><b>Risk mode</b><small>Put up the whole prize for ${RISK_MULT[0]}× to ${Math.max(...RISK_MULT.slice(0, G.prizes.length))}× back when you win. Lose it all when you don't.</small></span></label>
+              <div class="dk-sec dk-lu"><h3>Your lineup</h3>
+                <p class="muted sm" id="dkWho">${hasLu ? 'Your saved lineup plays.' : hasAuto ? 'Your six best cards play. Save a lineup to choose your own.' : `${user ? 'Open packs to get six cards.' : 'Log in to use your cards.'} Until then you play as a real MFL team${firstTeam ? ` (like the ${esc(firstTeam.name)})` : ''}.`}</p>
+                ${user && pool.length ? `<p class="muted sm">5 starters and a sixth man, plus an optional 7th and 8th man (they sub in at timeouts).</p><div class="dk-slots" id="dkSlots"></div>
+                <div class="dk-bar"><button type="button" class="btn ghost sm" id="dkAuto">Auto-pick best</button><button type="button" class="btn ghost sm" id="dkClear">Clear</button><button type="button" class="btn sm" id="dkSave">Save lineup</button><span class="dk-msg" id="dkMsg" role="status"></span></div>
+                <div class="dk-pick" id="dkPick" hidden><div class="dk-pick-h"><b id="dkPickT">Pick a player</b><input type="search" id="dkFind" placeholder="Search your cards" aria-label="Search your cards"><button type="button" class="btn ghost sm" id="dkPickNone" hidden>Leave empty</button><button type="button" class="btn ghost sm" id="dkPickX">Done</button></div><div class="dk-list" id="dkList"></div></div>`
+                : user ? `<p class="muted sm"><a href="/pickem/cards">Open a pack →</a></p>` : ''}
+              </div>
+            </div>
+          </details>
+          <p id="arcMsg" class="err"></p>
         </form></section>
         <section id="arcStage" class="arc-stage" hidden></section>
       </div>
@@ -1069,10 +1081,26 @@ module.exports = function arcade(app, h) {
       <script>window.MFL_ARCADE=${JSON.stringify({ game: id, pending: pi, resume: null })};
       (function(){const f=document.getElementById('arcSetup');const RUN=${JSON.stringify(runs)};const sync=()=>{const m=f.mode?f.mode.value:'coins',p=m==='practice',run=RUN.includes(m);
         f.querySelectorAll('[data-coins]').forEach(e=>e.hidden=p||run);f.querySelectorAll('[data-practice]').forEach(e=>e.hidden=!p);f.querySelectorAll('[data-nopractice]').forEach(e=>e.hidden=p);f.querySelectorAll('[data-run]').forEach(e=>{e.hidden=e.getAttribute('data-run')!==m;});
-        f.classList.toggle('dk-prac',p);if((p||run)&&f.risk)f.risk.checked=false;
+        f.classList.toggle('dk-prac',p);f.classList.toggle('dk-coin',!p&&!run);if((p||run)&&f.risk)f.risk.checked=false;
         const RL=${JSON.stringify(RUN_LEVELS.map(String))};f.querySelectorAll('input[name=level]').forEach(i=>{const okv=RL.includes(i.value);i.disabled=run&&!okv;i.closest('.lvl').classList.toggle('locked',run&&!okv);});if(run&&!RL.includes(f.level.value))f.querySelector('input[name=level][value="${RUN_MAIN}"]').checked=true;
-        const b=f.querySelector('.arc-go [data-label]');if(b)b.textContent=run?'Start the run':p?'Practice':'Play';};
-      f.addEventListener('change',sync);sync();})();</script>
+        const b=f.querySelector('.arc-go [data-label]');if(b)b.textContent=run?'Start the run':p?'Play':'Play for coins';
+        const lv=f.querySelector('input[name=level]:checked'),LN=document.getElementById('dkLvlNow'),HR=document.getElementById('dkHere');if(lv&&LN){LN.textContent=lv.closest('.lvl').querySelector('b').textContent;if(HR)HR.hidden=lv.value!=='0';}};
+      var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){}return null;};
+      var last=LS('dunk.lastLevel');if(last!=null){var li=f.querySelector('input[name=level][value="'+String(last).replace(/[^0-9]/g,'')+'"]');if(li&&!li.disabled)li.checked=true;}
+      f.addEventListener('change',function(e){if(e.target&&e.target.name==='level')LS('dunk.lastLevel',e.target.value);sync();});sync();
+      var more=document.getElementById('dkMore');if(more){if(LS('dunk.more')==='1')more.open=true;more.addEventListener('toggle',function(){LS('dunk.more',more.open?'1':'0');});}
+      f.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.type==='search')e.preventDefault();});})();</script>
+      <style>
+      .dk-quick{padding:18px}.dk-quick .dk-play{width:100%;justify-content:center;font-size:24px;padding:22px 14px;border-radius:18px;letter-spacing:.02em}
+      .dk-sub{margin:8px 0 12px;text-align:center;font:700 14px Inter;color:var(--ink2)}.dk-here{font-style:normal;margin-left:6px;padding:2px 8px;border-radius:999px;background:#4ade80;color:#06230f;font:800 11px Inter;letter-spacing:.06em}.dk-here[hidden]{display:none}
+      .dk-seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}.dk-seg span{padding:10px 6px}
+      .dk-li,.dk-warn{text-align:center;margin:0 0 10px}
+      .dk-h2h{display:flex;align-items:center;justify-content:center;gap:8px;margin:2px 0 12px;padding:10px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);color:var(--ink);text-decoration:none;font:700 15px Inter}.dk-h2h .ic{width:14px;height:14px}
+      .dk-more>summary{cursor:pointer;list-style:none;text-align:center;padding:10px;border-radius:12px;font:700 14px Inter;color:var(--ink2)}.dk-more>summary::-webkit-details-marker{display:none}.dk-more>summary::after{content:' \u25BE'}.dk-more[open]>summary::after{content:' \u25B4'}
+      .dk-more-in{padding-top:8px;display:flex;flex-direction:column;gap:14px}.dk-sec h3{margin:0 0 8px;font:800 13px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+      .dk-runs{grid-template-columns:1fr 1fr!important;margin-bottom:8px!important}
+      @media(max-width:520px){.dk-quick{padding:14px}.dk-quick .dk-play{font-size:22px;padding:18px 12px}}
+      </style>
       ${user && pool.length ? `<script>(function(){
         var POOL=${JSON.stringify(pool).replace(/</g, '\\u003c')},SAVED=${JSON.stringify(saved).replace(/</g, '\\u003c')},KEYS=${JSON.stringify(keyCols)},POS=['PG','SG','SF','PF','C','6TH','7TH','8TH'],BENCH=function(p){return p==='6TH'||p==='7TH'||p==='8TH';};
         var POSN={PG:'Point guard',SG:'Shooting guard',SF:'Small forward',PF:'Power forward',C:'Center','6TH':'Sixth man','7TH':'7th man (optional)','8TH':'8th man (optional)'};
