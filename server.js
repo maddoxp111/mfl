@@ -731,7 +731,9 @@ app.get('/games/:id', (req, res) => {
     const pens = evs.filter((e) => e.team === tm.id && e.type === 'PEN');
     const penLine = pens.length ? `<p class="muted sm out-line">Penalties: ${pens.length} (${esc(Object.entries(pens.reduce((o, e) => ((o[e.pen === 'PI' ? 'PI' : penName(e.pen)] = (o[e.pen === 'PI' ? 'PI' : penName(e.pen)] || 0) + 1), o), {})).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(', '))})</p>` : '';
     const outLine = outNames.length ? `<p class="muted sm out-line">Did not play: ${esc(outNames.join(', '))}</p>` : '';
-    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${boxStatus(g) === 'unknown' ? 'Box score unknown.' : 'No player stats recorded.'}</p>`}${penLine}${outLine}</div>`;
+    const spF = usedInGame(g, 'first', tm.id), spL = usedInGame(g, 'last', tm.id);
+    const spLine = (spF || spL) ? `<p class="muted sm out-line">Used: ${[spF ? playWord('first', spF) : '', spL ? playWord('last', spL) : ''].filter(Boolean).join(', ')}</p>` : '';
+    return `<div class="card"><div class="card-h"><h2 class="th">${logo(tm, 26)} ${esc(tm.name)}</h2></div>${list.length ? `<div class="scroll"><table class="tbl"><thead><tr><th class="l">Player</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(([n, x]) => `<tr><td class="l">${playerLink(tm, n, true)}</td>${cols.map(([k]) => `<td>${x[k] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted">${boxStatus(g) === 'unknown' ? 'Box score unknown.' : 'No player stats recorded.'}</p>`}${penLine}${outLine}${spLine}</div>`;
   };
 
   const center = isFinal(g)
@@ -967,6 +969,7 @@ app.get('/teams/:id', (req, res) => {
         <div class="card"><div class="card-h"><h2>Team Leaders</h2></div>
           ${[['td', 'Touchdowns'], ['ptd', 'Passing TDs'], ['int', 'Interceptions']].map(([k, n]) => { const p = lead(k); return `<div class="leader"><span class="av" style="background:${esc(tm.color)};color:${readableOn(tm.color)}">${p && p[k] ? initials(p.name) : '–'}</span><div><small>${n}</small><b>${p && p[k] ? playerLink(tm, p.name) : 'No leader yet'}</b></div><span class="leader-n">${p && p[k] ? p[k] : ''}</span></div>`; }).join('')}</div>
         <div class="card"><div class="card-h"><h2>Upcoming</h2><a href="/schedule">Schedule ${icon('arrow')}</a></div><div class="list">${upcoming.map((g) => gameCard(db, g)).join('') || '<p class="muted">Nothing scheduled.</p>'}</div></div>
+        ${(() => { const l = playsLeft(db, tm.id), gr = grantedPlays(tm); return (gr.first || gr.last) ? `<div class="card"><div class="card-h"><h2>First &amp; last plays</h2></div><p>This team has <b>${Math.max(0, l.first)}</b> first play${Math.max(0, l.first) === 1 ? '' : 's'} and <b>${Math.max(0, l.last)}</b> last play${Math.max(0, l.last) === 1 ? '' : 's'} left.</p></div>` : ''; })()}
         ${(db.transactions || []).some((t) => t.team === tm.id || t.team2 === tm.id) ? `<div class="card"><div class="card-h"><h2>Transactions</h2><a href="/transactions">All ${icon('arrow')}</a></div>${[...db.transactions].filter((t) => t.team === tm.id || t.team2 === tm.id).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 5).map((t) => txLine(db, t)).join('')}</div>` : ''}
       </div>
     </div>`));
@@ -1996,7 +1999,19 @@ app.get('/history', (req, res) => {
 });
 
 // ---------- transactions ----------
-const TX_TYPES = { trade: 'Trade', signing: 'Signing', release: 'Release', note: 'Note' };
+const TX_TYPES = { trade: 'Trade', signing: 'Signing', release: 'Release', grant: 'Plays', note: 'Note' };
+// First & last plays: a team is given some (admin, on the Transactions page) and spends them in games. "Left" is worked out
+// live — given (team.firstPlays / lastPlays) minus what the box scores mark as used — so fixing a box score fixes the count.
+const intIn = (v) => Math.max(0, Math.min(99, Math.floor(Number(v) || 0)));
+const grantedPlays = (tm) => ({ first: Math.max(0, tm?.firstPlays | 0), last: Math.max(0, tm?.lastPlays | 0) });
+const usedInGame = (g, kind, teamId) => ((kind === 'first' ? g.firstUsed : g.lastUsed) || {})[teamId] | 0;
+function usedPlays(db, teamId) {
+  let first = 0, last = 0;
+  for (const g of db.games) { first += usedInGame(g, 'first', teamId); last += usedInGame(g, 'last', teamId); }
+  return { first, last };
+}
+const playsLeft = (db, teamId) => { const gr = grantedPlays(db.teams[teamId]), u = usedPlays(db, teamId); return { first: gr.first - u.first, last: gr.last - u.last }; };
+const playWord = (kind, n) => `${n} ${kind} play${n === 1 ? '' : 's'}`;
 function txLine(db, t) {
   const tm = db.teams[t.team], t2 = db.teams[t.team2];
   const names = (xs) => xs.map((n) => `<b>${esc(n)}</b>`).join(', ');
@@ -2004,6 +2019,7 @@ function txLine(db, t) {
   if (t.type === 'trade') text = `${esc(tm?.name)} trade ${names(t.out || [])} to ${esc(t2?.name)}${(t.in || []).length ? ` for ${names(t.in)}` : ''}`;
   else if (t.type === 'signing') text = `${esc(tm?.name)} sign ${names(t.in || [])}`;
   else if (t.type === 'release') text = `${esc(tm?.name)} release ${names(t.out || [])}`;
+  else if (t.type === 'grant') { const parts = []; if (t.first) parts.push(playWord('first', t.first)); if (t.last) parts.push(playWord('last', t.last)); text = `${esc(tm?.name)} get ${parts.join(' and ') || 'nothing'}`; }
   else text = esc(t.note);
   return `<div class="tx"><span class="tag tx-${t.type}">${TX_TYPES[t.type]}</span><div><p>${text}</p>${t.note && t.type !== 'note' ? `<small class="muted">${esc(t.note)}</small>` : ''}</div><span class="tx-d">${esc(shortDate(t.date))}</span>
     <div class="tx-logos">${tm ? logo(tm, 26) : ''}${t2 ? logo(t2, 26) : ''}</div></div>`;
@@ -3144,6 +3160,14 @@ function gameForm(db, g, isNew, scorer = false) {
     </section>
 
     <section class="card">
+      <div class="card-h"><h2>First &amp; last plays</h2><span class="muted sm">Mark any used in this game</span></div>
+      <p class="muted sm">Each team can use the first plays and last plays it was given. Marking one here counts it and lowers how many they have left.</p>
+      ${[t1, t2].map((t) => { const gr = grantedPlays(t), u = usedPlays(db, t.id); const availF = gr.first - (u.first - usedInGame(g, 'first', t.id)), availL = gr.last - (u.last - usedInGame(g, 'last', t.id)); return `<div class="sp-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span>
+        <label class="sp-f">First plays used <input type="number" name="first_${esc(t.id)}" min="0" max="99" value="${usedInGame(g, 'first', t.id)}" inputmode="numeric"> <small class="muted">${availF} available</small></label>
+        <label class="sp-f">Last plays used <input type="number" name="last_${esc(t.id)}" min="0" max="99" value="${usedInGame(g, 'last', t.id)}" inputmode="numeric"> <small class="muted">${availL} available</small></label></div>`; }).join('')}
+    </section>
+
+    <section class="card">
       <div class="card-h"><h2>Did not play</h2><span class="muted sm" id="outCount"></span></div>
       <p class="muted sm">Tap anyone who was out. Every pick on them is cancelled: singles are refunded, and combos drop that pick and count the rest.</p>
       ${[t1, t2].map((t) => `<div class="out-team"><span class="th">${logo(t, 22)} ${esc(t.name)}</span><div class="out-chips">${t.roster.map((p) => `<label class="out-chip"><input type="checkbox" name="out" value="${esc(t.id + '|' + p.id)}" ${(g.out || []).includes(t.id + '|' + p.id) || (!g.out && p.ir) ? 'checked' : ''}><span>${avatar(t, p, 26)}${esc(p.name)}${irBadge(p)}</span></label>`).join('')}</div></div>`).join('')}
@@ -3264,6 +3288,10 @@ function readGame(body, g, scoreOnly = false) {
     passer: (arr(body.ev_passer)[i] || '').trim(), note: (arr(body.ev_note)[i] || '').trim(),
     ...(t === 'PEN' ? { pen: PENALTIES[arr(body.ev_pen)[i]] ? arr(body.ev_pen)[i] : 'OTHER' } : {}),
   })).filter((e) => (e.player || e.passer || e.note || e.pen) && (e.team === g.home || e.team === g.away));
+  const fu = {}, lu = {};
+  for (const id of [g.home, g.away]) { const f = intIn(body['first_' + id]), l = intIn(body['last_' + id]); if (f) fu[id] = f; if (l) lu[id] = l; }
+  if (Object.keys(fu).length) g.firstUsed = fu; else delete g.firstUsed;
+  if (Object.keys(lu).length) g.lastUsed = lu; else delete g.lastUsed;
   return g;
 }
 
@@ -3858,6 +3886,16 @@ app.get('/admin/transactions', requireAdmin, (req, res) => {
         <label>What happened<input name="note" required></label><label>Date<input type="date" name="date" value="${today()}"></label>
         <div class="actions"><button class="btn">Post</button></div></form>
     </div>
+    <form method="post" class="card form"><div class="card-h"><h2>Give first &amp; last plays</h2></div><input type="hidden" name="type" value="grant">
+      <p class="muted sm">Give a team first plays and last plays to use in games. You can give them even if no one is giving any up.</p>
+      <div class="fgrid">
+        <label>Team<select name="team">${teams.map((t) => { const l = playsLeft(db, t.id); return `<option value="${t.id}">${esc(t.name)} — ${l.first} first, ${l.last} last left</option>`; }).join('')}</select></label>
+        <label>First plays to give<input type="number" name="first" min="0" max="99" value="0" inputmode="numeric"></label>
+        <label>Last plays to give<input type="number" name="last" min="0" max="99" value="0" inputmode="numeric"></label>
+        <label class="wide">Note (optional)<input name="note" placeholder="e.g. Prize for winning the week"></label>
+      </div>
+      <div class="actions"><button class="btn">Give plays</button></div>
+    </form>
     <div class="card"><div class="card-h"><h2>History</h2></div>${txs.map((t) => `<div class="tx-admin">${txLine(db, t)}<form method="post" action="/admin/transactions/${t.id}/delete"><button class="btn sm ghost" onclick="return confirm('Delete this entry? (It does not undo roster changes.)')">Delete</button></form></div>`).join('') || '<p class="muted">Nothing yet.</p>'}</div>
   </div>`, { ticker: false }));
 });
@@ -3907,6 +3945,13 @@ app.post('/admin/transactions', requireAdmin, async (req, res) => {
     if (!from || !to || !move(from, to, [pid]).length) return fail('Player not found.');
     await save();
     return res.redirect('/admin/transactions?saved=1');
+  } else if (b.type === 'grant') {
+    const t = db.teams[b.team]; const first = intIn(b.first), last = intIn(b.last);
+    if (!t) return fail('Pick a team.');
+    if (!first && !last) return fail('Enter how many first or last plays to give.');
+    t.firstPlays = Math.max(0, (t.firstPlays | 0) + first);
+    t.lastPlays = Math.max(0, (t.lastPlays | 0) + last);
+    tx.team = t.id; tx.first = first; tx.last = last;
   } else if (b.type === 'note') {
     if (!note) return fail('Write what happened.');
     tx.team = db.teams[b.team] ? b.team : null;

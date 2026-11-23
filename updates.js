@@ -1114,6 +1114,16 @@ const UPDATES = [
       'Want every move back? Turn on PRO CONTROLS in the pause menu or on the TIP OFF screen.',
     ],
   },
+  {
+    n: 104,
+    date: '2026-11-23',
+    title: 'First & last plays',
+    items: [
+      'Teams can now be given first plays and last plays to use in games. Give them to a team on the Transactions page — you can give them even if no one is handing any over.',
+      'When you score a game, mark how many first or last plays each team used. It counts them and shows how many that team has left.',
+      'A team page shows how many first and last plays it has left, and a game box score shows any that were used.',
+    ],
+  },
 ];
 
 const latest = () => UPDATES.reduce((a, u) => (!a || u.n > a.n ? u : a), null);
