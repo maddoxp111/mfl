@@ -3150,3 +3150,26 @@ html.av3d-lock,html.av3d-lock body{overflow:hidden}
 .gd-ultra .ga-lock{--nw:70%;left:13%;top:63%;width:74%;height:26%}
 .mcard.ph-ultra .mc-s1tag{margin-top:2px}
 .mcard.v-inv-s1{--rc:#fff7d6;box-shadow:0 0 0 2px #fff7d6,0 0 40px 4px rgba(255,236,160,.8),0 14px 30px -12px rgba(0,0,0,.8)}
+
+/* Team trade panel */
+.sec{margin:18px 2px 8px;font-size:1.1rem}
+.tr-new .tr-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.tr-new .tr-cols{grid-template-columns:1fr}}
+.tr-roster{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto}
+.tr-pick{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);cursor:pointer}
+.tr-pick:has(input:checked){border-color:#ffc21a;box-shadow:0 0 0 1px #ffc21a inset}
+.tr-pick input{margin:0}
+.tr-terms{margin:4px 0;line-height:1.5}
+.tr-acts{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.tr-acts form{margin:0}
+.tr.tr-accepted{border-left:3px solid #35c66b}
+.tr.tr-rejected,.tr.tr-cancelled{opacity:.72}
+.tr-chat{display:flex;flex-direction:column;gap:5px;margin:8px 0;max-height:240px;overflow:auto}
+.tr-msg{padding:6px 10px;border-radius:12px;background:var(--card2);max-width:85%;font-size:.93rem}
+.tr-msg.me{align-self:flex-end;background:color-mix(in srgb,#ffc21a 18%,var(--card2))}
+.tr-msg.sys{align-self:center;background:transparent;color:var(--muted);font-size:.85rem}
+.tr-msg b{margin-right:4px}
+.tr-msg small{color:var(--muted);margin-left:6px}
+.tr-say{display:flex;gap:6px;margin-top:4px}
+.tr-say input{flex:1}
+.tr-badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#ff3b6b;color:#fff;font-size:.78rem;text-align:center}

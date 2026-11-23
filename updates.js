@@ -1115,6 +1115,17 @@ const UPDATES = [
     ],
   },
   {
+    n: 105,
+    date: '2026-11-23',
+    title: 'Team trades with your captain',
+    items: [
+      'Teams now have a trade panel. A captain or team rep can propose a trade — pick who your team sends and who you want back — and the other team\'s captain accepts or rejects it.',
+      'Every trade has a chat, so both sides can talk it over before anyone decides.',
+      'When a captain accepts, the players move right away and the trade shows up in Transactions.',
+      'The commissioner sets who each team\'s captains and reps are on the admin page. A Trades link shows up in the menu for them, with a badge when a trade is waiting on you.',
+    ],
+  },
+  {
     n: 104,
     date: '2026-11-23',
     title: 'First & last plays',

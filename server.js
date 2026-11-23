@@ -509,7 +509,8 @@ ${req.res && req.res.statusCode >= 400 ? '<meta name="robots" content="noindex">
     <div class="acct-box">${user
       ? `<a class="acct" href="/pickem/me" title="My picks">${icon('user')}<b>@${esc(user)}</b><span class="coins">${icon('coin')}<span data-balance>…</span></span></a><a class="acct-out" href="/pickem/logout">Log out</a>`
       : `<a class="acct" href="/pickem/login?next=${encodeURIComponent(cur.startsWith('/pickem') ? cur : '/pickem')}">Log in</a><a class="acct primary" href="/pickem/signup">Sign up</a>`}
-    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : scorer ? `<a class="nav-admin ${on(['/score'])}" href="/score">Score</a>` : ''}</div>
+    ${admin ? '<a class="nav-admin" href="/admin">Admin</a>' : scorer ? `<a class="nav-admin ${on(['/score'])}" href="/score">Score</a>` : ''}
+    ${(() => { const st = user ? staffTeam(db, user) : null; if (!st) return ''; const n = openTrades(db, st.team.id).filter((t) => t.to === st.team.id && st.role === 'captain').length; return `<a class="nav-admin ${on(['/trade'])}" href="/trade">${icon('swap')} Trades${n ? ` <span class="tr-badge">${n}</span>` : ''}</a>`; })()}</div>
   </nav>
 </div></header>
 ${hypeBanner(db, cur)}
@@ -2012,6 +2013,47 @@ function usedPlays(db, teamId) {
 }
 const playsLeft = (db, teamId) => { const gr = grantedPlays(db.teams[teamId]), u = usedPlays(db, teamId); return { first: gr.first - u.first, last: gr.last - u.last }; };
 const playWord = (kind, n) => `${n} ${kind} play${n === 1 ? '' : 's'}`;
+
+// ---------- team staff & team-to-team trades ----------
+// An admin links site accounts to a team as its captain(s) or rep(s) (team.captains / team.reps, usernames).
+// Reps and captains can propose trades and chat; only a captain of the receiving team can accept or reject one.
+const lc = (s) => String(s || '').trim().toLowerCase();
+const teamCaptains = (t) => (t?.captains || []).map(lc);
+const teamReps = (t) => (t?.reps || []).map(lc);
+const isCaptainOf = (t, name) => !!name && teamCaptains(t).includes(lc(name));
+const isStaffOf = (t, name) => !!name && (teamCaptains(t).includes(lc(name)) || teamReps(t).includes(lc(name)));
+function staffTeam(db, name) { // the team this account helps run, with its role ('captain' beats 'rep')
+  if (!name) return null;
+  for (const t of Object.values(db.teams)) if (isCaptainOf(t, name)) return { team: t, role: 'captain' };
+  for (const t of Object.values(db.teams)) if (isStaffOf(t, name)) return { team: t, role: 'rep' };
+  return null;
+}
+const otherTeamOf = (db, teamId) => Object.values(db.teams).find((t) => t.id !== teamId) || null;
+const rosterName = (t, pid) => (t?.roster.find((p) => p.id === pid) || {}).name || pid;
+// Move players (with their photos/bios/stats) to the other roster, keeping ids unique there. Returns the names moved.
+function movePlayers(from, to, ids) {
+  return ids.map((id) => {
+    const i = from.roster.findIndex((p) => p.id === id);
+    if (i < 0) return null;
+    const [p] = from.roster.splice(i, 1);
+    let nid = p.id, n = 2;
+    while (to.roster.some((x) => x.id === nid)) nid = `${p.id}-${n++}`;
+    p.id = nid; to.roster.push(p);
+    return p.name;
+  }).filter(Boolean);
+}
+const openTrades = (db, teamId) => (db.teamTrades || []).filter((t) => t.status === 'open' && (t.from === teamId || t.to === teamId));
+// What this account may do with one trade.
+function tradeRights(db, name, t) {
+  const from = db.teams[t.from], to = db.teams[t.to];
+  const canCancel = t.status === 'open' && isStaffOf(from, name);
+  const canDecide = t.status === 'open' && isCaptainOf(to, name);
+  const canChat = isStaffOf(from, name) || isStaffOf(to, name);
+  return { canCancel, canDecide, canChat };
+}
+// One trade run at a time, so two accepts can't move the same player twice.
+let tradeChain = Promise.resolve();
+const tradeLock = (fn) => (tradeChain = tradeChain.then(fn, fn));
 function txLine(db, t) {
   const tm = db.teams[t.team], t2 = db.teams[t.team2];
   const names = (xs) => xs.map((n) => `<b>${esc(n)}</b>`).join(', ');
@@ -2911,7 +2953,7 @@ app.get('/pickem/ticket/:name/:id', async (req, res, next) => {
 });
 
 // ---------- admin ----------
-const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/gta', 'GTA logo'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/basketball', 'Basketball'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
+const adminNav = (cur) => `<div class="seg admin-seg">${[['/admin', 'Games'], ['/admin/game/new', '+ New game'], ['/admin/players', 'Players'], ['/admin/teams', 'Teams'], ['/admin/gta', 'GTA logo'], ['/admin/transactions', 'Transactions'], ['/admin/pickem', "Pick'em"], ['/admin/arcade', 'Arcade'], ['/admin/looks', 'Looks &amp; builds'], ['/admin/moves', 'Moves'], ['/admin/ratings', 'Ratings'], ['/admin/basketball', 'Basketball'], ['/admin/tendencies', 'Tendencies'], ['/admin/bowls', 'Bowls'], ['/admin/ai', 'AI'], ['/admin/scorers', 'Scorers'], ['/admin/roles', 'Captains & reps'], ['/admin/security', 'PIN'], ['/admin/logout', 'Log out']].map(([h, n]) => `<a class="${cur === h ? 'on' : ''}" href="${h}">${n}</a>`).join('')}</div>`;
 const savedMsg = (req) => (req.query.saved ? '<div class="toast">Saved ✓</div>' : '');
 
 app.get('/admin/login', (req, res) => {
@@ -3965,6 +4007,148 @@ app.post('/admin/transactions/:id/delete', requireAdmin, async (req, res) => {
   db.transactions = (db.transactions || []).filter((t) => String(t.id) !== req.params.id);
   await save();
   res.redirect('/admin/transactions?saved=1');
+});
+
+// ---------- admin: team captains & reps ----------
+app.get('/admin/roles', requireAdmin, (req, res) => {
+  const db = load();
+  const teams = Object.values(db.teams);
+  const roleCol = (t, key, label) => `<h3 class="muted sm">${label}</h3>${(t[key] || []).length ? `<div class="scorer-list">${(t[key] || []).map((n) => `<form method="post" action="/admin/roles/remove" class="scorer"><span>@${esc(n)}</span><input type="hidden" name="team" value="${esc(t.id)}"><input type="hidden" name="name" value="${esc(n)}"><button class="btn sm ghost">Remove</button></form>`).join('')}</div>` : '<p class="muted sm">None yet.</p>'}`;
+  res.send(layout(req, 'Captains & reps', pageHead('Admin', 'Captains & reps', 'Link accounts to a team. Captains and reps can propose trades and chat; only a captain accepts or rejects a trade.') + `<div class="wrap">${adminNav('/admin/roles')}${savedMsg(req)}
+    ${req.query.err ? `<p class="err">${esc(req.query.err)}</p>` : ''}
+    <div class="fgrid2">${teams.map((t) => `<div class="card"><div class="card-h"><h2>${logo(t, 24)} ${esc(t.name)}</h2></div>
+      ${roleCol(t, 'captains', 'Captains')}${roleCol(t, 'reps', 'Reps')}
+      <form method="post" action="/admin/roles/add" class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><input type="hidden" name="team" value="${esc(t.id)}"><input name="name" placeholder="username" required pattern="[A-Za-z0-9_]+"><select name="role"><option value="captain">Captain</option><option value="rep">Rep</option></select><button class="btn sm">Add</button></form>
+    </div>`).join('')}</div>
+    <p class="muted sm">The account must already exist (the person signs up first). Usernames are case-insensitive. An account gets one role per team.</p>
+  </div>`, { ticker: false }));
+});
+app.post('/admin/roles/add', requireAdmin, async (req, res) => {
+  const db = load();
+  const t = db.teams[req.body.team];
+  const name = lc(req.body.name);
+  const role = req.body.role === 'rep' ? 'reps' : 'captains';
+  if (!t || !name) return res.redirect('/admin/roles?err=' + encodeURIComponent('Pick a team and a username.'));
+  if (!(await getDoc(userKey(name), { fresh: true }))) return res.redirect('/admin/roles?err=' + encodeURIComponent(`No account @${name}. They need to sign up first.`));
+  t.captains = (t.captains || []).filter((n) => lc(n) !== name);
+  t.reps = (t.reps || []).filter((n) => lc(n) !== name);
+  t[role] = [...(t[role] || []), name];
+  await save();
+  res.redirect('/admin/roles?saved=1');
+});
+app.post('/admin/roles/remove', requireAdmin, async (req, res) => {
+  const db = load();
+  const t = db.teams[req.body.team];
+  const name = lc(req.body.name);
+  if (t) { t.captains = (t.captains || []).filter((n) => lc(n) !== name); t.reps = (t.reps || []).filter((n) => lc(n) !== name); await save(); }
+  res.redirect('/admin/roles?saved=1');
+});
+
+// ---------- team trade panel (captains & reps) ----------
+const tradeMsg = (req) => { const m = { sent: 'Trade sent ✓', accepted: 'Trade accepted — the players have moved ✓', rejected: 'Trade rejected.', cancelled: 'Trade cancelled.' }[req.query.msg]; return m ? `<div class="toast">${esc(m)}</div>` : (req.query.err ? `<div class="toast bad">${esc(req.query.err)}</div>` : ''); };
+function tradeCard(db, name, t) {
+  const from = db.teams[t.from], to = db.teams[t.to], r = tradeRights(db, name, t);
+  const side = (team, ids) => ids.length ? ids.map((id) => esc(rosterName(team, id))).join(', ') : 'nothing';
+  const when = new Date(t.at).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const badge = { open: 'Open', accepted: 'Accepted', rejected: 'Rejected', cancelled: 'Cancelled' }[t.status];
+  const chat = `<div class="tr-chat">${(t.chat || []).map((c) => `<div class="tr-msg ${c.by === 'system' ? 'sys' : lc(c.by) === lc(name) ? 'me' : ''}"><b>${c.by === 'system' ? 'Note' : '@' + esc(c.by)}</b> ${esc(c.text)} <small>${esc(new Date(c.at).toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }))}</small></div>`).join('') || '<p class="muted sm">No messages yet.</p>'}</div>
+    ${r.canChat ? `<form method="post" action="/trade/${t.id}/chat" class="tr-say"><input name="text" maxlength="400" placeholder="Message…" required autocomplete="off"><button class="btn sm">Send</button></form>` : ''}`;
+  return `<div class="card tr tr-${t.status}" id="t${t.id}"><div class="card-h"><h2>${logo(from, 22)} ${esc(from.name)} → ${logo(to, 22)} ${esc(to.name)}</h2><span class="tag tx-trade">${badge}</span></div>
+    <p class="tr-terms"><b>${esc(from.name)} send:</b> ${side(from, t.out)}<br><b>${esc(to.name)} send:</b> ${side(to, t.in)}</p>
+    ${t.note ? `<p class="muted sm">&ldquo;${esc(t.note)}&rdquo;</p>` : ''}
+    <p class="muted sm">By @${esc(t.by)} · ${esc(when)}${t.decidedBy && t.decidedBy !== 'system' ? ` · ${esc(t.status)} by @${esc(t.decidedBy)}` : ''}</p>
+    ${r.canDecide || r.canCancel ? `<div class="tr-acts">
+      ${r.canDecide ? `<form method="post" action="/trade/${t.id}/accept" onsubmit="return confirm('Accept this trade? The players move right away.')"><button class="btn">Accept</button></form><form method="post" action="/trade/${t.id}/reject"><button class="btn ghost">Reject</button></form>` : ''}
+      ${r.canCancel ? `<form method="post" action="/trade/${t.id}/cancel"><button class="btn ghost danger">Cancel</button></form>` : ''}
+    </div>` : ''}
+    ${chat}</div>`;
+}
+app.get('/trade', (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  if (!name) return res.redirect('/pickem/login?next=/trade');
+  const st = staffTeam(db, name);
+  if (!st) return res.send(layout(req, 'Trades', pageHead('Trades', 'Team trades', 'Propose and manage trades for your team.') + `<div class="wrap"><div class="card"><p>Your account isn't set as a captain or rep of a team. Ask the commissioner to add you on the admin Captains &amp; reps page.</p></div></div>`));
+  const me = st.team, them = otherTeamOf(db, me.id), role = st.role;
+  const mine = (db.teamTrades || []).filter((t) => t.from === me.id || t.to === me.id).sort((a, b) => b.at.localeCompare(a.at));
+  const decide = mine.filter((t) => t.status === 'open' && t.to === me.id && role === 'captain');
+  const open = mine.filter((t) => t.status === 'open' && !decide.includes(t));
+  const past = mine.filter((t) => t.status !== 'open');
+  const roster = (team, nm) => team.roster.map((p) => `<label class="tr-pick"><input type="checkbox" name="${nm}" value="${esc(p.id)}">${avatar(team, p, 30)}<span>${esc(p.name)}</span></label>`).join('');
+  res.send(layout(req, 'Trades', pageHead('Trades', `${me.name} — trades`, `You are a ${role} of the ${esc(me.name)}. ${role === 'captain' ? 'You can propose, accept and reject trades.' : 'You can propose trades and chat; a captain accepts them.'}`) + `<div class="wrap">${tradeMsg(req)}
+    ${them ? `<form method="post" action="/trade/new" class="card form tr-new">
+      <div class="card-h"><h2>Propose a trade to ${logo(them, 22)} ${esc(them.name)}</h2></div>
+      <div class="tr-cols">
+        <div><h3 class="muted sm">${esc(me.name)} send</h3><div class="tr-roster">${roster(me, 'out')}</div></div>
+        <div><h3 class="muted sm">${esc(them.name)} send</h3><div class="tr-roster">${roster(them, 'in')}</div></div>
+      </div>
+      <label class="wide">Message (optional)<input name="note" maxlength="200" placeholder="e.g. you get my best receiver, I need a defender"></label>
+      <div class="actions"><button class="btn">Send trade offer</button></div>
+    </form>` : '<div class="card"><p class="muted">There is no other team to trade with yet.</p></div>'}
+    ${decide.length ? `<h2 class="sec">Needs your decision</h2>${decide.map((t) => tradeCard(db, name, t)).join('')}` : ''}
+    ${open.length ? `<h2 class="sec">Open offers</h2>${open.map((t) => tradeCard(db, name, t)).join('')}` : ''}
+    ${past.length ? `<h2 class="sec">History</h2>${past.map((t) => tradeCard(db, name, t)).join('')}` : ''}
+    ${!mine.length ? '<p class="muted">No trades yet. Propose one above.</p>' : ''}
+  </div>`));
+});
+app.post('/trade/new', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  const st = name && staffTeam(db, name);
+  if (!st) return res.redirect('/trade');
+  const me = st.team, them = otherTeamOf(db, me.id);
+  if (!them) return res.redirect('/trade?err=' + encodeURIComponent('No other team to trade with.'));
+  const arr = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const out = arr(req.body.out).filter((id) => me.roster.some((p) => p.id === id));
+  const inc = arr(req.body.in).filter((id) => them.roster.some((p) => p.id === id));
+  if (!out.length && !inc.length) return res.redirect('/trade?err=' + encodeURIComponent('Pick at least one player.'));
+  if (openTrades(db, me.id).filter((t) => t.from === me.id).length >= 8) return res.redirect('/trade?err=' + encodeURIComponent('You have too many open offers. Cancel one first.'));
+  db.teamTrades = db.teamTrades || []; db.nextTrade = db.nextTrade || 1;
+  db.teamTrades.push({ id: db.nextTrade++, from: me.id, to: them.id, by: name, out, in: inc, note: String(req.body.note || '').slice(0, 200), status: 'open', at: new Date().toISOString(), chat: [] });
+  await save();
+  res.redirect('/trade?msg=sent');
+});
+app.post('/trade/:id/accept', (req, res) => tradeLock(async () => {
+  const db = load();
+  const name = currentUser(req);
+  const t = (db.teamTrades || []).find((x) => String(x.id) === req.params.id);
+  if (!t || t.status !== 'open' || !isCaptainOf(db.teams[t.to], name)) return res.redirect('/trade');
+  const from = db.teams[t.from], to = db.teams[t.to];
+  const gone = (team, ids) => ids.filter((id) => !team.roster.some((p) => p.id === id));
+  if (gone(from, t.out).length || gone(to, t.in).length) {
+    t.status = 'cancelled'; t.decidedBy = 'system'; t.decidedAt = new Date().toISOString();
+    (t.chat = t.chat || []).push({ by: 'system', text: 'A player in this trade is no longer on the roster, so it was cancelled.', at: new Date().toISOString() });
+    await save();
+    return res.redirect('/trade?err=' + encodeURIComponent('A player had already moved — the trade was cancelled.'));
+  }
+  const outNames = movePlayers(from, to, t.out), inNames = movePlayers(to, from, t.in);
+  db.transactions = db.transactions || []; db.nextTx = db.nextTx || 1;
+  db.transactions.push({ id: db.nextTx++, date: today(), type: 'trade', team: from.id, team2: to.id, out: outNames, in: inNames, note: `Agreed by @${t.by} and @${name}` });
+  t.status = 'accepted'; t.decidedBy = name; t.decidedAt = new Date().toISOString();
+  await save();
+  res.redirect('/trade?msg=accepted#t' + t.id);
+}));
+app.post('/trade/:id/reject', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  const t = (db.teamTrades || []).find((x) => String(x.id) === req.params.id);
+  if (t && t.status === 'open' && isCaptainOf(db.teams[t.to], name)) { t.status = 'rejected'; t.decidedBy = name; t.decidedAt = new Date().toISOString(); await save(); }
+  res.redirect('/trade?msg=rejected');
+});
+app.post('/trade/:id/cancel', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  const t = (db.teamTrades || []).find((x) => String(x.id) === req.params.id);
+  if (t && t.status === 'open' && isStaffOf(db.teams[t.from], name)) { t.status = 'cancelled'; t.decidedBy = name; t.decidedAt = new Date().toISOString(); await save(); }
+  res.redirect('/trade?msg=cancelled');
+});
+app.post('/trade/:id/chat', async (req, res) => {
+  const db = load();
+  const name = currentUser(req);
+  const t = (db.teamTrades || []).find((x) => String(x.id) === req.params.id);
+  const text = String(req.body.text || '').trim().slice(0, 400);
+  if (t && text && tradeRights(db, name, t).canChat) { (t.chat = t.chat || []).push({ by: name, text, at: new Date().toISOString() }); await save(); }
+  res.redirect('/trade#t' + req.params.id);
 });
 
 // ---------- admin: pick'em ----------
