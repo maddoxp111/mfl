@@ -2058,7 +2058,12 @@ function txLine(db, t) {
   const tm = db.teams[t.team], t2 = db.teams[t.team2];
   const names = (xs) => xs.map((n) => `<b>${esc(n)}</b>`).join(', ');
   let text = '';
-  if (t.type === 'trade') text = `${esc(tm?.name)} trade ${names(t.out || [])} to ${esc(t2?.name)}${(t.in || []).length ? ` for ${names(t.in)}` : ''}`;
+  const bits = (f, l) => [f ? playWord('first', f) : '', l ? playWord('last', l) : ''].filter(Boolean);
+  if (t.type === 'trade') {
+    const give = [...(t.out || []).map((n) => `<b>${esc(n)}</b>`), ...bits(t.firstOut, t.lastOut)];
+    const back = [...(t.in || []).map((n) => `<b>${esc(n)}</b>`), ...bits(t.firstIn, t.lastIn)];
+    text = `${esc(tm?.name)} trade ${give.join(', ') || 'nothing'} to ${esc(t2?.name)}${back.length ? ` for ${back.join(', ')}` : ''}`;
+  }
   else if (t.type === 'signing') text = `${esc(tm?.name)} sign ${names(t.in || [])}`;
   else if (t.type === 'release') text = `${esc(tm?.name)} release ${names(t.out || [])}`;
   else if (t.type === 'grant') { const parts = []; if (t.first) parts.push(playWord('first', t.first)); if (t.last) parts.push(playWord('last', t.last)); text = `${esc(tm?.name)} get ${parts.join(' and ') || 'nothing'}`; }
@@ -3906,6 +3911,13 @@ app.get('/admin/transactions', requireAdmin, (req, res) => {
     <form method="post" class="card form">
       <div class="card-h"><h2>Log a trade</h2></div><input type="hidden" name="type" value="trade">
       <div class="trade-grid">${pick(A, 'outA')}<div class="trade-x">${icon('swap')}</div>${pick(B, 'outB')}</div>
+      <div class="fgrid trade-plays">
+        <label>${esc(A.name)} first plays<input type="number" name="firstA" min="0" max="99" value="0" inputmode="numeric"></label>
+        <label>${esc(A.name)} last plays<input type="number" name="lastA" min="0" max="99" value="0" inputmode="numeric"></label>
+        <label>${esc(B.name)} first plays<input type="number" name="firstB" min="0" max="99" value="0" inputmode="numeric"></label>
+        <label>${esc(B.name)} last plays<input type="number" name="lastB" min="0" max="99" value="0" inputmode="numeric"></label>
+      </div>
+      <p class="muted sm">Left to trade — ${esc(A.name)}: ${(() => { const l = playsLeft(db, A.id); return `${Math.max(0, l.first)} first, ${Math.max(0, l.last)} last`; })()} · ${esc(B.name)}: ${(() => { const l = playsLeft(db, B.id); return `${Math.max(0, l.first)} first, ${Math.max(0, l.last)} last`; })()}</p>
       <div class="fgrid"><label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Note (optional)<input name="note" placeholder="e.g. Team reps agreed at lunch"></label></div>
       <div class="actions"><button class="btn">Make trade</button></div>
     </form>
@@ -3964,10 +3976,18 @@ app.post('/admin/transactions', requireAdmin, async (req, res) => {
   if (b.type === 'trade') {
     const [A, B] = Object.values(db.teams);
     const outA = arr(b.outA), outB = arr(b.outB);
-    if (!outA.length && !outB.length) return fail('Pick at least one player to trade.');
+    // first/last plays each side sends, never more than the team has left
+    const la = playsLeft(db, A.id), lb = playsLeft(db, B.id);
+    const fA = Math.min(intIn(b.firstA), Math.max(0, la.first)), lA = Math.min(intIn(b.lastA), Math.max(0, la.last));
+    const fB = Math.min(intIn(b.firstB), Math.max(0, lb.first)), lB = Math.min(intIn(b.lastB), Math.max(0, lb.last));
+    if (!outA.length && !outB.length && !fA && !lA && !fB && !lB) return fail('Pick at least one player or play to trade.');
     tx.team = A.id; tx.team2 = B.id;
     tx.out = move(A, B, outA); tx.in = move(B, A, outB);
-    if (!tx.out.length) { tx.team = B.id; tx.team2 = A.id; tx.out = tx.in; tx.in = []; }
+    // move the given totals between the two teams (A sends fA/lA, B sends fB/lB)
+    A.firstPlays = Math.max(0, (A.firstPlays | 0) - fA + fB); B.firstPlays = Math.max(0, (B.firstPlays | 0) - fB + fA);
+    A.lastPlays = Math.max(0, (A.lastPlays | 0) - lA + lB); B.lastPlays = Math.max(0, (B.lastPlays | 0) - lB + lA);
+    tx.firstOut = fA; tx.lastOut = lA; tx.firstIn = fB; tx.lastIn = lB;
+    if (!tx.out.length && !fA && !lA) { tx.team = B.id; tx.team2 = A.id; tx.out = tx.in; tx.in = []; tx.firstOut = fB; tx.lastOut = lB; tx.firstIn = 0; tx.lastIn = 0; }
   } else if (b.type === 'signing') {
     const t = db.teams[b.team]; const name = String(b.name || '').trim().slice(0, 60);
     if (!t || !name) return fail('Pick a team and enter a name.');

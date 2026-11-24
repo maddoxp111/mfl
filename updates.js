@@ -1115,6 +1115,14 @@ const UPDATES = [
     ],
   },
   {
+    n: 106,
+    date: '2026-11-24',
+    title: 'Trade first & last plays too',
+    items: [
+      'When the commissioner logs a trade, each team can also send first plays and last plays, not just players. They move with the trade and show up in the Transactions history.',
+    ],
+  },
+  {
     n: 105,
     date: '2026-11-23',
     title: 'Team trades with your captain',
